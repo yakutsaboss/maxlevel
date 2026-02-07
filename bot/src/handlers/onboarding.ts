@@ -325,7 +325,7 @@ async function assignInitialQuests(ctx: Context, userId: number) {
   ]);
 
   if (questResult.success) {
-    const questCount = questResult.count || 0;
+    const questCount = (questResult.data as any)?.count || 0;
 
     await ctx.reply(
       `✨ *You're All Set!*\n\n` +
