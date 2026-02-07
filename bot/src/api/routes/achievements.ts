@@ -1,6 +1,6 @@
 import { Router, Request, Response } from 'express';
-import { authenticateTelegram } from '../middleware/auth';
-import { executePythonTool } from '../../utils/pythonTools';
+import { authenticateTelegram } from '../middleware/auth.js';
+import { executePythonTool } from '../../utils/pythonTools.js';
 
 const router = Router();
 

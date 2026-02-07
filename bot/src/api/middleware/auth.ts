@@ -1,7 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import crypto from 'crypto';
-import { TelegramUser, TelegramInitData } from '../../types/telegram';
-import { getUserByTelegramId, getUserById } from '../../utils/pythonTools';
+import { TelegramUser, TelegramInitData } from '../../types/telegram.js';
+import { getUserByTelegramId, getUserById } from '../../utils/pythonTools.js';
 
 /**
  * Validates Telegram WebApp initData

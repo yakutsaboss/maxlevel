@@ -3,12 +3,12 @@ import cors from 'cors';
 import helmet from 'helmet';
 import morgan from 'morgan';
 import { config } from 'dotenv';
-import { userRouter } from './routes/users';
-import { questRouter } from './routes/quests';
-import { achievementRouter } from './routes/achievements';
-import { modeRouter } from './routes/modes';
-import { adminRouter } from './routes/admin';
-import { apiLimiter } from './middleware/rateLimiter';
+import { userRouter } from './routes/users.js';
+import { questRouter } from './routes/quests.js';
+import { achievementRouter } from './routes/achievements.js';
+import { modeRouter } from './routes/modes.js';
+import { adminRouter } from './routes/admin.js';
+import { apiLimiter } from './middleware/rateLimiter.js';
 
 // Load environment variables
 config({ path: '.env.bot' });

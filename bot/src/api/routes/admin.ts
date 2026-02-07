@@ -4,8 +4,8 @@
  */
 
 import { Router, Request, Response } from 'express';
-import { authenticateAdmin, requirePermission, requireRole } from '../middleware/adminAuth';
-import { executePythonTool, getUserById, getUserByTelegramId } from '../../utils/pythonTools';
+import { authenticateAdmin, requirePermission, requireRole } from '../middleware/adminAuth.js';
+import { executePythonTool, getUserById, getUserByTelegramId } from '../../utils/pythonTools.js';
 
 const router = Router();
 

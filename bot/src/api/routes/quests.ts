@@ -1,7 +1,7 @@
 import { Router, Request, Response } from 'express';
-import { authenticateTelegram, authorizeUser } from '../middleware/auth';
-import { mutationLimiter, readLimiter } from '../middleware/rateLimiter';
-import { executePythonTool } from '../../utils/pythonTools';
+import { authenticateTelegram, authorizeUser } from '../middleware/auth.js';
+import { mutationLimiter, readLimiter } from '../middleware/rateLimiter.js';
+import { executePythonTool } from '../../utils/pythonTools.js';
 
 const router = Router();
 
