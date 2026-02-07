@@ -92,18 +92,18 @@ cd /opt/wibecode-bot/bot
 nano .env
 ```
 
-Paste this content:
+Paste this content (replace placeholders with your actual values from `.env`):
 ```env
 # Telegram Bot
-TELEGRAM_BOT_TOKEN=8215188800:AAE6o-l03E_wE4eo5LoASjAjXgbsiFeb-Ac
+TELEGRAM_BOT_TOKEN=your_bot_token_here
 
-# Database (Supabase)
-DB_HOST=db.slgeolpkvulqytpazoea.supabase.co
+# Database
+DB_HOST=your_db_host
 DB_PORT=5432
-DB_NAME=postgres
-DB_USER=postgres
-DB_PASSWORD=Fucksupabase2026)
-DATABASE_URL=postgresql://postgres:Fucksupabase2026)@db.slgeolpkvulqytpazoea.supabase.co:5432/postgres
+DB_NAME=your_db_name
+DB_USER=your_db_user
+DB_PASSWORD=your_db_password
+DATABASE_URL=postgresql://user:password@host:5432/dbname
 
 # Environment
 NODE_ENV=production
@@ -195,7 +195,7 @@ ls node_modules  # Should list many packages
 ```bash
 # Test database connection
 apt install -y postgresql-client
-psql "postgresql://postgres:Fucksupabase2026)@db.slgeolpkvulqytpazoea.supabase.co:5432/postgres" -c "SELECT 1;"
+psql "$DATABASE_URL" -c "SELECT 1;"
 ```
 
 ### Memory Issues
@@ -272,7 +272,7 @@ Your bot will be:
 
 - **Timeweb Console**: https://timeweb.cloud
 - **Your Server**: Check with `python tools/timeweb_cloud_manager.py --list-servers`
-- **Supabase Dashboard**: https://slgeolpkvulqytpazoea.supabase.co
+- **Supabase Dashboard**: Check your Supabase project URL
 - **Bot Token**: @BotFather on Telegram
 
 ---
