@@ -1,0 +1,61 @@
+# WAT Framework Dependencies
+
+# Environment variables
+python-dotenv==1.0.0
+
+# HTTP requests
+requests==2.31.0
+
+# Data manipulation
+pandas==2.1.4
+
+# Google APIs
+google-api-python-client==2.108.0
+google-auth-httplib2==0.2.0
+google-auth-oauthlib==1.2.0
+
+# OpenAI
+openai==1.6.1
+
+# Anthropic
+anthropic==0.8.1
+
+# Web scraping
+beautifulsoup4==4.12.2
+lxml==4.9.3
+
+# Data validation
+pydantic==2.5.3
+
+# CLI tools
+click==8.1.7
+
+# Telegram RPG Quest Bot Dependencies
+
+# Database
+psycopg2-binary==2.9.9
+sqlalchemy==2.0.25
+
+# Scheduler
+APScheduler==3.10.4
+
+# API Framework (for Python API Gateway)
+fastapi==0.109.0
+uvicorn[standard]==0.27.0
+
+# JWT for WebApp authentication
+pyjwt==2.8.0
+cryptography==41.0.7
+
+# Timezone handling
+pytz==2023.3.post1
+
+# Telegram Bot API
+python-telegram-bot==20.7  # Synchronous bot framework
+aiogram>=3.24.0            # Modern async bot framework (alternative)
+
+# Testing
+pytest==7.4.4
+pytest-asyncio==0.23.3
+
+# Add additional dependencies as needed

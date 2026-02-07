@@ -1,0 +1,96 @@
+# Git
+.git
+.gitignore
+.gitattributes
+
+# Environment
+.env
+.env.*
+!.env.example
+
+# Node
+node_modules
+npm-debug.log
+yarn-error.log
+package-lock.json
+yarn.lock
+
+# Python
+__pycache__
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+env/
+ENV/
+*.egg-info/
+.pytest_cache/
+
+# IDE
+.vscode
+.idea
+*.swp
+*.swo
+*~
+
+# Logs
+logs
+*.log
+
+# Temporary files
+.tmp
+tmp
+temp
+.cache
+
+# Build output
+dist
+build
+*.tsbuildinfo
+
+# Database
+*.sqlite
+*.db
+
+# Documentation
+docs
+*.md
+!README.md
+
+# Test files
+tests
+test
+*.test.ts
+*.test.js
+*.spec.ts
+*.spec.js
+
+# CI/CD
+.github
+.gitlab-ci.yml
+.travis.yml
+
+# Docker
+Dockerfile*
+docker-compose*.yml
+.dockerignore
+
+# PM2
+ecosystem.config.js
+.pm2
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Coverage
+coverage
+.nyc_output
+
+# Credentials
+credentials.json
+token.json
+*.pem
+*.key
+*.cert

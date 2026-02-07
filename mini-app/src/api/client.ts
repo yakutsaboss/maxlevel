@@ -1,0 +1,119 @@
+import axios, { AxiosInstance } from 'axios';
+import type { ApiResponse, UserStats, Quest, Achievement, UserAchievement } from '@/types';
+
+// API Base URL - should come from environment
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
+
+class ApiClient {
+  private client: AxiosInstance;
+
+  constructor() {
+    this.client = axios.create({
+      baseURL: API_BASE_URL,
+      timeout: 10000,
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+
+    // Add request interceptor to include Telegram initData
+    this.client.interceptors.request.use(
+      (config) => {
+        // Get initData from Telegram WebApp
+        const initData = window.Telegram?.WebApp?.initData;
+        if (initData) {
+          config.headers['X-Telegram-Init-Data'] = initData;
+        }
+        return config;
+      },
+      (error) => Promise.reject(error)
+    );
+
+    // Add response interceptor for error handling
+    this.client.interceptors.response.use(
+      (response) => response,
+      (error) => {
+        console.error('API Error:', error);
+        return Promise.reject(error);
+      }
+    );
+  }
+
+  // User endpoints
+  async getUserStats(telegramId: number): Promise<ApiResponse<UserStats>> {
+    const response = await this.client.get(`/users/${telegramId}/stats`);
+    return response.data;
+  }
+
+  async createUser(userData: {
+    telegram_id: number;
+    username?: string;
+    first_name: string;
+    last_name?: string;
+  }): Promise<ApiResponse<any>> {
+    const response = await this.client.post('/users', userData);
+    return response.data;
+  }
+
+  // Quest endpoints
+  async getActiveQuests(userId: number): Promise<ApiResponse<Quest[]>> {
+    const response = await this.client.get(`/users/${userId}/quests/active`);
+    return response.data;
+  }
+
+  async getCompletedQuests(userId: number, limit = 20): Promise<ApiResponse<Quest[]>> {
+    const response = await this.client.get(`/users/${userId}/quests/completed`, {
+      params: { limit },
+    });
+    return response.data;
+  }
+
+  async completeQuest(questId: number, progress: number): Promise<ApiResponse<Quest>> {
+    const response = await this.client.post(`/quests/${questId}/complete`, {
+      progress,
+    });
+    return response.data;
+  }
+
+  async updateQuestProgress(questId: number, progress: number): Promise<ApiResponse<Quest>> {
+    const response = await this.client.patch(`/quests/${questId}/progress`, {
+      progress,
+    });
+    return response.data;
+  }
+
+  // Achievement endpoints
+  async getAchievements(): Promise<ApiResponse<Achievement[]>> {
+    const response = await this.client.get('/achievements');
+    return response.data;
+  }
+
+  async getUserAchievements(userId: number): Promise<ApiResponse<UserAchievement[]>> {
+    const response = await this.client.get(`/users/${userId}/achievements`);
+    return response.data;
+  }
+
+  // Mode endpoints
+  async addUserMode(userId: number, modeId: number): Promise<ApiResponse<any>> {
+    const response = await this.client.post(`/users/${userId}/modes`, {
+      mode_id: modeId,
+    });
+    return response.data;
+  }
+
+  async removeUserMode(userId: number, modeId: number): Promise<ApiResponse<any>> {
+    const response = await this.client.delete(`/users/${userId}/modes/${modeId}`);
+    return response.data;
+  }
+
+  // Leaderboard endpoints
+  async getLeaderboard(limit = 50): Promise<ApiResponse<any[]>> {
+    const response = await this.client.get('/leaderboard', {
+      params: { limit },
+    });
+    return response.data;
+  }
+}
+
+// Export singleton instance
+export const apiClient = new ApiClient();

@@ -1,0 +1,187 @@
+// User types
+export interface User {
+  id: number;
+  telegram_id: number;
+  username?: string;
+  first_name: string;
+  last_name?: string;
+  level: number;
+  xp: number;
+  xp_to_next_level: number;
+  total_quests_completed: number;
+  current_streak: number;
+  longest_streak: number;
+  created_at: string;
+}
+
+// Mode types
+export interface Mode {
+  id: number;
+  name: string;
+  display_name: string;
+  description: string;
+  icon: string;
+  is_active: boolean;
+}
+
+export interface UserMode {
+  user_id: number;
+  mode_id: number;
+  is_active: boolean;
+  activated_at: string;
+  mode: Mode;
+}
+
+// Quest types
+export type QuestStatus = 'active' | 'completed' | 'failed' | 'pending';
+export type QuestFrequency = 'daily' | 'weekly' | 'monthly' | 'one_time';
+export type QuestDifficulty = 'easy' | 'medium' | 'hard';
+
+export interface Quest {
+  id: number;
+  user_id: number;
+  mode_id: number;
+  title: string;
+  description: string;
+  xp_reward: number;
+  frequency: QuestFrequency;
+  difficulty: QuestDifficulty;
+  status: QuestStatus;
+  progress: number;
+  target: number;
+  due_date?: string;
+  completed_at?: string;
+  mode?: Mode;
+}
+
+// Achievement types
+export interface Achievement {
+  id: number;
+  name: string;
+  description: string;
+  icon: string;
+  xp_reward: number;
+  category: string;
+  requirement_type: string;
+  requirement_value: number;
+  is_hidden: boolean;
+}
+
+export interface UserAchievement {
+  user_id: number;
+  achievement_id: number;
+  unlocked_at: string;
+  achievement: Achievement;
+}
+
+// Stats types
+export interface UserStats {
+  user: User;
+  modes: UserMode[];
+  activeQuests: Quest[];
+  completedQuestsToday: number;
+  recentAchievements: UserAchievement[];
+  xpGainedToday: number;
+  streakData: {
+    current: number;
+    longest: number;
+    daysActive: number;
+  };
+}
+
+// API Response types
+export interface ApiResponse<T> {
+  success: boolean;
+  data?: T;
+  error?: string;
+}
+
+// Telegram WebApp types
+export interface TelegramUser {
+  id: number;
+  first_name: string;
+  last_name?: string;
+  username?: string;
+  language_code?: string;
+  is_premium?: boolean;
+  photo_url?: string;
+}
+
+export interface TelegramWebApp {
+  initData: string;
+  initDataUnsafe: {
+    query_id?: string;
+    user?: TelegramUser;
+    auth_date: number;
+    hash: string;
+  };
+  version: string;
+  platform: string;
+  colorScheme: 'light' | 'dark';
+  themeParams: {
+    bg_color?: string;
+    text_color?: string;
+    hint_color?: string;
+    link_color?: string;
+    button_color?: string;
+    button_text_color?: string;
+    secondary_bg_color?: string;
+  };
+  isExpanded: boolean;
+  viewportHeight: number;
+  viewportStableHeight: number;
+  headerColor: string;
+  backgroundColor: string;
+  BackButton: {
+    isVisible: boolean;
+    onClick: (callback: () => void) => void;
+    offClick: (callback: () => void) => void;
+    show: () => void;
+    hide: () => void;
+  };
+  MainButton: {
+    text: string;
+    color: string;
+    textColor: string;
+    isVisible: boolean;
+    isActive: boolean;
+    isProgressVisible: boolean;
+    setText: (text: string) => void;
+    onClick: (callback: () => void) => void;
+    offClick: (callback: () => void) => void;
+    show: () => void;
+    hide: () => void;
+    enable: () => void;
+    disable: () => void;
+    showProgress: (leaveActive?: boolean) => void;
+    hideProgress: () => void;
+  };
+  HapticFeedback: {
+    impactOccurred: (style: 'light' | 'medium' | 'heavy' | 'rigid' | 'soft') => void;
+    notificationOccurred: (type: 'error' | 'success' | 'warning') => void;
+    selectionChanged: () => void;
+  };
+  ready: () => void;
+  expand: () => void;
+  close: () => void;
+  enableClosingConfirmation: () => void;
+  disableClosingConfirmation: () => void;
+  showPopup: (params: {
+    title?: string;
+    message: string;
+    buttons?: Array<{ id?: string; type?: string; text: string }>;
+  }, callback?: (buttonId: string) => void) => void;
+  showAlert: (message: string, callback?: () => void) => void;
+  showConfirm: (message: string, callback?: (confirmed: boolean) => void) => void;
+  sendData: (data: string) => void;
+  openLink: (url: string) => void;
+  openTelegramLink: (url: string) => void;
+}
+
+declare global {
+  interface Window {
+    Telegram?: {
+      WebApp: TelegramWebApp;
+    };
+  }
+}

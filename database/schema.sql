@@ -1,0 +1,225 @@
+-- Telegram RPG Quest Bot Database Schema
+-- PostgreSQL 12+
+
+-- Drop existing tables (for fresh install)
+DROP TABLE IF EXISTS punishment_history CASCADE;
+DROP TABLE IF EXISTS punishment_settings CASCADE;
+DROP TABLE IF EXISTS reminders CASCADE;
+DROP TABLE IF EXISTS streaks CASCADE;
+DROP TABLE IF EXISTS user_achievements CASCADE;
+DROP TABLE IF EXISTS achievements CASCADE;
+DROP TABLE IF EXISTS check_ins CASCADE;
+DROP TABLE IF EXISTS quest_instances CASCADE;
+DROP TABLE IF EXISTS quests CASCADE;
+DROP TABLE IF EXISTS mode_configs CASCADE;
+DROP TABLE IF EXISTS user_modes CASCADE;
+DROP TABLE IF EXISTS modes CASCADE;
+DROP TABLE IF EXISTS onboarding_state CASCADE;
+DROP TABLE IF EXISTS users CASCADE;
+
+-- Users table
+CREATE TABLE users (
+    id SERIAL PRIMARY KEY,
+    telegram_id BIGINT UNIQUE NOT NULL,
+    username VARCHAR(255),
+    first_name VARCHAR(255),
+    created_at TIMESTAMP DEFAULT NOW(),
+    timezone VARCHAR(50) DEFAULT 'UTC',
+    current_level INTEGER DEFAULT 1,
+    total_xp INTEGER DEFAULT 0,
+    is_active BOOLEAN DEFAULT TRUE,
+    CONSTRAINT check_level_positive CHECK (current_level >= 1),
+    CONSTRAINT check_xp_non_negative CHECK (total_xp >= 0)
+);
+CREATE INDEX idx_users_telegram_id ON users(telegram_id);
+CREATE INDEX idx_users_active ON users(is_active) WHERE is_active = TRUE;
+
+-- Modes (fitness, hydration, finance, learning)
+CREATE TABLE modes (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(50) UNIQUE NOT NULL,
+    display_name VARCHAR(100),
+    description TEXT,
+    icon_emoji VARCHAR(10)
+);
+
+-- User-enabled modes (many-to-many)
+CREATE TABLE user_modes (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+    mode_id INTEGER REFERENCES modes(id),
+    enabled_at TIMESTAMP DEFAULT NOW(),
+    is_active BOOLEAN DEFAULT TRUE,
+    UNIQUE(user_id, mode_id)
+);
+CREATE INDEX idx_user_modes_user_id ON user_modes(user_id);
+CREATE INDEX idx_user_modes_active ON user_modes(user_id, is_active);
+
+-- Mode configurations (from quiz responses)
+CREATE TABLE mode_configs (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+    mode_id INTEGER REFERENCES modes(id),
+    quiz_responses JSONB,        -- Stores quiz Q&A
+    pain_points JSONB,            -- Pain points from questionnaire
+    personalized_plan JSONB,      -- Generated plan (rule-based)
+    created_at TIMESTAMP DEFAULT NOW(),
+    updated_at TIMESTAMP DEFAULT NOW(),
+    UNIQUE(user_id, mode_id)
+);
+CREATE INDEX idx_mode_configs_user_mode ON mode_configs(user_id, mode_id);
+
+-- Quest templates (reusable quest definitions)
+CREATE TABLE quests (
+    id SERIAL PRIMARY KEY,
+    mode_id INTEGER REFERENCES modes(id),
+    title VARCHAR(255) NOT NULL,
+    description TEXT,
+    quest_type VARCHAR(20) CHECK (quest_type IN ('daily', 'weekly')) NOT NULL,
+    xp_reward INTEGER DEFAULT 50,
+    difficulty VARCHAR(20) CHECK (difficulty IN ('easy', 'medium', 'hard')),
+    requires_timer BOOLEAN DEFAULT FALSE,
+    timer_window_start TIME,      -- e.g., 06:00:00
+    timer_window_end TIME,        -- e.g., 07:00:00
+    readiness_check_enabled BOOLEAN DEFAULT FALSE,
+    readiness_check_time TIME,    -- e.g., 05:45:00 (15 min before)
+    is_mandatory BOOLEAN DEFAULT TRUE,
+    created_at TIMESTAMP DEFAULT NOW()
+);
+CREATE INDEX idx_quests_mode ON quests(mode_id);
+CREATE INDEX idx_quests_type ON quests(quest_type);
+
+-- Quest instances (user-specific quest occurrences)
+CREATE TABLE quest_instances (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+    quest_id INTEGER REFERENCES quests(id),
+    instance_date DATE NOT NULL,
+    status VARCHAR(20) DEFAULT 'pending' CHECK (status IN ('pending', 'ready', 'in_progress', 'completed', 'failed', 'skipped')),
+    readiness_confirmed BOOLEAN DEFAULT FALSE,
+    readiness_confirmed_at TIMESTAMP,
+    started_at TIMESTAMP,
+    completed_at TIMESTAMP,
+    check_in_count INTEGER DEFAULT 0,
+    xp_awarded INTEGER DEFAULT 0,
+    notes TEXT,
+    UNIQUE(user_id, quest_id, instance_date)
+);
+CREATE INDEX idx_quest_instances_user_date ON quest_instances(user_id, instance_date);
+CREATE INDEX idx_quest_instances_status ON quest_instances(status);
+CREATE INDEX idx_quest_instances_date ON quest_instances(instance_date);
+
+-- Check-ins (for timer-based quests)
+CREATE TABLE check_ins (
+    id SERIAL PRIMARY KEY,
+    quest_instance_id INTEGER REFERENCES quest_instances(id) ON DELETE CASCADE,
+    check_in_time TIMESTAMP DEFAULT NOW(),
+    is_valid BOOLEAN DEFAULT TRUE,  -- Within timer window?
+    location_lat DECIMAL(10, 8),    -- Optional GPS
+    location_lon DECIMAL(11, 8),
+    notes TEXT
+);
+CREATE INDEX idx_check_ins_quest_instance ON check_ins(quest_instance_id);
+
+-- Achievements
+CREATE TABLE achievements (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(255) UNIQUE NOT NULL,
+    description TEXT,
+    badge_icon VARCHAR(50),         -- Emoji or icon name
+    criteria JSONB,                 -- {"type": "streak", "days": 7}
+    xp_bonus INTEGER DEFAULT 0,
+    rarity VARCHAR(20) CHECK (rarity IN ('common', 'rare', 'epic', 'legendary'))
+);
+
+-- User achievements
+CREATE TABLE user_achievements (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+    achievement_id INTEGER REFERENCES achievements(id),
+    unlocked_at TIMESTAMP DEFAULT NOW(),
+    UNIQUE(user_id, achievement_id)
+);
+CREATE INDEX idx_user_achievements_user ON user_achievements(user_id);
+
+-- Streaks (per mode)
+CREATE TABLE streaks (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+    mode_id INTEGER REFERENCES modes(id),
+    current_streak INTEGER DEFAULT 0,
+    longest_streak INTEGER DEFAULT 0,
+    last_activity_date DATE,
+    UNIQUE(user_id, mode_id)
+);
+CREATE INDEX idx_streaks_user_mode ON streaks(user_id, mode_id);
+
+-- Reminders (scheduled notifications)
+CREATE TABLE reminders (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+    quest_id INTEGER REFERENCES quests(id),
+    reminder_type VARCHAR(50) CHECK (reminder_type IN ('readiness_check', 'quest_start', 'quest_end', 'daily_summary')),
+    scheduled_time TIME NOT NULL,  -- In UTC
+    timezone VARCHAR(50),
+    is_active BOOLEAN DEFAULT TRUE,
+    last_sent TIMESTAMP,
+    message_template TEXT
+);
+CREATE INDEX idx_reminders_user_active ON reminders(user_id, is_active);
+CREATE INDEX idx_reminders_scheduled ON reminders(scheduled_time) WHERE is_active = TRUE;
+
+-- Punishment settings (per user)
+CREATE TABLE punishment_settings (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER REFERENCES users(id) ON DELETE CASCADE UNIQUE,
+    consent_given BOOLEAN DEFAULT FALSE,
+    consent_timestamp TIMESTAMP,
+    intensity_level VARCHAR(20) DEFAULT 'medium' CHECK (intensity_level IN ('low', 'medium', 'high', 'extreme')),
+    safe_mode BOOLEAN DEFAULT TRUE,
+    max_xp_penalty INTEGER DEFAULT 200,     -- Cap on XP loss per day
+    max_streak_reset INTEGER DEFAULT 7,     -- Max days of streak that can be reset
+    custom_punishments JSONB,               -- User-defined punishments
+    created_at TIMESTAMP DEFAULT NOW(),
+    updated_at TIMESTAMP DEFAULT NOW()
+);
+
+-- Punishment history (audit log)
+CREATE TABLE punishment_history (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+    quest_instance_id INTEGER REFERENCES quest_instances(id),
+    punishment_type VARCHAR(50),            -- 'xp_penalty', 'streak_reset', 'badge_revoke', 'custom'
+    severity VARCHAR(20),
+    xp_deducted INTEGER DEFAULT 0,
+    streak_days_lost INTEGER DEFAULT 0,
+    message_sent TEXT,
+    applied_at TIMESTAMP DEFAULT NOW()
+);
+CREATE INDEX idx_punishment_history_user ON punishment_history(user_id);
+CREATE INDEX idx_punishment_history_applied ON punishment_history(applied_at);
+
+-- Onboarding state (to resume interrupted flows)
+CREATE TABLE onboarding_state (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER REFERENCES users(id) ON DELETE CASCADE UNIQUE,
+    current_step VARCHAR(50),               -- 'mode_selection', 'fitness_quiz', 'pain_points', etc.
+    quiz_data JSONB,                        -- Stores partial quiz responses
+    last_updated TIMESTAMP DEFAULT NOW()
+);
+
+-- Comments
+COMMENT ON TABLE users IS 'Core user accounts linked to Telegram';
+COMMENT ON TABLE modes IS 'Available mode categories (fitness, hydration, finance, learning)';
+COMMENT ON TABLE user_modes IS 'User-enabled modes (many-to-many relationship)';
+COMMENT ON TABLE mode_configs IS 'Personalized configurations per mode from quiz responses';
+COMMENT ON TABLE quests IS 'Reusable quest templates';
+COMMENT ON TABLE quest_instances IS 'User-specific quest occurrences per day/week';
+COMMENT ON TABLE check_ins IS 'Check-in records for timer-based quests';
+COMMENT ON TABLE achievements IS 'Achievement definitions';
+COMMENT ON TABLE user_achievements IS 'Unlocked achievements per user';
+COMMENT ON TABLE streaks IS 'Streak tracking per mode per user';
+COMMENT ON TABLE reminders IS 'Scheduled reminders for quests';
+COMMENT ON TABLE punishment_settings IS 'User consent and punishment preferences';
+COMMENT ON TABLE punishment_history IS 'Audit log of applied punishments';
+COMMENT ON TABLE onboarding_state IS 'State for resuming interrupted onboarding';
