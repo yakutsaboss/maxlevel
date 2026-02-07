@@ -23,14 +23,9 @@ export const apiLimiter = rateLimit({
   skip: (req) => {
     return process.env.NODE_ENV === 'development' && process.env.SKIP_RATE_LIMIT === 'true';
   },
-  // Custom key generator (use IP address)
-  keyGenerator: (req) => {
-    return req.ip || req.socket.remoteAddress || 'unknown';
-  },
   // Log when rate limit is hit
   handler: (req, res) => {
-    const ip = req.ip || req.socket.remoteAddress;
-    console.warn(`[RATE LIMIT] IP ${ip} exceeded rate limit on ${req.path}`);
+    console.warn(`[RATE LIMIT] IP ${req.ip} exceeded rate limit on ${req.path}`);
 
     res.status(429).json({
       error: 'Too Many Requests',
@@ -58,12 +53,8 @@ export const authLimiter = rateLimit({
   skip: (req) => {
     return process.env.NODE_ENV === 'development' && process.env.SKIP_RATE_LIMIT === 'true';
   },
-  keyGenerator: (req) => {
-    return req.ip || req.socket.remoteAddress || 'unknown';
-  },
   handler: (req, res) => {
-    const ip = req.ip || req.socket.remoteAddress;
-    console.error(`[RATE LIMIT - AUTH] IP ${ip} exceeded auth rate limit`);
+    console.error(`[RATE LIMIT - AUTH] IP ${req.ip} exceeded auth rate limit`);
 
     res.status(429).json({
       error: 'Too Many Requests',
@@ -94,19 +85,8 @@ export const mutationLimiter = rateLimit({
     }
     return process.env.NODE_ENV === 'development' && process.env.SKIP_RATE_LIMIT === 'true';
   },
-  keyGenerator: (req) => {
-    // Use combination of IP and user ID if available
-    const ip = req.ip || req.socket.remoteAddress || 'unknown';
-    const telegramUser = (req as any).telegramUser;
-    return telegramUser ? `${ip}-${telegramUser.id}` : ip;
-  },
   handler: (req, res) => {
-    const ip = req.ip || req.socket.remoteAddress;
-    const telegramUser = (req as any).telegramUser;
-    console.warn(
-      `[RATE LIMIT - MUTATION] ${req.method} ${req.path} - IP: ${ip}` +
-      (telegramUser ? `, User: ${telegramUser.id}` : '')
-    );
+    console.warn(`[RATE LIMIT - MUTATION] ${req.method} ${req.path} - IP: ${req.ip}`);
 
     res.status(429).json({
       error: 'Too Many Requests',
@@ -137,14 +117,8 @@ export const readLimiter = rateLimit({
     }
     return process.env.NODE_ENV === 'development' && process.env.SKIP_RATE_LIMIT === 'true';
   },
-  keyGenerator: (req) => {
-    const ip = req.ip || req.socket.remoteAddress || 'unknown';
-    const telegramUser = (req as any).telegramUser;
-    return telegramUser ? `${ip}-${telegramUser.id}` : ip;
-  },
   handler: (req, res) => {
-    const ip = req.ip || req.socket.remoteAddress;
-    console.warn(`[RATE LIMIT - READ] GET ${req.path} - IP: ${ip}`);
+    console.warn(`[RATE LIMIT - READ] GET ${req.path} - IP: ${req.ip}`);
 
     res.status(429).json({
       error: 'Too Many Requests',
