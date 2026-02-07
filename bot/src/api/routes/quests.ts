@@ -13,7 +13,7 @@ router.get('/users/:userId/active', authenticateTelegram, authorizeUser, readLim
   try {
     const { userId } = req.params;
 
-    const result = await executePythonTool('db_operations.py', [
+    const result = await executePythonTool('db_operations', [
       '--query',
       `SELECT
         uq.id,
@@ -67,7 +67,7 @@ router.get('/users/:userId/completed', authenticateTelegram, authorizeUser, read
     const { userId } = req.params;
     const limit = req.query.limit ? parseInt(req.query.limit as string) : 50;
 
-    const result = await executePythonTool('db_operations.py', [
+    const result = await executePythonTool('db_operations', [
       '--query',
       `SELECT
         uq.id,
@@ -121,7 +121,7 @@ router.get('/:questId', authenticateTelegram, readLimiter, async (req: Request, 
   try {
     const { questId } = req.params;
 
-    const result = await executePythonTool('db_operations.py', [
+    const result = await executePythonTool('db_operations', [
       '--query',
       `SELECT
         uq.id,
@@ -176,7 +176,7 @@ router.post('/:questId/complete', authenticateTelegram, mutationLimiter, async (
     const { progress } = req.body;
 
     // Get quest details first
-    const questResult = await executePythonTool('db_operations.py', [
+    const questResult = await executePythonTool('db_operations', [
       '--query',
       `SELECT uq.*, qt.xp_reward
        FROM user_quests uq
@@ -201,7 +201,7 @@ router.post('/:questId/complete', authenticateTelegram, mutationLimiter, async (
     }
 
     // Mark quest as completed
-    const completeResult = await executePythonTool('db_operations.py', [
+    const completeResult = await executePythonTool('db_operations', [
       '--query',
       `UPDATE user_quests
        SET status = 'completed',
@@ -218,7 +218,7 @@ router.post('/:questId/complete', authenticateTelegram, mutationLimiter, async (
     }
 
     // Award XP to user
-    const xpResult = await executePythonTool('user_manager.py', [
+    const xpResult = await executePythonTool('user_manager', [
       '--add-xp',
       '--user-id', quest.user_id.toString(),
       '--xp', quest.xp_reward.toString()
@@ -255,7 +255,7 @@ router.patch('/:questId/progress', authenticateTelegram, mutationLimiter, async 
       });
     }
 
-    const result = await executePythonTool('db_operations.py', [
+    const result = await executePythonTool('db_operations', [
       '--query',
       `UPDATE user_quests
        SET progress = ${progress},
@@ -300,7 +300,7 @@ router.post('/users/:userId/assign', authenticateTelegram, authorizeUser, mutati
     }
 
     // Get user's active modes
-    const modesResult = await executePythonTool('mode_manager.py', [
+    const modesResult = await executePythonTool('mode_manager', [
       '--get-active-modes',
       '--user-id', userId
     ]);
@@ -315,7 +315,7 @@ router.post('/users/:userId/assign', authenticateTelegram, authorizeUser, mutati
     const modeIds = modesResult.data.map((mode: any) => mode.id).join(',');
 
     // Get quest templates for these modes
-    const templatesResult = await executePythonTool('db_operations.py', [
+    const templatesResult = await executePythonTool('db_operations', [
       '--query',
       `SELECT * FROM quest_templates
        WHERE mode_id IN (${modeIds})
@@ -339,7 +339,7 @@ router.post('/users/:userId/assign', authenticateTelegram, authorizeUser, mutati
       : 'CURRENT_DATE + INTERVAL \'7 days\'';
 
     for (const template of templatesResult.data) {
-      const assignResult = await executePythonTool('db_operations.py', [
+      const assignResult = await executePythonTool('db_operations', [
         '--query',
         `INSERT INTO user_quests
          (user_id, quest_template_id, status, progress, target_value, assigned_date, due_date)

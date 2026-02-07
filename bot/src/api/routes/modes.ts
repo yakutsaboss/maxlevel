@@ -10,7 +10,7 @@ const router = Router();
  */
 router.get('/', authenticateTelegram, async (req: Request, res: Response) => {
   try {
-    const result = await executePythonTool('mode_manager.py', [
+    const result = await executePythonTool('mode_manager', [
       '--list-modes'
     ]);
 
@@ -42,7 +42,7 @@ router.get('/users/:userId', authenticateTelegram, async (req: Request, res: Res
   try {
     const { userId } = req.params;
 
-    const result = await executePythonTool('mode_manager.py', [
+    const result = await executePythonTool('mode_manager', [
       '--get-active-modes',
       '--user-id', userId
     ]);
@@ -75,7 +75,7 @@ router.get('/users/:userId/summary', authenticateTelegram, async (req: Request, 
   try {
     const { userId } = req.params;
 
-    const result = await executePythonTool('mode_manager.py', [
+    const result = await executePythonTool('mode_manager', [
       '--get-mode-summary',
       '--user-id', userId
     ]);
@@ -118,7 +118,7 @@ router.post('/users/:userId', authenticateTelegram, async (req: Request, res: Re
     // Convert to comma-separated string
     const modesString = modes.join(',');
 
-    const result = await executePythonTool('mode_manager.py', [
+    const result = await executePythonTool('mode_manager', [
       '--add-modes',
       '--user-id', userId,
       '--modes', modesString
@@ -152,7 +152,7 @@ router.delete('/users/:userId/:modeId', authenticateTelegram, async (req: Reques
   try {
     const { userId, modeId } = req.params;
 
-    const result = await executePythonTool('mode_manager.py', [
+    const result = await executePythonTool('mode_manager', [
       '--remove-mode',
       '--user-id', userId,
       '--mode-id', modeId
@@ -194,7 +194,7 @@ router.patch('/users/:userId/:modeId', authenticateTelegram, async (req: Request
     }
 
     // Update user_modes settings
-    const result = await executePythonTool('db_operations.py', [
+    const result = await executePythonTool('db_operations', [
       '--query',
       `UPDATE user_modes
        SET settings = '${JSON.stringify(settings)}'::jsonb,
@@ -231,7 +231,7 @@ router.get('/:modeId/quests', authenticateTelegram, async (req: Request, res: Re
   try {
     const { modeId } = req.params;
 
-    const result = await executePythonTool('db_operations.py', [
+    const result = await executePythonTool('db_operations', [
       '--query',
       `SELECT
         id,

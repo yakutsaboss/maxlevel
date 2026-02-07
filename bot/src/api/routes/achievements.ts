@@ -10,7 +10,7 @@ const router = Router();
  */
 router.get('/', authenticateTelegram, async (req: Request, res: Response) => {
   try {
-    const result = await executePythonTool('db_operations.py', [
+    const result = await executePythonTool('db_operations', [
       '--query',
       `SELECT
         id,
@@ -56,7 +56,7 @@ router.get('/users/:userId', authenticateTelegram, async (req: Request, res: Res
   try {
     const { userId } = req.params;
 
-    const result = await executePythonTool('db_operations.py', [
+    const result = await executePythonTool('db_operations', [
       '--query',
       `SELECT
         ua.id,
@@ -83,7 +83,7 @@ router.get('/users/:userId', authenticateTelegram, async (req: Request, res: Res
     }
 
     // Get total achievement count
-    const totalResult = await executePythonTool('db_operations.py', [
+    const totalResult = await executePythonTool('db_operations', [
       '--query',
       `SELECT COUNT(*) as total FROM achievements WHERE is_active = true`
     ]);
@@ -114,7 +114,7 @@ router.get('/users/:userId/available', authenticateTelegram, async (req: Request
   try {
     const { userId } = req.params;
 
-    const result = await executePythonTool('db_operations.py', [
+    const result = await executePythonTool('db_operations', [
       '--query',
       `SELECT
         a.id,
@@ -165,7 +165,7 @@ router.post('/users/:userId/:achievementId/unlock', authenticateTelegram, async 
     const { userId, achievementId } = req.params;
 
     // Check if already unlocked
-    const checkResult = await executePythonTool('db_operations.py', [
+    const checkResult = await executePythonTool('db_operations', [
       '--query',
       `SELECT id FROM user_achievements
        WHERE user_id = ${userId} AND achievement_id = ${achievementId}`
@@ -179,7 +179,7 @@ router.post('/users/:userId/:achievementId/unlock', authenticateTelegram, async 
     }
 
     // Get achievement details
-    const achievementResult = await executePythonTool('db_operations.py', [
+    const achievementResult = await executePythonTool('db_operations', [
       '--query',
       `SELECT * FROM achievements WHERE id = ${achievementId} AND is_active = true`
     ]);
@@ -194,7 +194,7 @@ router.post('/users/:userId/:achievementId/unlock', authenticateTelegram, async 
     const achievement = achievementResult.data[0];
 
     // Unlock achievement
-    const unlockResult = await executePythonTool('db_operations.py', [
+    const unlockResult = await executePythonTool('db_operations', [
       '--query',
       `INSERT INTO user_achievements (user_id, achievement_id, unlocked_at, progress)
        VALUES (${userId}, ${achievementId}, NOW(), 100)
@@ -209,7 +209,7 @@ router.post('/users/:userId/:achievementId/unlock', authenticateTelegram, async 
     }
 
     // Award XP
-    const xpResult = await executePythonTool('user_manager.py', [
+    const xpResult = await executePythonTool('user_manager', [
       '--add-xp',
       '--user-id', userId,
       '--xp', achievement.xp_reward.toString()
@@ -243,7 +243,7 @@ router.get('/users/:userId/recent', authenticateTelegram, async (req: Request, r
     const { userId } = req.params;
     const limit = req.query.limit ? parseInt(req.query.limit as string) : 5;
 
-    const result = await executePythonTool('db_operations.py', [
+    const result = await executePythonTool('db_operations', [
       '--query',
       `SELECT
         ua.id,
@@ -290,7 +290,7 @@ router.post('/users/:userId/check', authenticateTelegram, async (req: Request, r
     const { userId } = req.params;
 
     // Get user stats
-    const statsResult = await executePythonTool('user_manager.py', [
+    const statsResult = await executePythonTool('user_manager', [
       '--get-stats',
       '--user-id', userId
     ]);
@@ -306,7 +306,7 @@ router.post('/users/:userId/check', authenticateTelegram, async (req: Request, r
     const newAchievements = [];
 
     // Get available achievements
-    const achievementsResult = await executePythonTool('db_operations.py', [
+    const achievementsResult = await executePythonTool('db_operations', [
       '--query',
       `SELECT a.*
        FROM achievements a
@@ -350,7 +350,7 @@ router.post('/users/:userId/check', authenticateTelegram, async (req: Request, r
 
       if (qualifies) {
         // Auto-unlock the achievement
-        const unlockResult = await executePythonTool('db_operations.py', [
+        const unlockResult = await executePythonTool('db_operations', [
           '--query',
           `INSERT INTO user_achievements (user_id, achievement_id, unlocked_at, progress)
            VALUES (${userId}, ${achievement.id}, NOW(), 100)
@@ -362,7 +362,7 @@ router.post('/users/:userId/check', authenticateTelegram, async (req: Request, r
           newAchievements.push(achievement);
 
           // Award XP
-          await executePythonTool('user_manager.py', [
+          await executePythonTool('user_manager', [
             '--add-xp',
             '--user-id', userId,
             '--xp', achievement.xp_reward.toString()

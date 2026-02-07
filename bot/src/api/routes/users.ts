@@ -13,7 +13,7 @@ router.get('/:telegramId/stats', authenticateTelegram, async (req: Request, res:
     const { telegramId } = req.params;
 
     // Call Python tool to get user stats
-    const result = await executePythonTool('user_manager.py', [
+    const result = await executePythonTool('user_manager', [
       '--get-user',
       '--telegram-id', telegramId
     ]);
@@ -26,7 +26,7 @@ router.get('/:telegramId/stats', authenticateTelegram, async (req: Request, res:
     }
 
     // Get user stats
-    const statsResult = await executePythonTool('user_manager.py', [
+    const statsResult = await executePythonTool('user_manager', [
       '--get-stats',
       '--user-id', result.data.id.toString()
     ]);
@@ -60,7 +60,7 @@ router.get('/:userId/profile', authenticateTelegram, async (req: Request, res: R
     const { userId } = req.params;
 
     // Get user info
-    const userResult = await executePythonTool('user_manager.py', [
+    const userResult = await executePythonTool('user_manager', [
       '--get-user',
       '--user-id', userId
     ]);
@@ -73,19 +73,19 @@ router.get('/:userId/profile', authenticateTelegram, async (req: Request, res: R
     }
 
     // Get user stats
-    const statsResult = await executePythonTool('user_manager.py', [
+    const statsResult = await executePythonTool('user_manager', [
       '--get-stats',
       '--user-id', userId
     ]);
 
     // Get active modes
-    const modesResult = await executePythonTool('mode_manager.py', [
+    const modesResult = await executePythonTool('mode_manager', [
       '--get-active-modes',
       '--user-id', userId
     ]);
 
     // Get achievements count
-    const achievementsResult = await executePythonTool('db_operations.py', [
+    const achievementsResult = await executePythonTool('db_operations', [
       '--query',
       `SELECT COUNT(*) as count FROM user_achievements WHERE user_id = ${userId}`
     ]);
@@ -135,7 +135,7 @@ router.post('/', async (req: Request, res: Response) => {
       args.push('--username', username);
     }
 
-    const result = await executePythonTool('user_manager.py', args);
+    const result = await executePythonTool('user_manager', args);
 
     if (!result.success) {
       return res.status(500).json({
@@ -173,7 +173,7 @@ router.patch('/:userId/xp', authenticateTelegram, async (req: Request, res: Resp
       });
     }
 
-    const result = await executePythonTool('user_manager.py', [
+    const result = await executePythonTool('user_manager', [
       '--add-xp',
       '--user-id', userId,
       '--xp', amount.toString()
@@ -209,7 +209,7 @@ router.patch('/:userId/streak', authenticateTelegram, async (req: Request, res: 
   try {
     const { userId } = req.params;
 
-    const result = await executePythonTool('user_manager.py', [
+    const result = await executePythonTool('user_manager', [
       '--update-streak',
       '--user-id', userId
     ]);

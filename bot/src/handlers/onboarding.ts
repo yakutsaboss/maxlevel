@@ -42,7 +42,7 @@ export async function showModeSelection(ctx: Context) {
   if (!userId) return;
 
   // Get available modes from database
-  const modesResult = await executePythonTool('mode_manager.py', ['--list-modes']);
+  const modesResult = await executePythonTool('mode_manager', ['--list-modes']);
 
   if (!modesResult.success) {
     await ctx.reply('❌ Error loading modes. Please try again later.');
@@ -113,7 +113,7 @@ export async function handleModeSelection(ctx: Context) {
   const modeId = callbackData.replace('mode_select_', '');
 
   // Get current user's modes
-  const userResult = await executePythonTool('user_manager.py', [
+  const userResult = await executePythonTool('user_manager', [
     '--get-user',
     '--telegram-id',
     userId.toString(),
@@ -127,7 +127,7 @@ export async function handleModeSelection(ctx: Context) {
   const internalUserId = userResult.data.id;
 
   // Get currently selected modes
-  const modesResult = await executePythonTool('mode_manager.py', [
+  const modesResult = await executePythonTool('mode_manager', [
     '--get-active-modes',
     '--user-id',
     internalUserId.toString(),
@@ -138,7 +138,7 @@ export async function handleModeSelection(ctx: Context) {
 
   if (isSelected) {
     // Remove mode
-    await executePythonTool('mode_manager.py', [
+    await executePythonTool('mode_manager', [
       '--remove-mode',
       '--user-id',
       internalUserId.toString(),
@@ -149,7 +149,7 @@ export async function handleModeSelection(ctx: Context) {
     await ctx.answerCallbackQuery({ text: '➖ Mode removed!' });
   } else {
     // Add mode
-    await executePythonTool('mode_manager.py', [
+    await executePythonTool('mode_manager', [
       '--add-modes',
       '--user-id',
       internalUserId.toString(),
@@ -169,11 +169,11 @@ export async function handleModeSelection(ctx: Context) {
  */
 async function updateModeSelectionMessage(ctx: Context, userId: number) {
   // Get available modes
-  const modesResult = await executePythonTool('mode_manager.py', ['--list-modes']);
+  const modesResult = await executePythonTool('mode_manager', ['--list-modes']);
   const allModes = modesResult.success ? modesResult.data : [];
 
   // Get user's selected modes
-  const selectedResult = await executePythonTool('mode_manager.py', [
+  const selectedResult = await executePythonTool('mode_manager', [
     '--get-active-modes',
     '--user-id',
     userId.toString(),
@@ -233,7 +233,7 @@ async function updateModeSelectionMessage(ctx: Context, userId: number) {
  * Show detailed mode information
  */
 async function showModeInfo(ctx: Context) {
-  const modesResult = await executePythonTool('mode_manager.py', ['--list-modes']);
+  const modesResult = await executePythonTool('mode_manager', ['--list-modes']);
   const modes = modesResult.success ? modesResult.data : [];
 
   let message = `ℹ️ *Mode Information*\n\n`;
@@ -260,7 +260,7 @@ async function completeModeSelection(ctx: Context) {
   if (!userId) return;
 
   // Get user's internal ID
-  const userResult = await executePythonTool('user_manager.py', [
+  const userResult = await executePythonTool('user_manager', [
     '--get-user',
     '--telegram-id',
     userId.toString(),
@@ -274,7 +274,7 @@ async function completeModeSelection(ctx: Context) {
   const internalUserId = userResult.data.id;
 
   // Check if user selected at least one mode
-  const modesResult = await executePythonTool('mode_manager.py', [
+  const modesResult = await executePythonTool('mode_manager', [
     '--get-active-modes',
     '--user-id',
     internalUserId.toString(),
@@ -316,7 +316,7 @@ async function assignInitialQuests(ctx: Context, userId: number) {
   );
 
   // Assign daily quests
-  const questResult = await executePythonTool('quest_manager.py', [
+  const questResult = await executePythonTool('quest_manager', [
     '--assign-daily',
     '--user-id',
     userId.toString(),
@@ -395,7 +395,7 @@ async function showQuickQuests(ctx: Context) {
 
   if (!userId) return;
 
-  const userResult = await executePythonTool('user_manager.py', [
+  const userResult = await executePythonTool('user_manager', [
     '--get-user',
     '--telegram-id',
     userId.toString(),
@@ -408,7 +408,7 @@ async function showQuickQuests(ctx: Context) {
 
   const internalUserId = userResult.data.id;
 
-  const questsResult = await executePythonTool('quest_manager.py', [
+  const questsResult = await executePythonTool('quest_manager', [
     '--get-active',
     '--user-id',
     internalUserId.toString(),
@@ -452,7 +452,7 @@ async function showQuickProfile(ctx: Context) {
 
   if (!userId) return;
 
-  const userResult = await executePythonTool('user_manager.py', [
+  const userResult = await executePythonTool('user_manager', [
     '--get-user',
     '--telegram-id',
     userId.toString(),
@@ -465,7 +465,7 @@ async function showQuickProfile(ctx: Context) {
 
   const user = userResult.data;
 
-  const statsResult = await executePythonTool('user_manager.py', [
+  const statsResult = await executePythonTool('user_manager', [
     '--get-stats',
     '--user-id',
     user.id.toString(),
@@ -507,7 +507,7 @@ export async function handleModesCommand(ctx: Context) {
 
   if (!userId) return;
 
-  const userResult = await executePythonTool('user_manager.py', [
+  const userResult = await executePythonTool('user_manager', [
     '--get-user',
     '--telegram-id',
     userId.toString(),
@@ -520,7 +520,7 @@ export async function handleModesCommand(ctx: Context) {
 
   const internalUserId = userResult.data.id;
 
-  const modesResult = await executePythonTool('mode_manager.py', [
+  const modesResult = await executePythonTool('mode_manager', [
     '--get-active-modes',
     '--user-id',
     internalUserId.toString(),
@@ -565,7 +565,7 @@ export async function handleModeSummary(ctx: Context) {
 
   await ctx.answerCallbackQuery();
 
-  const userResult = await executePythonTool('user_manager.py', [
+  const userResult = await executePythonTool('user_manager', [
     '--get-user',
     '--telegram-id',
     userId.toString(),
@@ -578,7 +578,7 @@ export async function handleModeSummary(ctx: Context) {
 
   const internalUserId = userResult.data.id;
 
-  const summaryResult = await executePythonTool('mode_manager.py', [
+  const summaryResult = await executePythonTool('mode_manager', [
     '--get-mode-summary',
     '--user-id',
     internalUserId.toString(),
