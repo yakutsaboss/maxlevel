@@ -173,8 +173,44 @@ export async function getModeSummary(userId: number) {
 }
 
 /**
+ * Streak Manager Functions
+ */
+export async function checkAllStreaks() {
+  return executePythonTool('streak_manager', ['--check-all-streaks']);
+}
+
+export async function updateStreak(userId: number, modeId: number) {
+  return executePythonTool('streak_manager', [
+    '--update-streak',
+    '--user-id',
+    userId.toString(),
+    '--mode-id',
+    modeId.toString(),
+  ]);
+}
+
+export async function getUserStreaks(userId: number) {
+  return executePythonTool('streak_manager', [
+    '--get-streak',
+    '--user-id',
+    userId.toString(),
+  ]);
+}
+
+/**
+ * Analytics Export Functions
+ */
+export async function exportAnalyticsToSheets() {
+  return executePythonTool('sheets_analytics_export', ['--export-all']);
+}
+
+/**
  * Database Operations Functions
  */
 export async function testDatabaseConnection() {
   return executePythonTool('db_operations', ['--test-connection']);
+}
+
+export async function executeStatement(statement: string) {
+  return executePythonTool('db_operations', ['--execute', statement]);
 }

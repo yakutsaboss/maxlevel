@@ -5,9 +5,10 @@
 # Local Claude Code settings (contains machine-specific permissions/hooks)
 .claude/settings.local.json
 
-# Google OAuth credentials
+# Google OAuth & service account credentials
 credentials.json
 token.json
+service_account.json
 
 # Temporary files
 .tmp/

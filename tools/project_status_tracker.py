@@ -24,19 +24,20 @@ class ProjectStatusTracker:
             "setup": {
                 "name": "Project Setup",
                 "emoji": "🎯",
-                "weight": 10,
+                "weight": 8,
                 "tasks": [
                     {"name": "WAT framework (CLAUDE.md)", "check": lambda: self._file_exists("CLAUDE.md")},
                     {"name": "Environment config (.env)", "check": lambda: self._file_exists(".env")},
                     {"name": "Git repository", "check": lambda: self._dir_exists(".git")},
                     {"name": "Docker setup", "check": lambda: self._file_exists("docker-compose.yml")},
                     {"name": "PM2 ecosystem config", "check": lambda: self._file_exists("ecosystem.config.js")},
+                    {"name": "Centralized config module", "check": lambda: self._file_exists("bot/src/config.ts")},
                 ]
             },
             "database": {
                 "name": "Database Layer",
                 "emoji": "🗄️",
-                "weight": 15,
+                "weight": 12,
                 "tasks": [
                     {"name": "Schema (PostgreSQL)", "check": lambda: self._file_exists("database/schema.sql")},
                     {"name": "Seed data", "check": lambda: self._file_exists("database/seed_data.sql")},
@@ -45,31 +46,60 @@ class ProjectStatusTracker:
                     {"name": "Quest manager tool", "check": lambda: self._file_exists("tools/quest_manager.py")},
                     {"name": "Mode manager tool", "check": lambda: self._file_exists("tools/mode_manager.py")},
                     {"name": "Achievement manager tool", "check": lambda: self._file_exists("tools/achievement_manager.py")},
+                    {"name": "Migrations framework", "check": lambda: self._dir_exists("database/migrations")},
+                    {"name": "Leaderboard materialized view", "check": lambda: self._file_exists("database/migrations/001_leaderboard_and_activity.sql")},
                 ]
             },
             "bot": {
-                "name": "Telegram Bot (Maxlevel)",
+                "name": "Telegram Bot Core",
                 "emoji": "🤖",
-                "weight": 25,
+                "weight": 20,
                 "tasks": [
                     {"name": "Bot instance (Grammy)", "check": lambda: self._file_exists("bot/src/bot.ts")},
                     {"name": "Entry point", "check": lambda: self._file_exists("bot/src/index.ts")},
                     {"name": "/start + onboarding", "check": lambda: self._file_exists("bot/src/handlers/onboarding.ts")},
                     {"name": "Mini app handler", "check": lambda: self._file_exists("bot/src/handlers/miniapp.ts")},
-                    {"name": "Auth middleware", "check": lambda: self._file_exists("bot/src/api/middleware/auth.ts")},
-                    {"name": "Users API routes", "check": lambda: self._file_exists("bot/src/api/routes/users.ts")},
-                    {"name": "Quests API routes", "check": lambda: self._file_exists("bot/src/api/routes/quests.ts")},
-                    {"name": "Achievements API routes", "check": lambda: self._file_exists("bot/src/api/routes/achievements.ts")},
-                    {"name": "Modes API routes", "check": lambda: self._file_exists("bot/src/api/routes/modes.ts")},
-                    {"name": "Admin API routes", "check": lambda: self._file_exists("bot/src/api/routes/admin.ts")},
                     {"name": "Webhook support", "check": lambda: self._file_contains("bot/src/index.ts", "webhook")},
-                    {"name": "Background jobs (streak/daily reset)", "check": lambda: self._file_contains("bot/src/index.ts", "cron") or self._file_contains("bot/src/index.ts", "schedule")},
+                    {"name": "Python tools bridge", "check": lambda: self._file_exists("bot/src/utils/pythonTools.ts")},
+                    {"name": "Notification system", "check": lambda: self._file_exists("tools/notification_bot_handler.py")},
+                ]
+            },
+            "api": {
+                "name": "REST API",
+                "emoji": "🔌",
+                "weight": 12,
+                "tasks": [
+                    {"name": "Express server + middleware", "check": lambda: self._file_exists("bot/src/api/server.ts")},
+                    {"name": "Auth middleware", "check": lambda: self._file_exists("bot/src/api/middleware/auth.ts")},
+                    {"name": "Users routes", "check": lambda: self._file_exists("bot/src/api/routes/users.ts")},
+                    {"name": "Quests routes", "check": lambda: self._file_exists("bot/src/api/routes/quests.ts")},
+                    {"name": "Achievements routes", "check": lambda: self._file_exists("bot/src/api/routes/achievements.ts")},
+                    {"name": "Modes routes", "check": lambda: self._file_exists("bot/src/api/routes/modes.ts")},
+                    {"name": "Admin routes", "check": lambda: self._file_exists("bot/src/api/routes/admin.ts")},
+                ]
+            },
+            "jobs": {
+                "name": "Background Jobs (pg-boss)",
+                "emoji": "⚙️",
+                "weight": 10,
+                "tasks": [
+                    {"name": "Job queue manager (boss.ts)", "check": lambda: self._file_exists("bot/src/jobs/boss.ts")},
+                    {"name": "Job registration", "check": lambda: self._file_exists("bot/src/jobs/registerJobs.ts")},
+                    {"name": "Daily quest reset job", "check": lambda: self._file_exists("bot/src/jobs/definitions/dailyQuestReset.ts")},
+                    {"name": "Streak check job", "check": lambda: self._file_exists("bot/src/jobs/definitions/streakCheck.ts")},
+                    {"name": "Quest reminders job", "check": lambda: self._file_exists("bot/src/jobs/definitions/questReminders.ts")},
+                    {"name": "Leaderboard refresh job", "check": lambda: self._file_exists("bot/src/jobs/definitions/leaderboardRefresh.ts")},
+                    {"name": "DB cleanup job", "check": lambda: self._file_exists("bot/src/jobs/definitions/dbCleanup.ts")},
+                    {"name": "Analytics export job", "check": lambda: self._file_exists("bot/src/jobs/definitions/analyticsExport.ts")},
+                    {"name": "Streak manager tool", "check": lambda: self._file_exists("tools/streak_manager.py")},
+                    {"name": "Sheets analytics export tool", "check": lambda: self._file_exists("tools/sheets_analytics_export.py")},
+                    {"name": "Jobs integrated in index.ts", "check": lambda: self._file_contains("bot/src/index.ts", "startJobQueue")},
                 ]
             },
             "miniapp": {
                 "name": "Mini App Frontend",
                 "emoji": "🎨",
-                "weight": 25,
+                "weight": 15,
                 "tasks": [
                     {"name": "React + Vite setup", "check": lambda: self._file_exists("mini-app/vite.config.ts")},
                     {"name": "Tailwind CSS", "check": lambda: self._file_exists("mini-app/tailwind.config.js")},
@@ -77,13 +107,13 @@ class ProjectStatusTracker:
                     {"name": "Page components", "check": lambda: self._dir_exists("mini-app/src/pages")},
                     {"name": "API hooks", "check": lambda: self._dir_exists("mini-app/src/hooks")},
                     {"name": "Telegram WebApp SDK", "check": lambda: self._html_contains("mini-app", "telegram-web-app.js")},
-                    {"name": "Deployed & accessible", "check": lambda: self._file_exists("mini-app/dist/index.html")},
+                    {"name": "Production build", "check": lambda: self._file_exists("mini-app/dist/index.html")},
                 ]
             },
             "workflows": {
                 "name": "Workflows & SOPs",
                 "emoji": "📋",
-                "weight": 10,
+                "weight": 8,
                 "tasks": [
                     {"name": "Database operations", "check": lambda: self._file_exists("workflows/database_operations.md")},
                     {"name": "User management", "check": lambda: self._file_exists("workflows/user_management.md")},
@@ -92,6 +122,7 @@ class ProjectStatusTracker:
                     {"name": "Achievement management", "check": lambda: self._file_exists("workflows/achievement_management.md")},
                     {"name": "Onboarding flow", "check": lambda: self._file_exists("workflows/onboarding_flow.md")},
                     {"name": "API reference", "check": lambda: self._file_exists("workflows/api_endpoints_reference.md")},
+                    {"name": "Mini app auth", "check": lambda: self._file_exists("workflows/telegram_miniapp_authentication.md")},
                 ]
             },
             "deployment": {
@@ -102,8 +133,8 @@ class ProjectStatusTracker:
                     {"name": "Dockerfile", "check": lambda: self._file_exists("Dockerfile")},
                     {"name": "docker-compose.yml", "check": lambda: self._file_exists("docker-compose.yml")},
                     {"name": "Deployment docs", "check": lambda: self._file_exists("docs/TIMEWEB_DEPLOYMENT.md")},
-                    {"name": "Server running on VDS", "check": lambda: False},  # Manual check
-                    {"name": "CI/CD pipeline", "check": lambda: self._dir_exists(".github/workflows")},
+                    {"name": "CI/CD pipeline (GitHub Actions)", "check": lambda: self._file_exists(".github/workflows/deploy.yml")},
+                    {"name": "Server provisioned (Timeweb VDS)", "check": lambda: self._file_contains(".github/workflows/deploy.yml", "SSH_HOST")},
                     {"name": "SSL/HTTPS configured", "check": lambda: False},  # Manual check
                 ]
             },

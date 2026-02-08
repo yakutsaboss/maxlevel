@@ -1,8 +1,9 @@
-import express, { Express, Request, Response, NextFunction } from 'express';
+import express, { Express, Request, Response, NextFunction, RequestHandler } from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import morgan from 'morgan';
 import path from 'path';
+import http from 'http';
 import { config } from 'dotenv';
 import { userRouter } from './routes/users.js';
 import { questRouter } from './routes/quests.js';
@@ -49,6 +50,16 @@ app.use('/api/achievements', achievementRouter);
 app.use('/api/modes', modeRouter);
 app.use('/api/admin', adminRouter);
 
+// Webhook route (mounted dynamically when webhook handler is provided)
+let _webhookMounted = false;
+export function mountWebhook(handler: RequestHandler): void {
+  if (!_webhookMounted) {
+    app.post('/webhook', handler);
+    _webhookMounted = true;
+    console.log('   POST /webhook (Telegram webhook)');
+  }
+}
+
 // Serve Mini App static files
 const miniAppPath = path.join(__dirname, '..', '..', '..', 'mini-app', 'dist');
 app.use(express.static(miniAppPath));
@@ -86,9 +97,14 @@ app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
 });
 
 // Start server
-export function startApiServer(): Promise<void> {
+export function startApiServer(webhookHandler?: RequestHandler): Promise<http.Server> {
+  // Mount webhook route before listen if provided
+  if (webhookHandler) {
+    mountWebhook(webhookHandler);
+  }
+
   return new Promise((resolve) => {
-    app.listen(PORT, () => {
+    const server = app.listen(PORT, () => {
       console.log(`\n🌐 API Server running on http://localhost:${PORT}`);
       console.log(`📊 Environment: ${process.env.NODE_ENV || 'development'}`);
       console.log(`🔒 CORS enabled for: ${process.env.MINI_APP_URL || '*'}`);
@@ -102,7 +118,7 @@ export function startApiServer(): Promise<void> {
       console.log(`   GET  /api/achievements`);
       console.log(`   POST /api/users/:userId/modes`);
       console.log(`   DELETE /api/users/:userId/modes/:modeId\n`);
-      resolve();
+      resolve(server);
     });
   });
 }

@@ -1,10 +1,12 @@
 /**
  * Telegram RPG Quest Bot - Main Entry Point
- * Phase 1: Foundation - Basic bot with /start command
+ * Supports webhook (production) and polling (development) modes.
  */
 
 import 'dotenv/config';
+import { webhookCallback } from 'grammy';
 import bot from './bot.js';
+import { config } from './config.js';
 import { handleStart } from './handlers/start.js';
 import { handleOpenApp, handleOpenQuests, handleOpenProfile } from './handlers/miniapp.js';
 import {
@@ -16,6 +18,9 @@ import {
 } from './handlers/onboarding.js';
 import { testDatabaseConnection } from './utils/pythonTools.js';
 import { startApiServer } from './api/server.js';
+import { startJobQueue, stopJobQueue } from './jobs/boss.js';
+import { registerAllJobs } from './jobs/registerJobs.js';
+import type http from 'http';
 
 // Register command handlers
 bot.command('start', handleStart);
@@ -86,7 +91,8 @@ bot.command('ping', async (ctx) => {
     `✅ Bot is alive!\n\n` +
       `⚡ Response time: ${responseTime}ms\n` +
       `🗄️ Database: ${dbTest.success ? '✅ Connected' : '❌ Disconnected'}\n` +
-      `🤖 Bot version: 1.0.0 (Phase 1)`
+      `📡 Mode: ${config.useWebhook ? 'Webhook' : 'Polling'}\n` +
+      `🤖 Bot version: 2.0.0`
   );
 });
 
@@ -111,10 +117,13 @@ bot.on('message:text', async (ctx) => {
   );
 });
 
+// Track server reference for graceful shutdown
+let server: http.Server | null = null;
+
 // Start bot and API server
 async function main() {
   console.log('='.repeat(50));
-  console.log('🤖 Telegram RPG Quest Bot - Phase 1');
+  console.log('🤖 Telegram RPG Quest Bot v2.0');
   console.log('='.repeat(50));
 
   // Test database connection on startup
@@ -132,34 +141,68 @@ async function main() {
     console.error('   Please check your DATABASE_URL in .env\n');
   }
 
-  // Start API server
-  console.log('\n🌐 Starting API server...');
-  await startApiServer();
+  // Start API server (with or without webhook)
+  if (config.useWebhook) {
+    // Webhook mode — production
+    console.log('\n🌐 Starting API server with webhook...');
+    const webhookHandler = webhookCallback(bot, 'express');
+    server = await startApiServer(webhookHandler);
 
-  // Start bot polling
-  console.log('\n🤖 Starting bot...');
-  await bot.start({
-    onStart: (botInfo) => {
-      console.log('✅ Bot started successfully!');
-      console.log(`   Bot username: @${botInfo.username}`);
-      console.log(`   Bot ID: ${botInfo.id}`);
-      console.log('\n📡 Listening for updates...\n');
-    },
-  });
+    // Register webhook URL with Telegram
+    await bot.api.setWebhook(config.webhookUrl);
+    console.log(`\n📡 Webhook active: ${config.webhookUrl}`);
+  } else {
+    // Polling mode — development
+    console.log('\n🌐 Starting API server...');
+    server = await startApiServer();
+
+    // Clear any stale webhook
+    await bot.api.deleteWebhook();
+
+    // Start long polling
+    console.log('\n🤖 Starting bot (polling mode)...');
+    await bot.start({
+      onStart: (botInfo) => {
+        console.log('✅ Bot started successfully!');
+        console.log(`   Bot username: @${botInfo.username}`);
+        console.log(`   Bot ID: ${botInfo.id}`);
+        console.log('\n📡 Listening for updates (polling)...\n');
+      },
+    });
+  }
+
+  // Start background job queue
+  console.log('\n⏰ Starting background job queue...');
+  try {
+    const boss = await startJobQueue();
+    await registerAllJobs(boss, bot);
+    console.log('✅ Background jobs registered\n');
+  } catch (err) {
+    console.error('⚠️  Job queue failed to start:', err);
+    console.error('   Background jobs will not run. Bot continues without them.\n');
+  }
 }
 
-// Handle shutdown gracefully
-process.once('SIGINT', () => {
-  console.log('\n\n🛑 Shutting down bot...');
-  bot.stop();
-  process.exit(0);
-});
+// Graceful shutdown
+async function shutdown(signal: string) {
+  console.log(`\n\n🛑 Received ${signal}, shutting down...`);
 
-process.once('SIGTERM', () => {
-  console.log('\n\n🛑 Shutting down bot...');
-  bot.stop();
+  // Stop job queue first
+  await stopJobQueue().catch(console.error);
+
+  // Stop bot (polling mode) or close server (webhook mode)
+  if (!config.useWebhook) {
+    bot.stop();
+  }
+  if (server) {
+    server.close();
+  }
+
   process.exit(0);
-});
+}
+
+process.once('SIGINT', () => shutdown('SIGINT'));
+process.once('SIGTERM', () => shutdown('SIGTERM'));
 
 // Run
 main().catch((error) => {

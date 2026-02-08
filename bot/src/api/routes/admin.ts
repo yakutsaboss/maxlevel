@@ -6,6 +6,8 @@
 import { Router, Request, Response } from 'express';
 import { authenticateAdmin, requirePermission, requireRole } from '../middleware/adminAuth.js';
 import { executePythonTool, getUserById, getUserByTelegramId } from '../../utils/pythonTools.js';
+import { getJobQueue } from '../../jobs/boss.js';
+import { getRegisteredJobs } from '../../jobs/registerJobs.js';
 
 const router = Router();
 
@@ -393,6 +395,102 @@ router.get('/logs', requireRole('admin'), async (req: Request, res: Response) =>
     res.status(500).json({
       error: 'Server Error',
       message: 'Failed to fetch logs',
+    });
+  }
+});
+
+/**
+ * GET /api/admin/jobs
+ * List registered background jobs and their schedules
+ */
+router.get('/jobs', async (req: Request, res: Response) => {
+  try {
+    const jobs = getRegisteredJobs();
+    res.json({
+      jobs,
+      timestamp: new Date().toISOString(),
+    });
+  } catch (error) {
+    console.error('[ADMIN] Error listing jobs:', error);
+    res.status(500).json({
+      error: 'Server Error',
+      message: 'Failed to list jobs',
+    });
+  }
+});
+
+/**
+ * POST /api/admin/jobs/:name/trigger
+ * Manually trigger a background job
+ */
+router.post('/jobs/:name/trigger', requireRole('admin'), async (req: Request, res: Response) => {
+  try {
+    const { name } = req.params;
+    const boss = getJobQueue();
+
+    if (!boss) {
+      return res.status(503).json({
+        error: 'Service Unavailable',
+        message: 'Job queue is not running',
+      });
+    }
+
+    const registeredJobs = getRegisteredJobs();
+    const jobExists = registeredJobs.some(j => j.name === name);
+
+    if (!jobExists) {
+      return res.status(404).json({
+        error: 'Not Found',
+        message: `Job '${name}' not found. Available: ${registeredJobs.map(j => j.name).join(', ')}`,
+      });
+    }
+
+    const jobId = await boss.send(name, {});
+
+    const adminUser = (req as any).adminUser;
+    console.log(`[ADMIN] Job '${name}' triggered by ${adminUser.username} (jobId: ${jobId})`);
+
+    res.json({
+      message: `Job '${name}' triggered`,
+      jobId,
+      timestamp: new Date().toISOString(),
+    });
+  } catch (error) {
+    console.error('[ADMIN] Error triggering job:', error);
+    res.status(500).json({
+      error: 'Server Error',
+      message: 'Failed to trigger job',
+    });
+  }
+});
+
+/**
+ * POST /api/admin/analytics/export
+ * Trigger Google Sheets analytics export on demand
+ */
+router.post('/analytics/export', requireRole('admin'), async (req: Request, res: Response) => {
+  try {
+    const result = await executePythonTool('sheets_analytics_export', ['--export-all']);
+
+    if (!result.success) {
+      return res.status(500).json({
+        error: 'Export Failed',
+        message: result.error || 'Analytics export failed',
+      });
+    }
+
+    const adminUser = (req as any).adminUser;
+    console.log(`[ADMIN] Analytics export triggered by ${adminUser.username}`);
+
+    res.json({
+      message: 'Analytics export completed',
+      ...((result.data as any) || {}),
+    });
+  } catch (error) {
+    console.error('[ADMIN] Error exporting analytics:', error);
+    res.status(500).json({
+      error: 'Server Error',
+      message: 'Failed to export analytics',
     });
   }
 });

@@ -52,6 +52,7 @@ jobs:
           script: |
             cd /opt/wibecode-bot
             git pull origin main
+            pip3 install -r requirements.txt --break-system-packages -q 2>/dev/null || true
             cd bot
             npm install --omit=dev
             npm run build

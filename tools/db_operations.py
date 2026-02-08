@@ -283,6 +283,8 @@ def main():
                         help='Test database connection')
     parser.add_argument('--query', type=str,
                         help='Execute a SELECT query')
+    parser.add_argument('--execute', type=str,
+                        help='Execute a non-SELECT statement (DDL, REFRESH, etc.)')
     parser.add_argument('--params', type=str,
                         help='JSON string of query parameters (e.g., \'["value1", 123]\')')
 
@@ -320,6 +322,22 @@ def main():
 
             results = execute_query(args.query, params)
             print(json.dumps(results, indent=2, default=str))
+            return 0
+
+        elif args.execute:
+            params = None
+            if args.params:
+                params = tuple(json.loads(args.params))
+
+            with get_cursor() as cur:
+                cur.execute(args.execute, params or ())
+                rowcount = cur.rowcount
+
+            print(json.dumps({
+                "success": True,
+                "statement": args.execute[:100],
+                "rows_affected": rowcount
+            }, default=str))
             return 0
 
         else:
