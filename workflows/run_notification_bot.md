@@ -22,6 +22,9 @@ start /B pythonw tools\notification_bot_handler.py
 ## Bot Commands
 - `/start` — Welcome message
 - `/status` — Project completion status with milestones
+- `/ping` — Health check: VDS, bot API, mini app, database
+- `/metrics` — Server resource usage (CPU, RAM, disk, PM2)
+- `/sheets` — Export analytics to Google Sheets
 - `/help` — Available commands
 
 ## Sending Notifications (from Claude or scripts)
@@ -40,9 +43,10 @@ python tools/send_notification.py "Any text you want to send"
 ```
 
 ## Files
-- `tools/notification_bot_handler.py` — Bot with /status command (polling)
+- `tools/notification_bot_handler.py` — Bot with commands (polling mode)
 - `tools/send_notification.py` — Standalone notification sender (no bot required)
 - `tools/project_status_tracker.py` — Analyzes project and generates status report
+- `tools/server_metrics.py` — VDS resource monitoring via SSH
 
 ## Troubleshooting
 - **Bot doesn't respond**: Check token in `.env`, make sure bot is running
