@@ -29,7 +29,8 @@ export async function executePythonTool<T = any>(
 ): Promise<PythonToolResult<T>> {
   try {
     const toolPath = path.join(TOOLS_PATH, `${toolName}.py`);
-    const command = `${PYTHON_EXECUTABLE} ${toolPath} ${args.join(' ')}`;
+    const quotedArgs = args.map(a => a.includes(' ') ? `"${a}"` : a).join(' ');
+    const command = `${PYTHON_EXECUTABLE} ${toolPath} ${quotedArgs}`;
 
     console.log(`[Python] Executing: ${command}`);
 

@@ -66,46 +66,46 @@ export function mountWebhook(handler: RequestHandler): void {
 
 // Serve Mini App static files
 const miniAppPath = path.join(__dirname, '..', '..', '..', 'mini-app', 'dist');
-app.use(express.static(miniAppPath));
-
-// SPA fallback: serve index.html for non-API routes (for React Router)
-app.get('*', (req: Request, res: Response, next: NextFunction) => {
-  // Don't serve index.html for API routes
-  if (req.path.startsWith('/api') || req.path === '/health') {
-    return next();
-  }
-  res.sendFile(path.join(miniAppPath, 'index.html'), (err) => {
-    if (err) {
-      next(); // Fall through to 404 if file doesn't exist
-    }
-  });
-});
-
-// 404 handler
-app.use((req: Request, res: Response) => {
-  res.status(404).json({
-    error: 'Not Found',
-    message: `Route ${req.method} ${req.path} not found`,
-  });
-});
-
-// Global error handler
-app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
-  console.error('Error:', err);
-
-  res.status(500).json({
-    error: 'Internal Server Error',
-    message: process.env.NODE_ENV === 'development' ? err.message : 'Something went wrong',
-    ...(process.env.NODE_ENV === 'development' && { stack: err.stack }),
-  });
-});
 
 // Start server
 export function startApiServer(webhookHandler?: RequestHandler): Promise<http.Server> {
-  // Mount webhook route before listen if provided
+  // Mount webhook route BEFORE catch-all handlers
   if (webhookHandler) {
     mountWebhook(webhookHandler);
   }
+
+  // Static files and catch-all handlers registered after webhook
+  app.use(express.static(miniAppPath));
+
+  // SPA fallback: serve index.html for non-API routes (for React Router)
+  app.get('*', (req: Request, res: Response, next: NextFunction) => {
+    if (req.path.startsWith('/api') || req.path === '/health' || req.path === '/webhook') {
+      return next();
+    }
+    res.sendFile(path.join(miniAppPath, 'index.html'), (err) => {
+      if (err) {
+        next();
+      }
+    });
+  });
+
+  // 404 handler
+  app.use((req: Request, res: Response) => {
+    res.status(404).json({
+      error: 'Not Found',
+      message: `Route ${req.method} ${req.path} not found`,
+    });
+  });
+
+  // Global error handler
+  app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
+    console.error('Error:', err);
+    res.status(500).json({
+      error: 'Internal Server Error',
+      message: process.env.NODE_ENV === 'development' ? err.message : 'Something went wrong',
+      ...(process.env.NODE_ENV === 'development' && { stack: err.stack }),
+    });
+  });
 
   return new Promise((resolve) => {
     const server = app.listen(PORT, () => {
