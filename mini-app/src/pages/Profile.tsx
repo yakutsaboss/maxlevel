@@ -16,7 +16,10 @@ export function Profile() {
   }, [user]);
 
   const loadProfileData = async () => {
-    if (!user?.id) return;
+    if (!user?.id) {
+      setLoading(false);
+      return;
+    }
 
     try {
       setLoading(true);
