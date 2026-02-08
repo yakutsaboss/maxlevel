@@ -11,7 +11,7 @@ import subprocess
 import time
 import urllib.request
 from pathlib import Path
-from telegram import BotCommand, Update
+from telegram import BotCommand, BotCommandScopeAllPrivateChats, Update
 from telegram.ext import Application, CommandHandler, ContextTypes
 from dotenv import load_dotenv
 
@@ -276,13 +276,15 @@ async def sheets_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def post_init(application):
     """Register bot commands with Telegram so they appear in the menu and / hint."""
-    await application.bot.set_my_commands([
+    commands = [
         BotCommand("status", "Project completion status"),
         BotCommand("ping", "Health check: VDS, bot, DB, mini app"),
         BotCommand("metrics", "Server resource usage"),
         BotCommand("sheets", "Export analytics to Google Sheets"),
         BotCommand("help", "Show available commands"),
-    ])
+    ]
+    await application.bot.set_my_commands(commands)
+    await application.bot.set_my_commands(commands, scope=BotCommandScopeAllPrivateChats())
     print("Bot commands registered with Telegram.")
 
 
