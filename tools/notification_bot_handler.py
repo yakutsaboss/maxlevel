@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-Notification Bot Handler
-Handles commands sent to the notification bot including project status requests
+Wibecode Notification Bot (yakutsawibecode_bot)
+Handles /status command and receives session notifications.
 """
 
 import os
@@ -12,138 +12,89 @@ from telegram import Update
 from telegram.ext import Application, CommandHandler, ContextTypes
 from dotenv import load_dotenv
 
-# Load environment variables
-load_dotenv()
-
-# Get project root
+# Load .env from project root
 PROJECT_ROOT = Path(__file__).parent.parent.absolute()
+load_dotenv(PROJECT_ROOT / ".env")
 
-# Get credentials from environment
 BOT_TOKEN = os.getenv('TELEGRAM_NOTIFICATION_BOT_TOKEN')
-AUTHORIZED_CHAT_ID = os.getenv('TELEGRAM_NOTIFICATION_CHAT_ID')
+CHAT_ID = os.getenv('TELEGRAM_NOTIFICATION_CHAT_ID')
 
-if not BOT_TOKEN or not AUTHORIZED_CHAT_ID:
-    print("Error: Missing TELEGRAM_NOTIFICATION_BOT_TOKEN or TELEGRAM_NOTIFICATION_CHAT_ID in .env")
+if not BOT_TOKEN or not CHAT_ID:
+    print("ERROR: Set TELEGRAM_NOTIFICATION_BOT_TOKEN and TELEGRAM_NOTIFICATION_CHAT_ID in .env")
     sys.exit(1)
 
-AUTHORIZED_CHAT_ID = int(AUTHORIZED_CHAT_ID)
+CHAT_ID = int(CHAT_ID)
 
 
 async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Handle /start command"""
-    if update.effective_chat.id != AUTHORIZED_CHAT_ID:
-        await update.message.reply_text("⚠️ Unauthorized access.")
+    if update.effective_chat.id != CHAT_ID:
+        await update.message.reply_text("Unauthorized.")
         return
 
-    welcome_message = """
-🤖 <b>Wibecode Notification Bot</b>
-
-Available commands:
-• /status - Get project status and progress
-• /help - Show this help message
-
-This bot tracks your Claude Code sessions and provides project insights.
-    """
-    await update.message.reply_html(welcome_message)
+    await update.message.reply_html(
+        "<b>Wibecode Notification Bot</b>\n\n"
+        "Commands:\n"
+        "/status — Project completion status\n"
+        "/help — Show help\n\n"
+        "You'll get notified when Claude starts/finishes work."
+    )
 
 
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Handle /help command"""
-    if update.effective_chat.id != AUTHORIZED_CHAT_ID:
+    if update.effective_chat.id != CHAT_ID:
         return
 
-    help_message = """
-<b>📚 Available Commands</b>
-
-<b>/status</b>
-Get detailed project status including:
-• Overall completion percentage
-• Milestone progress with visual bars
-• Completed and pending tasks
-• Next steps to focus on
-
-<b>/help</b>
-Show this help message
-
-<b>🔔 Automatic Notifications</b>
-You'll automatically receive notifications when:
-• Claude Code session starts
-• Claude Code session completes
-• Session duration and memory usage stats
-    """
-    await update.message.reply_html(help_message)
+    await update.message.reply_html(
+        "<b>Commands</b>\n\n"
+        "<b>/status</b> — Shows project milestones, completion %, and what's left\n"
+        "<b>/help</b> — This message\n\n"
+        "<b>Auto-notifications:</b>\n"
+        "• Claude Code session started\n"
+        "• Claude Code session finished"
+    )
 
 
 async def status_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Handle /status command"""
-    if update.effective_chat.id != AUTHORIZED_CHAT_ID:
-        await update.message.reply_text("⚠️ Unauthorized access.")
+    if update.effective_chat.id != CHAT_ID:
+        await update.message.reply_text("Unauthorized.")
         return
 
-    # Send "thinking" message
-    thinking_msg = await update.message.reply_text("🔍 Analyzing project status...")
+    thinking = await update.message.reply_text("Analyzing project...")
 
     try:
-        # Run the project status tracker
         tracker_path = PROJECT_ROOT / "tools" / "project_status_tracker.py"
-
         result = subprocess.run(
             [sys.executable, str(tracker_path), str(PROJECT_ROOT)],
-            capture_output=True,
-            text=True,
-            timeout=30
+            capture_output=True, text=True, timeout=30, encoding='utf-8'
         )
 
-        if result.returncode == 0:
-            status_message = result.stdout.strip()
+        await thinking.delete()
 
-            # Delete thinking message
-            await thinking_msg.delete()
-
-            # Send status message
-            await update.message.reply_html(status_message)
+        if result.returncode == 0 and result.stdout.strip():
+            await update.message.reply_html(result.stdout.strip())
         else:
-            await thinking_msg.edit_text(
-                f"❌ Error analyzing project:\n<code>{result.stderr}</code>",
-                parse_mode='HTML'
-            )
+            error = result.stderr.strip() if result.stderr else "Unknown error"
+            await update.message.reply_html(f"Error:\n<code>{error[:500]}</code>")
 
     except subprocess.TimeoutExpired:
-        await thinking_msg.edit_text("⏱️ Status check timed out. Please try again.")
+        await thinking.edit_text("Timed out. Try again.")
     except Exception as e:
-        await thinking_msg.edit_text(
-            f"❌ Error: {str(e)}\n\nMake sure project_status_tracker.py exists in tools/",
-            parse_mode='HTML'
-        )
-
-
-async def error_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Handle errors"""
-    print(f'Update {update} caused error {context.error}')
+        await thinking.edit_text(f"Error: {e}")
 
 
 def main():
-    """Start the bot"""
-    print(f"🤖 Starting Wibecode Notification Bot...")
-    print(f"📁 Project root: {PROJECT_ROOT}")
-    print(f"👤 Authorized chat ID: {AUTHORIZED_CHAT_ID}")
+    print(f"Starting Wibecode Notification Bot...")
+    print(f"Project root: {PROJECT_ROOT}")
+    print(f"Chat ID: {CHAT_ID}")
 
-    # Create application
-    application = Application.builder().token(BOT_TOKEN).build()
+    app = Application.builder().token(BOT_TOKEN).build()
+    app.add_handler(CommandHandler("start", start_command))
+    app.add_handler(CommandHandler("help", help_command))
+    app.add_handler(CommandHandler("status", status_command))
+    app.add_error_handler(lambda update, ctx: print(f"Error: {ctx.error}"))
 
-    # Add command handlers
-    application.add_handler(CommandHandler("start", start_command))
-    application.add_handler(CommandHandler("help", help_command))
-    application.add_handler(CommandHandler("status", status_command))
-
-    # Add error handler
-    application.add_error_handler(error_handler)
-
-    # Start polling
-    print("✅ Bot is running! Press Ctrl+C to stop.")
-    print("💬 Send /status to the bot to get project status.")
-
-    application.run_polling(allowed_updates=Update.ALL_TYPES)
+    print("Bot is running. Ctrl+C to stop.")
+    app.run_polling(allowed_updates=Update.ALL_TYPES)
 
 
 if __name__ == "__main__":

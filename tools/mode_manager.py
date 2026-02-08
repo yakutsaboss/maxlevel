@@ -107,6 +107,76 @@ def get_user_modes(user_id: int, active_only: bool = True) -> List[Dict[str, Any
     """, (user_id,))
 
 
+def add_mode_by_id(user_id: int, mode_id: int) -> Optional[Dict[str, Any]]:
+    """
+    Add a mode to a user by mode ID.
+
+    Args:
+        user_id: User ID
+        mode_id: Mode ID
+
+    Returns:
+        User_mode record or None if mode doesn't exist
+    """
+    mode = get_mode_by_id(mode_id)
+    if not mode:
+        return None
+
+    # Check if already exists
+    existing = execute_query("""
+        SELECT * FROM user_modes
+        WHERE user_id = %s AND mode_id = %s
+    """, (user_id, mode_id), fetch='one')
+
+    if existing:
+        if not existing['is_active']:
+            execute_update("""
+                UPDATE user_modes
+                SET is_active = TRUE, enabled_at = NOW()
+                WHERE id = %s
+            """, (existing['id'],))
+            return execute_query(
+                "SELECT * FROM user_modes WHERE id = %s",
+                (existing['id'],),
+                fetch='one'
+            )
+        return existing
+
+    user_mode = execute_insert("""
+        INSERT INTO user_modes (user_id, mode_id, is_active)
+        VALUES (%s, %s, TRUE)
+        RETURNING *
+    """, (user_id, mode_id))
+
+    # Initialize streak for this mode
+    execute_insert("""
+        INSERT INTO streaks (user_id, mode_id, current_streak, longest_streak)
+        VALUES (%s, %s, 0, 0)
+        ON CONFLICT (user_id, mode_id) DO NOTHING
+    """, (user_id, mode_id), returning=False)
+
+    return user_mode
+
+
+def remove_mode_by_id(user_id: int, mode_id: int) -> bool:
+    """
+    Remove a mode from a user by mode ID (soft delete).
+
+    Args:
+        user_id: User ID
+        mode_id: Mode ID
+
+    Returns:
+        True if removed, False if not found
+    """
+    affected = execute_update("""
+        UPDATE user_modes
+        SET is_active = FALSE
+        WHERE user_id = %s AND mode_id = %s AND is_active = TRUE
+    """, (user_id, mode_id))
+    return affected > 0
+
+
 def add_mode_to_user(user_id: int, mode_name: str) -> Optional[Dict[str, Any]]:
     """
     Add a mode to a user.
@@ -356,6 +426,8 @@ def main():
                         help='Comma-separated list of mode names (e.g., "fitness,hydration")')
     parser.add_argument('--mode', type=str,
                         help='Single mode name')
+    parser.add_argument('--mode-id', type=int,
+                        help='Mode ID (alternative to --mode name)')
     parser.add_argument('--active', type=str, choices=['true', 'false'],
                         help='Active status (true/false)')
     parser.add_argument('--include-inactive', action='store_true',
@@ -388,23 +460,44 @@ def main():
             return 0
 
         elif args.add_modes:
-            if not args.user_id or not args.modes:
-                print("Error: --user-id and --modes required", file=sys.stderr)
+            if not args.user_id:
+                print("Error: --user-id required", file=sys.stderr)
                 return 1
 
-            mode_list = [m.strip() for m in args.modes.split(',')]
-            results = add_multiple_modes(args.user_id, mode_list)
-            print(json.dumps(results, indent=2, default=str))
-            return 0
+            # Support adding by mode ID or mode name(s)
+            if args.mode_id:
+                result = add_mode_by_id(args.user_id, args.mode_id)
+                if result:
+                    print(json.dumps(result, indent=2, default=str))
+                    return 0
+                else:
+                    print("Mode not found", file=sys.stderr)
+                    return 1
+            elif args.modes:
+                mode_list = [m.strip() for m in args.modes.split(',')]
+                results = add_multiple_modes(args.user_id, mode_list)
+                print(json.dumps(results, indent=2, default=str))
+                return 0
+            else:
+                print("Error: --modes or --mode-id required", file=sys.stderr)
+                return 1
 
         elif args.remove_mode:
-            if not args.user_id or not args.mode:
-                print("Error: --user-id and --mode required", file=sys.stderr)
+            if not args.user_id:
+                print("Error: --user-id required", file=sys.stderr)
                 return 1
 
-            success = remove_mode_from_user(args.user_id, args.mode)
+            # Support removing by mode ID or mode name
+            if args.mode_id:
+                success = remove_mode_by_id(args.user_id, args.mode_id)
+            elif args.mode:
+                success = remove_mode_from_user(args.user_id, args.mode)
+            else:
+                print("Error: --mode or --mode-id required", file=sys.stderr)
+                return 1
+
             if success:
-                print(json.dumps({"status": "removed", "mode": args.mode}))
+                print(json.dumps({"status": "removed", "mode_id": args.mode_id or args.mode}))
                 return 0
             else:
                 print("Mode not found or not active", file=sys.stderr)

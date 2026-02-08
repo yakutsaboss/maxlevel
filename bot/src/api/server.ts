@@ -2,6 +2,7 @@ import express, { Express, Request, Response, NextFunction } from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import morgan from 'morgan';
+import path from 'path';
 import { config } from 'dotenv';
 import { userRouter } from './routes/users.js';
 import { questRouter } from './routes/quests.js';
@@ -17,7 +18,9 @@ const app: Express = express();
 const PORT = process.env.API_PORT || 3000;
 
 // Middleware
-app.use(helmet()); // Security headers
+app.use(helmet({
+  contentSecurityPolicy: false, // Allow mini app to load scripts/styles
+})); // Security headers
 app.use(cors({
   origin: process.env.MINI_APP_URL || '*',
   credentials: true,
@@ -45,6 +48,23 @@ app.use('/api/quests', questRouter);
 app.use('/api/achievements', achievementRouter);
 app.use('/api/modes', modeRouter);
 app.use('/api/admin', adminRouter);
+
+// Serve Mini App static files
+const miniAppPath = path.join(__dirname, '..', '..', '..', 'mini-app', 'dist');
+app.use(express.static(miniAppPath));
+
+// SPA fallback: serve index.html for non-API routes (for React Router)
+app.get('*', (req: Request, res: Response, next: NextFunction) => {
+  // Don't serve index.html for API routes
+  if (req.path.startsWith('/api') || req.path === '/health') {
+    return next();
+  }
+  res.sendFile(path.join(miniAppPath, 'index.html'), (err) => {
+    if (err) {
+      next(); // Fall through to 404 if file doesn't exist
+    }
+  });
+});
 
 // 404 handler
 app.use((req: Request, res: Response) => {

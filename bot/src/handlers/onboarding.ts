@@ -62,9 +62,8 @@ export async function showModeSelection(ctx: Context) {
   const keyboard = new InlineKeyboard();
 
   modes.forEach((mode: any, index: number) => {
-    const emoji = mode.icon || '📌';
+    const emoji = mode.icon_emoji || '📌';
     const name = mode.display_name || mode.name;
-    const description = mode.description || '';
 
     // Add mode button
     keyboard.text(
@@ -134,10 +133,10 @@ export async function handleModeSelection(ctx: Context) {
   ]);
 
   const currentModes = modesResult.success ? modesResult.data : [];
-  const isSelected = currentModes.some((m: any) => m.id.toString() === modeId);
+  const isSelected = currentModes.some((m: any) => (m.mode_id || m.id).toString() === modeId);
 
   if (isSelected) {
-    // Remove mode
+    // Remove mode by ID
     await executePythonTool('mode_manager', [
       '--remove-mode',
       '--user-id',
@@ -148,12 +147,12 @@ export async function handleModeSelection(ctx: Context) {
 
     await ctx.answerCallbackQuery({ text: '➖ Mode removed!' });
   } else {
-    // Add mode
+    // Add mode by ID
     await executePythonTool('mode_manager', [
       '--add-modes',
       '--user-id',
       internalUserId.toString(),
-      '--modes',
+      '--mode-id',
       modeId,
     ]);
 
@@ -179,7 +178,7 @@ async function updateModeSelectionMessage(ctx: Context, userId: number) {
     userId.toString(),
   ]);
   const selectedModes = selectedResult.success ? selectedResult.data : [];
-  const selectedIds = selectedModes.map((m: any) => m.id);
+  const selectedIds = selectedModes.map((m: any) => m.mode_id || m.id);
 
   // Build message
   let message =
@@ -189,7 +188,7 @@ async function updateModeSelectionMessage(ctx: Context, userId: number) {
   if (selectedModes.length > 0) {
     message += `*Selected (${selectedModes.length}):*\n`;
     selectedModes.forEach((mode: any) => {
-      message += `${mode.icon} ${mode.display_name}\n`;
+      message += `${mode.icon_emoji} ${mode.display_name}\n`;
     });
     message += `\n`;
   }
@@ -200,7 +199,7 @@ async function updateModeSelectionMessage(ctx: Context, userId: number) {
   const keyboard = new InlineKeyboard();
 
   allModes.forEach((mode: any, index: number) => {
-    const emoji = mode.icon || '📌';
+    const emoji = mode.icon_emoji || '📌';
     const name = mode.display_name || mode.name;
     const isSelected = selectedIds.includes(mode.id);
     const checkmark = isSelected ? '✓ ' : '';
@@ -239,7 +238,7 @@ async function showModeInfo(ctx: Context) {
   let message = `ℹ️ *Mode Information*\n\n`;
 
   modes.forEach((mode: any) => {
-    const emoji = mode.icon || '📌';
+    const emoji = mode.icon_emoji || '📌';
     const name = mode.display_name || mode.name;
     const desc = mode.description || 'No description';
 
@@ -294,7 +293,7 @@ async function completeModeSelection(ctx: Context) {
   await ctx.editMessageText(
     `✅ *Modes Selected!*\n\n` +
       `You've chosen ${selectedModes.length} mode(s):\n` +
-      selectedModes.map((m: any) => `${m.icon} ${m.display_name}`).join('\n'),
+      selectedModes.map((m: any) => `${m.icon_emoji} ${m.display_name}`).join('\n'),
     { parse_mode: 'Markdown' }
   );
 
@@ -419,19 +418,21 @@ async function showQuickQuests(ctx: Context) {
     return;
   }
 
-  const quests = questsResult.data;
+  const quests = (questsResult.data as any)?.quests || questsResult.data || [];
+  if (!Array.isArray(quests) || quests.length === 0) {
+    await ctx.reply('You have no active quests yet. Use /app to get started!');
+    return;
+  }
+
   let message = `📋 *Your Active Quests*\n\n`;
 
   quests.slice(0, 5).forEach((quest: any, index: number) => {
-    const progress = quest.progress || 0;
-    const target = quest.target || 1;
-    const percentage = Math.round((progress / target) * 100);
-    const progressBar = generateProgressBar(percentage);
+    const icon = quest.mode_icon || '📌';
+    const status = quest.status === 'pending' ? '⏳' : quest.status === 'in_progress' ? '🔄' : '✅';
 
     message +=
-      `${index + 1}. ${quest.mode_icon} *${quest.name}*\n` +
-      `   ${progressBar} ${percentage}%\n` +
-      `   ⚡ ${quest.xp_reward} XP\n\n`;
+      `${index + 1}. ${icon} *${quest.name}*\n` +
+      `   ${status} ${quest.status} · ⚡ ${quest.xp_reward} XP\n\n`;
   });
 
   if (quests.length > 5) {
@@ -473,10 +474,10 @@ async function showQuickProfile(ctx: Context) {
 
   const stats = statsResult.success ? statsResult.data : {};
 
-  const level = stats.level || 1;
+  const level = stats.current_level || 1;
   const xp = stats.total_xp || 0;
-  const streak = stats.current_streak || 0;
-  const quests = stats.quests_completed || 0;
+  const streak = stats.overall_streak || 0;
+  const quests = stats.total_quests_completed || 0;
 
   const message =
     `👤 *${firstName}'s Profile*\n\n` +
@@ -487,16 +488,6 @@ async function showQuickProfile(ctx: Context) {
     `Use /app to see your full profile with achievements!`;
 
   await ctx.reply(message, { parse_mode: 'Markdown' });
-}
-
-/**
- * Generate progress bar visualization
- */
-function generateProgressBar(percentage: number, length: number = 10): string {
-  const filled = Math.round((percentage / 100) * length);
-  const empty = length - filled;
-
-  return '█'.repeat(filled) + '░'.repeat(empty);
 }
 
 /**
@@ -541,7 +532,7 @@ export async function handleModesCommand(ctx: Context) {
 
   let message =
     `📋 *Your Active Modes*\n\n` +
-    activeModes.map((m: any) => `${m.icon} ${m.display_name}`).join('\n') +
+    activeModes.map((m: any) => `${m.icon_emoji} ${m.display_name}`).join('\n') +
     `\n\nWant to change your modes?`;
 
   const keyboard = new InlineKeyboard()
@@ -589,17 +580,21 @@ export async function handleModeSummary(ctx: Context) {
     return;
   }
 
-  const summary = summaryResult.data || [];
+  const summary = summaryResult.data || {};
+  const activeModes = summary.active_modes || [];
 
   let message = `📊 *Mode Summary*\n\n`;
+  message += `Active modes: ${summary.active_mode_count || 0}\n`;
+  message += `Available to add: ${summary.available_to_add_count || 0}\n\n`;
 
-  summary.forEach((mode: any) => {
-    message +=
-      `${mode.icon} *${mode.mode_name}*\n` +
-      `   Active: ${mode.active_quests || 0} quests\n` +
-      `   Completed: ${mode.completed_quests || 0} quests\n` +
-      `   Total XP: ${mode.total_xp || 0}\n\n`;
-  });
+  if (activeModes.length > 0) {
+    message += `*Your Modes:*\n`;
+    activeModes.forEach((mode: any) => {
+      message += `${mode.icon_emoji || '📌'} ${mode.display_name || mode.name}\n`;
+    });
+  } else {
+    message += `_No active modes. Use /modes to select some!_`;
+  }
 
   await ctx.reply(message, { parse_mode: 'Markdown' });
 }

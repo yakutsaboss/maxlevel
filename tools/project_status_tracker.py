@@ -1,13 +1,17 @@
 #!/usr/bin/env python3
 """
 Project Status Tracker for Wibecode
-Analyzes project state and calculates completion percentage
+Analyzes actual project state and calculates completion percentage.
 """
 
 import os
 import json
+import sys
+import codecs
 from pathlib import Path
+from datetime import datetime
 from typing import Dict, List, Tuple
+
 
 class ProjectStatusTracker:
     def __init__(self, project_root: str):
@@ -15,132 +19,125 @@ class ProjectStatusTracker:
         self.milestones = self._define_milestones()
 
     def _define_milestones(self) -> Dict[str, Dict]:
-        """Define project milestones and their completion criteria"""
+        """Define project milestones matching actual project structure"""
         return {
             "setup": {
-                "name": "🎯 Project Setup",
+                "name": "Project Setup",
+                "emoji": "🎯",
                 "weight": 10,
                 "tasks": [
-                    {"name": "WAT Framework structure", "check": lambda: self._check_file_exists("CLAUDE.md")},
-                    {"name": "Environment variables", "check": lambda: self._check_file_exists(".env")},
-                    {"name": "Git repository", "check": lambda: self._check_dir_exists(".git")},
-                    {"name": "Requirements file", "check": lambda: self._check_file_exists("requirements.txt")},
-                    {"name": "README documentation", "check": lambda: self._check_file_exists("README.md")},
-                ]
-            },
-            "bot_foundation": {
-                "name": "🤖 Bot Foundation",
-                "weight": 20,
-                "tasks": [
-                    {"name": "Bot directory structure", "check": lambda: self._check_dir_exists("bot")},
-                    {"name": "Bot configuration", "check": lambda: self._check_bot_config()},
-                    {"name": "Command handlers", "check": lambda: self._check_dir_exists("bot/commands")},
-                    {"name": "Webhook setup", "check": lambda: self._check_dir_exists("bot/handlers")},
+                    {"name": "WAT framework (CLAUDE.md)", "check": lambda: self._file_exists("CLAUDE.md")},
+                    {"name": "Environment config (.env)", "check": lambda: self._file_exists(".env")},
+                    {"name": "Git repository", "check": lambda: self._dir_exists(".git")},
+                    {"name": "Docker setup", "check": lambda: self._file_exists("docker-compose.yml")},
+                    {"name": "PM2 ecosystem config", "check": lambda: self._file_exists("ecosystem.config.js")},
                 ]
             },
             "database": {
-                "name": "🗄️ Database Layer",
+                "name": "Database Layer",
+                "emoji": "🗄️",
                 "weight": 15,
                 "tasks": [
-                    {"name": "Database structure", "check": lambda: self._check_dir_exists("database")},
-                    {"name": "Database schema", "check": lambda: self._check_file_exists("database/schema.sql")},
-                    {"name": "Database models", "check": lambda: self._check_file_exists("database/models.py")},
-                    {"name": "Migration scripts", "check": lambda: self._check_dir_exists("database/migrations")},
+                    {"name": "Schema (PostgreSQL)", "check": lambda: self._file_exists("database/schema.sql")},
+                    {"name": "Seed data", "check": lambda: self._file_exists("database/seed_data.sql")},
+                    {"name": "DB operations tool", "check": lambda: self._file_exists("tools/db_operations.py")},
+                    {"name": "User manager tool", "check": lambda: self._file_exists("tools/user_manager.py")},
+                    {"name": "Quest manager tool", "check": lambda: self._file_exists("tools/quest_manager.py")},
+                    {"name": "Mode manager tool", "check": lambda: self._file_exists("tools/mode_manager.py")},
+                    {"name": "Achievement manager tool", "check": lambda: self._file_exists("tools/achievement_manager.py")},
+                ]
+            },
+            "bot": {
+                "name": "Telegram Bot (Maxlevel)",
+                "emoji": "🤖",
+                "weight": 25,
+                "tasks": [
+                    {"name": "Bot instance (Grammy)", "check": lambda: self._file_exists("bot/src/bot.ts")},
+                    {"name": "Entry point", "check": lambda: self._file_exists("bot/src/index.ts")},
+                    {"name": "/start + onboarding", "check": lambda: self._file_exists("bot/src/handlers/onboarding.ts")},
+                    {"name": "Mini app handler", "check": lambda: self._file_exists("bot/src/handlers/miniapp.ts")},
+                    {"name": "Auth middleware", "check": lambda: self._file_exists("bot/src/api/middleware/auth.ts")},
+                    {"name": "Users API routes", "check": lambda: self._file_exists("bot/src/api/routes/users.ts")},
+                    {"name": "Quests API routes", "check": lambda: self._file_exists("bot/src/api/routes/quests.ts")},
+                    {"name": "Achievements API routes", "check": lambda: self._file_exists("bot/src/api/routes/achievements.ts")},
+                    {"name": "Modes API routes", "check": lambda: self._file_exists("bot/src/api/routes/modes.ts")},
+                    {"name": "Admin API routes", "check": lambda: self._file_exists("bot/src/api/routes/admin.ts")},
+                    {"name": "Webhook support", "check": lambda: self._file_contains("bot/src/index.ts", "webhook")},
+                    {"name": "Background jobs (streak/daily reset)", "check": lambda: self._file_contains("bot/src/index.ts", "cron") or self._file_contains("bot/src/index.ts", "schedule")},
                 ]
             },
             "miniapp": {
-                "name": "🎨 Mini App Frontend",
+                "name": "Mini App Frontend",
+                "emoji": "🎨",
                 "weight": 25,
                 "tasks": [
-                    {"name": "Mini App directory", "check": lambda: self._check_dir_exists("miniapp")},
-                    {"name": "Package.json", "check": lambda: self._check_file_exists("miniapp/package.json")},
-                    {"name": "React setup", "check": lambda: self._check_file_exists("miniapp/src/App.jsx") or self._check_file_exists("miniapp/src/App.tsx")},
-                    {"name": "TON Connect integration", "check": lambda: self._check_ton_connect()},
-                    {"name": "Telegram WebApp SDK", "check": lambda: self._check_telegram_webapp()},
-                ]
-            },
-            "tools": {
-                "name": "🔧 Tools & Scripts",
-                "weight": 10,
-                "tasks": [
-                    {"name": "Tools directory", "check": lambda: self._check_dir_exists("tools")},
-                    {"name": "Deployment scripts", "check": lambda: self._count_files_in_dir("tools") >= 1},
-                    {"name": "Status tracker", "check": lambda: self._check_file_exists("tools/project_status_tracker.py")},
+                    {"name": "React + Vite setup", "check": lambda: self._file_exists("mini-app/vite.config.ts")},
+                    {"name": "Tailwind CSS", "check": lambda: self._file_exists("mini-app/tailwind.config.js")},
+                    {"name": "App component", "check": lambda: self._file_exists("mini-app/src/App.tsx")},
+                    {"name": "Page components", "check": lambda: self._dir_exists("mini-app/src/pages")},
+                    {"name": "API hooks", "check": lambda: self._dir_exists("mini-app/src/hooks")},
+                    {"name": "Telegram WebApp SDK", "check": lambda: self._html_contains("mini-app", "telegram-web-app.js")},
+                    {"name": "Deployed & accessible", "check": lambda: self._file_exists("mini-app/dist/index.html")},
                 ]
             },
             "workflows": {
-                "name": "📋 Workflows & SOPs",
+                "name": "Workflows & SOPs",
+                "emoji": "📋",
                 "weight": 10,
                 "tasks": [
-                    {"name": "Workflows directory", "check": lambda: self._check_dir_exists("workflows")},
-                    {"name": "Bot deployment workflow", "check": lambda: self._check_file_exists("workflows/deploy_bot.md")},
-                    {"name": "Mini App deployment workflow", "check": lambda: self._check_file_exists("workflows/deploy_miniapp.md")},
+                    {"name": "Database operations", "check": lambda: self._file_exists("workflows/database_operations.md")},
+                    {"name": "User management", "check": lambda: self._file_exists("workflows/user_management.md")},
+                    {"name": "Quest management", "check": lambda: self._file_exists("workflows/quest_management.md")},
+                    {"name": "Mode management", "check": lambda: self._file_exists("workflows/mode_management.md")},
+                    {"name": "Achievement management", "check": lambda: self._file_exists("workflows/achievement_management.md")},
+                    {"name": "Onboarding flow", "check": lambda: self._file_exists("workflows/onboarding_flow.md")},
+                    {"name": "API reference", "check": lambda: self._file_exists("workflows/api_endpoints_reference.md")},
                 ]
             },
             "deployment": {
-                "name": "🚀 Deployment & CI/CD",
-                "weight": 10,
+                "name": "Deployment & DevOps",
+                "emoji": "🚀",
+                "weight": 15,
                 "tasks": [
-                    {"name": "Docker configuration", "check": lambda: self._check_file_exists("Dockerfile") or self._check_file_exists("docker-compose.yml")},
-                    {"name": "CI/CD pipeline", "check": lambda: self._check_dir_exists(".github/workflows") or self._check_file_exists(".gitlab-ci.yml")},
-                    {"name": "Environment configs", "check": lambda: self._check_file_exists(".env.example")},
+                    {"name": "Dockerfile", "check": lambda: self._file_exists("Dockerfile")},
+                    {"name": "docker-compose.yml", "check": lambda: self._file_exists("docker-compose.yml")},
+                    {"name": "Deployment docs", "check": lambda: self._file_exists("docs/TIMEWEB_DEPLOYMENT.md")},
+                    {"name": "Server running on VDS", "check": lambda: False},  # Manual check
+                    {"name": "CI/CD pipeline", "check": lambda: self._dir_exists(".github/workflows")},
+                    {"name": "SSL/HTTPS configured", "check": lambda: False},  # Manual check
                 ]
-            }
+            },
         }
 
-    def _check_file_exists(self, path: str) -> bool:
-        """Check if file exists"""
+    def _file_exists(self, path: str) -> bool:
         return (self.project_root / path).is_file()
 
-    def _check_dir_exists(self, path: str) -> bool:
-        """Check if directory exists"""
+    def _dir_exists(self, path: str) -> bool:
         return (self.project_root / path).is_dir()
 
-    def _count_files_in_dir(self, path: str) -> int:
-        """Count files in directory"""
-        dir_path = self.project_root / path
-        if not dir_path.is_dir():
-            return 0
-        return len([f for f in dir_path.iterdir() if f.is_file()])
-
-    def _check_bot_config(self) -> bool:
-        """Check if bot configuration exists"""
-        return (self._check_file_exists("bot/config.py") or
-                self._check_file_exists("bot/config.json") or
-                self._check_file_exists("bot/bot.py"))
-
-    def _check_ton_connect(self) -> bool:
-        """Check if TON Connect is configured"""
-        package_json = self.project_root / "miniapp" / "package.json"
-        if not package_json.is_file():
+    def _file_contains(self, path: str, text: str) -> bool:
+        full_path = self.project_root / path
+        if not full_path.is_file():
             return False
         try:
-            with open(package_json, 'r') as f:
-                data = json.load(f)
-                deps = data.get('dependencies', {})
-                return '@tonconnect/ui-react' in deps or '@tonconnect/ui' in deps
-        except:
+            content = full_path.read_text(encoding='utf-8').lower()
+            return text.lower() in content
+        except Exception:
             return False
 
-    def _check_telegram_webapp(self) -> bool:
-        """Check if Telegram WebApp SDK is integrated"""
-        # Check in HTML files
-        miniapp_dir = self.project_root / "miniapp"
-        if not miniapp_dir.is_dir():
+    def _html_contains(self, directory: str, text: str) -> bool:
+        dir_path = self.project_root / directory
+        if not dir_path.is_dir():
             return False
-
-        for html_file in miniapp_dir.rglob("*.html"):
+        for html_file in dir_path.rglob("*.html"):
             try:
-                with open(html_file, 'r') as f:
-                    content = f.read()
-                    if 'telegram-web-app.js' in content:
-                        return True
-            except:
+                if text in html_file.read_text(encoding='utf-8'):
+                    return True
+            except Exception:
                 continue
         return False
 
     def calculate_progress(self) -> Tuple[float, Dict]:
-        """Calculate overall progress and milestone details"""
         milestone_status = {}
         total_weight = 0
         completed_weight = 0
@@ -149,129 +146,73 @@ class ProjectStatusTracker:
             tasks = milestone['tasks']
             completed_tasks = sum(1 for task in tasks if task['check']())
             total_tasks = len(tasks)
-            milestone_progress = (completed_tasks / total_tasks * 100) if total_tasks > 0 else 0
+            progress = (completed_tasks / total_tasks * 100) if total_tasks > 0 else 0
 
             milestone_status[milestone_id] = {
                 'name': milestone['name'],
+                'emoji': milestone['emoji'],
                 'weight': milestone['weight'],
-                'progress': milestone_progress,
+                'progress': progress,
                 'completed': completed_tasks,
                 'total': total_tasks,
                 'tasks': [
-                    {
-                        'name': task['name'],
-                        'completed': task['check']()
-                    }
+                    {'name': task['name'], 'done': task['check']()}
                     for task in tasks
                 ]
             }
 
             total_weight += milestone['weight']
-            completed_weight += (milestone_progress / 100) * milestone['weight']
+            completed_weight += (progress / 100) * milestone['weight']
 
-        overall_progress = (completed_weight / total_weight * 100) if total_weight > 0 else 0
+        overall = (completed_weight / total_weight * 100) if total_weight > 0 else 0
+        return overall, milestone_status
 
-        return overall_progress, milestone_status
-
-    def generate_progress_bar(self, percentage: float, length: int = 10) -> str:
-        """Generate a visual progress bar"""
-        filled = int(length * percentage / 100)
-        empty = length - filled
-        return '█' * filled + '░' * empty
+    def progress_bar(self, pct: float, length: int = 10) -> str:
+        filled = int(length * pct / 100)
+        return '█' * filled + '░' * (length - filled)
 
     def format_telegram_message(self) -> str:
-        """Generate formatted message for Telegram"""
-        overall_progress, milestones = self.calculate_progress()
+        overall, milestones = self.calculate_progress()
 
-        # Header
-        message = f"<b>📊 Wibecode Project Status</b>\n\n"
-        message += f"<b>Overall Progress: {overall_progress:.1f}%</b>\n"
-        message += f"{self.generate_progress_bar(overall_progress, 20)}\n\n"
+        msg = f"<b>📊 Wibecode Project Status</b>\n\n"
+        msg += f"<b>Overall: {overall:.0f}%</b>\n"
+        msg += f"<code>{self.progress_bar(overall, 20)}</code>\n\n"
 
-        # Milestones
-        message += "<b>🎯 Milestones:</b>\n\n"
+        for mid, ms in milestones.items():
+            icon = "✅" if ms['progress'] == 100 else ("🔄" if ms['progress'] > 0 else "⏳")
+            msg += f"{icon} <b>{ms['emoji']} {ms['name']}</b> ({ms['completed']}/{ms['total']})\n"
+            msg += f"   <code>{self.progress_bar(ms['progress'])}</code> {ms['progress']:.0f}%\n"
 
-        for milestone_id, status in milestones.items():
-            name = status['name']
-            progress = status['progress']
-            completed = status['completed']
-            total = status['total']
+            # Show what's left (max 3 items)
+            todo = [t['name'] for t in ms['tasks'] if not t['done']]
+            for item in todo[:3]:
+                msg += f"   • {item}\n"
+            if len(todo) > 3:
+                msg += f"   • <i>...and {len(todo) - 3} more</i>\n"
+            msg += "\n"
 
-            # Status emoji
-            if progress == 100:
-                status_emoji = "✅"
-            elif progress > 0:
-                status_emoji = "🔄"
-            else:
-                status_emoji = "⏳"
+        # Next priorities
+        msg += "<b>📝 Next Priorities:</b>\n"
+        priorities = []
+        for mid, ms in milestones.items():
+            if ms['progress'] < 100:
+                todo = [t['name'] for t in ms['tasks'] if not t['done']]
+                if todo:
+                    priorities.append(f"{ms['emoji']} {todo[0]}")
+        for p in priorities[:4]:
+            msg += f"• {p}\n"
 
-            message += f"{status_emoji} <b>{name}</b> ({completed}/{total})\n"
-            message += f"   {self.generate_progress_bar(progress, 10)} {progress:.0f}%\n"
-
-            # Show incomplete tasks
-            incomplete_tasks = [t for t in status['tasks'] if not t['completed']]
-            if incomplete_tasks and len(incomplete_tasks) <= 3:
-                for task in incomplete_tasks[:2]:
-                    message += f"   • {task['name']}\n"
-
-            message += "\n"
-
-        # Next steps
-        message += "<b>📝 Next Steps:</b>\n"
-        next_steps = self._get_next_steps(milestones)
-        for step in next_steps[:3]:
-            message += f"• {step}\n"
-
-        message += f"\n<i>Generated: {self._get_timestamp()}</i>"
-
-        return message
-
-    def _get_next_steps(self, milestones: Dict) -> List[str]:
-        """Determine next steps based on incomplete milestones"""
-        next_steps = []
-
-        # Find first incomplete task in each milestone
-        for milestone_id, status in milestones.items():
-            if status['progress'] < 100:
-                incomplete = [t['name'] for t in status['tasks'] if not t['completed']]
-                if incomplete:
-                    next_steps.append(f"{status['name']}: {incomplete[0]}")
-
-        return next_steps
-
-    def _get_timestamp(self) -> str:
-        """Get current timestamp"""
-        from datetime import datetime
-        return datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        msg += f"\n<i>{datetime.now().strftime('%Y-%m-%d %H:%M')}</i>"
+        return msg
 
 
 def main():
-    """Main entry point"""
-    import sys
-    import codecs
-
-    # Fix Windows console encoding for emojis
     if sys.platform == 'win32':
         sys.stdout = codecs.getwriter('utf-8')(sys.stdout.buffer, 'strict')
 
-    # Get project root (default to current directory)
     project_root = sys.argv[1] if len(sys.argv) > 1 else os.getcwd()
-
     tracker = ProjectStatusTracker(project_root)
-    message = tracker.format_telegram_message()
-
-    # Print message
-    print(message)
-
-    # Also output JSON for programmatic use
-    if '--json' in sys.argv:
-        overall_progress, milestones = tracker.calculate_progress()
-        output = {
-            'overall_progress': overall_progress,
-            'milestones': milestones
-        }
-        print("\n--- JSON OUTPUT ---")
-        print(json.dumps(output, indent=2))
+    print(tracker.format_telegram_message())
 
 
 if __name__ == "__main__":

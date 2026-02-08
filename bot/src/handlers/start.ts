@@ -3,8 +3,9 @@
  * Handles the initial interaction with the bot
  */
 
+import { InlineKeyboard } from 'grammy';
 import { MyContext, getUserName, getTelegramId, sendMarkdownMessage } from '../bot.js';
-import { createUser, getUserByTelegramId } from '../utils/pythonTools.js';
+import { createUser, getUserByTelegramId, executePythonTool } from '../utils/pythonTools.js';
 import { handleOnboarding } from './onboarding.js';
 
 export async function handleStart(ctx: MyContext) {
@@ -22,22 +23,46 @@ export async function handleStart(ctx: MyContext) {
     const existingUserResult = await getUserByTelegramId(telegramId);
 
     if (existingUserResult.success && existingUserResult.data) {
-      // User exists - welcome back
-      await sendMarkdownMessage(
-        ctx,
-        `👋 Welcome back, **${userName}**!\n\n` +
-          `I'm your RPG Quest companion. I help you level up in real life by turning your goals into epic quests! 🎮\n\n` +
-          `Current Status:\n` +
-          `⭐ Level: ${existingUserResult.data.current_level}\n` +
-          `💎 XP: ${existingUserResult.data.total_xp}\n\n` +
-          `Ready to continue your journey? Use /menu to see available commands.`
-      );
+      // User exists - welcome back with engagement
+      const user = existingUserResult.data;
 
       // Store user ID in session
-      ctx.session.userId = existingUserResult.data.id;
+      ctx.session.userId = user.id;
       ctx.session.telegramId = telegramId;
       ctx.session.username = username;
       ctx.session.firstName = userName;
+
+      // Get active quests count
+      const questsResult = await executePythonTool('quest_manager', [
+        '--get-active',
+        '--user-id',
+        user.id.toString(),
+      ]);
+      const activeQuests = (questsResult.data as any)?.quests || [];
+      const questCount = activeQuests.length;
+
+      let statusLine = `⭐ Level ${user.current_level} · 💎 ${user.total_xp} XP`;
+      if (questCount > 0) {
+        statusLine += `\n🎯 ${questCount} active quest${questCount > 1 ? 's' : ''} waiting`;
+      }
+
+      await sendMarkdownMessage(
+        ctx,
+        `👋 Welcome back, **${userName}**!\n\n` +
+          `${statusLine}\n\n` +
+          `What would you like to do?`
+      );
+
+      // Show quick action buttons
+      const keyboard = new InlineKeyboard()
+        .text('📋 View Quests', 'view_quests')
+        .text('👤 My Profile', 'view_profile')
+        .row()
+        .text('🎮 Open Mini App', 'open_app')
+        .row()
+        .text('📋 Manage Modes', 'start_mode_selection');
+
+      await ctx.reply('Choose an action:', { reply_markup: keyboard });
     } else {
       // New user - create account
       const createUserResult = await createUser(

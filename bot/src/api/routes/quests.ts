@@ -13,29 +13,9 @@ router.get('/users/:userId/active', authenticateTelegram, authorizeUser, readLim
   try {
     const { userId } = req.params;
 
-    const result = await executePythonTool('db_operations', [
-      '--query',
-      `SELECT
-        uq.id,
-        uq.quest_template_id,
-        qt.name,
-        qt.description,
-        qt.xp_reward,
-        qt.frequency,
-        qt.difficulty,
-        qt.mode_id,
-        m.name as mode_name,
-        uq.status,
-        uq.progress,
-        uq.target_value,
-        uq.assigned_date,
-        uq.due_date
-      FROM user_quests uq
-      JOIN quest_templates qt ON uq.quest_template_id = qt.id
-      LEFT JOIN modes m ON qt.mode_id = m.id
-      WHERE uq.user_id = ${userId}
-      AND uq.status = 'active'
-      ORDER BY uq.due_date ASC`
+    const result = await executePythonTool('quest_manager', [
+      '--get-active',
+      '--user-id', userId,
     ]);
 
     if (!result.success) {
@@ -45,9 +25,10 @@ router.get('/users/:userId/active', authenticateTelegram, authorizeUser, readLim
       });
     }
 
+    const data = result.data as any;
     res.json({
-      quests: result.data || [],
-      count: result.data?.length || 0,
+      quests: data?.quests || [],
+      count: data?.count || 0,
     });
   } catch (error) {
     console.error('Error fetching active quests:', error);
@@ -67,30 +48,10 @@ router.get('/users/:userId/completed', authenticateTelegram, authorizeUser, read
     const { userId } = req.params;
     const limit = req.query.limit ? parseInt(req.query.limit as string) : 50;
 
-    const result = await executePythonTool('db_operations', [
-      '--query',
-      `SELECT
-        uq.id,
-        uq.quest_template_id,
-        qt.name,
-        qt.description,
-        qt.xp_reward,
-        qt.frequency,
-        qt.difficulty,
-        qt.mode_id,
-        m.name as mode_name,
-        uq.status,
-        uq.progress,
-        uq.target_value,
-        uq.assigned_date,
-        uq.completed_date
-      FROM user_quests uq
-      JOIN quest_templates qt ON uq.quest_template_id = qt.id
-      LEFT JOIN modes m ON qt.mode_id = m.id
-      WHERE uq.user_id = ${userId}
-      AND uq.status = 'completed'
-      ORDER BY uq.completed_date DESC
-      LIMIT ${limit}`
+    const result = await executePythonTool('quest_manager', [
+      '--get-completed',
+      '--user-id', userId,
+      '--limit', limit.toString(),
     ]);
 
     if (!result.success) {
@@ -100,9 +61,10 @@ router.get('/users/:userId/completed', authenticateTelegram, authorizeUser, read
       });
     }
 
+    const data = result.data as any;
     res.json({
-      quests: result.data || [],
-      count: result.data?.length || 0,
+      quests: data?.quests || [],
+      count: data?.count || 0,
     });
   } catch (error) {
     console.error('Error fetching completed quests:', error);
@@ -114,121 +76,37 @@ router.get('/users/:userId/completed', authenticateTelegram, authorizeUser, read
 });
 
 /**
- * GET /api/quests/:questId
- * Get quest details by ID
- */
-router.get('/:questId', authenticateTelegram, readLimiter, async (req: Request, res: Response) => {
-  try {
-    const { questId } = req.params;
-
-    const result = await executePythonTool('db_operations', [
-      '--query',
-      `SELECT
-        uq.id,
-        uq.user_id,
-        uq.quest_template_id,
-        qt.name,
-        qt.description,
-        qt.xp_reward,
-        qt.frequency,
-        qt.difficulty,
-        qt.mode_id,
-        m.name as mode_name,
-        m.icon as mode_icon,
-        uq.status,
-        uq.progress,
-        uq.target_value,
-        uq.assigned_date,
-        uq.due_date,
-        uq.completed_date
-      FROM user_quests uq
-      JOIN quest_templates qt ON uq.quest_template_id = qt.id
-      LEFT JOIN modes m ON qt.mode_id = m.id
-      WHERE uq.id = ${questId}`
-    ]);
-
-    if (!result.success || !result.data || result.data.length === 0) {
-      return res.status(404).json({
-        error: 'Not Found',
-        message: 'Quest not found',
-      });
-    }
-
-    res.json({
-      quest: result.data[0],
-    });
-  } catch (error) {
-    console.error('Error fetching quest details:', error);
-    res.status(500).json({
-      error: 'Server Error',
-      message: 'Failed to fetch quest details',
-    });
-  }
-});
-
-/**
  * POST /api/quests/:questId/complete
  * Mark a quest as completed
  */
 router.post('/:questId/complete', authenticateTelegram, mutationLimiter, async (req: Request, res: Response) => {
   try {
     const { questId } = req.params;
-    const { progress } = req.body;
 
-    // Get quest details first
-    const questResult = await executePythonTool('db_operations', [
-      '--query',
-      `SELECT uq.*, qt.xp_reward
-       FROM user_quests uq
-       JOIN quest_templates qt ON uq.quest_template_id = qt.id
-       WHERE uq.id = ${questId}`
+    const result = await executePythonTool('quest_manager', [
+      '--complete-quest',
+      '--quest-id', questId,
     ]);
 
-    if (!questResult.success || !questResult.data || questResult.data.length === 0) {
-      return res.status(404).json({
-        error: 'Not Found',
-        message: 'Quest not found',
-      });
+    if (!result.success) {
+      const data = result.data as any;
+      const errorMsg = data?.error || result.error || 'Failed to complete quest';
+
+      if (errorMsg.includes('not found')) {
+        return res.status(404).json({ error: 'Not Found', message: errorMsg });
+      }
+      if (errorMsg.includes('already completed')) {
+        return res.status(400).json({ error: 'Bad Request', message: errorMsg });
+      }
+      return res.status(500).json({ error: 'Server Error', message: errorMsg });
     }
 
-    const quest = questResult.data[0];
-
-    if (quest.status === 'completed') {
-      return res.status(400).json({
-        error: 'Bad Request',
-        message: 'Quest already completed',
-      });
-    }
-
-    // Mark quest as completed
-    const completeResult = await executePythonTool('db_operations', [
-      '--query',
-      `UPDATE user_quests
-       SET status = 'completed',
-           progress = ${progress || quest.target_value},
-           completed_date = NOW()
-       WHERE id = ${questId}`
-    ]);
-
-    if (!completeResult.success) {
-      return res.status(500).json({
-        error: 'Server Error',
-        message: 'Failed to complete quest',
-      });
-    }
-
-    // Award XP to user
-    const xpResult = await executePythonTool('user_manager', [
-      '--add-xp',
-      '--user-id', quest.user_id.toString(),
-      '--xp', quest.xp_reward.toString()
-    ]);
-
+    const data = result.data as any;
     res.json({
       message: 'Quest completed successfully',
-      xpEarned: quest.xp_reward,
-      newLevel: xpResult.success ? xpResult.data.level : null,
-      leveledUp: xpResult.success ? xpResult.data.leveled_up : false,
+      xpEarned: data?.xp_awarded || 0,
+      newLevel: data?.new_level || null,
+      leveledUp: !!data?.new_level,
     });
   } catch (error) {
     console.error('Error completing quest:', error);
@@ -240,45 +118,32 @@ router.post('/:questId/complete', authenticateTelegram, mutationLimiter, async (
 });
 
 /**
- * PATCH /api/quests/:questId/progress
- * Update quest progress
+ * GET /api/users/:userId/quests/stats
+ * Get quest statistics for a user
  */
-router.patch('/:questId/progress', authenticateTelegram, mutationLimiter, async (req: Request, res: Response) => {
+router.get('/users/:userId/stats', authenticateTelegram, authorizeUser, readLimiter, async (req: Request, res: Response) => {
   try {
-    const { questId } = req.params;
-    const { progress } = req.body;
+    const { userId } = req.params;
 
-    if (progress === undefined || progress < 0) {
-      return res.status(400).json({
-        error: 'Bad Request',
-        message: 'Invalid progress value',
-      });
-    }
-
-    const result = await executePythonTool('db_operations', [
-      '--query',
-      `UPDATE user_quests
-       SET progress = ${progress},
-           updated_at = NOW()
-       WHERE id = ${questId}`
+    const result = await executePythonTool('quest_manager', [
+      '--get-stats',
+      '--user-id', userId,
     ]);
 
     if (!result.success) {
       return res.status(500).json({
         error: 'Server Error',
-        message: 'Failed to update quest progress',
+        message: 'Failed to fetch quest stats',
       });
     }
 
-    res.json({
-      message: 'Quest progress updated successfully',
-      progress,
-    });
+    const data = result.data as any;
+    res.json(data?.stats || {});
   } catch (error) {
-    console.error('Error updating quest progress:', error);
+    console.error('Error fetching quest stats:', error);
     res.status(500).json({
       error: 'Server Error',
-      message: 'Failed to update quest progress',
+      message: 'Failed to fetch quest stats',
     });
   }
 });
@@ -290,7 +155,7 @@ router.patch('/:questId/progress', authenticateTelegram, mutationLimiter, async 
 router.post('/users/:userId/assign', authenticateTelegram, authorizeUser, mutationLimiter, async (req: Request, res: Response) => {
   try {
     const { userId } = req.params;
-    const { frequency } = req.body; // 'daily' or 'weekly'
+    const { frequency, count } = req.body;
 
     if (!frequency || !['daily', 'weekly'].includes(frequency)) {
       return res.status(400).json({
@@ -299,66 +164,26 @@ router.post('/users/:userId/assign', authenticateTelegram, authorizeUser, mutati
       });
     }
 
-    // Get user's active modes
-    const modesResult = await executePythonTool('mode_manager', [
-      '--get-active-modes',
-      '--user-id', userId
-    ]);
+    const operation = frequency === 'daily' ? '--assign-daily' : '--assign-weekly';
+    const args = [operation, '--user-id', userId];
+    if (count) {
+      args.push('--count', count.toString());
+    }
 
-    if (!modesResult.success || !modesResult.data || modesResult.data.length === 0) {
+    const result = await executePythonTool('quest_manager', args);
+
+    if (!result.success) {
+      const data = result.data as any;
       return res.status(400).json({
         error: 'Bad Request',
-        message: 'User has no active modes',
+        message: data?.error || 'Failed to assign quests',
       });
     }
 
-    const modeIds = modesResult.data.map((mode: any) => mode.id).join(',');
-
-    // Get quest templates for these modes
-    const templatesResult = await executePythonTool('db_operations', [
-      '--query',
-      `SELECT * FROM quest_templates
-       WHERE mode_id IN (${modeIds})
-       AND frequency = '${frequency}'
-       AND is_active = true
-       ORDER BY RANDOM()
-       LIMIT 3`
-    ]);
-
-    if (!templatesResult.success || !templatesResult.data || templatesResult.data.length === 0) {
-      return res.status(404).json({
-        error: 'Not Found',
-        message: 'No quest templates available for user modes',
-      });
-    }
-
-    // Assign quests to user
-    const assignedQuests = [];
-    const dueDate = frequency === 'daily'
-      ? 'CURRENT_DATE + INTERVAL \'1 day\''
-      : 'CURRENT_DATE + INTERVAL \'7 days\'';
-
-    for (const template of templatesResult.data) {
-      const assignResult = await executePythonTool('db_operations', [
-        '--query',
-        `INSERT INTO user_quests
-         (user_id, quest_template_id, status, progress, target_value, assigned_date, due_date)
-         VALUES
-         (${userId}, ${template.id}, 'active', 0, ${template.default_target || 1}, CURRENT_DATE, ${dueDate})
-         RETURNING *`
-      ]);
-
-      if (assignResult.success && assignResult.data) {
-        assignedQuests.push({
-          ...assignResult.data[0],
-          template,
-        });
-      }
-    }
-
+    const data = result.data as any;
     res.json({
-      message: `${assignedQuests.length} ${frequency} quests assigned successfully`,
-      quests: assignedQuests,
+      message: `${data?.count || 0} ${frequency} quests assigned successfully`,
+      quests: data?.quests || [],
     });
   } catch (error) {
     console.error('Error assigning quests:', error);
