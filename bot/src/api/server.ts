@@ -3,7 +3,11 @@ import cors from 'cors';
 import helmet from 'helmet';
 import morgan from 'morgan';
 import path from 'path';
+import { fileURLToPath } from 'url';
 import http from 'http';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 import { config } from 'dotenv';
 import { userRouter } from './routes/users.js';
 import { questRouter } from './routes/quests.js';

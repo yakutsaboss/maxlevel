@@ -24,7 +24,7 @@ module.exports = {
         API_PORT: 3000,
         LOG_LEVEL: 'info',
         USE_WEBHOOK: 'true',
-        WEBHOOK_DOMAIN: 'https://yourdomain.com',  // Replace with actual domain
+        WEBHOOK_DOMAIN: 'https://yakutsa.ru',
       },
       env_staging: {
         NODE_ENV: 'staging',
