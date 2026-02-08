@@ -3,15 +3,18 @@
  * Provides functions to execute Python tools via subprocess
  */
 
-import { exec } from 'child_process';
+import { execFile } from 'child_process';
 import { promisify } from 'util';
 import path from 'path';
 
-const execAsync = promisify(exec);
+const execFileAsync = promisify(execFile);
 
 // Configuration
 const PYTHON_EXECUTABLE = process.env.PYTHON_EXECUTABLE || 'python';
 const TOOLS_PATH = process.env.PYTHON_TOOLS_PATH || path.join('..', 'tools');
+
+// Whitelist pattern for tool names (lowercase alphanumeric + underscores only)
+const TOOL_NAME_PATTERN = /^[a-z][a-z0-9_]*$/;
 
 export interface PythonToolResult<T = any> {
   success: boolean;
@@ -21,22 +24,27 @@ export interface PythonToolResult<T = any> {
 }
 
 /**
- * Execute a Python tool and return parsed JSON result
+ * Execute a Python tool and return parsed JSON result.
+ * Uses execFile (no shell) to prevent command injection.
  */
 export async function executePythonTool<T = any>(
   toolName: string,
   args: string[]
 ): Promise<PythonToolResult<T>> {
   try {
+    if (!TOOL_NAME_PATTERN.test(toolName)) {
+      throw new Error(`Invalid tool name: ${toolName}`);
+    }
+
     const toolPath = path.join(TOOLS_PATH, `${toolName}.py`);
-    const quotedArgs = args.map(a => a.includes(' ') ? `"${a}"` : a).join(' ');
-    const command = `${PYTHON_EXECUTABLE} ${toolPath} ${quotedArgs}`;
 
-    console.log(`[Python] Executing: ${command}`);
+    console.log(`[Python] Executing: ${toolName} ${args.join(' ').substring(0, 100)}...`);
 
-    const { stdout, stderr } = await execAsync(command, {
-      maxBuffer: 1024 * 1024 * 5, // 5MB buffer
-    });
+    const { stdout, stderr } = await execFileAsync(
+      PYTHON_EXECUTABLE,
+      [toolPath, ...args],
+      { maxBuffer: 1024 * 1024 * 5 }
+    );
 
     if (stderr && stderr.trim().length > 0) {
       console.warn(`[Python] stderr: ${stderr}`);
@@ -69,6 +77,36 @@ export async function executePythonTool<T = any>(
 }
 
 /**
+ * Execute a parameterized SELECT query (or INSERT/UPDATE with RETURNING).
+ * Uses %s placeholders with separate params to prevent SQL injection.
+ */
+export async function executeSafeQuery<T = any>(
+  query: string,
+  params: any[] = []
+): Promise<PythonToolResult<T>> {
+  const args = ['--query', query];
+  if (params.length > 0) {
+    args.push('--params', JSON.stringify(params));
+  }
+  return executePythonTool('db_operations', args);
+}
+
+/**
+ * Execute a parameterized INSERT/UPDATE/DELETE statement (no result rows).
+ * Uses %s placeholders with separate params to prevent SQL injection.
+ */
+export async function executeSafeStatement(
+  statement: string,
+  params: any[] = []
+): Promise<PythonToolResult> {
+  const args = ['--execute', statement];
+  if (params.length > 0) {
+    args.push('--params', JSON.stringify(params));
+  }
+  return executePythonTool('db_operations', args);
+}
+
+/**
  * User Manager Functions
  */
 export async function createUser(
@@ -87,7 +125,7 @@ export async function createUser(
     args.push('--username', username);
   }
   if (firstName) {
-    args.push('--first-name', `"${firstName}"`);
+    args.push('--first-name', firstName);
   }
   if (timezone !== 'UTC') {
     args.push('--timezone', timezone);
@@ -151,7 +189,7 @@ export async function addModesToUser(userId: number, modes: string[]) {
     '--user-id',
     userId.toString(),
     '--modes',
-    `"${modes.join(',')}"`,
+    modes.join(','),
   ]);
 }
 

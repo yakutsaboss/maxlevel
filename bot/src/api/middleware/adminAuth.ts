@@ -18,18 +18,25 @@ export interface AdminUser {
 
 /**
  * Admin users configuration
- * In production, store in database with hashed passwords
+ * Credentials are loaded from environment variables for security.
+ * Set ADMIN_USERNAME and ADMIN_PASSWORD_HASH in .env
  */
-const ADMIN_USERS: Record<string, { username: string; passwordHash: string; role: string; permissions: string[] }> = {
-  // Default admin (CHANGE IN PRODUCTION!)
-  admin: {
-    username: 'admin',
-    // Hash of 'admin123' - MUST CHANGE IN PRODUCTION
-    passwordHash: '240be518fabd2724ddb6f04eeb1da5967448d7e831c08c8fa822809f74c720a9',
+const ADMIN_USERS: Record<string, { username: string; passwordHash: string; role: string; permissions: string[] }> = {};
+
+// Load admin credentials from environment
+const envUsername = process.env.ADMIN_USERNAME;
+const envPasswordHash = process.env.ADMIN_PASSWORD_HASH;
+
+if (envUsername && envPasswordHash) {
+  ADMIN_USERS[envUsername] = {
+    username: envUsername,
+    passwordHash: envPasswordHash,
     role: 'super_admin',
-    permissions: ['*'], // All permissions
-  },
-};
+    permissions: ['*'],
+  };
+} else {
+  console.warn('[SECURITY] ADMIN_USERNAME and ADMIN_PASSWORD_HASH not set. Admin routes are disabled.');
+}
 
 /**
  * Hash password using SHA-256
@@ -269,8 +276,3 @@ export function generatePasswordHash(password: string): string {
   return hashPassword(password);
 }
 
-// Log warning about default admin
-if (ADMIN_USERS.admin && ADMIN_USERS.admin.passwordHash === '240be518fabd2724ddb6f04eeb1da5967448d7e831c08c8fa822809f74c720a9') {
-  console.warn('⚠️  [SECURITY] Default admin password detected! Change immediately in production!');
-  console.warn('⚠️  Use: generatePasswordHash("your_secure_password") to create a new hash');
-}

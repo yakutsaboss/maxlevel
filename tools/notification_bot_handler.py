@@ -141,11 +141,11 @@ async def ping_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         proc = _run_cmd("echo ok", timeout=10)
         ms = int((time.time() - t0) * 1000)
         if proc.returncode == 0 and "ok" in proc.stdout:
-            results.append(f"\u2705 VDS Server ({SERVER_IP}) \u2014 {ms}ms")
+            results.append(f"\u2705 VDS Server \u2014 {ms}ms")
         else:
-            results.append(f"\u274C VDS Server ({SERVER_IP}) \u2014 unreachable")
+            results.append(f"\u274C VDS Server \u2014 unreachable")
     except Exception:
-        results.append(f"\u274C VDS Server ({SERVER_IP}) \u2014 timeout")
+        results.append(f"\u274C VDS Server \u2014 timeout")
 
     # 2. Bot Webhook / Health endpoint
     try:
@@ -155,11 +155,11 @@ async def ping_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             ms = int((time.time() - t0) * 1000)
             body = json.loads(resp.read())
             if body.get("status") == "ok":
-                results.append(f"\u2705 Bot API (yakutsa.ru/health) \u2014 {ms}ms")
+                results.append(f"\u2705 Bot API \u2014 {ms}ms")
             else:
                 results.append(f"\u26A0\uFE0F Bot API \u2014 responded but status != ok")
     except Exception as e:
-        results.append(f"\u274C Bot API (yakutsa.ru/health) \u2014 {str(e)[:50]}")
+        results.append(f"\u274C Bot API \u2014 {str(e)[:50]}")
 
     # 3. Mini App
     try:
@@ -168,7 +168,7 @@ async def ping_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         with urllib.request.urlopen(req, timeout=10) as resp:
             ms = int((time.time() - t0) * 1000)
             if resp.status == 200:
-                results.append(f"\u2705 Mini App (yakutsa.ru) \u2014 {ms}ms")
+                results.append(f"\u2705 Mini App \u2014 {ms}ms")
             else:
                 results.append(f"\u26A0\uFE0F Mini App \u2014 HTTP {resp.status}")
     except Exception as e:

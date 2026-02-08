@@ -3,10 +3,16 @@
 Send a notification via yakutsawibecode_bot.
 Does NOT require the bot to be running — calls Telegram API directly.
 
+Uses a SINGLE Telegram message that gets progressively updated:
+- Session start: 🔴 Active
+- Task updates: edits message with task list
+- Session end: 🟢 Session Ended with completed tasks (same message, no second msg)
+- Resume (same day): edits same message, adds new session segment
+
 Usage:
-    python send_notification.py start                        # Session started + server snapshot
-    python send_notification.py finish                       # Session finished + metrics delta
-    python send_notification.py mission "Bug Fixing" "desc"  # Set mission & summary, edit msg
+    python send_notification.py start                        # Session started
+    python send_notification.py finish                       # Session finished (edits start msg)
+    python send_notification.py mission "Bug Fixing" "desc"  # Set mission & summary
     python send_notification.py add-task "Task name"         # Add a pending task
     python send_notification.py task-progress "Task name"    # Mark task in-progress
     python send_notification.py task-done "Task name"        # Mark task completed
@@ -98,49 +104,86 @@ def save_session(state: dict):
 
 # ── Message builder ───────────────────────────────────────────────────
 
-STATUS_ICONS = {
+TASK_ICONS = {
     "pending": "\U0001F534",     # 🔴
     "in_progress": "\U0001F7E1", # 🟡
     "done": "\U0001F7E2",        # 🟢
 }
 
+
+def get_current_session(state: dict) -> dict | None:
+    """Get the last (current) session segment."""
+    sessions = state.get("sessions", [])
+    return sessions[-1] if sessions else None
+
+
 def build_session_message(state: dict) -> str:
-    """Build the session notification message from current state."""
-    mission = state.get("mission", "Started")
-    summary = state.get("summary", "")
-    started_at = state.get("started_at", "")
+    """Build the single living session message from current state.
+
+    Supports multiple session segments (resume) within the same day.
+    """
+    sessions = state.get("sessions", [])
     date = state.get("date", "")
     vds_summary = state.get("vds_summary", "")
-    tasks = state.get("tasks", [])
 
-    # Determine header icon based on task progress
-    all_done = tasks and all(t["status"] == "done" for t in tasks)
-    any_progress = any(t["status"] in ("in_progress", "done") for t in tasks) if tasks else False
+    if not sessions:
+        return "\U0001F534 <b>Claude Code \u2014 Active</b>"
 
-    if all_done:
-        header_icon = "\u2705"  # ✅
-    elif any_progress:
-        header_icon = "\u26A1"  # ⚡
+    current = sessions[-1]
+    is_active = current.get("ended_at") is None
+
+    # Header: 🔴 Active or 🟢 Session Ended
+    if is_active:
+        header = "\U0001F534 <b>Claude Code \u2014 Active</b>"
     else:
-        header_icon = "\U0001F680"  # 🚀
+        header = "\U0001F7E2 <b>Claude Code \u2014 Session Ended</b>"
 
-    msg = f"{header_icon} <b>Claude Code \u2014 {mission}</b>\n\n"
-    msg += f"\U0001F4C1 Project: Wibecode\n"
-    msg += f"\u23F0 {started_at} | \U0001F4C5 {date}\n"
+    msg = header + "\n\n"
+    msg += f"\U0001F4C1 Wibecode | \U0001F4C5 {date}\n"
 
     if vds_summary and "failed" not in vds_summary.lower() and "unavailable" not in vds_summary.lower():
         msg += f"\U0001F5A5\uFE0F {vds_summary}\n"
 
-    if summary:
-        msg += f"\n\U0001F4DD {summary}\n"
+    multi = len(sessions) > 1
 
-    if tasks:
-        msg += f"\n\U0001F4CB <b>Tasks:</b>\n"
-        for t in tasks:
-            icon = STATUS_ICONS.get(t["status"], "\U0001F534")
-            msg += f"  {icon} {t['name']}\n"
+    for i, session in enumerate(sessions):
+        started = session.get("started_at", "?")
+        ended = session.get("ended_at")
+        tasks = session.get("tasks", [])
+        summary = session.get("summary", "")
+        is_last = (i == len(sessions) - 1)
 
-    return msg
+        if multi:
+            # Multiple sessions: show separator with time range
+            time_str = f"{started} \u2192 {ended}" if ended else f"{started} \u2192 ..."
+            msg += f"\n\u2500\u2500 {time_str} \u2500\u2500\n"
+        else:
+            # Single session: show time inline
+            if ended:
+                msg += f"\u23F0 {started} \u2192 {ended}\n"
+            else:
+                msg += f"\u23F0 {started}\n"
+
+        # Summary for active session
+        if is_last and is_active and summary:
+            msg += f"\n\U0001F4DD {summary}\n"
+
+        # Tasks
+        if tasks:
+            if not multi:
+                msg += "\n"
+            for t in tasks:
+                if ended is not None:
+                    # Finished session — all tasks show ✅
+                    msg += f"  \u2705 {t['name']}\n"
+                else:
+                    # Active session — show status icons
+                    icon = TASK_ICONS.get(t["status"], "\U0001F534")
+                    msg += f"  {icon} {t['name']}\n"
+        elif is_last and is_active and not summary:
+            msg += f"\n\U0001F4AC Session in progress...\n"
+
+    return msg.rstrip() + "\n"
 
 
 def update_session_message(state: dict) -> bool:
@@ -173,20 +216,6 @@ def get_server_snapshot() -> str:
         return "VDS: metrics unavailable"
 
 
-def get_server_report() -> str:
-    """Run server_metrics.py report and return comparison."""
-    metrics_script = PROJECT_ROOT / "tools" / "server_metrics.py"
-    try:
-        result = subprocess.run(
-            [sys.executable, str(metrics_script), "report"],
-            capture_output=True, text=True, timeout=8,
-            encoding='utf-8', cwd=str(PROJECT_ROOT)
-        )
-        return result.stdout.strip() if result.returncode == 0 else "Metrics: unavailable"
-    except Exception:
-        return "Metrics: unavailable"
-
-
 # ── Main CLI ──────────────────────────────────────────────────────────
 
 def main():
@@ -199,32 +228,57 @@ def main():
     date = datetime.now().strftime("%Y-%m-%d")
 
     if action == "start":
-        # Capture server metrics snapshot
-        vds_summary = get_server_snapshot()
+        existing = load_session()
+        resumed = False
 
-        # Build initial session state
-        state = {
-            "message_id": None,
-            "mission": "Started",
-            "summary": "",
-            "started_at": now,
-            "date": date,
-            "vds_summary": vds_summary,
-            "tasks": [],
-        }
+        # Try to resume if same-day session exists with a message_id
+        if existing and existing.get("message_id") and existing.get("date") == date:
+            # If previous session is still active, close it
+            current = get_current_session(existing)
+            if current and current.get("ended_at") is None:
+                current["ended_at"] = now
 
-        msg = build_session_message(state)
-        result = send_message(msg)
-        if result:
-            state["message_id"] = result["message_id"]
-            save_session(state)
-            print("Notification sent.")
-        else:
-            print("Failed to send notification.")
-            sys.exit(1)
+            # Add new session segment
+            existing["sessions"].append({
+                "started_at": now,
+                "ended_at": None,
+                "mission": "",
+                "summary": "",
+                "tasks": [],
+            })
+
+            resumed = update_session_message(existing)
+            if resumed:
+                print("Session resumed (same message).")
+
+        if not resumed:
+            # Fresh start — new message
+            vds_summary = get_server_snapshot()
+
+            state = {
+                "message_id": None,
+                "date": date,
+                "vds_summary": vds_summary,
+                "sessions": [{
+                    "started_at": now,
+                    "ended_at": None,
+                    "mission": "",
+                    "summary": "",
+                    "tasks": [],
+                }],
+            }
+
+            msg = build_session_message(state)
+            result = send_message(msg)
+            if result:
+                state["message_id"] = result["message_id"]
+                save_session(state)
+                print("Notification sent.")
+            else:
+                print("Failed to send notification.")
+                sys.exit(1)
 
     elif action == "mission":
-        # python send_notification.py mission "Bug Fixing" "Short description"
         if len(sys.argv) < 3:
             print("Usage: python send_notification.py mission \"Mission Name\" [\"summary\"]")
             sys.exit(1)
@@ -234,18 +288,19 @@ def main():
             print("No active session. Run 'start' first.")
             sys.exit(1)
 
-        state["mission"] = sys.argv[2]
-        if len(sys.argv) > 3:
-            state["summary"] = " ".join(sys.argv[3:])
+        current = get_current_session(state)
+        if current:
+            current["mission"] = sys.argv[2]
+            if len(sys.argv) > 3:
+                current["summary"] = " ".join(sys.argv[3:])
 
         if update_session_message(state):
-            print(f"Mission set: {state['mission']}")
+            print(f"Mission set: {sys.argv[2]}")
         else:
             print("Failed to update message.")
             sys.exit(1)
 
     elif action == "add-task":
-        # python send_notification.py add-task "Investigate root cause"
         if len(sys.argv) < 3:
             print("Usage: python send_notification.py add-task \"Task name\"")
             sys.exit(1)
@@ -255,8 +310,10 @@ def main():
             print("No active session. Run 'start' first.")
             sys.exit(1)
 
+        current = get_current_session(state)
         task_name = " ".join(sys.argv[2:])
-        state.setdefault("tasks", []).append({"name": task_name, "status": "pending"})
+        if current:
+            current.setdefault("tasks", []).append({"name": task_name, "status": "pending"})
 
         if update_session_message(state):
             print(f"Task added: {task_name}")
@@ -265,7 +322,6 @@ def main():
             sys.exit(1)
 
     elif action == "task-progress":
-        # python send_notification.py task-progress "Task name"
         if len(sys.argv) < 3:
             print("Usage: python send_notification.py task-progress \"Task name\"")
             sys.exit(1)
@@ -275,17 +331,17 @@ def main():
             print("No active session. Run 'start' first.")
             sys.exit(1)
 
+        current = get_current_session(state)
         task_name = " ".join(sys.argv[2:])
-        found = False
-        for t in state.get("tasks", []):
-            if t["name"].lower() == task_name.lower():
-                t["status"] = "in_progress"
-                found = True
-                break
-
-        if not found:
-            # Auto-add as in_progress if not found
-            state.setdefault("tasks", []).append({"name": task_name, "status": "in_progress"})
+        if current:
+            found = False
+            for t in current.get("tasks", []):
+                if t["name"].lower() == task_name.lower():
+                    t["status"] = "in_progress"
+                    found = True
+                    break
+            if not found:
+                current.setdefault("tasks", []).append({"name": task_name, "status": "in_progress"})
 
         if update_session_message(state):
             print(f"Task in progress: {task_name}")
@@ -294,7 +350,6 @@ def main():
             sys.exit(1)
 
     elif action == "task-done":
-        # python send_notification.py task-done "Task name"
         if len(sys.argv) < 3:
             print("Usage: python send_notification.py task-done \"Task name\"")
             sys.exit(1)
@@ -304,17 +359,17 @@ def main():
             print("No active session. Run 'start' first.")
             sys.exit(1)
 
+        current = get_current_session(state)
         task_name = " ".join(sys.argv[2:])
-        found = False
-        for t in state.get("tasks", []):
-            if t["name"].lower() == task_name.lower():
-                t["status"] = "done"
-                found = True
-                break
-
-        if not found:
-            # Auto-add as done if not found
-            state.setdefault("tasks", []).append({"name": task_name, "status": "done"})
+        if current:
+            found = False
+            for t in current.get("tasks", []):
+                if t["name"].lower() == task_name.lower():
+                    t["status"] = "done"
+                    found = True
+                    break
+            if not found:
+                current.setdefault("tasks", []).append({"name": task_name, "status": "done"})
 
         if update_session_message(state):
             print(f"Task done: {task_name}")
@@ -323,47 +378,25 @@ def main():
             sys.exit(1)
 
     elif action == "finish":
-        task_desc = " ".join(sys.argv[2:]) if len(sys.argv) > 2 else ""
-
-        # Mark all remaining tasks as done in the session message
         state = load_session()
-        if state and state.get("message_id"):
-            for t in state.get("tasks", []):
+        if not state or not state.get("message_id"):
+            print("No active session to finish.")
+            sys.exit(0)
+
+        current = get_current_session(state)
+        if current:
+            # Mark all remaining tasks as done
+            for t in current.get("tasks", []):
                 if t["status"] != "done":
                     t["status"] = "done"
-            state["mission"] = state.get("mission", "Finished")
-            update_session_message(state)
+            # Set end time
+            current["ended_at"] = now
 
-        # Send the finish notification FIRST (fast, no server dependency)
-        started_at = state.get("started_at", "?") if state else "?"
-        msg = (
-            f"\u2705 <b>Claude Code \u2014 Finished</b>\n\n"
-            f"\U0001F4C1 Project: Wibecode\n"
-            f"\u23F0 {started_at} \u2192 {now} | \U0001F4C5 {date}"
-        )
-        if task_desc:
-            msg += f"\n\n\U0001F4DD Done: {task_desc}"
-
-        result = send_message(msg)
-        if result:
-            # Clean up session file
-            if SESSION_FILE.exists():
-                SESSION_FILE.unlink()
-            print("Notification sent.")
-
-            # Try to append server metrics (best-effort, don't block)
-            try:
-                metrics_report = get_server_report()
-                if metrics_report and metrics_report != "Metrics: unavailable":
-                    msg += (
-                        f"\n\n\U0001F4CA <b>Server Metrics (start \u2192 end):</b>\n"
-                        f"<code>{metrics_report}</code>"
-                    )
-                    edit_message(result["message_id"], msg)
-            except Exception:
-                pass  # Metrics are optional, notification already sent
+        # Edit the original message to 🟢 Session Ended — no second message
+        if update_session_message(state):
+            print("Session finished (message updated).")
         else:
-            print("Failed to send notification.")
+            print("Failed to update message.")
             sys.exit(1)
 
     else:

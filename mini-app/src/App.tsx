@@ -126,7 +126,7 @@ function App() {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <BrowserRouter>
+      <BrowserRouter basename="/levelapp">
         <AppContent />
       </BrowserRouter>
     </QueryClientProvider>

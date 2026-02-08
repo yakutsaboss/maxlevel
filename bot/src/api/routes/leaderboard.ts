@@ -1,6 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { authenticateTelegram } from '../middleware/auth.js';
-import { executePythonTool } from '../../utils/pythonTools.js';
+import { executeSafeQuery } from '../../utils/pythonTools.js';
 
 const router = Router();
 
@@ -12,14 +12,14 @@ router.get('/', authenticateTelegram, async (req: Request, res: Response) => {
   try {
     const limit = req.query.limit ? parseInt(req.query.limit as string) : 50;
 
-    const result = await executePythonTool('db_operations', [
-      '--query',
+    const result = await executeSafeQuery(
       `SELECT user_id, telegram_id, username, first_name, current_level, total_xp,
               best_current_streak, total_quests_completed, xp_rank, level_rank
        FROM leaderboard_mv
        ORDER BY xp_rank ASC
-       LIMIT ${Math.min(limit, 100)}`
-    ]);
+       LIMIT %s`,
+      [Math.min(limit, 100)]
+    );
 
     if (!result.success) {
       return res.status(500).json({ success: false, error: 'Failed to fetch leaderboard' });

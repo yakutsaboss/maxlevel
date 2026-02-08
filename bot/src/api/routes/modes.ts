@@ -1,6 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { authenticateTelegram } from '../middleware/auth.js';
-import { executePythonTool } from '../../utils/pythonTools.js';
+import { executePythonTool, executeSafeQuery } from '../../utils/pythonTools.js';
 
 const router = Router();
 
@@ -183,7 +183,8 @@ router.delete('/users/:userId/:modeId', authenticateTelegram, async (req: Reques
  */
 router.patch('/users/:userId/:modeId', authenticateTelegram, async (req: Request, res: Response) => {
   try {
-    const { userId, modeId } = req.params;
+    const userId = parseInt(req.params.userId);
+    const modeId = parseInt(req.params.modeId);
     const { settings } = req.body;
 
     if (!settings) {
@@ -194,14 +195,14 @@ router.patch('/users/:userId/:modeId', authenticateTelegram, async (req: Request
     }
 
     // Update user_modes settings
-    const result = await executePythonTool('db_operations', [
-      '--query',
+    const result = await executeSafeQuery(
       `UPDATE user_modes
-       SET settings = '${JSON.stringify(settings)}'::jsonb,
+       SET settings = %s::jsonb,
            updated_at = NOW()
-       WHERE user_id = ${userId} AND mode_id = ${modeId}
-       RETURNING *`
-    ]);
+       WHERE user_id = %s AND mode_id = %s
+       RETURNING *`,
+      [JSON.stringify(settings), userId, modeId]
+    );
 
     if (!result.success) {
       return res.status(500).json({
@@ -229,10 +230,9 @@ router.patch('/users/:userId/:modeId', authenticateTelegram, async (req: Request
  */
 router.get('/:modeId/quests', authenticateTelegram, async (req: Request, res: Response) => {
   try {
-    const { modeId } = req.params;
+    const modeId = parseInt(req.params.modeId);
 
-    const result = await executePythonTool('db_operations', [
-      '--query',
+    const result = await executeSafeQuery(
       `SELECT
         id,
         name,
@@ -243,10 +243,11 @@ router.get('/:modeId/quests', authenticateTelegram, async (req: Request, res: Re
         default_target,
         is_active
       FROM quest_templates
-      WHERE mode_id = ${modeId}
+      WHERE mode_id = %s
       AND is_active = true
-      ORDER BY frequency, difficulty`
-    ]);
+      ORDER BY frequency, difficulty`,
+      [modeId]
+    );
 
     if (!result.success) {
       return res.status(500).json({

@@ -25,7 +25,7 @@ module.exports = {
         LOG_LEVEL: 'info',
         USE_WEBHOOK: 'true',
         WEBHOOK_DOMAIN: 'https://yakutsa.ru',
-        MINI_APP_URL: 'https://yakutsa.ru',
+        MINI_APP_URL: 'https://yakutsa.ru/levelapp',
       },
       env_staging: {
         NODE_ENV: 'staging',

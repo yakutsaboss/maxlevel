@@ -78,14 +78,16 @@ export function startApiServer(webhookHandler?: RequestHandler): Promise<http.Se
     mountWebhook(webhookHandler);
   }
 
-  // Static files and catch-all handlers registered after webhook
-  app.use(express.static(miniAppPath));
+  // Root placeholder (future landing page)
+  app.get('/', (req: Request, res: Response) => {
+    res.status(200).send('<!DOCTYPE html><html><head><meta charset="utf-8"><title>yakutsa.ru</title></head><body><h1>yakutsa.ru</h1><p>Coming soon.</p></body></html>');
+  });
 
-  // SPA fallback: serve index.html for non-API routes (for React Router)
-  app.get('*', (req: Request, res: Response, next: NextFunction) => {
-    if (req.path.startsWith('/api') || req.path === '/health' || req.path === '/webhook') {
-      return next();
-    }
+  // Serve Mini App at /levelapp
+  app.use('/levelapp', express.static(miniAppPath));
+
+  // SPA fallback for /levelapp routes (React Router)
+  app.get('/levelapp/*', (req: Request, res: Response, next: NextFunction) => {
     res.sendFile(path.join(miniAppPath, 'index.html'), (err) => {
       if (err) {
         next();

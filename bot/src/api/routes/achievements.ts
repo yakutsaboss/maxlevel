@@ -1,6 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { authenticateTelegram } from '../middleware/auth.js';
-import { executePythonTool } from '../../utils/pythonTools.js';
+import { executePythonTool, executeSafeQuery } from '../../utils/pythonTools.js';
 
 const router = Router();
 
@@ -10,8 +10,7 @@ const router = Router();
  */
 router.get('/', authenticateTelegram, async (req: Request, res: Response) => {
   try {
-    const result = await executePythonTool('db_operations', [
-      '--query',
+    const result = await executeSafeQuery(
       `SELECT
         id,
         name,
@@ -26,7 +25,7 @@ router.get('/', authenticateTelegram, async (req: Request, res: Response) => {
       FROM achievements
       WHERE is_active = true
       ORDER BY rarity DESC, name ASC`
-    ]);
+    );
 
     if (!result.success) {
       return res.status(500).json({
@@ -54,10 +53,9 @@ router.get('/', authenticateTelegram, async (req: Request, res: Response) => {
  */
 router.get('/users/:userId', authenticateTelegram, async (req: Request, res: Response) => {
   try {
-    const { userId } = req.params;
+    const userId = parseInt(req.params.userId);
 
-    const result = await executePythonTool('db_operations', [
-      '--query',
+    const result = await executeSafeQuery(
       `SELECT
         ua.id,
         ua.achievement_id,
@@ -71,9 +69,10 @@ router.get('/users/:userId', authenticateTelegram, async (req: Request, res: Res
         ua.progress
       FROM user_achievements ua
       JOIN achievements a ON ua.achievement_id = a.id
-      WHERE ua.user_id = ${userId}
-      ORDER BY ua.unlocked_at DESC`
-    ]);
+      WHERE ua.user_id = %s
+      ORDER BY ua.unlocked_at DESC`,
+      [userId]
+    );
 
     if (!result.success) {
       return res.status(500).json({
@@ -83,10 +82,9 @@ router.get('/users/:userId', authenticateTelegram, async (req: Request, res: Res
     }
 
     // Get total achievement count
-    const totalResult = await executePythonTool('db_operations', [
-      '--query',
+    const totalResult = await executeSafeQuery(
       `SELECT COUNT(*) as total FROM achievements WHERE is_active = true`
-    ]);
+    );
 
     const unlockedCount = result.data?.length || 0;
     const totalCount = totalResult.success ? totalResult.data[0]?.total || 0 : 0;
@@ -112,10 +110,9 @@ router.get('/users/:userId', authenticateTelegram, async (req: Request, res: Res
  */
 router.get('/users/:userId/available', authenticateTelegram, async (req: Request, res: Response) => {
   try {
-    const { userId } = req.params;
+    const userId = parseInt(req.params.userId);
 
-    const result = await executePythonTool('db_operations', [
-      '--query',
+    const result = await executeSafeQuery(
       `SELECT
         a.id,
         a.name,
@@ -131,10 +128,11 @@ router.get('/users/:userId/available', authenticateTelegram, async (req: Request
       AND a.id NOT IN (
         SELECT achievement_id
         FROM user_achievements
-        WHERE user_id = ${userId}
+        WHERE user_id = %s
       )
-      ORDER BY a.rarity DESC, a.name ASC`
-    ]);
+      ORDER BY a.rarity DESC, a.name ASC`,
+      [userId]
+    );
 
     if (!result.success) {
       return res.status(500).json({
@@ -162,14 +160,15 @@ router.get('/users/:userId/available', authenticateTelegram, async (req: Request
  */
 router.post('/users/:userId/:achievementId/unlock', authenticateTelegram, async (req: Request, res: Response) => {
   try {
-    const { userId, achievementId } = req.params;
+    const userId = parseInt(req.params.userId);
+    const achievementId = parseInt(req.params.achievementId);
 
     // Check if already unlocked
-    const checkResult = await executePythonTool('db_operations', [
-      '--query',
+    const checkResult = await executeSafeQuery(
       `SELECT id FROM user_achievements
-       WHERE user_id = ${userId} AND achievement_id = ${achievementId}`
-    ]);
+       WHERE user_id = %s AND achievement_id = %s`,
+      [userId, achievementId]
+    );
 
     if (checkResult.success && checkResult.data && checkResult.data.length > 0) {
       return res.status(400).json({
@@ -179,10 +178,10 @@ router.post('/users/:userId/:achievementId/unlock', authenticateTelegram, async 
     }
 
     // Get achievement details
-    const achievementResult = await executePythonTool('db_operations', [
-      '--query',
-      `SELECT * FROM achievements WHERE id = ${achievementId} AND is_active = true`
-    ]);
+    const achievementResult = await executeSafeQuery(
+      `SELECT * FROM achievements WHERE id = %s AND is_active = true`,
+      [achievementId]
+    );
 
     if (!achievementResult.success || !achievementResult.data || achievementResult.data.length === 0) {
       return res.status(404).json({
@@ -194,12 +193,12 @@ router.post('/users/:userId/:achievementId/unlock', authenticateTelegram, async 
     const achievement = achievementResult.data[0];
 
     // Unlock achievement
-    const unlockResult = await executePythonTool('db_operations', [
-      '--query',
+    const unlockResult = await executeSafeQuery(
       `INSERT INTO user_achievements (user_id, achievement_id, unlocked_at, progress)
-       VALUES (${userId}, ${achievementId}, NOW(), 100)
-       RETURNING *`
-    ]);
+       VALUES (%s, %s, NOW(), 100)
+       RETURNING *`,
+      [userId, achievementId]
+    );
 
     if (!unlockResult.success) {
       return res.status(500).json({
@@ -211,7 +210,7 @@ router.post('/users/:userId/:achievementId/unlock', authenticateTelegram, async 
     // Award XP
     const xpResult = await executePythonTool('user_manager', [
       '--add-xp',
-      '--user-id', userId,
+      '--user-id', String(userId),
       '--xp', achievement.xp_reward.toString()
     ]);
 
@@ -240,11 +239,10 @@ router.post('/users/:userId/:achievementId/unlock', authenticateTelegram, async 
  */
 router.get('/users/:userId/recent', authenticateTelegram, async (req: Request, res: Response) => {
   try {
-    const { userId } = req.params;
+    const userId = parseInt(req.params.userId);
     const limit = req.query.limit ? parseInt(req.query.limit as string) : 5;
 
-    const result = await executePythonTool('db_operations', [
-      '--query',
+    const result = await executeSafeQuery(
       `SELECT
         ua.id,
         ua.achievement_id,
@@ -256,10 +254,11 @@ router.get('/users/:userId/recent', authenticateTelegram, async (req: Request, r
         ua.unlocked_at
       FROM user_achievements ua
       JOIN achievements a ON ua.achievement_id = a.id
-      WHERE ua.user_id = ${userId}
+      WHERE ua.user_id = %s
       ORDER BY ua.unlocked_at DESC
-      LIMIT ${limit}`
-    ]);
+      LIMIT %s`,
+      [userId, Math.min(limit, 50)]
+    );
 
     if (!result.success) {
       return res.status(500).json({
@@ -287,12 +286,12 @@ router.get('/users/:userId/recent', authenticateTelegram, async (req: Request, r
  */
 router.post('/users/:userId/check', authenticateTelegram, async (req: Request, res: Response) => {
   try {
-    const { userId } = req.params;
+    const userId = parseInt(req.params.userId);
 
     // Get user stats
     const statsResult = await executePythonTool('user_manager', [
       '--get-stats',
-      '--user-id', userId
+      '--user-id', String(userId)
     ]);
 
     if (!statsResult.success) {
@@ -306,15 +305,15 @@ router.post('/users/:userId/check', authenticateTelegram, async (req: Request, r
     const newAchievements = [];
 
     // Get available achievements
-    const achievementsResult = await executePythonTool('db_operations', [
-      '--query',
+    const achievementsResult = await executeSafeQuery(
       `SELECT a.*
        FROM achievements a
        WHERE a.is_active = true
        AND a.id NOT IN (
-         SELECT achievement_id FROM user_achievements WHERE user_id = ${userId}
-       )`
-    ]);
+         SELECT achievement_id FROM user_achievements WHERE user_id = %s
+       )`,
+      [userId]
+    );
 
     if (!achievementsResult.success || !achievementsResult.data) {
       return res.json({
@@ -350,13 +349,13 @@ router.post('/users/:userId/check', authenticateTelegram, async (req: Request, r
 
       if (qualifies) {
         // Auto-unlock the achievement
-        const unlockResult = await executePythonTool('db_operations', [
-          '--query',
+        const unlockResult = await executeSafeQuery(
           `INSERT INTO user_achievements (user_id, achievement_id, unlocked_at, progress)
-           VALUES (${userId}, ${achievement.id}, NOW(), 100)
+           VALUES (%s, %s, NOW(), 100)
            ON CONFLICT DO NOTHING
-           RETURNING *`
-        ]);
+           RETURNING *`,
+          [userId, achievement.id]
+        );
 
         if (unlockResult.success && unlockResult.data && unlockResult.data.length > 0) {
           newAchievements.push(achievement);
@@ -364,7 +363,7 @@ router.post('/users/:userId/check', authenticateTelegram, async (req: Request, r
           // Award XP
           await executePythonTool('user_manager', [
             '--add-xp',
-            '--user-id', userId,
+            '--user-id', String(userId),
             '--xp', achievement.xp_reward.toString()
           ]);
         }

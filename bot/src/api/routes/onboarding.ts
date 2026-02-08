@@ -1,6 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { authenticateTelegram } from '../middleware/auth.js';
-import { executePythonTool } from '../../utils/pythonTools.js';
+import { executePythonTool, executeSafeQuery, executeSafeStatement } from '../../utils/pythonTools.js';
 
 const router = Router();
 
@@ -10,16 +10,16 @@ const router = Router();
  */
 router.get('/:telegramId', authenticateTelegram, async (req: Request, res: Response) => {
   try {
-    const { telegramId } = req.params;
+    const telegramId = parseInt(req.params.telegramId);
 
-    const result = await executePythonTool('db_operations', [
-      '--query',
+    const result = await executeSafeQuery(
       `SELECT os.current_step, os.quiz_data, os.last_updated
        FROM onboarding_state os
        JOIN users u ON u.id = os.user_id
-       WHERE u.telegram_id = ${parseInt(telegramId)}
-       LIMIT 1`
-    ]);
+       WHERE u.telegram_id = %s
+       LIMIT 1`,
+      [telegramId]
+    );
 
     if (!result.success) {
       return res.status(500).json({
@@ -49,7 +49,7 @@ router.get('/:telegramId', authenticateTelegram, async (req: Request, res: Respo
  */
 router.put('/:telegramId', authenticateTelegram, async (req: Request, res: Response) => {
   try {
-    const { telegramId } = req.params;
+    const telegramId = parseInt(req.params.telegramId);
     const { current_step, quiz_data } = req.body;
 
     if (!current_step) {
@@ -59,20 +59,20 @@ router.put('/:telegramId', authenticateTelegram, async (req: Request, res: Respo
       });
     }
 
-    const quizDataJson = JSON.stringify(quiz_data || {}).replace(/'/g, "''");
+    const quizDataJson = JSON.stringify(quiz_data || {});
 
-    const result = await executePythonTool('db_operations', [
-      '--query',
+    const result = await executeSafeQuery(
       `INSERT INTO onboarding_state (user_id, current_step, quiz_data, last_updated)
-       SELECT u.id, '${current_step}', '${quizDataJson}'::jsonb, NOW()
-       FROM users u WHERE u.telegram_id = ${parseInt(telegramId)}
+       SELECT u.id, %s, %s::jsonb, NOW()
+       FROM users u WHERE u.telegram_id = %s
        ON CONFLICT (user_id)
        DO UPDATE SET
          current_step = EXCLUDED.current_step,
          quiz_data = EXCLUDED.quiz_data,
          last_updated = NOW()
-       RETURNING current_step, quiz_data`
-    ]);
+       RETURNING current_step, quiz_data`,
+      [current_step, quizDataJson, telegramId]
+    );
 
     if (!result.success) {
       return res.status(500).json({
@@ -100,7 +100,7 @@ router.put('/:telegramId', authenticateTelegram, async (req: Request, res: Respo
  */
 router.post('/:telegramId/complete', authenticateTelegram, async (req: Request, res: Response) => {
   try {
-    const { telegramId } = req.params;
+    const tid = parseInt(req.params.telegramId);
     const { quiz_data } = req.body;
 
     if (!quiz_data || !quiz_data.selected_modes) {
@@ -109,8 +109,6 @@ router.post('/:telegramId/complete', authenticateTelegram, async (req: Request, 
         error: 'Missing quiz_data or selected_modes',
       });
     }
-
-    const tid = parseInt(telegramId);
 
     // 1. Add selected modes to user_modes
     const modesString = quiz_data.selected_modes.join(',');
@@ -124,58 +122,58 @@ router.post('/:telegramId/complete', authenticateTelegram, async (req: Request, 
     for (const modeName of quiz_data.selected_modes) {
       const modeQuizData = quiz_data[modeName] || {};
       const painPoints = quiz_data.pain_points?.[modeName] || {};
-      const quizJson = JSON.stringify(modeQuizData).replace(/'/g, "''");
-      const painJson = JSON.stringify(painPoints).replace(/'/g, "''");
+      const quizJson = JSON.stringify(modeQuizData);
+      const painJson = JSON.stringify(painPoints);
 
-      await executePythonTool('db_operations', [
-        '--query',
+      await executeSafeStatement(
         `INSERT INTO mode_configs (user_id, mode_id, quiz_responses, pain_points, created_at, updated_at)
-         SELECT u.id, m.id, '${quizJson}'::jsonb, '${painJson}'::jsonb, NOW(), NOW()
+         SELECT u.id, m.id, %s::jsonb, %s::jsonb, NOW(), NOW()
          FROM users u, modes m
-         WHERE u.telegram_id = ${tid} AND m.name = '${modeName}'
+         WHERE u.telegram_id = %s AND m.name = %s
          ON CONFLICT (user_id, mode_id)
          DO UPDATE SET
            quiz_responses = EXCLUDED.quiz_responses,
            pain_points = EXCLUDED.pain_points,
-           updated_at = NOW()`
-      ]);
+           updated_at = NOW()`,
+        [quizJson, painJson, tid, modeName]
+      );
     }
 
     // 3. Save punishment settings
     if (quiz_data.punishments) {
       const p = quiz_data.punishments;
-      const customJson = JSON.stringify(p.custom_punishments || {}).replace(/'/g, "''");
+      const customJson = JSON.stringify(p.custom_punishments || {});
 
-      await executePythonTool('db_operations', [
-        '--query',
+      await executeSafeStatement(
         `INSERT INTO punishment_settings (user_id, consent_given, consent_timestamp, intensity_level, safe_mode, custom_punishments)
-         SELECT u.id, ${p.consent_given || false}, ${p.consent_given ? 'NOW()' : 'NULL'},
-                '${p.intensity_level || 'low'}', ${p.safe_mode !== false}, '${customJson}'::jsonb
-         FROM users u WHERE u.telegram_id = ${tid}
+         SELECT u.id, %s, ${p.consent_given ? 'NOW()' : 'NULL'},
+                %s, %s, %s::jsonb
+         FROM users u WHERE u.telegram_id = %s
          ON CONFLICT (user_id)
          DO UPDATE SET
            consent_given = EXCLUDED.consent_given,
            consent_timestamp = EXCLUDED.consent_timestamp,
            intensity_level = EXCLUDED.intensity_level,
            safe_mode = EXCLUDED.safe_mode,
-           custom_punishments = EXCLUDED.custom_punishments`
-      ]);
+           custom_punishments = EXCLUDED.custom_punishments`,
+        [p.consent_given || false, p.intensity_level || 'low', p.safe_mode !== false, customJson, tid]
+      );
     }
 
     // 4. Award 50 XP for completing onboarding
-    await executePythonTool('db_operations', [
-      '--query',
+    await executeSafeStatement(
       `UPDATE users SET total_xp = total_xp + 50,
        current_level = ((total_xp + 50) / 500) + 1
-       WHERE telegram_id = ${tid}`
-    ]);
+       WHERE telegram_id = %s`,
+      [tid]
+    );
 
     // 5. Mark onboarding as completed
-    await executePythonTool('db_operations', [
-      '--query',
+    await executeSafeStatement(
       `UPDATE onboarding_state SET current_step = 'completed', last_updated = NOW()
-       WHERE user_id = (SELECT id FROM users WHERE telegram_id = ${tid})`
-    ]);
+       WHERE user_id = (SELECT id FROM users WHERE telegram_id = %s)`,
+      [tid]
+    );
 
     // 6. Assign initial quests
     await executePythonTool('quest_manager', [
