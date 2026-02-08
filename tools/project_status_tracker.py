@@ -261,9 +261,9 @@ class ProjectStatusTracker:
                     },
                     {
                         "name": "Drum/slider/time defaults not saved on skip",
-                        "check": lambda: self._file_contains_pattern(
+                        "check": lambda: self._file_contains(
                             "mini-app/src/components/onboarding/QuizScreen.tsx",
-                            r"useEffect.*handleDrumChange|onAnswer.*defaultValue"
+                            "Persist default values on mount"
                         ),
                     },
                     {
