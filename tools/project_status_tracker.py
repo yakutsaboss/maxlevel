@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 """
 Project Status Tracker for Wibecode
-Analyzes actual project state and calculates completion percentage.
+Tracks FEATURE-LEVEL completion, not just file existence.
 """
 
 import os
-import json
 import sys
+import re
 import codecs
 from pathlib import Path
 from datetime import datetime
@@ -16,129 +16,6 @@ from typing import Dict, List, Tuple
 class ProjectStatusTracker:
     def __init__(self, project_root: str):
         self.project_root = Path(project_root)
-        self.milestones = self._define_milestones()
-
-    def _define_milestones(self) -> Dict[str, Dict]:
-        """Define project milestones matching actual project structure"""
-        return {
-            "setup": {
-                "name": "Project Setup",
-                "emoji": "🎯",
-                "weight": 8,
-                "tasks": [
-                    {"name": "WAT framework (CLAUDE.md)", "check": lambda: self._file_exists("CLAUDE.md")},
-                    {"name": "Environment config (.env)", "check": lambda: self._file_exists(".env")},
-                    {"name": "Git repository", "check": lambda: self._dir_exists(".git")},
-                    {"name": "Docker setup", "check": lambda: self._file_exists("docker-compose.yml")},
-                    {"name": "PM2 ecosystem config", "check": lambda: self._file_exists("ecosystem.config.js")},
-                    {"name": "Centralized config module", "check": lambda: self._file_exists("bot/src/config.ts")},
-                ]
-            },
-            "database": {
-                "name": "Database Layer",
-                "emoji": "🗄️",
-                "weight": 12,
-                "tasks": [
-                    {"name": "Schema (PostgreSQL)", "check": lambda: self._file_exists("database/schema.sql")},
-                    {"name": "Seed data", "check": lambda: self._file_exists("database/seed_data.sql")},
-                    {"name": "DB operations tool", "check": lambda: self._file_exists("tools/db_operations.py")},
-                    {"name": "User manager tool", "check": lambda: self._file_exists("tools/user_manager.py")},
-                    {"name": "Quest manager tool", "check": lambda: self._file_exists("tools/quest_manager.py")},
-                    {"name": "Mode manager tool", "check": lambda: self._file_exists("tools/mode_manager.py")},
-                    {"name": "Achievement manager tool", "check": lambda: self._file_exists("tools/achievement_manager.py")},
-                    {"name": "Migrations framework", "check": lambda: self._dir_exists("database/migrations")},
-                    {"name": "Leaderboard materialized view", "check": lambda: self._file_exists("database/migrations/001_leaderboard_and_activity.sql")},
-                ]
-            },
-            "bot": {
-                "name": "Telegram Bot Core",
-                "emoji": "🤖",
-                "weight": 20,
-                "tasks": [
-                    {"name": "Bot instance (Grammy)", "check": lambda: self._file_exists("bot/src/bot.ts")},
-                    {"name": "Entry point", "check": lambda: self._file_exists("bot/src/index.ts")},
-                    {"name": "/start + onboarding", "check": lambda: self._file_exists("bot/src/handlers/onboarding.ts")},
-                    {"name": "Mini app handler", "check": lambda: self._file_exists("bot/src/handlers/miniapp.ts")},
-                    {"name": "Webhook support", "check": lambda: self._file_contains("bot/src/index.ts", "webhook")},
-                    {"name": "Python tools bridge", "check": lambda: self._file_exists("bot/src/utils/pythonTools.ts")},
-                    {"name": "Notification system", "check": lambda: self._file_exists("tools/notification_bot_handler.py")},
-                ]
-            },
-            "api": {
-                "name": "REST API",
-                "emoji": "🔌",
-                "weight": 12,
-                "tasks": [
-                    {"name": "Express server + middleware", "check": lambda: self._file_exists("bot/src/api/server.ts")},
-                    {"name": "Auth middleware", "check": lambda: self._file_exists("bot/src/api/middleware/auth.ts")},
-                    {"name": "Users routes", "check": lambda: self._file_exists("bot/src/api/routes/users.ts")},
-                    {"name": "Quests routes", "check": lambda: self._file_exists("bot/src/api/routes/quests.ts")},
-                    {"name": "Achievements routes", "check": lambda: self._file_exists("bot/src/api/routes/achievements.ts")},
-                    {"name": "Modes routes", "check": lambda: self._file_exists("bot/src/api/routes/modes.ts")},
-                    {"name": "Admin routes", "check": lambda: self._file_exists("bot/src/api/routes/admin.ts")},
-                ]
-            },
-            "jobs": {
-                "name": "Background Jobs (pg-boss)",
-                "emoji": "⚙️",
-                "weight": 10,
-                "tasks": [
-                    {"name": "Job queue manager (boss.ts)", "check": lambda: self._file_exists("bot/src/jobs/boss.ts")},
-                    {"name": "Job registration", "check": lambda: self._file_exists("bot/src/jobs/registerJobs.ts")},
-                    {"name": "Daily quest reset job", "check": lambda: self._file_exists("bot/src/jobs/definitions/dailyQuestReset.ts")},
-                    {"name": "Streak check job", "check": lambda: self._file_exists("bot/src/jobs/definitions/streakCheck.ts")},
-                    {"name": "Quest reminders job", "check": lambda: self._file_exists("bot/src/jobs/definitions/questReminders.ts")},
-                    {"name": "Leaderboard refresh job", "check": lambda: self._file_exists("bot/src/jobs/definitions/leaderboardRefresh.ts")},
-                    {"name": "DB cleanup job", "check": lambda: self._file_exists("bot/src/jobs/definitions/dbCleanup.ts")},
-                    {"name": "Analytics export job", "check": lambda: self._file_exists("bot/src/jobs/definitions/analyticsExport.ts")},
-                    {"name": "Streak manager tool", "check": lambda: self._file_exists("tools/streak_manager.py")},
-                    {"name": "Sheets analytics export tool", "check": lambda: self._file_exists("tools/sheets_analytics_export.py")},
-                    {"name": "Jobs integrated in index.ts", "check": lambda: self._file_contains("bot/src/index.ts", "startJobQueue")},
-                ]
-            },
-            "miniapp": {
-                "name": "Mini App Frontend",
-                "emoji": "🎨",
-                "weight": 15,
-                "tasks": [
-                    {"name": "React + Vite setup", "check": lambda: self._file_exists("mini-app/vite.config.ts")},
-                    {"name": "Tailwind CSS", "check": lambda: self._file_exists("mini-app/tailwind.config.js")},
-                    {"name": "App component", "check": lambda: self._file_exists("mini-app/src/App.tsx")},
-                    {"name": "Page components", "check": lambda: self._dir_exists("mini-app/src/pages")},
-                    {"name": "API hooks", "check": lambda: self._dir_exists("mini-app/src/hooks")},
-                    {"name": "Telegram WebApp SDK", "check": lambda: self._html_contains("mini-app", "telegram-web-app.js")},
-                    {"name": "Production build", "check": lambda: self._file_exists("mini-app/dist/index.html")},
-                ]
-            },
-            "workflows": {
-                "name": "Workflows & SOPs",
-                "emoji": "📋",
-                "weight": 8,
-                "tasks": [
-                    {"name": "Database operations", "check": lambda: self._file_exists("workflows/database_operations.md")},
-                    {"name": "User management", "check": lambda: self._file_exists("workflows/user_management.md")},
-                    {"name": "Quest management", "check": lambda: self._file_exists("workflows/quest_management.md")},
-                    {"name": "Mode management", "check": lambda: self._file_exists("workflows/mode_management.md")},
-                    {"name": "Achievement management", "check": lambda: self._file_exists("workflows/achievement_management.md")},
-                    {"name": "Onboarding flow", "check": lambda: self._file_exists("workflows/onboarding_flow.md")},
-                    {"name": "API reference", "check": lambda: self._file_exists("workflows/api_endpoints_reference.md")},
-                    {"name": "Mini app auth", "check": lambda: self._file_exists("workflows/telegram_miniapp_authentication.md")},
-                ]
-            },
-            "deployment": {
-                "name": "Deployment & DevOps",
-                "emoji": "🚀",
-                "weight": 15,
-                "tasks": [
-                    {"name": "Dockerfile", "check": lambda: self._file_exists("Dockerfile")},
-                    {"name": "docker-compose.yml", "check": lambda: self._file_exists("docker-compose.yml")},
-                    {"name": "Deployment docs", "check": lambda: self._file_exists("docs/TIMEWEB_DEPLOYMENT.md")},
-                    {"name": "CI/CD pipeline (GitHub Actions)", "check": lambda: self._file_exists(".github/workflows/deploy.yml")},
-                    {"name": "Server provisioned (Timeweb VDS)", "check": lambda: self._file_contains(".github/workflows/deploy.yml", "SSH_HOST")},
-                    {"name": "SSL/HTTPS configured (yakutsa.ru)", "check": lambda: self._file_contains("ecosystem.config.js", "https://yakutsa.ru")},
-                ]
-            },
-        }
 
     def _file_exists(self, path: str) -> bool:
         return (self.project_root / path).is_file()
@@ -151,35 +28,305 @@ class ProjectStatusTracker:
         if not full_path.is_file():
             return False
         try:
-            content = full_path.read_text(encoding='utf-8').lower()
-            return text.lower() in content
+            content = full_path.read_text(encoding='utf-8')
+            return text.lower() in content.lower()
         except Exception:
             return False
 
-    def _html_contains(self, directory: str, text: str) -> bool:
-        dir_path = self.project_root / directory
-        if not dir_path.is_dir():
+    def _file_contains_pattern(self, path: str, pattern: str) -> bool:
+        full_path = self.project_root / path
+        if not full_path.is_file():
             return False
-        for html_file in dir_path.rglob("*.html"):
-            try:
-                if text in html_file.read_text(encoding='utf-8'):
+        try:
+            content = full_path.read_text(encoding='utf-8')
+            return bool(re.search(pattern, content, re.IGNORECASE))
+        except Exception:
+            return False
+
+    def _seed_has_mode(self, mode_name: str) -> bool:
+        """Check if a mode is seeded (uncommented) in seed_data.sql"""
+        path = self.project_root / "database" / "seed_data.sql"
+        if not path.is_file():
+            return False
+        try:
+            content = path.read_text(encoding='utf-8')
+            # Match uncommented INSERT with this mode name
+            for line in content.split('\n'):
+                stripped = line.strip()
+                if stripped.startswith('--'):
+                    continue
+                if f"'{mode_name}'" in stripped and 'INSERT' not in stripped:
+                    # Check if it's part of an active VALUES clause
                     return True
-            except Exception:
-                continue
-        return False
+                if f"'{mode_name}'" in stripped:
+                    return True
+            # Also check if it appears in a commented-out future section
+            commented = [l for l in content.split('\n')
+                         if l.strip().startswith('--') and f"'{mode_name}'" in l]
+            if commented and not any(
+                f"'{mode_name}'" in l for l in content.split('\n')
+                if not l.strip().startswith('--') and f"'{mode_name}'" in l
+            ):
+                return False
+            return f"'{mode_name}'" in content and \
+                   not all(l.strip().startswith('--') for l in content.split('\n') if f"'{mode_name}'" in l)
+        except Exception:
+            return False
+
+    def _has_onboarding_questions(self, mode_prefix: str) -> bool:
+        """Check if onboarding questions exist for a given mode prefix (e.g. 'FITNESS', 'HYDRATION')"""
+        path = self.project_root / "mini-app" / "src" / "data" / "onboardingQuestions.ts"
+        if not path.is_file():
+            return False
+        try:
+            content = path.read_text(encoding='utf-8')
+            return f"{mode_prefix}_QUESTIONS" in content
+        except Exception:
+            return False
+
+    def _has_achievements_for_mode(self, mode_name: str) -> bool:
+        """Check if achievements exist for a mode in seed_data.sql"""
+        return self._file_contains("database/seed_data.sql", f'"mode": "{mode_name}"')
+
+    def _has_quest_templates(self, mode_name: str) -> bool:
+        """Check if quest templates reference a mode in seed_data.sql"""
+        path = self.project_root / "database" / "seed_data.sql"
+        if not path.is_file():
+            return False
+        try:
+            content = path.read_text(encoding='utf-8')
+            return f"{mode_name}_mode_id" in content
+        except Exception:
+            return False
+
+    def _route_has_logic(self, path: str, min_lines: int = 20) -> bool:
+        """Check if a route file has actual logic (not just a stub)"""
+        full_path = self.project_root / path
+        if not full_path.is_file():
+            return False
+        try:
+            content = full_path.read_text(encoding='utf-8')
+            lines = [l for l in content.split('\n') if l.strip() and not l.strip().startswith('//')]
+            return len(lines) >= min_lines
+        except Exception:
+            return False
+
+    def _get_milestones(self) -> Dict[str, Dict]:
+        return {
+            "infra": {
+                "name": "Core Infrastructure",
+                "emoji": "🏗️",
+                "weight": 5,
+                "tasks": [
+                    {"name": "Bot framework (Grammy + Express)", "check": lambda: self._file_exists("bot/src/index.ts")},
+                    {"name": "Database schema", "check": lambda: self._file_exists("database/schema.sql")},
+                    {"name": "PM2 + deployment config", "check": lambda: self._file_exists("ecosystem.config.js")},
+                    {"name": "CI/CD pipeline", "check": lambda: self._file_exists(".github/workflows/deploy.yml")},
+                    {"name": "SSL + domain (yakutsa.ru)", "check": lambda: self._file_contains("ecosystem.config.js", "yakutsa.ru")},
+                    {"name": "Notification bot", "check": lambda: self._file_exists("tools/notification_bot_handler.py")},
+                ]
+            },
+            "fitness": {
+                "name": "Fitness Mode",
+                "emoji": "🏋️",
+                "weight": 10,
+                "tasks": [
+                    {"name": "Mode in database seed", "check": lambda: self._seed_has_mode("fitness")},
+                    {"name": "Quest templates (daily/weekly)", "check": lambda: self._has_quest_templates("fitness")},
+                    {"name": "Onboarding quiz (12 questions)", "check": lambda: self._has_onboarding_questions("FITNESS")},
+                    {"name": "Achievements (5 fitness)", "check": lambda: self._has_achievements_for_mode("fitness")},
+                    {"name": "Personalized plan generation", "check": lambda: False},
+                    {"name": "Smart quest recommendations", "check": lambda: False},
+                    {"name": "Progress analytics per mode", "check": lambda: False},
+                ]
+            },
+            "hydration": {
+                "name": "Hydration Mode",
+                "emoji": "💧",
+                "weight": 10,
+                "tasks": [
+                    {"name": "Mode in database seed", "check": lambda: self._seed_has_mode("hydration")},
+                    {"name": "Quest templates (daily/weekly)", "check": lambda: self._has_quest_templates("hydration")},
+                    {"name": "Onboarding quiz (7 questions)", "check": lambda: self._has_onboarding_questions("HYDRATION")},
+                    {"name": "Achievements (5 hydration)", "check": lambda: self._has_achievements_for_mode("hydration")},
+                    {"name": "Personalized plan generation", "check": lambda: False},
+                    {"name": "Smart reminder scheduling", "check": lambda: False},
+                    {"name": "Progress analytics per mode", "check": lambda: False},
+                ]
+            },
+            "medication": {
+                "name": "Medication Mode",
+                "emoji": "💊",
+                "weight": 12,
+                "tasks": [
+                    {"name": "Mode in database seed", "check": lambda: self._seed_has_mode("medication")},
+                    {"name": "Onboarding quiz questions", "check": lambda: self._has_onboarding_questions("MEDICATION")},
+                    {"name": "Quest templates", "check": lambda: self._has_quest_templates("medication")},
+                    {"name": "Achievements", "check": lambda: self._has_achievements_for_mode("medication")},
+                    {"name": "Medication schedule reminders", "check": lambda: False},
+                    {"name": "Dosage tracking", "check": lambda: False},
+                    {"name": "Refill alerts", "check": lambda: False},
+                ]
+            },
+            "finance": {
+                "name": "Finance Mode",
+                "emoji": "💰",
+                "weight": 12,
+                "tasks": [
+                    {"name": "Mode in database seed", "check": lambda: self._seed_has_mode("finance")},
+                    {"name": "Onboarding quiz questions", "check": lambda: self._has_onboarding_questions("FINANCE")},
+                    {"name": "Quest templates (saving goals)", "check": lambda: self._has_quest_templates("finance")},
+                    {"name": "Achievements", "check": lambda: self._has_achievements_for_mode("finance")},
+                    {"name": "Budget tracking", "check": lambda: False},
+                    {"name": "Savings goal dashboard", "check": lambda: False},
+                    {"name": "Expense categories", "check": lambda: False},
+                ]
+            },
+            "habits": {
+                "name": "New Habits Mode",
+                "emoji": "🎯",
+                "weight": 12,
+                "tasks": [
+                    {"name": "Mode in database seed", "check": lambda: self._seed_has_mode("habits")},
+                    {"name": "Onboarding quiz questions", "check": lambda: self._has_onboarding_questions("HABITS")},
+                    {"name": "Quest templates (custom habits)", "check": lambda: self._has_quest_templates("habits")},
+                    {"name": "Achievements", "check": lambda: self._has_achievements_for_mode("habits")},
+                    {"name": "Custom habit builder UI", "check": lambda: False},
+                    {"name": "Habit streak visualization", "check": lambda: False},
+                ]
+            },
+            "payments": {
+                "name": "Payment System",
+                "emoji": "💳",
+                "weight": 10,
+                "tasks": [
+                    {"name": "Payment provider integration", "check": lambda: False},
+                    {"name": "Premium tiers defined", "check": lambda: False},
+                    {"name": "Subscription management", "check": lambda: False},
+                    {"name": "Payment DB tables", "check": lambda: self._file_contains_pattern("database/schema.sql", r"CREATE TABLE.*payment")},
+                    {"name": "Payment API routes", "check": lambda: self._file_exists("bot/src/api/routes/payments.ts")},
+                    {"name": "Premium features gating", "check": lambda: False},
+                ]
+            },
+            "sheets": {
+                "name": "Google Sheets & Analytics",
+                "emoji": "📊",
+                "weight": 8,
+                "tasks": [
+                    {"name": "Export tool script", "check": lambda: self._file_exists("tools/sheets_analytics_export.py")},
+                    {"name": "Google service account configured", "check": lambda: self._file_exists("service_account.json")},
+                    {"name": "Spreadsheet ID in .env", "check": lambda: self._file_contains(".env", "GOOGLE_SHEETS_SPREADSHEET_ID")},
+                    {"name": "Onboarding Q&A sheet per module", "check": lambda: False},
+                    {"name": "Auto-scheduled weekly export", "check": lambda: False},
+                    {"name": "All player answers organized", "check": lambda: False},
+                ]
+            },
+            "onboarding_qa": {
+                "name": "Onboarding Q&A Organization",
+                "emoji": "📝",
+                "weight": 8,
+                "tasks": [
+                    {"name": "Fitness questions defined (12)", "check": lambda: self._has_onboarding_questions("FITNESS")},
+                    {"name": "Hydration questions defined (7)", "check": lambda: self._has_onboarding_questions("HYDRATION")},
+                    {"name": "Medication questions defined", "check": lambda: self._has_onboarding_questions("MEDICATION")},
+                    {"name": "Finance questions defined", "check": lambda: self._has_onboarding_questions("FINANCE")},
+                    {"name": "Habits questions defined", "check": lambda: self._has_onboarding_questions("HABITS")},
+                    {"name": "All Q&A exported to Google Sheets", "check": lambda: False},
+                    {"name": "Answer analytics dashboard", "check": lambda: False},
+                ]
+            },
+            "leaderboard": {
+                "name": "Leaderboard & Social",
+                "emoji": "🏆",
+                "weight": 8,
+                "tasks": [
+                    {"name": "Leaderboard route exists", "check": lambda: self._file_exists("bot/src/api/routes/leaderboard.ts")},
+                    {"name": "Ranking logic implemented", "check": lambda: self._route_has_logic("bot/src/api/routes/leaderboard.ts", 30)},
+                    {"name": "Mini app leaderboard page", "check": lambda: self._file_exists("mini-app/src/pages/Leaderboard.tsx")},
+                    {"name": "Friend system", "check": lambda: False},
+                    {"name": "Shared challenges", "check": lambda: False},
+                    {"name": "Leaderboard sharing", "check": lambda: False},
+                ]
+            },
+            "bug_fixes": {
+                "name": "Bug Fixes",
+                "emoji": "🐛",
+                "weight": 8,
+                "tasks": [
+                    {
+                        "name": "Barrel wheel swipe-to-close conflict",
+                        "check": lambda: self._file_contains(
+                            "mini-app/src/hooks/useTelegram.ts", "disableVerticalSwipes"
+                        ),
+                    },
+                    {
+                        "name": "Drum/slider/time defaults not saved on skip",
+                        "check": lambda: self._file_contains_pattern(
+                            "mini-app/src/components/onboarding/QuizScreen.tsx",
+                            r"useEffect.*handleDrumChange|onAnswer.*defaultValue"
+                        ),
+                    },
+                    {
+                        "name": "DaySelector allows over-selecting past required count",
+                        "check": lambda: self._file_contains_pattern(
+                            "mini-app/src/components/onboarding/ui/DaySelector.tsx",
+                            r"requiredCount.*selected\.length\s*>=|disabled.*requiredCount"
+                        ),
+                    },
+                    {
+                        "name": "Double animation on quiz screens (Onboarding + QuizScreen)",
+                        "check": lambda: not (
+                            self._file_contains("mini-app/src/pages/Onboarding.tsx", "motion.div") and
+                            self._file_contains_pattern(
+                                "mini-app/src/components/onboarding/QuizScreen.tsx",
+                                r"motion\.div.*initial.*opacity.*0.*x"
+                            )
+                        ),
+                    },
+                    {
+                        "name": "Back button history lost on state restore",
+                        "check": lambda: not self._file_contains_pattern(
+                            "mini-app/src/hooks/useOnboarding.ts",
+                            r"restoreState.*stepHistory:\s*\[step\]"
+                        ),
+                    },
+                    {
+                        "name": "SliderInput hardcoded 'workouts a week' text",
+                        "check": lambda: not self._file_contains(
+                            "mini-app/src/components/onboarding/ui/SliderInput.tsx",
+                            "workouts a week"
+                        ),
+                    },
+                ]
+            },
+            "miniapp_polish": {
+                "name": "Mini App Polish",
+                "emoji": "✨",
+                "weight": 5,
+                "tasks": [
+                    {"name": "Core pages (Dashboard, Quests, Profile)", "check": lambda: self._file_exists("mini-app/src/pages/Dashboard.tsx")},
+                    {"name": "Onboarding flow complete", "check": lambda: self._file_exists("mini-app/src/pages/Onboarding.tsx")},
+                    {"name": "Settings page", "check": lambda: self._file_exists("mini-app/src/pages/Settings.tsx")},
+                    {"name": "Theme customization (dark mode)", "check": lambda: False},
+                    {"name": "Localization (i18n)", "check": lambda: False},
+                    {"name": "Offline support / PWA", "check": lambda: False},
+                ]
+            },
+        }
 
     def calculate_progress(self) -> Tuple[float, Dict]:
+        milestones = self._get_milestones()
         milestone_status = {}
         total_weight = 0
         completed_weight = 0
 
-        for milestone_id, milestone in self.milestones.items():
+        for mid, milestone in milestones.items():
             tasks = milestone['tasks']
             completed_tasks = sum(1 for task in tasks if task['check']())
             total_tasks = len(tasks)
             progress = (completed_tasks / total_tasks * 100) if total_tasks > 0 else 0
 
-            milestone_status[milestone_id] = {
+            milestone_status[mid] = {
                 'name': milestone['name'],
                 'emoji': milestone['emoji'],
                 'weight': milestone['weight'],
@@ -200,38 +347,38 @@ class ProjectStatusTracker:
 
     def progress_bar(self, pct: float, length: int = 10) -> str:
         filled = int(length * pct / 100)
-        return '█' * filled + '░' * (length - filled)
+        return '\u2588' * filled + '\u2591' * (length - filled)
 
     def format_telegram_message(self) -> str:
         overall, milestones = self.calculate_progress()
 
-        msg = f"<b>📊 Wibecode Project Status</b>\n\n"
+        msg = f"<b>\U0001F4CA Wibecode Project Status</b>\n\n"
         msg += f"<b>Overall: {overall:.0f}%</b>\n"
         msg += f"<code>{self.progress_bar(overall, 20)}</code>\n\n"
 
         for mid, ms in milestones.items():
-            icon = "✅" if ms['progress'] == 100 else ("🔄" if ms['progress'] > 0 else "⏳")
+            icon = "\u2705" if ms['progress'] == 100 else ("\U0001F504" if ms['progress'] > 0 else "\u23F3")
             msg += f"{icon} <b>{ms['emoji']} {ms['name']}</b> ({ms['completed']}/{ms['total']})\n"
             msg += f"   <code>{self.progress_bar(ms['progress'])}</code> {ms['progress']:.0f}%\n"
 
             # Show what's left (max 3 items)
             todo = [t['name'] for t in ms['tasks'] if not t['done']]
             for item in todo[:3]:
-                msg += f"   • {item}\n"
+                msg += f"   \u2022 {item}\n"
             if len(todo) > 3:
-                msg += f"   • <i>...and {len(todo) - 3} more</i>\n"
+                msg += f"   \u2022 <i>...and {len(todo) - 3} more</i>\n"
             msg += "\n"
 
         # Next priorities
-        msg += "<b>📝 Next Priorities:</b>\n"
+        msg += "<b>\U0001F4DD Next Priorities:</b>\n"
         priorities = []
         for mid, ms in milestones.items():
             if ms['progress'] < 100:
                 todo = [t['name'] for t in ms['tasks'] if not t['done']]
                 if todo:
                     priorities.append(f"{ms['emoji']} {todo[0]}")
-        for p in priorities[:4]:
-            msg += f"• {p}\n"
+        for p in priorities[:5]:
+            msg += f"\u2022 {p}\n"
 
         msg += f"\n<i>{datetime.now().strftime('%Y-%m-%d %H:%M')}</i>"
         return msg
