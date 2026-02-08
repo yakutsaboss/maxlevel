@@ -2,6 +2,9 @@
 .env
 *.env
 
+# Local Claude Code settings (contains machine-specific permissions/hooks)
+.claude/settings.local.json
+
 # Google OAuth credentials
 credentials.json
 token.json
