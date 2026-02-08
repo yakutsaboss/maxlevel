@@ -20,7 +20,7 @@ jobs:
 
       - name: Install dependencies
         working-directory: ./bot
-        run: npm ci
+        run: npm install
 
       - name: Build TypeScript
         working-directory: ./bot
@@ -52,7 +52,7 @@ jobs:
             cd /opt/wibecode-bot
             git pull origin main
             cd bot
-            npm ci --omit=dev
+            npm install --omit=dev
             npm run build
             pm2 restart wibecode-bot || pm2 start ../ecosystem.config.js --only telegram-rpg-bot --env production
             pm2 save
