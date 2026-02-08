@@ -1,0 +1,60 @@
+name: Build & Deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Build TypeScript
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install dependencies
+        working-directory: ./bot
+        run: npm ci
+
+      - name: Build TypeScript
+        working-directory: ./bot
+        run: npm run build
+
+      - name: Verify build output
+        run: |
+          if [ ! -d "bot/dist" ]; then
+            echo "Build failed: bot/dist not found"
+            exit 1
+          fi
+          echo "Build successful"
+          ls -la bot/dist/
+
+  deploy:
+    name: Deploy to Server
+    runs-on: ubuntu-latest
+    needs: build
+    if: github.ref == 'refs/heads/main'
+
+    steps:
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            cd /opt/wibecode-bot
+            git pull origin main
+            cd bot
+            npm ci --omit=dev
+            npm run build
+            pm2 restart wibecode-bot || pm2 start ../ecosystem.config.js --only telegram-rpg-bot --env production
+            pm2 save
+            echo "Deploy complete. Bot status:"
+            pm2 status

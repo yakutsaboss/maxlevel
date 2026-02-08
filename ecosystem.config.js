@@ -134,36 +134,18 @@ module.exports = {
   // Deployment configuration
   deploy: {
     production: {
-      user: 'deploy',
-      host: ['your-server.com'],
+      user: 'root',
+      host: ['85.239.53.57'],
       ref: 'origin/main',
-      repo: 'git@github.com:yourusername/telegram-rpg-bot.git',
-      path: '/var/www/telegram-rpg-bot',
+      repo: 'git@github.com:yakutsaboss/maxlevel.git',
+      path: '/opt/wibecode-bot',
       'post-deploy': [
-        'npm install --production',
-        'cd bot && npm install --production',
+        'cd bot && npm ci --omit=dev',
         'npm run build',
-        'pm2 reload ecosystem.config.js --env production',
+        'pm2 reload ecosystem.config.js --only telegram-rpg-bot --env production',
       ].join(' && '),
       env: {
         NODE_ENV: 'production',
-      },
-    },
-
-    staging: {
-      user: 'deploy',
-      host: ['staging-server.com'],
-      ref: 'origin/develop',
-      repo: 'git@github.com:yourusername/telegram-rpg-bot.git',
-      path: '/var/www/telegram-rpg-bot-staging',
-      'post-deploy': [
-        'npm install',
-        'cd bot && npm install',
-        'npm run build',
-        'pm2 reload ecosystem.config.js --env staging',
-      ].join(' && '),
-      env: {
-        NODE_ENV: 'staging',
       },
     },
   },
