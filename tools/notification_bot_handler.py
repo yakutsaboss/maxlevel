@@ -31,6 +31,36 @@ CHAT_ID = int(CHAT_ID)
 SERVER_IP = "85.239.53.57"
 
 
+def _is_on_server() -> bool:
+    """Check if running on the VDS itself."""
+    if sys.platform != 'linux':
+        return False
+    try:
+        result = subprocess.run(
+            ["hostname", "-I"], capture_output=True, text=True, timeout=5
+        )
+        return SERVER_IP in result.stdout
+    except Exception:
+        return False
+
+
+IS_LOCAL = _is_on_server()
+
+
+def _run_cmd(cmd: str, timeout: int = 10) -> subprocess.CompletedProcess:
+    """Run a command on the server — locally if on VDS, via SSH otherwise."""
+    if IS_LOCAL:
+        return subprocess.run(
+            ["bash", "-c", cmd],
+            capture_output=True, text=True, timeout=timeout, encoding='utf-8'
+        )
+    return subprocess.run(
+        ["ssh", "-o", "StrictHostKeyChecking=no", "-o", "ConnectTimeout=5",
+         f"root@{SERVER_IP}", cmd],
+        capture_output=True, text=True, timeout=timeout, encoding='utf-8'
+    )
+
+
 def is_authorized(update: Update) -> bool:
     return update.effective_chat.id == CHAT_ID
 
@@ -105,14 +135,10 @@ async def ping_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     thinking = await update.message.reply_text("\U0001F3D3 Running health checks...")
     results = []
 
-    # 1. VDS Server (SSH)
+    # 1. VDS Server
     try:
         t0 = time.time()
-        proc = subprocess.run(
-            ["ssh", "-o", "StrictHostKeyChecking=no", "-o", "ConnectTimeout=5",
-             f"root@{SERVER_IP}", "echo ok"],
-            capture_output=True, text=True, timeout=10, encoding='utf-8'
-        )
+        proc = _run_cmd("echo ok", timeout=10)
         ms = int((time.time() - t0) * 1000)
         if proc.returncode == 0 and "ok" in proc.stdout:
             results.append(f"\u2705 VDS Server ({SERVER_IP}) \u2014 {ms}ms")
@@ -148,14 +174,12 @@ async def ping_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     except Exception as e:
         results.append(f"\u274C Mini App \u2014 {str(e)[:50]}")
 
-    # 4. Database (via SSH + psql)
+    # 4. Database (psql)
     try:
         t0 = time.time()
-        proc = subprocess.run(
-            ["ssh", "-o", "StrictHostKeyChecking=no", "-o", "ConnectTimeout=5",
-             f"root@{SERVER_IP}",
-             "PGPASSWORD=postgres psql -h localhost -U postgres -d telegram_rpg -c 'SELECT 1' -t -q"],
-            capture_output=True, text=True, timeout=15, encoding='utf-8'
+        proc = _run_cmd(
+            "PGPASSWORD=postgres psql -h localhost -U postgres -d telegram_rpg -c 'SELECT 1' -t -q",
+            timeout=15
         )
         ms = int((time.time() - t0) * 1000)
         if proc.returncode == 0 and "1" in proc.stdout:

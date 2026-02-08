@@ -31,19 +31,41 @@ SSH_USER = "root"
 SNAPSHOT_FILE = PROJECT_ROOT / ".tmp" / "metrics_start.json"
 
 
-def ssh_exec(commands: str, timeout: int = 15) -> str:
-    """Execute commands on remote server via SSH."""
+def is_on_server() -> bool:
+    """Check if we're running on the VDS itself."""
+    if sys.platform != 'linux':
+        return False
     try:
         result = subprocess.run(
-            ["ssh", "-o", "StrictHostKeyChecking=no", "-o", "ConnectTimeout=5",
-             f"{SSH_USER}@{SERVER_IP}", commands],
-            capture_output=True, text=True, timeout=timeout, encoding='utf-8'
+            ["hostname", "-I"], capture_output=True, text=True, timeout=5
         )
+        return SERVER_IP in result.stdout
+    except Exception:
+        return False
+
+
+IS_LOCAL = is_on_server()
+
+
+def ssh_exec(commands: str, timeout: int = 15) -> str:
+    """Execute commands on the server — locally if on VDS, via SSH otherwise."""
+    try:
+        if IS_LOCAL:
+            result = subprocess.run(
+                ["bash", "-c", commands],
+                capture_output=True, text=True, timeout=timeout, encoding='utf-8'
+            )
+        else:
+            result = subprocess.run(
+                ["ssh", "-o", "StrictHostKeyChecking=no", "-o", "ConnectTimeout=5",
+                 f"{SSH_USER}@{SERVER_IP}", commands],
+                capture_output=True, text=True, timeout=timeout, encoding='utf-8'
+            )
         return result.stdout.strip()
     except subprocess.TimeoutExpired:
         return ""
     except Exception as e:
-        print(f"SSH error: {e}", file=sys.stderr)
+        print(f"Exec error: {e}", file=sys.stderr)
         return ""
 
 
