@@ -15,8 +15,17 @@ export function useTelegram() {
     // Enable closing confirmation
     tg.enableClosingConfirmation();
 
+    // Disable vertical swipes so barrel wheels / scrollable elements
+    // don't trigger Telegram's swipe-to-close gesture
+    if (typeof (tg as any).disableVerticalSwipes === 'function') {
+      (tg as any).disableVerticalSwipes();
+    }
+
     return () => {
       tg.disableClosingConfirmation();
+      if (typeof (tg as any).enableVerticalSwipes === 'function') {
+        (tg as any).enableVerticalSwipes();
+      }
     };
   }, [tg]);
 

@@ -47,6 +47,25 @@ export function DrumRoller({ min, max, value, onChange, formatLabel }: DrumRolle
     setScrollOffset((value - min) * ITEM_HEIGHT);
   }, [value, min]);
 
+  // Prevent Telegram's swipe-to-close by stopping touchmove propagation
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+
+    const preventSwipe = (e: TouchEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+    };
+
+    el.addEventListener('touchmove', preventSwipe, { passive: false });
+    el.addEventListener('touchstart', preventSwipe, { passive: false });
+
+    return () => {
+      el.removeEventListener('touchmove', preventSwipe);
+      el.removeEventListener('touchstart', preventSwipe);
+    };
+  }, []);
+
   const handlePointerDown = (e: React.PointerEvent) => {
     isDragging.current = true;
     startY.current = e.clientY;
