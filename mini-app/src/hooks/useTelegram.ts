@@ -65,7 +65,7 @@ export function useTelegram() {
       }
     ) =>
       new Promise<string>((resolve) => {
-        tg.showPopup(params, resolve);
+        tg.showPopup(params, (id) => resolve(id ?? ''));
       }),
 
     // Navigation
