@@ -135,7 +135,7 @@ class ProjectStatusTracker:
                     {"name": "Deployment docs", "check": lambda: self._file_exists("docs/TIMEWEB_DEPLOYMENT.md")},
                     {"name": "CI/CD pipeline (GitHub Actions)", "check": lambda: self._file_exists(".github/workflows/deploy.yml")},
                     {"name": "Server provisioned (Timeweb VDS)", "check": lambda: self._file_contains(".github/workflows/deploy.yml", "SSH_HOST")},
-                    {"name": "SSL/HTTPS configured", "check": lambda: False},  # Manual check
+                    {"name": "SSL/HTTPS configured (yakutsa.ru)", "check": lambda: self._file_contains("ecosystem.config.js", "https://yakutsa.ru")},
                 ]
             },
         }
