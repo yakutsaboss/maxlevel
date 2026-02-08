@@ -1,3 +1,8 @@
+/**
+ * Onboarding state management (Zustand store).
+ * Questions & answers are defined in: data/onboardingQuestions.ts
+ */
+
 import { create } from 'zustand';
 
 export type OnboardingStep =

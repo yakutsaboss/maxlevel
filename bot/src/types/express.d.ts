@@ -2,7 +2,7 @@
  * Extended Express types for Telegram authentication
  */
 
-import { TelegramUser } from './telegram';
+import { TelegramUser } from './telegram.js';
 
 declare global {
   namespace Express {

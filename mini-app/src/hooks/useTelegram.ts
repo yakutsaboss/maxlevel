@@ -159,10 +159,15 @@ export function useMainButton(
 /**
  * Hook for managing Telegram BackButton
  */
-export function useBackButton(onClick: () => void) {
+export function useBackButton(onClick: () => void, isVisible: boolean = true) {
   const { BackButton, haptic } = useTelegram();
 
   useEffect(() => {
+    if (!isVisible) {
+      BackButton.hide();
+      return;
+    }
+
     const handleClick = () => {
       haptic.impact('light');
       onClick();
@@ -175,7 +180,7 @@ export function useBackButton(onClick: () => void) {
       BackButton.offClick(handleClick);
       BackButton.hide();
     };
-  }, [BackButton, onClick, haptic]);
+  }, [BackButton, onClick, haptic, isVisible]);
 
   return {
     show: () => BackButton.show(),

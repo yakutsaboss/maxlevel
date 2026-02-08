@@ -299,6 +299,44 @@ class ProjectStatusTracker:
                     },
                 ]
             },
+            "russian_language": {
+                "name": "Russian Language Support",
+                "emoji": "🇷🇺",
+                "weight": 8,
+                "tasks": [
+                    {"name": "i18n framework setup", "check": lambda: self._file_exists("mini-app/src/i18n/index.ts")},
+                    {"name": "Russian translation file", "check": lambda: self._file_exists("mini-app/src/i18n/ru.ts")},
+                    {"name": "Onboarding translated", "check": lambda: False},
+                    {"name": "Dashboard translated", "check": lambda: False},
+                    {"name": "Quest UI translated", "check": lambda: False},
+                    {"name": "Bot messages in Russian", "check": lambda: False},
+                ]
+            },
+            "chinese_language": {
+                "name": "Chinese Language Support",
+                "emoji": "🇨🇳",
+                "weight": 8,
+                "tasks": [
+                    {"name": "Chinese translation file", "check": lambda: self._file_exists("mini-app/src/i18n/zh.ts")},
+                    {"name": "Onboarding translated", "check": lambda: False},
+                    {"name": "Dashboard translated", "check": lambda: False},
+                    {"name": "Quest UI translated", "check": lambda: False},
+                    {"name": "Bot messages in Chinese", "check": lambda: False},
+                ]
+            },
+            "admin_panel": {
+                "name": "Admin Panel Mini App",
+                "emoji": "⚙️",
+                "weight": 10,
+                "tasks": [
+                    {"name": "Admin API routes", "check": lambda: self._file_exists("bot/src/api/routes/admin.ts")},
+                    {"name": "Admin authentication", "check": lambda: False},
+                    {"name": "User management dashboard", "check": lambda: False},
+                    {"name": "Quest/mode editor", "check": lambda: False},
+                    {"name": "Analytics overview", "check": lambda: False},
+                    {"name": "Admin mini app frontend", "check": lambda: self._dir_exists("admin-app/src")},
+                ]
+            },
             "miniapp_polish": {
                 "name": "Mini App Polish",
                 "emoji": "✨",

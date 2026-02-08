@@ -1,3 +1,8 @@
+/**
+ * Main onboarding orchestrator — renders the correct screen per step.
+ * All questions & answer options are defined in: data/onboardingQuestions.ts
+ */
+
 import { useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
@@ -117,12 +122,12 @@ export function Onboarding() {
     return undefined;
   };
 
-  // Back button handler
+  // Back button handler — hidden on splash so Telegram shows "Close" in the frame
   useBackButton(
     useCallback(() => {
-      if (store.currentStep === 'splash') return;
       store.goBack();
-    }, [store])
+    }, [store]),
+    store.currentStep !== 'splash'
   );
 
   // Progress calculation

@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Sword } from 'lucide-react';
 import { useTelegram } from '@/hooks/useTelegram';
@@ -6,12 +7,26 @@ interface SplashScreenProps {
   onNext: () => void;
 }
 
+const LANGUAGES = [
+  { code: 'en', flag: '🇺🇸', label: 'English', available: true },
+  { code: 'ru', flag: '🇷🇺', label: 'Русский', available: false },
+  { code: 'zh', flag: '🇨🇳', label: '中文', available: false },
+] as const;
+
 export function SplashScreen({ onNext }: SplashScreenProps) {
   const { haptic } = useTelegram();
+  const [selectedLang, setSelectedLang] = useState<string | null>(null);
 
   const handleStart = () => {
+    if (!selectedLang) return;
     haptic.impact('medium');
     onNext();
+  };
+
+  const handleLangSelect = (code: string, available: boolean) => {
+    if (!available) return;
+    haptic.selection();
+    setSelectedLang(code);
   };
 
   return (
@@ -35,18 +50,63 @@ export function SplashScreen({ onNext }: SplashScreenProps) {
         <h1 className="text-4xl font-bold text-telegram-text text-center mb-3">
           MaxLevel
         </h1>
-        <p className="text-telegram-hint text-center text-lg">
+        <p className="text-telegram-hint text-center text-lg mb-8">
           Level up your real life
         </p>
+
+        {/* Language selection */}
+        <motion.div
+          className="flex items-center gap-4"
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.3, duration: 0.4 }}
+        >
+          {LANGUAGES.map((lang) => (
+            <button
+              key={lang.code}
+              onClick={() => handleLangSelect(lang.code, lang.available)}
+              className={`relative flex flex-col items-center transition-all duration-200 ${
+                lang.available
+                  ? selectedLang === lang.code
+                    ? 'scale-110'
+                    : 'opacity-80 hover:opacity-100'
+                  : 'cursor-default'
+              }`}
+            >
+              {!lang.available && (
+                <span className="text-[10px] text-telegram-hint font-medium mb-0.5">
+                  soon
+                </span>
+              )}
+              {lang.available && <span className="text-[10px] mb-0.5 invisible">soon</span>}
+              <span
+                className={`text-3xl transition-all duration-200 ${
+                  !lang.available ? 'grayscale opacity-40' : ''
+                } ${
+                  selectedLang === lang.code
+                    ? 'ring-2 ring-purple-500 ring-offset-2 ring-offset-telegram-bg rounded-md'
+                    : ''
+                }`}
+              >
+                {lang.flag}
+              </span>
+            </button>
+          ))}
+        </motion.div>
       </motion.div>
 
       <motion.button
         onClick={handleStart}
-        className="w-full py-4 rounded-2xl bg-gradient-to-r from-purple-600 to-blue-600 text-white text-lg font-bold shadow-lg"
+        disabled={!selectedLang}
+        className={`w-full py-4 rounded-2xl text-lg font-bold shadow-lg transition-all duration-300 ${
+          selectedLang
+            ? 'bg-gradient-to-r from-purple-600 to-blue-600 text-white'
+            : 'bg-gray-600/30 text-gray-500 cursor-not-allowed'
+        }`}
         initial={{ opacity: 0, y: 30 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.4, duration: 0.5 }}
-        whileTap={{ scale: 0.97 }}
+        whileTap={selectedLang ? { scale: 0.97 } : {}}
       >
         Begin Your Quest
       </motion.button>
