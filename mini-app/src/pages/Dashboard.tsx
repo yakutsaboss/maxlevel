@@ -30,7 +30,7 @@ export function Dashboard() {
     }
   };
 
-  const handleQuestClick = (questId: number) => {
+  const handleQuestClick = (_questId: number) => {
     haptic.impact('light');
     // Navigate to quest details
   };

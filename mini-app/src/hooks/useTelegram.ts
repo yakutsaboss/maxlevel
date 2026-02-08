@@ -61,7 +61,7 @@ export function useTelegram() {
       params: {
         title?: string;
         message: string;
-        buttons?: Array<{ id?: string; type?: string; text: string }>;
+        buttons?: Array<{ id?: string; type: 'default' | 'destructive'; text: string }>;
       }
     ) =>
       new Promise<string>((resolve) => {
@@ -102,10 +102,10 @@ export function useMainButton(
 
     // Set colors
     if (options?.color) {
-      MainButton.color = options.color;
+      MainButton.color = options.color as `#${string}`;
     }
     if (options?.textColor) {
-      MainButton.textColor = options.textColor;
+      MainButton.textColor = options.textColor as `#${string}`;
     }
 
     // Set visibility
