@@ -15,7 +15,10 @@ export function Dashboard() {
   }, [user]);
 
   const loadUserStats = async () => {
-    if (!user?.id) return;
+    if (!user?.id) {
+      setLoading(false);
+      return;
+    }
 
     try {
       setLoading(true);
