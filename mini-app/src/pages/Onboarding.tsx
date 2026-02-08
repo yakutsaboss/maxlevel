@@ -1,0 +1,260 @@
+import { useEffect, useCallback, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { AnimatePresence, motion } from 'framer-motion';
+import { useTelegram, useBackButton } from '@/hooks/useTelegram';
+import { useOnboarding, type OnboardingStep } from '@/hooks/useOnboarding';
+import { apiClient } from '@/api/client';
+import { getQuestionForStep } from '@/data/onboardingQuestions';
+
+import { SplashScreen } from '@/components/onboarding/SplashScreen';
+import { HeroIntro } from '@/components/onboarding/HeroIntro';
+import { AvatarSelect } from '@/components/onboarding/AvatarSelect';
+import { PathSelect } from '@/components/onboarding/PathSelect';
+import { ReferralSource } from '@/components/onboarding/ReferralSource';
+import { QuizScreen } from '@/components/onboarding/QuizScreen';
+import { PunishmentConfig } from '@/components/onboarding/PunishmentConfig';
+import { NotificationPrefs } from '@/components/onboarding/NotificationPrefs';
+import { Summary } from '@/components/onboarding/Summary';
+import { LaunchScreen } from '@/components/onboarding/LaunchScreen';
+
+const MODE_BADGES: Record<string, { icon: string; name: string; color: string }> = {
+  fitness: { icon: '🏋️', name: "Warrior's Training", color: 'bg-red-500/15 text-red-400' },
+  hydration: { icon: '💧', name: 'Aqua Mastery', color: 'bg-blue-500/15 text-blue-400' },
+};
+
+export function Onboarding() {
+  const navigate = useNavigate();
+  const { user } = useTelegram();
+  const store = useOnboarding();
+  const saveTimeout = useRef<ReturnType<typeof setTimeout>>();
+
+  const telegramId = user?.id || 0;
+
+  // Save state to backend (debounced)
+  const saveState = useCallback(
+    (step: OnboardingStep, data: Record<string, any>) => {
+      if (!telegramId) return;
+      clearTimeout(saveTimeout.current);
+      saveTimeout.current = setTimeout(() => {
+        apiClient.saveOnboardingState(telegramId, step, data).catch(console.error);
+      }, 1000);
+    },
+    [telegramId]
+  );
+
+  // Load saved state on mount
+  useEffect(() => {
+    if (!telegramId) return;
+    (async () => {
+      try {
+        const res = await apiClient.getOnboardingState(telegramId);
+        if (res.success && res.data?.current_step && res.data.current_step !== 'completed') {
+          store.restoreState(
+            res.data.current_step as OnboardingStep,
+            res.data.quiz_data || {}
+          );
+        }
+      } catch {
+        // Fresh start
+      }
+    })();
+  }, [telegramId]);
+
+  // Navigate to next step
+  const goToStep = useCallback(
+    (step: OnboardingStep) => {
+      store.setStep(step);
+      saveState(step, store.data);
+    },
+    [store, saveState]
+  );
+
+  // Get the next step in sequence, respecting conditional logic
+  const getNextStep = useCallback(
+    (current: OnboardingStep): OnboardingStep => {
+      const allSteps = store.getAllSteps();
+      const currentIndex = allSteps.indexOf(current);
+
+      for (let i = currentIndex + 1; i < allSteps.length; i++) {
+        const step = allSteps[i];
+        const questionConfig = getQuestionForStep(step);
+        // Check showIf condition
+        if (questionConfig?.showIf && !questionConfig.showIf(store.data)) {
+          continue;
+        }
+        return step;
+      }
+
+      return 'launch';
+    },
+    [store]
+  );
+
+  const advanceFrom = useCallback(
+    (current: OnboardingStep) => {
+      const next = getNextStep(current);
+      goToStep(next);
+    },
+    [getNextStep, goToStep]
+  );
+
+  // Handle quiz answer
+  const handleAnswer = useCallback(
+    (dataKey: string, nestedKey: string | undefined, value: any) => {
+      if (nestedKey) {
+        store.updateNestedData(dataKey as any, { [nestedKey]: value });
+      } else {
+        store.updateData({ [dataKey]: value });
+      }
+    },
+    [store]
+  );
+
+  // Get mode badge for current step
+  const getModeBadge = (step: OnboardingStep) => {
+    if (step.startsWith('fitness_')) return MODE_BADGES.fitness;
+    if (step.startsWith('hydration_')) return MODE_BADGES.hydration;
+    return undefined;
+  };
+
+  // Back button handler
+  useBackButton(
+    useCallback(() => {
+      if (store.currentStep === 'splash') return;
+      store.goBack();
+    }, [store])
+  );
+
+  // Progress calculation
+  const progress = store.getProgress();
+
+  // Handle launch completion
+  const handleLaunch = useCallback(() => {
+    store.setCompleted();
+    navigate('/dashboard', { replace: true });
+  }, [store, navigate]);
+
+  // Render current step
+  const renderStep = () => {
+    const step = store.currentStep;
+
+    switch (step) {
+      case 'splash':
+        return <SplashScreen onNext={() => goToStep('hero_intro')} />;
+
+      case 'hero_intro':
+        return <HeroIntro progress={progress} onNext={() => goToStep('avatar')} />;
+
+      case 'avatar':
+        return (
+          <AvatarSelect
+            progress={progress}
+            value={store.data.gender}
+            onSelect={(g) => store.updateData({ gender: g })}
+            onNext={() => goToStep('paths')}
+          />
+        );
+
+      case 'paths':
+        return (
+          <PathSelect
+            progress={progress}
+            value={store.data.selected_modes}
+            onSelect={(modes) => store.updateData({ selected_modes: modes })}
+            onNext={() => goToStep('referral')}
+          />
+        );
+
+      case 'referral':
+        return (
+          <ReferralSource
+            progress={progress}
+            value={store.data.referral_source}
+            otherValue={store.data.referral_source_other}
+            onSelect={(src, other) =>
+              store.updateData({ referral_source: src, referral_source_other: other })
+            }
+            onNext={() => advanceFrom('referral')}
+          />
+        );
+
+      case 'punishments':
+        return (
+          <PunishmentConfig
+            progress={progress}
+            data={store.data}
+            onUpdate={(p) => store.updateData({ punishments: p })}
+            onNext={() => goToStep('notifications')}
+          />
+        );
+
+      case 'notifications':
+        return (
+          <NotificationPrefs
+            progress={progress}
+            data={store.data}
+            onUpdate={(n) => store.updateData({ notification_preferences: n })}
+            onNext={() => goToStep('summary')}
+          />
+        );
+
+      case 'summary':
+        return (
+          <Summary
+            progress={progress}
+            data={store.data}
+            onEdit={(editStep) => goToStep(editStep as OnboardingStep)}
+            onNext={() => goToStep('launch')}
+          />
+        );
+
+      case 'launch':
+        return (
+          <LaunchScreen
+            data={store.data}
+            telegramId={telegramId}
+            onLaunch={handleLaunch}
+          />
+        );
+
+      default: {
+        // Quiz screens (fitness_*, hydration_*)
+        const questionConfig = getQuestionForStep(step);
+        if (questionConfig) {
+          return (
+            <QuizScreen
+              key={step}
+              config={questionConfig}
+              progress={progress}
+              data={store.data}
+              modeBadge={getModeBadge(step)}
+              onAnswer={handleAnswer}
+              onNext={() => advanceFrom(step)}
+            />
+          );
+        }
+
+        // Fallback
+        return (
+          <div className="min-h-screen flex items-center justify-center bg-telegram-bg">
+            <p className="text-telegram-hint">Unknown step: {step}</p>
+          </div>
+        );
+      }
+    }
+  };
+
+  return (
+    <AnimatePresence mode="wait">
+      <motion.div
+        key={store.currentStep}
+        initial={{ opacity: 0, x: 20 }}
+        animate={{ opacity: 1, x: 0 }}
+        exit={{ opacity: 0, x: -20 }}
+        transition={{ duration: 0.2 }}
+      >
+        {renderStep()}
+      </motion.div>
+    </AnimatePresence>
+  );
+}

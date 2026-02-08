@@ -113,6 +113,27 @@ class ApiClient {
     });
     return response.data;
   }
+
+  // Onboarding endpoints
+  async getOnboardingState(telegramId: number): Promise<ApiResponse<{ current_step: string | null; quiz_data: Record<string, any> | null }>> {
+    const response = await this.client.get(`/onboarding/${telegramId}`);
+    return response.data;
+  }
+
+  async saveOnboardingState(telegramId: number, currentStep: string, quizData: Record<string, any>): Promise<ApiResponse<any>> {
+    const response = await this.client.put(`/onboarding/${telegramId}`, {
+      current_step: currentStep,
+      quiz_data: quizData,
+    });
+    return response.data;
+  }
+
+  async completeOnboarding(telegramId: number, quizData: Record<string, any>): Promise<ApiResponse<{ xp_awarded: number }>> {
+    const response = await this.client.post(`/onboarding/${telegramId}/complete`, {
+      quiz_data: quizData,
+    });
+    return response.data;
+  }
 }
 
 // Export singleton instance

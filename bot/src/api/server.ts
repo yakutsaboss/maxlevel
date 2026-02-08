@@ -14,6 +14,8 @@ import { questRouter } from './routes/quests.js';
 import { achievementRouter } from './routes/achievements.js';
 import { modeRouter } from './routes/modes.js';
 import { adminRouter } from './routes/admin.js';
+import { leaderboardRouter } from './routes/leaderboard.js';
+import { onboardingRouter } from './routes/onboarding.js';
 import { apiLimiter } from './middleware/rateLimiter.js';
 
 // Load environment variables
@@ -53,6 +55,8 @@ app.use('/api/quests', questRouter);
 app.use('/api/achievements', achievementRouter);
 app.use('/api/modes', modeRouter);
 app.use('/api/admin', adminRouter);
+app.use('/api/leaderboard', leaderboardRouter);
+app.use('/api/onboarding', onboardingRouter);
 
 // Webhook route (mounted dynamically when webhook handler is provided)
 let _webhookMounted = false;
