@@ -1,3 +1,35 @@
+/**
+ * ============================================================
+ * ONBOARDING QUESTIONS — SINGLE SOURCE OF TRUTH
+ * ============================================================
+ *
+ * This file defines ALL questions and answer options shown
+ * during the onboarding flow. To add, edit, or remove a
+ * question, modify the arrays below:
+ *
+ *   FITNESS_QUESTIONS  — 12 questions for Warrior's Training mode
+ *   HYDRATION_QUESTIONS — 7 questions for Aqua Mastery mode
+ *   REFERRAL_OPTIONS   — "How did you find us?" answer choices
+ *
+ * Player answers are stored in PostgreSQL:
+ *   - onboarding_state.quiz_data (JSONB) — all raw answers
+ *   - mode_configs.quiz_responses (JSONB) — per-mode answers
+ *   - mode_configs.pain_points (JSONB) — e.g. hydration barriers
+ *   - punishment_settings — punishment consent & intensity
+ *
+ * To query all player answers on the server:
+ *   PGPASSWORD=postgres psql -h localhost -U postgres -d telegram_rpg \
+ *     -c "SELECT u.first_name, os.quiz_data FROM onboarding_state os
+ *         JOIN users u ON u.id = os.user_id;"
+ *
+ * Related files:
+ *   - hooks/useOnboarding.ts — Zustand store (step sequence, state)
+ *   - pages/Onboarding.tsx — main orchestrator (renders screens)
+ *   - components/onboarding/QuizScreen.tsx — generic quiz renderer
+ *   - bot/src/api/routes/onboarding.ts — backend API endpoints
+ * ============================================================
+ */
+
 import type { OnboardingStep } from '@/hooks/useOnboarding';
 
 export type QuestionType =
@@ -35,6 +67,8 @@ export interface QuestionConfig {
   step_size?: number;
   labels?: Record<number, string>;
   flavorText?: Record<string, string>;
+  valueLabel?: (v: number) => string;
+  valueSuffix?: string;
   // Conditional
   showIf?: (data: Record<string, any>) => boolean;
   // Auto-select behavior
@@ -192,6 +226,7 @@ export const FITNESS_QUESTIONS: QuestionConfig[] = [
       '6': 'Intense Campaign',
       '7': 'Total Dedication',
     },
+    valueLabel: (v: number) => `${v} workouts a week`,
   },
   {
     step: 'fitness_days',

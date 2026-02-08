@@ -1,3 +1,8 @@
+/**
+ * Generic quiz screen — renders any question type based on config.
+ * All questions & answer options are defined in: data/onboardingQuestions.ts
+ */
+
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { useTelegram } from '@/hooks/useTelegram';
@@ -76,6 +81,20 @@ export function QuizScreen({ config, progress, data, modeBadge, onAnswer, onNext
       }
     }
   }, [config.type, data.hydration]);
+
+  // Persist default values on mount so skipping still saves the answer
+  useEffect(() => {
+    if (currentValue !== undefined) return; // already has a saved value
+    if (config.type === 'drum-roller') {
+      handleDrumChange(drumValue);
+    } else if (config.type === 'slider') {
+      handleSliderChange(sliderValue);
+    } else if (config.type === 'dual-time') {
+      handleTimeChange('wake', wakeTime);
+      handleTimeChange('sleep', sleepTime);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Validation
   const isValid = (): boolean => {
@@ -277,6 +296,8 @@ export function QuizScreen({ config, progress, data, modeBadge, onAnswer, onNext
                 value={sliderValue}
                 onChange={handleSliderChange}
                 flavorText={config.flavorText}
+                valueLabel={config.valueLabel}
+                valueSuffix={config.valueSuffix}
               />
             </div>
           )}

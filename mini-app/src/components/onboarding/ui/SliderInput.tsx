@@ -5,20 +5,24 @@ interface SliderInputProps {
   value: number;
   onChange: (value: number) => void;
   flavorText?: Record<string, string>;
+  valueLabel?: (v: number) => string;
+  valueSuffix?: string;
 }
 
-export function SliderInput({ min, max, step, value, onChange, flavorText }: SliderInputProps) {
+export function SliderInput({ min, max, step, value, onChange, flavorText, valueLabel, valueSuffix = 'x' }: SliderInputProps) {
   const flavor = flavorText?.[String(value)] || '';
   const percentage = ((value - min) / (max - min)) * 100;
 
   return (
     <div className="px-2">
       <div className="text-center mb-6">
-        <span className="text-6xl font-bold text-telegram-text">{value}x</span>
+        <span className="text-6xl font-bold text-telegram-text">{value}{valueSuffix}</span>
         {flavor && (
           <p className="text-sm text-telegram-link mt-2 font-medium">{flavor}</p>
         )}
-        <p className="text-xs text-telegram-hint mt-1">{value} workouts a week</p>
+        {valueLabel && (
+          <p className="text-xs text-telegram-hint mt-1">{valueLabel(value)}</p>
+        )}
       </div>
 
       <div className="relative">
