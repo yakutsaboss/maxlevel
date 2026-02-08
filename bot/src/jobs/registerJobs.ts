@@ -34,6 +34,7 @@ export async function registerAllJobs(boss: PgBoss, bot: Bot<MyContext>): Promis
   questReminders.setBotInstance(bot);
 
   for (const job of jobs) {
+    await boss.createQueue(job.name);
     await boss.schedule(job.name, job.cron);
     await boss.work(job.name, job.handler);
     console.log(`   [PG-BOSS] Registered: ${job.name} (${job.cron})`);
