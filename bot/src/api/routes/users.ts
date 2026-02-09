@@ -64,8 +64,8 @@ router.get('/:telegramId/stats', authenticateTelegram, async (req: Request, res:
       return res.status(404).json({ success: false, error: 'User not found' });
     }
 
-    // Run all supplementary queries in parallel (3 queries instead of 7)
-    const [modes, activeQuests, aggregates] = await Promise.all([
+    // Run all supplementary queries in parallel (4 queries instead of 7)
+    const [modes, activeQuests, aggregates, modeStreaks] = await Promise.all([
       // 1. Active modes with details
       query(
         `SELECT um.user_id, um.mode_id, um.is_active, um.enabled_at AS activated_at,
@@ -101,6 +101,17 @@ router.get('/:telegramId/stats', authenticateTelegram, async (req: Request, res:
             WHERE user_id = $1 AND completed_at::date = CURRENT_DATE) AS xp_today,
            (SELECT COUNT(DISTINCT instance_date)::int FROM quest_instances
             WHERE user_id = $1 AND status = 'completed') AS days_active`,
+        [user.id]
+      ),
+
+      // 4. Per-mode streak breakdown
+      query(
+        `SELECT s.mode_id, s.current_streak, s.longest_streak,
+                m.name AS mode_name, m.display_name AS mode_display_name, m.icon_emoji AS mode_icon
+         FROM streaks s
+         JOIN modes m ON s.mode_id = m.id
+         WHERE s.user_id = $1 AND s.current_streak > 0
+         ORDER BY s.current_streak DESC`,
         [user.id]
       ),
     ]);
@@ -183,6 +194,13 @@ router.get('/:telegramId/stats', authenticateTelegram, async (req: Request, res:
           longest: user.longest_streak,
           daysActive: aggregates?.days_active ?? 0,
         },
+        perModeStreaks: modeStreaks.map((s: any) => ({
+          mode_id: s.mode_id,
+          mode_name: s.mode_display_name,
+          mode_icon: s.mode_icon,
+          current_streak: s.current_streak,
+          longest_streak: s.longest_streak,
+        })),
       },
     });
   } catch (error) {
