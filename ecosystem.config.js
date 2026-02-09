@@ -43,7 +43,7 @@ module.exports = {
       autorestart: true,
       max_restarts: 10,
       min_uptime: '10s',
-      max_memory_restart: '1G',
+      max_memory_restart: '512M',
 
       // Logging
       error_file: './logs/error.log',
@@ -138,7 +138,7 @@ module.exports = {
   deploy: {
     production: {
       user: 'root',
-      host: ['85.239.53.57'],
+      host: ['85.239.58.205'],
       ref: 'origin/main',
       repo: 'git@github.com:yakutsaboss/maxlevel.git',
       path: '/opt/wibecode-bot',
