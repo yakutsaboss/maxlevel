@@ -2,8 +2,9 @@ import { useEffect, useState } from 'react';
 import { useTelegram } from '@/hooks/useTelegram';
 import { apiClient } from '@/api/client';
 import { UserStats, UserAchievement } from '@/types';
-import { Trophy, Award, TrendingUp, Calendar, Zap, Star, AlertCircle, RefreshCw } from 'lucide-react';
+import { Trophy, Award, TrendingUp, Calendar, Zap, Star, AlertCircle, RefreshCw, Pencil } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { ProfileEditModal } from '@/components/ProfileEditModal';
 
 function formatDate(dateStr: string): string {
   return new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric', year: 'numeric' }).format(new Date(dateStr));
@@ -15,6 +16,7 @@ export function Profile() {
   const [achievements, setAchievements] = useState<UserAchievement[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
+  const [editModalOpen, setEditModalOpen] = useState(false);
 
   useEffect(() => { loadProfileData(); }, [user]);
 
@@ -107,7 +109,15 @@ export function Profile() {
               <span className="text-sm font-bold text-purple-900">Lv {stats.user.level}</span>
             </div>
           </motion.div>
-          <h1 className="text-2xl font-bold text-white mb-1">{stats.user.first_name} {stats.user.last_name || ''}</h1>
+          <div className="flex items-center justify-center gap-2 mb-1">
+            <h1 className="text-2xl font-bold text-white">{stats.user.first_name} {stats.user.last_name || ''}</h1>
+            <button
+              onClick={() => { haptic.impact('light'); setEditModalOpen(true); }}
+              className="bg-white/20 backdrop-blur-sm rounded-full p-1.5 active:scale-90 transition-transform"
+            >
+              <Pencil className="w-4 h-4 text-white" />
+            </button>
+          </div>
           {stats.user.username && <p className="text-purple-100 text-sm mb-4">@{stats.user.username}</p>}
           <div className="flex justify-center gap-6 mt-6">
             <StatBadge icon={<Trophy className="w-5 h-5" />} value={stats.user.total_quests_completed} label="Quests" />
@@ -196,6 +206,17 @@ export function Profile() {
           </div>
         </div>
       </div>
+
+      <ProfileEditModal
+        isOpen={editModalOpen}
+        onClose={() => setEditModalOpen(false)}
+        onSave={(_nickname, _avatarIndex) => {
+          // TODO: call profile update API when endpoint exists
+          setEditModalOpen(false);
+        }}
+        currentName={stats.user.first_name}
+        haptic={{ impact: haptic.impact, selection: haptic.selection }}
+      />
     </div>
   );
 }
