@@ -34,6 +34,29 @@ router.get('/', authenticateTelegram, async (req: Request, res: Response) => {
 });
 
 /**
+ * GET /api/achievements/categories
+ * Returns distinct achievement categories (mode names + 'general').
+ * Cached for 5 minutes.
+ */
+router.get('/categories', authenticateTelegram, async (req: Request, res: Response) => {
+  try {
+    const categories = await cached('achievements:categories', TTL.MEDIUM, async () => {
+      const rows = await query(
+        `SELECT DISTINCT COALESCE(criteria->>'mode', 'general') AS category
+         FROM achievements
+         ORDER BY category ASC`
+      );
+      return rows.map((r: any) => r.category);
+    });
+
+    res.json({ categories });
+  } catch (error) {
+    console.error('Error fetching achievement categories:', error);
+    res.status(500).json({ error: 'Server Error', message: 'Failed to fetch achievement categories' });
+  }
+});
+
+/**
  * GET /api/users/:userId/achievements
  * Get user's unlocked achievements
  */
