@@ -498,7 +498,29 @@ Find your section under "Run 11 Retrospectives" below and replace the placeholde
 ### Run 11 Retrospectives
 
 #### Agent A Retrospective
-*(To be filled by Agent A)*
+
+**Status:** All 5 tasks completed. Build passes with zero errors.
+
+| # | Task | Commit | Status |
+|---|------|--------|--------|
+| 1 | Create `achievementEngine.ts` utility | `e5588c1` | Done |
+| 2 | Wire streak + achievement into quest completion | `860f8aa` | Done |
+| 3 | Create achievement batch check job | `9630f0a` | Done |
+| 4 | Register new job in `registerJobs.ts` | `fbca569` | Done |
+| 5 | Build verification | (clean build, no fix needed) | Done |
+
+**Problems faced:** None. The existing codebase was well-structured — `achievements.ts` had clean `checkCriteriaMet()` logic that translated directly into the standalone utility. Import paths and DB utility signatures matched expectations.
+
+**Design decisions:**
+- `checkAndUnlockAchievements()` is a standalone function (not an API call), so it avoids HTTP overhead when called from jobs or quest completion hooks.
+- Streak + achievement calls in quest completion are fire-and-forget (`Promise.allSettled(...).catch(console.error)`) to avoid blocking the API response.
+- Batch check job processes users in batches of 50 with 500ms delays to avoid DB pressure.
+- `POST /:questId/complete` queries quest info (user_id + mode_id) after the Python tool call since the tool doesn't return mode info.
+- `PATCH /:questId/progress` adds `q.mode_id` to the existing SELECT to get mode context for streak updates.
+
+**Recommendations for next run:**
+- The `checkCriteriaMet()` logic is now duplicated between `achievements.ts` (route) and `achievementEngine.ts` (utility). Agent 0 should consider having the route call the utility instead to eliminate duplication.
+- The achievement batch check job queries all users with active modes. If user count grows large, consider adding a `last_activity` filter to only check recently active users.
 
 #### Agent B Retrospective
 *(To be filled by Agent B)*
