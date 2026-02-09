@@ -48,7 +48,10 @@ IS_LOCAL = is_on_server()
 
 
 def ssh_exec(commands: str, timeout: int = 15) -> str:
-    """Execute commands on the server — locally if on VDS, via SSH otherwise."""
+    """Execute commands on the server — locally if on VDS, via SSH otherwise.
+
+    Returns empty string on timeout or error (never raises).
+    """
     try:
         if IS_LOCAL:
             result = subprocess.run(
@@ -58,20 +61,41 @@ def ssh_exec(commands: str, timeout: int = 15) -> str:
         else:
             result = subprocess.run(
                 ["ssh", "-o", "StrictHostKeyChecking=no", "-o", "ConnectTimeout=5",
+                 "-o", "ServerAliveInterval=5", "-o", "ServerAliveCountMax=2",
                  f"{SSH_USER}@{SERVER_IP}", commands],
                 capture_output=True, text=True, timeout=timeout, encoding='utf-8'
             )
         return result.stdout.strip()
     except subprocess.TimeoutExpired:
+        print(f"SSH timeout after {timeout}s", file=sys.stderr)
+        return ""
+    except FileNotFoundError:
+        print("SSH client not found", file=sys.stderr)
         return ""
     except Exception as e:
-        print(f"Exec error: {e}", file=sys.stderr)
+        print(f"SSH exec error: {e}", file=sys.stderr)
         return ""
+
+
+def _safe_split(raw: str, start_marker: str, end_marker: str) -> str | None:
+    """Safely extract section between two markers, returning None if missing."""
+    if start_marker not in raw:
+        return None
+    parts = raw.split(start_marker, 1)
+    if len(parts) < 2:
+        return None
+    section = parts[1]
+    if end_marker and end_marker in section:
+        section = section.split(end_marker, 1)[0]
+    return section
 
 
 def collect_metrics() -> dict:
-    """Collect all metrics in a single SSH connection."""
-    # Combine all commands into one SSH call for speed
+    """Collect all metrics in a single SSH connection.
+
+    Returns partial data if some metrics fail — never crashes entirely.
+    Each metric section is parsed independently with fallback values.
+    """
     combined_cmd = (
         "echo MARK_CPU && top -bn1 | head -5 && "
         "echo MARK_MEM && free -m && "
@@ -87,83 +111,96 @@ def collect_metrics() -> dict:
     metrics = {"timestamp": datetime.now().isoformat()}
 
     # Parse CPU
-    try:
-        cpu_section = raw.split('MARK_CPU')[1].split('MARK_MEM')[0]
-        # Look for %Cpu(s) line: e.g. "%Cpu(s):  2.0 us,  1.0 sy,  0.0 ni, 96.0 id"
-        cpu_match = re.search(r'(\d+\.?\d*)\s*id', cpu_section)
-        if cpu_match:
-            idle = float(cpu_match.group(1))
-            metrics['cpu_used_pct'] = round(100 - idle, 1)
-        else:
+    cpu_section = _safe_split(raw, 'MARK_CPU', 'MARK_MEM')
+    if cpu_section:
+        try:
+            cpu_match = re.search(r'(\d+\.?\d*)\s*id', cpu_section)
+            if cpu_match:
+                idle = float(cpu_match.group(1))
+                metrics['cpu_used_pct'] = round(100 - idle, 1)
+            else:
+                metrics['cpu_used_pct'] = None
+        except Exception:
             metrics['cpu_used_pct'] = None
-    except Exception:
+    else:
         metrics['cpu_used_pct'] = None
 
     # Parse Memory
-    try:
-        mem_section = raw.split('MARK_MEM')[1].split('MARK_DISK')[0]
-        # Match: Mem: total used free shared buff/cache available
-        # Works with both "Mem:" format from free -m
-        mem_match = re.search(r'Mem:\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)', mem_section)
-        if mem_match:
-            metrics['ram_total_mb'] = int(mem_match.group(1))
-            metrics['ram_used_mb'] = int(mem_match.group(2))
-            metrics['ram_available_mb'] = int(mem_match.group(6))
-            metrics['ram_used_pct'] = round(
-                (metrics['ram_used_mb'] / metrics['ram_total_mb']) * 100, 1
-            ) if metrics['ram_total_mb'] > 0 else None
-        else:
+    mem_section = _safe_split(raw, 'MARK_MEM', 'MARK_DISK')
+    if mem_section:
+        try:
+            mem_match = re.search(r'Mem:\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)', mem_section)
+            if mem_match:
+                metrics['ram_total_mb'] = int(mem_match.group(1))
+                metrics['ram_used_mb'] = int(mem_match.group(2))
+                metrics['ram_available_mb'] = int(mem_match.group(6))
+                metrics['ram_used_pct'] = round(
+                    (metrics['ram_used_mb'] / metrics['ram_total_mb']) * 100, 1
+                ) if metrics['ram_total_mb'] > 0 else None
+            else:
+                metrics['ram_total_mb'] = None
+                metrics['ram_used_mb'] = None
+                metrics['ram_used_pct'] = None
+        except Exception:
             metrics['ram_total_mb'] = None
             metrics['ram_used_mb'] = None
             metrics['ram_used_pct'] = None
-    except Exception:
+    else:
         metrics['ram_total_mb'] = None
         metrics['ram_used_mb'] = None
         metrics['ram_used_pct'] = None
 
     # Parse Disk
-    try:
-        disk_section = raw.split('MARK_DISK')[1].split('MARK_PM2')[0]
-        # Match: /dev/vda1 20G 4.2G 15G 22% /
-        disk_match = re.search(r'(\S+G)\s+(\S+G)\s+(\S+G)\s+(\d+)%\s+/', disk_section)
-        if disk_match:
-            metrics['disk_total'] = disk_match.group(1)
-            metrics['disk_used'] = disk_match.group(2)
-            metrics['disk_used_pct'] = int(disk_match.group(4))
-        else:
+    disk_section = _safe_split(raw, 'MARK_DISK', 'MARK_PM2')
+    if disk_section:
+        try:
+            disk_match = re.search(r'(\S+G)\s+(\S+G)\s+(\S+G)\s+(\d+)%\s+/', disk_section)
+            if disk_match:
+                metrics['disk_total'] = disk_match.group(1)
+                metrics['disk_used'] = disk_match.group(2)
+                metrics['disk_used_pct'] = int(disk_match.group(4))
+            else:
+                metrics['disk_total'] = None
+                metrics['disk_used'] = None
+                metrics['disk_used_pct'] = None
+        except Exception:
             metrics['disk_total'] = None
             metrics['disk_used'] = None
             metrics['disk_used_pct'] = None
-    except Exception:
+    else:
         metrics['disk_total'] = None
         metrics['disk_used'] = None
         metrics['disk_used_pct'] = None
 
     # Parse PM2
-    try:
-        pm2_section = raw.split('MARK_PM2')[1].split('MARK_UPTIME')[0].strip()
-        pm2_data = json.loads(pm2_section)
-        if pm2_data:
-            bot_proc = pm2_data[0]  # First process
-            metrics['pm2_name'] = bot_proc.get('name', 'unknown')
-            metrics['pm2_status'] = bot_proc.get('pm2_env', {}).get('status', 'unknown')
-            metrics['pm2_memory_mb'] = round(
-                bot_proc.get('monit', {}).get('memory', 0) / (1024 * 1024), 1
-            )
-            metrics['pm2_cpu'] = bot_proc.get('monit', {}).get('cpu', 0)
-            # Calculate uptime
-            pm_uptime = bot_proc.get('pm2_env', {}).get('pm_uptime', 0)
-            if pm_uptime:
-                uptime_sec = (datetime.now().timestamp() * 1000 - pm_uptime) / 1000
-                days = int(uptime_sec // 86400)
-                hours = int((uptime_sec % 86400) // 3600)
-                metrics['pm2_uptime'] = f"{days}d {hours}h"
+    pm2_section = _safe_split(raw, 'MARK_PM2', 'MARK_UPTIME')
+    if pm2_section:
+        try:
+            pm2_data = json.loads(pm2_section.strip())
+            if pm2_data:
+                bot_proc = pm2_data[0]
+                metrics['pm2_name'] = bot_proc.get('name', 'unknown')
+                metrics['pm2_status'] = bot_proc.get('pm2_env', {}).get('status', 'unknown')
+                metrics['pm2_memory_mb'] = round(
+                    bot_proc.get('monit', {}).get('memory', 0) / (1024 * 1024), 1
+                )
+                metrics['pm2_cpu'] = bot_proc.get('monit', {}).get('cpu', 0)
+                pm_uptime = bot_proc.get('pm2_env', {}).get('pm_uptime', 0)
+                if pm_uptime:
+                    uptime_sec = (datetime.now().timestamp() * 1000 - pm_uptime) / 1000
+                    days = int(uptime_sec // 86400)
+                    hours = int((uptime_sec % 86400) // 3600)
+                    metrics['pm2_uptime'] = f"{days}d {hours}h"
+                else:
+                    metrics['pm2_uptime'] = "unknown"
             else:
-                metrics['pm2_uptime'] = "unknown"
-        else:
-            metrics['pm2_status'] = 'not running'
-    except Exception:
-        metrics['pm2_status'] = 'parse error'
+                metrics['pm2_status'] = 'not running'
+        except (json.JSONDecodeError, IndexError, KeyError):
+            metrics['pm2_status'] = 'parse error'
+        except Exception:
+            metrics['pm2_status'] = 'parse error'
+    else:
+        metrics['pm2_status'] = 'unavailable'
 
     return metrics
 
