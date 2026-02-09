@@ -171,6 +171,337 @@ Use this structure when creating a new run. Copy and adapt:
 
 ---
 
-## Current Run
+## RUN 11: Parallel Agents (3 Agents + Agent 0)
 
-*(Run 11 will be written here when ready)*
+### Focus: Complete the MVP Game Loop — Achievement Engine, Streak Wiring, Quest Content
+
+The game UI is polished but the loop is broken: achievements never unlock, streaks aren't updated on quest completion, and quest variety is too low. This run wires everything together so the core RPG mechanics actually work.
+
+### Copy-Paste Prompts
+
+**Agent 0** (open in: `c:\Users\Asus\Desktop\Wibecode`):
+```
+Read PARALLEL_AGENTS.md — you are Agent 0 for Run 11. Set up worktrees and tell me when ready. After all agents finish, I'll tell you to merge.
+```
+
+**Agent A** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-a`):
+```
+Read PARALLEL_AGENTS.md — you are Agent A for Run 11. Your job: wire achievement checks and streak updates into the quest completion flow, and create an achievement batch-check background job. Do your tasks in order, commit after each, and write your retrospective when done.
+```
+
+**Agent B** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-b`):
+```
+Read PARALLEL_AGENTS.md — you are Agent B for Run 11. Your job: add more quest templates to the database, add weekly quest assignment to the daily reset job, and add an achievement unlock notification system. Do your tasks in order, commit after each, and write your retrospective when done.
+```
+
+**Agent C** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-c`):
+```
+Read PARALLEL_AGENTS.md — you are Agent C for Run 11. Your job: add streak display to the Dashboard, add a checkAchievements API method, and show an achievement unlock toast. Do your tasks in order, commit after each, and write your retrospective when done.
+```
+
+---
+
+### Agent A — Achievement Engine & Streak Wiring (Backend)
+
+**Branch:** `feature/achievement-engine`
+
+**CONTEXT:**
+- The `POST /api/users/:userId/achievements/check` endpoint ALREADY EXISTS in `bot/src/api/routes/achievements.ts` (line 335). It evaluates ALL criteria types (level, streak, quest_complete, multi_mode_active, etc.), batch-unlocks qualifying achievements in a single transaction, and awards XP bonus. It just needs to be CALLED.
+- `executePythonTool('streak_manager', ['--update-streak', '--user-id', ID, '--mode-id', MODE_ID])` updates the streak for a user+mode. It exists but is NEVER CALLED after quest completion.
+- Quest completion happens in two places in `quests.ts`:
+  1. `POST /:questId/complete` (line 84) — calls Python `quest_manager --complete-quest`
+  2. `PATCH /:questId/progress` (line 203) — auto-completes when progress >= target (native SQL)
+- Both paths award XP but neither updates streaks nor checks achievements.
+
+**FILES YOU OWN:**
+- `bot/src/api/routes/quests.ts` — modify quest completion to trigger streak + achievement check
+- `bot/src/utils/achievementEngine.ts` — NEW: shared function to check achievements for a user
+- `bot/src/jobs/definitions/achievementBatchCheck.ts` — NEW: periodic batch job
+- `bot/src/jobs/registerJobs.ts` — register the new job
+
+**FILES YOU MUST NOT TOUCH:**
+- `bot/src/api/routes/achievements.ts` (Agent A reads it for reference but does NOT edit)
+- `mini-app/` (all)
+- `tools/` (all Python files)
+- `.env`, `bot/src/config.ts`, `bot/src/bot.ts`
+
+**RULES (NON-NEGOTIABLE):**
+- You are ALREADY on branch `feature/achievement-engine` — do NOT run `git checkout`
+- Commit after EVERY task — atomic: `git add FILES && git commit -m "MSG"` in one Bash call
+- Do NOT push to remote or deploy to server
+- Do NOT add any new npm packages
+
+**Task 1: Create achievementEngine.ts utility**
+- Read `bot/src/api/routes/achievements.ts` lines 216-413 to understand the existing `checkCriteriaMet()` and `filterQualifyingAchievements()` functions, and the `POST /check` endpoint logic.
+- Create `bot/src/utils/achievementEngine.ts` that exports an `async function checkAndUnlockAchievements(userId: number): Promise<any[]>` function.
+- This function should contain the core logic from the `POST /check` endpoint:
+  1. Fetch user stats (level, total_xp, current_streak, quests_completed)
+  2. Fetch available (not yet unlocked) achievements
+  3. Evaluate each achievement's criteria using the same `checkCriteriaMet()` logic
+  4. Batch-unlock qualifying achievements in a transaction (INSERT ON CONFLICT DO NOTHING)
+  5. Award XP bonus for newly unlocked achievements
+  6. Return array of newly unlocked achievements (empty array if none)
+- Import `query`, `queryOne`, `transaction` from `../../utils/db.js`
+- Import `invalidateUserCache` from `../../utils/cache.js`
+- This utility can be called from both API routes AND background jobs without HTTP overhead.
+- Commit: "Add achievementEngine utility for checking and unlocking achievements"
+
+**Task 2: Wire streak update + achievement check into quest completion**
+- Edit `bot/src/api/routes/quests.ts`
+- Import `executePythonTool` is already imported. Import `checkAndUnlockAchievements` from your new utility.
+- In `POST /:questId/complete` (line 84-120):
+  - After the successful `executePythonTool('quest_manager', ...)` call and before the response
+  - Get the quest's `mode_id` — you'll need to query it: `SELECT q.mode_id, qi.user_id FROM quest_instances qi JOIN quests q ON q.id = qi.quest_id WHERE qi.id = $1`
+  - Call `executePythonTool('streak_manager', ['--update-streak', '--user-id', String(userId), '--mode-id', String(modeId)])` — fire-and-forget, don't block the response on this
+  - Call `checkAndUnlockAchievements(userId)` — also fire-and-forget (use `.catch(console.error)`)
+  - Include any newly unlocked achievements in the response (optional, nice-to-have)
+- In `PATCH /:questId/progress` (line 203-295):
+  - In the auto-complete branch (line 241, `clampedProgress >= target`), after the transaction:
+  - Get `mode_id` from the quest query (add `q.mode_id` to the existing SELECT on line 220)
+  - Same streak update + achievement check calls as above
+- Both streak and achievement calls should be non-blocking (don't delay the API response). Use `Promise.allSettled([streakPromise, achievementPromise]).catch(console.error)` pattern.
+- Commit: "Wire streak update and achievement check into quest completion"
+
+**Task 3: Create achievement batch check job**
+- Create `bot/src/jobs/definitions/achievementBatchCheck.ts`
+- Follow the same pattern as other job files (export `JOB_NAME`, `CRON_SCHEDULE`, `handler`)
+- `JOB_NAME = 'achievement-batch-check'`
+- `CRON_SCHEDULE = '0 */6 * * *'` (every 6 hours — safety net, not primary trigger)
+- Handler: Query all active users, call `checkAndUnlockAchievements(userId)` for each, log results
+- Process in batches of 50 users with small delays between batches to avoid DB pressure
+- Log: total users checked, total new achievements unlocked
+- Commit: "Add achievement batch check job (every 6 hours)"
+
+**Task 4: Register the new job**
+- Edit `bot/src/jobs/registerJobs.ts`
+- Add import: `import * as achievementBatchCheck from './definitions/achievementBatchCheck.js';`
+- Add to the `jobs` array: `{ name: achievementBatchCheck.JOB_NAME, cron: achievementBatchCheck.CRON_SCHEDULE, handler: achievementBatchCheck.handler }`
+- Commit: "Register achievement batch check job in registerJobs"
+
+**Task 5: Build verification**
+- Run `cd bot && npm run build`
+- Fix any TypeScript errors
+- Commit only if fixes were needed: "Fix TypeScript errors from achievement engine"
+
+### RETROSPECTIVE (DO THIS LAST)
+Find your section under "Run 11 Retrospectives" below and replace the placeholder with your retrospective.
+
+---
+
+### Agent B — Quest Content & Weekly Assignment (Backend + DB)
+
+**Branch:** `feature/quest-content`
+
+**CONTEXT:**
+- Currently only 14 quest templates exist in `database/seed_data.sql` (3-4 per mode). This is too few for variety.
+- `dailyQuestReset.ts` assigns 3 daily quests at midnight UTC but does NOT handle weekly quests. The `quest_manager.py` supports `--assign-weekly` but no job calls it.
+- When achievements unlock (via Agent A's work), users should get a Telegram message. The notification jobs (`questReminders.ts`, `dailySummary.ts`) use `bot.api.sendMessage()` and receive the bot instance via `setBotInstance(bot)`.
+
+**FILES YOU OWN:**
+- `bot/src/jobs/definitions/dailyQuestReset.ts` — add weekly quest assignment
+- `database/migrations/run11_quest_templates.sql` — NEW: additional quest templates
+- `bot/src/jobs/definitions/achievementNotifier.ts` — NEW: sends Telegram messages for new achievements
+
+**FILES YOU MUST NOT TOUCH:**
+- `bot/src/api/routes/` (all route files)
+- `bot/src/utils/` (all utility files)
+- `mini-app/` (all)
+- `tools/` (all Python files)
+- `.env`, `bot/src/config.ts`, `bot/src/bot.ts`
+
+**GRAY AREA:**
+- `bot/src/jobs/registerJobs.ts` — you may ONLY add your new job import + array entry (Agent A also modifies this file, so keep changes minimal and clearly separated)
+
+**RULES (NON-NEGOTIABLE):**
+- You are ALREADY on branch `feature/quest-content` — do NOT run `git checkout`
+- Commit after EVERY task — atomic: `git add FILES && git commit -m "MSG"` in one Bash call
+- Do NOT push to remote or deploy to server
+
+**Task 1: Add more quest templates**
+- Create `database/migrations/run11_quest_templates.sql`
+- Add at least 20 new quest templates (5+ per mode), mix of daily and weekly
+- Follow the exact column format from `seed_data.sql`: `(mode_id, title, description, quest_type, xp_reward, difficulty, requires_timer, timer_window_start, timer_window_end, readiness_check_enabled, readiness_check_time, is_mandatory)`
+- Use subqueries for mode_id: `(SELECT id FROM modes WHERE name = 'fitness')`
+- Use `INSERT ... ON CONFLICT DO NOTHING` or check `WHERE NOT EXISTS` to make the script idempotent (safe to run multiple times)
+- **Fitness ideas:** Stretching routine, Walk 10k steps, Plank challenge, Yoga session, Hydration + workout combo
+- **Hydration ideas:** Herbal tea break, Water before each meal, Evening hydration, Track water intake, Lemon water morning
+- **Finance ideas:** No-spend day, Review subscriptions, Compare prices, Set savings goal, Track impulse purchases
+- **Learning ideas:** Watch educational video, Write summary of chapter, Teach someone what you learned, Code challenge, Language practice
+- Vary XP rewards: easy=20-30, medium=40-60, hard=80-100, weekly=100-200
+- Commit: "Add 20+ quest templates across all modes"
+
+**Task 2: Add weekly quest assignment to daily reset job**
+- Edit `bot/src/jobs/definitions/dailyQuestReset.ts`
+- After the daily quest assignment loop, add a check: if today is Monday (`new Date().getUTCDay() === 1`), also assign weekly quests
+- Call `executePythonTool('quest_manager', ['--assign-weekly', '--user-id', String(userId), '--count', '2'])` for each user
+- Log separately: "Assigned {N} weekly quests to {M} users"
+- Commit: "Add weekly quest assignment on Mondays"
+
+**Task 3: Create achievement notification job**
+- Create `bot/src/jobs/definitions/achievementNotifier.ts`
+- This job checks for recently unlocked achievements (last 1 hour) and sends Telegram notifications
+- Follow the pattern from `questReminders.ts`: export `JOB_NAME`, `CRON_SCHEDULE`, `handler`, `setBotInstance()`
+- `JOB_NAME = 'achievement-notifier'`
+- `CRON_SCHEDULE = '*/15 * * * *'` (every 15 minutes)
+- Handler:
+  1. Query: `SELECT ua.user_id, u.telegram_id, a.name, a.badge_icon, a.xp_bonus FROM user_achievements ua JOIN users u ON u.id = ua.user_id JOIN achievements a ON a.id = ua.achievement_id WHERE ua.unlocked_at > NOW() - INTERVAL '20 minutes'`
+  2. For each result, send Telegram message: `"🏆 Achievement Unlocked!\n\n{badge_icon} {name}\n+{xp_bonus} XP bonus"`
+  3. Use `bot.api.sendMessage(telegramId, message)` with try/catch per user
+  4. Rate limit: 200ms delay between sends (same as dailySummary)
+  5. Log: "Sent {N} achievement notifications"
+- Commit: "Add achievement notifier job (every 15 minutes)"
+
+**Task 4: Register the new job**
+- Edit `bot/src/jobs/registerJobs.ts`
+- Add import: `import * as achievementNotifier from './definitions/achievementNotifier.js';`
+- Add `achievementNotifier.setBotInstance(bot);` in `registerAllJobs` (after the existing setBotInstance calls)
+- Add to the `jobs` array: `{ name: achievementNotifier.JOB_NAME, cron: achievementNotifier.CRON_SCHEDULE, handler: achievementNotifier.handler }`
+- Commit: "Register achievement notifier job in registerJobs"
+
+**Task 5: Build verification**
+- Run `cd bot && npm run build`
+- Fix any TypeScript errors
+- Commit only if fixes were needed: "Fix TypeScript errors from quest content additions"
+
+### RETROSPECTIVE (DO THIS LAST)
+Find your section under "Run 11 Retrospectives" below and replace the placeholder with your retrospective.
+
+---
+
+### Agent C — Mini-App: Streak Display & Achievement UX (Frontend)
+
+**Branch:** `feature/miniapp-streaks`
+
+**CONTEXT:**
+- The `UserStats` type already has `streakData: { current, longest, daysActive }` but Dashboard doesn't prominently display streaks.
+- The `apiClient` has `getAchievements()` and `getUserAchievements()` but NO method to call `POST /users/:userId/achievements/check`.
+- The Achievement type in `types/index.ts` has fields like `category`, `requirement_type`, `requirement_value`, `is_hidden` — but the API returns `rarity`, `icon` (mapped from `badge_icon`), `xp_reward` (mapped from `xp_bonus`), and `criteria` (JSONB). There's a field mismatch that may cause display issues.
+- Dashboard.tsx already has `StatCard` components for XP, Level, Quests, Streak — but streak is just one number among many. A mode-specific streak breakdown would be more useful.
+
+**FILES YOU OWN:**
+- `mini-app/src/pages/Dashboard.tsx` — add streak section
+- `mini-app/src/pages/Achievements.tsx` — improve achievement display
+- `mini-app/src/api/client.ts` — add `checkAchievements()` method
+- `mini-app/src/types/index.ts` — fix Achievement type to match API
+- `mini-app/src/components/AchievementToast.tsx` — NEW: unlock celebration
+
+**FILES YOU MUST NOT TOUCH:**
+- `bot/` (all backend files)
+- `tools/` (all Python files)
+- `mini-app/src/App.tsx` (locked — already set up routes)
+- `mini-app/src/hooks/useOnboarding.ts`
+- `.env`
+
+**RULES (NON-NEGOTIABLE):**
+- You are ALREADY on branch `feature/miniapp-streaks` — do NOT run `git checkout`
+- Commit after EVERY task — atomic: `git add FILES && git commit -m "MSG"` in one Bash call
+- Do NOT push to remote or deploy to server
+- Do NOT add any new npm packages
+
+**Task 1: Fix Achievement type to match API**
+- Read `mini-app/src/types/index.ts` — the `Achievement` interface has `category`, `requirement_type`, `requirement_value`, `is_hidden`
+- The API actually returns: `id`, `name`, `description`, `icon` (from badge_icon), `xp_reward` (from xp_bonus), `rarity` (string: common/rare/epic/legendary), `category` (from criteria mode), `criteria` (JSONB object)
+- Update the `Achievement` interface to match what the API sends:
+  ```typescript
+  export interface Achievement {
+    id: number;
+    name: string;
+    description: string;
+    icon: string;
+    xp_reward: number;
+    rarity: string;
+    category: string;
+    criteria?: Record<string, any>;
+  }
+  ```
+- Commit: "Fix Achievement type to match API response fields"
+
+**Task 2: Add checkAchievements to API client**
+- Edit `mini-app/src/api/client.ts`
+- Add method:
+  ```typescript
+  async checkAchievements(userId: number): Promise<ApiResponse<{ newAchievements: any[]; count: number }>> {
+    const response = await this.client.post(`/users/${userId}/achievements/check`);
+    return { success: true, data: response.data };
+  }
+  ```
+- This calls the existing backend endpoint that Agent A is wiring into the quest flow
+- Commit: "Add checkAchievements method to API client"
+
+**Task 3: Add streak section to Dashboard**
+- Edit `mini-app/src/pages/Dashboard.tsx`
+- After the existing modes section, add a "Streaks" section that shows per-mode streak data
+- The `stats.streakData` object has `current`, `longest`, `daysActive` — but this is aggregate, not per-mode
+- The `stats.modes` array has mode info. Check if the users API returns per-mode streak data
+- Read `bot/src/api/routes/users.ts` to understand what `streakData` contains
+- If per-mode data isn't available: show the aggregate streak prominently with a flame icon, current vs longest, and days active
+- Design: horizontal scrollable cards per mode (like the existing mode cards), each showing mode icon + current streak number + flame emoji for active streaks
+- Use the existing `StatCard` or `ModeCard` pattern
+- Commit: "Add streak display section to Dashboard"
+
+**Task 4: Create AchievementToast component**
+- Create `mini-app/src/components/AchievementToast.tsx`
+- A small toast/popup that appears when a new achievement is detected
+- Props: `achievement: Achievement`, `onClose: () => void`
+- Design: slide-up from bottom, achievement icon + name + XP bonus, auto-dismiss after 4 seconds
+- Use Framer Motion for animation: `initial={{ y: 100, opacity: 0 }}` → `animate={{ y: 0, opacity: 1 }}`
+- Gold/amber color scheme for celebration feel
+- Commit: "Add AchievementToast component for unlock celebration"
+
+**Task 5: Integrate achievement checking in Quests page**
+- Edit `mini-app/src/pages/Quests.tsx` (if you need to) OR `Dashboard.tsx`
+- After a quest is completed (the user taps "Complete"), call `apiClient.checkAchievements(userId)` in the background
+- If `newAchievements.length > 0`, show the `AchievementToast` for the first one
+- This is a nice-to-have — if it's complex due to how quests page works, you can skip and just add the toast trigger to Dashboard's pull-to-refresh instead
+- Commit: "Show achievement toast on quest completion"
+
+**Task 6: Build verification**
+- Run `cd mini-app && npm run build`
+- Fix any TypeScript errors
+- Commit only if fixes were needed: "Fix TypeScript errors from streak and achievement UI"
+
+### RETROSPECTIVE (DO THIS LAST)
+Find your section under "Run 11 Retrospectives" below and replace the placeholder with your retrospective.
+
+---
+
+### Run 11 File Ownership Matrix
+
+| File/Directory | Agent A | Agent B | Agent C | Nobody |
+|---|---|---|---|---|
+| bot/src/api/routes/quests.ts | OWNS | - | - | - |
+| bot/src/utils/achievementEngine.ts (NEW) | OWNS | - | - | - |
+| bot/src/jobs/definitions/achievementBatchCheck.ts (NEW) | OWNS | - | - | - |
+| bot/src/jobs/definitions/dailyQuestReset.ts | - | OWNS | - | - |
+| database/migrations/run11_quest_templates.sql (NEW) | - | OWNS | - | - |
+| bot/src/jobs/definitions/achievementNotifier.ts (NEW) | - | OWNS | - | - |
+| bot/src/jobs/registerJobs.ts | OWNS (add job) | OWNS (add job) | - | - |
+| mini-app/src/pages/Dashboard.tsx | - | - | OWNS | - |
+| mini-app/src/pages/Achievements.tsx | - | - | OWNS | - |
+| mini-app/src/api/client.ts | - | - | OWNS (add method) | - |
+| mini-app/src/types/index.ts | - | - | OWNS (fix type) | - |
+| mini-app/src/components/AchievementToast.tsx (NEW) | - | - | OWNS | - |
+| mini-app/src/App.tsx | - | - | - | LOCKED |
+| bot/src/api/routes/achievements.ts | - | - | - | LOCKED |
+| bot/src/bot.ts | - | - | - | LOCKED |
+| bot/src/config.ts | - | - | - | LOCKED |
+| .env | - | - | - | LOCKED |
+
+### Run 11 Merge Order
+
+1. **Agent A first** — Achievement engine + quest completion wiring (touches quests.ts + registerJobs.ts)
+2. **Agent B second** — Quest content + weekly assignment + notifier (touches dailyQuestReset.ts + registerJobs.ts, may conflict on registerJobs)
+3. **Agent C last** — Mini-app changes (fully independent frontend, zero backend overlap)
+
+---
+
+### Run 11 Retrospectives
+
+#### Agent A Retrospective
+*(To be filled by Agent A)*
+
+#### Agent B Retrospective
+*(To be filled by Agent B)*
+
+#### Agent C Retrospective
+*(To be filled by Agent C)*
