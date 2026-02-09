@@ -28,7 +28,9 @@ import sys
 import subprocess
 import urllib.request
 import urllib.parse
+import urllib.error
 import json
+import time
 from pathlib import Path
 from datetime import datetime
 from dotenv import load_dotenv
@@ -46,10 +48,24 @@ if not BOT_TOKEN or not CHAT_ID:
     sys.exit(1)
 
 
+def truncate_message(text: str, max_length: int = 4096) -> str:
+    """Truncate message to Telegram's max length with ellipsis."""
+    if len(text) <= max_length:
+        return text
+    return text[:max_length - 3] + "..."
+
+
 # ── Telegram API helpers ──────────────────────────────────────────────
 
-def send_message(text: str, parse_mode: str = "HTML") -> dict | None:
-    """Send a message via Telegram Bot API. Returns the message object or None."""
+def send_message(text: str, parse_mode: str = "HTML", max_retries: int = 3) -> dict | None:
+    """Send a message via Telegram Bot API with retry logic.
+
+    Retries up to max_retries times with exponential backoff (1s, 2s, 4s).
+    Handles HTTP 429 (rate limit) by waiting retry_after seconds.
+    Does not retry HTTP 400 (bad request).
+    Truncates messages exceeding 4096 chars.
+    """
+    text = truncate_message(text)
     url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
     data = urllib.parse.urlencode({
         "chat_id": CHAT_ID,
@@ -57,19 +73,45 @@ def send_message(text: str, parse_mode: str = "HTML") -> dict | None:
         "parse_mode": parse_mode
     }).encode('utf-8')
 
-    try:
-        req = urllib.request.Request(url, data=data)
-        with urllib.request.urlopen(req, timeout=10) as resp:
-            result = json.loads(resp.read())
-            if result.get("ok"):
-                return result.get("result")
-    except Exception as e:
-        print(f"Failed to send: {e}")
+    for attempt in range(max_retries):
+        try:
+            req = urllib.request.Request(url, data=data)
+            with urllib.request.urlopen(req, timeout=10) as resp:
+                result = json.loads(resp.read())
+                if result.get("ok"):
+                    return result.get("result")
+        except urllib.error.HTTPError as e:
+            if e.code == 400:
+                print(f"Bad request (not retrying): {e}")
+                return None
+            if e.code == 429:
+                try:
+                    body = json.loads(e.read())
+                    retry_after = body.get("parameters", {}).get("retry_after", 5)
+                except Exception:
+                    retry_after = 5
+                print(f"Rate limited, waiting {retry_after}s...")
+                time.sleep(retry_after)
+                continue
+            if attempt < max_retries - 1:
+                wait = 2 ** attempt
+                print(f"HTTP {e.code}, retrying in {wait}s...")
+                time.sleep(wait)
+            else:
+                print(f"Failed after {max_retries} attempts: {e}")
+        except Exception as e:
+            if attempt < max_retries - 1:
+                wait = 2 ** attempt
+                print(f"Error, retrying in {wait}s: {e}")
+                time.sleep(wait)
+            else:
+                print(f"Failed after {max_retries} attempts: {e}")
     return None
 
 
-def edit_message(message_id: int, text: str, parse_mode: str = "HTML") -> bool:
-    """Edit an existing message via Telegram Bot API."""
+def edit_message(message_id: int, text: str, parse_mode: str = "HTML", max_retries: int = 3) -> bool:
+    """Edit an existing message via Telegram Bot API with retry logic."""
+    text = truncate_message(text)
     url = f"https://api.telegram.org/bot{BOT_TOKEN}/editMessageText"
     data = urllib.parse.urlencode({
         "chat_id": CHAT_ID,
@@ -78,14 +120,39 @@ def edit_message(message_id: int, text: str, parse_mode: str = "HTML") -> bool:
         "parse_mode": parse_mode
     }).encode('utf-8')
 
-    try:
-        req = urllib.request.Request(url, data=data)
-        with urllib.request.urlopen(req, timeout=10) as resp:
-            result = json.loads(resp.read())
-            return result.get("ok", False)
-    except Exception as e:
-        print(f"Failed to edit: {e}")
-        return False
+    for attempt in range(max_retries):
+        try:
+            req = urllib.request.Request(url, data=data)
+            with urllib.request.urlopen(req, timeout=10) as resp:
+                result = json.loads(resp.read())
+                return result.get("ok", False)
+        except urllib.error.HTTPError as e:
+            if e.code == 400:
+                print(f"Bad request (not retrying): {e}")
+                return False
+            if e.code == 429:
+                try:
+                    body = json.loads(e.read())
+                    retry_after = body.get("parameters", {}).get("retry_after", 5)
+                except Exception:
+                    retry_after = 5
+                print(f"Rate limited, waiting {retry_after}s...")
+                time.sleep(retry_after)
+                continue
+            if attempt < max_retries - 1:
+                wait = 2 ** attempt
+                print(f"HTTP {e.code}, retrying in {wait}s...")
+                time.sleep(wait)
+            else:
+                print(f"Failed to edit after {max_retries} attempts: {e}")
+        except Exception as e:
+            if attempt < max_retries - 1:
+                wait = 2 ** attempt
+                print(f"Error, retrying in {wait}s: {e}")
+                time.sleep(wait)
+            else:
+                print(f"Failed to edit after {max_retries} attempts: {e}")
+    return False
 
 
 # ── Session state persistence ─────────────────────────────────────────
