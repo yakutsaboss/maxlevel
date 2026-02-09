@@ -45,4 +45,50 @@ router.get('/', authenticateTelegram, async (req: Request, res: Response) => {
   }
 });
 
+/**
+ * GET /api/leaderboard/weekly
+ * Returns leaderboard ranked by XP earned in the last 7 days.
+ * Cached for 5 minutes.
+ */
+router.get('/weekly', authenticateTelegram, async (req: Request, res: Response) => {
+  try {
+    const limit = Math.min(parseInt(req.query.limit as string) || 50, 100);
+
+    const entries = await cached(`leaderboard:weekly:${limit}`, 300, () =>
+      query(
+        `SELECT u.id AS user_id, u.telegram_id, u.username, u.first_name,
+                u.current_level, u.total_xp,
+                COALESCE(SUM(qi.xp_awarded), 0)::int AS weekly_xp
+         FROM users u
+         LEFT JOIN quest_instances qi
+           ON qi.user_id = u.id
+           AND qi.status = 'completed'
+           AND qi.completed_at > NOW() - INTERVAL '7 days'
+         WHERE u.is_active = true
+         GROUP BY u.id
+         HAVING COALESCE(SUM(qi.xp_awarded), 0) > 0
+         ORDER BY weekly_xp DESC
+         LIMIT $1`,
+        [limit]
+      )
+    );
+
+    const formatted = entries.map((row: any, index: number) => ({
+      user_id: row.user_id,
+      telegram_id: row.telegram_id,
+      username: row.username,
+      first_name: row.first_name,
+      level: row.current_level,
+      total_xp: row.total_xp,
+      weekly_xp: row.weekly_xp,
+      rank: index + 1,
+    }));
+
+    res.json({ success: true, data: formatted });
+  } catch (error) {
+    console.error('Error fetching weekly leaderboard:', error);
+    res.status(500).json({ success: false, error: 'Failed to fetch weekly leaderboard' });
+  }
+});
+
 export { router as leaderboardRouter };

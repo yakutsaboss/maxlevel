@@ -67,7 +67,7 @@ export async function handler(jobs: Job[]): Promise<void> {
     } catch (err: any) {
       // Handle Telegram rate limit (HTTP 429)
       if (err?.error_code === 429 || err?.parameters?.retry_after) {
-        const retryAfter = err.parameters?.retry_after || 5;
+        const retryAfter = err.parameters?.retry_after ?? 5;
         console.warn(`[JOB:${JOB_NAME}] Rate limited, waiting ${retryAfter}s before continuing`);
         await sleep(retryAfter * 1000);
 

@@ -1118,3 +1118,40 @@ Add your retrospective to PARALLEL_AGENTS.md at the bottom under "Run 4 Retrospe
 ## Run 4 Retrospectives
 
 *(Agents: add your retrospective sections below this line when you finish)*
+
+### Agent B Retrospective (Run 4)
+
+**Branch:** `feature/backend-fixes`
+**Build:** `cd bot && npm run build` — PASS (0 errors)
+
+| # | Task | Status | Commits |
+|---|------|--------|---------|
+| 1 | Fix questReminders.ts retry_after bug (`\|\|` → `??`) | Done | `cc82be0` |
+| 2 | Sync database/schema.sql (add 3 columns) | Done | `afac126` |
+| 3 | Wire daily summary job (create + register in pg-boss) | Done | `dbec676` |
+| 4 | Add weekly leaderboard endpoint (`GET /api/leaderboard/weekly`) | Done | `134f339` |
+| 5 | Verify build + create REGISTER_THESE_RUN4.md | Done | `2c406f2` |
+
+**Files Created:**
+- `bot/src/jobs/definitions/dailySummary.ts` — Daily summary job (cron: `0 21 * * *`, queries `notification_enabled=true` users, batches with 200ms delay)
+- `bot/src/handlers/REGISTER_THESE_RUN4.md` — Documents all changes
+
+**Files Modified:**
+- `bot/src/jobs/definitions/questReminders.ts` — Line 70: `|| 5` → `?? 5`
+- `bot/src/jobs/registerJobs.ts` — Registered `daily-summary` job + `setBotInstance(bot)` call
+- `bot/src/api/routes/leaderboard.ts` — Added `GET /weekly` endpoint (XP earned in last 7 days, 5min cache, ranked by weekly_xp)
+- `database/schema.sql` — Added `avatar_id`, `notification_enabled`, `reminder_time` columns to users table
+
+**Problems Faced:**
+1. **Type mismatch**: `sendDailySummary(bot: Bot, userId)` expects `Bot` (default Context) but the job stores `Bot<MyContext>`. Fixed with `as any` cast — safe since the handler only calls `bot.api.sendMessage`.
+
+**Notes for Agent 0:**
+- No changes to `bot/src/index.ts` — no new command registrations needed
+- Weekly leaderboard uses direct query on `quest_instances` (not materialized view) — fine for current user count but may need optimization at scale
+- Daily summary job filters by `notification_enabled = true` — depends on the column migration Agent 0 ran before Run 4
+- The `HAVING` clause in weekly leaderboard excludes users with 0 weekly XP (only shows active players)
+
+**Recommendations for Next Run:**
+1. Consider adding a materialized view for weekly leaderboard if query gets slow
+2. The daily summary job could benefit from timezone-aware scheduling (use `reminder_time` column per user instead of fixed 9 PM UTC)
+3. Add an admin endpoint to trigger daily summary manually for testing
