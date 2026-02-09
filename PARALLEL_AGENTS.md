@@ -523,7 +523,28 @@ Find your section under "Run 11 Retrospectives" below and replace the placeholde
 - The achievement batch check job queries all users with active modes. If user count grows large, consider adding a `last_activity` filter to only check recently active users.
 
 #### Agent B Retrospective
-*(To be filled by Agent B)*
+
+**Status:** All 5 tasks completed. Build passes with zero errors.
+
+| # | Task | Commit | Status |
+|---|------|--------|--------|
+| 1 | Add 24 quest templates (SQL migration) | `a64dd57` | Done |
+| 2 | Add weekly quest assignment on Mondays | `4401db7` | Done |
+| 3 | Create achievement notifier job | `881f4ae` | Done |
+| 4 | Register achievement notifier in registerJobs | `0cf34b7` | Done |
+| 5 | Build verification | (clean build, no fix needed) | Done |
+
+**Problems faced:** None. All files were straightforward, no conflicts with other agents' owned files.
+
+**Notes:**
+- Quest templates: 24 new (6 per mode), using `WHERE NOT EXISTS` for idempotency. SQL migration file ready to run on server.
+- Weekly assignment: Added to `dailyQuestReset.ts` handler — checks `getUTCDay() === 1` (Monday) then calls `quest_manager --assign-weekly` for 2 quests per user.
+- Achievement notifier: Follows `questReminders.ts` pattern — queries `user_achievements` from last 20 minutes, sends Telegram messages with rate limiting. 15-minute cron with 20-minute lookback gives overlap to avoid missed notifications.
+- `registerJobs.ts` is a GRAY AREA file (Agent A also modifies it). My changes are on separate lines (import at bottom of imports, array entry at end of array, setBotInstance after existing calls), so merge should be clean.
+
+**Recommendations for next run:**
+- Run the `run11_quest_templates.sql` migration on the production database after merge.
+- Achievement notifier may send duplicate notifications if a user unlocks an achievement that persists across the 20-minute window — consider adding a `notified_at` column to `user_achievements` in a future run to track sent notifications.
 
 #### Agent C Retrospective
 *(To be filled by Agent C)*
