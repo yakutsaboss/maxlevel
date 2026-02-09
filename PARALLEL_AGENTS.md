@@ -3309,3 +3309,34 @@ Add your retrospective to PARALLEL_AGENTS.md at the bottom under "Run 8 Retrospe
 - The 3 admin sub-routers (stats, users, jobs) split cleanly for testing since they have different mock dependencies
 
 **Test count delta:** +24 TypeScript tests (13 admin + 11 onboarding)
+
+### Agent A Retrospective (Run 8)
+
+**Tasks completed:**
+
+| # | Task | Status | Commit |
+|---|------|--------|--------|
+| 1 | Fix day-grid validation to be mode-agnostic | DONE | `f9858fa` |
+| 2 | Fix Summary.tsx to display mode-specific frequency | DONE | `1a57131` |
+| 3 | Add emoji-based avatar options (16 avatars) | DONE | `f0440cb` |
+| 4 | Build verification | DONE (clean, no fix needed) | — |
+
+**What was done:**
+- **Task 1 (CRITICAL)**: The day-grid validation in `QuizScreen.tsx` hardcoded `data.fitness?.workout_frequency` for ALL modes. Fixed by adding a `getRequiredDayCount()` helper that switches on `config.dataKey` to return the correct mode's frequency. Added `learning_frequency` step (slider question) and `study_frequency` field to the Learning mode flow in `useOnboarding.ts` and `onboardingQuestions.ts`.
+- **Task 2**: Updated `learningSummary()` in `Summary.tsx` to display the new `study_frequency` field (e.g., "5x/week").
+- **Task 3**: Replaced 8 Lucide icon-based avatars with 16 emoji-based avatars. Updated both `ProfileEditModal.tsx` (grid selector) and `Profile.tsx` (display). Removed unused Lucide imports.
+
+**Problems faced:** None. All changes were straightforward and the build passed on first try.
+
+**Files changed:**
+- `mini-app/src/components/onboarding/QuizScreen.tsx` — mode-agnostic day-grid validation
+- `mini-app/src/data/onboardingQuestions.ts` — added `learning_frequency` slider question
+- `mini-app/src/hooks/useOnboarding.ts` — added `learning_frequency` step + `study_frequency` type
+- `mini-app/src/components/onboarding/Summary.tsx` — learning summary shows frequency
+- `mini-app/src/components/ProfileEditModal.tsx` — 16 emoji avatars replacing Lucide icons
+- `mini-app/src/pages/Profile.tsx` — emoji avatar display
+
+**Recommendations for next run:**
+- Finance mode has no day-grid, so no frequency question was needed. If a day-grid is added to Finance later, add a `check_frequency` slider before it.
+- The `avatar_id` mapping changed from 8 to 16 options. Existing users with `avatar_id` 1-8 will see different avatars than before. Consider a one-time migration if this matters.
+- Hydration mode also has no day-grid, so no changes were needed there.

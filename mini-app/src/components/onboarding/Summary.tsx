@@ -67,6 +67,7 @@ export function Summary({ progress, data, onEdit, onNext }: SummaryProps) {
     if (!l) return null;
     const parts: string[] = [];
     if (l.goals?.length) parts.push(l.goals.slice(0, 3).join(', '));
+    if (l.study_frequency) parts.push(`${l.study_frequency}x/week`);
     if (l.daily_minutes) parts.push(`${l.daily_minutes} min/day`);
     return parts.join(' | ');
   };

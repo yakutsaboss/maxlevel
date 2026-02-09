@@ -42,6 +42,7 @@ export type OnboardingStep =
   | 'learning_goals'
   | 'learning_style'
   | 'learning_time'
+  | 'learning_frequency'
   | 'learning_days'
   | 'learning_resources'
   // Convergence
@@ -100,6 +101,7 @@ export interface OnboardingData {
     goals?: string[];
     learning_style?: string;
     daily_minutes?: number;
+    study_frequency?: number;
     study_days?: string[];
     resources?: string[];
   };
@@ -206,6 +208,7 @@ function buildStepSequence(selectedModes: string[]): OnboardingStep[] {
       'learning_goals',
       'learning_style',
       'learning_time',
+      'learning_frequency',
       'learning_days',
       'learning_resources'
     );
