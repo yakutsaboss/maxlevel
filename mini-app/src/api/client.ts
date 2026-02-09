@@ -93,6 +93,17 @@ class ApiClient {
     return response.data;
   }
 
+  // Check-in endpoints
+  async createCheckin(telegramId: number, questInstanceId: number, notes?: string): Promise<ApiResponse<{ check_in_id: number; quest_progress: { current: number; target: number }; completed: boolean }>> {
+    const response = await this.client.post('/checkins', { telegram_id: telegramId, quest_instance_id: questInstanceId, notes });
+    return { success: true, data: response.data };
+  }
+
+  async getTodayCheckins(telegramId: number): Promise<ApiResponse<{ check_ins: any[]; count: number }>> {
+    const response = await this.client.get(`/checkins/${telegramId}/today`);
+    return { success: true, data: response.data };
+  }
+
   // Achievement endpoints
   async getAchievements(): Promise<ApiResponse<Achievement[]>> {
     const response = await this.client.get('/achievements');

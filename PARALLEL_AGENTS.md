@@ -1151,7 +1151,23 @@ Find your section under "Run 12 Retrospectives" below and replace the placeholde
 ### Run 12 Retrospectives
 
 #### Agent A Retrospective
-*(To be filled by Agent A)*
+
+**Status:** All 5 tasks completed. Build passes with zero errors.
+
+| # | Task | Commit | Status |
+|---|------|--------|--------|
+| 1 | Add check-in API methods to client.ts | `64218e9` | Done |
+| 2 | Create CheckInButton component | `a999de6` | Done |
+| 3 | Add check-in button to quest detail modal | `4ebc194` | Done |
+| 4 | Show today's check-in count in Quests header | `eb0251c` | Done |
+| 5 | Build verification | (clean build, no fix needed) | Done |
+
+**Design decisions:**
+- `CheckInButton` is standalone with own loading/success states. Check-in success uses slide-up toast + haptic feedback.
+- Optimistic UI: updates quest progress locally, then refreshes from server. Auto-closes modal on quest completion.
+- Today's check-in count badge only shows when count > 0. Loaded non-blocking after quest list.
+
+**Note:** Backend check-in uses `1 AS target` hardcoded — every check-in auto-completes. Multi-step check-ins need backend change.
 
 #### Agent B Retrospective
 
