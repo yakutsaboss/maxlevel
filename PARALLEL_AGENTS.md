@@ -3711,6 +3711,7 @@ Add your retrospective to PARALLEL_AGENTS.md at the bottom under "Run 9 Retrospe
 
 *(Agents: add your retrospective sections below this line when you finish)*
 
+<<<<<<< HEAD
 ### Agent B — Run 9 Retrospective
 
 **Completed all 4 tasks + test updates:**
@@ -3750,3 +3751,35 @@ Add your retrospective to PARALLEL_AGENTS.md at the bottom under "Run 9 Retrospe
 - **SystemExit expectations**: `sync_todos_notification.main()` only calls `sys.exit(0)` on early exits, not on success path. Initial tests wrapped successful paths in `pytest.raises(SystemExit)` which failed. Fixed by removing the wrapper for success cases
 
 **No conftest.py changes needed** — each test file is self-contained with its own env setup and imports, consistent with the existing pattern.
+
+### Agent A Retrospective (Run 9)
+
+**Branch:** `feature/admin-dashboard`
+**Tasks:** 5/5 completed
+
+| # | Task | Status | Commit |
+|---|------|--------|--------|
+| 1 | Admin page skeleton with Basic Auth login | Done | `Add Admin page with Basic Auth login` |
+| 2 | AdminStatsCard component | Done | `Add AdminStatsCard component for dashboard overview` |
+| 3 | AdminUserList with pagination + detail view | Done | `Add AdminUserList component with pagination` |
+| 4 | AdminBroadcast component | Done | `Add AdminBroadcast component for mass messaging` |
+| 5 | Build verification | Done | `Fix TypeScript errors from Run 9 tasks` (removed unused import) |
+
+**What was built:**
+- Full admin dashboard at `/admin` route with Basic Auth login (sessionStorage credentials)
+- Stats overview: 4 stat cards (total users, active 7d, quests completed, achievements) with skeleton loading and refresh
+- User management: paginated user list with search, click-to-detail view showing level/XP/streak/modes/dates
+- Broadcast tool: textarea with character counter, confirmation dialog, handles 501 (not yet enabled) gracefully, warning banner
+- All components use `fetch()` directly with Basic Auth header — no `apiClient` dependency
+- Consistent Telegram theme styling (bg-telegram-*, text-telegram-*) with Framer Motion animations
+
+**Problems faced:**
+- One unused import (`ScrollText`) caught by TypeScript — fixed immediately
+
+**Build status:** Clean pass, 0 errors, 0 warnings
+
+**Recommendations for next run:**
+- Add admin activity logs tab (once backend implements the logs endpoint)
+- Consider adding user search on server-side (current search is client-side on loaded page only)
+- Could add job management tab (trigger/monitor pg-boss jobs from the dashboard)
+- Admin page has no navigation tab — accessible only via direct URL `/levelapp/admin` (intentional)
