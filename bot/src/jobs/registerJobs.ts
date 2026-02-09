@@ -16,6 +16,7 @@ import * as analyticsExport from './definitions/analyticsExport.js';
 import * as dailySummary from './definitions/dailySummary.js';
 import * as achievementBatchCheck from './definitions/achievementBatchCheck.js';
 import * as achievementNotifier from './definitions/achievementNotifier.js';
+import * as punishmentCheck from './definitions/punishmentCheck.js';
 
 interface JobDefinition {
   name: string;
@@ -33,6 +34,7 @@ const jobs: JobDefinition[] = [
   { name: dailySummary.JOB_NAME, cron: dailySummary.CRON_SCHEDULE, handler: dailySummary.handler },
   { name: achievementBatchCheck.JOB_NAME, cron: achievementBatchCheck.CRON_SCHEDULE, handler: achievementBatchCheck.handler },
   { name: achievementNotifier.JOB_NAME, cron: achievementNotifier.CRON_SCHEDULE, handler: achievementNotifier.handler },
+  { name: punishmentCheck.JOB_NAME, cron: punishmentCheck.CRON_SCHEDULE, handler: punishmentCheck.handler },
 ];
 
 export async function registerAllJobs(boss: PgBoss, bot: Bot<MyContext>): Promise<void> {
@@ -40,6 +42,7 @@ export async function registerAllJobs(boss: PgBoss, bot: Bot<MyContext>): Promis
   questReminders.setBotInstance(bot);
   dailySummary.setBotInstance(bot);
   achievementNotifier.setBotInstance(bot);
+  punishmentCheck.setBotInstance(bot);
 
   for (const job of jobs) {
     await boss.createQueue(job.name);

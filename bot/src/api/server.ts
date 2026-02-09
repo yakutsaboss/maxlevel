@@ -17,6 +17,7 @@ import { adminRouter } from './routes/admin.js';
 import { leaderboardRouter } from './routes/leaderboard.js';
 import { onboardingRouter } from './routes/onboarding.js';
 import { checkinRouter } from './routes/checkins.js';
+import { punishmentRouter } from './routes/punishment.js';
 import { apiLimiter } from './middleware/rateLimiter.js';
 
 const app: Express = express();
@@ -75,6 +76,7 @@ app.use('/api/admin', adminRouter);
 app.use('/api/leaderboard', leaderboardRouter);
 app.use('/api/onboarding', onboardingRouter);
 app.use('/api/checkins', checkinRouter);
+app.use('/api/punishment', punishmentRouter);
 
 // Webhook route (mounted dynamically when webhook handler is provided)
 let _webhookMounted = false;

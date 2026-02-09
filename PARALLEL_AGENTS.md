@@ -1154,7 +1154,25 @@ Find your section under "Run 12 Retrospectives" below and replace the placeholde
 *(To be filled by Agent A)*
 
 #### Agent B Retrospective
-*(To be filled by Agent B)*
+
+**Status:** All 5 tasks completed. Build passes with zero errors.
+
+| # | Task | Commit | Status |
+|---|------|--------|--------|
+| 1 | Create punishment API routes (settings + history) | `2f5b3bf` | Done |
+| 2 | Create punishment check job (daily at 00:30 UTC) | `71fc274` | Done |
+| 3 | Mount punishment route in server.ts | `9ee4147` | Done |
+| 4 | Register punishment check job in registerJobs.ts | `7644547` | Done |
+| 5 | Build verification | (clean build, no fix needed) | Done |
+
+**Problems faced:** None. The existing codebase patterns were clear and consistent.
+
+**Design decisions:**
+- `punishment.ts` routes use `telegramId` in URL params. `PATCH /settings` uses dynamic SET clause with INSERT fallback.
+- `punishmentCheck.ts` runs at 00:30 UTC (30 min after dailyQuestReset). Marks expired quests as `failed`, then applies XP penalties for consented users.
+- XP penalty: `quest.xp_reward * intensity_multiplier`, capped by `max_xp_penalty`. Safe mode adds daily cap.
+- Users WITHOUT consent still get notification about expired quests (no penalty).
+- Rate-limited at 200ms between sends, batch processing in groups of 50.
 
 #### Agent C Retrospective
 *(To be filled by Agent C)*
