@@ -559,8 +559,8 @@ router.patch('/:telegramId/profile', authenticateTelegram, async (req: Request, 
     }
     if (avatar_id !== undefined) {
       const aid = parseInt(avatar_id);
-      if (isNaN(aid) || aid < 1 || aid > 8) {
-        return res.status(400).json({ success: false, error: 'avatar_id must be an integer 1-8' });
+      if (isNaN(aid) || aid < 1 || aid > 16) {
+        return res.status(400).json({ success: false, error: 'avatar_id must be an integer 1-16' });
       }
     }
 
