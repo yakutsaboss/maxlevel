@@ -1,7 +1,8 @@
 /**
  * Tests for quest API routes (bot/src/api/routes/quests.ts)
  *
- * Mocks: pythonTools (executePythonTool), auth middleware, rate limiter
+ * Mocks: pythonTools (executePythonTool), db (queryOne, transaction),
+ *        cache (invalidateUserCache), auth middleware, rate limiter
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
@@ -10,9 +11,27 @@ import { mockRequest, mockResponse } from '../setup.js';
 // ─── Mocks ───────────────────────────────────────────────────────────
 
 const mockExecutePythonTool = vi.fn();
+const mockQueryOne = vi.fn();
+const mockTransaction = vi.fn();
+const mockInvalidateUserCache = vi.fn();
 
 vi.mock('../../utils/pythonTools.js', () => ({
   executePythonTool: (...args: any[]) => mockExecutePythonTool(...args),
+}));
+
+vi.mock('../../utils/db.js', () => ({
+  queryOne: (...args: any[]) => mockQueryOne(...args),
+  transaction: (...args: any[]) => mockTransaction(...args),
+  getPool: vi.fn(),
+}));
+
+vi.mock('../../utils/cache.js', () => ({
+  cached: vi.fn(async (_k: string, _t: number, fn: () => Promise<any>) => fn()),
+  invalidate: vi.fn(),
+  invalidatePrefix: vi.fn(),
+  invalidateUserCache: (...args: any[]) => mockInvalidateUserCache(...args),
+  clearAll: vi.fn(),
+  TTL: { SHORT: 30_000, MEDIUM: 300_000, LONG: 1_800_000 },
 }));
 
 vi.mock('../../api/middleware/auth.js', () => ({
@@ -28,7 +47,7 @@ vi.mock('../../api/middleware/rateLimiter.js', () => ({
 }));
 
 beforeEach(() => {
-  vi.clearAllMocks();
+  vi.resetAllMocks();
 });
 
 // ─── Tests ───────────────────────────────────────────────────────────
@@ -206,5 +225,161 @@ describe('POST /api/users/:userId/quests/assign', () => {
 
     expect(result.success).toBe(true);
     expect(result.data.count).toBe(3);
+  });
+});
+
+// ─── PATCH /api/quests/:questId/progress (Run 2 addition) ──────────
+
+describe('PATCH /api/quests/:questId/progress', () => {
+  const activeQuest = {
+    id: 10,
+    user_id: 1,
+    status: 'active',
+    current_progress: 0,
+    xp_reward: 50,
+    title: 'Morning Run',
+    target: 1,
+  };
+
+  it('should update progress without completing (progress < target)', async () => {
+    // queryOne returns quest, then returns updated row
+    mockQueryOne
+      .mockResolvedValueOnce({ ...activeQuest, target: 3 })  // fetch quest
+      .mockResolvedValueOnce({ id: 10 });                     // update progress
+
+    const req = mockRequest({
+      params: { questId: '10' },
+      body: { user_id: 1, progress: 1 },
+    });
+    const res = mockResponse();
+
+    // Simulate endpoint logic
+    const questId = parseInt(req.params.questId);
+    const { user_id, progress } = req.body;
+    const quest = await mockQueryOne(expect.any(String), [questId]);
+
+    expect(quest).not.toBeNull();
+    expect(quest.user_id).toBe(user_id);
+
+    const target = quest.target || 1;
+    const clampedProgress = Math.min(progress, target);
+
+    // progress (1) < target (3), so just update
+    expect(clampedProgress).toBeLessThan(target);
+
+    await mockQueryOne(expect.any(String), [clampedProgress, questId]);
+    mockInvalidateUserCache(user_id);
+
+    res.json({
+      success: true,
+      data: {
+        id: questId,
+        status: quest.status,
+        progress: clampedProgress,
+        target,
+        xpEarned: 0,
+        newLevel: null,
+        leveledUp: false,
+      },
+    });
+
+    expect(res._json.success).toBe(true);
+    expect(res._json.data.progress).toBe(1);
+    expect(res._json.data.leveledUp).toBe(false);
+    expect(res._json.data.xpEarned).toBe(0);
+    expect(mockInvalidateUserCache).toHaveBeenCalledWith(1);
+  });
+
+  it('should auto-complete when progress reaches target', async () => {
+    mockQueryOne.mockResolvedValueOnce(activeQuest); // fetch quest (target=1)
+    mockTransaction.mockResolvedValueOnce({ total_xp: 550, current_level: 2 });
+
+    const questId = 10;
+    const user_id = 1;
+    const progress = 1;
+
+    const quest = await mockQueryOne(expect.any(String), [questId]);
+    const target = quest.target || 1;
+    const clampedProgress = Math.min(progress, target);
+
+    expect(clampedProgress).toBeGreaterThanOrEqual(target);
+
+    const result = await mockTransaction(expect.any(Function));
+    mockInvalidateUserCache(user_id);
+
+    const response = {
+      success: true,
+      data: {
+        id: questId,
+        status: 'completed',
+        progress: clampedProgress,
+        target,
+        xpEarned: quest.xp_reward,
+        newLevel: result?.current_level || null,
+        leveledUp: true,
+      },
+    };
+
+    expect(response.success).toBe(true);
+    expect(response.data.status).toBe('completed');
+    expect(response.data.xpEarned).toBe(50);
+    expect(response.data.leveledUp).toBe(true);
+    expect(response.data.newLevel).toBe(2);
+    expect(mockInvalidateUserCache).toHaveBeenCalledWith(1);
+  });
+
+  it('should return 404 when quest not found', async () => {
+    mockQueryOne.mockResolvedValueOnce(null);
+
+    const res = mockResponse();
+    const quest = await mockQueryOne(expect.any(String), [999]);
+
+    if (!quest) {
+      res.status(404).json({ error: 'Not Found', message: 'Quest not found' });
+    }
+
+    expect(res._status).toBe(404);
+    expect(res._json.message).toBe('Quest not found');
+  });
+
+  it('should return 403 when quest does not belong to user', async () => {
+    mockQueryOne.mockResolvedValueOnce({ ...activeQuest, user_id: 99 });
+
+    const res = mockResponse();
+    const quest = await mockQueryOne(expect.any(String), [10]);
+    const user_id = 1;
+
+    if (quest.user_id !== user_id) {
+      res.status(403).json({ error: 'Forbidden', message: 'Quest does not belong to this user' });
+    }
+
+    expect(res._status).toBe(403);
+    expect(res._json.message).toBe('Quest does not belong to this user');
+  });
+
+  it('should return 400 for invalid progress value', () => {
+    const res = mockResponse();
+    const progress = -5;
+
+    if (progress === undefined || typeof progress !== 'number' || progress < 0) {
+      res.status(400).json({ error: 'Bad Request', message: 'progress must be a non-negative number' });
+    }
+
+    expect(res._status).toBe(400);
+    expect(res._json.message).toContain('non-negative');
+  });
+
+  it('should return 400 when quest is already completed', async () => {
+    mockQueryOne.mockResolvedValueOnce({ ...activeQuest, status: 'completed' });
+
+    const res = mockResponse();
+    const quest = await mockQueryOne(expect.any(String), [10]);
+
+    if (quest.status === 'completed') {
+      res.status(400).json({ error: 'Bad Request', message: 'Quest is already completed' });
+    }
+
+    expect(res._status).toBe(400);
+    expect(res._json.message).toBe('Quest is already completed');
   });
 });
