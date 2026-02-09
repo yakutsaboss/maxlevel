@@ -219,10 +219,17 @@ export const useOnboarding = create<OnboardingStore>((set, get) => ({
     }),
 
   restoreState: (step, data) => {
+    // Rebuild step history up to the restored step so back navigation works
+    const allSteps = buildStepSequence(data.selected_modes || []);
+    const stepIndex = allSteps.indexOf(step);
+    const history = stepIndex >= 0
+      ? allSteps.slice(0, stepIndex + 1)
+      : [step];
+
     set({
       currentStep: step,
       data,
-      stepHistory: [step],
+      stepHistory: history,
       isLoading: false,
     });
   },
