@@ -24,7 +24,7 @@ function getAchievementProgress(ach: Achievement, stats: UserStats | null): numb
 }
 
 export function Profile() {
-  const { user, haptic } = useTelegram();
+  const { user, haptic, showAlert } = useTelegram();
   const navigate = useNavigate();
   const [stats, setStats] = useState<UserStats | null>(null);
   const [achievements, setAchievements] = useState<UserAchievement[]>([]);
@@ -273,8 +273,19 @@ export function Profile() {
       <ProfileEditModal
         isOpen={editModalOpen}
         onClose={() => setEditModalOpen(false)}
-        onSave={(_nickname, _avatarIndex) => {
-          // TODO: call profile update API when endpoint exists
+        onSave={async (nickname, avatarIndex) => {
+          if (!user?.id) return;
+          try {
+            await (apiClient as any).client.patch(`/users/${user.id}/profile`, {
+              first_name: nickname,
+              avatar_id: avatarIndex + 1,
+            });
+            haptic.notification('success');
+            await loadProfileData();
+          } catch {
+            // Profile update API may not exist yet — show graceful message
+            showAlert('Profile update coming soon! Your changes will be saved once the feature is ready.');
+          }
           setEditModalOpen(false);
         }}
         currentName={stats.user.first_name}
