@@ -189,6 +189,20 @@ h6 {
   }
 }
 
+.skeleton-text {
+  background: linear-gradient(
+    90deg,
+    var(--tg-theme-secondary-bg-color) 25%,
+    var(--tg-theme-hint-color) 50%,
+    var(--tg-theme-secondary-bg-color) 75%
+  );
+  background-size: 200% 100%;
+  animation: loading 1.5s ease-in-out infinite;
+  border-radius: 4px;
+  color: transparent;
+  display: inline-block;
+}
+
 /* Utility classes */
 .line-clamp-2 {
   display: -webkit-box;
