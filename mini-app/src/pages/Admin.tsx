@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect } from 'react';
-import { Shield, LogIn, LogOut, Users, BarChart3, Megaphone, ScrollText } from 'lucide-react';
+import { Shield, LogIn, LogOut, Users, BarChart3, Megaphone } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { Toast } from '@/components/Toast';
 import { AdminStatsCard } from '@/components/AdminStatsCard';
