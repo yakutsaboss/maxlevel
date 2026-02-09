@@ -29,19 +29,16 @@ if sys.platform == 'win32':
 # Add parent directory to path for imports
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+import psycopg2
 from tools.db_operations import execute_query, execute_insert, execute_update, close_pool
+from tools.validators import validate_user_id, validate_quest_id, validate_quest_count
 
 
 def assign_quest(user_id: int, quest_id: int, instance_date: Optional[str] = None) -> Dict[str, Any]:
-    """
-    Assign a quest to a user by creating a quest_instance.
+    """Assign a quest to a user by creating a quest_instance."""
+    user_id = validate_user_id(user_id)
+    quest_id = validate_quest_id(quest_id)
 
-    Args:
-        user_id: User's internal ID
-        quest_id: Quest template ID (from quests table)
-        instance_date: Date for the instance (YYYY-MM-DD), defaults to today
-    """
-    # Get quest template
     quest = execute_query(
         "SELECT * FROM quests WHERE id = %s",
         (quest_id,),
@@ -62,12 +59,14 @@ def assign_quest(user_id: int, quest_id: int, instance_date: Optional[str] = Non
     if existing:
         return {"success": False, "error": "Quest already assigned for this date"}
 
-    # Create quest instance
-    instance = execute_insert("""
-        INSERT INTO quest_instances (user_id, quest_id, instance_date, status)
-        VALUES (%s, %s, %s, 'pending')
-        RETURNING *
-    """, (user_id, quest_id, instance_date))
+    try:
+        instance = execute_insert("""
+            INSERT INTO quest_instances (user_id, quest_id, instance_date, status)
+            VALUES (%s, %s, %s, 'pending')
+            RETURNING *
+        """, (user_id, quest_id, instance_date))
+    except psycopg2.IntegrityError as e:
+        return {"success": False, "error": f"Constraint violation: {e}"}
 
     return {
         "success": True,
@@ -86,16 +85,16 @@ def assign_quest(user_id: int, quest_id: int, instance_date: Optional[str] = Non
 
 
 def assign_daily_quests(user_id: int, count: int = 3) -> Dict[str, Any]:
-    """
-    Assign daily quests to user based on their active modes.
-    """
-    # Get user's active mode IDs
+    """Assign daily quests to user based on their active modes."""
+    user_id = validate_user_id(user_id)
+    count = validate_quest_count(count)
+
     mode_rows = execute_query("""
         SELECT mode_id FROM user_modes
         WHERE user_id = %s AND is_active = true
     """, (user_id,))
 
-    mode_ids = [row['mode_id'] for row in mode_rows]
+    mode_ids = [int(row['mode_id']) for row in mode_rows]
     if not mode_ids:
         return {"success": False, "error": "User has no active modes"}
 
@@ -132,15 +131,16 @@ def assign_daily_quests(user_id: int, count: int = 3) -> Dict[str, Any]:
 
 
 def assign_weekly_quests(user_id: int, count: int = 2) -> Dict[str, Any]:
-    """
-    Assign weekly quests to user based on their active modes.
-    """
+    """Assign weekly quests to user based on their active modes."""
+    user_id = validate_user_id(user_id)
+    count = validate_quest_count(count)
+
     mode_rows = execute_query("""
         SELECT mode_id FROM user_modes
         WHERE user_id = %s AND is_active = true
     """, (user_id,))
 
-    mode_ids = [row['mode_id'] for row in mode_rows]
+    mode_ids = [int(row['mode_id']) for row in mode_rows]
     if not mode_ids:
         return {"success": False, "error": "User has no active modes"}
 
@@ -179,10 +179,9 @@ def assign_weekly_quests(user_id: int, count: int = 2) -> Dict[str, Any]:
 
 
 def complete_quest(quest_instance_id: int) -> Dict[str, Any]:
-    """
-    Mark a quest instance as completed and award XP.
-    """
-    # Get quest instance with quest template details
+    """Mark a quest instance as completed and award XP."""
+    quest_instance_id = validate_quest_id(quest_instance_id)
+
     instance = execute_query("""
         SELECT qi.*, q.title, q.xp_reward, q.quest_type, q.difficulty,
                q.mode_id, m.name as mode_name, m.icon_emoji as mode_icon
@@ -241,9 +240,8 @@ def complete_quest(quest_instance_id: int) -> Dict[str, Any]:
 
 
 def get_active_quests(user_id: int) -> Dict[str, Any]:
-    """
-    Get all active (non-completed) quest instances for a user.
-    """
+    """Get all active (non-completed) quest instances for a user."""
+    user_id = validate_user_id(user_id)
     quests = execute_query("""
         SELECT
             qi.id,
@@ -275,9 +273,8 @@ def get_active_quests(user_id: int) -> Dict[str, Any]:
 
 
 def get_completed_quests(user_id: int, limit: int = 50) -> Dict[str, Any]:
-    """
-    Get completed quest instances for a user.
-    """
+    """Get completed quest instances for a user."""
+    user_id = validate_user_id(user_id)
     quests = execute_query("""
         SELECT
             qi.id,
@@ -306,9 +303,8 @@ def get_completed_quests(user_id: int, limit: int = 50) -> Dict[str, Any]:
 
 
 def get_quest_stats(user_id: int) -> Dict[str, Any]:
-    """
-    Get quest statistics for a user.
-    """
+    """Get quest statistics for a user."""
+    user_id = validate_user_id(user_id)
     total = execute_query("""
         SELECT COUNT(*) as total
         FROM quest_instances
@@ -422,6 +418,15 @@ def main():
             print(json.dumps(result, indent=2, default=str))
             sys.exit(0 if result.get("success") else 1)
 
+    except ValueError as e:
+        print(json.dumps({"success": False, "error": f"Validation: {e}"}, indent=2))
+        sys.exit(1)
+    except psycopg2.IntegrityError as e:
+        print(json.dumps({"success": False, "error": f"DB constraint: {e}"}, indent=2))
+        sys.exit(1)
+    except psycopg2.OperationalError as e:
+        print(json.dumps({"success": False, "error": f"DB connection: {e}"}, indent=2))
+        sys.exit(1)
     except Exception as e:
         print(json.dumps({"success": False, "error": str(e)}, indent=2))
         sys.exit(1)

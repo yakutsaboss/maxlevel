@@ -30,7 +30,12 @@ from datetime import datetime
 # Add parent directory to path to import db_operations
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+import psycopg2
 from tools.db_operations import execute_query, execute_insert, execute_update, execute_delete, transaction, close_pool
+from tools.validators import validate_user_id, validate_telegram_id, validate_timezone
+
+# Whitelist of fields allowed in dynamic UPDATE queries (SQL injection prevention)
+ALLOWED_UPDATE_FIELDS = {'username', 'first_name', 'last_name', 'timezone', 'is_active', 'notification_enabled'}
 
 
 def create_user(telegram_id: int, username: Optional[str] = None, first_name: Optional[str] = None,
@@ -50,6 +55,10 @@ def create_user(telegram_id: int, username: Optional[str] = None, first_name: Op
     Example:
         user = create_user(123456, "john_doe", "John", "America/New_York")
     """
+    telegram_id = validate_telegram_id(telegram_id)
+    if timezone != 'UTC':
+        timezone = validate_timezone(timezone)
+
     # Check if user already exists
     existing = execute_query(
         "SELECT * FROM users WHERE telegram_id = %s",
@@ -80,6 +89,7 @@ def get_user_by_telegram_id(telegram_id: int) -> Optional[Dict[str, Any]]:
     Returns:
         Dict with user data or None if not found
     """
+    telegram_id = validate_telegram_id(telegram_id)
     return execute_query(
         "SELECT * FROM users WHERE telegram_id = %s",
         (telegram_id,),
@@ -97,6 +107,7 @@ def get_user_by_id(user_id: int) -> Optional[Dict[str, Any]]:
     Returns:
         Dict with user data or None if not found
     """
+    user_id = validate_user_id(user_id)
     return execute_query(
         "SELECT * FROM users WHERE id = %s",
         (user_id,),
@@ -118,10 +129,21 @@ def update_user_profile(user_id: int, **fields) -> Optional[Dict[str, Any]]:
     Example:
         update_user_profile(1, timezone="America/Los_Angeles", username="new_username")
     """
+    user_id = validate_user_id(user_id)
+
     if not fields:
         return get_user_by_id(user_id)
 
-    # Build dynamic UPDATE query
+    # Validate field names against whitelist (SQL injection prevention)
+    invalid_fields = set(fields.keys()) - ALLOWED_UPDATE_FIELDS
+    if invalid_fields:
+        raise ValueError(f"Invalid field(s): {invalid_fields}. Allowed: {ALLOWED_UPDATE_FIELDS}")
+
+    # Validate timezone if being updated
+    if 'timezone' in fields:
+        fields['timezone'] = validate_timezone(fields['timezone'])
+
+    # Build dynamic UPDATE query with whitelisted fields only
     set_clauses = []
     params = []
     for key, value in fields.items():
@@ -167,6 +189,7 @@ def get_user_stats(user_id: int) -> Optional[Dict[str, Any]]:
     Returns:
         Dict with user stats including current streak across all modes
     """
+    user_id = validate_user_id(user_id)
     user = get_user_by_id(user_id)
     if not user:
         return None
@@ -219,6 +242,7 @@ def delete_user(user_id: int) -> bool:
     Returns:
         True if deleted, False if user not found
     """
+    user_id = validate_user_id(user_id)
     affected = execute_delete("DELETE FROM users WHERE id = %s", (user_id,))
     return affected > 0
 
@@ -406,6 +430,18 @@ def main():
             parser.print_help()
             return 1
 
+    except ValueError as e:
+        print(json.dumps({"success": False, "error": f"Validation: {e}"}, indent=2), file=sys.stderr)
+        return 1
+    except psycopg2.IntegrityError as e:
+        print(json.dumps({"success": False, "error": f"DB constraint: {e}"}, indent=2), file=sys.stderr)
+        return 1
+    except psycopg2.OperationalError as e:
+        print(json.dumps({"success": False, "error": f"DB connection: {e}"}, indent=2), file=sys.stderr)
+        return 1
+    except KeyError as e:
+        print(json.dumps({"success": False, "error": f"Missing config: {e}"}, indent=2), file=sys.stderr)
+        return 1
     except Exception as e:
         print(f"Error: {e}", file=sys.stderr)
         import traceback

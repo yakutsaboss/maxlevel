@@ -28,7 +28,9 @@ if sys.platform == 'win32':
 # Add parent directory to path for imports
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+import psycopg2
 from tools.db_operations import execute_query, execute_update, close_pool
+from tools.validators import validate_user_id, validate_mode_id
 
 
 def check_all_streaks() -> Dict[str, Any]:
@@ -88,6 +90,9 @@ def update_streak(user_id: int, mode_id: int) -> Dict[str, Any]:
     If last_activity_date is today, no change (already counted).
     If last_activity_date is older, reset to 1.
     """
+    user_id = validate_user_id(user_id)
+    mode_id = validate_mode_id(mode_id)
+
     today = date.today().isoformat()
     yesterday = (date.today() - timedelta(days=1)).isoformat()
 
@@ -137,6 +142,7 @@ def update_streak(user_id: int, mode_id: int) -> Dict[str, Any]:
 
 def get_user_streaks(user_id: int) -> List[Dict[str, Any]]:
     """Get all streaks for a user with mode info."""
+    user_id = validate_user_id(user_id)
     streaks = execute_query("""
         SELECT s.*, m.name as mode_name, m.display_name, m.icon_emoji
         FROM streaks s
@@ -188,6 +194,15 @@ def main():
             parser.print_help()
             return 1
 
+    except ValueError as e:
+        print(json.dumps({"success": False, "error": f"Validation: {e}"}), file=sys.stderr)
+        return 1
+    except psycopg2.IntegrityError as e:
+        print(json.dumps({"success": False, "error": f"DB constraint: {e}"}), file=sys.stderr)
+        return 1
+    except psycopg2.OperationalError as e:
+        print(json.dumps({"success": False, "error": f"DB connection: {e}"}), file=sys.stderr)
+        return 1
     except Exception as e:
         print(json.dumps({"success": False, "error": str(e)}), file=sys.stderr)
         return 1

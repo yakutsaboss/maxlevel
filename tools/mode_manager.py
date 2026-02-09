@@ -30,7 +30,9 @@ from datetime import datetime
 # Add parent directory to path to import db_operations
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+import psycopg2
 from tools.db_operations import execute_query, execute_insert, execute_update, execute_delete, transaction, close_pool
+from tools.validators import validate_user_id, validate_mode_id
 
 
 def list_all_modes() -> List[Dict[str, Any]]:
@@ -53,9 +55,11 @@ def get_mode_by_name(mode_name: str) -> Optional[Dict[str, Any]]:
     Returns:
         Mode dict or None if not found
     """
+    if not isinstance(mode_name, str) or not mode_name.strip():
+        return None
     return execute_query(
         "SELECT * FROM modes WHERE name = %s",
-        (mode_name,),
+        (mode_name.strip(),),
         fetch='one'
     )
 
@@ -70,6 +74,7 @@ def get_mode_by_id(mode_id: int) -> Optional[Dict[str, Any]]:
     Returns:
         Mode dict or None if not found
     """
+    mode_id = validate_mode_id(mode_id)
     return execute_query(
         "SELECT * FROM modes WHERE id = %s",
         (mode_id,),
@@ -88,6 +93,7 @@ def get_user_modes(user_id: int, active_only: bool = True) -> List[Dict[str, Any
     Returns:
         List of mode dicts with user_mode metadata
     """
+    user_id = validate_user_id(user_id)
     where_clause = "AND um.is_active = TRUE" if active_only else ""
 
     return execute_query(f"""
@@ -118,6 +124,8 @@ def add_mode_by_id(user_id: int, mode_id: int) -> Optional[Dict[str, Any]]:
     Returns:
         User_mode record or None if mode doesn't exist
     """
+    user_id = validate_user_id(user_id)
+    mode_id = validate_mode_id(mode_id)
     mode = get_mode_by_id(mode_id)
     if not mode:
         return None
@@ -169,6 +177,8 @@ def remove_mode_by_id(user_id: int, mode_id: int) -> bool:
     Returns:
         True if removed, False if not found
     """
+    user_id = validate_user_id(user_id)
+    mode_id = validate_mode_id(mode_id)
     affected = execute_update("""
         UPDATE user_modes
         SET is_active = FALSE
@@ -188,6 +198,8 @@ def add_mode_to_user(user_id: int, mode_name: str) -> Optional[Dict[str, Any]]:
     Returns:
         User_mode record or None if mode doesn't exist
     """
+    user_id = validate_user_id(user_id)
+
     # Get mode ID
     mode = get_mode_by_name(mode_name)
     if not mode:
@@ -244,6 +256,8 @@ def add_multiple_modes(user_id: int, mode_names: List[str]) -> Dict[str, Any]:
     Returns:
         Dict with success status and added modes
     """
+    user_id = validate_user_id(user_id)
+
     results = {
         'user_id': user_id,
         'added': [],
@@ -293,6 +307,7 @@ def remove_mode_from_user(user_id: int, mode_name: str, soft_delete: bool = True
     Returns:
         True if removed, False if not found
     """
+    user_id = validate_user_id(user_id)
     mode = get_mode_by_name(mode_name)
     if not mode:
         return False
@@ -326,6 +341,7 @@ def toggle_mode_status(user_id: int, mode_name: str, is_active: bool) -> Optiona
     Returns:
         Updated user_mode record or None if not found
     """
+    user_id = validate_user_id(user_id)
     mode = get_mode_by_name(mode_name)
     if not mode:
         return None
@@ -356,6 +372,7 @@ def is_mode_active_for_user(user_id: int, mode_name: str) -> bool:
     Returns:
         True if active, False otherwise
     """
+    user_id = validate_user_id(user_id)
     mode = get_mode_by_name(mode_name)
     if not mode:
         return False
@@ -378,6 +395,7 @@ def get_mode_summary(user_id: int) -> Dict[str, Any]:
     Returns:
         Dict with mode counts and details
     """
+    user_id = validate_user_id(user_id)
     all_modes = list_all_modes()
     user_modes = get_user_modes(user_id, active_only=False)
 
@@ -530,6 +548,15 @@ def main():
             parser.print_help()
             return 1
 
+    except ValueError as e:
+        print(json.dumps({"success": False, "error": f"Validation: {e}"}, indent=2), file=sys.stderr)
+        return 1
+    except psycopg2.IntegrityError as e:
+        print(json.dumps({"success": False, "error": f"DB constraint: {e}"}, indent=2), file=sys.stderr)
+        return 1
+    except psycopg2.OperationalError as e:
+        print(json.dumps({"success": False, "error": f"DB connection: {e}"}, indent=2), file=sys.stderr)
+        return 1
     except Exception as e:
         print(f"Error: {e}", file=sys.stderr)
         import traceback

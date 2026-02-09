@@ -15,7 +15,9 @@ from dotenv import load_dotenv
 # Add parent directory to path for imports
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+import psycopg2
 from tools.db_operations import execute_query, get_connection
+from tools.validators import validate_user_id, validate_achievement_id
 
 # Load environment variables
 load_dotenv()
@@ -40,16 +42,10 @@ class AchievementManager:
             self.conn = None
 
     def unlock_achievement(self, user_id: int, achievement_id: int) -> Dict[str, Any]:
-        """
-        Unlock an achievement for a user
-
-        Args:
-            user_id: User's ID
-            achievement_id: Achievement ID
-
-        Returns:
-            Dict with unlock details
-        """
+        """Unlock an achievement for a user."""
+        user_id = validate_user_id(user_id)
+        achievement_id = validate_achievement_id(achievement_id)
+        cursor = None
         try:
             conn = self.connect()
             cursor = conn.cursor()
@@ -108,27 +104,26 @@ class AchievementManager:
                 "user_id": user_id
             }
 
+        except psycopg2.IntegrityError as e:
+            if self.conn:
+                self.conn.rollback()
+            return {"success": False, "error": f"Constraint violation: {e}"}
+        except psycopg2.OperationalError as e:
+            if self.conn:
+                self.conn.rollback()
+            return {"success": False, "error": f"DB connection error: {e}"}
         except Exception as e:
-            if conn:
-                conn.rollback()
-            return {
-                "success": False,
-                "error": str(e)
-            }
+            if self.conn:
+                self.conn.rollback()
+            return {"success": False, "error": str(e)}
         finally:
             if cursor:
                 cursor.close()
 
     def check_and_unlock_achievements(self, user_id: int) -> Dict[str, Any]:
-        """
-        Check user's progress and auto-unlock qualifying achievements
-
-        Args:
-            user_id: User's ID
-
-        Returns:
-            Dict with newly unlocked achievements
-        """
+        """Check user progress and auto-unlock qualifying achievements."""
+        user_id = validate_user_id(user_id)
+        cursor = None
         try:
             conn = self.connect()
             cursor = conn.cursor()
@@ -220,19 +215,26 @@ class AchievementManager:
                 "count": len(newly_unlocked)
             }
 
+        except psycopg2.IntegrityError as e:
+            if self.conn:
+                self.conn.rollback()
+            return {"success": False, "error": f"Constraint violation: {e}"}
+        except psycopg2.OperationalError as e:
+            if self.conn:
+                self.conn.rollback()
+            return {"success": False, "error": f"DB connection error: {e}"}
         except Exception as e:
-            if conn:
-                conn.rollback()
-            return {
-                "success": False,
-                "error": str(e)
-            }
+            if self.conn:
+                self.conn.rollback()
+            return {"success": False, "error": str(e)}
         finally:
             if cursor:
                 cursor.close()
 
     def get_user_achievements(self, user_id: int) -> Dict[str, Any]:
-        """Get all achievements unlocked by a user"""
+        """Get all achievements unlocked by a user."""
+        user_id = validate_user_id(user_id)
+        cursor = None
         try:
             conn = self.connect()
             cursor = conn.cursor()
@@ -284,17 +286,18 @@ class AchievementManager:
                 "percentage": round((len(achievements) / total) * 100, 2) if total > 0 else 0
             }
 
+        except psycopg2.OperationalError as e:
+            return {"success": False, "error": f"DB connection error: {e}"}
         except Exception as e:
-            return {
-                "success": False,
-                "error": str(e)
-            }
+            return {"success": False, "error": str(e)}
         finally:
             if cursor:
                 cursor.close()
 
     def get_available_achievements(self, user_id: int) -> Dict[str, Any]:
-        """Get achievements not yet unlocked by user"""
+        """Get achievements not yet unlocked by user."""
+        user_id = validate_user_id(user_id)
+        cursor = None
         try:
             conn = self.connect()
             cursor = conn.cursor()
@@ -333,17 +336,18 @@ class AchievementManager:
                 "count": len(achievements)
             }
 
+        except psycopg2.OperationalError as e:
+            return {"success": False, "error": f"DB connection error: {e}"}
         except Exception as e:
-            return {
-                "success": False,
-                "error": str(e)
-            }
+            return {"success": False, "error": str(e)}
         finally:
             if cursor:
                 cursor.close()
 
     def get_recent_achievements(self, user_id: int, limit: int = 5) -> Dict[str, Any]:
-        """Get recently unlocked achievements"""
+        """Get recently unlocked achievements."""
+        user_id = validate_user_id(user_id)
+        cursor = None
         try:
             conn = self.connect()
             cursor = conn.cursor()
@@ -377,17 +381,18 @@ class AchievementManager:
                 "count": len(achievements)
             }
 
+        except psycopg2.OperationalError as e:
+            return {"success": False, "error": f"DB connection error: {e}"}
         except Exception as e:
-            return {
-                "success": False,
-                "error": str(e)
-            }
+            return {"success": False, "error": str(e)}
         finally:
             if cursor:
                 cursor.close()
 
     def get_achievement_stats(self, user_id: int) -> Dict[str, Any]:
-        """Get achievement statistics for a user"""
+        """Get achievement statistics for a user."""
+        user_id = validate_user_id(user_id)
+        cursor = None
         try:
             conn = self.connect()
             cursor = conn.cursor()
@@ -442,17 +447,17 @@ class AchievementManager:
                 }
             }
 
+        except psycopg2.OperationalError as e:
+            return {"success": False, "error": f"DB connection error: {e}"}
         except Exception as e:
-            return {
-                "success": False,
-                "error": str(e)
-            }
+            return {"success": False, "error": str(e)}
         finally:
             if cursor:
                 cursor.close()
 
     def list_all_achievements(self) -> Dict[str, Any]:
-        """List all available achievements"""
+        """List all available achievements."""
+        cursor = None
         try:
             conn = self.connect()
             cursor = conn.cursor()
@@ -487,11 +492,10 @@ class AchievementManager:
                 "count": len(achievements)
             }
 
+        except psycopg2.OperationalError as e:
+            return {"success": False, "error": f"DB connection error: {e}"}
         except Exception as e:
-            return {
-                "success": False,
-                "error": str(e)
-            }
+            return {"success": False, "error": str(e)}
         finally:
             if cursor:
                 cursor.close()
@@ -583,6 +587,9 @@ def main():
             print(json.dumps(result, indent=2))
             sys.exit(0 if result.get("success") else 1)
 
+    except ValueError as e:
+        print(json.dumps({"success": False, "error": f"Validation: {e}"}, indent=2))
+        sys.exit(1)
     finally:
         manager.close()
 
