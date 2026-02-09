@@ -34,6 +34,24 @@ INSERT INTO achievements (name, description, badge_icon, criteria, xp_bonus, rar
 ('hydration_legend', 'Hydration Legend', '👑', '{"type": "quest_complete_consecutive", "mode": "hydration", "days": 21}', 400, 'legendary')
 ON CONFLICT (name) DO NOTHING;
 
+-- Finance Achievements
+INSERT INTO achievements (name, description, badge_icon, criteria, xp_bonus, rarity) VALUES
+('first_saving', 'First Saving', '💰', '{"type": "quest_complete", "mode": "finance", "count": 1}', 50, 'common'),
+('budget_master', 'Budget Master', '📊', '{"type": "streak", "mode": "finance", "days": 7}', 100, 'rare'),
+('finance_guru', 'Finance Guru', '🏦', '{"type": "streak", "mode": "finance", "days": 30}', 500, 'epic'),
+('penny_pincher', 'Penny Pincher', '🪙', '{"type": "quest_complete", "mode": "finance", "count": 50}', 300, 'rare'),
+('wall_street', 'Wall Street', '📈', '{"type": "quest_complete_consecutive", "mode": "finance", "days": 14}', 200, 'epic')
+ON CONFLICT (name) DO NOTHING;
+
+-- Learning Achievements
+INSERT INTO achievements (name, description, badge_icon, criteria, xp_bonus, rarity) VALUES
+('first_lesson', 'First Lesson', '📚', '{"type": "quest_complete", "mode": "learning", "count": 1}', 50, 'common'),
+('study_streak', 'Study Streak', '📖', '{"type": "streak", "mode": "learning", "days": 7}', 100, 'rare'),
+('scholar', 'Scholar', '🎓', '{"type": "streak", "mode": "learning", "days": 30}', 500, 'epic'),
+('bookworm', 'Bookworm', '🐛', '{"type": "quest_complete", "mode": "learning", "count": 50}', 300, 'rare'),
+('lifelong_learner', 'Lifelong Learner', '🧠', '{"type": "quest_complete_consecutive", "mode": "learning", "days": 14}', 200, 'epic')
+ON CONFLICT (name) DO NOTHING;
+
 -- Cross-Mode Achievements
 INSERT INTO achievements (name, description, badge_icon, criteria, xp_bonus, rarity) VALUES
 ('balanced_start', 'Balanced Start', '⚖️', '{"type": "multi_mode_active", "count": 2}', 100, 'common'),
