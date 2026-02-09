@@ -1,5 +1,5 @@
 import { useLocation, useNavigate } from 'react-router-dom';
-import { Home, Target, User } from 'lucide-react';
+import { Home, Target, User, Trophy } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useTelegram } from '@/hooks/useTelegram';
 
@@ -10,9 +10,10 @@ interface NavItem {
 }
 
 const navItems: NavItem[] = [
-  { path: '/dashboard', icon: <Home className="w-6 h-6" />, label: 'Home' },
-  { path: '/quests', icon: <Target className="w-6 h-6" />, label: 'Quests' },
-  { path: '/profile', icon: <User className="w-6 h-6" />, label: 'Profile' },
+  { path: '/dashboard', icon: <Home className="w-5 h-5" />, label: 'Home' },
+  { path: '/quests', icon: <Target className="w-5 h-5" />, label: 'Quests' },
+  { path: '/leaderboard', icon: <Trophy className="w-5 h-5" />, label: 'Ranks' },
+  { path: '/profile', icon: <User className="w-5 h-5" />, label: 'Profile' },
 ];
 
 export function Navigation() {
@@ -40,7 +41,7 @@ export function Navigation() {
               onClick={() => handleNavigate(item.path)}
               aria-label={item.label}
               aria-current={isActive ? 'page' : undefined}
-              className="relative flex flex-col items-center justify-center py-2 px-4 transition-colors"
+              className="relative flex flex-col items-center justify-center py-2 px-3 transition-colors"
             >
               {isActive && (
                 <motion.div
