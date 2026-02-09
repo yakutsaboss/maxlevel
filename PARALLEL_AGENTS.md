@@ -659,3 +659,462 @@ Add your retrospective to PARALLEL_AGENTS.md at the bottom under "Run 3 Retrospe
 2. Add rank history tracking table + API
 3. The Settings timezone input could be improved with a searchable dropdown
 4. Consider adding a "Theme" preference in Settings (light/dark mode override)
+
+---
+
+## Run 3 Retrospective (Agent 0)
+
+### Merge Results
+| Branch | Merge | Conflicts | Resolution |
+|--------|-------|-----------|------------|
+| `feature/bot-features` → main | Fast-forward | 0 | Clean |
+| `feature/quality-fixes` → main | Merge commit | 1 (PARALLEL_AGENTS.md) | Kept both retrospectives |
+| `feature/mini-app-polish` → main | Merge commit | 1 (PARALLEL_AGENTS.md) | Kept all 3 retrospectives |
+
+### What Was Delivered
+**Agent A** (mini-app, 6/6 tasks): Page transition animations, Dashboard re-render optimization (React.memo/useCallback), Settings page (notifications/timezone/reminder), Leaderboard improvements (pull-to-refresh, time period tabs, rank indicators), haptic feedback on all interactive elements, ProfileEditModal API connection with graceful fallback.
+
+**Agent B** (backend, 5/5 tasks): Profile update API endpoint (PATCH), /profile bot command (level/XP/modes/streaks/achievements), /help command extracted with inline keyboard categories, daily summary notification handler (exported, not yet wired to job), BotFather commands set programmatically.
+
+**Agent C** (quality, 6/6 tasks): Fixed ALL 6 pre-existing test failures (root cause: clearAllMocks vs resetAllMocks), 21 new tests for quest progress/preferences/leaderboard endpoints, CI pipeline improvements (caching, PR comments, proper failure reporting). Total: 140 TS + 172 Python = 312 tests, 0 failures.
+
+### What Went Right
+- Third consecutive successful run with worktrees — zero interference
+- All 17/17 tasks completed across 3 agents
+- Both builds passed on first try after all 3 merges
+- Only expected PARALLEL_AGENTS.md conflicts
+- Agent B self-registered all new commands (no post-merge wiring needed)
+- Agent C found and fixed the root cause of ALL pre-existing test failures
+
+### Critical Issues Found (Must Fix in Run 4)
+1. **Database schema gap**: `avatar_id`, `notification_enabled`, `reminder_time` columns do NOT exist on `users` table. The preferences API endpoints (Run 2) and profile update endpoint (Run 3) reference these columns but they were never added. Preferences endpoints return 500 errors.
+2. **questReminders.ts bug**: Line 70 uses `|| 5` instead of `?? 5` — retry_after=0 treated as falsy.
+3. **Daily summary job not wired**: Handler exists at `handlers/dailySummary.ts` but no job definition or registration in `registerJobs.ts`.
+4. **Settings page workaround**: Uses `(apiClient as any).client` instead of proper API client methods.
+5. **Leaderboard time tabs**: UI-only — both tabs show same data (no backend weekly query).
+
+---
+
+## RUN 4: Parallel Agents (3 Agents + Agent 0)
+
+### How to Launch
+
+Open 4 separate Claude Code sessions. **Start Agent 0 FIRST** — it sets up worktrees. Only start A/B/C after Agent 0 says "Ready."
+
+### Copy-Paste Prompts
+
+**Agent 0** (open in: `c:\Users\Asus\Desktop\Wibecode`):
+```
+Read PARALLEL_AGENTS.md — you are Agent 0 for Run 4. Set up worktrees and tell me when ready. After all agents finish, I'll tell you to merge.
+```
+
+**Agent A** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-a`):
+```
+Read PARALLEL_AGENTS.md — you are Agent A for Run 4. Do your tasks.
+```
+
+**Agent B** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-b`):
+```
+Read PARALLEL_AGENTS.md — you are Agent B for Run 4. Do your tasks.
+```
+
+**Agent C** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-c`):
+```
+Read PARALLEL_AGENTS.md — you are Agent C for Run 4. Do your tasks.
+```
+
+---
+
+## Agent 0 — Orchestrator (Run 4)
+
+**You are Agent 0.** Set up the environment, WAIT for agents, then merge and deploy.
+
+**Working directory:** `c:\Users\Asus\Desktop\Wibecode` (main repo, `main` branch)
+
+### Phase 1: Pre-Run Setup
+
+**Step 1: Apply database migration BEFORE agents start**
+This is critical — Agent B's API fixes depend on the columns existing.
+```bash
+ssh root@85.239.58.205 "PGPASSWORD=postgres psql -h localhost -U postgres -d telegram_rpg -c \"
+ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar_id INTEGER DEFAULT 1;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS notification_enabled BOOLEAN DEFAULT true;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS reminder_time INTEGER DEFAULT 9;
+\""
+```
+
+**Step 2: Verify clean state**
+```bash
+git status  # should be clean
+```
+
+**Step 3: Create worktrees**
+```bash
+git branch feature/mini-app-integration 2>/dev/null
+git branch feature/backend-fixes 2>/dev/null
+git branch feature/test-expansion 2>/dev/null
+git worktree add ../Wibecode-agent-a feature/mini-app-integration
+git worktree add ../Wibecode-agent-b feature/backend-fixes
+git worktree add ../Wibecode-agent-c feature/test-expansion
+```
+
+**Step 4: Install dependencies**
+```bash
+cd ../Wibecode-agent-a/mini-app && npm install
+cd ../../Wibecode-agent-b/bot && npm install
+cd ../../Wibecode-agent-c/bot && npm install && cd ../../Wibecode-agent-c/mini-app && npm install
+```
+
+**Step 5: Verify worktrees**
+```bash
+cd c:\Users\Asus\Desktop\Wibecode
+git worktree list
+```
+
+**Step 6: Tell the user** "Ready to launch Agents A, B, C."
+
+### Phase 2: WAIT for all 3 agents to finish
+
+### Phase 3: Post-Run Merge
+
+```bash
+# Check each branch
+git log main..feature/backend-fixes --oneline
+git log main..feature/test-expansion --oneline
+git log main..feature/mini-app-integration --oneline
+```
+
+**Merge order:**
+1. `git merge feature/backend-fixes --no-edit` → verify `cd bot && npm run build`
+2. `git merge feature/test-expansion --no-edit` → verify `cd bot && npm run build`
+3. `git merge feature/mini-app-integration --no-edit` → verify `cd mini-app && npm run build`
+
+**Post-merge:** Check `bot/src/handlers/REGISTER_THESE_RUN4.md` if it exists. Wire up any new commands.
+
+**Deploy + Clean up** (see Agent 0 Self-Protocol above).
+
+### Phase 4: Prepare Run 5
+
+After deploying Run 4, you MUST also:
+1. Write Run 4 retrospective (merge results, what worked, known issues)
+2. Design Run 5 agent tasks based on what's needed next
+3. Write copy-paste prompts for Run 5 agents
+4. Set up Run 5 worktrees
+5. Commit & push the updated PARALLEL_AGENTS.md
+6. Tell the user: "Ready to launch Run 5. Here are your copy-paste prompts."
+
+---
+
+## Agent A — Mini App Integration & API Client (Run 4)
+
+**You are Agent A.** You fix the API client and integrate the mini-app properly with backend endpoints.
+
+**Working directory:** `c:\Users\Asus\Desktop\Wibecode-agent-a`
+**Branch:** `feature/mini-app-integration` (you are ALREADY on it — do NOT switch branches)
+**Build command:** `cd mini-app && npm run build`
+
+### RULES (NON-NEGOTIABLE)
+
+1. You are ALREADY on branch `feature/mini-app-integration` — do NOT run `git checkout`
+2. Commit after EVERY task — atomic: `git add FILES && git commit -m "MSG"`
+3. Do NOT push to remote or deploy to server
+4. Do NOT add any new npm packages
+5. After ALL changes, run `cd mini-app && npm run build` and fix errors
+
+### FILES YOU OWN
+```
+mini-app/src/api/client.ts              — ADD new methods (preferences, profile update)
+mini-app/src/pages/Settings.tsx          — fix raw axios workaround
+mini-app/src/pages/Profile.tsx           — avatar display improvements
+mini-app/src/pages/Leaderboard.tsx       — minor fixes if needed
+mini-app/src/components/ProfileEditModal.tsx — fix TODO, proper API call
+mini-app/src/components/                 — new components (Toast, etc.)
+mini-app/src/index.css                   — add new styles
+```
+
+### FILES YOU MUST NOT TOUCH
+```
+mini-app/src/hooks/                     — shared hooks, locked
+mini-app/src/components/onboarding/     — onboarding complete, locked
+mini-app/src/App.tsx                    — routes stable, locked
+mini-app/vite.config.ts                — build config
+mini-app/package.json                  — no new dependencies
+bot/                                   — not your area
+tools/                                 — not your area
+```
+
+### PROJECT CONTEXT
+
+- React 18 + TypeScript + Vite + Tailwind CSS + Framer Motion + Lucide React
+- The API client at `mini-app/src/api/client.ts` uses axios. Methods return typed responses.
+- Settings page currently uses `(apiClient as any).client` to directly call preferences endpoints — this is a hack
+- ProfileEditModal has a try/catch fallback for missing profile update endpoint — endpoint now exists
+- Database now has `avatar_id`, `notification_enabled`, `reminder_time` columns (Agent 0 ran migration)
+- Backend endpoints: `GET/PATCH /api/users/:telegramId/preferences`, `PATCH /api/users/:telegramId/profile`
+
+### TASKS (do in order, commit after each)
+
+**Task 1: Add API client methods for preferences and profile update**
+- Read `mini-app/src/api/client.ts` to understand the pattern
+- Add `getUserPreferences(telegramId: string)` method — calls `GET /api/users/:telegramId/preferences`
+- Add `updateUserPreferences(telegramId: string, data: { notification_enabled?: boolean, reminder_time?: number, timezone?: string })` — calls `PATCH /api/users/:telegramId/preferences`
+- Add `updateUserProfile(telegramId: string, data: { first_name?: string, avatar_id?: number })` — calls `PATCH /api/users/:telegramId/profile`
+- Follow existing method patterns (error handling, return types)
+
+**Task 2: Fix Settings page to use proper API client**
+- Read `mini-app/src/pages/Settings.tsx`
+- Replace `(apiClient as any).client.get(...)` and `.patch(...)` calls with the new `getUserPreferences()` / `updateUserPreferences()` methods
+- Keep existing UI, loading states, error handling — just swap the API call mechanism
+- Test that the types align
+
+**Task 3: Connect ProfileEditModal to profile update API properly**
+- Read `mini-app/src/components/ProfileEditModal.tsx`
+- Replace the TODO/fallback with a proper call to `updateUserProfile()`
+- On success: show a brief success indicator (green checkmark or text "Saved!"), close modal after 1s delay
+- On error: show error text in the modal, keep modal open for retry
+- Make sure to invalidate/refetch user data after successful update
+
+**Task 4: Add avatar selection in ProfileEditModal**
+- The profile update endpoint accepts `avatar_id` (1-8)
+- Add a grid of 8 avatar options in the ProfileEditModal (use colored circles with initials or emoji faces as placeholders — no images needed)
+- Currently selected avatar should be highlighted
+- Selected avatar_id is sent with the profile update API call
+
+**Task 5: Display user avatar in Profile page**
+- Read `mini-app/src/pages/Profile.tsx`
+- Show the user's avatar (based on avatar_id from user stats) next to their name
+- Use the same avatar rendering as the modal (colored circle with initial/emoji)
+- If no avatar_id, show default (avatar_id = 1)
+
+### RETROSPECTIVE (DO THIS LAST)
+Add your retrospective to PARALLEL_AGENTS.md at the bottom under "Run 4 Retrospectives".
+
+---
+
+## Agent B — Backend Fixes & Features (Run 4)
+
+**You are Agent B.** You fix bugs, wire up the daily summary job, and add backend features.
+
+**Working directory:** `c:\Users\Asus\Desktop\Wibecode-agent-b`
+**Branch:** `feature/backend-fixes` (you are ALREADY on it — do NOT switch branches)
+**Build command:** `cd bot && npm run build`
+
+### RULES (NON-NEGOTIABLE)
+
+1. You are ALREADY on branch `feature/backend-fixes` — do NOT run `git checkout`
+2. Commit after EVERY task — atomic: `git add FILES && git commit -m "MSG"`
+3. Do NOT push to remote or deploy to server
+4. Do NOT add any new npm packages
+5. ESM project: ALL local imports need `.js` extensions
+6. After ALL changes, run `cd bot && npm run build` and fix errors
+
+### FILES YOU OWN
+```
+bot/src/jobs/definitions/               — new + existing job files
+bot/src/jobs/registerJobs.ts            — wire new jobs
+bot/src/api/routes/leaderboard.ts       — add weekly endpoint
+bot/src/api/routes/users.ts             — fix/improve preferences
+database/schema.sql                     — sync with actual DB
+```
+
+### FILES YOU MUST NOT TOUCH
+```
+bot/src/bot.ts                          — Grammy instance, locked
+bot/src/config.ts                       — centralized, locked
+bot/src/utils/                          — db, cache, pythonTools all locked
+bot/src/types/                          — shared types, locked
+bot/src/handlers/                       — Run 3 handlers stable, locked
+bot/src/index.ts                        — command registration stable, locked
+bot/src/api/middleware/                  — auth works fine
+bot/src/api/server.ts                   — only if you need to register a new route (see GRAY AREA)
+bot/package.json                        — no new dependencies
+mini-app/                               — not your area
+tools/                                  — not your area
+```
+
+### GRAY AREA
+```
+bot/src/api/server.ts — you MAY add a new router.use() for a new route file but must NOT change existing middleware, CORS, or routes
+bot/src/jobs/definitions/questReminders.ts — you MAY fix the || vs ?? bug (line 70 only)
+```
+
+### PROJECT CONTEXT
+
+- Grammy bot framework, ESM (`"type": "module"`), TypeScript strict
+- `db.query(sql, params)`, `db.queryOne(sql, params)`, `db.transaction(callback)` from utils/db.ts
+- `cache.cached(key, ttl, fn)`, `cache.invalidateUserCache(userId)` from utils/cache.ts
+- Database now has `avatar_id`, `notification_enabled`, `reminder_time` columns (Agent 0 ran migration before Run 4)
+- `sendDailySummary(bot, userId)` exists in `handlers/dailySummary.ts` — needs a pg-boss job
+- pg-boss v12+: Must call `createQueue(name)` BEFORE `schedule(name, cron)`
+
+### TASKS (do in order, commit after each)
+
+**Task 1: Fix questReminders.ts retry_after bug**
+- Read `bot/src/jobs/definitions/questReminders.ts`
+- Line ~70: Change `err.parameters?.retry_after || 5` to `err.parameters?.retry_after ?? 5`
+- This is a one-line fix. Verify the exact line before changing.
+
+**Task 2: Sync database/schema.sql with actual DB**
+- Read `database/schema.sql`
+- Add the 3 new columns to the `users` table definition:
+  - `avatar_id INTEGER DEFAULT 1`
+  - `notification_enabled BOOLEAN DEFAULT true`
+  - `reminder_time INTEGER DEFAULT 9`
+- Add comments explaining these were added in Run 4
+
+**Task 3: Wire daily summary job**
+- Read `bot/src/jobs/registerJobs.ts` to understand the pattern
+- Read `bot/src/handlers/dailySummary.ts` to understand the exported function
+- Create `bot/src/jobs/definitions/dailySummary.ts`:
+  - Import `sendDailySummary` from `../../handlers/dailySummary.js`
+  - Import bot instance as needed (check how other jobs access it)
+  - Job queries users who have `notification_enabled = true`
+  - For each user, call `sendDailySummary(bot, user.telegram_id)`
+  - Batch processing (50 users at a time) with rate limiting (200ms delay between sends)
+- Register in `registerJobs.ts`: queue name `daily-summary`, cron `0 21 * * *` (9 PM UTC = midnight MSK)
+
+**Task 4: Add weekly leaderboard endpoint**
+- Read `bot/src/api/routes/leaderboard.ts`
+- Add `GET /api/leaderboard/weekly` endpoint
+- Query users ordered by XP earned in the last 7 days
+- Use: `SELECT u.*, COALESCE(SUM(qi.xp_reward), 0) as weekly_xp FROM users u LEFT JOIN quest_instances qi ON qi.user_id = u.id AND qi.status = 'completed' AND qi.completed_at > NOW() - INTERVAL '7 days' GROUP BY u.id ORDER BY weekly_xp DESC LIMIT 50`
+- Return same format as existing leaderboard but with `weekly_xp` field
+- Cache for 5 minutes
+
+**Task 5: Verify builds pass**
+- Run `cd bot && npm run build` and fix any errors
+- Create `bot/src/handlers/REGISTER_THESE_RUN4.md` documenting what was added/changed
+
+### RETROSPECTIVE (DO THIS LAST)
+Add your retrospective to PARALLEL_AGENTS.md at the bottom under "Run 4 Retrospectives".
+
+---
+
+## Agent C — Test Expansion & Quality (Run 4)
+
+**You are Agent C.** You add tests for Run 3 additions and improve test infrastructure.
+
+**Working directory:** `c:\Users\Asus\Desktop\Wibecode-agent-c`
+**Branch:** `feature/test-expansion` (you are ALREADY on it — do NOT switch branches)
+**Build command:** `cd bot && npm run build`
+
+### RULES (NON-NEGOTIABLE)
+
+1. You are ALREADY on branch `feature/test-expansion` — do NOT run `git checkout`
+2. Commit after EVERY task — atomic: `git add FILES && git commit -m "MSG"`
+3. Do NOT push to remote or deploy to server
+4. Do NOT modify package.json or requirements.txt
+5. After ALL changes, run `cd bot && npm run build` and fix errors
+
+### FILES YOU OWN
+```
+bot/src/__tests__/                      — ALL test files (existing + new)
+bot/src/__tests__/setup.ts              — mock helpers (may add new ones)
+bot/vitest.config.ts                    — test config (may update)
+tools/tests/                            — ALL Python test files (existing + new)
+```
+
+### FILES YOU MUST NOT TOUCH
+```
+bot/src/ (ALL non-test .ts files)       — source code, read-only
+mini-app/                               — not your area
+tools/*.py                              — source tools, read-only
+database/                               — schema, read-only
+bot/package.json                        — no deps
+.env                                    — secrets
+```
+
+### PROJECT CONTEXT
+
+- **Vitest** for TypeScript tests (ESM, globals enabled), config at `bot/vitest.config.ts`
+- **pytest** for Python tests with `unittest.mock`
+- Run 3 added: profile handler, help handler+callbacks, dailySummary handler, profile update API, setMyCommands
+- Existing test setup at `bot/src/__tests__/setup.ts`
+- **Total tests**: 140 TypeScript, 172 Python = 312 total
+- **IMPORTANT**: Use `vi.resetAllMocks()` (NOT `vi.clearAllMocks()`) in `beforeEach` — this was the root cause of ALL Run 1 failures
+- Mock Grammy context pattern: `{ reply: vi.fn(), from: { id: 123 }, callbackQuery: { data: 'help:commands' } }`
+
+### TASKS (do in order, commit after each)
+
+**Task 1: Enable mockReset globally in vitest config**
+- Read `bot/vitest.config.ts`
+- Add `mockReset: true` to the test config (this replaces per-file `vi.resetAllMocks()` calls)
+- Verify existing tests still pass after this change: `cd bot && npx vitest run --reporter=verbose`
+- If any tests break, fix them (they were relying on mock leakage between tests)
+
+**Task 2: Add tests for /profile bot command handler**
+- Read `bot/src/handlers/profile.ts`
+- Create `bot/src/__tests__/handlers/profile.test.ts`
+- Test: user with full data (level, modes, streaks, achievements), user not found, DB error
+- Mock: `db.query` / `db.queryOne`, Grammy context (`ctx.reply`, `ctx.from`)
+
+**Task 3: Add tests for /help bot command handler**
+- Read `bot/src/handlers/help.ts`
+- Create `bot/src/__tests__/handlers/help.test.ts`
+- Test: /help sends inline keyboard with 3 categories
+- Test callback queries: `help:commands`, `help:howtoplay`, `help:faq`
+- Mock: Grammy context (`ctx.reply`, `ctx.callbackQuery`, `ctx.answerCallbackQuery`, `ctx.editMessageText`)
+
+**Task 4: Add tests for profile update API endpoint**
+- Read `bot/src/api/routes/users.ts` — find the `PATCH /:telegramId/profile` endpoint
+- Add tests to `bot/src/__tests__/routes/users.test.ts`:
+  - Valid update (first_name only, avatar_id only, both)
+  - Invalid first_name (empty, too long > 32 chars)
+  - Invalid avatar_id (0, 9, -1, non-integer)
+  - User not found (404)
+  - Cache invalidation called after update
+
+**Task 5: Add tests for daily summary handler**
+- Read `bot/src/handlers/dailySummary.ts`
+- Create `bot/src/__tests__/handlers/dailySummary.test.ts`
+- Test: sends formatted summary with quests/XP/streaks, handles user with no activity, handles DB error, handles bot.api.sendMessage failure
+- Mock: `db.query`, `bot.api.sendMessage`
+
+**Task 6: Run ALL tests and verify everything passes**
+- Run `cd bot && npx vitest run --reporter=verbose`
+- Run `python -m pytest tools/tests/ -v`
+- Fix ANY failures
+- Final commit with total counts: "All tests passing: X TypeScript, Y Python"
+
+### RETROSPECTIVE (DO THIS LAST)
+Add your retrospective to PARALLEL_AGENTS.md at the bottom under "Run 4 Retrospectives".
+
+---
+
+## Run 4 File Ownership Matrix
+
+| File/Directory | Agent A | Agent B | Agent C | Nobody |
+|---|---|---|---|---|
+| mini-app/src/api/client.ts | OWNS | - | - | - |
+| mini-app/src/pages/ | OWNS | - | - | - |
+| mini-app/src/components/ProfileEditModal.tsx | OWNS | - | - | - |
+| mini-app/src/components/ (new) | OWNS | - | - | - |
+| mini-app/src/index.css | OWNS | - | - | - |
+| bot/src/jobs/definitions/ | - | OWNS | - | - |
+| bot/src/jobs/registerJobs.ts | - | OWNS | - | - |
+| bot/src/api/routes/leaderboard.ts | - | OWNS | - | - |
+| bot/src/api/routes/users.ts | - | OWNS | - | - |
+| database/schema.sql | - | OWNS | - | - |
+| bot/src/__tests__/ | - | - | OWNS | - |
+| bot/vitest.config.ts | - | - | OWNS | - |
+| tools/tests/ | - | - | OWNS | - |
+| bot/src/jobs/definitions/questReminders.ts (line 70 only) | - | GRAY | - | - |
+| mini-app/src/hooks/ | - | - | - | LOCKED |
+| mini-app/src/types/ | - | - | - | LOCKED |
+| bot/src/utils/ | - | - | - | LOCKED |
+| bot/src/config.ts | - | - | - | LOCKED |
+| bot/src/index.ts | - | - | - | LOCKED |
+| bot/src/handlers/ | - | - | - | LOCKED |
+| .env | - | - | - | LOCKED |
+
+## Run 4 Merge Order
+
+1. **Agent B first** — backend fixes + schema sync + daily summary job
+2. **Agent C second** — tests (reference stable source)
+3. **Agent A last** — mini-app (independent, uses endpoints from Agent B)
+
+---
+
+## Run 4 Retrospectives
+
+*(Agents: add your retrospective sections below this line when you finish)*
