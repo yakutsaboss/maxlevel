@@ -26,7 +26,10 @@ export function Navigation() {
   };
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 bg-telegram-secondaryBg border-t border-telegram-hint/20 safe-area-bottom z-40">
+    <nav
+      className="fixed bottom-0 left-0 right-0 bg-telegram-secondaryBg border-t border-telegram-hint/20 safe-area-bottom z-40"
+      aria-label="Main navigation"
+    >
       <div className="flex items-center justify-around px-4 py-2">
         {navItems.map((item) => {
           const isActive = location.pathname === item.path;
@@ -35,9 +38,10 @@ export function Navigation() {
             <button
               key={item.path}
               onClick={() => handleNavigate(item.path)}
+              aria-label={item.label}
+              aria-current={isActive ? 'page' : undefined}
               className="relative flex flex-col items-center justify-center py-2 px-4 transition-colors"
             >
-              {/* Active Indicator */}
               {isActive && (
                 <motion.div
                   layoutId="activeTab"
@@ -45,28 +49,12 @@ export function Navigation() {
                   transition={{ type: 'spring', stiffness: 300, damping: 30 }}
                 />
               )}
-
-              {/* Icon */}
-              <div
-                className={`relative z-10 transition-colors ${
-                  isActive ? 'text-telegram-link' : 'text-telegram-hint'
-                }`}
-              >
+              <div className={`relative z-10 transition-colors ${isActive ? 'text-telegram-link' : 'text-telegram-hint'}`}>
                 {item.icon}
               </div>
-
-              {/* Label */}
-              <span
-                className={`relative z-10 text-xs mt-1 transition-colors ${
-                  isActive
-                    ? 'text-telegram-link font-semibold'
-                    : 'text-telegram-hint'
-                }`}
-              >
+              <span className={`relative z-10 text-xs mt-1 transition-colors ${isActive ? 'text-telegram-link font-semibold' : 'text-telegram-hint'}`}>
                 {item.label}
               </span>
-
-              {/* Active Dot */}
               {isActive && (
                 <motion.div
                   initial={{ scale: 0 }}

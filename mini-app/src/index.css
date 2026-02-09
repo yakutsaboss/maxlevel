@@ -3,7 +3,6 @@
 @tailwind utilities;
 
 :root {
-  /* Telegram theme variables */
   --tg-theme-bg-color: #ffffff;
   --tg-theme-text-color: #000000;
   --tg-theme-hint-color: #999999;
@@ -11,12 +10,9 @@
   --tg-theme-button-color: #2481cc;
   --tg-theme-button-text-color: #ffffff;
   --tg-theme-secondary-bg-color: #f4f4f5;
-
-  /* Viewport height for mobile */
   --vh: 1vh;
 }
 
-/* Dark theme override */
 @media (prefers-color-scheme: dark) {
   :root {
     --tg-theme-bg-color: #18222d;
@@ -45,8 +41,6 @@ body {
   background-color: var(--tg-theme-bg-color);
   color: var(--tg-theme-text-color);
   overflow-x: hidden;
-  user-select: none;
-  -webkit-user-select: none;
   -webkit-tap-highlight-color: transparent;
 }
 
@@ -61,17 +55,14 @@ body {
   padding-bottom: env(safe-area-inset-bottom);
 }
 
-/* Safe area for iOS */
 .safe-area-bottom {
   padding-bottom: env(safe-area-inset-bottom);
 }
 
-/* Smooth scrolling */
 * {
   scroll-behavior: smooth;
 }
 
-/* Hide scrollbar but keep functionality */
 .hide-scrollbar {
   -ms-overflow-style: none;
   scrollbar-width: none;
@@ -81,7 +72,6 @@ body {
   display: none;
 }
 
-/* Custom scrollbar for webkit browsers */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
@@ -100,7 +90,6 @@ body {
   background: var(--tg-theme-link-color);
 }
 
-/* Disable text selection for better app feel */
 button,
 a,
 .no-select {
@@ -112,84 +101,76 @@ a,
   user-select: none;
 }
 
-/* Allow text selection for content */
-p,
-span,
-h1,
-h2,
-h3,
-h4,
-h5,
-h6 {
+p, span, h1, h2, h3, h4, h5, h6 {
   user-select: text;
   -webkit-user-select: text;
 }
 
-/* Animations */
+button:focus-visible,
+a:focus-visible,
+[role="button"]:focus-visible {
+  outline: 2px solid var(--tg-theme-link-color);
+  outline-offset: 2px;
+  border-radius: 8px;
+}
+
 @keyframes fadeIn {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
 
 @keyframes slideUp {
-  from {
-    transform: translateY(20px);
-    opacity: 0;
-  }
-  to {
-    transform: translateY(0);
-    opacity: 1;
-  }
+  from { transform: translateY(20px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
 }
 
 @keyframes pulse {
-  0%,
-  100% {
-    opacity: 1;
-  }
-  50% {
-    opacity: 0.5;
-  }
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
 }
 
-.animate-fade-in {
-  animation: fadeIn 0.3s ease-out;
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
 }
 
-.animate-slide-up {
-  animation: slideUp 0.3s ease-out;
-}
+.animate-fade-in { animation: fadeIn 0.3s ease-out; }
+.animate-slide-up { animation: slideUp 0.3s ease-out; }
+.animate-pulse { animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
+.animate-spin { animation: spin 1s linear infinite; }
 
-.animate-pulse {
-  animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
-}
-
-/* Loading skeleton */
 .skeleton {
-  background: linear-gradient(
-    90deg,
-    var(--tg-theme-secondary-bg-color) 25%,
-    var(--tg-theme-hint-color) 50%,
-    var(--tg-theme-secondary-bg-color) 75%
-  );
+  background: linear-gradient(90deg, var(--tg-theme-secondary-bg-color) 25%, var(--tg-theme-hint-color) 50%, var(--tg-theme-secondary-bg-color) 75%);
   background-size: 200% 100%;
   animation: loading 1.5s ease-in-out infinite;
 }
 
 @keyframes loading {
-  0% {
-    background-position: 200% 0;
-  }
-  100% {
-    background-position: -200% 0;
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+.skeleton-text {
+  background: linear-gradient(90deg, var(--tg-theme-secondary-bg-color) 25%, var(--tg-theme-hint-color) 50%, var(--tg-theme-secondary-bg-color) 75%);
+  background-size: 200% 100%;
+  animation: loading 1.5s ease-in-out infinite;
+  border-radius: 4px;
+  color: transparent;
+  display: inline-block;
+}
+
+.grid-achievements {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0.75rem;
+}
+
+@media (min-width: 360px) {
+  .grid-achievements {
+    grid-template-columns: repeat(3, 1fr);
   }
 }
 
-/* Utility classes */
 .line-clamp-2 {
   display: -webkit-box;
   -webkit-line-clamp: 2;
