@@ -80,20 +80,21 @@ router.post('/:telegramId/complete', authenticateTelegram, async (req: Request, 
       return res.status(400).json({ success: false, error: 'Missing quiz_data or selected_modes' });
     }
 
+    // 0. Look up user id first (needed for Python tool calls)
+    const userLookup = await queryOne('SELECT id FROM users WHERE telegram_id = $1', [tid]);
+    if (!userLookup) {
+      return res.status(404).json({ success: false, error: 'User not found' });
+    }
+    const userId = userLookup.id;
+
     // 1. Add selected modes (keep Python tool for complex logic)
     const modesString = quiz_data.selected_modes.join(',');
     await executePythonTool('mode_manager', [
-      '--add-modes', '--telegram-id', String(tid), '--modes', modesString,
+      '--add-modes', '--user-id', String(userId), '--modes', modesString,
     ]);
 
     // 2-5: All remaining steps in a single transaction
     await transaction(async (client) => {
-      // Get user id
-      const userResult = await client.query(
-        `SELECT id FROM users WHERE telegram_id = $1`, [tid]
-      );
-      if (userResult.rows.length === 0) throw new Error('User not found');
-      const userId = userResult.rows[0].id;
 
       // 2. Save mode configs
       for (const modeName of quiz_data.selected_modes) {
@@ -148,7 +149,7 @@ router.post('/:telegramId/complete', authenticateTelegram, async (req: Request, 
 
     // 6. Assign initial quests (keep Python tool)
     await executePythonTool('quest_manager', [
-      '--assign-daily', '--telegram-id', String(tid), '--count', '3',
+      '--assign-daily', '--user-id', String(userId), '--count', '3',
     ]);
 
     res.json({
