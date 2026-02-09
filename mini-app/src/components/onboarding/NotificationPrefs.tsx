@@ -71,14 +71,14 @@ export function NotificationPrefs({ progress, data, onUpdate, onNext }: Notifica
           className="text-center mb-6"
         >
           <Bell className="w-10 h-10 text-telegram-link mx-auto mb-3" />
-          <h2 className="text-2xl font-bold text-telegram-text mb-1">Signal Fires</h2>
-          <p className="text-telegram-hint text-sm">How should we alert you to your quests?</p>
+          <h2 className="text-2xl font-bold text-telegram-text mb-1">Notifications</h2>
+          <p className="text-telegram-hint text-sm">Stay on track with reminders</p>
         </motion.div>
 
         <div className="bg-telegram-secondaryBg rounded-2xl px-4 divide-y divide-telegram-hint/10">
           <ToggleRow
-            label="Quest reminders"
-            description="Get notified before quest deadlines"
+            label="Task reminders"
+            description="Get notified before deadlines"
             value={prefs.quest_reminders}
             onChange={(v) => update('quest_reminders', v)}
           />
@@ -90,7 +90,7 @@ export function NotificationPrefs({ progress, data, onUpdate, onNext }: Notifica
           />
           <ToggleRow
             label="Achievement alerts"
-            description="Celebrate when you unlock achievements"
+            description="Celebrate when you hit milestones"
             value={prefs.achievement_alerts}
             onChange={(v) => update('achievement_alerts', v)}
           />

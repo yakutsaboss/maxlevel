@@ -71,7 +71,7 @@ export function LaunchScreen({ data, telegramId, onLaunch }: LaunchScreenProps) 
   if (saving) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center px-6 bg-telegram-bg">
-        <div className="animate-pulse text-telegram-hint text-lg">Preparing your quest...</div>
+        <div className="animate-pulse text-telegram-hint text-lg">Setting up your plan...</div>
       </div>
     );
   }
@@ -123,7 +123,7 @@ export function LaunchScreen({ data, telegramId, onLaunch }: LaunchScreenProps) 
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.4 }}
         >
-          Quest Begins!
+          You're All Set!
         </motion.h1>
 
         {/* XP animation */}
@@ -158,7 +158,7 @@ export function LaunchScreen({ data, telegramId, onLaunch }: LaunchScreenProps) 
           animate={{ opacity: 1 }}
           transition={{ delay: 1 }}
         >
-          Your first quests have been created!
+          Your first tasks have been created!
         </motion.p>
       </div>
 
@@ -170,7 +170,7 @@ export function LaunchScreen({ data, telegramId, onLaunch }: LaunchScreenProps) 
         transition={{ delay: 1.2 }}
         whileTap={{ scale: 0.97 }}
       >
-        Enter Your Realm
+        Go to Dashboard
       </motion.button>
     </div>
   );

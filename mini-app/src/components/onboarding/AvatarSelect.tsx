@@ -4,15 +4,17 @@ import { useTelegram } from '@/hooks/useTelegram';
 import { ProgressBar } from './ui/ProgressBar';
 
 const AVATARS = [
-  { value: 'male', label: 'Warrior', icon: '🗡️' },
-  { value: 'female', label: 'Sorceress', icon: '🔮' },
-  { value: 'other', label: 'Shapeshifter', icon: '🌀' },
+  { value: 'gym_warrior', label: 'Gym Warrior', icon: '💪', desc: 'Lives for the grind' },
+  { value: 'office_boss', label: 'Office Boss', icon: '👑', desc: 'Crushing goals 9 to 5' },
+  { value: 'magic_pet', label: 'Magic Pet', icon: '🐱', desc: 'Cute but deadly serious' },
+  { value: 'night_owl', label: 'Night Owl', icon: '🦉', desc: 'Peak performance after midnight' },
+  { value: 'couch_hero', label: 'Couch Hero', icon: '🥔', desc: 'Starting from zero, going to hero' },
 ];
 
 interface AvatarSelectProps {
   progress: number;
   value?: string;
-  onSelect: (gender: string) => void;
+  onSelect: (avatar: string) => void;
   onNext: () => void;
 }
 
@@ -36,20 +38,20 @@ export function AvatarSelect({ progress, value, onSelect, onNext }: AvatarSelect
           animate={{ opacity: 1, y: 0 }}
         >
           <h2 className="text-2xl font-bold text-telegram-text text-center mb-2">
-            Choose Your Avatar
+            Pick Your Character
           </h2>
-          <p className="text-telegram-hint text-center mb-8">
-            What form does your hero take?
+          <p className="text-telegram-hint text-center mb-6">
+            Which one sounds like you?
           </p>
         </motion.div>
 
-        <div className="space-y-3">
+        <div className="space-y-2.5">
           {AVATARS.map((avatar, i) => (
             <motion.button
               key={avatar.value}
               onClick={() => handleSelect(avatar.value)}
               className={`
-                w-full py-4 px-5 rounded-2xl flex items-center gap-4 transition-all
+                w-full py-3.5 px-4 rounded-2xl flex items-center gap-3.5 transition-all
                 ${
                   selected === avatar.value
                     ? 'bg-telegram-link/15 border-2 border-telegram-link shadow-lg shadow-telegram-link/10'
@@ -58,15 +60,18 @@ export function AvatarSelect({ progress, value, onSelect, onNext }: AvatarSelect
               `}
               initial={{ opacity: 0, x: -20 }}
               animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: i * 0.1 }}
+              transition={{ delay: i * 0.08 }}
               whileTap={{ scale: 0.98 }}
             >
               <span className="text-3xl">{avatar.icon}</span>
-              <span className={`text-lg font-semibold ${
-                selected === avatar.value ? 'text-telegram-link' : 'text-telegram-text'
-              }`}>
-                {avatar.label}
-              </span>
+              <div className="text-left">
+                <span className={`text-base font-semibold block ${
+                  selected === avatar.value ? 'text-telegram-link' : 'text-telegram-text'
+                }`}>
+                  {avatar.label}
+                </span>
+                <span className="text-xs text-telegram-hint">{avatar.desc}</span>
+              </div>
             </motion.button>
           ))}
         </div>

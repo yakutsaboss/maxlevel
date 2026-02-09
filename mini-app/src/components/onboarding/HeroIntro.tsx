@@ -1,16 +1,36 @@
+import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Bell } from 'lucide-react';
+import { Pencil, Check } from 'lucide-react';
 import { useTelegram } from '@/hooks/useTelegram';
 import { ProgressBar } from './ui/ProgressBar';
 
 interface HeroIntroProps {
   progress: number;
+  nickname?: string;
+  onNicknameChange: (name: string) => void;
   onNext: () => void;
 }
 
-export function HeroIntro({ progress, onNext }: HeroIntroProps) {
+export function HeroIntro({ progress, nickname, onNicknameChange, onNext }: HeroIntroProps) {
   const { user, haptic } = useTelegram();
-  const name = user?.first_name || 'Hero';
+  const displayName = nickname || user?.first_name || 'Friend';
+  const [isEditing, setIsEditing] = useState(false);
+  const [editValue, setEditValue] = useState(displayName);
+
+  const handleStartEdit = () => {
+    haptic.selection();
+    setEditValue(displayName);
+    setIsEditing(true);
+  };
+
+  const handleSaveEdit = () => {
+    const trimmed = editValue.trim();
+    if (trimmed) {
+      haptic.notification('success');
+      onNicknameChange(trimmed);
+    }
+    setIsEditing(false);
+  };
 
   const handleAccept = () => {
     haptic.notification('success');
@@ -28,32 +48,48 @@ export function HeroIntro({ progress, onNext }: HeroIntroProps) {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5 }}
         >
-          {/* Notification badge */}
-          <motion.div
-            className="absolute -top-3 right-4 bg-white rounded-xl px-3 py-1.5 shadow-md flex items-center gap-1.5 z-10"
-            initial={{ opacity: 0, x: 20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: 0.6 }}
-          >
-            <div className="w-5 h-5 bg-orange-500 rounded-full flex items-center justify-center">
-              <Bell className="w-3 h-3 text-white" />
-            </div>
-            <span className="text-xs font-medium text-gray-800">Notification</span>
-          </motion.div>
-
-          {/* Main card with glow border */}
+          {/* Main card */}
           <div
             className="rounded-3xl p-6 border-2 border-purple-400 bg-telegram-secondaryBg"
             style={{
               boxShadow: '0 0 20px rgba(168, 85, 247, 0.3), inset 0 0 20px rgba(168, 85, 247, 0.05)',
             }}
           >
-            {/* Inner card */}
             <div className="bg-telegram-bg rounded-2xl p-5 text-center">
-              <p className="text-sm text-telegram-hint mb-1">Player Name</p>
-              <h2 className="text-2xl font-bold text-telegram-text mb-4">{name}</h2>
+              <p className="text-sm text-telegram-hint mb-1">Your Name</p>
+
+              {isEditing ? (
+                <div className="flex items-center gap-2 justify-center mb-4">
+                  <input
+                    type="text"
+                    value={editValue}
+                    onChange={(e) => setEditValue(e.target.value)}
+                    maxLength={20}
+                    className="text-2xl font-bold text-telegram-text bg-transparent border-b-2 border-purple-400 text-center outline-none w-40"
+                    autoFocus
+                    onKeyDown={(e) => e.key === 'Enter' && handleSaveEdit()}
+                  />
+                  <button
+                    onClick={handleSaveEdit}
+                    className="w-8 h-8 rounded-full bg-purple-500 flex items-center justify-center flex-shrink-0"
+                  >
+                    <Check className="w-4 h-4 text-white" />
+                  </button>
+                </div>
+              ) : (
+                <div className="flex items-center gap-2 justify-center mb-4">
+                  <h2 className="text-2xl font-bold text-telegram-text">{displayName}</h2>
+                  <button
+                    onClick={handleStartEdit}
+                    className="w-7 h-7 rounded-full bg-telegram-hint/15 flex items-center justify-center flex-shrink-0"
+                  >
+                    <Pencil className="w-3.5 h-3.5 text-telegram-hint" />
+                  </button>
+                </div>
+              )}
+
               <p className="text-telegram-text leading-relaxed">
-                Do you want to improve your life? I can help you level up every aspect of it!
+                Ready to improve your life? Let's set up your personal plan!
               </p>
             </div>
           </div>
@@ -69,7 +105,7 @@ export function HeroIntro({ progress, onNext }: HeroIntroProps) {
           transition={{ delay: 0.3 }}
           whileTap={{ scale: 0.97 }}
         >
-          Accept the Call
+          Let's Go!
         </motion.button>
       </div>
     </div>

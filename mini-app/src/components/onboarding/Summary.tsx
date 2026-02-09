@@ -11,17 +11,28 @@ interface SummaryProps {
 }
 
 const MODE_INFO: Record<string, { icon: string; name: string }> = {
-  fitness: { icon: '🏋️', name: "Warrior's Training" },
-  hydration: { icon: '💧', name: 'Aqua Mastery' },
-  finance: { icon: '💰', name: 'Gold Keeper' },
-  learning: { icon: '📚', name: 'Loremaster' },
+  fitness: { icon: '🏋️', name: 'Fitness' },
+  hydration: { icon: '💧', name: 'Hydration' },
+  finance: { icon: '💰', name: 'Finance' },
+  learning: { icon: '📚', name: 'Learning' },
+};
+
+const AVATAR_LABELS: Record<string, string> = {
+  gym_warrior: 'Gym Warrior',
+  office_boss: 'Office Boss',
+  magic_pet: 'Magic Pet',
+  night_owl: 'Night Owl',
+  couch_hero: 'Couch Hero',
+  // Legacy values
+  male: 'Warrior',
+  female: 'Sorceress',
+  other: 'Shapeshifter',
 };
 
 export function Summary({ progress, data, onEdit, onNext }: SummaryProps) {
   const { user, haptic } = useTelegram();
-  const name = user?.first_name || 'Hero';
-
-  const genderLabel = data.gender === 'male' ? 'Warrior' : data.gender === 'female' ? 'Sorceress' : 'Shapeshifter';
+  const name = data.nickname || user?.first_name || 'Friend';
+  const avatarLabel = AVATAR_LABELS[data.gender || ''] || data.gender || 'Unknown';
 
   const fitnessSummary = () => {
     const f = data.fitness;
@@ -52,8 +63,8 @@ export function Summary({ progress, data, onEdit, onNext }: SummaryProps) {
           animate={{ opacity: 1, y: 0 }}
           className="text-center mb-6"
         >
-          <h2 className="text-2xl font-bold text-telegram-text mb-1">Your Quest Awaits</h2>
-          <p className="text-telegram-hint text-sm">Review your hero's profile</p>
+          <h2 className="text-2xl font-bold text-telegram-text mb-1">Almost Done!</h2>
+          <p className="text-telegram-hint text-sm">Review your setup before we begin</p>
         </motion.div>
 
         {/* Hero card */}
@@ -66,7 +77,7 @@ export function Summary({ progress, data, onEdit, onNext }: SummaryProps) {
           <div className="flex items-center justify-between">
             <div>
               <h3 className="text-white text-xl font-bold">{name}</h3>
-              <p className="text-purple-200 text-sm">{genderLabel}</p>
+              <p className="text-purple-200 text-sm">{avatarLabel}</p>
             </div>
             <div className="bg-white/20 rounded-xl px-3 py-1.5 text-center">
               <div className="text-white text-2xl font-bold">1</div>
@@ -79,8 +90,8 @@ export function Summary({ progress, data, onEdit, onNext }: SummaryProps) {
           <p className="text-purple-200 text-xs mt-1 text-right">0 / 500 XP</p>
         </motion.div>
 
-        {/* Paths selected */}
-        <SectionCard title="Paths Chosen" onEdit={() => onEdit('paths')} delay={0.15}>
+        {/* Focus areas */}
+        <SectionCard title="Focus Areas" onEdit={() => onEdit('paths')} delay={0.15}>
           <div className="flex flex-wrap gap-2">
             {(data.selected_modes || []).map((mode) => {
               const info = MODE_INFO[mode];
@@ -95,20 +106,20 @@ export function Summary({ progress, data, onEdit, onNext }: SummaryProps) {
 
         {/* Fitness summary */}
         {data.selected_modes?.includes('fitness') && (
-          <SectionCard title="Warrior's Training" onEdit={() => onEdit('fitness_motivation')} delay={0.2}>
+          <SectionCard title="Fitness" onEdit={() => onEdit('fitness_motivation')} delay={0.2}>
             <p className="text-sm text-telegram-hint">{fitnessSummary()}</p>
           </SectionCard>
         )}
 
         {/* Hydration summary */}
         {data.selected_modes?.includes('hydration') && (
-          <SectionCard title="Aqua Mastery" onEdit={() => onEdit('hydration_intake')} delay={0.25}>
+          <SectionCard title="Hydration" onEdit={() => onEdit('hydration_intake')} delay={0.25}>
             <p className="text-sm text-telegram-hint">{hydrationSummary()}</p>
           </SectionCard>
         )}
 
-        {/* Punishments */}
-        <SectionCard title="Consequences" onEdit={() => onEdit('punishments')} delay={0.3}>
+        {/* Accountability */}
+        <SectionCard title="Accountability" onEdit={() => onEdit('punishments')} delay={0.3}>
           <p className="text-sm text-telegram-hint">
             {data.punishments?.consent_given
               ? `Enabled (${data.punishments.intensity_level || 'low'} intensity)`
@@ -143,7 +154,7 @@ export function Summary({ progress, data, onEdit, onNext }: SummaryProps) {
           }}
           transition={{ duration: 2, repeat: Infinity }}
         >
-          Begin Your Quest!
+          Let's Start!
         </motion.button>
       </div>
     </div>

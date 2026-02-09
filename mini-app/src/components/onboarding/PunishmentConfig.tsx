@@ -6,9 +6,9 @@ import { ProgressBar } from './ui/ProgressBar';
 import type { OnboardingData } from '@/hooks/useOnboarding';
 
 const INTENSITIES = [
-  { value: 'low', label: 'Gentle Nudge', color: 'bg-green-500/15 border-green-500 text-green-400' },
-  { value: 'medium', label: 'Fair Challenge', color: 'bg-yellow-500/15 border-yellow-500 text-yellow-400' },
-  { value: 'high', label: 'Harsh Reality', color: 'bg-orange-500/15 border-orange-500 text-orange-400' },
+  { value: 'low', label: 'Gentle', color: 'bg-green-500/15 border-green-500 text-green-400' },
+  { value: 'medium', label: 'Moderate', color: 'bg-yellow-500/15 border-yellow-500 text-yellow-400' },
+  { value: 'high', label: 'Strict', color: 'bg-orange-500/15 border-orange-500 text-orange-400' },
   { value: 'extreme', label: 'No Mercy', color: 'bg-red-500/15 border-red-500 text-red-400' },
 ];
 
@@ -73,10 +73,10 @@ export function PunishmentConfig({ progress, data, onUpdate, onNext }: Punishmen
         >
           <Skull className="w-10 h-10 text-red-400 mx-auto mb-3" />
           <h2 className="text-2xl font-bold text-telegram-text mb-1">
-            Consequences of Failure
+            Accountability
           </h2>
           <p className="text-telegram-hint text-sm">
-            Every quest has stakes. What happens when you fail?
+            Want extra motivation? Add consequences for skipping tasks.
           </p>
         </motion.div>
 
@@ -84,8 +84,8 @@ export function PunishmentConfig({ progress, data, onUpdate, onNext }: Punishmen
         <div className="bg-telegram-secondaryBg rounded-2xl p-4 mb-4">
           <div className="flex items-center justify-between">
             <div>
-              <p className="font-semibold text-telegram-text text-sm">Enable consequences</p>
-              <p className="text-xs text-telegram-hint mt-0.5">Add real stakes to your quests</p>
+              <p className="font-semibold text-telegram-text text-sm">Enable accountability</p>
+              <p className="text-xs text-telegram-hint mt-0.5">Lose XP or streaks when you skip</p>
             </div>
             <button
               onClick={toggleConsent}
@@ -110,7 +110,7 @@ export function PunishmentConfig({ progress, data, onUpdate, onNext }: Punishmen
           >
             {/* Intensity */}
             <div>
-              <p className="text-sm font-medium text-telegram-text mb-2">Intensity Level</p>
+              <p className="text-sm font-medium text-telegram-text mb-2">How strict?</p>
               <div className="grid grid-cols-2 gap-2">
                 {INTENSITIES.map((item) => (
                   <button
@@ -129,7 +129,7 @@ export function PunishmentConfig({ progress, data, onUpdate, onNext }: Punishmen
 
             {/* Custom punishment */}
             <div>
-              <p className="text-sm font-medium text-telegram-text mb-2">Custom Punishment (optional)</p>
+              <p className="text-sm font-medium text-telegram-text mb-2">Custom penalty (optional)</p>
               <input
                 type="text"
                 value={customText}
@@ -144,7 +144,7 @@ export function PunishmentConfig({ progress, data, onUpdate, onNext }: Punishmen
               <div className="flex items-center justify-between">
                 <div>
                   <p className="font-semibold text-telegram-text text-sm">Safe Mode</p>
-                  <p className="text-xs text-telegram-hint mt-0.5">Caps daily losses, prevents total wipe</p>
+                  <p className="text-xs text-telegram-hint mt-0.5">Limits daily losses so you can't lose everything</p>
                 </div>
                 <button
                   onClick={toggleSafe}
@@ -169,7 +169,7 @@ export function PunishmentConfig({ progress, data, onUpdate, onNext }: Punishmen
           onClick={() => { haptic.impact('medium'); onNext(); }}
           className="w-full py-4 rounded-2xl text-lg font-bold bg-gradient-to-r from-red-600 to-orange-600 text-white shadow-lg"
         >
-          {consent ? 'Accept Your Fate' : "I'll Pass"}
+          {consent ? 'Enable & Continue' : 'Skip for Now'}
         </button>
       </div>
     </div>

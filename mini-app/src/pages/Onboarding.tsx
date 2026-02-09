@@ -23,8 +23,8 @@ import { Summary } from '@/components/onboarding/Summary';
 import { LaunchScreen } from '@/components/onboarding/LaunchScreen';
 
 const MODE_BADGES: Record<string, { icon: string; name: string; color: string }> = {
-  fitness: { icon: '🏋️', name: "Warrior's Training", color: 'bg-red-500/15 text-red-400' },
-  hydration: { icon: '💧', name: 'Aqua Mastery', color: 'bg-blue-500/15 text-blue-400' },
+  fitness: { icon: '🏋️', name: 'Fitness', color: 'bg-red-500/15 text-red-400' },
+  hydration: { icon: '💧', name: 'Hydration', color: 'bg-blue-500/15 text-blue-400' },
 };
 
 export function Onboarding() {
@@ -148,7 +148,14 @@ export function Onboarding() {
         return <SplashScreen onNext={() => goToStep('hero_intro')} />;
 
       case 'hero_intro':
-        return <HeroIntro progress={progress} onNext={() => goToStep('avatar')} />;
+        return (
+          <HeroIntro
+            progress={progress}
+            nickname={store.data.nickname}
+            onNicknameChange={(name) => store.updateData({ nickname: name })}
+            onNext={() => goToStep('avatar')}
+          />
+        );
 
       case 'avatar':
         return (

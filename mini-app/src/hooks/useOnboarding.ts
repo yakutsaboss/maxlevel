@@ -41,6 +41,7 @@ export type OnboardingStep =
 
 export interface OnboardingData {
   gender?: string;
+  nickname?: string;
   selected_modes?: string[];
   referral_source?: string;
   referral_source_other?: string;

@@ -7,32 +7,32 @@ import { ProgressBar } from './ui/ProgressBar';
 const MODES = [
   {
     id: 'fitness',
-    name: "Warrior's Training",
-    desc: 'Forge your body through physical quests',
+    name: 'Fitness',
+    desc: 'Workouts, body goals & daily movement',
     icon: '🏋️',
     color: 'border-red-500 bg-red-500/10',
     available: true,
   },
   {
     id: 'hydration',
-    name: 'Aqua Mastery',
-    desc: 'Master the art of hydration',
+    name: 'Hydration',
+    desc: 'Track water intake & build the habit',
     icon: '💧',
     color: 'border-blue-500 bg-blue-500/10',
     available: true,
   },
   {
     id: 'finance',
-    name: 'Gold Keeper',
-    desc: 'Guard your treasure and grow your fortune',
+    name: 'Finance',
+    desc: 'Budget tracking & saving goals',
     icon: '💰',
     color: 'border-yellow-500 bg-yellow-500/10',
     available: false,
   },
   {
     id: 'learning',
-    name: 'Loremaster',
-    desc: 'Expand your knowledge and skills',
+    name: 'Learning',
+    desc: 'New skills & daily learning habits',
     icon: '📚',
     color: 'border-green-500 bg-green-500/10',
     available: false,
@@ -69,10 +69,10 @@ export function PathSelect({ progress, value, onSelect, onNext }: PathSelectProp
           animate={{ opacity: 1, y: 0 }}
         >
           <h2 className="text-2xl font-bold text-telegram-text text-center mb-2">
-            Choose Your Path
+            What Do You Want to Improve?
           </h2>
           <p className="text-telegram-hint text-center mb-6">
-            Select the realms you wish to conquer
+            Pick the areas you want to focus on
           </p>
         </motion.div>
 

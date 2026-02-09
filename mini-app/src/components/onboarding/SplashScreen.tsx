@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Sword } from 'lucide-react';
+import { TrendingUp } from 'lucide-react';
 import { useTelegram } from '@/hooks/useTelegram';
 
 interface SplashScreenProps {
@@ -12,6 +12,35 @@ const LANGUAGES = [
   { code: 'ru', flag: '🇷🇺', label: 'Русский', available: false },
   { code: 'zh', flag: '🇨🇳', label: '中文', available: false },
 ] as const;
+
+// Falling stars that rise from below (like we're ascending)
+function RisingStars() {
+  return (
+    <div className="absolute inset-0 overflow-hidden pointer-events-none">
+      {Array.from({ length: 8 }).map((_, i) => (
+        <motion.div
+          key={i}
+          className="absolute w-1 h-1 rounded-full bg-yellow-400"
+          style={{
+            left: `${10 + Math.random() * 80}%`,
+            bottom: `-5%`,
+          }}
+          animate={{
+            y: [0, -window.innerHeight * 1.2],
+            opacity: [0, 1, 1, 0],
+            scale: [0.5, 1.5, 1, 0.3],
+          }}
+          transition={{
+            duration: 3 + Math.random() * 2,
+            delay: i * 0.6,
+            repeat: Infinity,
+            ease: 'easeOut',
+          }}
+        />
+      ))}
+    </div>
+  );
+}
 
 export function SplashScreen({ onNext }: SplashScreenProps) {
   const { haptic } = useTelegram();
@@ -30,21 +59,23 @@ export function SplashScreen({ onNext }: SplashScreenProps) {
   };
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-between py-16 px-6 bg-telegram-bg">
+    <div className="min-h-screen flex flex-col items-center justify-between py-16 px-6 bg-telegram-bg relative">
+      <RisingStars />
+
       <div />
 
       <motion.div
-        className="flex flex-col items-center"
+        className="flex flex-col items-center relative z-10"
         initial={{ opacity: 0, scale: 0.8 }}
         animate={{ opacity: 1, scale: 1 }}
         transition={{ duration: 0.6, ease: 'easeOut' }}
       >
         <motion.div
-          className="w-24 h-24 rounded-3xl bg-gradient-to-br from-purple-600 to-blue-600 flex items-center justify-center mb-8 shadow-lg"
-          animate={{ rotate: [0, 5, -5, 0] }}
-          transition={{ duration: 3, repeat: Infinity, repeatDelay: 2 }}
+          className="w-24 h-24 rounded-3xl bg-gradient-to-br from-yellow-500 to-amber-600 flex items-center justify-center mb-8 shadow-lg shadow-amber-500/30"
+          animate={{ y: [0, -6, 0] }}
+          transition={{ duration: 2.5, repeat: Infinity, ease: 'easeInOut' }}
         >
-          <Sword className="w-12 h-12 text-white" />
+          <TrendingUp className="w-12 h-12 text-white" strokeWidth={2.5} />
         </motion.div>
 
         <h1 className="text-4xl font-bold text-telegram-text text-center mb-3">
@@ -84,7 +115,7 @@ export function SplashScreen({ onNext }: SplashScreenProps) {
                   !lang.available ? 'grayscale opacity-40' : ''
                 } ${
                   selectedLang === lang.code
-                    ? 'ring-2 ring-purple-500 ring-offset-2 ring-offset-telegram-bg rounded-md'
+                    ? 'ring-2 ring-amber-500 ring-offset-2 ring-offset-telegram-bg rounded-md'
                     : ''
                 }`}
               >
@@ -98,9 +129,9 @@ export function SplashScreen({ onNext }: SplashScreenProps) {
       <motion.button
         onClick={handleStart}
         disabled={!selectedLang}
-        className={`w-full py-4 rounded-2xl text-lg font-bold shadow-lg transition-all duration-300 ${
+        className={`w-full py-4 rounded-2xl text-lg font-bold shadow-lg transition-all duration-300 relative z-10 ${
           selectedLang
-            ? 'bg-gradient-to-r from-purple-600 to-blue-600 text-white'
+            ? 'bg-gradient-to-r from-yellow-500 to-amber-600 text-white shadow-amber-500/25'
             : 'bg-gray-600/30 text-gray-500 cursor-not-allowed'
         }`}
         initial={{ opacity: 0, y: 30 }}
@@ -108,7 +139,7 @@ export function SplashScreen({ onNext }: SplashScreenProps) {
         transition={{ delay: 0.4, duration: 0.5 }}
         whileTap={selectedLang ? { scale: 0.97 } : {}}
       >
-        Begin Your Quest
+        Get Started
       </motion.button>
     </div>
   );
