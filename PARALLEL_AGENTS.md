@@ -10,6 +10,7 @@ This file is the single source of truth for running parallel Claude Code agents 
 
 ### Checklist (do in order)
 
+**Phase A — Merge & Deploy the CURRENT run:**
 1. **Check git status** — is main clean? Any uncommitted changes?
 2. **Check for leftover worktrees** — `git worktree list`. If worktrees exist from a previous run, it means agents finished but weren't merged yet.
 3. **Read the latest Run section** at the bottom of this file — check the retrospectives of each agent.
@@ -19,8 +20,16 @@ This file is the single source of truth for running parallel Claude Code agents 
 7. **Build verification**: `cd bot && npm run build` and `cd mini-app && npm run build`.
 8. **Deploy**: Push to GitHub → SSH to server → git pull → rebuild → PM2 restart.
 9. **Clean up**: Remove worktrees, delete feature branches, clear stashes.
-10. **Update this file**: Write Run retrospective, write next Run's agent tasks.
-11. **Set up next run** (if requested): Create worktrees, install deps, tell user "Ready to launch."
+
+**Phase B — Prepare the NEXT run:**
+10. **Write retrospective** for the current run (merge results, what went right, issues carried forward).
+11. **Design next run's tasks** — analyze the codebase, read the "Known Issues" and agent recommendations, and write the next Run section with full agent prompts (A, B, C + Agent 0).
+12. **Write copy-paste prompts** — at the top of the next Run section, include a "Copy-Paste Prompts" block with the exact text the user should paste into each Claude Code session.
+13. **Set up worktrees** for the next run: create branches, `git worktree add`, install deps.
+14. **Commit & push** the updated PARALLEL_AGENTS.md.
+15. **Tell the user**: "Ready to launch Run N. Here are your copy-paste prompts."
+
+**The cycle**: Each Agent 0 merges Run N, then prepares Run N+1. The user just copies the prompts and launches.
 
 ### Deploy Command
 ```bash
@@ -137,14 +146,29 @@ git branch -d feature/BRANCH-A feature/BRANCH-B feature/BRANCH-C
 
 ### How to Launch
 
-Open 4 separate Claude Code sessions:
+Open 4 separate Claude Code sessions. **Start Agent 0 FIRST** — it sets up worktrees. Only start A/B/C after Agent 0 says "Ready."
 
-- **Session 1** (working dir: `c:\Users\Asus\Desktop\Wibecode`): `Read PARALLEL_AGENTS.md — you are Agent 0 for Run 3. Do your tasks.`
-- **Session 2** (working dir: `c:\Users\Asus\Desktop\Wibecode-agent-a`): `Read PARALLEL_AGENTS.md — you are Agent A for Run 3. Do your tasks.`
-- **Session 3** (working dir: `c:\Users\Asus\Desktop\Wibecode-agent-b`): `Read PARALLEL_AGENTS.md — you are Agent B for Run 3. Do your tasks.`
-- **Session 4** (working dir: `c:\Users\Asus\Desktop\Wibecode-agent-c`): `Read PARALLEL_AGENTS.md — you are Agent C for Run 3. Do your tasks.`
+### Copy-Paste Prompts
 
-**Start Agent 0 FIRST.** It sets up worktrees and dependencies. Only start Agents A/B/C after Agent 0 says "Ready to launch."
+**Agent 0** (open in: `c:\Users\Asus\Desktop\Wibecode`):
+```
+Read PARALLEL_AGENTS.md — you are Agent 0 for Run 3. Set up worktrees and tell me when ready. After all agents finish, I'll tell you to merge.
+```
+
+**Agent A** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-a`):
+```
+Read PARALLEL_AGENTS.md — you are Agent A for Run 3. Do your tasks.
+```
+
+**Agent B** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-b`):
+```
+Read PARALLEL_AGENTS.md — you are Agent B for Run 3. Do your tasks.
+```
+
+**Agent C** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-c`):
+```
+Read PARALLEL_AGENTS.md — you are Agent C for Run 3. Do your tasks.
+```
 
 ---
 
@@ -206,6 +230,16 @@ git log main..feature/mini-app-polish --oneline
 **Post-merge:** Check `bot/src/handlers/REGISTER_THESE_RUN3.md` if it exists. Wire up any new commands.
 
 **Deploy + Clean up** (see Agent 0 Self-Protocol above).
+
+### Phase 4: Prepare Run 4
+
+After deploying Run 3, you MUST also:
+1. Write Run 3 retrospective (merge results, what worked, known issues)
+2. Design Run 4 agent tasks based on what's needed next
+3. Write copy-paste prompts for Run 4 agents
+4. Set up Run 4 worktrees
+5. Commit & push the updated PARALLEL_AGENTS.md
+6. Tell the user: "Ready to launch Run 4. Here are your copy-paste prompts."
 
 ---
 
