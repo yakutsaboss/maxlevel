@@ -7,9 +7,11 @@
  * during the onboarding flow. To add, edit, or remove a
  * question, modify the arrays below:
  *
- *   FITNESS_QUESTIONS  — 12 questions for Fitness mode
+ *   FITNESS_QUESTIONS   — 12 questions for Fitness mode
  *   HYDRATION_QUESTIONS — 7 questions for Hydration mode
- *   REFERRAL_OPTIONS   — "How did you find us?" answer choices
+ *   FINANCE_QUESTIONS   — 5 questions for Finance mode
+ *   LEARNING_QUESTIONS  — 5 questions for Learning mode
+ *   REFERRAL_OPTIONS    — "How did you find us?" answer choices
  *
  * Player answers are stored in PostgreSQL:
  *   - onboarding_state.quiz_data (JSONB) — all raw answers
@@ -352,6 +354,159 @@ export const HYDRATION_QUESTIONS: QuestionConfig[] = [
   },
 ];
 
+export const FINANCE_QUESTIONS: QuestionConfig[] = [
+  {
+    step: 'finance_goals',
+    title: 'Financial Goals',
+    subtitle: 'What do you want to achieve?',
+    type: 'multi-select',
+    dataKey: 'finance',
+    nestedKey: 'goals',
+    options: [
+      { value: 'save_more', label: 'Save More', sublabel: 'Build up savings' },
+      { value: 'reduce_debt', label: 'Reduce Debt', sublabel: 'Pay off what you owe' },
+      { value: 'invest', label: 'Start Investing', sublabel: 'Grow your money' },
+      { value: 'budget_better', label: 'Budget Better', sublabel: 'Know where money goes' },
+      { value: 'emergency_fund', label: 'Emergency Fund', sublabel: 'Safety net for surprises' },
+      { value: 'track_spending', label: 'Track Spending', sublabel: 'See your habits' },
+    ],
+  },
+  {
+    step: 'finance_income',
+    title: 'Income Level',
+    subtitle: 'What best describes your situation?',
+    type: 'single-select',
+    dataKey: 'finance',
+    nestedKey: 'income_level',
+    options: [
+      { value: 'student', label: 'Student', sublabel: 'Limited or no income' },
+      { value: 'low', label: 'Starting Out', sublabel: 'Entry-level income' },
+      { value: 'medium', label: 'Comfortable', sublabel: 'Stable income' },
+      { value: 'high', label: 'Well Off', sublabel: 'Strong income' },
+      { value: 'prefer_not_to_say', label: 'Prefer Not to Say', sublabel: 'Skip this one' },
+    ],
+  },
+  {
+    step: 'finance_spending',
+    title: 'Biggest Expenses',
+    subtitle: 'Where does most of your money go?',
+    type: 'multi-select',
+    dataKey: 'finance',
+    nestedKey: 'spending_categories',
+    options: [
+      { value: 'food', label: 'Food & Dining', sublabel: 'Groceries & restaurants' },
+      { value: 'entertainment', label: 'Entertainment', sublabel: 'Fun & going out' },
+      { value: 'shopping', label: 'Shopping', sublabel: 'Clothes & stuff' },
+      { value: 'transport', label: 'Transport', sublabel: 'Car, gas, transit' },
+      { value: 'subscriptions', label: 'Subscriptions', sublabel: 'Streaming & apps' },
+      { value: 'other', label: 'Other', sublabel: 'Rent, bills, etc.' },
+    ],
+  },
+  {
+    step: 'finance_savings_target',
+    title: 'Monthly Savings Goal',
+    subtitle: 'How much do you want to save per month?',
+    type: 'drum-roller',
+    dataKey: 'finance',
+    nestedKey: 'savings_target',
+    min: 0,
+    max: 100000,
+    defaultValue: 10000,
+    formatValue: (v) => v.toLocaleString(),
+  },
+  {
+    step: 'finance_frequency',
+    title: 'Tracking Style',
+    subtitle: 'How often do you want to review finances?',
+    type: 'single-select',
+    dataKey: 'finance',
+    nestedKey: 'tracking_frequency',
+    options: [
+      { value: 'daily_tracking', label: 'Daily', sublabel: 'Log every expense' },
+      { value: 'weekly_review', label: 'Weekly', sublabel: 'Review once a week' },
+      { value: 'monthly_only', label: 'Monthly', sublabel: 'Big picture only' },
+    ],
+  },
+];
+
+export const LEARNING_QUESTIONS: QuestionConfig[] = [
+  {
+    step: 'learning_goals',
+    title: 'Learning Goals',
+    subtitle: 'What do you want to learn?',
+    type: 'multi-select',
+    dataKey: 'learning',
+    nestedKey: 'goals',
+    options: [
+      { value: 'new_language', label: 'New Language', sublabel: 'Learn to speak another language' },
+      { value: 'programming', label: 'Programming', sublabel: 'Code & software skills' },
+      { value: 'reading', label: 'Read More', sublabel: 'Books & articles' },
+      { value: 'professional_skills', label: 'Career Skills', sublabel: 'Level up professionally' },
+      { value: 'creativity', label: 'Creativity', sublabel: 'Art, music, writing' },
+      { value: 'science', label: 'Science & Math', sublabel: 'STEM knowledge' },
+      { value: 'other', label: 'Other', sublabel: 'Something else' },
+    ],
+  },
+  {
+    step: 'learning_style',
+    title: 'Learning Style',
+    subtitle: 'How do you learn best?',
+    type: 'single-select',
+    dataKey: 'learning',
+    nestedKey: 'learning_style',
+    options: [
+      { value: 'visual', label: 'Visual', sublabel: 'Diagrams & videos', icon: '👁️' },
+      { value: 'reading', label: 'Reading', sublabel: 'Books & articles', icon: '📖' },
+      { value: 'hands_on', label: 'Hands-On', sublabel: 'Practice & projects', icon: '🛠️' },
+      { value: 'audio', label: 'Audio', sublabel: 'Podcasts & lectures', icon: '🎧' },
+      { value: 'mixed', label: 'Mixed', sublabel: 'A bit of everything', icon: '🔀' },
+    ],
+  },
+  {
+    step: 'learning_time',
+    title: 'Daily Study Time',
+    subtitle: 'How many minutes per day can you study?',
+    type: 'drum-roller',
+    dataKey: 'learning',
+    nestedKey: 'daily_minutes',
+    min: 10,
+    max: 180,
+    defaultValue: 30,
+    formatValue: (v) => {
+      if (v >= 60) {
+        const h = Math.floor(v / 60);
+        const m = v % 60;
+        return m > 0 ? `${h}h ${m}min` : `${h} hour${h > 1 ? 's' : ''}`;
+      }
+      return `${v} min`;
+    },
+  },
+  {
+    step: 'learning_days',
+    title: 'Study Days',
+    subtitle: 'Which days will you study?',
+    type: 'day-grid',
+    dataKey: 'learning',
+    nestedKey: 'study_days',
+  },
+  {
+    step: 'learning_resources',
+    title: 'Preferred Resources',
+    subtitle: 'What tools do you like to use?',
+    type: 'multi-select',
+    dataKey: 'learning',
+    nestedKey: 'resources',
+    options: [
+      { value: 'books', label: 'Books', sublabel: 'Physical or digital' },
+      { value: 'online_courses', label: 'Online Courses', sublabel: 'Coursera, Udemy, etc.' },
+      { value: 'videos', label: 'Videos', sublabel: 'YouTube & tutorials' },
+      { value: 'podcasts', label: 'Podcasts', sublabel: 'Audio learning' },
+      { value: 'practice_projects', label: 'Practice Projects', sublabel: 'Learn by doing' },
+      { value: 'tutoring', label: 'Tutoring', sublabel: 'One-on-one help' },
+    ],
+  },
+];
+
 export const REFERRAL_OPTIONS: QuestionOption[] = [
   { value: 'tiktok', label: 'TikTok' },
   { value: 'instagram', label: 'Instagram' },
@@ -363,5 +518,5 @@ export const REFERRAL_OPTIONS: QuestionOption[] = [
 ];
 
 export function getQuestionForStep(step: OnboardingStep): QuestionConfig | undefined {
-  return [...FITNESS_QUESTIONS, ...HYDRATION_QUESTIONS].find((q) => q.step === step);
+  return [...FITNESS_QUESTIONS, ...HYDRATION_QUESTIONS, ...FINANCE_QUESTIONS, ...LEARNING_QUESTIONS].find((q) => q.step === step);
 }

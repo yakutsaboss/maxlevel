@@ -126,7 +126,7 @@ export function Profile() {
         <div className="text-center">
           <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ type: 'spring', stiffness: 200 }} className="inline-block relative mb-4">
             {(() => {
-              const avatarIdx = Math.max(0, ((stats.user as any).avatar_id ?? 1) - 1);
+              const avatarIdx = Math.max(0, (stats.user.avatar_id ?? 1) - 1);
               const avatar = AVATAR_OPTIONS[avatarIdx] || AVATAR_OPTIONS[0];
               return (
                 <div className={`w-24 h-24 ${avatar.color} rounded-full flex items-center justify-center shadow-xl`}>
@@ -282,7 +282,7 @@ export function Profile() {
         onSaved={() => loadProfileData()}
         telegramId={user!.id}
         currentName={stats.user.first_name}
-        currentAvatarId={(stats.user as any).avatar_id ?? 1}
+        currentAvatarId={stats.user.avatar_id ?? 1}
         haptic={{ impact: haptic.impact, notification: haptic.notification, selection: haptic.selection }}
       />
     </div>

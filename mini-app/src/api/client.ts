@@ -142,6 +142,13 @@ class ApiClient {
     return response.data;
   }
 
+  async getWeeklyLeaderboard(limit = 50): Promise<ApiResponse<any[]>> {
+    const response = await this.client.get('/leaderboard/weekly', {
+      params: { limit },
+    });
+    return response.data;
+  }
+
   // Onboarding endpoints
   async getOnboardingState(telegramId: number): Promise<ApiResponse<{ current_step: string | null; quiz_data: Record<string, any> | null }>> {
     const response = await this.client.get(`/onboarding/${telegramId}`);

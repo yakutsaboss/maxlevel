@@ -11,6 +11,7 @@ interface LeaderboardEntry {
   first_name: string;
   level: number;
   total_xp: number;
+  weekly_xp?: number;
   current_streak: number;
   total_quests_completed: number;
   xp_rank: number;
@@ -104,7 +105,9 @@ export function Leaderboard() {
     try {
       setLoading(true);
       setError(false);
-      const response = await apiClient.getLeaderboard(50);
+      const response = timePeriod === 'weekly'
+        ? await apiClient.getWeeklyLeaderboard(50)
+        : await apiClient.getLeaderboard(50);
       if (response.success && response.data) {
         setEntries(response.data as LeaderboardEntry[]);
       }
@@ -249,8 +252,8 @@ export function Leaderboard() {
                 <div className="flex items-center gap-1.5">
                   <RankChangeIndicator rank={rank} />
                   <div className="text-right flex-shrink-0">
-                    <div className="text-sm font-bold">{entry.total_xp.toLocaleString()}</div>
-                    <div className="text-xs text-telegram-hint">XP</div>
+                    <div className="text-sm font-bold">{(timePeriod === 'weekly' && entry.weekly_xp != null ? entry.weekly_xp : entry.total_xp).toLocaleString()}</div>
+                    <div className="text-xs text-telegram-hint">{timePeriod === 'weekly' ? 'Weekly XP' : 'XP'}</div>
                   </div>
                 </div>
               </motion.div>

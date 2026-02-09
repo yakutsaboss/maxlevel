@@ -11,6 +11,7 @@ export interface User {
   total_quests_completed: number;
   current_streak: number;
   longest_streak: number;
+  avatar_id?: number;
   created_at: string;
 }
 

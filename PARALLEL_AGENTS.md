@@ -1753,3 +1753,41 @@ Add your retrospective to PARALLEL_AGENTS.md at the bottom under "Run 5 Retrospe
 2. **Consider adding integration tests** — all current tests mock DB and Python tools. A small set of tests with real DB would catch schema mismatches.
 3. **The `completeModeSelection` function has a 1s real `setTimeout`** — consider wrapping it in a utility for easier testing (or always use fake timers in that test).
 4. **Python tests unchanged** at 172 — no new Python tools were added in Runs 3-5 that needed testing.
+
+### Agent A Retrospective (Run 5 — Onboarding: Finance & Learning Modes)
+
+**Branch:** `feature/onboarding-modes`
+**Build:** `mini-app` builds clean (0 errors, 0 warnings).
+
+| # | Task | Status | Commits |
+|---|------|--------|---------|
+| 1 | Add avatar_id to User type + remove as any casts | Done | `0c54c69` |
+| 2 | Create Finance quiz questions (5 questions) | Done | `c270616` |
+| 3 | Create Learning quiz questions (5 questions) | Done | `c270616` (same commit as Task 2) |
+| 4 | Wire new modes into onboarding flow | Done | `9d98572` |
+| 5 | Unlock Finance & Learning in PathSelect + Summary sections | Done | `1a7bf9c` |
+| 6 | Connect Leaderboard to weekly endpoint | Done | `ae509ea` |
+
+**Files Modified:**
+- `mini-app/src/types/index.ts` — added `avatar_id?: number` to User interface
+- `mini-app/src/pages/Profile.tsx` — removed 2 `as any` casts for avatar_id
+- `mini-app/src/data/onboardingQuestions.ts` — added `FINANCE_QUESTIONS` (5) and `LEARNING_QUESTIONS` (5), updated `getQuestionForStep()` and file header
+- `mini-app/src/hooks/useOnboarding.ts` — added 10 finance/learning step names to `OnboardingStep`, added `finance` and `learning` to `OnboardingData`, updated `buildStepSequence()`
+- `mini-app/src/pages/Onboarding.tsx` — added finance/learning to `MODE_BADGES` and `getModeBadge()`
+- `mini-app/src/components/onboarding/PathSelect.tsx` — changed `available: false` to `available: true` for finance and learning
+- `mini-app/src/components/onboarding/Summary.tsx` — added `financeSummary()` and `learningSummary()` functions + summary section cards
+- `mini-app/src/api/client.ts` — added `getWeeklyLeaderboard()` method
+- `mini-app/src/pages/Leaderboard.tsx` — added `weekly_xp` to interface, weekly tab now calls `/leaderboard/weekly`, shows weekly XP label
+
+**Notes for Agent 0:**
+- Finance questions: goals (multi), income (single), spending (multi), savings target (drum-roller 0-100000), tracking frequency (single)
+- Learning questions: goals (multi), learning style (single), daily time (drum-roller 10-180 min), study days (day-grid), resources (multi)
+- Summary.tsx already had `MODE_INFO` entries for finance/learning from Run 2, so no change needed there
+- The `getWeeklyLeaderboard()` method in client.ts was added under GRAY AREA permission (Task 6 explicitly allowed it)
+- QuizScreen.tsx (LOCKED) required zero changes — the generic renderer works perfectly for all new question types
+
+**Recommendations for Run 6:**
+1. Add image-based avatars instead of Lucide icon placeholders
+2. Settings timezone input could use a searchable dropdown
+3. Consider adding conditional questions for Finance (e.g., show debt-related questions only if `reduce_debt` is selected)
+4. The Learning `day-grid` requires `workout_frequency` for validation — may need a separate validation path for non-fitness day grids

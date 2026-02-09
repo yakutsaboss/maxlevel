@@ -25,6 +25,8 @@ import { LaunchScreen } from '@/components/onboarding/LaunchScreen';
 const MODE_BADGES: Record<string, { icon: string; name: string; color: string }> = {
   fitness: { icon: '🏋️', name: 'Fitness', color: 'bg-red-500/15 text-red-400' },
   hydration: { icon: '💧', name: 'Hydration', color: 'bg-blue-500/15 text-blue-400' },
+  finance: { icon: '💰', name: 'Finance', color: 'bg-yellow-500/15 text-yellow-400' },
+  learning: { icon: '📚', name: 'Learning', color: 'bg-green-500/15 text-green-400' },
 };
 
 export function Onboarding() {
@@ -119,6 +121,8 @@ export function Onboarding() {
   const getModeBadge = (step: OnboardingStep) => {
     if (step.startsWith('fitness_')) return MODE_BADGES.fitness;
     if (step.startsWith('hydration_')) return MODE_BADGES.hydration;
+    if (step.startsWith('finance_')) return MODE_BADGES.finance;
+    if (step.startsWith('learning_')) return MODE_BADGES.learning;
     return undefined;
   };
 

@@ -32,6 +32,18 @@ export type OnboardingStep =
   | 'hydration_schedule'
   | 'hydration_vessel'
   | 'hydration_barriers'
+  // Finance
+  | 'finance_goals'
+  | 'finance_income'
+  | 'finance_spending'
+  | 'finance_savings_target'
+  | 'finance_frequency'
+  // Learning
+  | 'learning_goals'
+  | 'learning_style'
+  | 'learning_time'
+  | 'learning_days'
+  | 'learning_resources'
   // Convergence
   | 'punishments'
   | 'notifications'
@@ -72,6 +84,24 @@ export interface OnboardingData {
     sleep_time?: string;
     container?: string;
     barriers?: string[];
+  };
+
+  // Finance quiz responses
+  finance?: {
+    goals?: string[];
+    income_level?: string;
+    spending_categories?: string[];
+    savings_target?: number;
+    tracking_frequency?: string;
+  };
+
+  // Learning quiz responses
+  learning?: {
+    goals?: string[];
+    learning_style?: string;
+    daily_minutes?: number;
+    study_days?: string[];
+    resources?: string[];
   };
 
   // Pain points
@@ -158,6 +188,26 @@ function buildStepSequence(selectedModes: string[]): OnboardingStep[] {
       'hydration_schedule',
       'hydration_vessel',
       'hydration_barriers'
+    );
+  }
+
+  if (selectedModes.includes('finance')) {
+    steps.push(
+      'finance_goals',
+      'finance_income',
+      'finance_spending',
+      'finance_savings_target',
+      'finance_frequency'
+    );
+  }
+
+  if (selectedModes.includes('learning')) {
+    steps.push(
+      'learning_goals',
+      'learning_style',
+      'learning_time',
+      'learning_days',
+      'learning_resources'
     );
   }
 

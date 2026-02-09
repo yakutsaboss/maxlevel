@@ -53,6 +53,24 @@ export function Summary({ progress, data, onEdit, onNext }: SummaryProps) {
     return parts.join(' | ');
   };
 
+  const financeSummary = () => {
+    const f = data.finance;
+    if (!f) return null;
+    const parts: string[] = [];
+    if (f.goals?.length) parts.push(f.goals.slice(0, 3).join(', '));
+    if (f.tracking_frequency) parts.push(f.tracking_frequency.replace('_', ' '));
+    return parts.join(' | ');
+  };
+
+  const learningSummary = () => {
+    const l = data.learning;
+    if (!l) return null;
+    const parts: string[] = [];
+    if (l.goals?.length) parts.push(l.goals.slice(0, 3).join(', '));
+    if (l.daily_minutes) parts.push(`${l.daily_minutes} min/day`);
+    return parts.join(' | ');
+  };
+
   return (
     <div className="min-h-screen flex flex-col bg-telegram-bg">
       <ProgressBar progress={progress} />
@@ -118,8 +136,22 @@ export function Summary({ progress, data, onEdit, onNext }: SummaryProps) {
           </SectionCard>
         )}
 
+        {/* Finance summary */}
+        {data.selected_modes?.includes('finance') && (
+          <SectionCard title="Finance" onEdit={() => onEdit('finance_goals')} delay={0.3}>
+            <p className="text-sm text-telegram-hint">{financeSummary()}</p>
+          </SectionCard>
+        )}
+
+        {/* Learning summary */}
+        {data.selected_modes?.includes('learning') && (
+          <SectionCard title="Learning" onEdit={() => onEdit('learning_goals')} delay={0.35}>
+            <p className="text-sm text-telegram-hint">{learningSummary()}</p>
+          </SectionCard>
+        )}
+
         {/* Accountability */}
-        <SectionCard title="Accountability" onEdit={() => onEdit('punishments')} delay={0.3}>
+        <SectionCard title="Accountability" onEdit={() => onEdit('punishments')} delay={0.4}>
           <p className="text-sm text-telegram-hint">
             {data.punishments?.consent_given
               ? `Enabled (${data.punishments.intensity_level || 'low'} intensity)`
@@ -128,7 +160,7 @@ export function Summary({ progress, data, onEdit, onNext }: SummaryProps) {
         </SectionCard>
 
         {/* Notifications */}
-        <SectionCard title="Notifications" onEdit={() => onEdit('notifications')} delay={0.35}>
+        <SectionCard title="Notifications" onEdit={() => onEdit('notifications')} delay={0.45}>
           <p className="text-sm text-telegram-hint">
             {(() => {
               const n = data.notification_preferences;
