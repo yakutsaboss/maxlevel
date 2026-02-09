@@ -1,21 +1,24 @@
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
+import { lazy, useEffect, useState } from 'react';
 import { Dashboard } from '@/pages/Dashboard';
 import { Quests } from '@/pages/Quests';
 import { Profile } from '@/pages/Profile';
-import { Leaderboard } from '@/pages/Leaderboard';
-import { Settings } from '@/pages/Settings';
-import { Achievements } from '@/pages/Achievements';
 import { Onboarding } from '@/pages/Onboarding';
-import { Admin } from '@/pages/Admin';
 import { Navigation } from '@/components/Navigation';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
+import { LazyPageWrapper } from '@/components/LazyPageWrapper';
 import { useTelegram } from '@/hooks/useTelegram';
 import { useOnboarding } from '@/hooks/useOnboarding';
 import { apiClient } from '@/api/client';
-import { useEffect, useState } from 'react';
 import type { OnboardingStep } from '@/hooks/useOnboarding';
+
+// Lazy-loaded pages (non-critical path)
+const Admin = lazy(() => import('@/pages/Admin').then(m => ({ default: m.Admin })));
+const Achievements = lazy(() => import('@/pages/Achievements').then(m => ({ default: m.Achievements })));
+const Leaderboard = lazy(() => import('@/pages/Leaderboard').then(m => ({ default: m.Leaderboard })));
+const Settings = lazy(() => import('@/pages/Settings').then(m => ({ default: m.Settings })));
 
 function PageWrapper({ children }: { children: React.ReactNode }) {
   return (
@@ -118,17 +121,17 @@ function AppContent() {
         />
         <Route
           path="/leaderboard"
-          element={needsOnboarding ? <Navigate to="/onboarding" replace /> : <PageWrapper><Leaderboard /></PageWrapper>}
+          element={needsOnboarding ? <Navigate to="/onboarding" replace /> : <LazyPageWrapper><PageWrapper><Leaderboard /></PageWrapper></LazyPageWrapper>}
         />
         <Route
           path="/achievements"
-          element={needsOnboarding ? <Navigate to="/onboarding" replace /> : <PageWrapper><Achievements /></PageWrapper>}
+          element={needsOnboarding ? <Navigate to="/onboarding" replace /> : <LazyPageWrapper><PageWrapper><Achievements /></PageWrapper></LazyPageWrapper>}
         />
         <Route
           path="/settings"
-          element={needsOnboarding ? <Navigate to="/onboarding" replace /> : <PageWrapper><Settings /></PageWrapper>}
+          element={needsOnboarding ? <Navigate to="/onboarding" replace /> : <LazyPageWrapper><PageWrapper><Settings /></PageWrapper></LazyPageWrapper>}
         />
-        <Route path="/admin" element={<Admin />} />
+        <Route path="/admin" element={<LazyPageWrapper><Admin /></LazyPageWrapper>} />
       </Routes>
       {showNavigation && <Navigation />}
     </div>
