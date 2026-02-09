@@ -573,3 +573,28 @@ Add your retrospective to PARALLEL_AGENTS.md at the bottom under "Run 3 Retrospe
 ## Run 3 Retrospectives
 
 *(Agents: add your retrospective sections below this line when you finish)*
+
+### Agent C — Quality Fixes & Test Improvements
+
+**Completed Tasks:**
+
+| # | Task | Status | Tests Added/Fixed |
+|---|------|--------|-------------------|
+| 1 | Fix pre-existing TypeScript test failures | Done | Fixed 6 failures (users 3 + dailyQuestReset 1 + onboarding 1 + questReminders 1) |
+| 2 | Add tests for quest progress endpoint | Done | 6 new tests |
+| 3 | Add tests for user preferences endpoint | Done | 9 new tests |
+| 4 | Add tests for leaderboard handler | Done | 6 new tests (new file) |
+| 5 | Improve CI pipeline | Done | Push trigger, pip cache, test summary PR comments, proper failure reporting |
+| 6 | Run ALL tests and verify | Done | 140 TS + 172 Python = 312 total, 0 failures |
+
+**Final Test Counts:** 140 TypeScript (up from 114), 172 Python (unchanged) = 312 total
+
+**Problems Faced:**
+1. **Root cause of ALL mock-leak failures**: `vi.clearAllMocks()` does NOT reset queued `.mockResolvedValueOnce()` values — only `vi.resetAllMocks()` does. This single issue caused failures in `users.test.ts` (3), `onboarding.test.ts` (1), and `questReminders.test.ts` (rate limit test was affected indirectly). Fixed by replacing `clearAllMocks` with `resetAllMocks` in 4 test files.
+2. **dailyQuestReset unhandled rejection**: The `expect(promise).rejects` handler must be attached BEFORE `vi.runAllTimersAsync()` — otherwise the rejection fires with no handler, causing an unhandled rejection warning.
+3. **questReminders 429 test timeout**: `retry_after: 0` is falsy, so `err.parameters?.retry_after || 5` defaults to 5s. Without fake timers, this causes a 5s real delay → test timeout. Fixed by using `vi.useFakeTimers()` scoped to that test.
+
+**Recommendations for Next Run:**
+1. **Source code bug**: `questReminders.ts:70` — `|| 5` should be `?? 5` for `retry_after` (0 is a valid value meaning "retry immediately"). Agent B should fix this in a future run.
+2. **Standardize mock resets**: All test files should use `vi.resetAllMocks()` in `beforeEach`, not `vi.clearAllMocks()`. Consider adding a shared setup in `vitest.config.ts` (`mockReset: true`).
+3. **Test coverage gaps**: No tests yet for `/start` handler, `/settings` handler, `/modes` handler, or the API server integration. These would be good candidates for Run 4.
