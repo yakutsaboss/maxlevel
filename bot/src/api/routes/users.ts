@@ -120,7 +120,7 @@ router.get('/:telegramId/stats', authenticateTelegram, async (req: Request, res:
     const recentAchievementsRows = await query(
       `SELECT ua.user_id, ua.achievement_id, ua.unlocked_at,
               a.name, a.description, a.badge_icon AS icon, a.xp_bonus AS xp_reward,
-              a.rarity AS category
+              a.rarity, COALESCE(a.criteria->>'mode', 'general') AS category
        FROM user_achievements ua
        JOIN achievements a ON ua.achievement_id = a.id
        WHERE ua.user_id = $1
@@ -176,7 +176,8 @@ router.get('/:telegramId/stats', authenticateTelegram, async (req: Request, res:
         description: row.description,
         icon: row.icon || '🏆',
         xp_reward: row.xp_reward,
-        category: row.category,
+        rarity: row.rarity,
+        category: row.category || '',
       },
     }));
 
@@ -326,7 +327,7 @@ router.get('/:telegramId/achievements', authenticateTelegram, async (req: Reques
     const rows = await query(
       `SELECT ua.user_id, ua.achievement_id, ua.unlocked_at,
               a.name, a.description, a.badge_icon AS icon, a.xp_bonus AS xp_reward,
-              a.rarity AS category
+              a.rarity, COALESCE(a.criteria->>'mode', 'general') AS category
        FROM user_achievements ua
        JOIN achievements a ON ua.achievement_id = a.id
        WHERE ua.user_id = (SELECT id FROM users WHERE telegram_id = $1)
@@ -344,10 +345,8 @@ router.get('/:telegramId/achievements', authenticateTelegram, async (req: Reques
         description: row.description,
         icon: row.icon || '🏆',
         xp_reward: row.xp_reward,
-        category: row.category,
-        requirement_type: '',
-        requirement_value: 0,
-        is_hidden: false,
+        rarity: row.rarity,
+        category: row.category || '',
       },
     }));
 
