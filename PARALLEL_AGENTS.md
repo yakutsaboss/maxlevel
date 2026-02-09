@@ -3288,3 +3288,24 @@ Add your retrospective to PARALLEL_AGENTS.md at the bottom under "Run 8 Retrospe
 1. `27d2b9d` — Add HTTP integration tests for quests routes
 2. `ddb8350` — Add HTTP integration tests for modes routes
 3. `99d3439` — Add HTTP integration tests for leaderboard routes
+
+### Agent C Retrospective (Run 8) — Test Infrastructure & Admin HTTP Tests
+
+**Tasks completed:** 5/5
+- Enhanced `mockResponse()` with `setHeader()`/`getHeader()` — backward compatible
+- Refactored `adminAuth.test.ts` to drop local `mockAdminResponse()` in favor of shared helper (13 tests pass)
+- Created `admin.http.test.ts` with 13 HTTP integration tests covering stats, users, jobs, and broadcast sub-routers
+- Created `onboarding.http.test.ts` with 11 HTTP integration tests covering GET state, PUT save, POST complete, and error cases
+- All tests green on first run: 341 TypeScript + 172 Python = 513 total, 0 failures
+
+**What went well:**
+- Reading existing HTTP test patterns (`users.http.test.ts`, `achievements.http.test.ts`) first made writing new tests fast and consistent
+- The shared `testApp.ts` + supertest pattern is clean and works well for integration tests
+- Note: onboarding route uses `PUT` (not `POST /save` as task spec suggested) — tested the actual route
+
+**Observations:**
+- The `broadcast` endpoint returns 501 (not implemented) — test verifies this correctly
+- Admin auth middleware calls `res.setHeader('WWW-Authenticate', ...)` which was the original reason `mockResponse()` needed enhancement
+- The 3 admin sub-routers (stats, users, jobs) split cleanly for testing since they have different mock dependencies
+
+**Test count delta:** +24 TypeScript tests (13 admin + 11 onboarding)

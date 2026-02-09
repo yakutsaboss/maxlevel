@@ -24,10 +24,12 @@ export function mockRequest(overrides: Partial<Request> = {}): Request {
 export function mockResponse(): Response & {
   _status: number;
   _json: any;
+  _headers: Record<string, string>;
 } {
   const res: any = {
     _status: 200,
     _json: null,
+    _headers: {} as Record<string, string>,
     status(code: number) {
       res._status = code;
       return res;
@@ -39,6 +41,13 @@ export function mockResponse(): Response & {
     send(body: any) {
       res._json = body;
       return res;
+    },
+    setHeader(key: string, value: string) {
+      res._headers[key] = value;
+      return res;
+    },
+    getHeader(key: string): string | undefined {
+      return res._headers[key];
     },
   };
   return res;
