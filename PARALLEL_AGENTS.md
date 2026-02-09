@@ -3838,15 +3838,15 @@ Add your retrospective to PARALLEL_AGENTS.md at the bottom under "Run 9 Retrospe
 
 ---
 
-## RUN 10: Parallel Agents (3 Agents + Agent 0)
+## RUN 10: Parallel Agents (4 Agents + Agent 0)
 
-### Focus: Admin Dashboard Completion, Daily Check-In Feature & Performance
+### Focus: Admin Dashboard Completion, Daily Check-In, Performance & Punishment Redesign
 
-Run 10 completes the admin dashboard (logs + jobs tabs), adds a daily check-in feature with backend API, and implements route-based lazy loading for the mini-app.
+Run 10 completes the admin dashboard (logs + jobs tabs), adds a daily check-in feature with backend API, implements route-based lazy loading for the mini-app, and redesigns the punishment system with real punishment type choices (workout/book/money) and difficulty levels.
 
 ### How to Launch
 
-Open 4 separate Claude Code sessions. **Start Agent 0 FIRST** — it sets up worktrees. Only start A/B/C after Agent 0 says "Ready."
+Open 5 separate Claude Code sessions. **Start Agent 0 FIRST** — it sets up worktrees. Only start A/B/C/D after Agent 0 says "Ready."
 
 ### Copy-Paste Prompts
 
@@ -3870,6 +3870,11 @@ Read PARALLEL_AGENTS.md — you are Agent B for Run 10. Do your tasks.
 Read PARALLEL_AGENTS.md — you are Agent C for Run 10. Do your tasks.
 ```
 
+**Agent D** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-d`):
+```
+Read PARALLEL_AGENTS.md — you are Agent D for Run 10. Do your tasks.
+```
+
 ---
 
 ## Agent 0 — Orchestrator (Run 10)
@@ -3891,9 +3896,11 @@ git log --oneline -3
 git branch feature/admin-complete 2>/dev/null
 git branch feature/checkin-api 2>/dev/null
 git branch feature/miniapp-perf 2>/dev/null
+git branch feature/punishment-redesign 2>/dev/null
 git worktree add ../Wibecode-agent-a feature/admin-complete
 git worktree add ../Wibecode-agent-b feature/checkin-api
 git worktree add ../Wibecode-agent-c feature/miniapp-perf
+git worktree add ../Wibecode-agent-d feature/punishment-redesign
 ```
 
 **Step 3: Install dependencies**
@@ -3901,6 +3908,7 @@ git worktree add ../Wibecode-agent-c feature/miniapp-perf
 cd ../Wibecode-agent-a/mini-app && npm install
 cd ../../Wibecode-agent-b/bot && npm install
 cd ../../Wibecode-agent-c/mini-app && npm install
+cd ../../Wibecode-agent-d/mini-app && npm install
 ```
 
 **Step 4: Verify worktrees**
@@ -3919,12 +3927,14 @@ git worktree list
 git log main..feature/checkin-api --oneline
 git log main..feature/admin-complete --oneline
 git log main..feature/miniapp-perf --oneline
+git log main..feature/punishment-redesign --oneline
 ```
 
 **Merge order:**
 1. `git merge feature/checkin-api --no-edit` → verify `cd bot && npm run build`
-2. `git merge feature/admin-complete --no-edit` → verify `cd mini-app && npm run build`
-3. `git merge feature/miniapp-perf --no-edit` → verify `cd mini-app && npm run build`
+2. `git merge feature/punishment-redesign --no-edit` → verify `cd mini-app && npm run build`
+3. `git merge feature/admin-complete --no-edit` → verify `cd mini-app && npm run build`
+4. `git merge feature/miniapp-perf --no-edit` → verify `cd mini-app && npm run build`
 
 **Deploy + Clean up** (see Agent 0 Self-Protocol above).
 
@@ -4121,34 +4131,152 @@ Add your retrospective to PARALLEL_AGENTS.md at the bottom under "Run 10 Retrosp
 
 ---
 
+## Agent D — Punishment System Redesign (Run 10)
+
+**You are Agent D.** You redesign the punishment system so users choose a real-world punishment TYPE and DIFFICULTY during onboarding.
+
+**Working directory:** `c:\Users\Asus\Desktop\Wibecode-agent-d` (branch `feature/punishment-redesign`)
+
+**YOUR files (ONLY edit these):**
+- `mini-app/src/components/onboarding/PunishmentConfig.tsx` — FULL REWRITE
+- `mini-app/src/hooks/useOnboarding.ts` — update punishment data types
+- `mini-app/src/components/onboarding/Summary.tsx` — show punishment choice in summary
+- `mini-app/src/index.css` — add punishment-related styles if needed
+
+**DO NOT edit:** `mini-app/src/App.tsx`, `mini-app/src/api/client.ts`, `mini-app/src/types/index.ts`, `mini-app/src/pages/`, `mini-app/src/components/Admin*.tsx`, `mini-app/src/components/onboarding/QuizScreen.tsx`, `bot/`, `tools/`, `database/schema.sql`
+
+### CONTEXT
+
+**Current punishment system (PunishmentConfig.tsx):**
+- Toggle: Enable accountability (yes/no)
+- Intensity picker: Gentle / Moderate / Strict / No Mercy
+- Custom penalty text input (free text)
+- Safe mode toggle
+
+**The problem:** This is too abstract. "Intensity: strict" doesn't mean anything concrete. Users need to pick REAL punishments they'll actually do.
+
+**Database schema (`punishment_settings` table):**
+- `consent_given` BOOLEAN
+- `intensity_level` VARCHAR(20) — reuse this for difficulty
+- `safe_mode` BOOLEAN
+- `custom_punishments` JSONB — store the structured choices here
+- `max_xp_penalty` INTEGER, `max_streak_reset` INTEGER
+
+**What the user wants:**
+1. User picks a **punishment TYPE**: Workout, Book, or Money
+2. User picks a **difficulty level** for that type
+3. Each type has different difficulty options
+
+### TASKS (do in order, commit after each)
+
+**Task 1: Update punishment data types in useOnboarding.ts**
+- Read `mini-app/src/hooks/useOnboarding.ts` — find the `punishments` type (around line 115)
+- Update the punishment data shape to support:
+  ```ts
+  punishments?: {
+    consent_given: boolean;
+    punishment_type: 'workout' | 'book' | 'money' | null;  // NEW
+    difficulty: 'easy' | 'medium' | 'hard' | 'extreme';     // replaces intensity_level
+    safe_mode: boolean;
+    // workout difficulties: 20 pushups / 50 pushups / 100 pushups / 200 pushups
+    // book difficulties: read 10 pages / 30 pages / 50 pages / 100 pages
+    // money difficulties: donate $1 / $5 / $10 / $25 to charity
+    custom_punishments?: Record<string, string[]>;
+  }
+  ```
+- Keep backward compatibility — the `intensity_level` field maps to `difficulty` on the backend
+- Commit: "Update punishment data types with type and difficulty fields"
+
+**Task 2: Redesign PunishmentConfig.tsx — Step 1: Punishment Type Selection**
+- REWRITE `PunishmentConfig.tsx` with a new 2-step flow
+- **Step 1**: After enabling accountability, show 3 big cards for punishment type:
+  - **Workout** 💪 — "Missed a task? Drop and give me pushups!"
+    - Icon/emoji: 💪
+    - Color: orange/amber theme
+  - **Book** 📖 — "Skipped your goal? Time to read."
+    - Icon/emoji: 📖
+    - Color: blue/indigo theme
+  - **Money** 💸 — "Failed today? Donate to a good cause."
+    - Icon/emoji: 💸
+    - Color: green/emerald theme
+- Cards should be large, visually distinct, with haptic feedback on tap
+- User taps one card to select → it highlights with a border/glow effect
+- "Next" button appears once a type is selected
+- Commit: "Add punishment type selection (workout/book/money)"
+
+**Task 3: PunishmentConfig.tsx — Step 2: Difficulty Selection**
+- After selecting type, show **Step 2**: difficulty picker specific to that type
+- **Workout difficulties:**
+  - Easy: 20 pushups 🟢
+  - Medium: 50 pushups 🟡
+  - Hard: 100 pushups 🟠
+  - Extreme: 200 pushups + 1 min plank 🔴
+- **Book difficulties:**
+  - Easy: Read 10 pages 🟢
+  - Medium: Read 30 pages 🟡
+  - Hard: Read 50 pages 🟠
+  - Extreme: Read 100 pages 🔴
+- **Money difficulties:**
+  - Easy: Donate $1 🟢
+  - Medium: Donate $5 🟡
+  - Hard: Donate $10 🟠
+  - Extreme: Donate $25 🔴
+- Show difficulties as horizontal cards with color indicators
+- Keep the Safe Mode toggle at the bottom
+- "Enable & Continue" button saves and advances
+- Store both `punishment_type` and `difficulty` in the onboarding data via `onUpdate()`
+- Commit: "Add difficulty selection per punishment type"
+
+**Task 4: Update Summary.tsx to show punishment choices**
+- Read `mini-app/src/components/onboarding/Summary.tsx`
+- Find where punishment info is displayed in the summary
+- Show: punishment type name + emoji, difficulty level, safe mode status
+- Example: "💪 Workout — Hard (100 pushups), Safe Mode ON"
+- If punishment is disabled: "No accountability enabled"
+- Commit: "Show punishment type and difficulty in onboarding summary"
+
+**Task 5: Build verification**
+- Run `cd mini-app && npm run build`
+- Fix any TypeScript errors
+- Commit only if fixes were needed
+
+### RETROSPECTIVE (DO THIS LAST)
+Add your retrospective to PARALLEL_AGENTS.md at the bottom under "Run 10 Retrospectives".
+
+---
+
 ## Run 10 File Ownership Matrix
 
-| File/Directory | Agent A | Agent B | Agent C | Nobody |
-|---|---|---|---|---|
-| mini-app/src/pages/Admin.tsx | OWNS | - | - | - |
-| mini-app/src/components/AdminLogs.tsx (NEW) | OWNS | - | - | - |
-| mini-app/src/components/AdminJobs.tsx (NEW) | OWNS | - | - | - |
-| mini-app/src/components/AdminBroadcast.tsx | OWNS | - | - | - |
-| mini-app/src/index.css | OWNS | - | - | - |
-| bot/src/api/routes/checkins.ts (NEW) | - | OWNS | - | - |
-| bot/src/api/server.ts | - | OWNS (add route only) | - | - |
-| bot/src/__tests__/routes/http/checkins.http.test.ts (NEW) | - | OWNS | - | - |
-| mini-app/src/App.tsx | - | - | OWNS | - |
-| mini-app/src/components/LazyPageWrapper.tsx (NEW) | - | - | OWNS | - |
-| mini-app/src/pages/Dashboard.tsx | - | - | OWNS | - |
-| mini-app/vite.config.ts | - | - | OWNS | - |
-| mini-app/src/api/client.ts | - | - | - | LOCKED |
-| mini-app/src/types/index.ts | - | - | - | LOCKED |
-| bot/src/bot.ts | - | - | - | LOCKED |
-| bot/src/config.ts | - | - | - | LOCKED |
-| bot/src/utils/ | - | - | - | LOCKED |
-| .env | - | - | - | LOCKED |
+| File/Directory | Agent A | Agent B | Agent C | Agent D | Nobody |
+|---|---|---|---|---|---|
+| mini-app/src/pages/Admin.tsx | OWNS | - | - | - | - |
+| mini-app/src/components/AdminLogs.tsx (NEW) | OWNS | - | - | - | - |
+| mini-app/src/components/AdminJobs.tsx (NEW) | OWNS | - | - | - | - |
+| mini-app/src/components/AdminBroadcast.tsx | OWNS | - | - | - | - |
+| mini-app/src/index.css | OWNS | - | - | OWNS | - |
+| bot/src/api/routes/checkins.ts (NEW) | - | OWNS | - | - | - |
+| bot/src/api/server.ts | - | OWNS (add route only) | - | - | - |
+| bot/src/__tests__/routes/http/checkins.http.test.ts (NEW) | - | OWNS | - | - | - |
+| mini-app/src/App.tsx | - | - | OWNS | - | - |
+| mini-app/src/components/LazyPageWrapper.tsx (NEW) | - | - | OWNS | - | - |
+| mini-app/src/pages/Dashboard.tsx | - | - | OWNS | - | - |
+| mini-app/vite.config.ts | - | - | OWNS | - | - |
+| mini-app/src/components/onboarding/PunishmentConfig.tsx | - | - | - | OWNS | - |
+| mini-app/src/hooks/useOnboarding.ts | - | - | - | OWNS | - |
+| mini-app/src/components/onboarding/Summary.tsx | - | - | - | OWNS | - |
+| mini-app/src/api/client.ts | - | - | - | - | LOCKED |
+| mini-app/src/types/index.ts | - | - | - | - | LOCKED |
+| bot/src/bot.ts | - | - | - | - | LOCKED |
+| bot/src/config.ts | - | - | - | - | LOCKED |
+| bot/src/utils/ | - | - | - | - | LOCKED |
+| .env | - | - | - | - | LOCKED |
 
 ## Run 10 Merge Order
 
 1. **Agent B first** — Check-in API (new route, touches server.ts)
-2. **Agent A second** — Admin dashboard completion (mini-app only, independent)
-3. **Agent C last** — Lazy loading + perf (touches App.tsx, may conflict with Admin route)
+2. **Agent D second** — Punishment redesign (onboarding components, independent of others)
+3. **Agent A third** — Admin dashboard completion (mini-app Admin page, independent)
+4. **Agent C last** — Lazy loading + perf (touches App.tsx, may conflict with Admin route)
 
 ---
 
