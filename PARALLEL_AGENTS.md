@@ -2880,3 +2880,388 @@ Add your retrospective to PARALLEL_AGENTS.md at the bottom under "Run 7 Retrospe
 - Task 3 (retry buttons) was a no-op — all error states already had retry functionality from Run 6's work. The consistent error pattern across pages made this straightforward to verify.
 - The ErrorBoundary is created but not wired into App.tsx (which is LOCKED for Agent A). It should be wrapped around routes in App.tsx during merge.
 - The achievement glow uses pure CSS animation (no framer-motion dependency for this effect) keeping it lightweight.
+
+### Agent 0 Retrospective (Run 7 — Orchestrator)
+
+**Merge results:** All 3 agents merged successfully. 2 conflicts (both PARALLEL_AGENTS.md retrospectives — expected). Fast-forward for Agent B, merge commits for C and A. Post-merge integration: wired ErrorBoundary into App.tsx (Agent A couldn't touch LOCKED file).
+
+**What was delivered:**
+
+| Agent | Commits | Tests Added | Key Deliverables |
+|-------|---------|-------------|------------------|
+| A | 3 | 0 (mini-app) | 24-hour reminder picker, ErrorBoundary component, achievement NEW badge with glow |
+| B | 6 | 0 (backend) | Mode-aware achievement checking (6 criteria types), categories endpoint, mode-filtered leaderboard, admin split into 3 files |
+| C | 4 | +35 TS | HTTP test infrastructure (supertest + testApp helper), user HTTP tests (12), achievements HTTP tests (10), admin auth middleware tests (13) |
+| 0 | 1 | 0 | Wired ErrorBoundary into App.tsx |
+| **Total** | **14** | **+35** | **489 total tests (317 TS + 172 Python)** |
+
+**Run 7 Known Issues resolved:**
+1. Mode-aware achievement checking → DONE (6 criteria types with mode filtering)
+2. Achievements categories endpoint → DONE (`GET /api/achievements/categories`)
+3. Pre-existing test failures → DONE (all 317 TS tests pass)
+4. HTTP integration tests → PARTIALLY DONE (users + achievements, infrastructure set up)
+5. Admin route refactor → DONE (split to admin-stats, admin-users, admin-jobs)
+6. Learning day-grid validation → STILL OPEN (uses `workout_frequency`)
+7. Mini-app reminder times → DONE (24-hour picker)
+8. Error boundaries → DONE (ErrorBoundary created + wired into App.tsx)
+
+**Issues carried forward to Run 8:**
+1. **Learning day-grid validation** — QuizScreen.tsx line 311 uses `data.fitness?.workout_frequency` for non-fitness modes
+2. **Missing HTTP integration tests** — quests, modes, leaderboard, admin (refactored), onboarding routes lack HTTP tests
+3. **Shared mockResponse() missing `setHeader()`** — middleware tests need local workarounds
+4. **Python test count unchanged** at 172 — no new Python tools tested since Run 5
+
+---
+
+### Known Issues for Run 8
+1. **Learning day-grid validation uses `workout_frequency`** — fitness-specific field used for Learning/Finance mode onboarding
+2. **Missing HTTP integration tests** — 5 route files (quests, modes, leaderboard, admin, onboarding) lack HTTP-level tests
+3. **Shared `mockResponse()` incomplete** — missing `setHeader()`, forces duplicate helpers in test files
+4. **Python test count stagnant** — 172 tests, no growth in 3 runs
+5. **No conditional onboarding questions** — Finance quiz shows all questions regardless of user goals
+6. **Image-based avatars missing** — using Lucide icons as placeholders
+
+---
+
+## RUN 8: Parallel Agents (3 Agents + Agent 0)
+
+### Focus: Onboarding Fix, HTTP Test Coverage & Mini-App Polish
+
+Run 8 fixes the critical learning/finance onboarding bug, completes HTTP integration test coverage for all routes, and polishes the mini-app with avatar images and conditional quiz logic.
+
+### How to Launch
+
+Open 4 separate Claude Code sessions. **Start Agent 0 FIRST** — it sets up worktrees. Only start A/B/C after Agent 0 says "Ready."
+
+### Copy-Paste Prompts
+
+**Agent 0** (open in: `c:\Users\Asus\Desktop\Wibecode`):
+```
+Read PARALLEL_AGENTS.md — you are Agent 0 for Run 8. Set up worktrees and tell me when ready. After all agents finish, I'll tell you to merge.
+```
+
+**Agent A** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-a`):
+```
+Read PARALLEL_AGENTS.md — you are Agent A for Run 8. Do your tasks.
+```
+
+**Agent B** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-b`):
+```
+Read PARALLEL_AGENTS.md — you are Agent B for Run 8. Do your tasks.
+```
+
+**Agent C** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-c`):
+```
+Read PARALLEL_AGENTS.md — you are Agent C for Run 8. Do your tasks.
+```
+
+---
+
+## Agent 0 — Orchestrator (Run 8)
+
+**You are Agent 0.** Set up the environment, WAIT for agents, then merge and deploy.
+
+**Working directory:** `c:\Users\Asus\Desktop\Wibecode` (main repo, `main` branch)
+
+### Phase 1: Pre-Run Setup
+
+**Step 1: Verify clean state**
+```bash
+git status  # should be clean
+git log --oneline -3  # verify Run 7 merges at top
+```
+
+**Step 2: Create worktrees**
+```bash
+git branch feature/miniapp-onboarding-fix 2>/dev/null
+git branch feature/http-test-coverage 2>/dev/null
+git branch feature/test-infra-polish 2>/dev/null
+git worktree add ../Wibecode-agent-a feature/miniapp-onboarding-fix
+git worktree add ../Wibecode-agent-b feature/http-test-coverage
+git worktree add ../Wibecode-agent-c feature/test-infra-polish
+```
+
+**Step 3: Install dependencies**
+```bash
+cd ../Wibecode-agent-a/mini-app && npm install
+cd ../../Wibecode-agent-b/bot && npm install
+cd ../../Wibecode-agent-c/bot && npm install
+```
+
+**Step 4: Verify worktrees**
+```bash
+cd c:\Users\Asus\Desktop\Wibecode
+git worktree list
+```
+
+**Step 5: Tell the user** "Ready to launch Agents A, B, C."
+
+### Phase 2: WAIT for all 3 agents to finish
+
+### Phase 3: Post-Run Merge
+
+```bash
+# Check each branch
+git log main..feature/miniapp-onboarding-fix --oneline
+git log main..feature/http-test-coverage --oneline
+git log main..feature/test-infra-polish --oneline
+```
+
+**Merge order:**
+1. `git merge feature/http-test-coverage --no-edit` → verify `cd bot && npm run build`
+2. `git merge feature/test-infra-polish --no-edit` → verify `cd bot && npx vitest run`
+3. `git merge feature/miniapp-onboarding-fix --no-edit` → verify `cd mini-app && npm run build`
+
+**Deploy + Clean up** (see Agent 0 Self-Protocol above).
+
+### Phase 4: Prepare Run 9
+
+After deploying Run 8, write retrospective, design next run, set up worktrees.
+
+---
+
+## Agent A — Mini-App Onboarding Fix & Polish (Run 8)
+
+**You are Agent A.** You fix the critical onboarding validation bug and improve avatar UX.
+
+**Working directory:** `c:\Users\Asus\Desktop\Wibecode-agent-a` (branch `feature/miniapp-onboarding-fix`)
+
+**YOUR files (ONLY edit these):**
+- `mini-app/src/components/onboarding/QuizScreen.tsx`
+- `mini-app/src/components/onboarding/Summary.tsx`
+- `mini-app/src/data/onboardingQuestions.ts`
+- `mini-app/src/hooks/useOnboarding.ts`
+- `mini-app/src/pages/Profile.tsx`
+- `mini-app/src/components/ProfileEditModal.tsx`
+- `mini-app/src/index.css`
+
+**DO NOT edit:** `mini-app/src/api/client.ts`, `mini-app/src/types/index.ts`, `mini-app/src/App.tsx`, `bot/` anything, test files
+
+### CONTEXT
+- QuizScreen.tsx line 311 uses `data.fitness?.workout_frequency` to set `requiredCount` for the day-grid component
+- This means Learning and Finance modes reference a fitness-specific field that may not exist
+- The day-grid lets users pick which days of the week they want to practice — the validation needs to know how many days they selected vs required
+- Each mode should have its own frequency field (e.g., `learning_days`, `finance_check_days`)
+
+### TASKS (do in order, commit after each)
+
+**Task 1: Fix day-grid validation to be mode-agnostic (CRITICAL)**
+- Read `mini-app/src/components/onboarding/QuizScreen.tsx` carefully — understand the day-grid logic
+- Read `mini-app/src/data/onboardingQuestions.ts` — understand how questions are defined per mode
+- Read `mini-app/src/hooks/useOnboarding.ts` — understand the data shape
+- Fix: The day-grid `requiredCount` should come from the CURRENT mode's frequency field, not hardcoded `data.fitness?.workout_frequency`
+- For fitness: use `data.fitness?.workout_frequency`
+- For learning: use `data.learning?.study_frequency` (add field if missing)
+- For hydration: use `data.hydration?.reminder_count` (or similar)
+- For finance: use `data.finance?.check_frequency` (add field if missing)
+- Update `useOnboarding.ts` types if new fields are needed
+- Update `onboardingQuestions.ts` to add frequency questions for Learning/Finance if they don't exist
+- Commit: "Fix day-grid validation to use mode-specific frequency fields"
+
+**Task 2: Fix Summary.tsx to be mode-agnostic**
+- Read `mini-app/src/components/onboarding/Summary.tsx`
+- Line 42 references `f.workout_frequency` — this should also be mode-aware
+- Show the correct frequency field based on the active mode
+- Commit: "Fix onboarding summary to display mode-specific frequency"
+
+**Task 3: Add image-based avatar options**
+- Read `mini-app/src/components/ProfileEditModal.tsx` — understand current avatar selector
+- Currently uses Lucide icon names as avatars (e.g., 'User', 'Star', 'Heart')
+- Create a set of 12-16 emoji-based avatar options instead (e.g., warrior, mage, knight, ranger themed)
+- These can be emoji strings stored in the avatar field: '🧙', '⚔️', '🛡️', '🏹', '🎯', '🔥', '💎', '🌟', '🦊', '🐉', '🦅', '🐺'
+- Update ProfileEditModal to show emoji avatars in a grid
+- Update Profile.tsx to render emoji avatar instead of Lucide icon
+- Commit: "Add emoji-based avatar options replacing Lucide icons"
+
+**Task 4: Build verification**
+- Run `cd mini-app && npm run build`
+- Fix any TypeScript errors
+- Commit only if fixes were needed: "Fix TypeScript errors from Run 8 tasks"
+
+### RETROSPECTIVE (DO THIS LAST)
+Add your retrospective to PARALLEL_AGENTS.md at the bottom under "Run 8 Retrospectives".
+
+---
+
+## Agent B — HTTP Test Coverage: Quests, Modes, Leaderboard (Run 8)
+
+**You are Agent B.** You complete HTTP integration test coverage for the remaining route files.
+
+**Working directory:** `c:\Users\Asus\Desktop\Wibecode-agent-b` (branch `feature/http-test-coverage`)
+
+**YOUR files (ONLY edit these):**
+- `bot/src/__tests__/routes/http/quests.http.test.ts` (NEW)
+- `bot/src/__tests__/routes/http/modes.http.test.ts` (NEW)
+- `bot/src/__tests__/routes/http/leaderboard.http.test.ts` (NEW)
+- `bot/src/__tests__/helpers/testApp.ts` (may enhance)
+
+**DO NOT edit:** Source code in `bot/src/api/`, `bot/src/handlers/`, `mini-app/`, `.env`, `bot/src/__tests__/setup.ts`
+
+### CONTEXT
+- Run 7 added `supertest` and `bot/src/__tests__/helpers/testApp.ts` — a minimal Express app factory for HTTP tests
+- Run 7 created HTTP tests for users and achievements routes as examples
+- HTTP tests mock `db`/`cache`/`auth` at vitest level, then use supertest for actual HTTP request/response
+- Read existing HTTP tests (`users.http.test.ts`, `achievements.http.test.ts`) to understand the pattern
+- Then read each source route file before writing its tests
+
+### TASKS (do in order, commit after each)
+
+**Task 1: Add HTTP tests for quests routes**
+- Read `bot/src/api/routes/quests.ts` to understand endpoints
+- Read `bot/src/__tests__/routes/http/users.http.test.ts` for the testing pattern
+- Create `bot/src/__tests__/routes/http/quests.http.test.ts`
+- Test:
+  - `GET /api/quests/user/:telegramId` — 200 returns quest list
+  - `POST /api/quests/:id/complete` — 200 marks quest complete
+  - `PATCH /api/quests/:id/progress` — 200 updates progress
+  - Error cases: invalid IDs, missing quest, already completed
+- 8-10 tests
+- Commit: "Add HTTP integration tests for quests routes"
+
+**Task 2: Add HTTP tests for modes routes**
+- Read `bot/src/api/routes/modes.ts`
+- Create `bot/src/__tests__/routes/http/modes.http.test.ts`
+- Test:
+  - `GET /api/modes` — 200 returns available modes
+  - `GET /api/modes/user/:telegramId` — 200 returns user's active modes
+  - `POST /api/modes/activate` — 200 activates mode for user
+  - Error cases: invalid mode, already active, user not found
+- 6-8 tests
+- Commit: "Add HTTP integration tests for modes routes"
+
+**Task 3: Add HTTP tests for leaderboard routes**
+- Read `bot/src/api/routes/leaderboard.ts` — note the new `?mode=` filter from Run 7
+- Create `bot/src/__tests__/routes/http/leaderboard.http.test.ts`
+- Test:
+  - `GET /api/leaderboard` — 200 returns cross-mode top 50
+  - `GET /api/leaderboard/weekly` — 200 returns weekly rankings
+  - `GET /api/leaderboard?mode=fitness` — 200 returns mode-specific leaderboard
+  - `GET /api/leaderboard?mode=nonexistent` — 200 returns empty list
+  - Error cases: DB failures
+- 6-8 tests
+- Commit: "Add HTTP integration tests for leaderboard routes"
+
+**Task 4: Run ALL tests and verify**
+- Run `cd bot && npx vitest run --reporter=verbose`
+- Fix ANY failures
+- Commit with totals: "All tests passing: X TypeScript + Y Python = Z total, 0 failures"
+
+### RETROSPECTIVE (DO THIS LAST)
+Add your retrospective to PARALLEL_AGENTS.md at the bottom under "Run 8 Retrospectives".
+
+---
+
+## Agent C — Test Infrastructure & Admin HTTP Tests (Run 8)
+
+**You are Agent C.** You enhance test infrastructure and add HTTP tests for admin and onboarding routes.
+
+**Working directory:** `c:\Users\Asus\Desktop\Wibecode-agent-c` (branch `feature/test-infra-polish`)
+
+**YOUR files (ONLY edit these):**
+- `bot/src/__tests__/setup.ts`
+- `bot/src/__tests__/helpers/testApp.ts`
+- `bot/src/__tests__/routes/http/admin.http.test.ts` (NEW)
+- `bot/src/__tests__/routes/http/onboarding.http.test.ts` (NEW)
+- `bot/vitest.config.ts`
+
+**DO NOT edit:** Source code in `bot/src/api/`, `bot/src/handlers/`, `mini-app/`, `.env`, `bot/package.json`
+
+### CONTEXT
+- `bot/src/__tests__/setup.ts` has `mockResponse()` that's missing `setHeader()` — middleware tests need local workarounds
+- Admin route was split in Run 7: `admin.ts` (thin router) → `admin-stats.ts`, `admin-users.ts`, `admin-jobs.ts`
+- Onboarding route has unit tests but no HTTP integration tests
+- Read existing HTTP tests to match the pattern
+
+### TASKS (do in order, commit after each)
+
+**Task 1: Enhance shared mockResponse() helper**
+- Read `bot/src/__tests__/setup.ts` — find `mockResponse()`
+- Add `setHeader()` method (stores headers in a Map)
+- Add `getHeader()` method (retrieves stored headers)
+- Ensure backward compatibility — existing tests must still pass
+- Run `cd bot && npx vitest run` to verify nothing breaks
+- Commit: "Enhance mockResponse() with setHeader/getHeader for middleware tests"
+
+**Task 2: Update adminAuth tests to use shared helper**
+- Read `bot/src/__tests__/middleware/adminAuth.test.ts`
+- Replace local `mockAdminResponse()` with the enhanced shared `mockResponse()`
+- Verify all 13 tests still pass
+- Commit: "Refactor adminAuth tests to use shared mockResponse helper"
+
+**Task 3: Add HTTP tests for admin routes (all 3 sub-routers)**
+- Read `bot/src/api/routes/admin.ts` (thin router), `admin-stats.ts`, `admin-users.ts`, `admin-jobs.ts`
+- Create `bot/src/__tests__/routes/http/admin.http.test.ts`
+- Test:
+  - `GET /api/admin/stats` — 200 returns stats
+  - `GET /api/admin/users` — 200 returns user list
+  - `GET /api/admin/users/:id` — 200 returns user detail, 404 for unknown
+  - `GET /api/admin/jobs` — 200 returns job list
+  - `POST /api/admin/jobs/:name/trigger` — 200 triggers job
+  - `POST /api/admin/broadcast` — 200 sends broadcast
+  - Auth check: missing/invalid credentials → 401
+- 10-12 tests
+- Commit: "Add HTTP integration tests for admin routes"
+
+**Task 4: Add HTTP tests for onboarding routes**
+- Read `bot/src/api/routes/onboarding.ts`
+- Create `bot/src/__tests__/routes/http/onboarding.http.test.ts`
+- Test:
+  - `GET /api/onboarding/:telegramId` — 200 returns state
+  - `POST /api/onboarding/:telegramId/save` — 200 saves progress
+  - `POST /api/onboarding/:telegramId/complete` — 200 completes onboarding
+  - Error cases: invalid telegramId, missing data
+- 6-8 tests
+- Commit: "Add HTTP integration tests for onboarding routes"
+
+**Task 5: Run ALL tests and verify**
+- Run `cd bot && npx vitest run --reporter=verbose`
+- Run `python -m pytest tools/tests/ -v`
+- Fix ANY failures
+- Final commit with total counts: "All tests passing: X TypeScript + Y Python = Z total, 0 failures"
+
+### RETROSPECTIVE (DO THIS LAST)
+Add your retrospective to PARALLEL_AGENTS.md at the bottom under "Run 8 Retrospectives".
+
+---
+
+## Run 8 File Ownership Matrix
+
+| File/Directory | Agent A | Agent B | Agent C | Nobody |
+|---|---|---|---|---|
+| mini-app/src/components/onboarding/QuizScreen.tsx | OWNS | - | - | - |
+| mini-app/src/components/onboarding/Summary.tsx | OWNS | - | - | - |
+| mini-app/src/data/onboardingQuestions.ts | OWNS | - | - | - |
+| mini-app/src/hooks/useOnboarding.ts | OWNS | - | - | - |
+| mini-app/src/pages/Profile.tsx | OWNS | - | - | - |
+| mini-app/src/components/ProfileEditModal.tsx | OWNS | - | - | - |
+| mini-app/src/index.css | OWNS | - | - | - |
+| bot/src/__tests__/routes/http/quests.http.test.ts (NEW) | - | OWNS | - | - |
+| bot/src/__tests__/routes/http/modes.http.test.ts (NEW) | - | OWNS | - | - |
+| bot/src/__tests__/routes/http/leaderboard.http.test.ts (NEW) | - | OWNS | - | - |
+| bot/src/__tests__/helpers/testApp.ts | - | OWNS | OWNS | - |
+| bot/src/__tests__/setup.ts | - | - | OWNS | - |
+| bot/src/__tests__/middleware/adminAuth.test.ts | - | - | OWNS | - |
+| bot/src/__tests__/routes/http/admin.http.test.ts (NEW) | - | - | OWNS | - |
+| bot/src/__tests__/routes/http/onboarding.http.test.ts (NEW) | - | - | OWNS | - |
+| bot/vitest.config.ts | - | - | OWNS | - |
+| mini-app/src/api/client.ts | - | - | - | LOCKED |
+| mini-app/src/types/index.ts | - | - | - | LOCKED |
+| mini-app/src/App.tsx | - | - | - | LOCKED |
+| bot/src/api/ | - | - | - | LOCKED |
+| bot/src/handlers/ | - | - | - | LOCKED |
+| bot/src/utils/ | - | - | - | LOCKED |
+| bot/src/config.ts | - | - | - | LOCKED |
+| bot/src/index.ts | - | - | - | LOCKED |
+| .env | - | - | - | LOCKED |
+
+## Run 8 Merge Order
+
+1. **Agent B first** — HTTP tests for quests/modes/leaderboard
+2. **Agent C second** — test infra + HTTP tests for admin/onboarding (may touch testApp.ts)
+3. **Agent A last** — mini-app onboarding fix (completely independent)
+
+---
+
+## Run 8 Retrospectives
+
+*(Agents: add your retrospective sections below this line when you finish)*
