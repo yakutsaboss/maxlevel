@@ -16,10 +16,10 @@ import {
   handleModeSummary,
   showModeSelection
 } from './handlers/onboarding.js';
-import { testDatabaseConnection } from './utils/pythonTools.js';
 import { startApiServer } from './api/server.js';
 import { startJobQueue, stopJobQueue } from './jobs/boss.js';
 import { registerAllJobs } from './jobs/registerJobs.js';
+import { testConnection as testDbConnection, closePool as closeDbPool } from './utils/db.js';
 import type http from 'http';
 
 // Register command handlers
@@ -83,14 +83,14 @@ bot.command('ping', async (ctx) => {
   const startTime = Date.now();
   await ctx.reply('🏓 Pong! Checking systems...');
 
-  // Test database connection
-  const dbTest = await testDatabaseConnection();
+  // Test database connection (native — no Python subprocess overhead)
+  const dbOk = await testDbConnection();
   const responseTime = Date.now() - startTime;
 
   await ctx.reply(
     `✅ Bot is alive!\n\n` +
       `⚡ Response time: ${responseTime}ms\n` +
-      `🗄️ Database: ${dbTest.success ? '✅ Connected' : '❌ Disconnected'}\n` +
+      `🗄️ Database: ${dbOk ? '✅ Connected' : '❌ Disconnected'}\n` +
       `📡 Mode: ${config.useWebhook ? 'Webhook' : 'Polling'}\n` +
       `🤖 Bot version: 2.0.0`
   );
@@ -126,17 +126,14 @@ async function main() {
   console.log('🤖 Telegram RPG Quest Bot v2.0');
   console.log('='.repeat(50));
 
-  // Test database connection on startup
+  // Test database connection on startup (native Node.js — no Python subprocess)
   console.log('\n📊 Testing database connection...');
-  const dbTest = await testDatabaseConnection();
+  const dbOk = await testDbConnection();
 
-  if (dbTest.success) {
-    console.log('✅ Database connection successful');
-    if (dbTest.data) {
-      console.log(`   ${dbTest.data}`);
-    }
+  if (dbOk) {
+    console.log('✅ Database connection successful (native pg pool)');
   } else {
-    console.error('❌ Database connection failed:', dbTest.error);
+    console.error('❌ Database connection failed');
     console.error('\n⚠️  Warning: Bot will start, but database operations will fail!');
     console.error('   Please check your DATABASE_URL in .env\n');
   }
@@ -197,6 +194,9 @@ async function shutdown(signal: string) {
   if (server) {
     server.close();
   }
+
+  // Close database connection pool
+  await closeDbPool().catch(console.error);
 
   process.exit(0);
 }

@@ -1,49 +1,33 @@
 import { Router, Request, Response } from 'express';
 import { authenticateTelegram } from '../middleware/auth.js';
-import { executePythonTool, executeSafeQuery } from '../../utils/pythonTools.js';
+import { query, queryOne, transaction } from '../../utils/db.js';
+import { cached, TTL } from '../../utils/cache.js';
 
 const router = Router();
 
 /**
  * GET /api/achievements
- * Get all available achievements
+ * Get all available achievements.
+ * Cached for 5 minutes — achievements rarely change.
  */
 router.get('/', authenticateTelegram, async (req: Request, res: Response) => {
   try {
-    const result = await executeSafeQuery(
-      `SELECT
-        id,
-        name,
-        description,
-        icon,
-        xp_reward,
-        rarity,
-        category,
-        criteria_type,
-        criteria_value,
-        is_active
-      FROM achievements
-      WHERE is_active = true
-      ORDER BY rarity DESC, name ASC`
+    const achievements = await cached('achievements:all', TTL.MEDIUM, () =>
+      query(
+        `SELECT id, name, description, badge_icon AS icon, xp_bonus AS xp_reward,
+                rarity, criteria
+         FROM achievements
+         ORDER BY rarity DESC, name ASC`
+      )
     );
 
-    if (!result.success) {
-      return res.status(500).json({
-        error: 'Server Error',
-        message: 'Failed to fetch achievements',
-      });
-    }
-
     res.json({
-      achievements: result.data || [],
-      count: result.data?.length || 0,
+      achievements,
+      count: achievements.length,
     });
   } catch (error) {
     console.error('Error fetching achievements:', error);
-    res.status(500).json({
-      error: 'Server Error',
-      message: 'Failed to fetch achievements',
-    });
+    res.status(500).json({ error: 'Server Error', message: 'Failed to fetch achievements' });
   }
 });
 
@@ -55,320 +39,230 @@ router.get('/users/:userId', authenticateTelegram, async (req: Request, res: Res
   try {
     const userId = parseInt(req.params.userId);
 
-    const result = await executeSafeQuery(
-      `SELECT
-        ua.id,
-        ua.achievement_id,
-        a.name,
-        a.description,
-        a.icon,
-        a.xp_reward,
-        a.rarity,
-        a.category,
-        ua.unlocked_at,
-        ua.progress
-      FROM user_achievements ua
-      JOIN achievements a ON ua.achievement_id = a.id
-      WHERE ua.user_id = %s
-      ORDER BY ua.unlocked_at DESC`,
+    const rows = await query(
+      `SELECT ua.id, ua.achievement_id, a.name, a.description,
+              a.badge_icon AS icon, a.xp_bonus AS xp_reward, a.rarity,
+              ua.unlocked_at
+       FROM user_achievements ua
+       JOIN achievements a ON ua.achievement_id = a.id
+       WHERE ua.user_id = $1
+       ORDER BY ua.unlocked_at DESC`,
       [userId]
     );
 
-    if (!result.success) {
-      return res.status(500).json({
-        error: 'Server Error',
-        message: 'Failed to fetch user achievements',
-      });
-    }
+    const totalCount = await cached('achievements:total_count', TTL.MEDIUM, async () => {
+      const row = await queryOne(`SELECT COUNT(*)::int AS total FROM achievements`);
+      return row?.total ?? 0;
+    });
 
-    // Get total achievement count
-    const totalResult = await executeSafeQuery(
-      `SELECT COUNT(*) as total FROM achievements WHERE is_active = true`
-    );
-
-    const unlockedCount = result.data?.length || 0;
-    const totalCount = totalResult.success ? totalResult.data[0]?.total || 0 : 0;
+    const unlockedCount = rows.length;
 
     res.json({
-      achievements: result.data || [],
+      achievements: rows,
       unlocked: unlockedCount,
       total: totalCount,
       progress: totalCount > 0 ? Math.round((unlockedCount / totalCount) * 100) : 0,
     });
   } catch (error) {
     console.error('Error fetching user achievements:', error);
-    res.status(500).json({
-      error: 'Server Error',
-      message: 'Failed to fetch user achievements',
-    });
+    res.status(500).json({ error: 'Server Error', message: 'Failed to fetch user achievements' });
   }
 });
 
 /**
  * GET /api/users/:userId/achievements/available
- * Get achievements the user hasn't unlocked yet
+ * Uses LEFT JOIN instead of NOT IN for better performance.
  */
 router.get('/users/:userId/available', authenticateTelegram, async (req: Request, res: Response) => {
   try {
     const userId = parseInt(req.params.userId);
 
-    const result = await executeSafeQuery(
-      `SELECT
-        a.id,
-        a.name,
-        a.description,
-        a.icon,
-        a.xp_reward,
-        a.rarity,
-        a.category,
-        a.criteria_type,
-        a.criteria_value
-      FROM achievements a
-      WHERE a.is_active = true
-      AND a.id NOT IN (
-        SELECT achievement_id
-        FROM user_achievements
-        WHERE user_id = %s
-      )
-      ORDER BY a.rarity DESC, a.name ASC`,
+    const rows = await query(
+      `SELECT a.id, a.name, a.description, a.badge_icon AS icon,
+              a.xp_bonus AS xp_reward, a.rarity, a.criteria
+       FROM achievements a
+       LEFT JOIN user_achievements ua ON ua.achievement_id = a.id AND ua.user_id = $1
+       WHERE ua.id IS NULL
+       ORDER BY a.rarity DESC, a.name ASC`,
       [userId]
     );
 
-    if (!result.success) {
-      return res.status(500).json({
-        error: 'Server Error',
-        message: 'Failed to fetch available achievements',
-      });
-    }
-
     res.json({
-      achievements: result.data || [],
-      count: result.data?.length || 0,
+      achievements: rows,
+      count: rows.length,
     });
   } catch (error) {
     console.error('Error fetching available achievements:', error);
-    res.status(500).json({
-      error: 'Server Error',
-      message: 'Failed to fetch available achievements',
-    });
+    res.status(500).json({ error: 'Server Error', message: 'Failed to fetch available achievements' });
   }
 });
 
 /**
- * POST /api/users/:userId/achievements/:achievementId/unlock
- * Unlock an achievement for a user
+ * POST /api/users/:userId/:achievementId/unlock
+ * Uses INSERT ON CONFLICT to avoid separate check query + race conditions.
  */
 router.post('/users/:userId/:achievementId/unlock', authenticateTelegram, async (req: Request, res: Response) => {
   try {
     const userId = parseInt(req.params.userId);
     const achievementId = parseInt(req.params.achievementId);
 
-    // Check if already unlocked
-    const checkResult = await executeSafeQuery(
-      `SELECT id FROM user_achievements
-       WHERE user_id = %s AND achievement_id = %s`,
-      [userId, achievementId]
-    );
+    const result = await transaction(async (client) => {
+      const achResult = await client.query(
+        `SELECT * FROM achievements WHERE id = $1`,
+        [achievementId]
+      );
+      if (achResult.rows.length === 0) return { error: 'not_found' };
+      const achievement = achResult.rows[0];
 
-    if (checkResult.success && checkResult.data && checkResult.data.length > 0) {
-      return res.status(400).json({
-        error: 'Bad Request',
-        message: 'Achievement already unlocked',
-      });
+      const unlockResult = await client.query(
+        `INSERT INTO user_achievements (user_id, achievement_id)
+         VALUES ($1, $2)
+         ON CONFLICT (user_id, achievement_id) DO NOTHING
+         RETURNING *`,
+        [userId, achievementId]
+      );
+
+      if (unlockResult.rows.length === 0) {
+        return { error: 'already_unlocked' };
+      }
+
+      await client.query(
+        `UPDATE users SET total_xp = total_xp + $1,
+                          current_level = ((total_xp + $1) / 500) + 1
+         WHERE id = $2`,
+        [achievement.xp_bonus, userId]
+      );
+
+      return { achievement, unlocked: unlockResult.rows[0] };
+    });
+
+    if (result.error === 'not_found') {
+      return res.status(404).json({ error: 'Not Found', message: 'Achievement not found' });
     }
-
-    // Get achievement details
-    const achievementResult = await executeSafeQuery(
-      `SELECT * FROM achievements WHERE id = %s AND is_active = true`,
-      [achievementId]
-    );
-
-    if (!achievementResult.success || !achievementResult.data || achievementResult.data.length === 0) {
-      return res.status(404).json({
-        error: 'Not Found',
-        message: 'Achievement not found',
-      });
+    if (result.error === 'already_unlocked') {
+      return res.status(400).json({ error: 'Bad Request', message: 'Achievement already unlocked' });
     }
-
-    const achievement = achievementResult.data[0];
-
-    // Unlock achievement
-    const unlockResult = await executeSafeQuery(
-      `INSERT INTO user_achievements (user_id, achievement_id, unlocked_at, progress)
-       VALUES (%s, %s, NOW(), 100)
-       RETURNING *`,
-      [userId, achievementId]
-    );
-
-    if (!unlockResult.success) {
-      return res.status(500).json({
-        error: 'Server Error',
-        message: 'Failed to unlock achievement',
-      });
-    }
-
-    // Award XP
-    const xpResult = await executePythonTool('user_manager', [
-      '--add-xp',
-      '--user-id', String(userId),
-      '--xp', achievement.xp_reward.toString()
-    ]);
 
     res.json({
       message: 'Achievement unlocked successfully',
-      achievement: {
-        ...achievement,
-        unlockedAt: new Date().toISOString(),
-      },
-      xpEarned: achievement.xp_reward,
-      newLevel: xpResult.success ? xpResult.data.level : null,
-      leveledUp: xpResult.success ? xpResult.data.leveled_up : false,
+      achievement: result.achievement,
+      xpEarned: result.achievement.xp_bonus,
     });
   } catch (error) {
     console.error('Error unlocking achievement:', error);
-    res.status(500).json({
-      error: 'Server Error',
-      message: 'Failed to unlock achievement',
-    });
+    res.status(500).json({ error: 'Server Error', message: 'Failed to unlock achievement' });
   }
 });
 
 /**
  * GET /api/users/:userId/achievements/recent
- * Get recently unlocked achievements
  */
 router.get('/users/:userId/recent', authenticateTelegram, async (req: Request, res: Response) => {
   try {
     const userId = parseInt(req.params.userId);
-    const limit = req.query.limit ? parseInt(req.query.limit as string) : 5;
+    const limit = Math.min(parseInt(req.query.limit as string) || 5, 50);
 
-    const result = await executeSafeQuery(
-      `SELECT
-        ua.id,
-        ua.achievement_id,
-        a.name,
-        a.description,
-        a.icon,
-        a.xp_reward,
-        a.rarity,
-        ua.unlocked_at
-      FROM user_achievements ua
-      JOIN achievements a ON ua.achievement_id = a.id
-      WHERE ua.user_id = %s
-      ORDER BY ua.unlocked_at DESC
-      LIMIT %s`,
-      [userId, Math.min(limit, 50)]
+    const rows = await query(
+      `SELECT ua.id, ua.achievement_id, a.name, a.description,
+              a.badge_icon AS icon, a.xp_bonus AS xp_reward, a.rarity,
+              ua.unlocked_at
+       FROM user_achievements ua
+       JOIN achievements a ON ua.achievement_id = a.id
+       WHERE ua.user_id = $1
+       ORDER BY ua.unlocked_at DESC
+       LIMIT $2`,
+      [userId, limit]
     );
 
-    if (!result.success) {
-      return res.status(500).json({
-        error: 'Server Error',
-        message: 'Failed to fetch recent achievements',
-      });
-    }
-
     res.json({
-      achievements: result.data || [],
-      count: result.data?.length || 0,
+      achievements: rows,
+      count: rows.length,
     });
   } catch (error) {
     console.error('Error fetching recent achievements:', error);
-    res.status(500).json({
-      error: 'Server Error',
-      message: 'Failed to fetch recent achievements',
-    });
+    res.status(500).json({ error: 'Server Error', message: 'Failed to fetch recent achievements' });
   }
 });
 
 /**
  * POST /api/users/:userId/achievements/check
- * Check if user qualifies for any new achievements
+ * Batches all unlocks in a single transaction instead of N+1 loop.
  */
 router.post('/users/:userId/check', authenticateTelegram, async (req: Request, res: Response) => {
   try {
     const userId = parseInt(req.params.userId);
 
-    // Get user stats
-    const statsResult = await executePythonTool('user_manager', [
-      '--get-stats',
-      '--user-id', String(userId)
+    const [userRow, availableAchievements] = await Promise.all([
+      queryOne(
+        `SELECT u.current_level AS level, u.total_xp,
+                COALESCE(s.current_streak, 0)::int AS current_streak,
+                COALESCE(qc.total, 0)::int AS quests_completed
+         FROM users u
+         LEFT JOIN LATERAL (
+           SELECT MAX(current_streak) AS current_streak FROM streaks WHERE user_id = u.id
+         ) s ON true
+         LEFT JOIN LATERAL (
+           SELECT COUNT(*)::int AS total FROM quest_instances WHERE user_id = u.id AND status = 'completed'
+         ) qc ON true
+         WHERE u.id = $1`,
+        [userId]
+      ),
+      query(
+        `SELECT a.*
+         FROM achievements a
+         LEFT JOIN user_achievements ua ON ua.achievement_id = a.id AND ua.user_id = $1
+         WHERE ua.id IS NULL`,
+        [userId]
+      ),
     ]);
 
-    if (!statsResult.success) {
-      return res.status(500).json({
-        error: 'Server Error',
-        message: 'Failed to get user stats',
-      });
+    if (!userRow) {
+      return res.status(404).json({ error: 'Not Found', message: 'User not found' });
     }
 
-    const stats = statsResult.data;
-    const newAchievements = [];
-
-    // Get available achievements
-    const achievementsResult = await executeSafeQuery(
-      `SELECT a.*
-       FROM achievements a
-       WHERE a.is_active = true
-       AND a.id NOT IN (
-         SELECT achievement_id FROM user_achievements WHERE user_id = %s
-       )`,
-      [userId]
-    );
-
-    if (!achievementsResult.success || !achievementsResult.data) {
-      return res.json({
-        newAchievements: [],
-        count: 0,
-      });
-    }
-
-    // Check each achievement criteria
-    for (const achievement of achievementsResult.data) {
-      let qualifies = false;
-
-      switch (achievement.criteria_type) {
-        case 'level':
-          qualifies = stats.level >= achievement.criteria_value;
-          break;
-        case 'total_xp':
-          qualifies = stats.total_xp >= achievement.criteria_value;
-          break;
-        case 'quest_count':
-          qualifies = stats.quests_completed >= achievement.criteria_value;
-          break;
-        case 'streak':
-          qualifies = stats.current_streak >= achievement.criteria_value;
-          break;
-        case 'daily_quests':
-          qualifies = stats.daily_quests_completed >= achievement.criteria_value;
-          break;
-        case 'weekly_quests':
-          qualifies = stats.weekly_quests_completed >= achievement.criteria_value;
-          break;
+    const qualifying = availableAchievements.filter((a: any) => {
+      const criteria = a.criteria;
+      if (!criteria || !criteria.type) return false;
+      switch (criteria.type) {
+        case 'level': return userRow.level >= criteria.value;
+        case 'total_xp': return userRow.total_xp >= criteria.value;
+        case 'quest_count': return userRow.quests_completed >= criteria.value;
+        case 'streak': return userRow.current_streak >= criteria.value;
+        default: return false;
       }
+    });
 
-      if (qualifies) {
-        // Auto-unlock the achievement
-        const unlockResult = await executeSafeQuery(
-          `INSERT INTO user_achievements (user_id, achievement_id, unlocked_at, progress)
-           VALUES (%s, %s, NOW(), 100)
-           ON CONFLICT DO NOTHING
-           RETURNING *`,
+    if (qualifying.length === 0) {
+      return res.json({ newAchievements: [], count: 0, message: 'No new achievements unlocked' });
+    }
+
+    const newAchievements = await transaction(async (client) => {
+      const unlocked = [];
+      let totalXp = 0;
+
+      for (const achievement of qualifying) {
+        const result = await client.query(
+          `INSERT INTO user_achievements (user_id, achievement_id)
+           VALUES ($1, $2) ON CONFLICT DO NOTHING RETURNING id`,
           [userId, achievement.id]
         );
-
-        if (unlockResult.success && unlockResult.data && unlockResult.data.length > 0) {
-          newAchievements.push(achievement);
-
-          // Award XP
-          await executePythonTool('user_manager', [
-            '--add-xp',
-            '--user-id', String(userId),
-            '--xp', achievement.xp_reward.toString()
-          ]);
+        if (result.rows.length > 0) {
+          unlocked.push(achievement);
+          totalXp += achievement.xp_bonus || 0;
         }
       }
-    }
+
+      if (totalXp > 0) {
+        await client.query(
+          `UPDATE users SET total_xp = total_xp + $1,
+                            current_level = ((total_xp + $1) / 500) + 1
+           WHERE id = $2`,
+          [totalXp, userId]
+        );
+      }
+
+      return unlocked;
+    });
 
     res.json({
       newAchievements,
@@ -379,10 +273,7 @@ router.post('/users/:userId/check', authenticateTelegram, async (req: Request, r
     });
   } catch (error) {
     console.error('Error checking achievements:', error);
-    res.status(500).json({
-      error: 'Server Error',
-      message: 'Failed to check achievements',
-    });
+    res.status(500).json({ error: 'Server Error', message: 'Failed to check achievements' });
   }
 });
 

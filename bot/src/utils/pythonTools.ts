@@ -6,12 +6,17 @@
 import { execFile } from 'child_process';
 import { promisify } from 'util';
 import path from 'path';
+import { fileURLToPath } from 'url';
 
 const execFileAsync = promisify(execFile);
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 // Configuration
 const PYTHON_EXECUTABLE = process.env.PYTHON_EXECUTABLE || 'python';
-const TOOLS_PATH = process.env.PYTHON_TOOLS_PATH || path.join('..', 'tools');
+// Resolve tools path relative to this file's location (bot/src/utils/ -> tools/)
+// This works regardless of CWD (project root, bot/, or PM2)
+const TOOLS_PATH = process.env.PYTHON_TOOLS_PATH || path.resolve(__dirname, '..', '..', '..', 'tools');
 
 // Whitelist pattern for tool names (lowercase alphanumeric + underscores only)
 const TOOL_NAME_PATTERN = /^[a-z][a-z0-9_]*$/;

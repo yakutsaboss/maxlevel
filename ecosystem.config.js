@@ -43,7 +43,7 @@ module.exports = {
       autorestart: true,
       max_restarts: 10,
       min_uptime: '10s',
-      max_memory_restart: '500M',
+      max_memory_restart: '1G',
 
       // Logging
       error_file: './logs/error.log',
@@ -55,9 +55,9 @@ module.exports = {
       watch: false,
       ignore_watch: ['node_modules', 'logs', '.tmp', '.git'],
 
-      // Advanced options
-      kill_timeout: 5000,
-      listen_timeout: 3000,
+      // Advanced options — give time to drain DB connections on shutdown
+      kill_timeout: 10000,
+      listen_timeout: 5000,
       shutdown_with_message: true,
 
       // Environment variables from .env

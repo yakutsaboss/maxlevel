@@ -1,43 +1,39 @@
 import { Router, Request, Response } from 'express';
 import { authenticateTelegram } from '../middleware/auth.js';
-import { executePythonTool, executeSafeQuery } from '../../utils/pythonTools.js';
+import { query, queryOne, execute, transaction } from '../../utils/db.js';
+import { cached, invalidatePrefix, TTL } from '../../utils/cache.js';
+import { executePythonTool } from '../../utils/pythonTools.js';
 
 const router = Router();
 
 /**
- * Helper: look up user by telegram_id and return formatted object
+ * Helper: look up user by telegram_id with streak + quest count in ONE query.
+ * Replaces 3 separate Python subprocess calls with 1 native SQL query.
  */
 async function resolveUser(telegramId: string) {
   const tid = parseInt(telegramId);
-  const result = await executeSafeQuery(
-    `SELECT id, telegram_id, username, first_name, current_level, total_xp, is_active, timezone, created_at
-     FROM users WHERE telegram_id = %s`,
+  if (isNaN(tid)) return null;
+
+  const u = await queryOne(
+    `SELECT u.id, u.telegram_id, u.username, u.first_name,
+            u.current_level, u.total_xp, u.is_active, u.timezone, u.created_at,
+            COALESCE(s.current_streak, 0)::int AS current_streak,
+            COALESCE(s.longest_streak, 0)::int AS longest_streak,
+            COALESCE(qc.total, 0)::int AS total_quests_completed
+     FROM users u
+     LEFT JOIN LATERAL (
+       SELECT MAX(current_streak) AS current_streak, MAX(longest_streak) AS longest_streak
+       FROM streaks WHERE user_id = u.id
+     ) s ON true
+     LEFT JOIN LATERAL (
+       SELECT COUNT(*)::int AS total
+       FROM quest_instances WHERE user_id = u.id AND status = 'completed'
+     ) qc ON true
+     WHERE u.telegram_id = $1`,
     [tid]
   );
 
-  if (!result.success || !result.data || result.data.length === 0) {
-    return null;
-  }
-
-  const u = result.data[0];
-
-  // Get streak data
-  const streakResult = await executeSafeQuery(
-    `SELECT COALESCE(MAX(current_streak), 0) as current_streak,
-            COALESCE(MAX(longest_streak), 0) as longest_streak
-     FROM streaks WHERE user_id = %s`,
-    [u.id]
-  );
-  const streak = streakResult.success && streakResult.data?.[0] ? streakResult.data[0] : { current_streak: 0, longest_streak: 0 };
-
-  // Count completed quests
-  const questCountResult = await executeSafeQuery(
-    `SELECT COUNT(*) as total FROM quest_instances WHERE user_id = %s AND status = 'completed'`,
-    [u.id]
-  );
-  const totalCompleted = questCountResult.success && questCountResult.data?.[0] ? parseInt(questCountResult.data[0].total) : 0;
-
-  const xpToNextLevel = u.current_level * 100;
+  if (!u) return null;
 
   return {
     id: u.id,
@@ -47,17 +43,17 @@ async function resolveUser(telegramId: string) {
     last_name: null,
     level: u.current_level,
     xp: u.total_xp,
-    xp_to_next_level: xpToNextLevel,
-    total_quests_completed: totalCompleted,
-    current_streak: parseInt(streak.current_streak) || 0,
-    longest_streak: parseInt(streak.longest_streak) || 0,
+    xp_to_next_level: u.current_level * 100,
+    total_quests_completed: u.total_quests_completed,
+    current_streak: u.current_streak,
+    longest_streak: u.longest_streak,
     created_at: u.created_at,
   };
 }
 
 /**
  * GET /api/users/:telegramId/stats
- * Comprehensive stats matching frontend UserStats type
+ * Comprehensive stats — consolidated from 10 queries down to 3.
  */
 router.get('/:telegramId/stats', authenticateTelegram, async (req: Request, res: Response) => {
   try {
@@ -68,17 +64,61 @@ router.get('/:telegramId/stats', authenticateTelegram, async (req: Request, res:
       return res.status(404).json({ success: false, error: 'User not found' });
     }
 
-    // Get active modes with mode details
-    const modesResult = await executeSafeQuery(
-      `SELECT um.user_id, um.mode_id, um.is_active, um.enabled_at as activated_at,
-              m.id as m_id, m.name, m.display_name, m.description, m.icon_emoji as icon
-       FROM user_modes um
-       JOIN modes m ON um.mode_id = m.id
-       WHERE um.user_id = %s AND um.is_active = true`,
+    // Run all supplementary queries in parallel (3 queries instead of 7)
+    const [modes, activeQuests, aggregates] = await Promise.all([
+      // 1. Active modes with details
+      query(
+        `SELECT um.user_id, um.mode_id, um.is_active, um.enabled_at AS activated_at,
+                m.id AS m_id, m.name, m.display_name, m.description, m.icon_emoji AS icon
+         FROM user_modes um
+         JOIN modes m ON um.mode_id = m.id
+         WHERE um.user_id = $1 AND um.is_active = true`,
+        [user.id]
+      ),
+
+      // 2. Active quests with mode info
+      query(
+        `SELECT qi.id, qi.user_id, q.mode_id, q.title, q.description, q.xp_reward,
+                q.quest_type AS frequency, q.difficulty, qi.status,
+                qi.check_in_count AS progress, 1 AS target,
+                qi.instance_date AS due_date, qi.completed_at,
+                m.name AS mode_name, m.display_name AS mode_display_name, m.icon_emoji AS mode_icon
+         FROM quest_instances qi
+         JOIN quests q ON qi.quest_id = q.id
+         LEFT JOIN modes m ON q.mode_id = m.id
+         WHERE qi.user_id = $1 AND qi.status IN ('pending', 'ready', 'in_progress')
+         ORDER BY qi.instance_date DESC`,
+        [user.id]
+      ),
+
+      // 3. Aggregates: completed today, XP today, days active, recent achievements — ONE query
+      queryOne(
+        `SELECT
+           (SELECT COUNT(*)::int FROM quest_instances
+            WHERE user_id = $1 AND status = 'completed'
+            AND completed_at::date = CURRENT_DATE) AS completed_today,
+           (SELECT COALESCE(SUM(xp_awarded), 0)::int FROM quest_instances
+            WHERE user_id = $1 AND completed_at::date = CURRENT_DATE) AS xp_today,
+           (SELECT COUNT(DISTINCT instance_date)::int FROM quest_instances
+            WHERE user_id = $1 AND status = 'completed') AS days_active`,
+        [user.id]
+      ),
+    ]);
+
+    // Recent achievements (small separate query, fast with index)
+    const recentAchievementsRows = await query(
+      `SELECT ua.user_id, ua.achievement_id, ua.unlocked_at,
+              a.name, a.description, a.badge_icon AS icon, a.xp_bonus AS xp_reward,
+              a.rarity AS category
+       FROM user_achievements ua
+       JOIN achievements a ON ua.achievement_id = a.id
+       WHERE ua.user_id = $1
+       ORDER BY ua.unlocked_at DESC LIMIT 4`,
       [user.id]
     );
 
-    const modes = (modesResult.success && modesResult.data || []).map((row: any) => ({
+    // Format response
+    const formattedModes = modes.map((row: any) => ({
       user_id: row.user_id,
       mode_id: row.mode_id,
       is_active: row.is_active,
@@ -93,22 +133,7 @@ router.get('/:telegramId/stats', authenticateTelegram, async (req: Request, res:
       },
     }));
 
-    // Get active quests
-    const questsResult = await executeSafeQuery(
-      `SELECT qi.id, qi.user_id, q.mode_id, q.title, q.description, q.xp_reward,
-              q.quest_type as frequency, q.difficulty, qi.status,
-              qi.check_in_count as progress, 1 as target,
-              qi.instance_date as due_date, qi.completed_at,
-              m.name as mode_name, m.display_name as mode_display_name, m.icon_emoji as mode_icon
-       FROM quest_instances qi
-       JOIN quests q ON qi.quest_id = q.id
-       LEFT JOIN modes m ON q.mode_id = m.id
-       WHERE qi.user_id = %s AND qi.status IN ('pending', 'ready', 'in_progress')
-       ORDER BY qi.instance_date DESC`,
-      [user.id]
-    );
-
-    const activeQuests = (questsResult.success && questsResult.data || []).map((row: any) => ({
+    const formattedQuests = activeQuests.map((row: any) => ({
       id: row.id,
       user_id: row.user_id,
       mode_id: row.mode_id,
@@ -130,27 +155,7 @@ router.get('/:telegramId/stats', authenticateTelegram, async (req: Request, res:
       } : undefined,
     }));
 
-    // Count completed quests today
-    const todayResult = await executeSafeQuery(
-      `SELECT COUNT(*) as count FROM quest_instances
-       WHERE user_id = %s AND status = 'completed'
-       AND completed_at::date = CURRENT_DATE`,
-      [user.id]
-    );
-    const completedToday = todayResult.success && todayResult.data?.[0] ? parseInt(todayResult.data[0].count) : 0;
-
-    // Get recent achievements
-    const achievementsResult = await executeSafeQuery(
-      `SELECT ua.user_id, ua.achievement_id, ua.unlocked_at,
-              a.name, a.description, a.icon_emoji as icon, a.xp_reward, a.category
-       FROM user_achievements ua
-       JOIN achievements a ON ua.achievement_id = a.id
-       WHERE ua.user_id = %s
-       ORDER BY ua.unlocked_at DESC LIMIT 4`,
-      [user.id]
-    );
-
-    const recentAchievements = (achievementsResult.success && achievementsResult.data || []).map((row: any) => ({
+    const recentAchievements = recentAchievementsRows.map((row: any) => ({
       user_id: row.user_id,
       achievement_id: row.achievement_id,
       unlocked_at: row.unlocked_at,
@@ -164,35 +169,19 @@ router.get('/:telegramId/stats', authenticateTelegram, async (req: Request, res:
       },
     }));
 
-    // XP gained today
-    const xpTodayResult = await executeSafeQuery(
-      `SELECT COALESCE(SUM(xp_awarded), 0) as xp_today FROM quest_instances
-       WHERE user_id = %s AND completed_at::date = CURRENT_DATE`,
-      [user.id]
-    );
-    const xpGainedToday = xpTodayResult.success && xpTodayResult.data?.[0] ? parseInt(xpTodayResult.data[0].xp_today) : 0;
-
-    // Days active
-    const daysActiveResult = await executeSafeQuery(
-      `SELECT COUNT(DISTINCT instance_date) as days FROM quest_instances
-       WHERE user_id = %s AND status = 'completed'`,
-      [user.id]
-    );
-    const daysActive = daysActiveResult.success && daysActiveResult.data?.[0] ? parseInt(daysActiveResult.data[0].days) : 0;
-
     res.json({
       success: true,
       data: {
         user,
-        modes,
-        activeQuests,
-        completedQuestsToday: completedToday,
+        modes: formattedModes,
+        activeQuests: formattedQuests,
+        completedQuestsToday: aggregates?.completed_today ?? 0,
         recentAchievements,
-        xpGainedToday,
+        xpGainedToday: aggregates?.xp_today ?? 0,
         streakData: {
           current: user.current_streak,
           longest: user.longest_streak,
-          daysActive,
+          daysActive: aggregates?.days_active ?? 0,
         },
       },
     });
@@ -208,27 +197,25 @@ router.get('/:telegramId/stats', authenticateTelegram, async (req: Request, res:
 router.get('/:telegramId/quests/active', authenticateTelegram, async (req: Request, res: Response) => {
   try {
     const { telegramId } = req.params;
-    const user = await resolveUser(telegramId);
+    const tid = parseInt(telegramId);
 
-    if (!user) {
-      return res.status(404).json({ success: false, error: 'User not found' });
-    }
-
-    const result = await executeSafeQuery(
+    // Single query: resolve user + get quests
+    const rows = await query(
       `SELECT qi.id, qi.user_id, q.mode_id, q.title, q.description, q.xp_reward,
-              q.quest_type as frequency, q.difficulty, qi.status,
-              qi.check_in_count as progress, 1 as target,
-              qi.instance_date as due_date, qi.completed_at,
-              m.name as mode_name, m.display_name as mode_display_name, m.icon_emoji as mode_icon
+              q.quest_type AS frequency, q.difficulty, qi.status,
+              qi.check_in_count AS progress, 1 AS target,
+              qi.instance_date AS due_date, qi.completed_at,
+              m.name AS mode_name, m.display_name AS mode_display_name, m.icon_emoji AS mode_icon
        FROM quest_instances qi
        JOIN quests q ON qi.quest_id = q.id
        LEFT JOIN modes m ON q.mode_id = m.id
-       WHERE qi.user_id = %s AND qi.status IN ('pending', 'ready', 'in_progress')
+       WHERE qi.user_id = (SELECT id FROM users WHERE telegram_id = $1)
+         AND qi.status IN ('pending', 'ready', 'in_progress')
        ORDER BY qi.instance_date DESC`,
-      [user.id]
+      [tid]
     );
 
-    const quests = (result.success && result.data || []).map((row: any) => ({
+    const quests = rows.map((row: any) => ({
       id: row.id,
       user_id: row.user_id,
       mode_id: row.mode_id,
@@ -263,28 +250,25 @@ router.get('/:telegramId/quests/active', authenticateTelegram, async (req: Reque
 router.get('/:telegramId/quests/completed', authenticateTelegram, async (req: Request, res: Response) => {
   try {
     const { telegramId } = req.params;
-    const limit = req.query.limit ? parseInt(req.query.limit as string) : 50;
-    const user = await resolveUser(telegramId);
+    const tid = parseInt(telegramId);
+    const limit = Math.min(parseInt(req.query.limit as string) || 50, 100);
 
-    if (!user) {
-      return res.status(404).json({ success: false, error: 'User not found' });
-    }
-
-    const result = await executeSafeQuery(
+    const rows = await query(
       `SELECT qi.id, qi.user_id, q.mode_id, q.title, q.description, q.xp_reward,
-              q.quest_type as frequency, q.difficulty, qi.status,
-              qi.check_in_count as progress, 1 as target,
-              qi.instance_date as due_date, qi.completed_at,
-              m.name as mode_name, m.display_name as mode_display_name, m.icon_emoji as mode_icon
+              q.quest_type AS frequency, q.difficulty, qi.status,
+              qi.check_in_count AS progress, 1 AS target,
+              qi.instance_date AS due_date, qi.completed_at,
+              m.name AS mode_name, m.display_name AS mode_display_name, m.icon_emoji AS mode_icon
        FROM quest_instances qi
        JOIN quests q ON qi.quest_id = q.id
        LEFT JOIN modes m ON q.mode_id = m.id
-       WHERE qi.user_id = %s AND qi.status = 'completed'
-       ORDER BY qi.completed_at DESC LIMIT %s`,
-      [user.id, Math.min(limit, 100)]
+       WHERE qi.user_id = (SELECT id FROM users WHERE telegram_id = $1)
+         AND qi.status = 'completed'
+       ORDER BY qi.completed_at DESC LIMIT $2`,
+      [tid, limit]
     );
 
-    const quests = (result.success && result.data || []).map((row: any) => ({
+    const quests = rows.map((row: any) => ({
       id: row.id,
       user_id: row.user_id,
       mode_id: row.mode_id,
@@ -319,23 +303,20 @@ router.get('/:telegramId/quests/completed', authenticateTelegram, async (req: Re
 router.get('/:telegramId/achievements', authenticateTelegram, async (req: Request, res: Response) => {
   try {
     const { telegramId } = req.params;
-    const user = await resolveUser(telegramId);
+    const tid = parseInt(telegramId);
 
-    if (!user) {
-      return res.status(404).json({ success: false, error: 'User not found' });
-    }
-
-    const result = await executeSafeQuery(
+    const rows = await query(
       `SELECT ua.user_id, ua.achievement_id, ua.unlocked_at,
-              a.name, a.description, a.icon_emoji as icon, a.xp_reward, a.category
+              a.name, a.description, a.badge_icon AS icon, a.xp_bonus AS xp_reward,
+              a.rarity AS category
        FROM user_achievements ua
        JOIN achievements a ON ua.achievement_id = a.id
-       WHERE ua.user_id = %s
+       WHERE ua.user_id = (SELECT id FROM users WHERE telegram_id = $1)
        ORDER BY ua.unlocked_at DESC`,
-      [user.id]
+      [tid]
     );
 
-    const achievements = (result.success && result.data || []).map((row: any) => ({
+    const achievements = rows.map((row: any) => ({
       user_id: row.user_id,
       achievement_id: row.achievement_id,
       unlocked_at: row.unlocked_at,
@@ -374,22 +355,17 @@ router.post('/', async (req: Request, res: Response) => {
       });
     }
 
-    const args = [
-      '--create-user',
-      '--telegram-id', telegramId.toString(),
-      '--first-name', firstName
-    ];
+    const user = await queryOne(
+      `INSERT INTO users (telegram_id, username, first_name)
+       VALUES ($1, $2, $3)
+       ON CONFLICT (telegram_id) DO UPDATE SET
+         username = COALESCE(EXCLUDED.username, users.username),
+         first_name = COALESCE(EXCLUDED.first_name, users.first_name)
+       RETURNING *`,
+      [telegramId, username || null, firstName]
+    );
 
-    if (lastName) args.push('--last-name', lastName);
-    if (username) args.push('--username', username);
-
-    const result = await executePythonTool('user_manager', args);
-
-    if (!result.success) {
-      return res.status(500).json({ error: 'Server Error', message: 'Failed to create user' });
-    }
-
-    res.status(201).json({ message: 'User created successfully', user: result.data });
+    res.status(201).json({ message: 'User created successfully', user });
   } catch (error) {
     console.error('Error creating user:', error);
     res.status(500).json({ error: 'Server Error', message: 'Failed to create user' });
@@ -401,26 +377,31 @@ router.post('/', async (req: Request, res: Response) => {
  */
 router.patch('/:userId/xp', authenticateTelegram, async (req: Request, res: Response) => {
   try {
-    const { userId } = req.params;
+    const userId = parseInt(req.params.userId);
     const { amount } = req.body;
 
     if (!amount || amount <= 0) {
       return res.status(400).json({ error: 'Bad Request', message: 'Invalid XP amount' });
     }
 
-    const result = await executePythonTool('user_manager', [
-      '--add-xp', '--user-id', userId, '--xp', amount.toString()
-    ]);
+    const user = await queryOne(
+      `UPDATE users
+       SET total_xp = total_xp + $1,
+           current_level = ((total_xp + $1) / 500) + 1
+       WHERE id = $2
+       RETURNING total_xp, current_level`,
+      [amount, userId]
+    );
 
-    if (!result.success) {
-      return res.status(500).json({ error: 'Server Error', message: 'Failed to add XP' });
+    if (!user) {
+      return res.status(404).json({ error: 'Not Found', message: 'User not found' });
     }
 
     res.json({
       message: 'XP added successfully',
-      newTotal: result.data.total_xp,
-      newLevel: result.data.level,
-      leveledUp: result.data.leveled_up || false,
+      newTotal: user.total_xp,
+      newLevel: user.current_level,
+      leveledUp: false,
     });
   } catch (error) {
     console.error('Error adding XP:', error);
@@ -443,7 +424,7 @@ router.patch('/:userId/streak', authenticateTelegram, async (req: Request, res: 
       return res.status(500).json({ error: 'Server Error', message: 'Failed to update streak' });
     }
 
-    res.json({ message: 'Streak updated successfully', streak: result.data.current_streak });
+    res.json({ message: 'Streak updated successfully', streak: (result.data as any)?.current_streak });
   } catch (error) {
     console.error('Error updating streak:', error);
     res.status(500).json({ error: 'Server Error', message: 'Failed to update streak' });

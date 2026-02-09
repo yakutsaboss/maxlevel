@@ -1,6 +1,7 @@
 import express, { Express, Request, Response, NextFunction, RequestHandler } from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
+import compression from 'compression';
 import morgan from 'morgan';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -8,7 +9,6 @@ import http from 'http';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-import { config } from 'dotenv';
 import { userRouter } from './routes/users.js';
 import { questRouter } from './routes/quests.js';
 import { achievementRouter } from './routes/achievements.js';
@@ -18,29 +18,45 @@ import { leaderboardRouter } from './routes/leaderboard.js';
 import { onboardingRouter } from './routes/onboarding.js';
 import { apiLimiter } from './middleware/rateLimiter.js';
 
-// Load environment variables
-config({ path: '.env.bot' });
-
 const app: Express = express();
 const PORT = process.env.API_PORT || 3000;
 
-// Middleware
+// Trust nginx reverse proxy (required for correct req.ip behind proxy)
+app.set('trust proxy', 1);
+
+// Compression — reduces response size by 60-80% for JSON APIs
+app.use(compression());
+
+// Security headers
 app.use(helmet({
   contentSecurityPolicy: false, // Allow mini app to load scripts/styles
-})); // Security headers
+}));
+
+// CORS — never fall back to wildcard '*'
+const allowedOrigins = [
+  process.env.MINI_APP_URL,
+  'https://yakutsa.ru',
+  process.env.NODE_ENV === 'development' ? 'http://localhost:3001' : null,
+  process.env.NODE_ENV === 'development' ? 'http://localhost:3002' : null,
+].filter(Boolean) as string[];
+
 app.use(cors({
-  origin: process.env.MINI_APP_URL || '*',
+  origin: allowedOrigins.length > 0 ? allowedOrigins : false,
   credentials: true,
   allowedHeaders: ['Content-Type', 'x-telegram-init-data'],
 }));
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
-app.use(morgan('dev')); // Request logging
 
-// Rate limiting (applied to all routes except health check)
+// Body parsing with size limit to prevent abuse
+app.use(express.json({ limit: '100kb' }));
+app.use(express.urlencoded({ extended: true, limit: '100kb' }));
+
+// Request logging — compact format in production
+app.use(morgan(process.env.NODE_ENV === 'production' ? 'combined' : 'dev'));
+
+// Rate limiting (applied to all API routes)
 app.use('/api', apiLimiter);
 
-// Health check endpoint
+// Health check endpoint (no rate limit, no auth)
 app.get('/health', (req: Request, res: Response) => {
   res.json({
     status: 'ok',
@@ -78,13 +94,17 @@ export function startApiServer(webhookHandler?: RequestHandler): Promise<http.Se
     mountWebhook(webhookHandler);
   }
 
-  // Root placeholder (future landing page)
+  // Root placeholder
   app.get('/', (req: Request, res: Response) => {
     res.status(200).send('<!DOCTYPE html><html><head><meta charset="utf-8"><title>yakutsa.ru</title></head><body><h1>yakutsa.ru</h1><p>Coming soon.</p></body></html>');
   });
 
-  // Serve Mini App at /levelapp
-  app.use('/levelapp', express.static(miniAppPath));
+  // Serve Mini App at /levelapp with caching headers for static assets
+  app.use('/levelapp', express.static(miniAppPath, {
+    maxAge: '1d',              // Cache static assets for 1 day
+    etag: true,
+    immutable: false,
+  }));
 
   // SPA fallback for /levelapp routes (React Router)
   app.get('/levelapp/*', (req: Request, res: Response, next: NextFunction) => {
@@ -104,12 +124,11 @@ export function startApiServer(webhookHandler?: RequestHandler): Promise<http.Se
   });
 
   // Global error handler
-  app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
+  app.use((err: Error, req: Request, res: Response, _next: NextFunction) => {
     console.error('Error:', err);
     res.status(500).json({
       error: 'Internal Server Error',
       message: process.env.NODE_ENV === 'development' ? err.message : 'Something went wrong',
-      ...(process.env.NODE_ENV === 'development' && { stack: err.stack }),
     });
   });
 
@@ -117,7 +136,7 @@ export function startApiServer(webhookHandler?: RequestHandler): Promise<http.Se
     const server = app.listen(PORT, () => {
       console.log(`\n🌐 API Server running on http://localhost:${PORT}`);
       console.log(`📊 Environment: ${process.env.NODE_ENV || 'development'}`);
-      console.log(`🔒 CORS enabled for: ${process.env.MINI_APP_URL || '*'}`);
+      console.log(`🔒 CORS enabled for: ${allowedOrigins.join(', ') || 'none'}`);
       console.log(`\n📍 Available endpoints:`);
       console.log(`   GET  /health`);
       console.log(`   GET  /api/users/:telegramId/stats`);
@@ -130,6 +149,10 @@ export function startApiServer(webhookHandler?: RequestHandler): Promise<http.Se
       console.log(`   DELETE /api/users/:userId/modes/:modeId\n`);
       resolve(server);
     });
+
+    // Set keep-alive timeout higher than nginx default (60s)
+    server.keepAliveTimeout = 65_000;
+    server.headersTimeout = 66_000;
   });
 }
 

@@ -29,11 +29,22 @@ class ApiClient {
       (error) => Promise.reject(error)
     );
 
-    // Add response interceptor for error handling
+    // Add response interceptor with retry for transient errors
     this.client.interceptors.response.use(
       (response) => response,
-      (error) => {
-        console.error('API Error:', error);
+      async (error) => {
+        const config = error.config;
+        // Retry once on network errors or 5xx (but not on 4xx client errors)
+        if (
+          config &&
+          !config._retried &&
+          (!error.response || error.response.status >= 500)
+        ) {
+          config._retried = true;
+          // Wait 1 second before retry
+          await new Promise((r) => setTimeout(r, 1000));
+          return this.client(config);
+        }
         return Promise.reject(error);
       }
     );

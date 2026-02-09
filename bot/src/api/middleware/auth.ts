@@ -124,9 +124,9 @@ export function authenticateTelegram(req: Request, res: Response, next: NextFunc
     return;
   }
 
-  // Check auth_date (data should not be older than 24 hours)
+  // Check auth_date (data should not be older than 1 hour)
   const authAge = Date.now() / 1000 - parsedData.auth_date;
-  if (authAge > 86400) { // 24 hours
+  if (authAge > 3600) { // 1 hour
     logAuthAttempt('failed', 'expired', ip, parsedData.user.id);
     res.status(401).json({
       error: 'Unauthorized',

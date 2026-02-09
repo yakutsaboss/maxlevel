@@ -1,36 +1,25 @@
 import { Router, Request, Response } from 'express';
 import { authenticateTelegram } from '../middleware/auth.js';
-import { executePythonTool, executeSafeQuery } from '../../utils/pythonTools.js';
+import { query, queryOne, execute } from '../../utils/db.js';
+import { cached, TTL } from '../../utils/cache.js';
+import { executePythonTool } from '../../utils/pythonTools.js';
 
 const router = Router();
 
 /**
  * GET /api/modes
- * Get all available modes
+ * Get all available modes. Cached — modes almost never change.
  */
 router.get('/', authenticateTelegram, async (req: Request, res: Response) => {
   try {
-    const result = await executePythonTool('mode_manager', [
-      '--list-modes'
-    ]);
+    const modes = await cached('modes:all', TTL.MEDIUM, () =>
+      query(`SELECT id, name, display_name, description, icon_emoji AS icon FROM modes ORDER BY id`)
+    );
 
-    if (!result.success) {
-      return res.status(500).json({
-        error: 'Server Error',
-        message: 'Failed to fetch modes',
-      });
-    }
-
-    res.json({
-      modes: result.data || [],
-      count: result.data?.length || 0,
-    });
+    res.json({ modes, count: modes.length });
   } catch (error) {
     console.error('Error fetching modes:', error);
-    res.status(500).json({
-      error: 'Server Error',
-      message: 'Failed to fetch modes',
-    });
+    res.status(500).json({ error: 'Server Error', message: 'Failed to fetch modes' });
   }
 });
 
@@ -40,30 +29,21 @@ router.get('/', authenticateTelegram, async (req: Request, res: Response) => {
  */
 router.get('/users/:userId', authenticateTelegram, async (req: Request, res: Response) => {
   try {
-    const { userId } = req.params;
+    const userId = parseInt(req.params.userId);
 
-    const result = await executePythonTool('mode_manager', [
-      '--get-active-modes',
-      '--user-id', userId
-    ]);
+    const rows = await query(
+      `SELECT um.id, um.user_id, um.mode_id, um.is_active, um.enabled_at,
+              m.name, m.display_name, m.description, m.icon_emoji AS icon
+       FROM user_modes um
+       JOIN modes m ON um.mode_id = m.id
+       WHERE um.user_id = $1 AND um.is_active = true`,
+      [userId]
+    );
 
-    if (!result.success) {
-      return res.status(500).json({
-        error: 'Server Error',
-        message: 'Failed to fetch user modes',
-      });
-    }
-
-    res.json({
-      modes: result.data || [],
-      count: result.data?.length || 0,
-    });
+    res.json({ modes: rows, count: rows.length });
   } catch (error) {
     console.error('Error fetching user modes:', error);
-    res.status(500).json({
-      error: 'Server Error',
-      message: 'Failed to fetch user modes',
-    });
+    res.status(500).json({ error: 'Server Error', message: 'Failed to fetch user modes' });
   }
 });
 
@@ -73,29 +53,33 @@ router.get('/users/:userId', authenticateTelegram, async (req: Request, res: Res
  */
 router.get('/users/:userId/summary', authenticateTelegram, async (req: Request, res: Response) => {
   try {
-    const { userId } = req.params;
+    const userId = parseInt(req.params.userId);
 
-    const result = await executePythonTool('mode_manager', [
-      '--get-mode-summary',
-      '--user-id', userId
-    ]);
+    const rows = await query(
+      `SELECT m.id, m.name, m.display_name, m.icon_emoji AS icon,
+              COALESCE(qi_active.count, 0)::int AS active_quests,
+              COALESCE(qi_done.count, 0)::int AS completed_quests
+       FROM user_modes um
+       JOIN modes m ON um.mode_id = m.id
+       LEFT JOIN LATERAL (
+         SELECT COUNT(*)::int AS count FROM quest_instances qi
+         JOIN quests q ON qi.quest_id = q.id
+         WHERE qi.user_id = $1 AND q.mode_id = m.id
+           AND qi.status IN ('pending', 'ready', 'in_progress')
+       ) qi_active ON true
+       LEFT JOIN LATERAL (
+         SELECT COUNT(*)::int AS count FROM quest_instances qi
+         JOIN quests q ON qi.quest_id = q.id
+         WHERE qi.user_id = $1 AND q.mode_id = m.id AND qi.status = 'completed'
+       ) qi_done ON true
+       WHERE um.user_id = $1 AND um.is_active = true`,
+      [userId]
+    );
 
-    if (!result.success) {
-      return res.status(500).json({
-        error: 'Server Error',
-        message: 'Failed to fetch mode summary',
-      });
-    }
-
-    res.json({
-      summary: result.data || [],
-    });
+    res.json({ summary: rows });
   } catch (error) {
     console.error('Error fetching mode summary:', error);
-    res.status(500).json({
-      error: 'Server Error',
-      message: 'Failed to fetch mode summary',
-    });
+    res.status(500).json({ error: 'Server Error', message: 'Failed to fetch mode summary' });
   }
 });
 
@@ -106,80 +90,54 @@ router.get('/users/:userId/summary', authenticateTelegram, async (req: Request, 
 router.post('/users/:userId', authenticateTelegram, async (req: Request, res: Response) => {
   try {
     const { userId } = req.params;
-    const { modes } = req.body; // Array of mode IDs or names
+    const { modes } = req.body;
 
     if (!modes || !Array.isArray(modes) || modes.length === 0) {
-      return res.status(400).json({
-        error: 'Bad Request',
-        message: 'Invalid modes array',
-      });
+      return res.status(400).json({ error: 'Bad Request', message: 'Invalid modes array' });
     }
 
-    // Convert to comma-separated string
     const modesString = modes.join(',');
-
     const result = await executePythonTool('mode_manager', [
-      '--add-modes',
-      '--user-id', userId,
-      '--modes', modesString
+      '--add-modes', '--user-id', userId, '--modes', modesString
     ]);
 
     if (!result.success) {
-      return res.status(500).json({
-        error: 'Server Error',
-        message: 'Failed to add modes',
-      });
+      return res.status(500).json({ error: 'Server Error', message: 'Failed to add modes' });
     }
 
-    res.json({
-      message: 'Modes added successfully',
-      modes: result.data || [],
-    });
+    res.json({ message: 'Modes added successfully', modes: result.data || [] });
   } catch (error) {
     console.error('Error adding modes:', error);
-    res.status(500).json({
-      error: 'Server Error',
-      message: 'Failed to add modes',
-    });
+    res.status(500).json({ error: 'Server Error', message: 'Failed to add modes' });
   }
 });
 
 /**
  * DELETE /api/users/:userId/modes/:modeId
- * Remove a mode from user
  */
 router.delete('/users/:userId/:modeId', authenticateTelegram, async (req: Request, res: Response) => {
   try {
-    const { userId, modeId } = req.params;
+    const userId = parseInt(req.params.userId);
+    const modeId = parseInt(req.params.modeId);
 
-    const result = await executePythonTool('mode_manager', [
-      '--remove-mode',
-      '--user-id', userId,
-      '--mode-id', modeId
-    ]);
+    const affected = await execute(
+      `UPDATE user_modes SET is_active = false WHERE user_id = $1 AND mode_id = $2`,
+      [userId, modeId]
+    );
 
-    if (!result.success) {
-      return res.status(500).json({
-        error: 'Server Error',
-        message: 'Failed to remove mode',
-      });
+    if (affected === 0) {
+      return res.status(404).json({ error: 'Not Found', message: 'Mode not found for user' });
     }
 
-    res.json({
-      message: 'Mode removed successfully',
-    });
+    res.json({ message: 'Mode removed successfully' });
   } catch (error) {
     console.error('Error removing mode:', error);
-    res.status(500).json({
-      error: 'Server Error',
-      message: 'Failed to remove mode',
-    });
+    res.status(500).json({ error: 'Server Error', message: 'Failed to remove mode' });
   }
 });
 
 /**
  * PATCH /api/users/:userId/modes/:modeId
- * Update mode settings for user
  */
 router.patch('/users/:userId/:modeId', authenticateTelegram, async (req: Request, res: Response) => {
   try {
@@ -188,84 +146,51 @@ router.patch('/users/:userId/:modeId', authenticateTelegram, async (req: Request
     const { settings } = req.body;
 
     if (!settings) {
-      return res.status(400).json({
-        error: 'Bad Request',
-        message: 'Missing settings object',
-      });
+      return res.status(400).json({ error: 'Bad Request', message: 'Missing settings object' });
     }
 
-    // Update user_modes settings
-    const result = await executeSafeQuery(
+    const row = await queryOne(
       `UPDATE user_modes
-       SET settings = %s::jsonb,
-           updated_at = NOW()
-       WHERE user_id = %s AND mode_id = %s
+       SET settings = $1::jsonb
+       WHERE user_id = $2 AND mode_id = $3
        RETURNING *`,
       [JSON.stringify(settings), userId, modeId]
     );
 
-    if (!result.success) {
-      return res.status(500).json({
-        error: 'Server Error',
-        message: 'Failed to update mode settings',
-      });
+    if (!row) {
+      return res.status(404).json({ error: 'Not Found', message: 'Mode not found for user' });
     }
 
-    res.json({
-      message: 'Mode settings updated successfully',
-      settings: result.data && result.data[0] ? result.data[0].settings : settings,
-    });
+    res.json({ message: 'Mode settings updated successfully', settings: row.settings || settings });
   } catch (error) {
     console.error('Error updating mode settings:', error);
-    res.status(500).json({
-      error: 'Server Error',
-      message: 'Failed to update mode settings',
-    });
+    res.status(500).json({ error: 'Server Error', message: 'Failed to update mode settings' });
   }
 });
 
 /**
  * GET /api/modes/:modeId/quests
- * Get quest templates for a specific mode
+ * Get quest templates for a mode. Cached.
  */
 router.get('/:modeId/quests', authenticateTelegram, async (req: Request, res: Response) => {
   try {
     const modeId = parseInt(req.params.modeId);
 
-    const result = await executeSafeQuery(
-      `SELECT
-        id,
-        name,
-        description,
-        xp_reward,
-        frequency,
-        difficulty,
-        default_target,
-        is_active
-      FROM quest_templates
-      WHERE mode_id = %s
-      AND is_active = true
-      ORDER BY frequency, difficulty`,
-      [modeId]
+    const quests = await cached(`mode_quests:${modeId}`, TTL.MEDIUM, () =>
+      query(
+        `SELECT id, title AS name, description, xp_reward, quest_type AS frequency,
+                difficulty, requires_timer, is_mandatory
+         FROM quests
+         WHERE mode_id = $1
+         ORDER BY quest_type, difficulty`,
+        [modeId]
+      )
     );
 
-    if (!result.success) {
-      return res.status(500).json({
-        error: 'Server Error',
-        message: 'Failed to fetch mode quests',
-      });
-    }
-
-    res.json({
-      quests: result.data || [],
-      count: result.data?.length || 0,
-    });
+    res.json({ quests, count: quests.length });
   } catch (error) {
     console.error('Error fetching mode quests:', error);
-    res.status(500).json({
-      error: 'Server Error',
-      message: 'Failed to fetch mode quests',
-    });
+    res.status(500).json({ error: 'Server Error', message: 'Failed to fetch mode quests' });
   }
 });
 
