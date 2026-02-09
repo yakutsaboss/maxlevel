@@ -2387,3 +2387,419 @@ Add your retrospective to PARALLEL_AGENTS.md at the bottom under "Run 6 Retrospe
 3. `e616628` — Add /achievements route to App.tsx
 4. `0a8ee79` — Replace achievements grid with compact summary card linking to /achievements
 5. `3ae2661` — Add reusable Toast component, integrate in ProfileEditModal and Settings
+
+### Agent 0 Retrospective (Run 6 — Orchestrator)
+
+**Merge results:** All 3 agents merged successfully. 2 conflicts (both in PARALLEL_AGENTS.md retrospective section — expected and trivial). Fast-forward for Agent B, merge commits for C and A.
+
+**What was delivered:**
+
+| Agent | Commits | Tests Added | Key Deliverables |
+|-------|---------|-------------|------------------|
+| A | 5 | 0 (mini-app) | Achievements page, 5th nav item, compact profile card, Toast component |
+| B | 5 | 0 (infra) | 10 new achievements (Finance+Learning), 4 performance indexes, timezone-aware daily summary, category field in API |
+| C | 5 | +48 TS | miniapp handler (8), admin route (27), onboarding route (5), achievements route (8), fixed broken leaderboardRefresh test |
+| **Total** | **15** | **+48** | **454 total tests (282 TS + 172 Python)** |
+
+**Run 6 Known Issues resolved:**
+1. No Finance/Learning achievements → DONE (10 new, 25 total)
+2. No Achievements page in mini-app → DONE (full page with rarity groups)
+3. Test gaps (admin, miniapp, onboarding) → DONE (+48 tests)
+4. No performance indexes → DONE (4 indexes added)
+5. Daily summary fixed 9 PM UTC → DONE (hourly, per-user reminder_time)
+6. Learning day-grid validation → STILL OPEN (uses fitness-specific `workout_frequency`)
+
+**Issues carried forward to Run 7:**
+1. **Mode-aware achievement checking** — POST `/users/:userId/check` doesn't handle new criteria types with mode filtering (Agent B recommendation)
+2. **No `GET /api/achievements/categories` endpoint** — mini-app could use this for grouping (Agent B recommendation)
+3. **No HTTP-level route tests** — all tests use mocks, no supertest integration (Agent C recommendation)
+4. **Learning day-grid validation** — still uses fitness-specific `workout_frequency`
+5. **Admin route too large** — admin.ts is 498 lines, could benefit from splitting
+6. **Pre-existing test failures** — 5 tests from Run 1 still failing (users.test.ts × 3, dailyQuestReset.test.ts × 1)
+
+**Merge order worked well:** B→C→A with only PARALLEL_AGENTS.md conflicts (always expected).
+
+---
+
+### Known Issues for Run 7
+1. **Mode-aware achievement checking missing** — new criteria types (`quest_complete`, `streak`, `quest_complete_consecutive` with mode filtering) not implemented
+2. **No achievements categories endpoint** — mini-app can't discover available categories dynamically
+3. **Pre-existing test failures (5)** — users.test.ts (3), dailyQuestReset.test.ts (1), need investigation and fix
+4. **No HTTP integration tests** — all route tests mock Express, no supertest-based tests
+5. **Admin route too large** — 498 lines, should split into admin-stats, admin-users, admin-jobs
+6. **Learning day-grid uses `workout_frequency`** — fitness-specific field used for non-fitness mode
+7. **Mini-app reminder times limited** — only 4 preset options (8, 12, 18, 21 UTC)
+8. **No error boundaries in mini-app pages** — generic "Failed to load" with no retry beyond pull-to-refresh
+
+---
+
+## RUN 7: Parallel Agents (3 Agents + Agent 0)
+
+### Focus: Mode-Aware Achievements, Admin Refactor & Test Quality
+
+Run 7 implements mode-aware achievement unlocking, refactors the large admin route, fixes all pre-existing test failures, and improves mini-app UX with better error handling and reminder customization.
+
+### How to Launch
+
+Open 4 separate Claude Code sessions. **Start Agent 0 FIRST** — it sets up worktrees. Only start A/B/C after Agent 0 says "Ready."
+
+### Copy-Paste Prompts
+
+**Agent 0** (open in: `c:\Users\Asus\Desktop\Wibecode`):
+```
+Read PARALLEL_AGENTS.md — you are Agent 0 for Run 7. Set up worktrees and tell me when ready. After all agents finish, I'll tell you to merge.
+```
+
+**Agent A** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-a`):
+```
+Read PARALLEL_AGENTS.md — you are Agent A for Run 7. Do your tasks.
+```
+
+**Agent B** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-b`):
+```
+Read PARALLEL_AGENTS.md — you are Agent B for Run 7. Do your tasks.
+```
+
+**Agent C** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-c`):
+```
+Read PARALLEL_AGENTS.md — you are Agent C for Run 7. Do your tasks.
+```
+
+---
+
+## Agent 0 — Orchestrator (Run 7)
+
+**You are Agent 0.** Set up the environment, WAIT for agents, then merge and deploy.
+
+**Working directory:** `c:\Users\Asus\Desktop\Wibecode` (main repo, `main` branch)
+
+### Phase 1: Pre-Run Setup
+
+**Step 1: Verify clean state**
+```bash
+git status  # should be clean
+git log --oneline -3  # verify Run 6 merges at top
+```
+
+**Step 2: Run all tests to confirm baseline**
+```bash
+cd bot && npx vitest run --reporter=verbose 2>&1 | tail -20
+```
+Note any pre-existing failures — Agent C will fix them.
+
+**Step 3: Create worktrees**
+```bash
+git branch feature/miniapp-ux-polish 2>/dev/null
+git branch feature/mode-achievements 2>/dev/null
+git branch feature/test-quality 2>/dev/null
+git worktree add ../Wibecode-agent-a feature/miniapp-ux-polish
+git worktree add ../Wibecode-agent-b feature/mode-achievements
+git worktree add ../Wibecode-agent-c feature/test-quality
+```
+
+**Step 4: Install dependencies**
+```bash
+cd ../Wibecode-agent-a/mini-app && npm install
+cd ../../Wibecode-agent-b/bot && npm install
+cd ../../Wibecode-agent-c/bot && npm install
+```
+
+**Step 5: Verify worktrees**
+```bash
+cd c:\Users\Asus\Desktop\Wibecode
+git worktree list
+```
+
+**Step 6: Tell the user** "Ready to launch Agents A, B, C."
+
+### Phase 2: WAIT for all 3 agents to finish
+
+### Phase 3: Post-Run Merge
+
+```bash
+# Check each branch
+git log main..feature/mode-achievements --oneline
+git log main..feature/test-quality --oneline
+git log main..feature/miniapp-ux-polish --oneline
+```
+
+**Merge order:**
+1. `git merge feature/mode-achievements --no-edit` → verify `cd bot && npm run build`
+2. `git merge feature/test-quality --no-edit` → verify `cd bot && npx vitest run`
+3. `git merge feature/miniapp-ux-polish --no-edit` → verify `cd mini-app && npm run build`
+
+**Deploy + Clean up** (see Agent 0 Self-Protocol above).
+
+### Phase 4: Prepare Run 8
+
+After deploying Run 7, write retrospective, design next run, set up worktrees.
+
+---
+
+## Agent A — Mini-App UX Polish (Run 7)
+
+**You are Agent A.** You improve reminder settings, add error boundaries, and polish achievement UX.
+
+**Working directory:** `c:\Users\Asus\Desktop\Wibecode-agent-a` (branch `feature/miniapp-ux-polish`)
+
+**YOUR files (ONLY edit these):**
+- `mini-app/src/pages/Settings.tsx`
+- `mini-app/src/pages/Achievements.tsx`
+- `mini-app/src/pages/Dashboard.tsx`
+- `mini-app/src/pages/Quests.tsx`
+- `mini-app/src/pages/Profile.tsx`
+- `mini-app/src/pages/Leaderboard.tsx`
+- `mini-app/src/components/Toast.tsx`
+- `mini-app/src/components/ErrorBoundary.tsx` (NEW)
+- `mini-app/src/index.css`
+
+**DO NOT edit:** `mini-app/src/api/client.ts`, `mini-app/src/types/index.ts`, `mini-app/src/hooks/`, `mini-app/src/App.tsx`, `bot/` anything
+
+### CONTEXT
+- Run 6 added: Achievements page, Toast component, 5-item navigation
+- Settings page currently has 4 hardcoded reminder times (8, 12, 18, 21 UTC)
+- Pages show generic "Failed to load" errors with no retry button
+- Achievements page loads with static grid, no animations for recent unlocks
+
+### TASKS (do in order, commit after each)
+
+**Task 1: Expand reminder time selection (Settings.tsx)**
+- Replace 4 fixed buttons with a horizontal scrollable time picker (0–23 hours)
+- Each hour shows the UTC time AND the user's local equivalent (use `Intl.DateTimeFormat` or simple UTC offset calculation)
+- Keep the existing PATCH `/api/users/:id/preferences` call
+- Highlight currently selected hour
+- Commit: "Expand reminder time picker to full 24-hour range"
+
+**Task 2: Add ErrorBoundary component (NEW file)**
+- Create `mini-app/src/components/ErrorBoundary.tsx`
+- React error boundary that catches render errors
+- Shows friendly error message with "Try Again" button that reloads the page
+- Styled consistently with existing error states in the app
+- Commit: "Add ErrorBoundary component for graceful error recovery"
+
+**Task 3: Add retry buttons to page error states**
+- In Dashboard.tsx, Quests.tsx, Profile.tsx, Leaderboard.tsx, Achievements.tsx:
+  - Find the error state rendering (where `isError` or `error` is shown)
+  - Add a "Retry" button that calls `refetch()` from react-query
+  - Style consistently: centered text + button below
+- Do NOT change the data fetching logic, just add retry UI to existing error states
+- Commit: "Add retry buttons to all page error states"
+
+**Task 4: Highlight recently unlocked achievements**
+- In Achievements.tsx, check if an achievement was unlocked within the last 24 hours
+- Add a subtle glow/pulse animation to recently unlocked achievements (CSS only, no framer-motion)
+- Show a small "NEW" badge on recently unlocked items
+- Use the `unlocked_at` field from the API response
+- Commit: "Highlight recently unlocked achievements with NEW badge"
+
+**Task 5: Build verification**
+- Run `cd mini-app && npm run build`
+- Fix any TypeScript errors
+- Commit only if fixes were needed: "Fix TypeScript errors from Run 7 tasks"
+
+### RETROSPECTIVE (DO THIS LAST)
+Add your retrospective to PARALLEL_AGENTS.md at the bottom under "Run 7 Retrospectives".
+
+---
+
+## Agent B — Mode-Aware Achievements & Admin Refactor (Run 7)
+
+**You are Agent B.** You implement mode-aware achievement checking, add categories endpoint, and refactor the admin route.
+
+**Working directory:** `c:\Users\Asus\Desktop\Wibecode-agent-b` (branch `feature/mode-achievements`)
+
+**YOUR files (ONLY edit these):**
+- `bot/src/api/routes/achievements.ts`
+- `bot/src/api/routes/admin.ts` → split into:
+  - `bot/src/api/routes/admin-stats.ts` (NEW)
+  - `bot/src/api/routes/admin-users.ts` (NEW)
+  - `bot/src/api/routes/admin-jobs.ts` (NEW)
+- `bot/src/api/routes/leaderboard.ts`
+- `bot/src/api/index.ts` (only to register new admin sub-routes)
+- `bot/src/jobs/definitions/dailySummary.ts`
+- `bot/src/jobs/registerJobs.ts`
+
+**DO NOT edit:** `bot/src/handlers/`, `bot/src/config.ts`, `bot/src/index.ts`, `bot/src/utils/`, `.env`, mini-app files, test files
+
+### CONTEXT
+- Run 6 added 10 new achievements with criteria like `{"type": "quest_complete", "mode": "finance", "count": 1}`
+- Current achievement check (in achievements route) only handles generic `level`, `total_xp`, `quest_count`, `streak`
+- Admin route is 498 lines with stats, users, modes, jobs, broadcast, analytics all in one file
+- Leaderboard returns top 50 cross-mode only, no mode filtering
+
+### TASKS (do in order, commit after each)
+
+**Task 1: Implement mode-aware achievement checking**
+- Read `bot/src/api/routes/achievements.ts` carefully — find the achievement check/unlock logic
+- Add handling for these criteria types:
+  - `quest_complete` with `mode` → count completed quests WHERE mode matches
+  - `streak` with `mode` → check streak days WHERE mode matches
+  - `quest_complete_consecutive` with `mode` → check consecutive days with completed quests in that mode
+- Use existing DB query patterns (check `tools/` for SQL examples)
+- Query `quest_instances` joined with `quest_templates` to filter by mode
+- Query `streaks` table filtered by mode_id for streak criteria
+- Commit: "Implement mode-aware achievement criteria checking"
+
+**Task 2: Add GET /api/achievements/categories endpoint**
+- Add new endpoint to `bot/src/api/routes/achievements.ts`
+- Query: `SELECT DISTINCT criteria->>'mode' as category FROM achievements WHERE criteria->>'mode' IS NOT NULL`
+- Add 'general' for achievements without a mode
+- Return `{ categories: ['fitness', 'hydration', 'finance', 'learning', 'general'] }`
+- Commit: "Add GET /api/achievements/categories endpoint"
+
+**Task 3: Add mode-filtered leaderboard**
+- Read `bot/src/api/routes/leaderboard.ts`
+- Add optional `mode` query parameter to `GET /api/leaderboard`
+- When `mode` is provided, filter by mode-specific XP/streaks
+- Keep existing behavior when no mode param (cross-mode top 50)
+- Commit: "Add mode filter to leaderboard endpoint"
+
+**Task 4: Refactor admin.ts into 3 files**
+- Read `bot/src/api/routes/admin.ts` (498 lines)
+- Split into:
+  - `admin-stats.ts` — GET /stats, GET /analytics/*
+  - `admin-users.ts` — GET/POST/PATCH users, notifications, broadcast
+  - `admin-jobs.ts` — GET/POST jobs, job management
+- Keep `admin.ts` as the main router that imports and mounts the sub-routers
+- Read `bot/src/api/index.ts` to understand how routes are registered — keep the existing `/api/admin` prefix
+- Commit: "Refactor admin.ts into admin-stats, admin-users, admin-jobs"
+
+**Task 5: Build verification + REGISTER_THESE**
+- Run `cd bot && npm run build`
+- Fix any TypeScript errors
+- Create `bot/src/handlers/REGISTER_THESE_RUN7.md` documenting changes
+- Commit: "Verify build and document Run 7 Agent B changes"
+
+### RETROSPECTIVE (DO THIS LAST)
+Add your retrospective to PARALLEL_AGENTS.md at the bottom under "Run 7 Retrospectives".
+
+---
+
+## Agent C — Test Quality & Pre-Existing Fixes (Run 7)
+
+**You are Agent C.** You fix all pre-existing test failures and add HTTP integration tests.
+
+**Working directory:** `c:\Users\Asus\Desktop\Wibecode-agent-c` (branch `feature/test-quality`)
+
+**YOUR files (ONLY edit these):**
+- `bot/src/__tests__/` (all test files)
+- `bot/src/__tests__/routes/http/` (NEW directory for HTTP tests)
+- `bot/src/__tests__/middleware/` (NEW directory for middleware tests)
+- `bot/vitest.config.ts`
+- `bot/package.json` (only to add `supertest` dev dependency)
+- `tools/tests/` (Python tests if needed)
+
+**DO NOT edit:** Source code in `bot/src/` (except test files), `mini-app/`, `.env`, `bot/src/handlers/`, `bot/src/api/`
+
+### CONTEXT
+- Run 6 brought test count to 282 TypeScript + 172 Python = 454 total
+- 5 pre-existing test failures from Run 1: users.test.ts (3), dailyQuestReset.test.ts (1)
+- Agent C from Run 6 noted: all tests use mocks, no HTTP integration tests, no middleware tests
+- No `supertest` in package.json currently
+
+### TASKS (do in order, commit after each)
+
+**Task 1: Fix pre-existing test failures (CRITICAL — do this first)**
+- Run `cd bot && npx vitest run --reporter=verbose 2>&1` to identify ALL failures
+- Read each failing test file and the corresponding source file
+- Fix the test assertions/mocks to match current source code behavior
+- Common issues: mocks targeting old function signatures, missing module mocks, changed return shapes
+- Run tests again — ALL must pass (0 failures)
+- Commit: "Fix N pre-existing test failures (users.test.ts, dailyQuestReset.test.ts)"
+
+**Task 2: Add supertest and create HTTP test infrastructure**
+- Add `supertest` to devDependencies: edit `bot/package.json`
+- Run `npm install`
+- Create `bot/src/__tests__/routes/http/` directory
+- Create a shared test helper `bot/src/__tests__/helpers/testApp.ts`:
+  - Exports a function that creates an Express app with routes mounted
+  - Mocks database and auth middleware
+  - Returns the app instance for supertest
+- Commit: "Add supertest and HTTP test infrastructure"
+
+**Task 3: Add HTTP integration tests for user routes**
+- Create `bot/src/__tests__/routes/http/users.http.test.ts`
+- Test through actual HTTP with supertest:
+  - `GET /api/users/:telegramId` — 200 with user data, 404 for unknown user
+  - `POST /api/users` — 201 creates user, 400 for missing fields
+  - `PATCH /api/users/:id/preferences` — 200 updates, 400 for invalid data
+- 8-10 tests covering happy path + error cases
+- Commit: "Add HTTP integration tests for user routes"
+
+**Task 4: Add HTTP integration tests for achievements routes**
+- Create `bot/src/__tests__/routes/http/achievements.http.test.ts`
+- Test:
+  - `GET /api/achievements` — 200 returns list with category field
+  - `GET /api/achievements/user/:userId` — 200 returns user achievements
+  - Error cases: invalid userId, DB errors
+- 6-8 tests
+- Commit: "Add HTTP integration tests for achievements routes"
+
+**Task 5: Add middleware tests**
+- Create `bot/src/__tests__/middleware/adminAuth.test.ts`
+- Test `authenticateAdmin` middleware:
+  - Valid Basic Auth header → calls next()
+  - Missing header → 401
+  - Invalid credentials → 401
+  - Malformed header → 401
+- 6-8 tests
+- Commit: "Add middleware tests for admin authentication"
+
+**Task 6: Run ALL tests and verify everything passes**
+- Run `cd bot && npx vitest run --reporter=verbose`
+- Run `python -m pytest tools/tests/ -v`
+- Fix ANY failures
+- Final commit with total counts: "All tests passing: X TypeScript + Y Python = Z total, 0 failures"
+
+### RETROSPECTIVE (DO THIS LAST)
+Add your retrospective to PARALLEL_AGENTS.md at the bottom under "Run 7 Retrospectives".
+
+---
+
+## Run 7 File Ownership Matrix
+
+| File/Directory | Agent A | Agent B | Agent C | Nobody |
+|---|---|---|---|---|
+| mini-app/src/pages/Settings.tsx | OWNS | - | - | - |
+| mini-app/src/pages/Achievements.tsx | OWNS | - | - | - |
+| mini-app/src/pages/Dashboard.tsx | OWNS | - | - | - |
+| mini-app/src/pages/Quests.tsx | OWNS | - | - | - |
+| mini-app/src/pages/Profile.tsx | OWNS | - | - | - |
+| mini-app/src/pages/Leaderboard.tsx | OWNS | - | - | - |
+| mini-app/src/components/ErrorBoundary.tsx (NEW) | OWNS | - | - | - |
+| mini-app/src/components/Toast.tsx | OWNS | - | - | - |
+| mini-app/src/index.css | OWNS | - | - | - |
+| bot/src/api/routes/achievements.ts | - | OWNS | - | - |
+| bot/src/api/routes/admin.ts | - | OWNS | - | - |
+| bot/src/api/routes/admin-stats.ts (NEW) | - | OWNS | - | - |
+| bot/src/api/routes/admin-users.ts (NEW) | - | OWNS | - | - |
+| bot/src/api/routes/admin-jobs.ts (NEW) | - | OWNS | - | - |
+| bot/src/api/routes/leaderboard.ts | - | OWNS | - | - |
+| bot/src/api/index.ts | - | OWNS | - | - |
+| bot/src/__tests__/ | - | - | OWNS | - |
+| bot/src/__tests__/routes/http/ (NEW) | - | - | OWNS | - |
+| bot/src/__tests__/middleware/ (NEW) | - | - | OWNS | - |
+| bot/vitest.config.ts | - | - | OWNS | - |
+| bot/package.json | - | - | OWNS | - |
+| tools/tests/ | - | - | OWNS | - |
+| mini-app/src/api/client.ts | - | - | - | LOCKED |
+| mini-app/src/types/index.ts | - | - | - | LOCKED |
+| mini-app/src/hooks/ | - | - | - | LOCKED |
+| mini-app/src/App.tsx | - | - | - | LOCKED |
+| bot/src/utils/ | - | - | - | LOCKED |
+| bot/src/config.ts | - | - | - | LOCKED |
+| bot/src/index.ts | - | - | - | LOCKED |
+| bot/src/handlers/ | - | - | - | LOCKED |
+| .env | - | - | - | LOCKED |
+
+## Run 7 Merge Order
+
+1. **Agent B first** — backend achievements + admin refactor + leaderboard modes
+2. **Agent C second** — tests (reference stable source after B's changes)
+3. **Agent A last** — mini-app UX (completely independent)
+
+---
+
+## Run 7 Retrospectives
+
+*(Agents: add your retrospective sections below this line when you finish)*
