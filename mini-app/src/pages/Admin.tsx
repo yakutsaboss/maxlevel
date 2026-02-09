@@ -1,14 +1,16 @@
 import { useState, useCallback, useEffect } from 'react';
-import { Shield, LogIn, LogOut, Users, BarChart3, Megaphone } from 'lucide-react';
+import { Shield, LogIn, LogOut, Users, BarChart3, Megaphone, Briefcase, ScrollText } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { Toast } from '@/components/Toast';
 import { AdminStatsCard } from '@/components/AdminStatsCard';
 import { AdminUserList } from '@/components/AdminUserList';
 import { AdminBroadcast } from '@/components/AdminBroadcast';
+import { AdminJobs } from '@/components/AdminJobs';
+import { AdminLogs } from '@/components/AdminLogs';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
 
-type AdminTab = 'stats' | 'users' | 'broadcast';
+type AdminTab = 'stats' | 'users' | 'broadcast' | 'jobs' | 'logs';
 
 interface AdminStats {
   total_users: number;
@@ -101,6 +103,8 @@ export function Admin() {
     { id: 'stats', label: 'Overview', icon: <BarChart3 size={18} /> },
     { id: 'users', label: 'Users', icon: <Users size={18} /> },
     { id: 'broadcast', label: 'Broadcast', icon: <Megaphone size={18} /> },
+    { id: 'jobs', label: 'Jobs', icon: <Briefcase size={18} /> },
+    { id: 'logs', label: 'Logs', icon: <ScrollText size={18} /> },
   ];
 
   // Login form
@@ -186,12 +190,12 @@ export function Admin() {
         </div>
 
         {/* Tabs */}
-        <div className="flex gap-1 bg-telegram-bg rounded-xl p-1">
+        <div className="flex gap-1 bg-telegram-bg rounded-xl p-1 overflow-x-auto hide-scrollbar">
           {tabs.map((tab) => (
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className={`flex-1 flex items-center justify-center gap-1.5 py-2 px-3 rounded-lg text-sm font-medium transition-colors ${
+              className={`flex items-center justify-center gap-1 py-2 px-2.5 rounded-lg text-xs font-medium transition-colors whitespace-nowrap flex-shrink-0 ${
                 activeTab === tab.id
                   ? 'bg-telegram-button text-telegram-buttonText'
                   : 'text-telegram-hint hover:text-telegram-text'
@@ -214,6 +218,12 @@ export function Admin() {
         )}
         {activeTab === 'broadcast' && (
           <AdminBroadcast credentials={credentials} />
+        )}
+        {activeTab === 'jobs' && (
+          <AdminJobs credentials={credentials} />
+        )}
+        {activeTab === 'logs' && (
+          <AdminLogs credentials={credentials} />
         )}
       </div>
 
