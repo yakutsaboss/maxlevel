@@ -248,6 +248,46 @@ export function Dashboard() {
         <StatCard icon={<Trophy className="w-5 h-5" />} label="Achievements" value={stats.recentAchievements.length} color="bg-purple-500" />
       </div>
 
+      {/* Daily Quest Goal Ring */}
+      {(() => {
+        const dailyTotal = stats.activeQuests.length + stats.completedQuestsToday;
+        const dailyProgress = dailyTotal > 0 ? stats.completedQuestsToday / dailyTotal : 0;
+        const size = 120;
+        const strokeWidth = 8;
+        const radius = (size - strokeWidth) / 2;
+        const circumference = 2 * Math.PI * radius;
+        const offset = circumference * (1 - dailyProgress);
+        const isComplete = dailyTotal > 0 && stats.completedQuestsToday >= dailyTotal;
+        return (
+          <div className="px-4 mt-6">
+            <div className={`rounded-2xl p-5 shadow-sm flex flex-col items-center ${isComplete ? 'bg-gradient-to-br from-green-500/10 to-emerald-500/10 border border-green-500/20' : 'bg-telegram-secondaryBg border border-telegram-hint/10'}`}>
+              <div className="relative" style={{ width: size, height: size }}>
+                <svg width={size} height={size} className="transform -rotate-90">
+                  <circle cx={size / 2} cy={size / 2} r={radius} fill="none" stroke="currentColor" strokeWidth={strokeWidth} className="text-telegram-hint/20" />
+                  <motion.circle
+                    cx={size / 2} cy={size / 2} r={radius}
+                    fill="none"
+                    strokeWidth={strokeWidth}
+                    strokeLinecap="round"
+                    className={isComplete ? 'text-green-500' : 'text-telegram-link'}
+                    strokeDasharray={circumference}
+                    initial={{ strokeDashoffset: circumference }}
+                    animate={{ strokeDashoffset: offset }}
+                    transition={{ duration: 1, ease: 'easeOut' }}
+                    stroke="currentColor"
+                  />
+                </svg>
+                <div className="absolute inset-0 flex flex-col items-center justify-center">
+                  <span className="text-2xl font-bold text-telegram-text">{stats.completedQuestsToday}/{dailyTotal}</span>
+                </div>
+              </div>
+              <div className="text-sm text-telegram-hint mt-2">Daily Quests</div>
+              {isComplete && <div className="text-sm font-medium text-green-600 mt-1">All done! Great work!</div>}
+            </div>
+          </div>
+        );
+      })()}
+
       {/* Today's Progress */}
       <div className="px-4 mt-6">
         <h2 className="text-lg font-semibold mb-3 flex items-center gap-2">
