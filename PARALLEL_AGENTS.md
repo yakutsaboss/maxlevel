@@ -3783,3 +3783,375 @@ Add your retrospective to PARALLEL_AGENTS.md at the bottom under "Run 9 Retrospe
 - Consider adding user search on server-side (current search is client-side on loaded page only)
 - Could add job management tab (trigger/monitor pg-boss jobs from the dashboard)
 - Admin page has no navigation tab — accessible only via direct URL `/levelapp/admin` (intentional)
+
+---
+
+## Run 9 Retrospective (Agent 0)
+
+### Merge Results
+| Branch | Merge | Conflicts | Resolution |
+|--------|-------|-----------|------------|
+| `feature/backend-fixes` → main | Fast-forward | 0 | Clean |
+| `feature/python-test-coverage` → main | Merge commit | 1 (PARALLEL_AGENTS.md) | Both retrospectives kept |
+| `feature/admin-dashboard` → main | Merge commit | 1 (PARALLEL_AGENTS.md) | All 3 retrospectives kept |
+
+### What Was Delivered
+**Agent A** (admin dashboard): Full admin web UI — login with Basic Auth, stats overview (4 cards), paginated user list with detail view, broadcast tool with confirmation dialog. 6 commits.
+
+**Agent B** (backend fixes): Fixed avatar_id validation (1-8 → 1-16), implemented broadcast endpoint (batch Telegram API sends with rate limiting), implemented logs endpoint (pg-boss job history). 5 commits.
+
+**Agent C** (Python tests): 70 new Python tests — db_operations (24), notification_bot_handler (17), server_metrics (15), sync_todos_notification (14). Total 244 Python tests. 5 commits.
+
+### Test Totals After Merge
+- **398 TypeScript tests** (31 files) — all passing
+- **244 Python tests** (11 files) — all passing
+- **Total: 642 tests, 0 failures**
+
+### What Went Right
+- Agent B merge was a fast-forward (no conflicts at all)
+- All agents completed ALL tasks
+- Both builds passed on first try
+- Agent B made a smart decision to use Telegram API directly for broadcast (instead of send_notification.py which only targets admin chat)
+- Agent C hit asyncio and SystemExit edge cases — documented fixes cleanly
+
+### Issues Resolved This Run
+1. **Avatar_id validation (BLOCKER)** — FIXED (users.ts now allows 1-16)
+2. **Broadcast endpoint 501** — FIXED (working batch send implementation)
+3. **Admin logs endpoint 501** — FIXED (pg-boss job history)
+4. **Python test gap** — MOSTLY FIXED (70 new tests, 4 tools remain untested)
+5. **No admin panel UI** — FIXED (full admin dashboard at /admin)
+
+### Known Issues Carried Forward
+1. **Admin logs not in UI** — Backend logs endpoint works, but Admin.tsx only has 3 tabs (stats, users, broadcast) — no logs tab
+2. **Check-in system dead** — `check_ins` table exists but no API endpoint; quests use `check_in_count` on quest_instances only
+3. **Punishment system dead** — Onboarding UI collects punishment preferences, but no backend applies penalties
+4. **No lazy loading** — All mini-app pages loaded synchronously, no React.lazy/Suspense
+5. **4 Python tools untested** — timeweb_cloud_manager, mini_app_diagnostic, project_status_tracker, sheets_analytics_export
+6. **pg-boss Node.js mismatch** — requires 22.12+, server has 20.20 (still just warnings)
+
+### Known Issues for Run 10
+1. **Admin logs tab** — Add logs viewer component to Admin dashboard
+2. **Daily check-in feature** — Dashboard needs a check-in button + backend endpoint
+3. **Lazy loading** — Route-based code splitting with React.lazy/Suspense
+4. **Admin job management** — View/trigger pg-boss jobs from admin dashboard
+5. **Punishment backend** — Either implement or remove dead tables/UI
+
+---
+
+## RUN 10: Parallel Agents (3 Agents + Agent 0)
+
+### Focus: Admin Dashboard Completion, Daily Check-In Feature & Performance
+
+Run 10 completes the admin dashboard (logs + jobs tabs), adds a daily check-in feature with backend API, and implements route-based lazy loading for the mini-app.
+
+### How to Launch
+
+Open 4 separate Claude Code sessions. **Start Agent 0 FIRST** — it sets up worktrees. Only start A/B/C after Agent 0 says "Ready."
+
+### Copy-Paste Prompts
+
+**Agent 0** (open in: `c:\Users\Asus\Desktop\Wibecode`):
+```
+Read PARALLEL_AGENTS.md — you are Agent 0 for Run 10. Set up worktrees and tell me when ready. After all agents finish, I'll tell you to merge.
+```
+
+**Agent A** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-a`):
+```
+Read PARALLEL_AGENTS.md — you are Agent A for Run 10. Do your tasks.
+```
+
+**Agent B** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-b`):
+```
+Read PARALLEL_AGENTS.md — you are Agent B for Run 10. Do your tasks.
+```
+
+**Agent C** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-c`):
+```
+Read PARALLEL_AGENTS.md — you are Agent C for Run 10. Do your tasks.
+```
+
+---
+
+## Agent 0 — Orchestrator (Run 10)
+
+**You are Agent 0.** Set up the environment, WAIT for agents, then merge and deploy.
+
+**Working directory:** `c:\Users\Asus\Desktop\Wibecode` (main repo, `main` branch)
+
+### Phase 1: Pre-Run Setup
+
+**Step 1: Verify clean state**
+```bash
+git status
+git log --oneline -3
+```
+
+**Step 2: Create worktrees**
+```bash
+git branch feature/admin-complete 2>/dev/null
+git branch feature/checkin-api 2>/dev/null
+git branch feature/miniapp-perf 2>/dev/null
+git worktree add ../Wibecode-agent-a feature/admin-complete
+git worktree add ../Wibecode-agent-b feature/checkin-api
+git worktree add ../Wibecode-agent-c feature/miniapp-perf
+```
+
+**Step 3: Install dependencies**
+```bash
+cd ../Wibecode-agent-a/mini-app && npm install
+cd ../../Wibecode-agent-b/bot && npm install
+cd ../../Wibecode-agent-c/mini-app && npm install
+```
+
+**Step 4: Verify worktrees**
+```bash
+cd c:\Users\Asus\Desktop\Wibecode
+git worktree list
+```
+
+**Step 5: Tell the user** "Ready to launch Agents A, B, C."
+
+### Phase 2: WAIT for all 3 agents to finish
+
+### Phase 3: Post-Run Merge
+
+```bash
+git log main..feature/checkin-api --oneline
+git log main..feature/admin-complete --oneline
+git log main..feature/miniapp-perf --oneline
+```
+
+**Merge order:**
+1. `git merge feature/checkin-api --no-edit` → verify `cd bot && npm run build`
+2. `git merge feature/admin-complete --no-edit` → verify `cd mini-app && npm run build`
+3. `git merge feature/miniapp-perf --no-edit` → verify `cd mini-app && npm run build`
+
+**Deploy + Clean up** (see Agent 0 Self-Protocol above).
+
+### Phase 4: Prepare Run 11
+
+After deploying Run 10, write retrospective, design next run, set up worktrees.
+
+---
+
+## Agent A — Admin Dashboard Completion (Run 10)
+
+**You are Agent A.** You complete the admin dashboard with logs and jobs tabs.
+
+**Working directory:** `c:\Users\Asus\Desktop\Wibecode-agent-a` (branch `feature/admin-complete`)
+
+**YOUR files (ONLY edit these):**
+- `mini-app/src/pages/Admin.tsx` — add logs + jobs tabs
+- `mini-app/src/components/AdminLogs.tsx` (NEW)
+- `mini-app/src/components/AdminJobs.tsx` (NEW)
+- `mini-app/src/components/AdminBroadcast.tsx` — minor fixes if needed
+- `mini-app/src/index.css` — add styles if needed
+
+**DO NOT edit:** `mini-app/src/api/client.ts`, `mini-app/src/types/index.ts`, `mini-app/src/hooks/`, `mini-app/src/App.tsx`, `bot/`, `tools/`
+
+### CONTEXT
+- Admin.tsx currently has 3 tabs: Stats, Users, Broadcast
+- Backend now has `GET /api/admin/logs` (returns job history from pgboss) and `GET /api/admin/jobs` + `POST /api/admin/jobs/:name/trigger`
+- All admin endpoints use Basic Auth (fetch with Authorization header)
+- Use the same auth pattern as existing Admin components (credentials from sessionStorage)
+
+### TASKS (do in order, commit after each)
+
+**Task 1: Add AdminLogs component**
+- Create `mini-app/src/components/AdminLogs.tsx`
+- Call `GET /api/admin/logs` with Basic Auth
+- Display log entries in a scrollable list: timestamp, level (color-coded), source, message
+- Add auto-refresh toggle (poll every 30 seconds when enabled)
+- Add "Refresh" button for manual refresh
+- Loading skeleton while fetching
+- Commit: "Add AdminLogs component with auto-refresh"
+
+**Task 2: Add AdminJobs component**
+- Create `mini-app/src/components/AdminJobs.tsx`
+- Call `GET /api/admin/jobs` to list all registered jobs
+- Show job name, schedule (cron), last run time, status
+- Add "Trigger" button for each job → calls `POST /api/admin/jobs/:name/trigger`
+- Show confirmation dialog before triggering
+- Show success/error feedback after trigger
+- Commit: "Add AdminJobs component with trigger capability"
+
+**Task 3: Integrate logs + jobs into Admin.tsx**
+- Read `mini-app/src/pages/Admin.tsx` to understand the tab structure
+- Add "Logs" tab and "Jobs" tab to the existing tab navigation
+- Tab order: Stats, Users, Broadcast, Jobs, Logs
+- Keep the same styling and animation pattern
+- Commit: "Add Logs and Jobs tabs to Admin dashboard"
+
+**Task 4: Build verification**
+- Run `cd mini-app && npm run build`
+- Fix any TypeScript errors
+- Commit only if fixes were needed
+
+### RETROSPECTIVE (DO THIS LAST)
+Add your retrospective to PARALLEL_AGENTS.md at the bottom under "Run 10 Retrospectives".
+
+---
+
+## Agent B — Daily Check-In API & Backend (Run 10)
+
+**You are Agent B.** You create the check-in API endpoint and related backend logic.
+
+**Working directory:** `c:\Users\Asus\Desktop\Wibecode-agent-b` (branch `feature/checkin-api`)
+
+**YOUR files (ONLY edit these):**
+- `bot/src/api/routes/checkins.ts` (NEW)
+- `bot/src/api/server.ts` — ONLY to add `router.use('/checkins', checkinsRouter)` import + route
+- `bot/src/__tests__/routes/http/checkins.http.test.ts` (NEW)
+
+**DO NOT edit:** `bot/src/bot.ts`, `bot/src/config.ts`, `bot/src/utils/`, `bot/src/types/`, `bot/src/jobs/`, `bot/src/api/middleware/`, `bot/src/api/routes/users.ts`, `bot/src/api/routes/quests.ts`, `bot/package.json`, `mini-app/`, `tools/`
+
+### CONTEXT
+- `check_ins` table exists in schema: `id, quest_instance_id, check_in_time, is_valid, location_lat, location_lon, notes`
+- Currently, quest progress is tracked via `check_in_count` on `quest_instances`, but no individual check-in records are saved
+- The check-in endpoint should create records in the `check_ins` table AND update `quest_instances.check_in_count`
+- Auth: Use the same `authenticateWebApp` middleware from `bot/src/api/middleware/auth.ts`
+- DB: Use `db.query()` and `db.transaction()` from `bot/src/utils/db.js`
+
+### TASKS (do in order, commit after each)
+
+**Task 1: Create check-ins route**
+- Create `bot/src/api/routes/checkins.ts`
+- Endpoints:
+  - `POST /api/checkins` — Create a check-in for a quest
+    - Body: `{ telegram_id: string, quest_instance_id: number, notes?: string }`
+    - Validates quest_instance exists and belongs to user
+    - Validates quest is not already completed
+    - Inserts into `check_ins` table
+    - Increments `quest_instances.check_in_count`
+    - Auto-completes quest if check_in_count reaches target
+    - Returns: `{ check_in_id, quest_progress: { current, target }, completed: boolean }`
+  - `GET /api/checkins/:telegramId/today` — Get today's check-ins for a user
+    - Returns all check-ins from today (server timezone)
+    - Includes quest name, mode, check-in time
+  - `GET /api/checkins/:telegramId/history` — Get check-in history (paginated)
+    - Query params: `page=1&limit=20`
+    - Returns check-ins with quest details, ordered by most recent
+- Commit: "Add check-ins API routes with quest progress integration"
+
+**Task 2: Register route in server.ts**
+- Read `bot/src/api/server.ts` to understand the router pattern
+- Add import for checkins router
+- Add `router.use('/checkins', authenticateWebApp, checkinsRouter)` (follow existing pattern)
+- Commit: "Register check-ins route in API server"
+
+**Task 3: Add HTTP tests for check-ins**
+- Read existing HTTP test patterns (`bot/src/__tests__/routes/http/users.http.test.ts`)
+- Create `bot/src/__tests__/routes/http/checkins.http.test.ts`
+- Test:
+  - `POST /api/checkins` — 200 creates check-in, increments progress
+  - `POST /api/checkins` — auto-completes quest when target reached
+  - `POST /api/checkins` — 400 for already completed quest
+  - `POST /api/checkins` — 404 for non-existent quest_instance
+  - `GET /api/checkins/:telegramId/today` — 200 returns today's check-ins
+  - `GET /api/checkins/:telegramId/history` — 200 returns paginated history
+  - Error cases: missing fields, DB errors
+- Target: 10-12 tests
+- Commit: "Add HTTP integration tests for check-ins routes"
+
+**Task 4: Build + test verification**
+- Run `cd bot && npm run build`
+- Run `cd bot && npx vitest run --reporter=verbose`
+- Fix any failures
+- Commit: "All tests passing with check-ins API"
+
+### RETROSPECTIVE (DO THIS LAST)
+Add your retrospective to PARALLEL_AGENTS.md at the bottom under "Run 10 Retrospectives".
+
+---
+
+## Agent C — Mini-App Performance & Lazy Loading (Run 10)
+
+**You are Agent C.** You implement lazy loading and performance optimizations in the mini-app.
+
+**Working directory:** `c:\Users\Asus\Desktop\Wibecode-agent-c` (branch `feature/miniapp-perf`)
+
+**YOUR files (ONLY edit these):**
+- `mini-app/src/App.tsx` — convert routes to lazy-loaded
+- `mini-app/src/components/LazyPageWrapper.tsx` (NEW)
+- `mini-app/src/pages/Dashboard.tsx` — performance optimizations
+- `mini-app/vite.config.ts` — adjust chunk splitting if needed
+
+**DO NOT edit:** `mini-app/src/api/client.ts`, `mini-app/src/types/index.ts`, `mini-app/src/hooks/`, `mini-app/src/components/onboarding/`, `mini-app/src/components/Admin*.tsx`, `bot/`, `tools/`
+
+### CONTEXT
+- Current bundle: ~560 KB total (pre-gzip). Main app chunk is 216 KB.
+- All 8 pages imported synchronously in App.tsx
+- No React.lazy() or Suspense anywhere
+- Framer Motion used for animations (131 KB vendor chunk)
+- React Query handles data fetching with 5min staleTime
+- Dashboard.tsx has inline quest/mode card rendering that could be memoized
+
+### TASKS (do in order, commit after each)
+
+**Task 1: Create LazyPageWrapper component**
+- Create `mini-app/src/components/LazyPageWrapper.tsx`
+- A Suspense wrapper that shows a loading skeleton while lazy-loaded pages load
+- Use a simple centered spinner or skeleton matching the app theme
+- Should support Telegram-style background colors
+- Commit: "Add LazyPageWrapper component for lazy-loaded routes"
+
+**Task 2: Convert pages to lazy loading**
+- Read `mini-app/src/App.tsx` to understand current route structure
+- Convert heavy pages to `React.lazy()`: Admin, Achievements, Leaderboard, Settings
+- Keep Dashboard, Quests, Profile, Onboarding as eager imports (critical path)
+- Wrap lazy routes in `<LazyPageWrapper>`
+- Commit: "Implement lazy loading for non-critical pages"
+
+**Task 3: Optimize Dashboard re-renders**
+- Read `mini-app/src/pages/Dashboard.tsx`
+- Extract inline quest card rendering into a memoized `QuestCard` component (in same file)
+- Extract mode card into memoized `ModeCard` component (in same file)
+- Use `React.memo()` for both + `useCallback` for any click handlers passed as props
+- Avoid over-optimization — only memo things that receive stable props
+- Commit: "Optimize Dashboard with memoized quest and mode cards"
+
+**Task 4: Build verification + size comparison**
+- Run `cd mini-app && npm run build`
+- Compare new chunk sizes with previous (should see main bundle split)
+- Fix any TypeScript errors
+- Commit with size notes: "Build verified — lazy loading reduces initial bundle to X KB"
+
+### RETROSPECTIVE (DO THIS LAST)
+Add your retrospective to PARALLEL_AGENTS.md at the bottom under "Run 10 Retrospectives".
+
+---
+
+## Run 10 File Ownership Matrix
+
+| File/Directory | Agent A | Agent B | Agent C | Nobody |
+|---|---|---|---|---|
+| mini-app/src/pages/Admin.tsx | OWNS | - | - | - |
+| mini-app/src/components/AdminLogs.tsx (NEW) | OWNS | - | - | - |
+| mini-app/src/components/AdminJobs.tsx (NEW) | OWNS | - | - | - |
+| mini-app/src/components/AdminBroadcast.tsx | OWNS | - | - | - |
+| mini-app/src/index.css | OWNS | - | - | - |
+| bot/src/api/routes/checkins.ts (NEW) | - | OWNS | - | - |
+| bot/src/api/server.ts | - | OWNS (add route only) | - | - |
+| bot/src/__tests__/routes/http/checkins.http.test.ts (NEW) | - | OWNS | - | - |
+| mini-app/src/App.tsx | - | - | OWNS | - |
+| mini-app/src/components/LazyPageWrapper.tsx (NEW) | - | - | OWNS | - |
+| mini-app/src/pages/Dashboard.tsx | - | - | OWNS | - |
+| mini-app/vite.config.ts | - | - | OWNS | - |
+| mini-app/src/api/client.ts | - | - | - | LOCKED |
+| mini-app/src/types/index.ts | - | - | - | LOCKED |
+| bot/src/bot.ts | - | - | - | LOCKED |
+| bot/src/config.ts | - | - | - | LOCKED |
+| bot/src/utils/ | - | - | - | LOCKED |
+| .env | - | - | - | LOCKED |
+
+## Run 10 Merge Order
+
+1. **Agent B first** — Check-in API (new route, touches server.ts)
+2. **Agent A second** — Admin dashboard completion (mini-app only, independent)
+3. **Agent C last** — Lazy loading + perf (touches App.tsx, may conflict with Admin route)
+
+---
+
+## Run 10 Retrospectives
+
+*(Agents: add your retrospective sections below this line when you finish)*
