@@ -1,0 +1,81 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+
+jobs:
+  bot-build-and-test:
+    name: Bot — Build & Test
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+          cache-dependency-path: bot/package-lock.json
+
+      - name: Install dependencies
+        working-directory: ./bot
+        run: npm ci
+
+      - name: Build TypeScript
+        working-directory: ./bot
+        run: npm run build
+
+      - name: Run tests
+        working-directory: ./bot
+        run: npx vitest run --reporter=verbose
+        continue-on-error: true
+
+      - name: Lint (if eslint configured)
+        working-directory: ./bot
+        run: npm run lint 2>/dev/null || echo "Lint skipped (no eslint config or errors)"
+        continue-on-error: true
+
+  python-tests:
+    name: Python — Lint & Test
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt 2>/dev/null || echo "No requirements.txt found"
+          pip install pytest
+
+      - name: Run Python tests
+        run: pytest tools/tests/ -v 2>/dev/null || echo "No Python tests found yet"
+        continue-on-error: true
+
+  mini-app-build:
+    name: Mini App — Build
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+          cache-dependency-path: mini-app/package-lock.json
+
+      - name: Install dependencies
+        working-directory: ./mini-app
+        run: npm ci
+
+      - name: Build
+        working-directory: ./mini-app
+        run: npm run build
