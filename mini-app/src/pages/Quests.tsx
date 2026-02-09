@@ -4,6 +4,7 @@ import { apiClient } from '@/api/client';
 import { Quest } from '@/types';
 import { Target, Zap, CheckCircle, Clock, AlertCircle, RefreshCw, Loader2, Plus, Calendar } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { CheckInButton } from '@/components/CheckInButton';
 
 type QuestTab = 'active' | 'completed';
 
@@ -115,6 +116,18 @@ export function Quests() {
       setUpdatingProgress(false);
     }
   };
+
+  const handleCheckinSuccess = useCallback((result: { completed: boolean; current: number; target: number }) => {
+    if (selectedQuest) {
+      setSelectedQuest({ ...selectedQuest, progress: result.current, status: result.completed ? 'completed' : selectedQuest.status });
+    }
+    if (result.completed) {
+      haptic.notification('success');
+      loadQuests().then(() => setSelectedQuest(null));
+    } else {
+      loadQuests();
+    }
+  }, [selectedQuest, haptic]);
 
   useMainButton(
     selectedQuest ? (completing ? 'Completing...' : 'Complete Quest') : '',
@@ -280,6 +293,17 @@ export function Quests() {
                   />
                 </div>
               </div>
+
+              {selectedQuest.status === 'active' && selectedQuest.progress < selectedQuest.target && user?.id && (
+                <div className="mb-4">
+                  <CheckInButton
+                    questInstanceId={selectedQuest.id}
+                    telegramId={user.id}
+                    onSuccess={handleCheckinSuccess}
+                    disabled={completing}
+                  />
+                </div>
+              )}
 
               {selectedQuest.target > 1 && selectedQuest.progress < selectedQuest.target && selectedQuest.status === 'active' && (
                 <div className="flex items-center gap-3 mb-4">
