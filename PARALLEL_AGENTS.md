@@ -2803,3 +2803,35 @@ Add your retrospective to PARALLEL_AGENTS.md at the bottom under "Run 7 Retrospe
 ## Run 7 Retrospectives
 
 *(Agents: add your retrospective sections below this line when you finish)*
+
+### Agent C — Test Quality & Pre-Existing Fixes (Run 7)
+
+**Completed Tasks:**
+
+| # | Task | Commit | Status |
+|---|------|--------|--------|
+| 1 | Fix pre-existing test failures | N/A — all 282 tests already pass (fixed in prior runs) | DONE |
+| 2 | Add supertest + HTTP test infrastructure | `0f58b3d` Add supertest and HTTP test infrastructure | DONE |
+| 3 | HTTP integration tests for user routes | `6a1f145` Add HTTP integration tests for user routes | DONE |
+| 4 | HTTP integration tests for achievements routes | `02e7b3e` Add HTTP integration tests for achievements routes | DONE |
+| 5 | Middleware tests for admin authentication | `7606cb2` Add middleware tests for admin authentication | DONE |
+| 6 | Run ALL tests, verify 0 failures | 317 TS + 172 Python = 489 total, 0 failures | DONE |
+
+**New tests added: 35** (12 user HTTP + 10 achievements HTTP + 13 admin auth middleware)
+
+**Test totals: 317 TypeScript + 172 Python = 489 total, 0 failures**
+
+**Problems faced:**
+- ESM static import ordering: `process.env` assignments execute AFTER static `import` statements, so the adminAuth module loaded before env vars were set. Fixed by using the exported `addAdminUser()` function instead of relying on env vars.
+- `mockResponse()` from setup.ts lacked `setHeader()` method needed by adminAuth middleware (which sets `WWW-Authenticate` header). Created a local `mockAdminResponse()` helper with the extra method rather than modifying the shared setup.
+- `package-lock.json` is in `.gitignore` — skipped from commits.
+
+**Architecture decisions:**
+- Created `bot/src/__tests__/helpers/testApp.ts` — minimal Express app factory for supertest tests. Each HTTP test file mounts only the specific router it's testing, avoiding side effects from server.ts middleware (rate limiting, CORS, helmet, etc.).
+- HTTP tests mock db/cache/auth at the vitest level, then use supertest for actual HTTP request/response cycle testing — validates status codes, JSON shapes, and Express routing.
+
+**Recommendations for next run:**
+- Add HTTP tests for remaining routes: quests, modes, leaderboard, onboarding, admin.
+- Consider adding `setHeader` to the shared `mockResponse()` in setup.ts so all middleware tests can use it.
+- The Python test count (172) hasn't grown — could add tests for any new Python tools.
+- HTTP tests currently don't test auth middleware behavior (it's mocked to pass-through). Consider adding dedicated tests where auth rejects requests to verify 401 responses at the HTTP level.
