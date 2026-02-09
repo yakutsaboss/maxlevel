@@ -14,6 +14,7 @@ import * as leaderboardRefresh from './definitions/leaderboardRefresh.js';
 import * as dbCleanup from './definitions/dbCleanup.js';
 import * as analyticsExport from './definitions/analyticsExport.js';
 import * as dailySummary from './definitions/dailySummary.js';
+import * as achievementNotifier from './definitions/achievementNotifier.js';
 
 interface JobDefinition {
   name: string;
@@ -29,12 +30,14 @@ const jobs: JobDefinition[] = [
   { name: dbCleanup.JOB_NAME, cron: dbCleanup.CRON_SCHEDULE, handler: dbCleanup.handler },
   { name: analyticsExport.JOB_NAME, cron: analyticsExport.CRON_SCHEDULE, handler: analyticsExport.handler },
   { name: dailySummary.JOB_NAME, cron: dailySummary.CRON_SCHEDULE, handler: dailySummary.handler },
+  { name: achievementNotifier.JOB_NAME, cron: achievementNotifier.CRON_SCHEDULE, handler: achievementNotifier.handler },
 ];
 
 export async function registerAllJobs(boss: PgBoss, bot: Bot<MyContext>): Promise<void> {
   // Pass bot reference to jobs that need it
   questReminders.setBotInstance(bot);
   dailySummary.setBotInstance(bot);
+  achievementNotifier.setBotInstance(bot);
 
   for (const job of jobs) {
     await boss.createQueue(job.name);
