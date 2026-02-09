@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef, useCallback } from 'react';
 import { useTelegram } from '@/hooks/useTelegram';
 import { apiClient } from '@/api/client';
-import { Trophy, Medal, Award, AlertCircle, RefreshCw, TrendingUp, TrendingDown, Minus } from 'lucide-react';
+import { Trophy, Medal, Award, AlertCircle, RefreshCw } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 interface LeaderboardEntry {
@@ -42,20 +42,6 @@ function RankIcon({ rank }: { rank: number }) {
   if (rank === 2) return <Medal className="w-6 h-6 text-gray-400" />;
   if (rank === 3) return <Award className="w-6 h-6 text-amber-600" />;
   return <span className="text-sm font-bold text-telegram-hint w-6 text-center">{rank}</span>;
-}
-
-function RankChangeIndicator({ rank }: { rank: number }) {
-  // Placeholder rank change data — real rank history needs backend support
-  // Use a deterministic "change" based on rank for visual variety
-  const change = rank <= 3 ? 0 : rank % 3 === 0 ? 1 : rank % 3 === 1 ? -1 : 0;
-
-  if (change > 0) {
-    return <TrendingUp className="w-3.5 h-3.5 text-green-500" />;
-  }
-  if (change < 0) {
-    return <TrendingDown className="w-3.5 h-3.5 text-red-500" />;
-  }
-  return <Minus className="w-3.5 h-3.5 text-telegram-hint" />;
 }
 
 export function Leaderboard() {
@@ -249,12 +235,9 @@ export function Leaderboard() {
                     {entry.current_streak > 0 && <span>🔥 {entry.current_streak}d</span>}
                   </div>
                 </div>
-                <div className="flex items-center gap-1.5">
-                  <RankChangeIndicator rank={rank} />
-                  <div className="text-right flex-shrink-0">
-                    <div className="text-sm font-bold">{(timePeriod === 'weekly' && entry.weekly_xp != null ? entry.weekly_xp : entry.total_xp).toLocaleString()}</div>
-                    <div className="text-xs text-telegram-hint">{timePeriod === 'weekly' ? 'Weekly XP' : 'XP'}</div>
-                  </div>
+                <div className="text-right flex-shrink-0">
+                  <div className="text-sm font-bold">{(timePeriod === 'weekly' && entry.weekly_xp != null ? entry.weekly_xp : entry.total_xp).toLocaleString()}</div>
+                  <div className="text-xs text-telegram-hint">{timePeriod === 'weekly' ? 'Weekly XP' : 'XP'}</div>
                 </div>
               </motion.div>
             );
