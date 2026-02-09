@@ -4,6 +4,7 @@ import { useTelegram } from '@/hooks/useTelegram';
 import { apiClient } from '@/api/client';
 import { UserStats, UserAchievement, Achievement } from '@/types';
 import { Trophy, Award, TrendingUp, Calendar, Zap, AlertCircle, RefreshCw, Pencil, Settings } from 'lucide-react';
+
 import { motion } from 'framer-motion';
 import { ProfileEditModal, AVATAR_OPTIONS } from '@/components/ProfileEditModal';
 import { Toast } from '@/components/Toast';
@@ -120,7 +121,7 @@ export function Profile() {
               const avatar = AVATAR_OPTIONS[avatarIdx] || AVATAR_OPTIONS[0];
               return (
                 <div className={`w-24 h-24 ${avatar.color} rounded-full flex items-center justify-center shadow-xl`}>
-                  <div className="text-white scale-[2]">{avatar.icon}</div>
+                  <span className="text-5xl">{avatar.icon}</span>
                 </div>
               );
             })()}

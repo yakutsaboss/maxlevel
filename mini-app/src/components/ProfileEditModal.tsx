@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { X, Check, User, Sword, Shield, Heart, Flame, Star, Crown, Gem, Loader2, AlertCircle } from 'lucide-react';
+import { X, Check, Loader2, AlertCircle } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { apiClient } from '@/api/client';
 
@@ -18,14 +18,22 @@ interface ProfileEditModalProps {
 }
 
 export const AVATAR_OPTIONS = [
-  { icon: <User className="w-6 h-6" />, color: 'bg-purple-500', label: 'Adventurer' },
-  { icon: <Sword className="w-6 h-6" />, color: 'bg-red-500', label: 'Warrior' },
-  { icon: <Shield className="w-6 h-6" />, color: 'bg-blue-500', label: 'Guardian' },
-  { icon: <Heart className="w-6 h-6" />, color: 'bg-pink-500', label: 'Healer' },
-  { icon: <Flame className="w-6 h-6" />, color: 'bg-orange-500', label: 'Mage' },
-  { icon: <Star className="w-6 h-6" />, color: 'bg-yellow-500', label: 'Ranger' },
-  { icon: <Crown className="w-6 h-6" />, color: 'bg-amber-500', label: 'Royal' },
-  { icon: <Gem className="w-6 h-6" />, color: 'bg-cyan-500', label: 'Mystic' },
+  { icon: '⚔️', color: 'bg-red-500', label: 'Warrior' },
+  { icon: '🧙', color: 'bg-purple-500', label: 'Mage' },
+  { icon: '🛡️', color: 'bg-blue-500', label: 'Guardian' },
+  { icon: '🏹', color: 'bg-green-500', label: 'Ranger' },
+  { icon: '🔥', color: 'bg-orange-500', label: 'Pyro' },
+  { icon: '💎', color: 'bg-cyan-500', label: 'Mystic' },
+  { icon: '🌟', color: 'bg-yellow-500', label: 'Star' },
+  { icon: '🦊', color: 'bg-amber-500', label: 'Fox' },
+  { icon: '🐉', color: 'bg-emerald-500', label: 'Dragon' },
+  { icon: '🦅', color: 'bg-sky-500', label: 'Eagle' },
+  { icon: '🐺', color: 'bg-slate-500', label: 'Wolf' },
+  { icon: '🎯', color: 'bg-rose-500', label: 'Hunter' },
+  { icon: '👑', color: 'bg-yellow-600', label: 'Royal' },
+  { icon: '🗡️', color: 'bg-zinc-500', label: 'Rogue' },
+  { icon: '🌙', color: 'bg-indigo-500', label: 'Night' },
+  { icon: '☀️', color: 'bg-orange-400', label: 'Dawn' },
 ];
 
 export function ProfileEditModal({ isOpen, onClose, onSaved, telegramId, currentName, currentAvatarId, haptic }: ProfileEditModalProps) {
@@ -120,8 +128,8 @@ export function ProfileEditModal({ isOpen, onClose, onSaved, telegramId, current
                         : 'border-transparent bg-telegram-bg'
                     }`}
                   >
-                    <div className={`w-10 h-10 rounded-full ${avatar.color} flex items-center justify-center text-white mb-1`}>
-                      {avatar.icon}
+                    <div className={`w-10 h-10 rounded-full ${avatar.color} flex items-center justify-center mb-1`}>
+                      <span className="text-xl">{avatar.icon}</span>
                     </div>
                     <span className="text-xs text-telegram-hint">{avatar.label}</span>
                   </button>
