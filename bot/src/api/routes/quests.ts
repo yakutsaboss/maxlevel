@@ -2,6 +2,8 @@ import { Router, Request, Response } from 'express';
 import { authenticateTelegram, authorizeUser } from '../middleware/auth.js';
 import { mutationLimiter, readLimiter } from '../middleware/rateLimiter.js';
 import { executePythonTool } from '../../utils/pythonTools.js';
+import { queryOne, transaction } from '../../utils/db.js';
+import { invalidateUserCache } from '../../utils/cache.js';
 
 const router = Router();
 
@@ -191,6 +193,104 @@ router.post('/users/:userId/assign', authenticateTelegram, authorizeUser, mutati
       error: 'Server Error',
       message: 'Failed to assign quests',
     });
+  }
+});
+
+/**
+ * PATCH /api/quests/:questId/progress
+ * Update quest progress. Auto-completes if progress reaches target.
+ */
+router.patch('/:questId/progress', authenticateTelegram, mutationLimiter, async (req: Request, res: Response) => {
+  try {
+    const questId = parseInt(req.params.questId);
+    const { user_id, progress } = req.body;
+
+    if (isNaN(questId)) {
+      return res.status(400).json({ error: 'Bad Request', message: 'Invalid quest ID' });
+    }
+    if (!user_id || typeof user_id !== 'number') {
+      return res.status(400).json({ error: 'Bad Request', message: 'user_id is required and must be a number' });
+    }
+    if (progress === undefined || typeof progress !== 'number' || progress < 0) {
+      return res.status(400).json({ error: 'Bad Request', message: 'progress must be a non-negative number' });
+    }
+
+    // Fetch the quest instance and its target
+    const quest = await queryOne(
+      `SELECT qi.id, qi.user_id, qi.status, qi.check_in_count AS current_progress,
+              q.xp_reward, q.title, 1 AS target
+       FROM quest_instances qi
+       JOIN quests q ON qi.quest_id = q.id
+       WHERE qi.id = $1`,
+      [questId]
+    );
+
+    if (!quest) {
+      return res.status(404).json({ error: 'Not Found', message: 'Quest not found' });
+    }
+    if (quest.user_id !== user_id) {
+      return res.status(403).json({ error: 'Forbidden', message: 'Quest does not belong to this user' });
+    }
+    if (quest.status === 'completed') {
+      return res.status(400).json({ error: 'Bad Request', message: 'Quest is already completed' });
+    }
+
+    const target = quest.target || 1;
+    const clampedProgress = Math.min(progress, target);
+
+    if (clampedProgress >= target) {
+      // Auto-complete: award XP, update progress, mark completed
+      const result = await transaction(async (client) => {
+        await client.query(
+          `UPDATE quest_instances SET check_in_count = $1, status = 'completed', completed_at = NOW(), xp_awarded = $2 WHERE id = $3`,
+          [clampedProgress, quest.xp_reward, questId]
+        );
+        const userRow = await client.query(
+          `UPDATE users SET total_xp = total_xp + $1, current_level = ((total_xp + $1) / 500) + 1 WHERE id = $2 RETURNING total_xp, current_level`,
+          [quest.xp_reward, user_id]
+        );
+        return userRow.rows[0];
+      });
+
+      invalidateUserCache(user_id);
+
+      return res.json({
+        success: true,
+        data: {
+          id: questId,
+          status: 'completed',
+          progress: clampedProgress,
+          target,
+          xpEarned: quest.xp_reward,
+          newLevel: result?.current_level || null,
+          leveledUp: true,
+        },
+      });
+    }
+
+    // Just update progress
+    await queryOne(
+      `UPDATE quest_instances SET check_in_count = $1 WHERE id = $2 RETURNING id`,
+      [clampedProgress, questId]
+    );
+
+    invalidateUserCache(user_id);
+
+    res.json({
+      success: true,
+      data: {
+        id: questId,
+        status: quest.status,
+        progress: clampedProgress,
+        target,
+        xpEarned: 0,
+        newLevel: null,
+        leveledUp: false,
+      },
+    });
+  } catch (error) {
+    console.error('Error updating quest progress:', error);
+    res.status(500).json({ error: 'Server Error', message: 'Failed to update quest progress' });
   }
 });
 

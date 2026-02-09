@@ -431,4 +431,111 @@ router.patch('/:userId/streak', authenticateTelegram, async (req: Request, res: 
   }
 });
 
+/**
+ * GET /api/users/:telegramId/preferences
+ * Returns user notification/timezone preferences.
+ */
+router.get('/:telegramId/preferences', authenticateTelegram, async (req: Request, res: Response) => {
+  try {
+    const tid = parseInt(req.params.telegramId);
+    if (isNaN(tid)) {
+      return res.status(400).json({ success: false, error: 'Invalid telegram ID' });
+    }
+
+    const user = await queryOne(
+      `SELECT notification_enabled, reminder_time, timezone FROM users WHERE telegram_id = $1`,
+      [tid]
+    );
+
+    if (!user) {
+      return res.status(404).json({ success: false, error: 'User not found' });
+    }
+
+    res.json({
+      success: true,
+      data: {
+        notification_enabled: user.notification_enabled ?? true,
+        reminder_time: user.reminder_time ?? 9,
+        timezone: user.timezone || 'Europe/Moscow',
+      },
+    });
+  } catch (error) {
+    console.error('Error fetching user preferences:', error);
+    res.status(500).json({ success: false, error: 'Failed to fetch preferences' });
+  }
+});
+
+/**
+ * PATCH /api/users/:telegramId/preferences
+ * Update user notification/timezone preferences.
+ */
+router.patch('/:telegramId/preferences', authenticateTelegram, async (req: Request, res: Response) => {
+  try {
+    const tid = parseInt(req.params.telegramId);
+    if (isNaN(tid)) {
+      return res.status(400).json({ success: false, error: 'Invalid telegram ID' });
+    }
+
+    const { notification_enabled, reminder_time, timezone } = req.body;
+
+    // Validate fields
+    if (notification_enabled !== undefined && typeof notification_enabled !== 'boolean') {
+      return res.status(400).json({ success: false, error: 'notification_enabled must be a boolean' });
+    }
+    if (reminder_time !== undefined) {
+      const rt = parseInt(reminder_time);
+      if (isNaN(rt) || rt < 0 || rt > 23) {
+        return res.status(400).json({ success: false, error: 'reminder_time must be an integer 0-23' });
+      }
+    }
+    if (timezone !== undefined && (typeof timezone !== 'string' || timezone.length === 0)) {
+      return res.status(400).json({ success: false, error: 'timezone must be a non-empty string' });
+    }
+
+    // Build SET clause dynamically from provided fields
+    const sets: string[] = [];
+    const params: any[] = [];
+    let idx = 1;
+
+    if (notification_enabled !== undefined) {
+      sets.push(`notification_enabled = $${idx++}`);
+      params.push(notification_enabled);
+    }
+    if (reminder_time !== undefined) {
+      sets.push(`reminder_time = $${idx++}`);
+      params.push(parseInt(reminder_time));
+    }
+    if (timezone !== undefined) {
+      sets.push(`timezone = $${idx++}`);
+      params.push(timezone);
+    }
+
+    if (sets.length === 0) {
+      return res.status(400).json({ success: false, error: 'No valid fields to update' });
+    }
+
+    params.push(tid);
+    const user = await queryOne(
+      `UPDATE users SET ${sets.join(', ')} WHERE telegram_id = $${idx} RETURNING notification_enabled, reminder_time, timezone`,
+      params
+    );
+
+    if (!user) {
+      return res.status(404).json({ success: false, error: 'User not found' });
+    }
+
+    res.json({
+      success: true,
+      data: {
+        notification_enabled: user.notification_enabled,
+        reminder_time: user.reminder_time,
+        timezone: user.timezone,
+      },
+    });
+  } catch (error) {
+    console.error('Error updating user preferences:', error);
+    res.status(500).json({ success: false, error: 'Failed to update preferences' });
+  }
+});
+
 export { router as userRouter };

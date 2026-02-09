@@ -1519,3 +1519,33 @@ Test counts: X TypeScript tests, Y Python tests (total Z)
 ## Run 2 Retrospectives
 
 *(Agents: add your retrospective sections below this line when you finish)*
+
+### Agent B (Run 2) faced:
+
+**No major issues.** The git worktree approach from Run 1's lessons completely eliminated the branch-switching, cross-contamination, and file-loss problems that plagued Run 1. Every commit landed on the correct branch on the first attempt. No stash operations were needed. No cherry-picks required. The isolated working directory at `c:\Users\Asus\Desktop\Wibecode-agent-b` worked exactly as intended.
+
+Minor notes:
+1. One `Read` tool call was rejected by the user (settings.ts), but it wasn't critical — I had enough context from index.ts to see the import patterns.
+2. The `Write` tool requires a fresh `Read` before each edit session — this is normal but means you can't carry file content across a long conversation without re-reading.
+3. Build passed on first attempt with zero TypeScript errors.
+
+### What Agent B (Run 2) completed:
+
+| Task | Status | Commit | Description |
+|------|--------|--------|-------------|
+| 1. Fix PM2 ecosystem config | Done | `5d4642d` | Corrected deploy IP `85.239.53.57` -> `85.239.58.205`, lowered `max_memory_restart` to `512M` |
+| 2. Centralize env var validation | Done | `8e879ca` | `requireEnv()` for 3 required vars, `optionalEnv()` for 6 optional with defaults, startup warnings |
+| 3. User preferences API | Done | `5272268` | `GET/PATCH /api/users/:telegramId/preferences` — notification, reminder_time, timezone |
+| 4. Quest progress endpoint | Done | `3bd16bd` | `PATCH /api/quests/:questId/progress` — validates ownership, auto-completes + XP on target, cache invalidation |
+| 5. /leaderboard bot command | Done | `e7a5417` | Top 10 with medals, user's own rank if not in top 10, registered in index.ts, /menu updated |
+| 6. PM2 log rotation | Done | `e832723` | `max_size: '10M'`, `retain: 5` on main app log config |
+
+**Final branch:** `feature/backend-api` — 6 commits on top of main. `cd bot && npm run build` passes with zero errors. Branch is NOT pushed per instructions.
+
+### Agent B (Run 2) recommendations for Run 3:
+
+1. **Worktrees solved everything** — keep this approach. Zero issues with branch switching, file loss, or cross-contamination.
+2. **Atomic commits worked perfectly** — committing after every task meant no work was at risk at any point.
+3. **Consider adding a quick build check after each commit** (not just at the end) to catch errors earlier, though in this case it wasn't needed.
+4. **The task scoping was good** — 6 tasks was the right amount. Each was focused and completable without context exhaustion.
+5. **REGISTER_THESE_RUN2.md is useful** for Agent 0's merge step — keeps integration instructions in a discoverable location.
