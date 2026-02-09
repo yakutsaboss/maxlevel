@@ -6,6 +6,7 @@ import { Quests } from '@/pages/Quests';
 import { Profile } from '@/pages/Profile';
 import { Leaderboard } from '@/pages/Leaderboard';
 import { Settings } from '@/pages/Settings';
+import { Achievements } from '@/pages/Achievements';
 import { Onboarding } from '@/pages/Onboarding';
 import { Navigation } from '@/components/Navigation';
 import { useTelegram } from '@/hooks/useTelegram';
@@ -116,6 +117,10 @@ function AppContent() {
         <Route
           path="/leaderboard"
           element={needsOnboarding ? <Navigate to="/onboarding" replace /> : <PageWrapper><Leaderboard /></PageWrapper>}
+        />
+        <Route
+          path="/achievements"
+          element={needsOnboarding ? <Navigate to="/onboarding" replace /> : <PageWrapper><Achievements /></PageWrapper>}
         />
         <Route
           path="/settings"
