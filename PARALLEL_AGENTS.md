@@ -978,3 +978,544 @@ Every agent prompt MUST include:
 | Gray area files | Agent D needed tsconfig.json | Incomplete OWNED/FORBIDDEN lists | Pre-identify all possible files |
 | Missing dependencies | Agent D (vitest), Agent C (tzdata) | Couldn't edit package files per rules | Pre-install before launching agents |
 | Instruction file lost | Agent B lost PARALLEL_AGENTS.md | Untracked file lost during stash/checkout | Commit instruction file to main first |
+
+---
+---
+
+# RUN 2: Parallel Agents (3 Agents + Agent 0)
+
+## How to Use This Section
+
+Open 4 separate Claude Code sessions. In each one, say:
+
+- **Session 1** (working dir: `c:\Users\Asus\Desktop\Wibecode`): `Read PARALLEL_AGENTS.md — you are Agent 0 for Run 2. Do your tasks.`
+- **Session 2** (working dir: `c:\Users\Asus\Desktop\Wibecode-agent-a`): `Read PARALLEL_AGENTS.md — you are Agent A for Run 2. Do your tasks.`
+- **Session 3** (working dir: `c:\Users\Asus\Desktop\Wibecode-agent-b`): `Read PARALLEL_AGENTS.md — you are Agent B for Run 2. Do your tasks.`
+- **Session 4** (working dir: `c:\Users\Asus\Desktop\Wibecode-agent-c`): `Read PARALLEL_AGENTS.md — you are Agent C for Run 2. Do your tasks.`
+
+**Start Agent 0 FIRST.** It sets up worktrees and dependencies. Only start Agents A/B/C after Agent 0 says "Ready to launch."
+
+---
+
+## Agent 0 — Orchestrator (Run 2)
+
+**You are Agent 0.** Your job: set up the environment BEFORE other agents start, then WAIT. After all 3 agents finish, you merge, integrate, and deploy.
+
+**Working directory:** `c:\Users\Asus\Desktop\Wibecode` (main repo, `main` branch)
+
+### Phase 1: Pre-Run Setup (DO THIS FIRST)
+
+**Step 1: Verify clean state**
+```bash
+git checkout main
+git status  # should be clean
+```
+
+**Step 2: Create worktrees** (if not already created)
+```bash
+git branch feature/mini-app-features 2>/dev/null
+git branch feature/backend-api 2>/dev/null
+git branch feature/test-coverage 2>/dev/null
+git worktree add ../Wibecode-agent-a feature/mini-app-features
+git worktree add ../Wibecode-agent-b feature/backend-api
+git worktree add ../Wibecode-agent-c feature/test-coverage
+```
+
+**Step 3: Install dependencies in each worktree** (node_modules is gitignored)
+```bash
+cd ../Wibecode-agent-a/mini-app && npm install
+cd ../../Wibecode-agent-b/bot && npm install
+cd ../../Wibecode-agent-c/bot && npm install
+```
+
+**Step 4: Verify worktrees**
+```bash
+cd c:\Users\Asus\Desktop\Wibecode
+git worktree list
+# Should show 4 entries: main + 3 feature branches in separate directories
+```
+
+**Step 5: Tell the user** "Ready to launch Agents A, B, C."
+
+### Phase 2: WAIT for all 3 agents to finish
+
+Do NOT touch any files while agents are running. Just wait.
+
+### Phase 3: Post-Run Merge (after ALL 3 agents are done)
+
+**Read retrospectives first:**
+```bash
+# Check each branch's work
+git log main..feature/backend-api --oneline
+git log main..feature/test-coverage --oneline
+git log main..feature/mini-app-features --oneline
+git diff main..feature/backend-api --stat
+git diff main..feature/test-coverage --stat
+git diff main..feature/mini-app-features --stat
+```
+
+**Merge in this order:**
+1. `git checkout main && git merge feature/backend-api --no-edit`
+   - Verify: `cd bot && npm run build`
+2. `git merge feature/test-coverage --no-edit`
+   - Verify: `cd bot && npm run build`
+3. `git merge feature/mini-app-features --no-edit`
+   - Verify: `cd mini-app && npm run build`
+
+**If conflicts:** keep the "owner" agent's version (Agent B for bot/, Agent C for tests/, Agent A for mini-app/).
+
+**Post-merge integration:**
+- Read `bot/src/handlers/REGISTER_THESE_RUN2.md` — add any new command registrations to `bot/src/index.ts`
+- Update `/menu` command text if new commands were added
+- Run both builds: `cd bot && npm run build && cd ../mini-app && npm run build`
+
+**Deploy:**
+```bash
+git add -A && git commit -m "Run 2 integration: register commands, resolve conflicts"
+git push origin main
+ssh root@85.239.58.205 "cd /opt/wibecode-bot && git pull && cd bot && npm install && npm run build && cd ../mini-app && npm run build && pm2 restart telegram-rpg-bot --update-env"
+```
+
+**Clean up:**
+```bash
+git worktree remove ../Wibecode-agent-a
+git worktree remove ../Wibecode-agent-b
+git worktree remove ../Wibecode-agent-c
+git branch -d feature/mini-app-features feature/backend-api feature/test-coverage
+git stash clear
+```
+
+### Phase 4: Agent 0 Retrospective
+
+After everything is merged and deployed, add a section to this file:
+
+```
+### Agent 0 — Run 2 Retrospective
+- How many merge conflicts?
+- Was cross-contamination eliminated by worktrees?
+- Any integration issues when wiring up commands?
+- What should change for Run 3?
+- Update the TODO checklist: check off what was fixed, add new items
+```
+
+---
+
+## Agent A — Mini-App New Pages & Features (Run 2)
+
+**You are Agent A.** You improve the Telegram Mini App with new pages and features.
+
+**Working directory:** `c:\Users\Asus\Desktop\Wibecode-agent-a`
+**Branch:** `feature/mini-app-features` (you are ALREADY on it — do NOT switch branches)
+**Build command:** `cd mini-app && npm run build`
+
+### RULES (NON-NEGOTIABLE)
+
+1. You are ALREADY on branch `feature/mini-app-features` — do NOT run `git checkout`
+2. Your working directory is a git worktree — other agents have their own directories
+3. Commit after EVERY completed task — use atomic: `git add FILES && git commit -m "MSG"` in one Bash call
+4. Do NOT push to remote
+5. Do NOT deploy to server (no SSH commands)
+6. Do NOT add any new npm packages
+7. After ALL changes, run `cd mini-app && npm run build` and fix any errors
+
+### FILES YOU OWN (may edit)
+```
+mini-app/src/pages/                  — all existing + NEW files
+mini-app/src/components/             — non-onboarding components + NEW files
+mini-app/src/index.css               — add new styles
+mini-app/src/App.tsx                 — ONLY add <Route> entries for new pages
+```
+
+### FILES YOU MUST NOT TOUCH
+```
+mini-app/src/api/client.ts           — API contract, locked
+mini-app/src/types/index.ts          — shared types, locked
+mini-app/src/hooks/                  — shared hooks, locked
+mini-app/src/components/onboarding/  — onboarding is complete
+mini-app/vite.config.ts              — build config
+mini-app/package.json                — no new dependencies
+bot/                                 — not your area
+tools/                               — not your area
+```
+
+### GRAY AREA
+```
+mini-app/src/App.tsx — you MAY add <Route> entries for new pages but must NOT change existing routes, providers, or onboarding logic
+```
+
+### PROJECT CONTEXT
+
+- Telegram RPG Mini App: React 18 + TypeScript + Vite + Tailwind CSS
+- Framer Motion (installed) for animations, Lucide React (installed) for icons
+- Runs inside Telegram via @twa-dev/sdk, base path: /levelapp/
+- `apiClient` (in client.ts — do NOT edit) has these methods you CAN call:
+  - `apiClient.getLeaderboard(limit)` — fetches ranked user list
+  - `apiClient.updateQuestProgress(questId, progress)` — updates quest progress
+  - `apiClient.getUserStats(telegramId)` — full user stats
+  - `apiClient.getAchievements()` — all achievement definitions
+  - `apiClient.getUserAchievements(userId)` — user's unlocked achievements
+- `useTelegram` hook provides: `user` (TelegramUser), haptic feedback, main button, back button
+- Existing pages use React Query for data fetching with `loading`/`error`/`success` states
+- Run 1 added: loading skeletons, error states with retry, mobile overflow fixes, empty states, date formatting
+
+### TASKS (do in order, commit after each one)
+
+**Task 1: Add Leaderboard page**
+- Create `mini-app/src/pages/Leaderboard.tsx`
+- Fetch data using existing `apiClient.getLeaderboard()` (already in client.ts)
+- Show ranked list: avatar placeholder (colored circle with initials), name, level, XP, streak
+- Highlight current user's row with accent background (match by `telegram_id` from `useTelegram` hook)
+- Trophy/medal icons for top 3 (use lucide-react: `Trophy`, `Medal`, `Award`)
+- Loading skeleton, error state with retry button (same pattern as Dashboard/Quests/Profile)
+- Add route in App.tsx: `<Route path="/leaderboard" element={<Leaderboard />} />`
+
+**Task 2: Add Leaderboard to Navigation**
+- Edit `mini-app/src/components/Navigation.tsx`
+- Add 4th nav item: `Trophy` icon from lucide-react, label "Ranks", path `/leaderboard`
+- Adjust layout for 4 items (currently 3 with equal width)
+
+**Task 3: Pull-to-refresh on Dashboard and Quests**
+- Dashboard.tsx: Add pull-to-refresh gesture using touch events (`touchstart`, `touchmove`, `touchend`) + CSS `transform: translateY()`
+- When pulled past 60px threshold, trigger React Query's `refetch()` and show a spinning `RefreshCw` icon
+- Add haptic feedback (`impactOccurred('medium')`) when pull threshold is reached
+- Same implementation in Quests.tsx
+- CSS in index.css: `.pull-indicator` with rotate animation
+- No new packages — pure touch events + CSS
+
+**Task 4: Quest detail view improvement**
+- Quests.tsx: Replace the basic modal with a richer quest detail card
+- Show: quest title, description, XP reward badge, difficulty badge (color-coded: green/yellow/red), progress bar with "X/Y" numbers, due date (formatted with `Intl.DateTimeFormat`), mode icon
+- For quests with `target > 1`: add "Update Progress" section with +1 and +5 stepper buttons
+- Stepper buttons call `apiClient.updateQuestProgress(questId, newProgress)` then refetch
+- Disable steppers if progress >= target
+- Add Framer Motion `layoutId` for smooth modal open/close transition
+
+**Task 5: Profile editing**
+- Profile.tsx: Add pencil/edit icon button next to username area
+- Create `mini-app/src/components/ProfileEditModal.tsx` as a slide-up modal
+- Shows: editable text input for nickname (pre-filled with current `first_name`), avatar grid (6-8 avatar options as colored circles with different icons)
+- Save button: leave a `// TODO: call profile update API when endpoint exists` comment
+- Cancel button closes modal
+- Telegram haptic on save/cancel
+
+**Task 6: Achievement progress indicators**
+- Profile.tsx: Redesign achievement grid to show progress toward locked achievements
+- For unlocked achievements: bright card with icon + green checkmark
+- For locked achievements: dimmed card with icon + progress bar (e.g., "3/10 quests")
+- Use `achievement.requirement_value` as the target and calculate progress from user stats
+- Use existing `apiClient.getAchievements()` + `apiClient.getUserAchievements()` data
+
+### RETROSPECTIVE (DO THIS LAST)
+
+After all tasks are done and build passes, add a section to `PARALLEL_AGENTS.md` at the bottom:
+
+```markdown
+---
+
+## Run 2 Retrospectives
+
+### Agent A (Run 2) faced:
+[Describe any problems: file conflicts, build errors, worktree issues, context limits, etc.]
+[If worktrees eliminated Run 1's problems, say so explicitly]
+
+### What Agent A (Run 2) completed:
+| Task | Status | Commit | Description |
+|------|--------|--------|-------------|
+| ... | ... | ... | ... |
+
+### Agent A (Run 2) recommendations for Run 3:
+[What should change next time?]
+```
+
+---
+
+## Agent B — Backend API + Infrastructure (Run 2)
+
+**You are Agent B.** You improve the backend API and fix infrastructure issues.
+
+**Working directory:** `c:\Users\Asus\Desktop\Wibecode-agent-b`
+**Branch:** `feature/backend-api` (you are ALREADY on it — do NOT switch branches)
+**Build command:** `cd bot && npm run build`
+
+### RULES (NON-NEGOTIABLE)
+
+1. You are ALREADY on branch `feature/backend-api` — do NOT run `git checkout`
+2. Your working directory is a git worktree — other agents have their own directories
+3. Commit after EVERY completed task — use atomic: `git add FILES && git commit -m "MSG"` in one Bash call
+4. Do NOT push to remote
+5. Do NOT deploy to server (no SSH commands)
+6. Do NOT add any new npm packages
+7. After ALL changes, run `cd bot && npm run build` and fix any errors
+8. ESM project: ALL local imports need `.js` extensions (e.g., `import from './settings.js'`)
+
+### FILES YOU OWN (may edit)
+```
+bot/src/api/routes/users.ts          — add preferences endpoint
+bot/src/api/routes/quests.ts         — add progress update endpoint
+bot/src/config.ts                    — centralize env vars
+bot/src/index.ts                     — register new commands + update /menu
+ecosystem.config.js                  — fix IP + memory + log rotation
+bot/src/handlers/                    — new handler files only
+```
+
+### FILES YOU MUST NOT TOUCH
+```
+bot/src/api/middleware/              — auth & rate limiter work fine
+bot/src/utils/db.ts                 — database util, locked
+bot/src/utils/cache.ts              — just improved in Run 1, locked
+bot/src/utils/pythonTools.ts        — Python bridge, locked
+bot/src/bot.ts                      — Grammy instance, locked
+bot/src/types/                      — shared types, locked
+bot/src/jobs/                       — jobs improved in Run 1, locked
+bot/src/api/routes/admin.ts         — separate concern
+bot/src/api/routes/onboarding.ts    — onboarding works
+bot/package.json                    — no new dependencies
+mini-app/                           — not your area
+tools/                              — not your area
+```
+
+### GRAY AREA
+```
+bot/src/api/server.ts — you MAY add a new route import/registration (e.g., router.use()) but must NOT change existing middleware, CORS, static file config, or other routes
+bot/src/api/routes/leaderboard.ts — you MAY add a new endpoint but must NOT change the existing GET /
+```
+
+### PROJECT CONTEXT
+
+- Grammy bot framework (Telegram), ESM (`"type": "module"`), TypeScript strict mode
+- PostgreSQL via `bot/src/utils/db.ts`: `query(sql, params)`, `queryOne(sql, params)`, `transaction(callback)`
+- Cache via `bot/src/utils/cache.ts`: `cached(key, ttl, fn)`, `invalidateUserCache(userId)`, `TTL.SHORT/MEDIUM/LONG`
+- Auth middleware validates Telegram WebApp HMAC-SHA256 signatures
+- Server: 85.239.58.205, deploy path: /opt/wibecode-bot/, PM2 process: `telegram-rpg-bot`
+- The mini-app `apiClient.updateQuestProgress()` already calls `PATCH /api/quests/:id/progress` — but the backend endpoint doesn't exist yet. You're building it.
+- Users table has columns: `notification_enabled`, `reminder_time`, `timezone` — the `/settings` bot command (Run 1) writes to these, but there's no API endpoint for the mini-app to read/write them.
+
+### TASKS (do in order, commit after each one)
+
+**Task 1: Fix PM2 ecosystem config**
+- Read `ecosystem.config.js` first
+- Change deployment host IP from `85.239.53.57` → `85.239.58.205`
+- Change `max_memory_restart` from `'1G'` → `'512M'` (safer for 2GB VDS)
+- Verify no other stale IPs or configs
+
+**Task 2: Centralize env var validation in config.ts**
+- Read `bot/src/config.ts` first
+- Expand it to validate ALL env vars at startup:
+  - Required (throw on missing): `TELEGRAM_BOT_TOKEN`, `DATABASE_URL`, `MINI_APP_URL`
+  - Optional (with defaults): `API_PORT` (default 3000), `NODE_ENV` (default 'development'), `ADMIN_USERNAME`, `ADMIN_PASSWORD_HASH`, `PYTHON_TOOLS_PATH` (default './tools'), `USE_WEBHOOK`, `WEBHOOK_DOMAIN`
+- Export a typed `config` object with all values
+- Log warnings for missing optional vars at startup
+- Other files should import from this config instead of reading `process.env` directly
+
+**Task 3: Add user preferences API endpoint**
+- Read `bot/src/api/routes/users.ts` first
+- Add two new endpoints:
+  - `GET /api/users/:telegramId/preferences` — returns `{ notification_enabled, reminder_time, timezone }`
+  - `PATCH /api/users/:telegramId/preferences` — accepts `{ notification_enabled?: boolean, reminder_time?: number, timezone?: string }`
+- Validate: `timezone` is a non-empty string, `reminder_time` is integer 0-23, `notification_enabled` is boolean
+- Use `query()` from db.ts
+- Auth middleware already applied to all /api routes
+
+**Task 4: Add quest progress update endpoint**
+- Read `bot/src/api/routes/quests.ts` first
+- Add: `PATCH /api/quests/:questId/progress`
+- Request body: `{ user_id: number, progress: number }`
+- Validation: quest exists, quest belongs to `user_id`, `progress >= 0`, `progress <= quest.target`
+- If `progress === target`: auto-complete the quest (award XP, level up if needed), same logic as the existing complete endpoint
+- Call `invalidateUserCache(userId)` after update
+- Return updated quest data
+
+**Task 5: Add /leaderboard bot command**
+- Create `bot/src/handlers/leaderboard.ts`
+- Shows top 10 users from `leaderboard_mv` materialized view (columns: `username`, `first_name`, `current_level`, `total_xp`, `xp_rank`)
+- Format as Telegram message with numbered list, medal emojis for top 3
+- Show the requesting user's own rank at the bottom if they're not in top 10
+- Register in `bot/src/index.ts`:
+  ```typescript
+  import { handleLeaderboard } from './handlers/leaderboard.js';
+  bot.command('leaderboard', handleLeaderboard);
+  ```
+- Update `/menu` command text to include `/leaderboard`
+- Create `bot/src/handlers/REGISTER_THESE_RUN2.md` documenting what was added (for Agent 0's merge step)
+
+**Task 6: Add PM2 log rotation config**
+- In `ecosystem.config.js`, add `log_date_format: 'YYYY-MM-DD HH:mm:ss'`
+- Add `max_size: '10M'` and `retain: 5` to the log configuration
+- This prevents PM2 logs from filling the 40GB NVMe disk
+
+### RETROSPECTIVE (DO THIS LAST)
+
+After all tasks are done and build passes, add to `PARALLEL_AGENTS.md` at the bottom (under the Run 2 Retrospectives section):
+
+```markdown
+### Agent B (Run 2) faced:
+[Describe any problems]
+
+### What Agent B (Run 2) completed:
+| Task | Status | Commit | Description |
+|------|--------|--------|-------------|
+| ... | ... | ... | ... |
+
+### Agent B (Run 2) recommendations for Run 3:
+[What should change next time?]
+```
+
+---
+
+## Agent C — Comprehensive Test Coverage (Run 2)
+
+**You are Agent C.** You write tests. You do NOT modify any source code — only create new test files.
+
+**Working directory:** `c:\Users\Asus\Desktop\Wibecode-agent-c`
+**Branch:** `feature/test-coverage` (you are ALREADY on it — do NOT switch branches)
+**Build command:** `cd bot && npm run build`
+
+### RULES (NON-NEGOTIABLE)
+
+1. You are ALREADY on branch `feature/test-coverage` — do NOT run `git checkout`
+2. Your working directory is a git worktree — other agents have their own directories
+3. You ONLY CREATE NEW test files — do NOT edit any source code
+4. Commit after EVERY completed task — use atomic: `git add FILES && git commit -m "MSG"` in one Bash call
+5. Do NOT push to remote
+6. Do NOT deploy to server (no SSH commands)
+7. Do NOT modify package.json or requirements.txt
+8. After ALL changes, run `cd bot && npm run build` and fix any errors
+9. For Python tests, use `unittest.mock` — NO real database connections, NO real API calls
+
+### FILES YOU OWN (CREATE NEW only)
+```
+bot/src/__tests__/routes/modes.test.ts           — NEW
+bot/src/__tests__/routes/leaderboard.test.ts     — NEW
+bot/src/__tests__/routes/onboarding.test.ts      — NEW
+bot/src/__tests__/jobs/questReminders.test.ts    — NEW
+bot/src/__tests__/jobs/leaderboardRefresh.test.ts — NEW
+bot/src/__tests__/jobs/analyticsExport.test.ts   — NEW
+tools/tests/test_achievement_manager.py          — NEW
+tools/tests/test_mode_manager.py                 — NEW
+tools/tests/test_streak_manager.py               — NEW
+tools/tests/test_send_notification.py            — NEW
+```
+
+### FILES YOU MUST NOT TOUCH
+```
+bot/src/ (ALL non-test .ts files)    — source code, locked
+mini-app/                            — not your area
+tools/*.py                           — source tools, read-only (read to understand, don't edit)
+database/                            — schema, read-only
+bot/package.json                     — no dependency changes
+.github/                             — CI already set up
+```
+
+### GRAY AREA
+```
+bot/src/__tests__/setup.ts — you MAY add new mock helpers but must NOT remove or change existing ones
+```
+
+### PROJECT CONTEXT
+
+- **Bot tests:** Vitest (ESM, globals enabled), config at `bot/vitest.config.ts`
+- **Python tests:** pytest with `unittest.mock`
+- **Existing test setup** at `bot/src/__tests__/setup.ts` has mock helpers for `db.query`, Express req/res
+- **Already tested (TypeScript):** routes/users, routes/quests, routes/achievements, middleware/auth, jobs/dailyQuestReset, jobs/streakCheck, jobs/dbCleanup
+- **Already tested (Python):** test_validators, test_user_manager, test_quest_manager
+- **ESM:** test files need `import`/`export` syntax, `.js` extensions on local imports
+- **Key pattern:** Mock `db.query` for route tests. Read existing test files (e.g., `users.test.ts`) to match patterns exactly.
+- **Python mock pattern:** Use `monkeypatch.setattr(module, "function_name", mock)` where `module` is the file being tested (NOT the source of the import). Run 1 learned this the hard way.
+
+### TASKS (do in order, commit after each one)
+
+**Task 1: Test modes route**
+- Read `bot/src/api/routes/modes.ts` first, then read `bot/src/__tests__/routes/users.test.ts` for patterns
+- Create `bot/src/__tests__/routes/modes.test.ts`
+- Tests: GET /api/modes (returns all modes, handles empty list, handles DB error), GET /api/users/:userId/modes (returns user modes, handles not found, handles DB error)
+- Mock `db.query` using setup.ts helpers
+
+**Task 2: Test leaderboard route**
+- Read `bot/src/api/routes/leaderboard.ts` first
+- Create `bot/src/__tests__/routes/leaderboard.test.ts`
+- Tests: GET /api/leaderboard (default limit 50, custom limit via query param, max cap at 100, cache key format, handles DB error, handles empty leaderboard)
+- Mock both `db.query` and `cached()` from cache.ts
+
+**Task 3: Test onboarding route**
+- Read `bot/src/api/routes/onboarding.ts` first
+- Create `bot/src/__tests__/routes/onboarding.test.ts`
+- Tests: GET /api/onboarding/:telegramId (found, not found), PUT save state (valid data, missing fields), POST complete (success with quiz_data, failure on DB error)
+- Verify JSONB handling for `quiz_data`
+
+**Task 4: Test remaining jobs**
+- Read each job file first, then model tests after existing `dailyQuestReset.test.ts`
+- Create `bot/src/__tests__/jobs/questReminders.test.ts` — test: job metadata, message batching logic, Telegram 429 rate limit handling, individual send failure logging
+- Create `bot/src/__tests__/jobs/leaderboardRefresh.test.ts` — test: job metadata, materialized view refresh SQL, error handling
+- Create `bot/src/__tests__/jobs/analyticsExport.test.ts` — test: job metadata, Python tool invocation via `executePythonTool`, error handling when tool fails
+
+**Task 5: Test remaining Python tools**
+- Read each .py source file first, then model tests after existing `test_user_manager.py`
+- Create `tools/tests/test_achievement_manager.py` — test: `unlock_achievement()` (success, duplicate, invalid IDs), `check_achievements()` (criteria matching), `get_user_achievements()` (found, empty)
+- Create `tools/tests/test_mode_manager.py` — test: `get_all_modes()`, `get_user_modes()`, `add_user_mode()` (success, duplicate), `remove_user_mode()` (success, not found)
+- Create `tools/tests/test_streak_manager.py` — test: `update_streak()`, `check_all_streaks()` (break detection), `get_streak()` (found, not found), edge cases (midnight boundary)
+- Create `tools/tests/test_send_notification.py` — test: `send_message()` (success, retry on 500, no-retry on 400, 429 rate limit handling, message truncation at 4096 chars)
+- ALL tests use `unittest.mock.patch` or `monkeypatch` — mock `execute_query`, `urllib.request.urlopen`, etc.
+- Important: patch at the import location, not the source. E.g., `monkeypatch.setattr(achievement_manager, "execute_query", mock)` NOT `monkeypatch.setattr(db_operations, "execute_query", mock)`
+
+**Task 6: Verify all tests pass**
+- Run TypeScript tests: `cd bot && npx vitest run --reporter=verbose`
+- Run Python tests: `python -m pytest tools/tests/ -v`
+- Fix ANY failures before committing
+- Final commit message should include total test counts: "All tests passing: X TypeScript, Y Python"
+
+### RETROSPECTIVE (DO THIS LAST)
+
+After all tasks are done and all tests pass, add to `PARALLEL_AGENTS.md` at the bottom (under the Run 2 Retrospectives section):
+
+```markdown
+### Agent C (Run 2) faced:
+[Describe any problems: mock issues, import errors, test failures, etc.]
+
+### What Agent C (Run 2) completed:
+| Task | Status | Commit | Description |
+|------|--------|--------|-------------|
+| ... | ... | ... | ... |
+
+Test counts: X TypeScript tests, Y Python tests (total Z)
+
+### Agent C (Run 2) recommendations for Run 3:
+[What should change next time?]
+```
+
+---
+
+## Run 2 File Ownership Matrix (Zero Overlap)
+
+| File/Directory | Agent A | Agent B | Agent C | Nobody |
+|---|---|---|---|---|
+| mini-app/src/pages/ | OWNS | - | - | - |
+| mini-app/src/components/ (non-onboarding) | OWNS | - | - | - |
+| mini-app/src/App.tsx (routes only) | OWNS | - | - | - |
+| mini-app/src/index.css | OWNS | - | - | - |
+| bot/src/api/routes/users.ts | - | OWNS | - | - |
+| bot/src/api/routes/quests.ts | - | OWNS | - | - |
+| bot/src/config.ts | - | OWNS | - | - |
+| bot/src/index.ts | - | OWNS | - | - |
+| ecosystem.config.js | - | OWNS | - | - |
+| bot/src/handlers/ (new files) | - | OWNS | - | - |
+| bot/src/__tests__/ (new files) | - | - | OWNS | - |
+| tools/tests/ (new files) | - | - | OWNS | - |
+| mini-app/src/api/client.ts | - | - | - | LOCKED |
+| mini-app/src/types/index.ts | - | - | - | LOCKED |
+| mini-app/src/hooks/ | - | - | - | LOCKED |
+| bot/src/utils/ | - | - | - | LOCKED |
+| bot/src/jobs/ | - | - | - | LOCKED |
+| bot/src/api/middleware/ | - | - | - | LOCKED |
+| .env | - | - | - | LOCKED |
+
+## Run 2 Merge Order
+
+1. **Agent B first** — backend API + infrastructure fixes
+2. **Agent C second** — tests (reference source that's now stable)
+3. **Agent A last** — mini-app (completely independent)
+
+---
+
+## Run 2 Retrospectives
+
+*(Agents: add your retrospective sections below this line when you finish)*
