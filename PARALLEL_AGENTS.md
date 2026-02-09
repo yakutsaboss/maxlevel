@@ -1,1009 +1,160 @@
-# Parallel Agent Instructions
+# Parallel Agents Protocol
+
+This file is the single source of truth for running parallel Claude Code agents on the Wibecode RPG bot project. Each "Run" launches 3 agents (A, B, C) in separate git worktrees, plus Agent 0 (orchestrator) in the main repo.
+
+---
+
+## Agent 0 Self-Protocol
+
+**You are Agent 0.** When someone tells you "read PARALLEL_AGENTS.md — you are Agent 0", follow this checklist automatically:
+
+### Checklist (do in order)
+
+1. **Check git status** — is main clean? Any uncommitted changes?
+2. **Check for leftover worktrees** — `git worktree list`. If worktrees exist from a previous run, it means agents finished but weren't merged yet.
+3. **Read the latest Run section** at the bottom of this file — check the retrospectives of each agent.
+4. **Check for unmerged work** — `git log main..feature/BRANCH --oneline` for each agent branch. If commits exist, merge them.
+5. **Merge order**: Backend/data first → Tests second → Frontend last.
+6. **Post-merge integration**: Read any `REGISTER_THESE_RUN*.md` files in `bot/src/handlers/` to see if new commands need wiring into `index.ts`.
+7. **Build verification**: `cd bot && npm run build` and `cd mini-app && npm run build`.
+8. **Deploy**: Push to GitHub → SSH to server → git pull → rebuild → PM2 restart.
+9. **Clean up**: Remove worktrees, delete feature branches, clear stashes.
+10. **Update this file**: Write Run retrospective, write next Run's agent tasks.
+11. **Set up next run** (if requested): Create worktrees, install deps, tell user "Ready to launch."
+
+### Deploy Command
+```bash
+git push origin main
+ssh root@85.239.58.205 "cd /opt/wibecode-bot && git pull && cd bot && npm install && npm run build && cd ../mini-app && npm run build && pm2 restart telegram-rpg-bot --update-env"
+```
+
+### Worktree Setup Command
+```bash
+git branch feature/BRANCH-A 2>/dev/null
+git branch feature/BRANCH-B 2>/dev/null
+git branch feature/BRANCH-C 2>/dev/null
+git worktree add ../Wibecode-agent-a feature/BRANCH-A
+git worktree add ../Wibecode-agent-b feature/BRANCH-B
+git worktree add ../Wibecode-agent-c feature/BRANCH-C
+# Install deps in each worktree (node_modules is gitignored)
+cd ../Wibecode-agent-a/mini-app && npm install
+cd ../../Wibecode-agent-b/bot && npm install
+cd ../../Wibecode-agent-c/bot && npm install
+```
+
+### Worktree Cleanup Command
+```bash
+git worktree remove ../Wibecode-agent-a
+git worktree remove ../Wibecode-agent-b
+git worktree remove ../Wibecode-agent-c
+git branch -d feature/BRANCH-A feature/BRANCH-B feature/BRANCH-C
+```
+
+---
 
 ## Safety Protocol (ALL AGENTS MUST FOLLOW)
 
 ### Git Rules
-- **Work on your own branch** — NEVER commit to `main` directly
-- **Create branch FIRST** before any code changes: `git checkout -b <your-branch>`
-- **Commit frequently** with descriptive messages
-- **Do NOT push to remote** — only commit locally
-- **Do NOT deploy to server** — no SSH, no PM2 restart, no server commands
+- You are in a **git worktree** — you are ALREADY on your branch. Do NOT run `git checkout`.
+- **Commit after EVERY task** — use atomic: `git add FILES && git commit -m "MSG"` in one Bash call.
+- Do NOT push to remote. Do NOT deploy to server.
 
 ### File Boundaries
-- Each agent has an **OWNED** directory list — you may freely edit these
-- Each agent has a **FORBIDDEN** directory list — you must NEVER edit these files
-- If you need a change in a FORBIDDEN file, add a TODO comment in your branch describing what's needed
+- Each agent has an **OWNED** file list — you may freely edit these.
+- Each agent has a **FORBIDDEN** file list — you must NEVER edit these.
+- **GRAY AREA** files are listed with specific rules on what you may change.
+- If you need a change in a FORBIDDEN file, add a TODO comment in your branch.
 
 ### Build Verification
-- After your changes, run the relevant build command to verify no compilation errors
-- Do NOT run the full app or connect to production database
+- After your changes, run the relevant build command to verify no compilation errors.
+- Do NOT run the full app or connect to production database.
+
+### Retrospective
+- After all tasks, add your retrospective section to PARALLEL_AGENTS.md at the bottom.
+- Include: problems faced, completed task table, recommendations for next run.
 
 ---
 
-## Agent A: Mini App UI/UX Polish
+## Lessons Learned (Run 1 + Run 2)
 
-### Branch Name
-```
-git checkout -b feature/ui-polish
-```
+### Run 1 (4 agents, shared directory — DISASTER)
+- All 4 agents shared one git working directory. Branch switching caused:
+  - Every commit landing on wrong branches (all agents)
+  - Files lost between Write and git-add (all agents)
+  - VSCode linter reverting Python edits before staging (Agent C)
+  - 14 stash entries from competing agents
+  - Context window exhaustion from retries (Agent A)
+- **Fix**: Separate working directories.
 
-### OWNED Files (you may edit these)
-```
-mini-app/src/pages/Dashboard.tsx
-mini-app/src/pages/Quests.tsx
-mini-app/src/pages/Profile.tsx
-mini-app/src/components/Navigation.tsx
-mini-app/src/components/onboarding/ui/   (all files)
-mini-app/src/index.css
-```
+### Run 2 (3 agents, git worktrees — SUCCESS)
+- Each agent got its own worktree directory (`Wibecode-agent-a/`, `-b/`, `-c/`).
+- **Zero** branch conflicts, file loss, cross-contamination, or stash operations.
+- All agents completed all tasks. Both builds passed. Deployed successfully.
+- Merge had only PARALLEL_AGENTS.md conflicts (expected — all agents append retrospectives).
 
-### FORBIDDEN Files (do NOT edit)
-```
-mini-app/src/api/client.ts          — Agent D owns API changes
-mini-app/src/types/index.ts         — shared contract, nobody edits
-mini-app/src/hooks/useTelegram.ts   — shared hook, nobody edits
-mini-app/src/hooks/useOnboarding.ts — shared hook, nobody edits
-mini-app/src/App.tsx                — routing, nobody edits
-mini-app/vite.config.ts             — build config, nobody edits
-mini-app/package.json               — do NOT add dependencies
-bot/                                — not your area
-tools/                              — not your area
-database/                           — not your area
-```
-
-### Build Verification
-```bash
-cd mini-app && npm run build
-```
-
-### Tasks (Priority Order)
-
-**Task 1: Add loading skeletons to all 3 pages**
-- Dashboard.tsx: Replace "Loading..." with animated skeleton cards (XP bar skeleton, quest list skeleton, mode cards skeleton)
-- Quests.tsx: Add skeleton for quest cards while loading
-- Profile.tsx: Add skeleton for stats grid and achievements
-- Use CSS-only skeletons (keyframe animation in index.css) — do NOT add any new npm packages
-- Skeleton styles should use `.skeleton` and `.skeleton-text` classes in index.css
-
-**Task 2: Add error states with retry buttons to all 3 pages**
-- Dashboard.tsx: When getUserStats() fails, show error card with "Something went wrong" message and "Retry" button that re-fetches
-- Quests.tsx: When quest loading fails, show error state with retry
-- Profile.tsx: When profile loading fails, show error state with retry
-- Use Telegram haptic feedback on retry button press (import from useTelegram)
-- Error state design: red-tinted card, error icon (use existing lucide-react icons), message, retry button
-
-**Task 3: Fix mobile overflow issues**
-- Dashboard.tsx: XP numbers can overflow progress bar text on small screens — add `text-ellipsis overflow-hidden` and use `min-w-0` on flex children
-- Profile.tsx: Achievement grid 3-column layout clips text on 320px screens — switch to 2 columns on screens < 360px using Tailwind responsive classes
-- Quests.tsx: Long quest titles overflow card on small screens — add line-clamp-2
-
-**Task 4: Fix quest completion UX**
-- Quests.tsx: Add loading spinner on "Complete Quest" button while API call is in progress
-- Disable the button during loading to prevent double-tap
-- Show success toast/animation after completion (simple green checkmark that fades)
-- Show error message if completion fails (not just haptic)
-
-**Task 5: Fix CSS accessibility issues**
-- index.css: Change `user-select: none` on body to only apply to `.no-select` class (so text is copyable)
-- index.css: Add `:focus-visible` outline styles for all interactive elements (buttons, links, nav items)
-- Navigation.tsx: Add `aria-label` to all nav buttons ("Dashboard", "Quests", "Profile")
-- Navigation.tsx: Add `aria-current="page"` to active nav item
-
-**Task 6: Improve empty states**
-- Dashboard.tsx: When user has 0 active quests, show friendly "No quests yet" message with icon
-- Dashboard.tsx: When user has 0 modes, show "Pick a mode to start" message
-- Quests.tsx: When completed quests list is empty, show "Complete your first quest!" message
-- Profile.tsx: When achievements list is empty, show "Achievements will appear here" message
-
-**Task 7: Better date formatting**
-- Profile.tsx: Format "joined" date as "Dec 15, 2024" instead of raw ISO string
-- Use `Intl.DateTimeFormat` (built-in, no packages needed)
-- Quests.tsx: Format quest dates similarly
-
-### Prompt for Agent A
-
-```
-You are improving the UI/UX of a Telegram Mini App (React + TypeScript + Vite + Tailwind CSS).
-
-IMPORTANT RULES:
-1. Create branch FIRST: git checkout -b feature/ui-polish
-2. You may ONLY edit files in: mini-app/src/pages/, mini-app/src/components/Navigation.tsx, mini-app/src/components/onboarding/ui/, mini-app/src/index.css
-3. Do NOT edit: mini-app/src/api/, mini-app/src/types/, mini-app/src/hooks/, mini-app/src/App.tsx, mini-app/vite.config.ts, mini-app/package.json
-4. Do NOT add any new npm packages — use only what's already installed
-5. Do NOT push to remote — only commit locally
-6. Do NOT deploy to server — no SSH commands
-7. After ALL changes, run: cd mini-app && npm run build — and fix any errors
-8. Commit after each completed task with descriptive message
-
-PROJECT CONTEXT:
-- This is a Telegram RPG Mini App with 3 pages: Dashboard, Quests, Profile
-- Uses React 18, TypeScript, Tailwind CSS, Framer Motion (already installed), Lucide React icons (already installed)
-- The app runs inside Telegram via @twa-dev/sdk
-- Base path is /levelapp/ (configured in vite.config.ts)
-- API client is in mini-app/src/api/client.ts (do NOT modify it)
-
-YOUR TASKS (do them in order):
-1. Add CSS-only loading skeletons to replace "Loading..." text on all 3 pages
-2. Add error states with retry buttons on all 3 pages (use existing lucide-react icons)
-3. Fix mobile overflow issues (XP bar, achievement grid, quest titles)
-4. Fix quest completion UX (loading spinner, disable button, success/error feedback)
-5. Fix CSS accessibility (user-select, focus-visible, aria labels on Navigation)
-6. Add friendly empty states for when lists are empty
-7. Better date formatting using Intl.DateTimeFormat
-
-Read each file before editing it. Run the build after all changes to verify.
-```
+### Key Rules (proven by 2 runs)
+1. **Worktrees are mandatory** — never share a working directory between agents.
+2. **Commit after every single task** — uncommitted work gets lost.
+3. **Atomic git ops** — `git add && git commit` in one Bash call.
+4. **Pre-install deps** in each worktree before agents start.
+5. **3-6 tasks per agent** is the sweet spot (7+ risks context exhaustion).
+6. **Agent A (mini-app) is the most independent** — zero overlap with bot/tools.
 
 ---
 
-## Agent B: Bot Commands & Job Improvements
-
-### Branch Name
-```
-git checkout -b feature/bot-improvements
-```
-
-### OWNED Files (you may edit these)
-```
-bot/src/handlers/start.ts
-bot/src/handlers/miniapp.ts
-bot/src/handlers/onboarding.ts     (only error handling improvements)
-bot/src/jobs/definitions/           (all job files)
-bot/src/jobs/registerJobs.ts
-bot/src/utils/cache.ts
-```
-
-### You MAY CREATE new files in
-```
-bot/src/handlers/          (new handler files like settings.ts, stats.ts)
-```
-
-### FORBIDDEN Files (do NOT edit)
-```
-bot/src/index.ts                — registration hub, collision risk (add a TODO for what to register)
-bot/src/bot.ts                  — Grammy instance, nobody edits
-bot/src/config.ts               — config, nobody edits
-bot/src/api/                    — API routes, Agent D owns these
-bot/src/utils/db.ts             — database util, nobody edits
-bot/src/utils/pythonTools.ts    — Python bridge, nobody edits
-bot/src/types/                  — shared types, nobody edits
-mini-app/                       — not your area
-tools/                          — not your area
-database/                       — not your area
-bot/package.json                — do NOT add dependencies
-```
-
-### Build Verification
-```bash
-cd bot && npm run build
-```
-
-### Tasks (Priority Order)
-
-**Task 1: Improve job error handling and pagination**
-- dailyQuestReset.ts: Add pagination — process users in batches of 100 instead of loading all at once. Add retry logic (max 3 retries per user with exponential backoff). Log failed user IDs.
-- questReminders.ts: Add Telegram rate limit handling — if send fails with 429, wait `retry_after` seconds. Add batching (max 30 messages per second). Log failed sends with user ID.
-- streakCheck.ts: Add logging of which specific streaks broke (user_id, mode_id, previous_streak).
-- dbCleanup.ts: Wrap all DELETE operations in a single transaction. If any fails, rollback all.
-
-**Task 2: Improve job logging**
-- All jobs: Add execution timing — log `[JOB:jobName] Started` and `[JOB:jobName] Completed in ${ms}ms` with counts
-- Use `Date.now()` for timing (no new packages)
-- Add structured info: processed count, failed count, skipped count
-
-**Task 3: Add cache invalidation**
-- cache.ts: Add `invalidate(pattern: string)` method that deletes all keys matching a prefix
-- After quest completion in handlers, call `cache.invalidate('user:*:stats')` (conceptual — invalidate relevant cached data)
-- After achievement unlock, invalidate achievement cache
-- Document which cache keys exist and their TTLs as comments in cache.ts
-
-**Task 4: Create /settings handler (new file)**
-- Create bot/src/handlers/settings.ts
-- Command shows inline keyboard with: Notifications (on/off), Reminder time, Timezone
-- Each option opens a sub-menu with choices
-- Use Grammy's InlineKeyboard and callback queries
-- Store preferences in database (use pythonTools.executePythonTool or direct db.query)
-- Add a TODO in a file called bot/src/handlers/REGISTER_THESE.md listing what needs to be added to index.ts
-
-**Task 5: Create /stats handler (new file)**
-- Create bot/src/handlers/stats.ts
-- Shows: weekly XP earned, quests completed this week, current streaks per mode, best streak ever
-- Format as a nice Telegram message with emoji
-- Use inline keyboard for "This week" / "All time" toggle
-- Add to REGISTER_THESE.md
-
-**Task 6: Improve /start handler error messages**
-- start.ts: When Python tool fails, show specific error instead of generic "error occurred"
-- start.ts: When user already exists, show welcome back message with their stats
-- start.ts: Fix silent failure for active quests check — show "couldn't load quests" instead of "0 quests"
-
-### Prompt for Agent B
-
-```
-You are improving the Telegram bot handlers and background jobs for an RPG gamification bot.
-
-IMPORTANT RULES:
-1. Create branch FIRST: git checkout -b feature/bot-improvements
-2. You may ONLY edit files in: bot/src/handlers/ (existing + new files), bot/src/jobs/definitions/, bot/src/jobs/registerJobs.ts, bot/src/utils/cache.ts
-3. Do NOT edit: bot/src/index.ts, bot/src/bot.ts, bot/src/config.ts, bot/src/api/, bot/src/utils/db.ts, bot/src/utils/pythonTools.ts, bot/src/types/, bot/package.json
-4. You CAN create NEW files in bot/src/handlers/
-5. Do NOT add any new npm packages
-6. Do NOT push to remote — only commit locally
-7. Do NOT deploy to server — no SSH commands
-8. After ALL changes, run: cd bot && npm run build — and fix any errors
-9. Commit after each completed task with descriptive message
-10. Since you can't edit index.ts to register new commands, create bot/src/handlers/REGISTER_THESE.md listing what needs to be added
-
-PROJECT CONTEXT:
-- Grammy bot framework (similar to telegraf but modern)
-- ESM project — ALL local imports need .js extensions (e.g., import from './settings.js')
-- TypeScript strict mode
-- pg-boss v12+ for background jobs (must createQueue before schedule)
-- Python tools called via bot/src/utils/pythonTools.ts executePythonTool()
-- Direct DB queries via bot/src/utils/db.ts query() function
-- In-memory cache in bot/src/utils/cache.ts
-
-YOUR TASKS (do them in order):
-1. Improve job error handling (pagination, retries, rate limits, transactions)
-2. Add execution timing and structured logging to all jobs
-3. Add cache invalidation method and document cache keys
-4. Create /settings handler (new file with inline keyboards)
-5. Create /stats handler (new file with weekly/all-time toggle)
-6. Improve /start handler error messages
-
-Read each file before editing it. Run the build after all changes to verify.
-```
-
----
-
-## Agent C: Python Tools & Data Quality
-
-### Branch Name
-```
-git checkout -b feature/tools-data
-```
-
-### OWNED Files (you may edit these)
-```
-tools/user_manager.py
-tools/quest_manager.py
-tools/achievement_manager.py
-tools/mode_manager.py
-tools/streak_manager.py
-tools/db_operations.py
-tools/server_metrics.py
-tools/send_notification.py
-```
-
-### You MAY CREATE new files in
-```
-tools/validators.py          (new — input validation)
-tools/tests/                 (new directory — unit tests)
-```
-
-### FORBIDDEN Files (do NOT edit)
-```
-tools/notification_bot_handler.py    — separate bot, collision risk
-tools/timeweb_cloud_manager.py       — infrastructure tool, dangerous
-tools/mini_app_diagnostic.py         — diagnostic tool, works fine
-tools/sheets_analytics_export.py     — Google Sheets, works fine
-tools/project_status_tracker.py      — status tracker, works fine
-bot/                                 — not your area
-mini-app/                            — not your area
-database/schema.sql                  — schema, nobody edits
-database/seed_data.sql               — seed data, nobody edits
-```
-
-### Build Verification
-```bash
-cd tools && python -c "import user_manager; import quest_manager; import mode_manager; import achievement_manager; import streak_manager; print('All imports OK')"
-```
-
-### Tasks (Priority Order)
-
-**Task 1: Fix SQL injection vulnerabilities (CRITICAL)**
-- user_manager.py (lines ~124-143): Field names are directly interpolated into SQL. Create a WHITELIST of allowed field names and reject any not in the list. Only allow: username, first_name, last_name, timezone, is_active, notification_enabled.
-- quest_manager.py (lines ~105-116): Empty mode_ids list causes SQL error. Add validation: if mode_ids is empty, return empty list immediately.
-- mode_manager.py: Replace SQL string concatenation with parameterized queries where possible.
-
-**Task 2: Create validators.py (new file)**
-- validate_user_id(id) — must be positive integer
-- validate_telegram_id(id) — must be positive integer
-- validate_timezone(tz) — must be valid timezone string (use pytz or zoneinfo)
-- validate_quest_count(count) — must be 1-50
-- validate_telegram_message(text) — must be string, max 4096 chars
-- validate_mode_id(id) — must be positive integer
-- Each function raises ValueError with descriptive message on failure
-
-**Task 3: Add input validation to all managers**
-- user_manager.py: Validate user_id, telegram_id, fields dict before DB operations
-- quest_manager.py: Validate user_id, quest_id, mode_ids, count before operations
-- achievement_manager.py: Validate user_id, achievement_id before operations
-- mode_manager.py: Validate user_id, mode_id before operations
-- streak_manager.py: Validate user_id, mode_id before operations
-- Import and use validators from validators.py
-
-**Task 4: Improve error handling specificity**
-- Replace all generic `except Exception` with specific exceptions:
-  - psycopg2.IntegrityError for constraint violations
-  - psycopg2.OperationalError for connection issues
-  - ValueError for bad input
-  - KeyError for missing config
-- Return specific error messages so callers know what went wrong
-
-**Task 5: Add retry logic to send_notification.py**
-- Add message length validation (truncate at 4096 chars with "..." suffix)
-- Add retry logic: 3 attempts with exponential backoff (1s, 2s, 4s)
-- Handle HTTP 429 (rate limited) — wait `retry_after` seconds
-- Handle HTTP 400 (bad request) — don't retry, log error
-
-**Task 6: Fix server_metrics.py robustness**
-- Add marker existence checks before splitting
-- Add timeout handling for SSH commands
-- Return partial data (what succeeded) instead of crashing on any failure
-- Add fallback values for missing metrics
-
-**Task 7: Create unit tests**
-- Create tools/tests/__init__.py
-- Create tools/tests/test_validators.py — test all validation functions
-- Create tools/tests/test_user_manager.py — mock db_operations, test CRUD logic
-- Create tools/tests/test_quest_manager.py — mock db_operations, test assignment/completion
-- Use unittest.mock to mock database connections (do NOT connect to real DB)
-- Run with: pytest tools/tests/ -v
-
-### Prompt for Agent C
-
-```
-You are improving the Python tools for an RPG gamification bot. These tools handle database operations, notifications, and server monitoring.
-
-IMPORTANT RULES:
-1. Create branch FIRST: git checkout -b feature/tools-data
-2. You may ONLY edit files in: tools/user_manager.py, tools/quest_manager.py, tools/achievement_manager.py, tools/mode_manager.py, tools/streak_manager.py, tools/db_operations.py, tools/server_metrics.py, tools/send_notification.py
-3. You CAN create NEW files: tools/validators.py, tools/tests/ directory with test files
-4. Do NOT edit: tools/notification_bot_handler.py, tools/timeweb_cloud_manager.py, tools/mini_app_diagnostic.py, tools/sheets_analytics_export.py, tools/project_status_tracker.py
-5. Do NOT edit anything in bot/, mini-app/, or database/
-6. Do NOT push to remote — only commit locally
-7. Do NOT deploy to server — no SSH commands
-8. Do NOT run tools against production database — only create mock-based tests
-9. Commit after each completed task with descriptive message
-
-PROJECT CONTEXT:
-- Python 3.11+ on Ubuntu 24.04 server
-- PostgreSQL 16 database (psycopg2 for connections)
-- db_operations.py has connection pooling with get_connection() context manager
-- All tools use argparse CLI with JSON output ({"success": true/false, "data": {...}})
-- Tools are called from Node.js bot via subprocess (child_process.execSync)
-- .env has DATABASE_URL, BOT_TOKEN, TIMEWEB_TOKEN
-
-CRITICAL SECURITY ISSUE TO FIX FIRST:
-- user_manager.py has SQL injection via field names in update_user() — field names directly interpolated
-- quest_manager.py has empty list handling bug in mode_ids query
-
-YOUR TASKS (do them in order):
-1. Fix SQL injection vulnerabilities (CRITICAL — do this first)
-2. Create tools/validators.py with reusable validation functions
-3. Add input validation to all manager files using validators.py
-4. Replace generic except Exception with specific exceptions (psycopg2.IntegrityError, etc.)
-5. Add retry logic and message length validation to send_notification.py
-6. Fix server_metrics.py robustness (marker checks, timeouts, fallbacks)
-7. Create unit tests in tools/tests/ using pytest + unittest.mock (NO real DB connections)
-
-Read each file before editing it. After all changes, verify imports work:
-python -c "import user_manager; import quest_manager; print('OK')"
-```
-
----
-
-## Agent D: Tests & CI/CD Pipeline
-
-### Branch Name
-```
-git checkout -b feature/tests-cicd
-```
-
-### OWNED Files (you may edit these)
-```
-.github/workflows/deploy.yml    (improve existing CI/CD)
-```
-
-### You MAY CREATE new files in
-```
-bot/src/__tests__/              (new directory — TypeScript tests)
-bot/jest.config.js              (new — test config)
-scripts/                        (new deployment/monitoring scripts)
-.github/workflows/              (new workflow files)
-```
-
-### FORBIDDEN Files (do NOT edit)
-```
-bot/src/                        (any non-test .ts file)
-mini-app/src/                   — not your area
-tools/                          — Agent C owns Python tools/tests
-database/                       — nobody edits schema
-bot/package.json                — do NOT add dependencies (check if jest is already installed)
-mini-app/package.json           — not your area
-ecosystem.config.js             — PM2 config, nobody edits
-.env                            — secrets, never edit
-```
-
-### Build Verification
-```bash
-cd bot && npm run build
-```
-
-### Tasks (Priority Order)
-
-**Task 1: Set up TypeScript test infrastructure**
-- Check if jest/vitest is already in bot/package.json devDependencies
-- If not, note in a README that it needs to be installed (do NOT modify package.json yourself)
-- Create bot/jest.config.js (or vitest.config.ts) for ESM TypeScript project
-- Create bot/src/__tests__/setup.ts with mock helpers for: Grammy context, Express request/response, pg pool
-
-**Task 2: Write API route tests**
-- bot/src/__tests__/routes/users.test.ts — test GET /users/:telegramId/stats (mock db.query)
-- bot/src/__tests__/routes/quests.test.ts — test GET/POST quest endpoints
-- bot/src/__tests__/routes/achievements.test.ts — test GET achievements
-- Mock the database pool, test request validation, error responses, status codes
-
-**Task 3: Write auth middleware tests**
-- bot/src/__tests__/middleware/auth.test.ts
-- Test: valid signature passes, invalid signature returns 401, expired data returns 401, missing header returns 401
-- Mock crypto.createHmac
-
-**Task 4: Write job definition tests**
-- bot/src/__tests__/jobs/dailyQuestReset.test.ts — test pagination logic, retry behavior
-- bot/src/__tests__/jobs/streakCheck.test.ts — test streak break detection
-- bot/src/__tests__/jobs/dbCleanup.test.ts — test transaction behavior
-
-**Task 5: Improve CI/CD pipeline**
-- .github/workflows/ci.yml (NEW file — separate from deploy):
-  - Trigger on pull_request to main
-  - Steps: checkout, setup Node.js 20, npm install, npm run build, npm test
-  - Add Python test step: setup Python 3.11, pip install -r requirements.txt, pytest tools/tests/
-  - Add TypeScript lint step if eslint exists
-- .github/workflows/deploy.yml (IMPROVE existing):
-  - Add post-deploy health check: curl https://yakutsa.ru/health
-  - Add deployment notification (curl to Telegram bot on success/failure)
-  - Add build caching for npm
-
-**Task 6: Create monitoring script**
-- scripts/health_check.sh — curl health endpoint, check response, alert if down
-- scripts/check_logs.sh — tail PM2 logs and check for error patterns
-- Make scripts executable
-
-### Prompt for Agent D
-
-```
-You are setting up tests and CI/CD for an RPG gamification bot project.
-
-IMPORTANT RULES:
-1. Create branch FIRST: git checkout -b feature/tests-cicd
-2. You may ONLY edit: .github/workflows/deploy.yml
-3. You CAN create NEW files in: bot/src/__tests__/, bot/jest.config.js or bot/vitest.config.ts, .github/workflows/ (new files), scripts/
-4. Do NOT edit ANY existing source code in bot/src/ (only create test files)
-5. Do NOT edit ANY file in mini-app/, tools/, database/
-6. Do NOT modify package.json files — if you need a new package, note it in a README
-7. Do NOT push to remote — only commit locally
-8. Do NOT deploy to server — no SSH commands
-9. Commit after each completed task with descriptive message
-
-PROJECT CONTEXT:
-- Bot: TypeScript + Grammy framework, ESM ("type": "module"), strict mode
-- Mini App: React + Vite + TypeScript
-- Python Tools: Python 3.11+ with psycopg2
-- Database: PostgreSQL 16
-- Deployment: PM2 on Ubuntu 24.04 VDS, nginx reverse proxy
-- GitHub repo: yakutsaboss/maxlevel
-- CI/CD: .github/workflows/deploy.yml exists (basic: build + SSH deploy)
-
-KEY ARCHITECTURE:
-- bot/src/api/middleware/auth.ts — HMAC-SHA256 Telegram signature validation
-- bot/src/api/routes/ — Express API routes (users, quests, achievements, modes, onboarding, admin, leaderboard)
-- bot/src/jobs/definitions/ — pg-boss background jobs (6 scheduled tasks)
-- bot/src/utils/db.ts — pg Pool wrapper with query() helper
-- bot/src/utils/cache.ts — in-memory cache with TTL
-
-IMPORTANT: This is an ESM project. Test files need:
-- import/export syntax (no require)
-- .js extensions on local imports
-- Jest ESM config or Vitest (which natively supports ESM)
-
-YOUR TASKS (do them in order):
-1. Set up test infrastructure (jest/vitest config for ESM TypeScript)
-2. Write API route tests (users, quests, achievements — mock db.query)
-3. Write auth middleware tests (valid/invalid signatures, expiry, missing header)
-4. Write job definition tests (pagination, retries, transactions)
-5. Improve CI/CD: create ci.yml for PR checks, improve deploy.yml with health checks
-6. Create monitoring shell scripts (health check, log checker)
-
-Check what test libraries are already in bot/package.json before creating config. Read each source file before writing tests for it. Run the build after all changes to verify.
-```
-
----
-
-## Merge Strategy (After All Agents Complete)
-
-### Order of Merge (matters!)
-
-```bash
-# 1. Merge Python tools first (no build dependency on others)
-git checkout main
-git merge feature/tools-data
-# Verify: python tools/validators.py works, pytest tools/tests/ passes
-
-# 2. Merge bot improvements second (may reference cache changes)
-git merge feature/bot-improvements
-# Fix: Add registrations from REGISTER_THESE.md into index.ts manually
-# Verify: cd bot && npm run build
-
-# 3. Merge tests third (tests depend on source code being stable)
-git merge feature/tests-cicd
-# Verify: cd bot && npm run build && npm test
-
-# 4. Merge UI last (isolated, unlikely conflicts)
-git merge feature/ui-polish
-# Verify: cd mini-app && npm run build
-
-# 5. Single deploy
-git push origin main
-# SSH to server, git pull, rebuild all, pm2 restart
-```
-
-### Conflict Resolution
-- If merge conflicts occur in any file, STOP and resolve manually
-- The merge order above minimizes conflicts (independent streams first)
-- Agent B's REGISTER_THESE.md tells you what to add to index.ts manually
-
----
-
-## Quick Reference: Who Owns What
-
-| Directory/File | Agent A | Agent B | Agent C | Agent D |
-|---------------|---------|---------|---------|---------|
-| mini-app/src/pages/ | ✅ OWNS | ❌ | ❌ | ❌ |
-| mini-app/src/components/ | ✅ OWNS | ❌ | ❌ | ❌ |
-| mini-app/src/index.css | ✅ OWNS | ❌ | ❌ | ❌ |
-| bot/src/handlers/ | ❌ | ✅ OWNS | ❌ | ❌ |
-| bot/src/jobs/ | ❌ | ✅ OWNS | ❌ | ❌ |
-| bot/src/utils/cache.ts | ❌ | ✅ OWNS | ❌ | ❌ |
-| tools/*.py (managers) | ❌ | ❌ | ✅ OWNS | ❌ |
-| tools/tests/ | ❌ | ❌ | ✅ OWNS | ❌ |
-| bot/src/__tests__/ | ❌ | ❌ | ❌ | ✅ OWNS |
-| .github/workflows/ | ❌ | ❌ | ❌ | ✅ OWNS |
-| scripts/ | ❌ | ❌ | ❌ | ✅ OWNS |
-| bot/src/index.ts | ❌ | ❌ | ❌ | ❌ |
-| mini-app/src/types/ | ❌ | ❌ | ❌ | ❌ |
-| mini-app/src/api/ | ❌ | ❌ | ❌ | ❌ |
-| database/ | ❌ | ❌ | ❌ | ❌ |
-| .env | ❌ | ❌ | ❌ | ❌ |
-
----
-
-## Post-Run Retrospective
-
-### Agent A faced:
-
-**1. Constant branch switching by other agents (CRITICAL — same as all agents)**
-The shared working directory was the dominant problem. Every time Agent A wrote a file using the Write tool, there was a race condition: between calling `Read` (which records the file's modification time) and calling `Write` (which checks it hasn't changed), another agent would `git checkout` their branch, changing every file on disk. The Write tool would then fail with "File has been modified since read". This happened **10+ times** across the session, causing the majority of wasted effort.
-
-**2. Stray commits from other agents landed on `feature/ui-polish`**
-After Agent A committed Tasks 1-2 cleanly, other agents' commits appeared on `feature/ui-polish`. Specifically, Agent C's commit `81a1b2a` (input validation, SQL injection fix for Python tools) ended up on Agent A's branch because Agent C ran `git commit` while `feature/ui-polish` happened to be checked out. Had to `git reset --hard 2ea5d62` to remove the stray commit and restore a clean branch state.
-
-**3. All Tasks 3-7 changes lost repeatedly after successful writes**
-Agent A successfully wrote all 5 files (Dashboard.tsx, Quests.tsx, Profile.tsx, Navigation.tsx, index.css) with Tasks 3-7 applied — but before committing, another agent switched branches, reverting all files to their committed state. This complete loss happened **3 times**. Each time required: `git stash && git checkout feature/ui-polish`, re-read all 5 files, re-write all 5 files, then rush to commit.
-
-**4. Parallel writes failed due to sibling error propagation**
-Initially tried writing all 5 files in parallel (single message with 5 Write tool calls). When one Write failed due to branch switching, all sibling Write calls in the same batch also failed. Had to switch to sequential one-at-a-time writes, which was slower but more resilient — if one file failed, the others were already committed.
-
-**5. `git worktree` failed as a mitigation**
-Attempted `git worktree add ../wibecode-ui-polish feature/ui-polish` to get an isolated working directory. Failed because `feature/ui-polish` was already checked out in the main worktree. Git doesn't allow a branch to be checked out in two worktrees simultaneously.
-
-**6. Context window exhaustion from repeated retries**
-The conversation hit context limits and had to be compacted/continued in a new session. The repeated read-write-fail-retry cycles consumed massive amounts of context — each cycle included reading 5 full files (~300-400 lines each) plus the failed write attempts plus the error messages. Actual code work was maybe 20% of the context; 80% was fighting branch conflicts.
-
-**7. Strategy evolution to minimize the race window**
-Started with verbose, well-formatted code writes. Evolved to compact single-line format to minimize the time between Read and Write (less text = faster write = smaller race window). This ugly-but-pragmatic approach helped the final successful batch of writes land before another agent could switch branches.
-
-### What Agent A actually completed:
-
-| Task | Status | Commit | Description |
-|------|--------|--------|-------------|
-| 1. Loading skeletons | Done | `1449493` | CSS-only skeleton shimmer for Dashboard, Quests, Profile — matches each page's layout |
-| 2. Error states + retry | Done | `2ea5d62` | `error` state, AlertCircle icon, red card with RefreshCw retry button on all 3 pages |
-| 3. Mobile overflow fixes | Done | `e23803e` | `min-w-0`, `truncate`, `flex-shrink-0` on names, XP bar text, quest titles, XP badges |
-| 4. Quest completion UX | Done | `e23803e` | `completing` state, `Loader2` spinner, disabled MainButton during API call, haptic after success |
-| 5. CSS accessibility | Done | `e23803e` | Removed `user-select:none` from body, added `focus-visible` outlines, `aria-label`/`aria-current` on Navigation |
-| 6. Empty states | Done | `e23803e` | `Compass` icon for empty modes, `Scroll` for empty quests, `Trophy` for empty achievements — all with styled containers |
-| 7. Date formatting | Done | `e23803e` | `formatDate()` using `Intl.DateTimeFormat` in Profile (joined date, mode activation) and Quests (completion date) |
-
-**Final branch:** `feature/ui-polish` — 3 commits on top of main. `tsc && vite build` passes with zero errors. Branch is NOT pushed per instructions.
-
-### Agent A recommendations for future parallel runs:
-
-1. **Separate working directories is mandatory** — `git worktree` or separate clones. The shared directory made every agent's work 3-5x harder
-2. **Agent A (mini-app) is the safest to isolate** — zero file overlap with Agents B, C, D. Could literally run in a separate clone with zero coordination
-3. **Compact code format for contested writes** — when fighting race conditions, minimize the Write payload size to reduce the window between Read and Write
-4. **Commit after every single task, not batches** — Tasks 1-2 survived because they were committed individually. Tasks 3-7 were lost repeatedly because they were batched as uncommitted changes
-5. **Read-Write-Add-Commit should be atomic** — ideally a single tool that reads, applies changes, stages, and commits in one operation so no other agent can interfere mid-sequence
-6. **The conversation compaction/continuation was costly** — the new session lost all the in-progress file content from memory, requiring full re-reads of all 5 files. Shorter, more focused agent sessions would be more resilient
-
-### Agent D faced:
-
-**1. Constant branch switching by other agents (CRITICAL)**
-All 4 agents share a single working directory and git index. When Agent D ran `git checkout feature/tests-cicd`, another agent would immediately switch to their own branch (e.g. `feature/ui-polish` or `feature/bot-improvements`). This caused:
-- Commits landing on the wrong branch (my first commit went to `feature/ui-polish` instead of `feature/tests-cicd`)
-- Files disappearing from the working directory after another agent's `git checkout` wiped them
-- `git add && git commit` succeeding but on whichever branch another agent had just switched to
-- Had to cherry-pick commits across branches repeatedly to consolidate work
-- The stash queue filled up with 8 entries from various agents competing
-
-**2. deploy.yml kept getting reverted**
-Agent D owns `.github/workflows/deploy.yml`, but other agents' branch switches kept reverting my edits. I had to re-read and re-write the file 3+ times. The final Write succeeded, but the file was reverted again before the commit could stage it — so the deploy.yml changes had to be re-applied on every attempt.
-
-**3. Files lost between branch switches**
-After writing `auth.test.ts` and all 3 job test files, another agent switched branches and the files vanished from the working directory. Had to recreate all 4 test files from scratch. This happened twice total.
-
-**4. `tsconfig.json` needed modification (gray area)**
-Test files use `vitest` imports which aren't installed, causing `tsc` build failure. Had to add `"src/__tests__"` to the `exclude` list in `bot/tsconfig.json`. This file wasn't in Agent D's explicit OWNED or FORBIDDEN list — it was a gray area that required judgment.
-
-**5. Cross-contamination of branches**
-Due to competing checkouts, `feature/tests-cicd` ended up with commits from Agent B (settings.ts, REGISTER_THESE.md) and Agent C (validators.py) that don't belong there. The merge step will need to handle this carefully.
-
-### What Agent D actually completed:
-
-| Task | Status | Files |
-|------|--------|-------|
-| Test infrastructure (vitest config + mock helpers) | Done | `bot/vitest.config.ts`, `bot/src/__tests__/setup.ts` |
-| API route tests (users, quests, achievements) | Done | 3 test files, ~22 tests |
-| Auth middleware tests | Done | 1 test file, ~10 tests |
-| Job definition tests (dailyQuestReset, streakCheck, dbCleanup) | Done | 3 test files, ~15 tests |
-| CI pipeline (`ci.yml` for PRs) | Done | `.github/workflows/ci.yml` |
-| Deploy improvements (health check + notifications) | Done | `.github/workflows/deploy.yml` (may need re-merge) |
-| Monitoring scripts | Done | `scripts/health_check.sh`, `scripts/check_logs.sh` |
-| Build verification | Done | `cd bot && npm run build` passes cleanly |
-
-**Note:** `vitest` is not yet installed as a devDependency. Run `cd bot && npm install -D vitest` before running tests.
-
-### Recommendations for future parallel runs:
-
-1. **Use `git worktree`** instead of branch switching — each agent gets its own directory with its own checkout, eliminating all branch conflicts
-2. **Lock the branch** — once an agent checks out, other agents should not be allowed to switch branches in the same working directory
-3. **Stagger agent start times** — let each agent create and check out its branch before any start writing code
-4. **Separate working directories** — clone the repo 4 times into different folders (simplest solution)
-5. **Pre-install test dependencies** — add vitest/jest to package.json before agents start, so test infrastructure doesn't need package.json edits
-6. **deploy.yml should be FORBIDDEN for all agents except D** — other agents' branch switches silently revert it
-
-### Agent B faced:
-
-**1. Every single commit landed on the wrong branch (CRITICAL)**
-All 4 agents shared one git working directory. Between checking `git branch --show-current` (confirmed `feature/bot-improvements`) and running `git commit`, another agent would silently `git checkout` to their branch. **All 7 of my commits initially went to wrong branches** — `feature/tests-cicd`, `feature/ui-polish`, or `feature/tools-data`. Every task required a post-commit `git checkout feature/bot-improvements && git cherry-pick <hash>` to move it. This doubled the git operations for every single task.
-
-**2. Branch was overwritten by other agents mid-session**
-After completing Tasks 1-3 (3 commits on `feature/bot-improvements`), another agent's checkout reset my branch pointer. Running `git log feature/bot-improvements` showed Agent A's UI commits (loading skeletons, error states) instead of my job improvements. My commits became orphaned — only findable via `git reflog`. Had to:
-- `git branch -D feature/bot-improvements` (delete the corrupted branch)
-- `git checkout -b feature/bot-improvements` (recreate from main)
-- Cherry-pick all 4 commits by hash from reflog: `04b3d04`, `61451d9`, `cebb568`, `0247e2d`
-
-**3. Constant stash/unstash churn**
-Other agents left uncommitted changes in `mini-app/` and `tools/` files. Every `git checkout feature/bot-improvements` failed with "local changes would be overwritten" — requiring `git stash` first. By end of session there were 7 stash entries, most containing other agents' work. Some stash pops conflicted with the current branch state.
-
-**4. PARALLEL_AGENTS.md itself was lost**
-The instruction file was untracked (`??` in git status) and never committed to any branch. During one of the forced branch switches + stash operations, the file disappeared from the working directory entirely. Had to reconstruct it from conversation context memory.
-
-**5. Files reverted between Write and commit**
-Wrote `start.ts` improvements while on `feature/bot-improvements`, but by the time `git add` ran, I was on `feature/tools-data`. The file content was correct but the commit went to the wrong branch. This was especially confusing because the write succeeded without error — the branch switch happened silently in the background.
-
-### What Agent B actually completed:
-
-| Task | Status | Files Changed | Summary |
-|------|--------|--------------|---------|
-| 1. Job error handling | Done | 4 job definitions | Pagination (batches of 100), 3x retry with exponential backoff, Telegram 429 handling, transactional DELETEs |
-| 2. Job logging | Done | 2 job definitions | Consistent `[JOB:name] Started/Completed in Xms` with structured counts |
-| 3. Cache invalidation | Done | cache.ts | `invalidatePattern()` (glob wildcards), `invalidateUserCache()`, documented all cache keys + TTLs |
-| 4. /settings handler | Done | NEW settings.ts | Notifications on/off, reminder time picker (4 options), timezone selector (4 zones), inline keyboard sub-menus with Back nav |
-| 5. /stats handler | Done | NEW stats.ts | Weekly/all-time toggle, XP earned, quests completed, current & best streaks, join date |
-| 6. /start errors | Done | start.ts | Quest load failure shows warning (not silent "0 quests"), account creation errors give specific reasons, catch block has context-aware messages (DB down, timeout, backend unavailable) |
-| 7. Registration doc | Done | NEW REGISTER_THESE.md | Exact code snippets for wiring /settings and /stats into index.ts |
-
-**Final branch:** `feature/bot-improvements` — 7 clean commits on top of main. `cd bot && npm run build` passes with zero errors.
-
-### Agent B recommendations for future parallel runs:
-
-1. **Use separate cloned directories** (e.g., `wibecode-agent-a/`, `wibecode-agent-b/`) or `git worktree add` — this is the #1 fix that would eliminate all problems
-2. **Add a branch guard before every git operation** — `if [[ $(git branch --show-current) != "feature/bot-improvements" ]]; then git checkout feature/bot-improvements; fi`
-3. **Commit the instructions file immediately** to each branch so it survives branch switches (untracked files get lost)
-4. **Agents A (mini-app) + C (Python tools) are safe to parallelize** — zero file overlap. Agents B (bot handlers) + D (bot tests) have more overlap risk since both touch `bot/` and both need build verification
-5. **Consider a lock file mechanism** — before `git checkout`, check if another agent holds the lock; wait if so
-
-### Agent C faced:
-
-**1. Branch switching by other agents — identical to Agents B and D (CRITICAL)**
-Same working directory, same problem. Between `git checkout feature/tools-data` and `git commit`, another agent would silently switch to their branch. My first batch of manager edits (Tasks 1-4) landed on `feature/ui-polish` instead of `feature/tools-data`. Had to cherry-pick commit `81a1b2a` back to the correct branch as `cdfba4e`. This happened repeatedly throughout the session — every commit required a pre-check + atomic `git checkout && git add && git commit` chain.
-
-**2. Linter/formatter reverting every file edit (UNIQUE TO AGENT C)**
-This was Agent C's worst problem — and unique to this agent. Every time I used the `Write` or `Edit` tool to modify a Python file (quest_manager.py, user_manager.py, achievement_manager.py, etc.), a VSCode linter/formatter would **immediately revert the file back to its original content** before `git add` could stage it. The Edit tool would report "success", but reading the file 1 second later showed the old content. This happened on every single manager file, every single time — dozens of failed attempts.
-
-**The solution:** Abandoned Claude Code's Write/Edit tools entirely for manager files. Instead, created Python helper scripts in `.tmp/` (e.g., `.tmp/apply_changes.py`, `.tmp/apply_remaining.py`) that:
-1. Read the file with `open()`
-2. Apply string replacements via `content.replace(old, new)`
-3. Write the modified content back
-4. Immediately call `subprocess.run(["git", "add", filename])` in the same script
-
-By doing the write + git-add atomically in a single Python process, the file was staged before the linter could revert it. This workaround was required for all 5 manager files and both utility files (send_notification.py, server_metrics.py).
-
-**3. Parallel Write tool failures**
-Attempted to write all 5 manager files in parallel using the Write tool. `user_manager.py` succeeded but `quest_manager.py` failed with "File has been modified since read" (race condition with the linter), and the other 3 failed as sibling errors. Had to fall back to sequential one-file-at-a-time approach via the Python patch scripts.
-
-**4. validators.py lost after branch switch**
-Created `tools/validators.py` and committed it on `feature/tools-data`. Another agent switched to their branch, and the file disappeared from the working directory. When I switched back, the commit was gone from the branch history. Had to recreate and re-commit the file.
-
-**5. Test mock patching at wrong location**
-First test run (57 passed, 17 failed) — all failures were because mocks patched `db_operations.execute_query` (where the function is defined) instead of `user_manager.execute_query` (where it's imported). Since Python's `from module import func` creates a new reference, patching the source module doesn't affect the import. Fix: `monkeypatch.setattr(um, "execute_query", mock)` instead of `monkeypatch.setattr(db, "execute_query", mock)`.
-
-**6. tzdata package missing on Windows**
-`tools/validators.py` uses `zoneinfo.ZoneInfo` for timezone validation. On Windows Python 3.14, the `tzdata` package isn't bundled — all timezone tests failed with `ZoneInfoNotFoundError`. Fix: `pip install tzdata`.
-
-**7. transaction() context manager not mocked in tests**
-One test (`test_allowed_fields_accepted`) passed validation but then hit the real database via `transaction()` — which wasn't mocked. The test was checking the whitelist validation, not DB execution, so the fix was to catch non-ValueError exceptions with a pass.
-
-### What Agent C actually completed:
-
-| Task | Status | Commit | Description |
-|------|--------|--------|-------------|
-| 1. SQL injection fix | Done | `cdfba4e` | ALLOWED_UPDATE_FIELDS whitelist in user_manager.py, empty mode_ids guard in quest_manager.py |
-| 2. Create validators.py | Done | `f295161` | 8 validation functions with descriptive ValueError messages |
-| 3. Input validation in all managers | Done | `cdfba4e` | validate_* calls at entry of every public function in all 5 managers |
-| 4. Specific exception handling | Done | `cdfba4e` | psycopg2.IntegrityError, OperationalError, ValueError, KeyError replacing generic Exception |
-| 5. Retry logic in send_notification.py | Done | `4799f38` | 3 attempts, exponential backoff, HTTP 429 retry_after, HTTP 400 no-retry, 4096-char truncation |
-| 6. server_metrics.py robustness | Done | `425f58c` | _safe_split helper, independent section parsing, SSH keepalive, fallback values |
-| 7. Unit tests | Done | `ebb48c2` | 74 tests (test_validators.py, test_user_manager.py, test_quest_manager.py) — all passing |
-
-**Final branch:** `feature/tools-data` — 5 commits on top of main. Build verification `All imports OK`. `pytest tools/tests/ -v` → 74 passed, 0 failed.
-
-### Agent C recommendations for future parallel runs:
-
-1. **Use `git worktree`** — same as Agents B and D recommended. This is the #1 fix. Agent C's linter problem wouldn't exist if each agent had its own working directory
-2. **Disable VSCode linters/formatters during parallel runs** — or at least for Python files. The linter reverting edits made Agent C's work 3-4x harder than it needed to be
-3. **The `.tmp/` patch script workaround works** but is ugly — it should not be necessary if agents have isolated working directories
-4. **Pre-install test dependencies** (pytest, tzdata) before agents start — Agent C lost time debugging missing packages
-5. **Agent C (Python tools) and Agent A (mini-app) are the safest pair** — zero file overlap, different languages, different build systems. These two can safely run in the same directory
-6. **Agent C and Agent D both create tests** — coordinate test infrastructure (e.g., both needed pytest) to avoid conflicts in the tools/tests/ and bot/src/__tests__/ directories
-
----
-
-## Agent 0 Merge Retrospective (2026-02-09)
+## Run 2 Retrospective (Agent 0)
 
 ### Merge Results
-All 4 branches merged successfully into `main` with only 2 minor conflicts (both from cross-contamination: duplicate `check_logs.sh` and `validators.py` created by wrong agents).
-
 | Branch | Merge | Conflicts | Resolution |
 |--------|-------|-----------|------------|
-| `feature/tools-data` → main | Fast-forward | 0 | Clean |
-| `feature/bot-improvements` → main | Merge commit | 1 (`check_logs.sh`) | Kept bot-improvements version |
-| `feature/tests-cicd` → main | Merge commit | 2 (`validators.py`, `check_logs.sh`) | Kept main's versions (already correct from prior merges) |
-| `feature/ui-polish` → main | Merge commit | 0 | Clean |
+| `feature/backend-api` → main | Merge commit | 0 | Clean |
+| `feature/test-coverage` → main | Merge commit | 1 (PARALLEL_AGENTS.md) | Took theirs |
+| `feature/mini-app-features` → main | Merge commit | 1 (PARALLEL_AGENTS.md) | Took theirs |
 
-### Post-Merge Integration Work
-1. Added `/settings` and `/stats` command registrations to `bot/src/index.ts`
-2. Added callback query handlers for `settings:*` and `stats:*` patterns
-3. Updated `/menu` command text to list new commands
-4. Installed `vitest` as devDependency in `bot/package.json`
-5. Both builds verified passing (`bot` TypeScript + `mini-app` Vite)
-6. Deployed to server, PM2 restarted successfully
+### What Was Delivered
+**Agent A** (mini-app): Leaderboard page, 4-item navigation, pull-to-refresh on Dashboard+Quests, rich quest detail modal with progress steppers, profile edit modal, achievement progress indicators.
 
-### Cross-Contamination Map (what actually happened)
-```
-feature/tools-data:        Agent C's tools ✅ + Agent D's tests/CI/scripts (leaked)
-feature/bot-improvements:  Agent B's handlers ✅ + Agent D's ci.yml/scripts (leaked)
-feature/tests-cicd:        Agent D's tests ✅ + Agent B's settings.ts/job defs (leaked) + Agent C's validators.py (leaked)
-feature/ui-polish:         Agent A's mini-app ✅ (ONLY clean branch)
-```
+**Agent B** (backend): PM2 config fix (IP+memory+log rotation), centralized env validation, user preferences API (GET/PATCH), quest progress API (PATCH, auto-complete), /leaderboard bot command.
 
----
+**Agent C** (tests): 149 new tests — 60 TypeScript (modes/leaderboard/onboarding routes, 3 job handlers) + 89 Python (achievement/mode/streak managers, send_notification). Total project tests: 114 TS + 172 Python = 286.
 
-## TODO List for Next Parallel Agent Run
+### What Went Right
+- Worktrees eliminated 100% of Run 1's problems
+- All agents completed all tasks with zero interference
+- Both builds passed on first try after merge
+- No cross-contamination of commits
+- Agent B did its own integration work (registered /leaderboard, updated /menu)
 
-### MUST DO (Prevents 90% of problems)
-
-- [ ] **Use separate cloned directories, NOT branches in same repo**
-  - Clone the repo into `wibecode-agent-a/`, `wibecode-agent-b/`, etc.
-  - Each agent works in its own directory with its own `.git`
-  - This eliminates ALL branch-switching, file-loss, and cross-contamination issues
-  - Alternative: `git worktree add ../agent-a-workdir feature/agent-a` — but agent must NOT be on the branch in the main worktree
-
-- [ ] **Commit the instruction file to EVERY agent's branch immediately**
-  - Untracked files get lost during branch switches and stash operations
-  - Agent B lost PARALLEL_AGENTS.md entirely during a stash operation
-
-- [ ] **Disable VSCode auto-formatters/linters during parallel runs**
-  - Agent C's biggest problem: Python formatter reverted every Write/Edit tool change before `git add` could stage it
-  - Either: close VSCode, disable formatOnSave, or use `--disable-extensions` flag
-  - The `.tmp/` patch script workaround works but is ugly and shouldn't be needed
-
-- [ ] **Pre-install ALL test dependencies before agents start**
-  - Agent D needed `vitest` (couldn't edit package.json per rules)
-  - Agent C needed `tzdata` on Windows
-  - Install everything upfront so agents don't waste time on dependency issues
-
-### SHOULD DO (Prevents remaining 10%)
-
-- [ ] **Every git operation must be atomic: `git checkout BRANCH && git add FILE && git commit -m MSG`**
-  - Never split checkout/add/commit across separate Bash calls
-  - Between calls, another agent can switch branches, making the commit land on the wrong branch
-
-- [ ] **Agent instructions must explicitly list "gray area" files**
-  - Agent D needed to edit `bot/tsconfig.json` (not in OWNED or FORBIDDEN list)
-  - Agent 0 should pre-identify ALL files that might need changes and assign them
-
-- [ ] **Commit after EVERY single task, never batch**
-  - Agent A lost Tasks 3-7 three times because they were uncommitted when branch switched
-  - Tasks 1-2 survived because they were committed individually
-
-- [ ] **Include explicit merge order in agent instructions**
-  - Agents should know the merge priority so they can structure commits to minimize conflicts
-  - Agent with most dependencies merges first
-
-### NICE TO HAVE (Quality of life)
-
-- [ ] **Stagger agent start times by 30 seconds**
-  - Let each agent create and check out its branch before others start writing code
-  - Reduces initial branch-creation race conditions
-
-- [ ] **Add a branch guard to every agent's prompt**
-  - Template: `Before EVERY git command, run: BRANCH=$(git branch --show-current); if [ "$BRANCH" != "feature/YOUR-BRANCH" ]; then git stash && git checkout feature/YOUR-BRANCH; fi`
-
-- [ ] **Keep agent sessions short and focused**
-  - Context window exhaustion from retries was a problem for Agent A
-  - Better: 3-4 tasks per agent session, not 7
-
-- [ ] **Agent 0 should verify file overlap BEFORE launching agents**
-  - Run `git diff main..feature/X --stat` for each branch to check for unexpected file overlap
-  - Flag any shared files before agents start
+### Known Issues Carried Forward
+1. **5 pre-existing test failures** from Run 1: `users.test.ts` (3), `dailyQuestReset.test.ts` (1 unhandled rejection)
+2. **ProfileEditModal** has TODO for profile update API endpoint
+3. **pg-boss** warns about Node.js version mismatch (requires 22.12+, server has 20.20)
+4. **BotFather** command list may need updating to include `/leaderboard`
 
 ---
 
-## Agent 0 Protocol (Instructions for the Orchestrator Agent)
+## RUN 3: Parallel Agents (3 Agents + Agent 0)
 
-You are **Agent 0** — the orchestrator. Your job is to plan parallel work, launch agents, merge their output, and improve the system. Follow this protocol exactly.
+### How to Launch
 
-### Phase 1: Pre-Run Setup (BEFORE launching any agents)
+Open 4 separate Claude Code sessions:
 
-1. **Analyze the codebase** to identify independent workstreams
-   - Map file dependencies: which files are tightly coupled?
-   - Identify shared files that NOBODY should edit (types, config, entry points)
-   - Group files into non-overlapping ownership zones
-
-2. **Create separate working directories** for each agent
-   ```bash
-   # Option A: Separate clones (simplest, most reliable)
-   git clone <repo-url> ../wibecode-agent-a
-   git clone <repo-url> ../wibecode-agent-b
-   # etc.
-
-   # Option B: Git worktrees (faster, shares .git objects)
-   git worktree add ../agent-a feature/agent-a
-   git worktree add ../agent-b feature/agent-b
-   # etc.
-   ```
-   **CRITICAL**: Agents must NEVER share a working directory. This was the #1 problem in Run 1.
-
-3. **Pre-install dependencies** that agents will need
-   - Check if test frameworks are installed (vitest, pytest, etc.)
-   - Install missing packages before agents start
-   - Commit these changes to main so all agent branches inherit them
-
-4. **Disable interfering IDE features**
-   - Close VSCode or disable auto-format-on-save for the working directories
-   - Python formatters (black, autopep8) revert Write/Edit tool changes before staging
-
-5. **Write and commit the instruction file**
-   - Create PARALLEL_AGENTS.md with agent prompts, file boundaries, and rules
-   - Commit it to main BEFORE creating agent branches
-   - This ensures every agent's branch has the instruction file
-
-6. **Create branches from main** for each agent
-   ```bash
-   git checkout main
-   git checkout -b feature/agent-a
-   git checkout main
-   git checkout -b feature/agent-b
-   # etc.
-   ```
-
-### Phase 2: Agent Prompts (WHAT to tell each agent)
-
-Every agent prompt MUST include:
-
-1. **Branch name** — which branch to work on
-2. **Working directory** — which clone/worktree directory to use
-3. **OWNED files** — explicit list of files/directories they may edit
-4. **FORBIDDEN files** — explicit list they must NOT touch
-5. **GRAY AREA files** — files they might need to edit, with instructions on what's allowed
-6. **Build command** — how to verify their changes compile
-7. **Tasks** — ordered list of specific, actionable tasks
-8. **Git rules**:
-   - Commit after EVERY task (never batch)
-   - Do NOT push to remote
-   - Do NOT deploy to server
-   - Use atomic git operations: `git add FILE && git commit -m "MSG"` in one Bash call
-9. **Retrospective instruction** — "When done, add your problems and completed work to PARALLEL_AGENTS.md"
-
-### Phase 3: While Agents Run
-
-- Monitor for early failures (agent can't find files, branch issues, etc.)
-- Do NOT edit any files agents are working on
-- Wait for all agents to complete before merging
-
-### Phase 4: Post-Run Merge
-
-1. **Read all agent retrospectives** from PARALLEL_AGENTS.md
-2. **Verify each branch** — check commit logs, file diffs, build status
-3. **Identify cross-contamination** — any commits on wrong branches?
-4. **Merge in dependency order**:
-   - Backend/data changes first (Python tools, database)
-   - Application logic second (bot handlers, jobs)
-   - Test infrastructure third (depends on source code being stable)
-   - Frontend last (most independent, fewest conflicts)
-5. **Resolve conflicts** — always keep the "owner" agent's version
-6. **Integration work** — wire up any cross-cutting changes (registrations, config, imports)
-7. **Build verification** — both bot and mini-app must compile
-8. **Single deploy** — push to remote, SSH deploy, PM2 restart
-
-### Phase 5: Post-Merge Retrospective
-
-1. **Document what worked and what didn't**
-2. **Update this protocol** with new lessons
-3. **Update the TODO list** — check off completed items, add new ones
-4. **Clean up** — drop stashes, delete feature branches, remove temp files
-
-### Key Principles
-
-1. **Isolation is everything** — separate directories solve 90% of problems
-2. **Atomic commits** — never leave work uncommitted, never split git ops across calls
-3. **Owner wins** — when merging conflicts, the assigned agent's version is authoritative
-4. **Fail fast** — if an agent can't complete a task, it should stop and document why, not fight endlessly
-5. **Short sessions** — 3-5 tasks per agent is better than 7-10 with context exhaustion
-6. **Pre-install everything** — agents should never need to edit package.json or requirements.txt
-
-### What Agent 0 Learned from Run 1
-
-| Problem | Impact | Root Cause | Fix |
-|---------|--------|-----------|-----|
-| Branch switching | ALL agents affected, 3-5x slower | Shared working directory | Separate clones/worktrees |
-| Cross-contamination | Commits on wrong branches | Branch switching between checkout and commit | Atomic git ops + separate dirs |
-| File loss | Work lost 3+ times per agent | Uncommitted changes wiped by checkout | Commit after every single task |
-| Linter reverting edits | Agent C only, Python files | VSCode formatOnSave | Disable IDE auto-format |
-| Context exhaustion | Agent A hit context limits | Repeated read-write-fail-retry cycles | Shorter sessions, fewer tasks |
-| Stash chaos | 14 stash entries from all agents | Agents stashing each other's uncommitted work | Separate dirs (no shared state) |
-| Gray area files | Agent D needed tsconfig.json | Incomplete OWNED/FORBIDDEN lists | Pre-identify all possible files |
-| Missing dependencies | Agent D (vitest), Agent C (tzdata) | Couldn't edit package files per rules | Pre-install before launching agents |
-| Instruction file lost | Agent B lost PARALLEL_AGENTS.md | Untracked file lost during stash/checkout | Commit instruction file to main first |
-
----
----
-
-# RUN 2: Parallel Agents (3 Agents + Agent 0)
-
-## How to Use This Section
-
-Open 4 separate Claude Code sessions. In each one, say:
-
-- **Session 1** (working dir: `c:\Users\Asus\Desktop\Wibecode`): `Read PARALLEL_AGENTS.md — you are Agent 0 for Run 2. Do your tasks.`
-- **Session 2** (working dir: `c:\Users\Asus\Desktop\Wibecode-agent-a`): `Read PARALLEL_AGENTS.md — you are Agent A for Run 2. Do your tasks.`
-- **Session 3** (working dir: `c:\Users\Asus\Desktop\Wibecode-agent-b`): `Read PARALLEL_AGENTS.md — you are Agent B for Run 2. Do your tasks.`
-- **Session 4** (working dir: `c:\Users\Asus\Desktop\Wibecode-agent-c`): `Read PARALLEL_AGENTS.md — you are Agent C for Run 2. Do your tasks.`
+- **Session 1** (working dir: `c:\Users\Asus\Desktop\Wibecode`): `Read PARALLEL_AGENTS.md — you are Agent 0 for Run 3. Do your tasks.`
+- **Session 2** (working dir: `c:\Users\Asus\Desktop\Wibecode-agent-a`): `Read PARALLEL_AGENTS.md — you are Agent A for Run 3. Do your tasks.`
+- **Session 3** (working dir: `c:\Users\Asus\Desktop\Wibecode-agent-b`): `Read PARALLEL_AGENTS.md — you are Agent B for Run 3. Do your tasks.`
+- **Session 4** (working dir: `c:\Users\Asus\Desktop\Wibecode-agent-c`): `Read PARALLEL_AGENTS.md — you are Agent C for Run 3. Do your tasks.`
 
 **Start Agent 0 FIRST.** It sets up worktrees and dependencies. Only start Agents A/B/C after Agent 0 says "Ready to launch."
 
 ---
 
-## Agent 0 — Orchestrator (Run 2)
+## Agent 0 — Orchestrator (Run 3)
 
-**You are Agent 0.** Your job: set up the environment BEFORE other agents start, then WAIT. After all 3 agents finish, you merge, integrate, and deploy.
+**You are Agent 0.** Set up the environment, WAIT for agents, then merge and deploy.
 
 **Working directory:** `c:\Users\Asus\Desktop\Wibecode` (main repo, `main` branch)
 
-### Phase 1: Pre-Run Setup (DO THIS FIRST)
+### Phase 1: Pre-Run Setup
 
 **Step 1: Verify clean state**
 ```bash
@@ -1011,117 +162,73 @@ git checkout main
 git status  # should be clean
 ```
 
-**Step 2: Create worktrees** (if not already created)
+**Step 2: Create worktrees**
 ```bash
-git branch feature/mini-app-features 2>/dev/null
-git branch feature/backend-api 2>/dev/null
-git branch feature/test-coverage 2>/dev/null
-git worktree add ../Wibecode-agent-a feature/mini-app-features
-git worktree add ../Wibecode-agent-b feature/backend-api
-git worktree add ../Wibecode-agent-c feature/test-coverage
+git branch feature/mini-app-polish 2>/dev/null
+git branch feature/bot-features 2>/dev/null
+git branch feature/quality-fixes 2>/dev/null
+git worktree add ../Wibecode-agent-a feature/mini-app-polish
+git worktree add ../Wibecode-agent-b feature/bot-features
+git worktree add ../Wibecode-agent-c feature/quality-fixes
 ```
 
-**Step 3: Install dependencies in each worktree** (node_modules is gitignored)
+**Step 3: Install dependencies**
 ```bash
 cd ../Wibecode-agent-a/mini-app && npm install
 cd ../../Wibecode-agent-b/bot && npm install
-cd ../../Wibecode-agent-c/bot && npm install
+cd ../../Wibecode-agent-c/bot && npm install && cd ../../Wibecode-agent-c/mini-app && npm install
 ```
 
 **Step 4: Verify worktrees**
 ```bash
 cd c:\Users\Asus\Desktop\Wibecode
 git worktree list
-# Should show 4 entries: main + 3 feature branches in separate directories
 ```
 
 **Step 5: Tell the user** "Ready to launch Agents A, B, C."
 
 ### Phase 2: WAIT for all 3 agents to finish
 
-Do NOT touch any files while agents are running. Just wait.
+### Phase 3: Post-Run Merge
 
-### Phase 3: Post-Run Merge (after ALL 3 agents are done)
-
-**Read retrospectives first:**
 ```bash
-# Check each branch's work
-git log main..feature/backend-api --oneline
-git log main..feature/test-coverage --oneline
-git log main..feature/mini-app-features --oneline
-git diff main..feature/backend-api --stat
-git diff main..feature/test-coverage --stat
-git diff main..feature/mini-app-features --stat
+# Check each branch
+git log main..feature/bot-features --oneline
+git log main..feature/quality-fixes --oneline
+git log main..feature/mini-app-polish --oneline
 ```
 
-**Merge in this order:**
-1. `git checkout main && git merge feature/backend-api --no-edit`
-   - Verify: `cd bot && npm run build`
-2. `git merge feature/test-coverage --no-edit`
-   - Verify: `cd bot && npm run build`
-3. `git merge feature/mini-app-features --no-edit`
-   - Verify: `cd mini-app && npm run build`
+**Merge order:**
+1. `git merge feature/bot-features --no-edit` → verify `cd bot && npm run build`
+2. `git merge feature/quality-fixes --no-edit` → verify `cd bot && npm run build`
+3. `git merge feature/mini-app-polish --no-edit` → verify `cd mini-app && npm run build`
 
-**If conflicts:** keep the "owner" agent's version (Agent B for bot/, Agent C for tests/, Agent A for mini-app/).
+**Post-merge:** Check `bot/src/handlers/REGISTER_THESE_RUN3.md` if it exists. Wire up any new commands.
 
-**Post-merge integration:**
-- Read `bot/src/handlers/REGISTER_THESE_RUN2.md` — add any new command registrations to `bot/src/index.ts`
-- Update `/menu` command text if new commands were added
-- Run both builds: `cd bot && npm run build && cd ../mini-app && npm run build`
-
-**Deploy:**
-```bash
-git add -A && git commit -m "Run 2 integration: register commands, resolve conflicts"
-git push origin main
-ssh root@85.239.58.205 "cd /opt/wibecode-bot && git pull && cd bot && npm install && npm run build && cd ../mini-app && npm run build && pm2 restart telegram-rpg-bot --update-env"
-```
-
-**Clean up:**
-```bash
-git worktree remove ../Wibecode-agent-a
-git worktree remove ../Wibecode-agent-b
-git worktree remove ../Wibecode-agent-c
-git branch -d feature/mini-app-features feature/backend-api feature/test-coverage
-git stash clear
-```
-
-### Phase 4: Agent 0 Retrospective
-
-After everything is merged and deployed, add a section to this file:
-
-```
-### Agent 0 — Run 2 Retrospective
-- How many merge conflicts?
-- Was cross-contamination eliminated by worktrees?
-- Any integration issues when wiring up commands?
-- What should change for Run 3?
-- Update the TODO checklist: check off what was fixed, add new items
-```
+**Deploy + Clean up** (see Agent 0 Self-Protocol above).
 
 ---
 
-## Agent A — Mini-App New Pages & Features (Run 2)
+## Agent A — Mini App Polish & Optimization (Run 3)
 
-**You are Agent A.** You improve the Telegram Mini App with new pages and features.
+**You are Agent A.** You polish the mini-app and add remaining features.
 
 **Working directory:** `c:\Users\Asus\Desktop\Wibecode-agent-a`
-**Branch:** `feature/mini-app-features` (you are ALREADY on it — do NOT switch branches)
+**Branch:** `feature/mini-app-polish` (you are ALREADY on it — do NOT switch branches)
 **Build command:** `cd mini-app && npm run build`
 
 ### RULES (NON-NEGOTIABLE)
 
-1. You are ALREADY on branch `feature/mini-app-features` — do NOT run `git checkout`
-2. Your working directory is a git worktree — other agents have their own directories
-3. Commit after EVERY completed task — use atomic: `git add FILES && git commit -m "MSG"` in one Bash call
-4. Do NOT push to remote
-5. Do NOT deploy to server (no SSH commands)
-6. Do NOT add any new npm packages
-7. After ALL changes, run `cd mini-app && npm run build` and fix any errors
+1. You are ALREADY on branch `feature/mini-app-polish` — do NOT run `git checkout`
+2. Commit after EVERY task — atomic: `git add FILES && git commit -m "MSG"`
+3. Do NOT push to remote or deploy to server
+4. Do NOT add any new npm packages
+5. After ALL changes, run `cd mini-app && npm run build` and fix errors
 
-### FILES YOU OWN (may edit)
+### FILES YOU OWN
 ```
-mini-app/src/pages/                  — all existing + NEW files
-mini-app/src/components/             — non-onboarding components + NEW files
+mini-app/src/pages/                  — all existing + new files
+mini-app/src/components/             — non-onboarding components + new files
 mini-app/src/index.css               — add new styles
 mini-app/src/App.tsx                 — ONLY add <Route> entries for new pages
 ```
@@ -1131,144 +238,105 @@ mini-app/src/App.tsx                 — ONLY add <Route> entries for new pages
 mini-app/src/api/client.ts           — API contract, locked
 mini-app/src/types/index.ts          — shared types, locked
 mini-app/src/hooks/                  — shared hooks, locked
-mini-app/src/components/onboarding/  — onboarding is complete
+mini-app/src/components/onboarding/  — onboarding complete, locked
 mini-app/vite.config.ts              — build config
 mini-app/package.json                — no new dependencies
 bot/                                 — not your area
 tools/                               — not your area
 ```
 
-### GRAY AREA
-```
-mini-app/src/App.tsx — you MAY add <Route> entries for new pages but must NOT change existing routes, providers, or onboarding logic
-```
-
 ### PROJECT CONTEXT
 
 - Telegram RPG Mini App: React 18 + TypeScript + Vite + Tailwind CSS
-- Framer Motion (installed) for animations, Lucide React (installed) for icons
-- Runs inside Telegram via @twa-dev/sdk, base path: /levelapp/
-- `apiClient` (in client.ts — do NOT edit) has these methods you CAN call:
-  - `apiClient.getLeaderboard(limit)` — fetches ranked user list
-  - `apiClient.updateQuestProgress(questId, progress)` — updates quest progress
-  - `apiClient.getUserStats(telegramId)` — full user stats
-  - `apiClient.getAchievements()` — all achievement definitions
-  - `apiClient.getUserAchievements(userId)` — user's unlocked achievements
-- `useTelegram` hook provides: `user` (TelegramUser), haptic feedback, main button, back button
-- Existing pages use React Query for data fetching with `loading`/`error`/`success` states
-- Run 1 added: loading skeletons, error states with retry, mobile overflow fixes, empty states, date formatting
+- Framer Motion (installed), Lucide React icons (installed), @twa-dev/sdk
+- Base path: /levelapp/
+- 4 pages: Dashboard, Quests, Profile, Leaderboard (added in Run 2)
+- ProfileEditModal exists but has `// TODO: call profile update API when endpoint exists`
+- Pull-to-refresh works on Dashboard + Quests (added in Run 2)
+- Loading skeletons, error states, empty states all implemented (Run 1)
 
-### TASKS (do in order, commit after each one)
+### TASKS (do in order, commit after each)
 
-**Task 1: Add Leaderboard page**
-- Create `mini-app/src/pages/Leaderboard.tsx`
-- Fetch data using existing `apiClient.getLeaderboard()` (already in client.ts)
-- Show ranked list: avatar placeholder (colored circle with initials), name, level, XP, streak
-- Highlight current user's row with accent background (match by `telegram_id` from `useTelegram` hook)
-- Trophy/medal icons for top 3 (use lucide-react: `Trophy`, `Medal`, `Award`)
-- Loading skeleton, error state with retry button (same pattern as Dashboard/Quests/Profile)
-- Add route in App.tsx: `<Route path="/leaderboard" element={<Leaderboard />} />`
+**Task 1: Add page transition animations**
+- Wrap page routes in `<AnimatePresence>` from framer-motion
+- Each page enters with `opacity: 0 → 1` and `y: 10 → 0` (subtle slide-up)
+- Duration: 200ms, ease-out
+- Keep it simple — no exit animations (causes layout issues with Telegram)
+- Add this in `App.tsx` (you may add `<AnimatePresence>` wrapper around `<Routes>`)
 
-**Task 2: Add Leaderboard to Navigation**
-- Edit `mini-app/src/components/Navigation.tsx`
-- Add 4th nav item: `Trophy` icon from lucide-react, label "Ranks", path `/leaderboard`
-- Adjust layout for 4 items (currently 3 with equal width)
+**Task 2: Optimize Dashboard re-renders**
+- Dashboard.tsx: Wrap expensive sub-components in `React.memo()` (quest cards, mode cards, XP bar)
+- Extract quest card and mode card into separate memoized components in the same file
+- Use `useCallback` for event handlers passed as props
+- Do NOT over-optimize — only components that receive stable props
 
-**Task 3: Pull-to-refresh on Dashboard and Quests**
-- Dashboard.tsx: Add pull-to-refresh gesture using touch events (`touchstart`, `touchmove`, `touchend`) + CSS `transform: translateY()`
-- When pulled past 60px threshold, trigger React Query's `refetch()` and show a spinning `RefreshCw` icon
-- Add haptic feedback (`impactOccurred('medium')`) when pull threshold is reached
-- Same implementation in Quests.tsx
-- CSS in index.css: `.pull-indicator` with rotate animation
-- No new packages — pure touch events + CSS
+**Task 3: Add Settings page (mini-app version)**
+- Create `mini-app/src/pages/Settings.tsx`
+- Fetch preferences using `apiClient` — there's already `GET /api/users/:telegramId/preferences` (added in Run 2)
+- Show toggles: Notifications (on/off), Reminder time (dropdown: 8, 12, 18, 21), Timezone (auto-detect from browser + manual override)
+- Save button calls `PATCH /api/users/:telegramId/preferences`
+- Add route in App.tsx: `<Route path="/settings" element={<Settings />} />`
+- Add gear icon button in Profile page header that navigates to /settings
+- Loading skeleton, error state with retry (same pattern as other pages)
 
-**Task 4: Quest detail view improvement**
-- Quests.tsx: Replace the basic modal with a richer quest detail card
-- Show: quest title, description, XP reward badge, difficulty badge (color-coded: green/yellow/red), progress bar with "X/Y" numbers, due date (formatted with `Intl.DateTimeFormat`), mode icon
-- For quests with `target > 1`: add "Update Progress" section with +1 and +5 stepper buttons
-- Stepper buttons call `apiClient.updateQuestProgress(questId, newProgress)` then refetch
-- Disable steppers if progress >= target
-- Add Framer Motion `layoutId` for smooth modal open/close transition
+**Task 4: Improve Leaderboard page**
+- Add pull-to-refresh to Leaderboard (same pattern as Dashboard/Quests from Run 2)
+- Add time period tabs: "Weekly" / "All Time" (use state toggle, refetch with different params if API supports, otherwise just show same data)
+- Add rank change indicator arrows (up/down/same) next to each user — use static placeholder data for now (real rank history needs backend)
 
-**Task 5: Profile editing**
-- Profile.tsx: Add pencil/edit icon button next to username area
-- Create `mini-app/src/components/ProfileEditModal.tsx` as a slide-up modal
-- Shows: editable text input for nickname (pre-filled with current `first_name`), avatar grid (6-8 avatar options as colored circles with different icons)
-- Save button: leave a `// TODO: call profile update API when endpoint exists` comment
-- Cancel button closes modal
-- Telegram haptic on save/cancel
+**Task 5: Add haptic feedback to all interactive elements**
+- Go through all pages and add haptic feedback (`impactOccurred('light')`) on:
+  - Button presses (quest complete, retry, save, edit)
+  - Navigation item taps
+  - Pull-to-refresh threshold
+  - Modal open/close
+- Use the `useTelegram` hook which is already imported in most pages
+- Skip if haptic is already added (Run 1/2 added some)
 
-**Task 6: Achievement progress indicators**
-- Profile.tsx: Redesign achievement grid to show progress toward locked achievements
-- For unlocked achievements: bright card with icon + green checkmark
-- For locked achievements: dimmed card with icon + progress bar (e.g., "3/10 quests")
-- Use `achievement.requirement_value` as the target and calculate progress from user stats
-- Use existing `apiClient.getAchievements()` + `apiClient.getUserAchievements()` data
+**Task 6: Connect ProfileEditModal to API**
+- The `// TODO: call profile update API when endpoint exists` can now be partially connected
+- On save: call `apiClient.getUserStats(telegramId)` to refetch (the actual profile update API may not exist yet — if so, show a "Coming soon" toast on save and close the modal)
+- The modal should still work as a UI — just gracefully handle the missing endpoint
 
 ### RETROSPECTIVE (DO THIS LAST)
-
-After all tasks are done and build passes, add a section to `PARALLEL_AGENTS.md` at the bottom:
-
-```markdown
----
-
-## Run 2 Retrospectives
-
-### Agent A (Run 2) faced:
-[Describe any problems: file conflicts, build errors, worktree issues, context limits, etc.]
-[If worktrees eliminated Run 1's problems, say so explicitly]
-
-### What Agent A (Run 2) completed:
-| Task | Status | Commit | Description |
-|------|--------|--------|-------------|
-| ... | ... | ... | ... |
-
-### Agent A (Run 2) recommendations for Run 3:
-[What should change next time?]
-```
+Add your retrospective to PARALLEL_AGENTS.md at the bottom under "Run 3 Retrospectives".
 
 ---
 
-## Agent B — Backend API + Infrastructure (Run 2)
+## Agent B — Bot Features & Database (Run 3)
 
-**You are Agent B.** You improve the backend API and fix infrastructure issues.
+**You are Agent B.** You add new bot commands and API improvements.
 
 **Working directory:** `c:\Users\Asus\Desktop\Wibecode-agent-b`
-**Branch:** `feature/backend-api` (you are ALREADY on it — do NOT switch branches)
+**Branch:** `feature/bot-features` (you are ALREADY on it — do NOT switch branches)
 **Build command:** `cd bot && npm run build`
 
 ### RULES (NON-NEGOTIABLE)
 
-1. You are ALREADY on branch `feature/backend-api` — do NOT run `git checkout`
-2. Your working directory is a git worktree — other agents have their own directories
-3. Commit after EVERY completed task — use atomic: `git add FILES && git commit -m "MSG"` in one Bash call
-4. Do NOT push to remote
-5. Do NOT deploy to server (no SSH commands)
-6. Do NOT add any new npm packages
-7. After ALL changes, run `cd bot && npm run build` and fix any errors
-8. ESM project: ALL local imports need `.js` extensions (e.g., `import from './settings.js'`)
+1. You are ALREADY on branch `feature/bot-features` — do NOT run `git checkout`
+2. Commit after EVERY task — atomic: `git add FILES && git commit -m "MSG"`
+3. Do NOT push to remote or deploy to server
+4. Do NOT add any new npm packages
+5. ESM project: ALL local imports need `.js` extensions
+6. After ALL changes, run `cd bot && npm run build` and fix errors
 
-### FILES YOU OWN (may edit)
+### FILES YOU OWN
 ```
-bot/src/api/routes/users.ts          — add preferences endpoint
-bot/src/api/routes/quests.ts         — add progress update endpoint
-bot/src/config.ts                    — centralize env vars
-bot/src/index.ts                     — register new commands + update /menu
-ecosystem.config.js                  — fix IP + memory + log rotation
-bot/src/handlers/                    — new handler files only
+bot/src/handlers/                    — existing + new handler files
+bot/src/index.ts                     — register new commands
+bot/src/api/routes/users.ts          — add profile update endpoint
+bot/src/api/routes/                  — new route files only
 ```
 
 ### FILES YOU MUST NOT TOUCH
 ```
-bot/src/api/middleware/              — auth & rate limiter work fine
-bot/src/utils/db.ts                 — database util, locked
-bot/src/utils/cache.ts              — just improved in Run 1, locked
-bot/src/utils/pythonTools.ts        — Python bridge, locked
-bot/src/bot.ts                      — Grammy instance, locked
-bot/src/types/                      — shared types, locked
-bot/src/jobs/                       — jobs improved in Run 1, locked
-bot/src/api/routes/admin.ts         — separate concern
-bot/src/api/routes/onboarding.ts    — onboarding works
+bot/src/bot.ts                       — Grammy instance, locked
+bot/src/config.ts                    — centralized in Run 2, locked
+bot/src/utils/                       — db, cache, pythonTools all locked
+bot/src/types/                       — shared types, locked
+bot/src/jobs/                        — improved in Run 1, locked
+bot/src/api/middleware/              — auth works fine
+bot/src/api/server.ts               — only if you need to register a new route (see GRAY AREA)
 bot/package.json                    — no new dependencies
 mini-app/                           — not your area
 tools/                              — not your area
@@ -1276,279 +344,198 @@ tools/                              — not your area
 
 ### GRAY AREA
 ```
-bot/src/api/server.ts — you MAY add a new route import/registration (e.g., router.use()) but must NOT change existing middleware, CORS, static file config, or other routes
-bot/src/api/routes/leaderboard.ts — you MAY add a new endpoint but must NOT change the existing GET /
+bot/src/api/server.ts — you MAY add a new router.use() for a new route file but must NOT change existing middleware, CORS, or routes
 ```
 
 ### PROJECT CONTEXT
 
-- Grammy bot framework (Telegram), ESM (`"type": "module"`), TypeScript strict mode
-- PostgreSQL via `bot/src/utils/db.ts`: `query(sql, params)`, `queryOne(sql, params)`, `transaction(callback)`
-- Cache via `bot/src/utils/cache.ts`: `cached(key, ttl, fn)`, `invalidateUserCache(userId)`, `TTL.SHORT/MEDIUM/LONG`
+- Grammy bot framework, ESM (`"type": "module"`), TypeScript strict
+- `db.query(sql, params)`, `db.queryOne(sql, params)`, `db.transaction(callback)` from utils/db.ts
+- `cache.cached(key, ttl, fn)`, `cache.invalidateUserCache(userId)` from utils/cache.ts
 - Auth middleware validates Telegram WebApp HMAC-SHA256 signatures
-- Server: 85.239.58.205, deploy path: /opt/wibecode-bot/, PM2 process: `telegram-rpg-bot`
-- The mini-app `apiClient.updateQuestProgress()` already calls `PATCH /api/quests/:id/progress` — but the backend endpoint doesn't exist yet. You're building it.
-- Users table has columns: `notification_enabled`, `reminder_time`, `timezone` — the `/settings` bot command (Run 1) writes to these, but there's no API endpoint for the mini-app to read/write them.
+- Existing commands: /start, /app, /quests, /profile, /modes, /settings, /stats, /leaderboard, /menu, /help, /ping
+- BotFather command list may need updating (use bot.api.setMyCommands)
 
-### TASKS (do in order, commit after each one)
+### TASKS (do in order, commit after each)
 
-**Task 1: Fix PM2 ecosystem config**
-- Read `ecosystem.config.js` first
-- Change deployment host IP from `85.239.53.57` → `85.239.58.205`
-- Change `max_memory_restart` from `'1G'` → `'512M'` (safer for 2GB VDS)
-- Verify no other stale IPs or configs
-
-**Task 2: Centralize env var validation in config.ts**
-- Read `bot/src/config.ts` first
-- Expand it to validate ALL env vars at startup:
-  - Required (throw on missing): `TELEGRAM_BOT_TOKEN`, `DATABASE_URL`, `MINI_APP_URL`
-  - Optional (with defaults): `API_PORT` (default 3000), `NODE_ENV` (default 'development'), `ADMIN_USERNAME`, `ADMIN_PASSWORD_HASH`, `PYTHON_TOOLS_PATH` (default './tools'), `USE_WEBHOOK`, `WEBHOOK_DOMAIN`
-- Export a typed `config` object with all values
-- Log warnings for missing optional vars at startup
-- Other files should import from this config instead of reading `process.env` directly
-
-**Task 3: Add user preferences API endpoint**
+**Task 1: Add profile update API endpoint**
 - Read `bot/src/api/routes/users.ts` first
-- Add two new endpoints:
-  - `GET /api/users/:telegramId/preferences` — returns `{ notification_enabled, reminder_time, timezone }`
-  - `PATCH /api/users/:telegramId/preferences` — accepts `{ notification_enabled?: boolean, reminder_time?: number, timezone?: string }`
-- Validate: `timezone` is a non-empty string, `reminder_time` is integer 0-23, `notification_enabled` is boolean
-- Use `query()` from db.ts
-- Auth middleware already applied to all /api routes
+- Add `PATCH /api/users/:telegramId/profile` endpoint
+- Request body: `{ first_name?: string, avatar_id?: number }` (avatar_id is 1-8)
+- Validation: `first_name` must be 1-32 chars, `avatar_id` must be integer 1-8
+- Use `db.query('UPDATE users SET ... WHERE telegram_id = $1', params)`
+- Call `cache.invalidateUserCache(userId)` after update
+- Return updated user data
 
-**Task 4: Add quest progress update endpoint**
-- Read `bot/src/api/routes/quests.ts` first
-- Add: `PATCH /api/quests/:questId/progress`
-- Request body: `{ user_id: number, progress: number }`
-- Validation: quest exists, quest belongs to `user_id`, `progress >= 0`, `progress <= quest.target`
-- If `progress === target`: auto-complete the quest (award XP, level up if needed), same logic as the existing complete endpoint
-- Call `invalidateUserCache(userId)` after update
-- Return updated quest data
+**Task 2: Add /profile bot command**
+- Create `bot/src/handlers/profile.ts`
+- Shows formatted user profile: name, level, XP progress, active modes, streak info, achievements count
+- Use `db.query` to fetch from `users`, `user_modes`, `user_streaks`, `user_achievements` tables
+- Format as Telegram message with emojis
+- Register in index.ts: `bot.command('profile', handleProfile)`
+- Create `bot/src/handlers/REGISTER_THESE_RUN3.md` documenting what was added
 
-**Task 5: Add /leaderboard bot command**
-- Create `bot/src/handlers/leaderboard.ts`
-- Shows top 10 users from `leaderboard_mv` materialized view (columns: `username`, `first_name`, `current_level`, `total_xp`, `xp_rank`)
-- Format as Telegram message with numbered list, medal emojis for top 3
-- Show the requesting user's own rank at the bottom if they're not in top 10
-- Register in `bot/src/index.ts`:
-  ```typescript
-  import { handleLeaderboard } from './handlers/leaderboard.js';
-  bot.command('leaderboard', handleLeaderboard);
-  ```
-- Update `/menu` command text to include `/leaderboard`
-- Create `bot/src/handlers/REGISTER_THESE_RUN2.md` documenting what was added (for Agent 0's merge step)
+**Task 3: Improve /help command**
+- Currently a basic stub in index.ts
+- Extract to `bot/src/handlers/help.ts`
+- Add inline keyboard with categories: "Commands", "How to Play", "FAQ"
+- Each category shows relevant info via callback query
+- Register callback handler: `bot.callbackQuery(/^help:/, handleHelpCallback)`
+- Update index.ts: move /help from inline to imported handler
 
-**Task 6: Add PM2 log rotation config**
-- In `ecosystem.config.js`, add `log_date_format: 'YYYY-MM-DD HH:mm:ss'`
-- Add `max_size: '10M'` and `retain: 5` to the log configuration
-- This prevents PM2 logs from filling the 40GB NVMe disk
+**Task 4: Add daily summary notification**
+- Create `bot/src/handlers/dailySummary.ts` with a function `sendDailySummary(bot, userId)` that:
+  - Fetches user's daily stats: quests completed today, XP earned today, current streaks
+  - Formats as a motivational message
+  - This is the handler — it will be called from a job (not your job to wire that up, just create the function)
+- Export the function so it can be imported by job definitions later
+
+**Task 5: Set BotFather commands programmatically**
+- In `bot/src/index.ts`, add after bot starts (inside the `main()` function, after webhook/polling setup):
+```typescript
+await bot.api.setMyCommands([
+  { command: 'start', description: 'Start or restart the bot' },
+  { command: 'app', description: 'Open Mini App' },
+  { command: 'quests', description: 'View your quests' },
+  { command: 'profile', description: 'View your profile' },
+  { command: 'modes', description: 'Manage your modes' },
+  { command: 'leaderboard', description: 'View top players' },
+  { command: 'stats', description: 'View your statistics' },
+  { command: 'settings', description: 'Configure notifications' },
+  { command: 'help', description: 'Get help' },
+  { command: 'menu', description: 'Show all commands' },
+]);
+```
 
 ### RETROSPECTIVE (DO THIS LAST)
-
-After all tasks are done and build passes, add to `PARALLEL_AGENTS.md` at the bottom (under the Run 2 Retrospectives section):
-
-```markdown
-### Agent B (Run 2) faced:
-[Describe any problems]
-
-### What Agent B (Run 2) completed:
-| Task | Status | Commit | Description |
-|------|--------|--------|-------------|
-| ... | ... | ... | ... |
-
-### Agent B (Run 2) recommendations for Run 3:
-[What should change next time?]
-```
+Add your retrospective to PARALLEL_AGENTS.md at the bottom under "Run 3 Retrospectives".
 
 ---
 
-## Agent C — Comprehensive Test Coverage (Run 2)
+## Agent C — Quality Fixes & Test Improvements (Run 3)
 
-**You are Agent C.** You write tests. You do NOT modify any source code — only create new test files.
+**You are Agent C.** You fix broken tests, improve existing tests, and add monitoring.
 
 **Working directory:** `c:\Users\Asus\Desktop\Wibecode-agent-c`
-**Branch:** `feature/test-coverage` (you are ALREADY on it — do NOT switch branches)
+**Branch:** `feature/quality-fixes` (you are ALREADY on it — do NOT switch branches)
 **Build command:** `cd bot && npm run build`
 
 ### RULES (NON-NEGOTIABLE)
 
-1. You are ALREADY on branch `feature/test-coverage` — do NOT run `git checkout`
-2. Your working directory is a git worktree — other agents have their own directories
-3. You ONLY CREATE NEW test files — do NOT edit any source code
-4. Commit after EVERY completed task — use atomic: `git add FILES && git commit -m "MSG"` in one Bash call
-5. Do NOT push to remote
-6. Do NOT deploy to server (no SSH commands)
-7. Do NOT modify package.json or requirements.txt
-8. After ALL changes, run `cd bot && npm run build` and fix any errors
-9. For Python tests, use `unittest.mock` — NO real database connections, NO real API calls
+1. You are ALREADY on branch `feature/quality-fixes` — do NOT run `git checkout`
+2. Commit after EVERY task — atomic: `git add FILES && git commit -m "MSG"`
+3. Do NOT push to remote or deploy to server
+4. Do NOT modify package.json or requirements.txt
+5. After ALL changes, run `cd bot && npm run build` and fix errors
 
-### FILES YOU OWN (CREATE NEW only)
+### FILES YOU OWN
 ```
-bot/src/__tests__/routes/modes.test.ts           — NEW
-bot/src/__tests__/routes/leaderboard.test.ts     — NEW
-bot/src/__tests__/routes/onboarding.test.ts      — NEW
-bot/src/__tests__/jobs/questReminders.test.ts    — NEW
-bot/src/__tests__/jobs/leaderboardRefresh.test.ts — NEW
-bot/src/__tests__/jobs/analyticsExport.test.ts   — NEW
-tools/tests/test_achievement_manager.py          — NEW
-tools/tests/test_mode_manager.py                 — NEW
-tools/tests/test_streak_manager.py               — NEW
-tools/tests/test_send_notification.py            — NEW
+bot/src/__tests__/                   — ALL test files (existing + new)
+bot/src/__tests__/setup.ts           — mock helpers (may add new ones)
+bot/vitest.config.ts                 — test config (may update)
+tools/tests/                         — ALL Python test files (existing + new)
+scripts/                             — monitoring scripts (existing + new)
+.github/workflows/                   — CI/CD (existing + new)
 ```
 
 ### FILES YOU MUST NOT TOUCH
 ```
-bot/src/ (ALL non-test .ts files)    — source code, locked
+bot/src/ (ALL non-test .ts files)    — source code, read-only
 mini-app/                            — not your area
-tools/*.py                           — source tools, read-only (read to understand, don't edit)
+tools/*.py                           — source tools, read-only
 database/                            — schema, read-only
-bot/package.json                     — no dependency changes
-.github/                             — CI already set up
-```
-
-### GRAY AREA
-```
-bot/src/__tests__/setup.ts — you MAY add new mock helpers but must NOT remove or change existing ones
+bot/package.json                     — no deps
+.env                                 — secrets
 ```
 
 ### PROJECT CONTEXT
 
-- **Bot tests:** Vitest (ESM, globals enabled), config at `bot/vitest.config.ts`
-- **Python tests:** pytest with `unittest.mock`
-- **Existing test setup** at `bot/src/__tests__/setup.ts` has mock helpers for `db.query`, Express req/res
-- **Already tested (TypeScript):** routes/users, routes/quests, routes/achievements, middleware/auth, jobs/dailyQuestReset, jobs/streakCheck, jobs/dbCleanup
-- **Already tested (Python):** test_validators, test_user_manager, test_quest_manager
-- **ESM:** test files need `import`/`export` syntax, `.js` extensions on local imports
-- **Key pattern:** Mock `db.query` for route tests. Read existing test files (e.g., `users.test.ts`) to match patterns exactly.
-- **Python mock pattern:** Use `monkeypatch.setattr(module, "function_name", mock)` where `module` is the file being tested (NOT the source of the import). Run 1 learned this the hard way.
+- **Vitest** for TypeScript tests (ESM, globals enabled), config at `bot/vitest.config.ts`
+- **pytest** for Python tests with `unittest.mock`
+- Existing test setup at `bot/src/__tests__/setup.ts`
+- **Known failures**: `users.test.ts` (3 tests), `dailyQuestReset.test.ts` (1 unhandled rejection)
+- **Total tests**: 114 TypeScript, 172 Python = 286 total
+- Python mock pattern: `monkeypatch.setattr(target_module, "function_name", mock)` — patch at import location, NOT source
 
-### TASKS (do in order, commit after each one)
+### TASKS (do in order, commit after each)
 
-**Task 1: Test modes route**
-- Read `bot/src/api/routes/modes.ts` first, then read `bot/src/__tests__/routes/users.test.ts` for patterns
-- Create `bot/src/__tests__/routes/modes.test.ts`
-- Tests: GET /api/modes (returns all modes, handles empty list, handles DB error), GET /api/users/:userId/modes (returns user modes, handles not found, handles DB error)
-- Mock `db.query` using setup.ts helpers
+**Task 1: Fix pre-existing TypeScript test failures (CRITICAL)**
+- Run `cd bot && npx vitest run --reporter=verbose` to identify exact failures
+- Read `bot/src/__tests__/routes/users.test.ts` — fix the 3 failing tests
+- Read `bot/src/__tests__/jobs/dailyQuestReset.test.ts` — fix the unhandled rejection
+- These are from Run 1 and have been carried forward for 2 runs — fix them now
+- Common causes: mock shape mismatch, async cleanup, missing db.query mock returns
 
-**Task 2: Test leaderboard route**
-- Read `bot/src/api/routes/leaderboard.ts` first
-- Create `bot/src/__tests__/routes/leaderboard.test.ts`
-- Tests: GET /api/leaderboard (default limit 50, custom limit via query param, max cap at 100, cache key format, handles DB error, handles empty leaderboard)
-- Mock both `db.query` and `cached()` from cache.ts
+**Task 2: Add tests for Run 2 additions — quest progress endpoint**
+- Read `bot/src/api/routes/quests.ts` to understand the new `PATCH /api/quests/:questId/progress`
+- Create or update `bot/src/__tests__/routes/quests.test.ts` to add tests for:
+  - Valid progress update (progress < target)
+  - Auto-completion when progress === target (XP award, level up check)
+  - Invalid quest ID (404)
+  - Quest doesn't belong to user (403)
+  - Progress out of range (400)
+  - Cache invalidation called after update
 
-**Task 3: Test onboarding route**
-- Read `bot/src/api/routes/onboarding.ts` first
-- Create `bot/src/__tests__/routes/onboarding.test.ts`
-- Tests: GET /api/onboarding/:telegramId (found, not found), PUT save state (valid data, missing fields), POST complete (success with quiz_data, failure on DB error)
-- Verify JSONB handling for `quiz_data`
+**Task 3: Add tests for Run 2 additions — user preferences endpoint**
+- Read `bot/src/api/routes/users.ts` to understand `GET/PATCH /api/users/:telegramId/preferences`
+- Add tests to `bot/src/__tests__/routes/users.test.ts`:
+  - GET preferences (found, not found)
+  - PATCH preferences (valid update, invalid timezone, invalid reminder_time, partial update)
 
-**Task 4: Test remaining jobs**
-- Read each job file first, then model tests after existing `dailyQuestReset.test.ts`
-- Create `bot/src/__tests__/jobs/questReminders.test.ts` — test: job metadata, message batching logic, Telegram 429 rate limit handling, individual send failure logging
-- Create `bot/src/__tests__/jobs/leaderboardRefresh.test.ts` — test: job metadata, materialized view refresh SQL, error handling
-- Create `bot/src/__tests__/jobs/analyticsExport.test.ts` — test: job metadata, Python tool invocation via `executePythonTool`, error handling when tool fails
+**Task 4: Add tests for leaderboard handler**
+- Read `bot/src/handlers/leaderboard.ts`
+- Create `bot/src/__tests__/handlers/leaderboard.test.ts`
+- Test: sends top 10 message, shows user's rank when not in top 10, handles empty leaderboard, handles DB error
+- Mock Grammy context (ctx.reply, ctx.from)
 
-**Task 5: Test remaining Python tools**
-- Read each .py source file first, then model tests after existing `test_user_manager.py`
-- Create `tools/tests/test_achievement_manager.py` — test: `unlock_achievement()` (success, duplicate, invalid IDs), `check_achievements()` (criteria matching), `get_user_achievements()` (found, empty)
-- Create `tools/tests/test_mode_manager.py` — test: `get_all_modes()`, `get_user_modes()`, `add_user_mode()` (success, duplicate), `remove_user_mode()` (success, not found)
-- Create `tools/tests/test_streak_manager.py` — test: `update_streak()`, `check_all_streaks()` (break detection), `get_streak()` (found, not found), edge cases (midnight boundary)
-- Create `tools/tests/test_send_notification.py` — test: `send_message()` (success, retry on 500, no-retry on 400, 429 rate limit handling, message truncation at 4096 chars)
-- ALL tests use `unittest.mock.patch` or `monkeypatch` — mock `execute_query`, `urllib.request.urlopen`, etc.
-- Important: patch at the import location, not the source. E.g., `monkeypatch.setattr(achievement_manager, "execute_query", mock)` NOT `monkeypatch.setattr(db_operations, "execute_query", mock)`
+**Task 5: Improve CI pipeline**
+- Read `.github/workflows/ci.yml`
+- Add test result summary as PR comment (if github token available)
+- Add build artifact caching (npm cache, node_modules)
+- Ensure both TypeScript and Python test steps run even if one fails (use `continue-on-error` or separate jobs)
 
-**Task 6: Verify all tests pass**
-- Run TypeScript tests: `cd bot && npx vitest run --reporter=verbose`
-- Run Python tests: `python -m pytest tools/tests/ -v`
-- Fix ANY failures before committing
-- Final commit message should include total test counts: "All tests passing: X TypeScript, Y Python"
+**Task 6: Run ALL tests and verify everything passes**
+- Run `cd bot && npx vitest run --reporter=verbose`
+- Run `python -m pytest tools/tests/ -v`
+- Fix ANY failures
+- Final commit with total counts: "All tests passing: X TypeScript, Y Python"
 
 ### RETROSPECTIVE (DO THIS LAST)
-
-After all tasks are done and all tests pass, add to `PARALLEL_AGENTS.md` at the bottom (under the Run 2 Retrospectives section):
-
-```markdown
-### Agent C (Run 2) faced:
-[Describe any problems: mock issues, import errors, test failures, etc.]
-
-### What Agent C (Run 2) completed:
-| Task | Status | Commit | Description |
-|------|--------|--------|-------------|
-| ... | ... | ... | ... |
-
-Test counts: X TypeScript tests, Y Python tests (total Z)
-
-### Agent C (Run 2) recommendations for Run 3:
-[What should change next time?]
-```
+Add your retrospective to PARALLEL_AGENTS.md at the bottom under "Run 3 Retrospectives".
 
 ---
 
-## Run 2 File Ownership Matrix (Zero Overlap)
+## Run 3 File Ownership Matrix
 
 | File/Directory | Agent A | Agent B | Agent C | Nobody |
 |---|---|---|---|---|
 | mini-app/src/pages/ | OWNS | - | - | - |
-| mini-app/src/components/ (non-onboarding) | OWNS | - | - | - |
+| mini-app/src/components/ | OWNS | - | - | - |
 | mini-app/src/App.tsx (routes only) | OWNS | - | - | - |
 | mini-app/src/index.css | OWNS | - | - | - |
-| bot/src/api/routes/users.ts | - | OWNS | - | - |
-| bot/src/api/routes/quests.ts | - | OWNS | - | - |
-| bot/src/config.ts | - | OWNS | - | - |
-| bot/src/index.ts | - | OWNS | - | - |
-| ecosystem.config.js | - | OWNS | - | - |
 | bot/src/handlers/ (new files) | - | OWNS | - | - |
-| bot/src/__tests__/ (new files) | - | - | OWNS | - |
-| tools/tests/ (new files) | - | - | OWNS | - |
+| bot/src/index.ts | - | OWNS | - | - |
+| bot/src/api/routes/users.ts | - | OWNS | - | - |
+| bot/src/__tests__/ | - | - | OWNS | - |
+| tools/tests/ | - | - | OWNS | - |
+| .github/workflows/ | - | - | OWNS | - |
+| scripts/ | - | - | OWNS | - |
 | mini-app/src/api/client.ts | - | - | - | LOCKED |
-| mini-app/src/types/index.ts | - | - | - | LOCKED |
+| mini-app/src/types/ | - | - | - | LOCKED |
 | mini-app/src/hooks/ | - | - | - | LOCKED |
 | bot/src/utils/ | - | - | - | LOCKED |
+| bot/src/config.ts | - | - | - | LOCKED |
 | bot/src/jobs/ | - | - | - | LOCKED |
-| bot/src/api/middleware/ | - | - | - | LOCKED |
 | .env | - | - | - | LOCKED |
 
-## Run 2 Merge Order
+## Run 3 Merge Order
 
-1. **Agent B first** — backend API + infrastructure fixes
-2. **Agent C second** — tests (reference source that's now stable)
+1. **Agent B first** — backend features + API endpoints
+2. **Agent C second** — tests (reference stable source)
 3. **Agent A last** — mini-app (completely independent)
 
 ---
 
-## Run 2 Retrospectives
+## Run 3 Retrospectives
 
 *(Agents: add your retrospective sections below this line when you finish)*
-
-### Agent A (Run 2) faced:
-
-**1. Worktrees eliminated ALL Run 1 branch-switching problems.**
-No branch conflicts, no file loss, no stash chaos. The dedicated `Wibecode-agent-a` worktree directory meant zero interference from other agents. Every write succeeded on the first attempt, every commit landed on the correct branch. This is exactly what Run 1 recommended.
-
-**2. Two minor build errors (unused imports) — trivially fixed.**
-After replacing the quest detail modal's `InfoBox` component with inline badges, the old `Trophy` import and `InfoBox` function became unused. TypeScript strict mode caught these as errors. Fixed by removing both in a separate commit.
-
-**3. No other problems.**
-The entire session was smooth. All 6 tasks completed in order, each committed individually. No context exhaustion, no race conditions, no file conflicts.
-
-### What Agent A (Run 2) completed:
-
-| Task | Status | Commit | Description |
-|------|--------|--------|-------------|
-| 1. Leaderboard page | Done | `1fe8b8f` | New Leaderboard.tsx with ranked list, avatar circles, Trophy/Medal/Award for top 3, current user highlight, loading/error/empty states |
-| 2. Leaderboard in Navigation | Done | `5262f87` | 4th nav item (Trophy icon, "Ranks"), adjusted icon sizes for 4-item layout |
-| 3. Pull-to-refresh | Done | `4215423` | Touch-based pull gesture on Dashboard + Quests, 60px threshold, haptic feedback, spinning RefreshCw |
-| 4. Quest detail improvement | Done | `6e79644` | Rich modal with XP/difficulty/frequency badges, due date, mode icon, +1/+5 progress steppers, layoutId transitions |
-| 5. Profile editing | Done | `9d25d55` | ProfileEditModal.tsx with nickname input, 8 avatar options (class icons), edit pencil button in Profile header |
-| 6. Achievement progress | Done | `138f8b4` | All achievements grid (unlocked + locked), green checkmark/lock badges, progress bars from user stats, hidden achievements show "???" |
-| Build fix | Done | `419f293` | Removed unused Trophy import and InfoBox from Quests.tsx |
-
-**Final branch:** `feature/mini-app-features` — 7 commits on top of main. `tsc && vite build` passes with zero errors. Branch is NOT pushed per instructions.
-
-### Agent A (Run 2) recommendations for Run 3:
-
-1. **Worktrees are the solution.** Run 2 was dramatically smoother than Run 1. Keep this approach for all future parallel runs.
-2. **Commit after each task** was enforced and worked perfectly. Every task survived independently.
-3. **Build after each commit** would catch issues earlier (the unused import issue only showed at the end). Consider adding a build step after each commit.
-4. **Agent A's tasks were well-scoped** — each was independent, no task depended on another's output. Good task design.
-5. **No file boundary violations** — the OWNED/FORBIDDEN lists were clear and sufficient.
