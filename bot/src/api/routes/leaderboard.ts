@@ -7,7 +7,7 @@ const router = Router();
 
 /**
  * GET /api/leaderboard
- * Returns leaderboard from materialized view.
+ * Returns leaderboard using direct query (no materialized view).
  * Cached for 30 seconds — leaderboard doesn't change per-request.
  */
 router.get('/', authenticateTelegram, async (req: Request, res: Response) => {
@@ -16,10 +16,24 @@ router.get('/', authenticateTelegram, async (req: Request, res: Response) => {
 
     const entries = await cached(`leaderboard:${limit}`, TTL.SHORT, () =>
       query(
-        `SELECT user_id, telegram_id, username, first_name, current_level, total_xp,
-                best_current_streak, total_quests_completed, xp_rank, level_rank
-         FROM leaderboard_mv
-         ORDER BY xp_rank ASC
+        `SELECT u.id AS user_id, u.telegram_id, u.username, u.first_name,
+                u.current_level, u.total_xp,
+                COALESCE(s.best_streak, 0) AS best_current_streak,
+                COALESCE(qi.total_completed, 0) AS total_quests_completed,
+                ROW_NUMBER() OVER (ORDER BY u.total_xp DESC) AS xp_rank,
+                ROW_NUMBER() OVER (ORDER BY u.current_level DESC, u.total_xp DESC) AS level_rank
+         FROM users u
+         LEFT JOIN (
+           SELECT user_id, MAX(current_streak) AS best_streak
+           FROM streaks GROUP BY user_id
+         ) s ON s.user_id = u.id
+         LEFT JOIN (
+           SELECT user_id, COUNT(*)::int AS total_completed
+           FROM quest_instances WHERE status = 'completed'
+           GROUP BY user_id
+         ) qi ON qi.user_id = u.id
+         WHERE u.is_active = true
+         ORDER BY u.total_xp DESC
          LIMIT $1`,
         [limit]
       )
