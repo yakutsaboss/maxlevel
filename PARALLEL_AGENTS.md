@@ -575,3 +575,50 @@ Find your section under "Run 11 Retrospectives" below and replace the placeholde
 2. Similarly, `apiClient.getUserAchievements()` hits the users.ts route (returns `{success, data}`) but the dedicated achievements.ts route at `/achievements/users/:userId` returns `{achievements, unlocked, total, progress}`. Inconsistency should be resolved.
 3. Consider adding per-mode streak data to the stats API so Dashboard can show streak breakdown by mode.
 4. The achievement check could also be triggered after quest completion on the Quests page if the internal user ID is made available there (e.g., stored in a context/hook after initial stats load).
+
+---
+
+### Run 12 Retrospectives
+
+#### Agent A Retrospective
+*(To be filled by Agent A)*
+
+#### Agent B Retrospective
+*(To be filled by Agent B)*
+
+#### Agent C Retrospective
+*(To be filled by Agent C)*
+
+#### Agent D Retrospective
+*(To be filled by Agent D)*
+
+#### Agent E Retrospective
+
+**Status:** All 5 tasks completed. Build passes with zero errors.
+
+| # | Task | Commit | Status |
+|---|------|--------|--------|
+| 1 | Add `getPunishmentSettings` to API client | `b880039` | Done |
+| 2 | Add per-mode streak display to Profile modes | `006dfc2` | Done |
+| 3 | Add accountability status section to Profile | `30f1a49` | Done |
+| 4 | Improve achievement showcase on Profile | `a4807b5` | Done |
+| 5 | Build verification | (clean build, no fix needed) | Done |
+
+**Problems Faced:**
+- The Run 12 Retrospectives section wasn't present in the worktree's copy of PARALLEL_AGENTS.md (it was added to main after branching). Appended the section manually.
+- The `allAchievements` list relies on `apiClient.getAchievements()` which is broken due to response format mismatch (returns `{achievements, count}` instead of `{success, data}`). Agent D is fixing this concurrently. The achievement showcase gracefully falls back to using `achievements.length` as the total count when `allAchievements` is empty.
+- Punishment settings API (`GET /api/punishment/:telegramId/settings`) doesn't exist yet (Agent B is creating it). The Profile loads it in a separate try/catch so it silently skips if the API returns 404.
+
+**Design Decisions:**
+- Per-mode streak display only shows when `perModeStreaks` data is available (from Agent D's stats API enhancement). If the field is missing, no streak info appears on mode cards — fully backward compatible.
+- Accountability section shows "Accountability Off" with a hint to enable in Settings when no punishment settings are found, rather than hiding the section entirely. This gives users awareness of the feature.
+- Achievement showcase uses a 2x2 grid instead of a horizontal row of 3, making each achievement more prominent with icon, name, and rarity badge. Added animated progress bar showing unlock percentage.
+- Punishment settings load is intentionally non-blocking (separate try/catch outside the main Promise.all) to avoid slowing down the Profile load if the punishment API is slow or unavailable.
+
+**Recommendations for Next Run:**
+1. Once Agent D's API fix is merged, verify that `allAchievements` populates correctly on Profile — the progress bar denominator depends on it.
+2. Consider making the mode streak cards tappable to show streak history or details for that mode.
+3. The accountability section could link directly to Settings page punishment section (once Agent F implements it) for quick access.
+
+#### Agent F Retrospective
+*(To be filled by Agent F)*
