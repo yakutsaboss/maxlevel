@@ -184,3 +184,20 @@ a:focus-visible,
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
+
+.pull-indicator {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 0;
+  overflow: hidden;
+  transition: height 0.2s ease-out;
+}
+
+.pull-indicator.active {
+  height: 48px;
+}
+
+.pull-indicator.refreshing svg {
+  animation: spin 0.8s linear infinite;
+}

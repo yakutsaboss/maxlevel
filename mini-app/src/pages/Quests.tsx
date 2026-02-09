@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef, useCallback } from 'react';
 import { useTelegram, useMainButton } from '@/hooks/useTelegram';
 import { apiClient } from '@/api/client';
 import { Quest } from '@/types';
@@ -20,6 +20,40 @@ export function Quests() {
   const [error, setError] = useState(false);
   const [selectedQuest, setSelectedQuest] = useState<Quest | null>(null);
   const [completing, setCompleting] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+  const [pullDistance, setPullDistance] = useState(0);
+  const touchStartY = useRef(0);
+  const isPulling = useRef(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  const PULL_THRESHOLD = 60;
+
+  const handleTouchStart = useCallback((e: React.TouchEvent) => {
+    if (containerRef.current && containerRef.current.scrollTop === 0) {
+      touchStartY.current = e.touches[0].clientY;
+      isPulling.current = true;
+    }
+  }, []);
+
+  const handleTouchMove = useCallback((e: React.TouchEvent) => {
+    if (!isPulling.current) return;
+    const distance = Math.max(0, e.touches[0].clientY - touchStartY.current);
+    setPullDistance(Math.min(distance * 0.5, 80));
+  }, []);
+
+  const handleTouchEnd = useCallback(async () => {
+    if (!isPulling.current) return;
+    isPulling.current = false;
+    if (pullDistance >= PULL_THRESHOLD && !refreshing) {
+      haptic.impact('medium');
+      setRefreshing(true);
+      setPullDistance(0);
+      await loadQuests();
+      setRefreshing(false);
+    } else {
+      setPullDistance(0);
+    }
+  }, [pullDistance, refreshing, haptic]);
 
   useEffect(() => { loadQuests(); }, [user]);
 
@@ -123,7 +157,16 @@ export function Quests() {
   }
 
   return (
-    <div className="min-h-screen bg-telegram-bg text-telegram-text pb-20">
+    <div
+      ref={containerRef}
+      className="min-h-screen bg-telegram-bg text-telegram-text pb-20 overflow-y-auto"
+      onTouchStart={handleTouchStart}
+      onTouchMove={handleTouchMove}
+      onTouchEnd={handleTouchEnd}
+    >
+      <div className={`pull-indicator ${refreshing ? 'active refreshing' : ''}`} style={{ height: refreshing ? 48 : pullDistance > 10 ? pullDistance : 0 }}>
+        <RefreshCw className={`w-5 h-5 text-telegram-hint ${pullDistance >= PULL_THRESHOLD ? 'text-telegram-link' : ''}`} />
+      </div>
       <div className="bg-gradient-to-r from-blue-600 to-purple-600 p-6 rounded-b-3xl shadow-lg">
         <div className="flex items-center gap-3 mb-4">
           <div className="bg-white/20 backdrop-blur-sm rounded-2xl p-3">
