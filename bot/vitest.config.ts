@@ -5,6 +5,7 @@ export default defineConfig({
     globals: true,
     environment: 'node',
     include: ['src/__tests__/**/*.test.ts'],
+    mockReset: true,
     coverage: {
       provider: 'v8',
       include: ['src/**/*.ts'],
