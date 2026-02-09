@@ -1118,3 +1118,37 @@ Add your retrospective to PARALLEL_AGENTS.md at the bottom under "Run 4 Retrospe
 ## Run 4 Retrospectives
 
 *(Agents: add your retrospective sections below this line when you finish)*
+
+### Agent C Retrospective (Run 4) — Test Expansion & Quality
+
+**Branch:** `feature/test-expansion`
+**Build:** `cd bot && npm run build` — PASS (0 errors)
+
+| # | Task | Status | Tests Added |
+|---|------|--------|-------------|
+| 1 | Enable mockReset globally in vitest config | Done | 0 (infra change, all 140 existing tests still pass) |
+| 2 | Add tests for /profile bot command handler | Done | 6 new tests |
+| 3 | Add tests for /help bot command handler | Done | 8 new tests (1 handleHelp + 7 handleHelpCallback) |
+| 4 | Add tests for profile update API endpoint | Done | 10 new tests |
+| 5 | Add tests for daily summary handler | Done | 8 new tests |
+| 6 | Run ALL tests and verify | Done | 172 TS + 172 Python = 344 total, 0 failures |
+
+**Final Test Counts:** 172 TypeScript (up from 140), 172 Python (unchanged) = 344 total
+
+**Files Created:**
+- `bot/src/__tests__/handlers/profile.test.ts` — 6 tests covering full data, no modes, user not found, missing ctx.from, DB error, null streaks/achievements
+- `bot/src/__tests__/handlers/help.test.ts` — 8 tests covering main menu keyboard, 3 callback categories, unknown category, missing data, non-help prefix, editMessageText error
+- `bot/src/__tests__/handlers/dailySummary.test.ts` — 8 tests covering quests/XP summary, no activity, motivational messages, user not found, null telegram_id, DB error, sendMessage failure, null first_name fallback
+
+**Files Modified:**
+- `bot/vitest.config.ts` — added `mockReset: true` (global mock reset, replaces per-file `vi.resetAllMocks()`)
+- `bot/src/__tests__/routes/users.test.ts` — added 10 tests for PATCH profile update (first_name, avatar_id, both, validation boundaries, 404, empty body)
+
+**Problems Faced:**
+- None. All tests passed on first run. The `mockReset: true` global config change was seamless — no existing tests broke.
+
+**Recommendations for Next Run:**
+1. **Test coverage gaps remaining**: No tests for `/start` handler, `/settings` handler, `/modes` handler, or API server integration tests. These would add ~30-40 more tests.
+2. **Consider integration tests**: Current tests are all unit tests with mocked DB. A small set of integration tests with a test database would catch schema mismatches like the ones found in Run 3.
+3. **Python test gap**: No new Python tests were needed this run, but `tools/send_notification.py` could use tests for the new session-related functions if any were added.
+4. **Per-file `vi.resetAllMocks()` calls** are now redundant since `mockReset: true` is set globally. They can be removed in a cleanup pass, but they're harmless.
