@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useTelegram } from '@/hooks/useTelegram';
 import { apiClient } from '@/api/client';
 import { UserStats, UserAchievement, Achievement } from '@/types';
-import { Trophy, Award, TrendingUp, Calendar, Zap, AlertCircle, RefreshCw, Pencil, Settings } from 'lucide-react';
+import { Trophy, Award, TrendingUp, Calendar, Zap, AlertCircle, RefreshCw, Pencil, Settings, Shield } from 'lucide-react';
 
 import { motion } from 'framer-motion';
 import { ProfileEditModal, AVATAR_OPTIONS } from '@/components/ProfileEditModal';
@@ -23,6 +23,7 @@ export function Profile() {
   const [error, setError] = useState(false);
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [toast, setToast] = useState<{ message: string; variant: 'success' | 'error' | 'info' } | null>(null);
+  const [punishmentSettings, setPunishmentSettings] = useState<{ consent_given: boolean; intensity_level: string; safe_mode: boolean } | null>(null);
 
   useEffect(() => { loadProfileData(); }, [user]);
 
@@ -39,6 +40,11 @@ export function Profile() {
       if (statsRes.success && statsRes.data) { setStats(statsRes.data); }
       if (achievementsRes.success && achievementsRes.data) { setAchievements(achievementsRes.data); }
       if (allAchRes.success && allAchRes.data) { setAllAchievements(allAchRes.data); }
+      // Load punishment settings separately (non-blocking, API may not exist yet)
+      try {
+        const punishRes = await apiClient.getPunishmentSettings(user.id);
+        if (punishRes.success && punishRes.data) { setPunishmentSettings(punishRes.data); }
+      } catch { /* Punishment API not available yet — silently skip */ }
     } catch (error) {
       console.error('Failed to load profile data:', error);
       setError(true);
@@ -221,6 +227,48 @@ export function Profile() {
           >
             View all achievements
           </button>
+        </motion.div>
+      </div>
+
+      <div className="px-4 mt-6">
+        <h2 className="text-lg font-semibold mb-3 flex items-center gap-2">
+          <Shield className="w-5 h-5 text-telegram-link" />Accountability
+        </h2>
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="bg-telegram-secondaryBg rounded-2xl p-4 border border-telegram-hint/10"
+        >
+          {punishmentSettings && punishmentSettings.consent_given ? (
+            <div>
+              <div className="flex items-center gap-2 mb-3">
+                <div className="w-8 h-8 rounded-full bg-green-500/20 flex items-center justify-center">
+                  <Shield className="w-4 h-4 text-green-500" />
+                </div>
+                <span className="text-sm font-semibold text-green-500">Accountability Active</span>
+              </div>
+              <div className="space-y-2 text-sm">
+                <div className="flex justify-between">
+                  <span className="text-telegram-hint">Intensity</span>
+                  <span className="font-medium capitalize">{punishmentSettings.intensity_level}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-telegram-hint">Safe mode</span>
+                  <span className="font-medium">{punishmentSettings.safe_mode ? 'ON' : 'OFF'}</span>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-full bg-telegram-hint/20 flex items-center justify-center">
+                <Shield className="w-4 h-4 text-telegram-hint" />
+              </div>
+              <div>
+                <span className="text-sm font-medium text-telegram-hint">Accountability Off</span>
+                <p className="text-xs text-telegram-hint/70">Enable in Settings to add quest failure penalties</p>
+              </div>
+            </div>
+          )}
         </motion.div>
       </div>
 
