@@ -6,7 +6,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { mockRequest, mockNext } from '../setup.js';
+import { mockRequest, mockResponse, mockNext } from '../setup.js';
 import crypto from 'crypto';
 
 // ─── Import module under test ──────────────────────────────────────
@@ -31,27 +31,7 @@ function basicAuthHeader(user: string, pass: string): string {
   return 'Basic ' + Buffer.from(`${user}:${pass}`).toString('base64');
 }
 
-/** Enhanced mockResponse that includes setHeader (needed by adminAuth). */
-function mockAdminResponse() {
-  const res: any = {
-    _status: 200,
-    _json: null,
-    _headers: {} as Record<string, string>,
-    status(code: number) {
-      res._status = code;
-      return res;
-    },
-    json(body: any) {
-      res._json = body;
-      return res;
-    },
-    setHeader(key: string, value: string) {
-      res._headers[key] = value;
-      return res;
-    },
-  };
-  return res;
-}
+// Using shared mockResponse() from setup.ts (now includes setHeader/getHeader)
 
 // ─── Tests ─────────────────────────────────────────────────────────
 
@@ -64,7 +44,7 @@ describe('authenticateAdmin', () => {
     const req = mockRequest({
       headers: { authorization: basicAuthHeader(TEST_USERNAME, TEST_PASSWORD) },
     });
-    const res = mockAdminResponse();
+    const res = mockResponse();
     const next = mockNext();
 
     authenticateAdmin(req, res, next);
@@ -78,7 +58,7 @@ describe('authenticateAdmin', () => {
 
   it('should return 401 when authorization header is missing', () => {
     const req = mockRequest({ headers: {} });
-    const res = mockAdminResponse();
+    const res = mockResponse();
     const next = mockNext();
 
     authenticateAdmin(req, res, next);
@@ -94,7 +74,7 @@ describe('authenticateAdmin', () => {
     const req = mockRequest({
       headers: { authorization: basicAuthHeader(TEST_USERNAME, 'wrongpassword') },
     });
-    const res = mockAdminResponse();
+    const res = mockResponse();
     const next = mockNext();
 
     authenticateAdmin(req, res, next);
@@ -108,7 +88,7 @@ describe('authenticateAdmin', () => {
     const req = mockRequest({
       headers: { authorization: basicAuthHeader('unknownuser', TEST_PASSWORD) },
     });
-    const res = mockAdminResponse();
+    const res = mockResponse();
     const next = mockNext();
 
     authenticateAdmin(req, res, next);
@@ -122,7 +102,7 @@ describe('authenticateAdmin', () => {
     const req = mockRequest({
       headers: { authorization: 'Basic !!!not-valid!!!' },
     });
-    const res = mockAdminResponse();
+    const res = mockResponse();
     const next = mockNext();
 
     authenticateAdmin(req, res, next);
@@ -135,7 +115,7 @@ describe('authenticateAdmin', () => {
     const req = mockRequest({
       headers: { authorization: 'Bearer some-token' },
     });
-    const res = mockAdminResponse();
+    const res = mockResponse();
     const next = mockNext();
 
     authenticateAdmin(req, res, next);
@@ -148,7 +128,7 @@ describe('authenticateAdmin', () => {
     const req = mockRequest({
       headers: { authorization: 'Basic ' + Buffer.from(`${TEST_USERNAME}:`).toString('base64') },
     });
-    const res = mockAdminResponse();
+    const res = mockResponse();
     const next = mockNext();
 
     authenticateAdmin(req, res, next);
@@ -167,7 +147,7 @@ describe('requirePermission', () => {
       role: 'super_admin',
       permissions: ['*'],
     };
-    const res = mockAdminResponse();
+    const res = mockResponse();
     const next = mockNext();
 
     requirePermission('users:delete')(req, res, next);
@@ -183,7 +163,7 @@ describe('requirePermission', () => {
       role: 'moderator',
       permissions: ['users:read', 'users:delete'],
     };
-    const res = mockAdminResponse();
+    const res = mockResponse();
     const next = mockNext();
 
     requirePermission('users:delete')(req, res, next);
@@ -199,7 +179,7 @@ describe('requirePermission', () => {
       role: 'moderator',
       permissions: ['users:read'],
     };
-    const res = mockAdminResponse();
+    const res = mockResponse();
     const next = mockNext();
 
     requirePermission('users:delete')(req, res, next);
@@ -211,7 +191,7 @@ describe('requirePermission', () => {
 
   it('should return 401 when no admin user is attached', () => {
     const req = mockRequest();
-    const res = mockAdminResponse();
+    const res = mockResponse();
     const next = mockNext();
 
     requirePermission('users:read')(req, res, next);
@@ -230,7 +210,7 @@ describe('requireRole', () => {
       role: 'super_admin',
       permissions: ['*'],
     };
-    const res = mockAdminResponse();
+    const res = mockResponse();
     const next = mockNext();
 
     requireRole('admin')(req, res, next);
@@ -246,7 +226,7 @@ describe('requireRole', () => {
       role: 'moderator',
       permissions: [],
     };
-    const res = mockAdminResponse();
+    const res = mockResponse();
     const next = mockNext();
 
     requireRole('super_admin')(req, res, next);
