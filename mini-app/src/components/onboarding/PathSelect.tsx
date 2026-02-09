@@ -27,7 +27,7 @@ const MODES = [
     desc: 'Budget tracking & saving goals',
     icon: '💰',
     color: 'border-yellow-500 bg-yellow-500/10',
-    available: false,
+    available: true,
   },
   {
     id: 'learning',
@@ -35,7 +35,7 @@ const MODES = [
     desc: 'New skills & daily learning habits',
     icon: '📚',
     color: 'border-green-500 bg-green-500/10',
-    available: false,
+    available: true,
   },
 ];
 
