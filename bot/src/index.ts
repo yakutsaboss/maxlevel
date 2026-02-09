@@ -165,6 +165,21 @@ async function main() {
     });
   }
 
+  // Set BotFather command list programmatically
+  await bot.api.setMyCommands([
+    { command: 'start', description: 'Start or restart the bot' },
+    { command: 'app', description: 'Open Mini App' },
+    { command: 'quests', description: 'View your quests' },
+    { command: 'profile', description: 'View your profile' },
+    { command: 'modes', description: 'Manage your modes' },
+    { command: 'leaderboard', description: 'View top players' },
+    { command: 'stats', description: 'View your statistics' },
+    { command: 'settings', description: 'Configure notifications' },
+    { command: 'help', description: 'Get help' },
+    { command: 'menu', description: 'Show all commands' },
+  ]);
+  console.log('✅ Bot commands registered with BotFather');
+
   // Start background job queue
   console.log('\n⏰ Starting background job queue...');
   try {
