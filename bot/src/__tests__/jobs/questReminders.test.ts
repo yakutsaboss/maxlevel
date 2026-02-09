@@ -1,0 +1,195 @@
+/**
+ * Tests for Quest Reminders Job (bot/src/jobs/definitions/questReminders.ts)
+ *
+ * Tests: job metadata, message sending, failure logging, rate limit handling
+ * NOTE: No fake timers — the handler uses internal sleep() which conflicts with vi.useFakeTimers()
+ */
+
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+
+// ─── Mocks ───────────────────────────────────────────────────────────
+
+const mockExecutePythonTool = vi.fn();
+
+vi.mock('../../utils/pythonTools.js', () => ({
+  executePythonTool: (...args: any[]) => mockExecutePythonTool(...args),
+}));
+
+beforeEach(() => {
+  vi.clearAllMocks();
+});
+
+// ─── Import after mocks ─────────────────────────────────────────────
+
+import { handler, JOB_NAME, CRON_SCHEDULE, setBotInstance } from '../../jobs/definitions/questReminders.js';
+
+// ─── Tests ───────────────────────────────────────────────────────────
+
+describe('questReminders', () => {
+  it('should have correct job name and cron schedule', () => {
+    expect(JOB_NAME).toBe('quest-reminders');
+    expect(CRON_SCHEDULE).toBe('0 18 * * *');
+  });
+
+  it('should throw when bot instance not set', async () => {
+    setBotInstance(null as any);
+    await expect(handler([{} as any])).rejects.toThrow('Bot instance not set');
+  });
+
+  it('should handle query failure gracefully', async () => {
+    const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+
+    mockExecutePythonTool.mockResolvedValueOnce({ success: false, data: null });
+
+    const mockBot = { api: { sendMessage: vi.fn() } } as any;
+    setBotInstance(mockBot);
+
+    await handler([{} as any]);
+
+    expect(mockBot.api.sendMessage).not.toHaveBeenCalled();
+    expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('Completed'));
+
+    consoleSpy.mockRestore();
+  });
+
+  it('should handle non-array data gracefully', async () => {
+    const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+
+    mockExecutePythonTool.mockResolvedValueOnce({ success: true, data: 'not-array' });
+
+    const mockBot = { api: { sendMessage: vi.fn() } } as any;
+    setBotInstance(mockBot);
+
+    await handler([{} as any]);
+
+    expect(mockBot.api.sendMessage).not.toHaveBeenCalled();
+    consoleSpy.mockRestore();
+  });
+
+  it('should send reminders to users with pending quests', async () => {
+    const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+
+    const users = [
+      { telegram_id: 111, first_name: 'Alice', pending_count: 3 },
+      { telegram_id: 222, first_name: 'Bob', pending_count: 1 },
+    ];
+
+    mockExecutePythonTool.mockResolvedValueOnce({ success: true, data: users });
+
+    const mockBot = { api: { sendMessage: vi.fn().mockResolvedValue({}) } } as any;
+    setBotInstance(mockBot);
+
+    await handler([{} as any]);
+
+    expect(mockBot.api.sendMessage).toHaveBeenCalledTimes(2);
+    expect(mockBot.api.sendMessage).toHaveBeenCalledWith(111, expect.stringContaining('Alice'));
+    expect(mockBot.api.sendMessage).toHaveBeenCalledWith(222, expect.stringContaining('1 quest'));
+
+    consoleSpy.mockRestore();
+  });
+
+  it('should log failed sends with user IDs', async () => {
+    const consoleSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+
+    const users = [
+      { telegram_id: 111, first_name: 'Alice', pending_count: 2 },
+    ];
+
+    mockExecutePythonTool.mockResolvedValueOnce({ success: true, data: users });
+
+    const mockBot = {
+      api: { sendMessage: vi.fn().mockRejectedValue(new Error('User blocked bot')) },
+    } as any;
+    setBotInstance(mockBot);
+
+    await handler([{} as any]);
+
+    expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('Failed to send reminder to user 111'));
+    expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('Failed telegram IDs: 111'));
+
+    consoleSpy.mockRestore();
+    logSpy.mockRestore();
+  });
+
+  it('should handle Telegram 429 rate limit and retry after waiting', async () => {
+    const consoleSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+
+    const users = [
+      { telegram_id: 111, first_name: 'Alice', pending_count: 1 },
+    ];
+
+    mockExecutePythonTool.mockResolvedValueOnce({ success: true, data: users });
+
+    const rateLimitError = Object.assign(new Error('Rate limited'), {
+      error_code: 429,
+      parameters: { retry_after: 0 }, // Use 0s to avoid real delays in tests
+    });
+
+    const mockBot = {
+      api: {
+        sendMessage: vi.fn()
+          .mockRejectedValueOnce(rateLimitError)
+          .mockResolvedValueOnce({}),
+      },
+    } as any;
+    setBotInstance(mockBot);
+
+    await handler([{} as any]);
+
+    // Should have called sendMessage twice (initial + retry)
+    expect(mockBot.api.sendMessage).toHaveBeenCalledTimes(2);
+    expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('Rate limited, waiting 0s'));
+
+    consoleSpy.mockRestore();
+    logSpy.mockRestore();
+  });
+
+  it('should use default first_name when missing', async () => {
+    const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+
+    const users = [
+      { telegram_id: 111, first_name: null, pending_count: 2 },
+    ];
+
+    mockExecutePythonTool.mockResolvedValueOnce({ success: true, data: users });
+
+    const mockBot = { api: { sendMessage: vi.fn().mockResolvedValue({}) } } as any;
+    setBotInstance(mockBot);
+
+    await handler([{} as any]);
+
+    expect(mockBot.api.sendMessage).toHaveBeenCalledWith(111, expect.stringContaining('there'));
+
+    logSpy.mockRestore();
+  });
+
+  it('should log structured counts on completion', async () => {
+    const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+
+    const users = [
+      { telegram_id: 111, first_name: 'Alice', pending_count: 2 },
+      { telegram_id: 222, first_name: 'Bob', pending_count: 1 },
+    ];
+
+    mockExecutePythonTool.mockResolvedValueOnce({ success: true, data: users });
+
+    const mockBot = {
+      api: {
+        sendMessage: vi.fn()
+          .mockResolvedValueOnce({})
+          .mockRejectedValueOnce(new Error('blocked')),
+      },
+    } as any;
+    setBotInstance(mockBot);
+
+    await handler([{} as any]);
+
+    expect(logSpy).toHaveBeenCalledWith(expect.stringContaining('sent: 1'));
+    expect(logSpy).toHaveBeenCalledWith(expect.stringContaining('failed: 1'));
+    expect(logSpy).toHaveBeenCalledWith(expect.stringContaining('total: 2'));
+
+    logSpy.mockRestore();
+  });
+});
