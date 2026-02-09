@@ -168,13 +168,22 @@ export function Profile() {
           <TrendingUp className="w-5 h-5 text-telegram-link" />My Modes
         </h2>
         <div className="grid grid-cols-2 gap-3">
-          {stats.modes.map((userMode, index) => (
-            <motion.div key={userMode.mode_id} initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: index * 0.1 }} whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} onClick={() => haptic.impact('light')} className="bg-telegram-secondaryBg rounded-2xl p-4 border border-telegram-hint/10">
-              <div className="text-4xl text-center mb-2">{userMode.mode.icon}</div>
-              <h3 className="font-semibold text-center text-sm">{userMode.mode.display_name}</h3>
-              <p className="text-xs text-telegram-hint text-center mt-1">Since {formatDate(userMode.activated_at)}</p>
-            </motion.div>
-          ))}
+          {stats.modes.map((userMode, index) => {
+            const perModeStreaks = (stats as any).perModeStreaks as Array<{ mode_id: number; mode_name: string; mode_icon: string; current_streak: number; longest_streak: number }> | undefined;
+            const modeStreak = perModeStreaks?.find((s) => s.mode_id === userMode.mode_id);
+            return (
+              <motion.div key={userMode.mode_id} initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: index * 0.1 }} whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} onClick={() => haptic.impact('light')} className="bg-telegram-secondaryBg rounded-2xl p-4 border border-telegram-hint/10">
+                <div className="text-4xl text-center mb-2">{userMode.mode.icon}</div>
+                <h3 className="font-semibold text-center text-sm">{userMode.mode.display_name}</h3>
+                <p className="text-xs text-telegram-hint text-center mt-1">Since {formatDate(userMode.activated_at)}</p>
+                {modeStreak && modeStreak.current_streak > 0 ? (
+                  <p className="text-xs text-center mt-1.5 font-medium text-orange-500">🔥 {modeStreak.current_streak} day streak</p>
+                ) : modeStreak ? (
+                  <p className="text-xs text-center mt-1.5 text-telegram-hint">No active streak</p>
+                ) : null}
+              </motion.div>
+            );
+          })}
         </div>
       </div>
 
