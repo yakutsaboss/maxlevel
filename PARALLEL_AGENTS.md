@@ -1791,3 +1791,506 @@ Add your retrospective to PARALLEL_AGENTS.md at the bottom under "Run 5 Retrospe
 2. Settings timezone input could use a searchable dropdown
 3. Consider adding conditional questions for Finance (e.g., show debt-related questions only if `reduce_debt` is selected)
 4. The Learning `day-grid` requires `workout_frequency` for validation — may need a separate validation path for non-fitness day grids
+
+---
+
+## Run 5 Retrospective (Agent 0)
+
+### Merge Results
+| Branch | Merge | Conflicts | Resolution |
+|--------|-------|-----------|------------|
+| `feature/backend-quality` → main | Fast-forward | 0 | Clean |
+| `feature/test-handlers` → main | Merge commit | 1 (PARALLEL_AGENTS.md) | Kept both retrospectives |
+| `feature/onboarding-modes` → main | Merge commit | 1 (PARALLEL_AGENTS.md) | Kept all 3 retrospectives |
+
+### What Was Delivered
+**Agent A** (mini-app, 6/6 tasks): Added `avatar_id` to User type (removed `as any` casts), 5 Finance quiz questions + 5 Learning quiz questions, wired both into onboarding flow (steps/data/badges), unlocked Finance & Learning in PathSelect + Summary, connected Leaderboard weekly tab to real endpoint.
+
+**Agent B** (backend, 5/5 tasks): Synced seed_data.sql with finance/learning modes + 8 quest templates, rewrote leaderboard-refresh job (direct SQL + cache instead of missing materialized view), fixed dailySummary Bot type (generic instead of `as any`), created idempotent migration script (`database/migrations/run5_sync.sql`).
+
+**Agent C** (tests, 5/5 tasks): 62 new TypeScript tests — /start (11), /settings (15), /stats (12), /modes (24). Total: 234 TS + 172 Python = 406 tests, 0 failures.
+
+### What Went Right
+- Fifth consecutive successful run with worktrees — zero interference
+- All 16/16 tasks completed across 3 agents
+- Both builds passed on first try after all 3 merges
+- Only expected PARALLEL_AGENTS.md conflicts
+- Agent B completely eliminated the leaderboard_mv dependency (error-free job runs now)
+- Agent A's quiz questions work with zero changes to QuizScreen.tsx — parameterized design pays off
+- Agent C brought all 4 untested handlers to full coverage
+
+### Known Issues for Run 6
+1. **No Finance/Learning achievements** — only Fitness (5) and Hydration (5) + Cross-Mode (5) achievements exist in seed data
+2. **No Achievements page in mini-app** — data/types/API exist but no dedicated page
+3. **Remaining test gaps**: `admin.ts` route (498 lines, 0 tests), `miniapp.ts` handler (82 lines, 0 tests), `onboarding.ts` route (166 lines, 0 tests)
+4. **No performance indexes** — leaderboard queries will slow down with more users
+5. **Daily summary uses fixed 9 PM UTC** — ignores per-user `reminder_time` column
+6. **Learning day-grid validation** — uses `workout_frequency` which is fitness-specific
+
+---
+
+## RUN 6: Parallel Agents (3 Agents + Agent 0)
+
+### Focus: Achievements System & Final Test Coverage
+
+Run 6 completes the achievements ecosystem (new achievements + mini-app page), adds performance optimizations, and closes remaining test coverage gaps.
+
+### How to Launch
+
+Open 4 separate Claude Code sessions. **Start Agent 0 FIRST** — it sets up worktrees. Only start A/B/C after Agent 0 says "Ready."
+
+### Copy-Paste Prompts
+
+**Agent 0** (open in: `c:\Users\Asus\Desktop\Wibecode`):
+```
+Read PARALLEL_AGENTS.md — you are Agent 0 for Run 6. Set up worktrees and tell me when ready. After all agents finish, I'll tell you to merge.
+```
+
+**Agent A** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-a`):
+```
+Read PARALLEL_AGENTS.md — you are Agent A for Run 6. Do your tasks.
+```
+
+**Agent B** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-b`):
+```
+Read PARALLEL_AGENTS.md — you are Agent B for Run 6. Do your tasks.
+```
+
+**Agent C** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-c`):
+```
+Read PARALLEL_AGENTS.md — you are Agent C for Run 6. Do your tasks.
+```
+
+---
+
+## Agent 0 — Orchestrator (Run 6)
+
+**You are Agent 0.** Set up the environment, WAIT for agents, then merge and deploy.
+
+**Working directory:** `c:\Users\Asus\Desktop\Wibecode` (main repo, `main` branch)
+
+### Phase 1: Pre-Run Setup
+
+**Step 1: Apply achievements migration BEFORE agents start**
+Agent B will create seed data, but we need the achievements already in DB for Agent A's mini-app page to have data to display during testing.
+```bash
+ssh root@85.239.58.205 "PGPASSWORD=postgres psql -h localhost -U postgres -d telegram_rpg -c \"
+-- Finance Achievements
+INSERT INTO achievements (name, description, badge_icon, criteria, xp_bonus, rarity) VALUES
+('first_saving', 'First Saving', '💰', '{\"type\": \"quest_complete\", \"mode\": \"finance\", \"count\": 1}', 50, 'common'),
+('budget_master', 'Budget Master', '📊', '{\"type\": \"streak\", \"mode\": \"finance\", \"days\": 7}', 100, 'rare'),
+('finance_guru', 'Finance Guru', '🏦', '{\"type\": \"streak\", \"mode\": \"finance\", \"days\": 30}', 500, 'epic'),
+('penny_pincher', 'Penny Pincher', '🪙', '{\"type\": \"quest_complete\", \"mode\": \"finance\", \"count\": 50}', 300, 'rare'),
+('wall_street', 'Wall Street', '📈', '{\"type\": \"quest_complete_consecutive\", \"mode\": \"finance\", \"days\": 14}', 200, 'epic')
+ON CONFLICT (name) DO NOTHING;
+
+-- Learning Achievements
+INSERT INTO achievements (name, description, badge_icon, criteria, xp_bonus, rarity) VALUES
+('first_lesson', 'First Lesson', '📖', '{\"type\": \"quest_complete\", \"mode\": \"learning\", \"count\": 1}', 50, 'common'),
+('study_streak', 'Study Streak', '📚', '{\"type\": \"streak\", \"mode\": \"learning\", \"days\": 7}', 100, 'rare'),
+('scholar', 'Scholar', '🎓', '{\"type\": \"streak\", \"mode\": \"learning\", \"days\": 30}', 500, 'epic'),
+('bookworm', 'Bookworm', '🐛', '{\"type\": \"quest_complete\", \"mode\": \"learning\", \"count\": 50}', 300, 'rare'),
+('lifelong_learner', 'Lifelong Learner', '🧠', '{\"type\": \"quest_complete_consecutive\", \"mode\": \"learning\", \"days\": 14}', 200, 'epic')
+ON CONFLICT (name) DO NOTHING;
+\""
+```
+
+**Step 2: Verify clean state**
+```bash
+git status  # should be clean
+```
+
+**Step 3: Create worktrees**
+```bash
+git branch feature/achievements-page 2>/dev/null
+git branch feature/achievements-backend 2>/dev/null
+git branch feature/final-test-coverage 2>/dev/null
+git worktree add ../Wibecode-agent-a feature/achievements-page
+git worktree add ../Wibecode-agent-b feature/achievements-backend
+git worktree add ../Wibecode-agent-c feature/final-test-coverage
+```
+
+**Step 4: Install dependencies**
+```bash
+cd ../Wibecode-agent-a/mini-app && npm install
+cd ../../Wibecode-agent-b/bot && npm install
+cd ../../Wibecode-agent-c/bot && npm install
+```
+
+**Step 5: Verify worktrees**
+```bash
+cd c:\Users\Asus\Desktop\Wibecode
+git worktree list
+```
+
+**Step 6: Tell the user** "Ready to launch Agents A, B, C."
+
+### Phase 2: WAIT for all 3 agents to finish
+
+### Phase 3: Post-Run Merge
+
+```bash
+# Check each branch
+git log main..feature/achievements-backend --oneline
+git log main..feature/final-test-coverage --oneline
+git log main..feature/achievements-page --oneline
+```
+
+**Merge order:**
+1. `git merge feature/achievements-backend --no-edit` → verify `cd bot && npm run build`
+2. `git merge feature/final-test-coverage --no-edit` → verify `cd bot && npm run build`
+3. `git merge feature/achievements-page --no-edit` → verify `cd mini-app && npm run build`
+
+**Deploy + Clean up** (see Agent 0 Self-Protocol above).
+
+### Phase 4: Prepare Run 7
+
+After deploying Run 6, write retrospective, design next run, set up worktrees.
+
+---
+
+## Agent A — Achievements Page & UX Polish (Run 6)
+
+**You are Agent A.** You create the Achievements page and improve UX.
+
+**Working directory:** `c:\Users\Asus\Desktop\Wibecode-agent-a`
+**Branch:** `feature/achievements-page` (you are ALREADY on it — do NOT switch branches)
+**Build command:** `cd mini-app && npm run build`
+
+### RULES (NON-NEGOTIABLE)
+
+1. You are ALREADY on branch `feature/achievements-page` — do NOT run `git checkout`
+2. Commit after EVERY task — atomic: `git add FILES && git commit -m "MSG"`
+3. Do NOT push to remote or deploy to server
+4. Do NOT add any new npm packages
+5. After ALL changes, run `cd mini-app && npm run build` and fix errors
+
+### FILES YOU OWN
+```
+mini-app/src/pages/Achievements.tsx              — NEW: achievements page
+mini-app/src/pages/Dashboard.tsx                 — streak visualization improvements
+mini-app/src/App.tsx                             — ONLY add <Route> for achievements page
+mini-app/src/components/Navigation.tsx           — add achievements nav item
+mini-app/src/components/                         — new components (Toast, etc.)
+mini-app/src/index.css                           — add new styles
+mini-app/src/pages/Profile.tsx                   — link to achievements
+```
+
+### FILES YOU MUST NOT TOUCH
+```
+mini-app/src/api/client.ts                       — stable from Run 5
+mini-app/src/types/index.ts                      — stable from Run 5
+mini-app/src/hooks/                              — shared hooks, locked
+mini-app/src/components/onboarding/              — onboarding complete, locked
+mini-app/src/data/                               — quiz data, locked
+mini-app/vite.config.ts                          — build config
+mini-app/package.json                            — no new dependencies
+bot/                                             — not your area
+tools/                                           — not your area
+```
+
+### PROJECT CONTEXT
+
+- React 18 + TypeScript + Vite + Tailwind CSS + Framer Motion + Lucide React
+- API client has `getAchievements()` (all achievements) and `getUserAchievements(userId)` (unlocked ones)
+- Achievement type: `{ id, name, description, badge_icon (emoji), criteria (JSON), xp_bonus, rarity, category }`
+- UserAchievement type: `{ id, user_id, achievement_id, unlocked_at }`
+- Rarity levels: common, rare, epic, legendary
+- Current navigation: 4 items (Dashboard, Quests, Profile, Leaderboard)
+- All pages use PageWrapper for enter animations, pull-to-refresh pattern, loading skeletons
+
+### TASKS (do in order, commit after each)
+
+**Task 1: Create Achievements page**
+- Create `mini-app/src/pages/Achievements.tsx`
+- Fetch all achievements + user achievements using `apiClient.getAchievements()` and `apiClient.getUserAchievements(userId)`
+- Display as a grid of achievement cards:
+  - Unlocked: full color, emoji badge, name, description, XP bonus, unlock date
+  - Locked: grayed out / dimmed, badge hidden or silhouette, name only
+- Group by rarity (common → rare → epic → legendary) with section headers
+- Show progress: "X / Y unlocked" at top
+- Add pull-to-refresh (same pattern as other pages)
+- Loading skeleton, error state with retry
+- Use PageWrapper for enter animation
+
+**Task 2: Add Achievements to navigation**
+- Read `mini-app/src/components/Navigation.tsx`
+- Add 5th nav item: Achievements (use Trophy icon from Lucide)
+- The navigation currently has 4 items — adding a 5th will make it a full bottom bar
+- Route path: `/achievements`
+- Add haptic feedback on tap (same pattern as existing items)
+
+**Task 3: Add achievements route**
+- Read `mini-app/src/App.tsx`
+- Add `<Route path="/achievements" element={<Achievements />} />`
+- Import the Achievements page
+
+**Task 4: Add achievements summary to Profile page**
+- Read `mini-app/src/pages/Profile.tsx`
+- Add an "Achievements" card/section showing:
+  - Total unlocked count / total available
+  - 3 most recent unlocked achievements (emoji + name)
+  - "View all" link that navigates to /achievements
+- This gives users a quick glimpse from Profile
+
+**Task 5: Add a reusable Toast component**
+- Create `mini-app/src/components/Toast.tsx`
+- Simple toast that slides in from top, auto-dismisses after 3s
+- Variants: success (green), error (red), info (blue)
+- Props: `message: string, variant: 'success' | 'error' | 'info', onDismiss: () => void`
+- Use framer-motion for enter/exit animation
+- Use this toast in ProfileEditModal (replace the inline "Saved!" text) and Settings page (on save success)
+
+### RETROSPECTIVE (DO THIS LAST)
+Add your retrospective to PARALLEL_AGENTS.md at the bottom under "Run 6 Retrospectives".
+
+---
+
+## Agent B — Achievements Backend & Performance (Run 6)
+
+**You are Agent B.** You add Finance/Learning achievements and performance optimizations.
+
+**Working directory:** `c:\Users\Asus\Desktop\Wibecode-agent-b`
+**Branch:** `feature/achievements-backend` (you are ALREADY on it — do NOT switch branches)
+**Build command:** `cd bot && npm run build`
+
+### RULES (NON-NEGOTIABLE)
+
+1. You are ALREADY on branch `feature/achievements-backend` — do NOT run `git checkout`
+2. Commit after EVERY task — atomic: `git add FILES && git commit -m "MSG"`
+3. Do NOT push to remote or deploy to server
+4. Do NOT add any new npm packages
+5. ESM project: ALL local imports need `.js` extensions
+6. After ALL changes, run `cd bot && npm run build` and fix errors
+
+### FILES YOU OWN
+```
+database/seed_data.sql                             — add finance/learning achievements
+database/migrations/run6_achievements.sql          — NEW: migration for new achievements
+database/schema.sql                                — add performance indexes
+bot/src/jobs/definitions/dailySummary.ts           — timezone-aware scheduling
+bot/src/handlers/dailySummary.ts                   — if needed for timezone fix
+bot/src/api/routes/achievements.ts                 — if needed for improvements
+```
+
+### FILES YOU MUST NOT TOUCH
+```
+bot/src/bot.ts                                     — Grammy instance, locked
+bot/src/config.ts                                  — centralized, locked
+bot/src/utils/                                     — db, cache, pythonTools all locked
+bot/src/types/                                     — shared types, locked
+bot/src/handlers/ (except dailySummary.ts)         — handlers stable, locked
+bot/src/index.ts                                   — command registration stable, locked
+bot/src/api/routes/users.ts                        — stable, locked
+bot/src/api/routes/onboarding.ts                   — stable, locked
+bot/src/api/routes/leaderboard.ts                  — stable from Run 5, locked
+bot/src/api/middleware/                             — auth works fine
+bot/package.json                                   — no new dependencies
+mini-app/                                          — not your area
+tools/                                             — not your area
+```
+
+### PROJECT CONTEXT
+
+- Grammy bot framework, ESM (`"type": "module"`), TypeScript strict
+- `db.query(sql, params)`, `db.queryOne(sql, params)` from utils/db.ts
+- `cache.cached(key, ttl, fn)` from utils/cache.ts
+- Existing achievements: 5 Fitness + 5 Hydration + 5 Cross-Mode = 15 total
+- Need: 5 Finance + 5 Learning achievements (matching the pattern)
+- Daily summary job runs at fixed 9 PM UTC — should use per-user `reminder_time`
+- `users` table has `reminder_time INTEGER DEFAULT 9` (hour in UTC)
+
+### TASKS (do in order, commit after each)
+
+**Task 1: Add Finance & Learning achievements to seed data**
+- Read `database/seed_data.sql` to see the existing achievements pattern
+- Add Finance achievements (5):
+  - `first_saving` (common, 50 XP): first finance quest completed
+  - `budget_master` (rare, 100 XP): 7-day finance streak
+  - `finance_guru` (epic, 500 XP): 30-day finance streak
+  - `penny_pincher` (rare, 300 XP): 50 finance quests completed
+  - `wall_street` (epic, 200 XP): 14 consecutive days of finance quests
+- Add Learning achievements (5):
+  - `first_lesson` (common, 50 XP): first learning quest completed
+  - `study_streak` (rare, 100 XP): 7-day learning streak
+  - `scholar` (epic, 500 XP): 30-day learning streak
+  - `bookworm` (rare, 300 XP): 50 learning quests completed
+  - `lifelong_learner` (epic, 200 XP): 14 consecutive days of learning quests
+- Follow exact same INSERT pattern as Fitness/Hydration
+
+**Task 2: Create achievements migration script**
+- Create `database/migrations/run6_achievements.sql`
+- Include the 10 new achievements as idempotent INSERTs (ON CONFLICT DO NOTHING)
+- Add performance indexes:
+  - `CREATE INDEX IF NOT EXISTS idx_qi_user_status ON quest_instances(user_id, status) WHERE status = 'completed'`
+  - `CREATE INDEX IF NOT EXISTS idx_qi_completed_at ON quest_instances(completed_at) WHERE status = 'completed'`
+  - `CREATE INDEX IF NOT EXISTS idx_ua_user ON user_achievements(user_id)`
+  - `CREATE INDEX IF NOT EXISTS idx_streaks_user ON streaks(user_id)`
+
+**Task 3: Make daily summary timezone-aware**
+- Read `bot/src/jobs/definitions/dailySummary.ts`
+- Currently queries all users with `notification_enabled = true` at fixed 9 PM UTC
+- Change to: query users WHERE `reminder_time = EXTRACT(HOUR FROM NOW() AT TIME ZONE 'UTC')`
+- This means the job still runs every hour (change cron from `0 21 * * *` to `0 * * * *`)
+- Each hour, it sends to users whose `reminder_time` matches the current UTC hour
+- Keep batch processing (50 at a time, 200ms delay)
+- Update `registerJobs.ts` cron schedule
+
+**Task 4: Add category field to achievements query**
+- Read `bot/src/api/routes/achievements.ts`
+- The `GET /api/achievements` endpoint should return achievements grouped or with a `category` field
+- The `criteria` JSON has a `mode` field — extract it and add as `category` to the response
+- This helps the mini-app group achievements by mode without parsing JSON on the client
+
+**Task 5: Verify builds pass**
+- Run `cd bot && npm run build` and fix any errors
+- Create `bot/src/handlers/REGISTER_THESE_RUN6.md` documenting what was changed
+
+### RETROSPECTIVE (DO THIS LAST)
+Add your retrospective to PARALLEL_AGENTS.md at the bottom under "Run 6 Retrospectives".
+
+---
+
+## Agent C — Final Test Coverage (Run 6)
+
+**You are Agent C.** You close the remaining test coverage gaps.
+
+**Working directory:** `c:\Users\Asus\Desktop\Wibecode-agent-c`
+**Branch:** `feature/final-test-coverage` (you are ALREADY on it — do NOT switch branches)
+**Build command:** `cd bot && npm run build`
+
+### RULES (NON-NEGOTIABLE)
+
+1. You are ALREADY on branch `feature/final-test-coverage` — do NOT run `git checkout`
+2. Commit after EVERY task — atomic: `git add FILES && git commit -m "MSG"`
+3. Do NOT push to remote or deploy to server
+4. Do NOT modify package.json or requirements.txt
+5. After ALL changes, run `cd bot && npm run build` and fix errors
+
+### FILES YOU OWN
+```
+bot/src/__tests__/                                 — ALL test files (existing + new)
+bot/src/__tests__/setup.ts                         — mock helpers (may add new ones)
+bot/vitest.config.ts                               — test config
+tools/tests/                                       — ALL Python test files
+```
+
+### FILES YOU MUST NOT TOUCH
+```
+bot/src/ (ALL non-test .ts files)                  — source code, read-only
+mini-app/                                          — not your area
+tools/*.py                                         — source tools, read-only
+database/                                          — schema, read-only
+bot/package.json                                   — no deps
+.env                                               — secrets
+```
+
+### PROJECT CONTEXT
+
+- **Vitest** for TypeScript tests (ESM, globals enabled), config at `bot/vitest.config.ts`
+- **pytest** for Python tests with `unittest.mock`
+- `mockReset: true` is enabled globally in vitest config
+- **Total tests**: 234 TypeScript, 172 Python = 406 total
+- **Remaining untested**:
+  - `bot/src/handlers/miniapp.ts` (82 lines, 3 simple functions)
+  - `bot/src/api/routes/admin.ts` (498 lines, 10+ endpoints, uses `authenticateAdmin` middleware)
+  - `bot/src/api/routes/onboarding.ts` (166 lines, save/complete onboarding routes)
+- Mock Grammy context: `{ reply: vi.fn(), from: { id: 123 } }`
+- Mock admin auth: mock `authenticateAdmin` middleware to always call `next()`
+- Admin routes use `executePythonTool` heavily — mock it
+
+### TASKS (do in order, commit after each)
+
+**Task 1: Add tests for miniapp.ts handler (quick win)**
+- Read `bot/src/handlers/miniapp.ts`
+- Create `bot/src/__tests__/handlers/miniapp.test.ts`
+- Test all 3 functions: `handleOpenApp`, `handleOpenQuests`, `handleOpenProfile`
+- Each should: call ctx.reply with Markdown, include inline keyboard with web_app URL
+- Test: correct URL paths, correct button text, parse_mode is 'Markdown'
+- Mock: Grammy context (`ctx.reply`)
+
+**Task 2: Add tests for admin.ts route (biggest gap)**
+- Read `bot/src/api/routes/admin.ts` carefully — it's 498 lines with many endpoints
+- Create `bot/src/__tests__/routes/admin.test.ts`
+- Mock `authenticateAdmin` middleware to always call `next()`
+- Mock `executePythonTool` for all DB operations
+- Test endpoints:
+  - `GET /api/admin/stats` — returns user/quest/achievement counts
+  - `GET /api/admin/users` — list users with pagination
+  - `GET /api/admin/users/:id` — single user detail
+  - `POST /api/admin/users/:id/notification` — send notification
+  - `GET /api/admin/quests` — list quest templates
+  - `GET /api/admin/jobs` — list scheduled jobs
+  - Error cases: missing params, executePythonTool failures
+- This is the largest task — aim for 15-20 tests covering the main flows
+
+**Task 3: Add tests for onboarding.ts API route**
+- Read `bot/src/api/routes/onboarding.ts`
+- Add tests to existing `bot/src/__tests__/routes/onboarding.test.ts` or create new
+- Test endpoints:
+  - `GET /api/onboarding/:telegramId` — get onboarding state
+  - `POST /api/onboarding/:telegramId/save` — save progress
+  - `POST /api/onboarding/:telegramId/complete` — complete onboarding
+  - Validation: missing telegramId, invalid data, duplicate completion
+- Mock: `executePythonTool`, `db.query`
+
+**Task 4: Add tests for achievements API route**
+- Read `bot/src/api/routes/achievements.ts`
+- Create or update `bot/src/__tests__/routes/achievements.test.ts`
+- Test endpoints:
+  - `GET /api/achievements` — list all achievements
+  - `GET /api/achievements/user/:userId` — user's unlocked achievements
+  - Error cases: invalid userId, DB error
+- Mock: `executePythonTool`, `db.query`
+
+**Task 5: Run ALL tests and verify everything passes**
+- Run `cd bot && npx vitest run --reporter=verbose`
+- Run `python -m pytest tools/tests/ -v`
+- Fix ANY failures
+- Final commit with total counts: "All tests passing: X TypeScript, Y Python"
+
+### RETROSPECTIVE (DO THIS LAST)
+Add your retrospective to PARALLEL_AGENTS.md at the bottom under "Run 6 Retrospectives".
+
+---
+
+## Run 6 File Ownership Matrix
+
+| File/Directory | Agent A | Agent B | Agent C | Nobody |
+|---|---|---|---|---|
+| mini-app/src/pages/Achievements.tsx (NEW) | OWNS | - | - | - |
+| mini-app/src/pages/Dashboard.tsx | OWNS | - | - | - |
+| mini-app/src/pages/Profile.tsx | OWNS | - | - | - |
+| mini-app/src/components/Navigation.tsx | OWNS | - | - | - |
+| mini-app/src/components/Toast.tsx (NEW) | OWNS | - | - | - |
+| mini-app/src/App.tsx (routes only) | OWNS | - | - | - |
+| mini-app/src/index.css | OWNS | - | - | - |
+| database/seed_data.sql | - | OWNS | - | - |
+| database/migrations/run6_achievements.sql (NEW) | - | OWNS | - | - |
+| database/schema.sql (indexes only) | - | OWNS | - | - |
+| bot/src/jobs/definitions/dailySummary.ts | - | OWNS | - | - |
+| bot/src/jobs/registerJobs.ts | - | OWNS | - | - |
+| bot/src/api/routes/achievements.ts | - | OWNS | - | - |
+| bot/src/__tests__/ | - | - | OWNS | - |
+| tools/tests/ | - | - | OWNS | - |
+| bot/vitest.config.ts | - | - | OWNS | - |
+| mini-app/src/api/client.ts | - | - | - | LOCKED |
+| mini-app/src/types/index.ts | - | - | - | LOCKED |
+| mini-app/src/hooks/ | - | - | - | LOCKED |
+| bot/src/utils/ | - | - | - | LOCKED |
+| bot/src/config.ts | - | - | - | LOCKED |
+| bot/src/index.ts | - | - | - | LOCKED |
+| bot/src/handlers/ (except dailySummary.ts) | - | - | - | LOCKED |
+| .env | - | - | - | LOCKED |
+
+## Run 6 Merge Order
+
+1. **Agent B first** — backend achievements + performance + daily summary fix
+2. **Agent C second** — tests (reference stable source)
+3. **Agent A last** — mini-app achievements page (completely independent)
+
+---
+
+## Run 6 Retrospectives
+
+*(Agents: add your retrospective sections below this line when you finish)*
