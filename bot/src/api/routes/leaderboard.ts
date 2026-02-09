@@ -9,11 +9,66 @@ const router = Router();
  * GET /api/leaderboard
  * Returns leaderboard using direct query (no materialized view).
  * Cached for 30 seconds — leaderboard doesn't change per-request.
+ * Optional ?mode=fitness|hydration|finance|learning to filter by mode.
  */
 router.get('/', authenticateTelegram, async (req: Request, res: Response) => {
   try {
     const limit = Math.min(parseInt(req.query.limit as string) || 50, 100);
+    const mode = req.query.mode as string | undefined;
 
+    if (mode) {
+      // Mode-filtered leaderboard: rank by mode-specific XP and streaks
+      const cacheKey = `leaderboard:mode:${mode}:${limit}`;
+      const entries = await cached(cacheKey, TTL.SHORT, () =>
+        query(
+          `SELECT u.id AS user_id, u.telegram_id, u.username, u.first_name,
+                  u.current_level, u.total_xp,
+                  COALESCE(s.current_streak, 0)::int AS mode_streak,
+                  COALESCE(qi.mode_xp, 0)::int AS mode_xp,
+                  COALESCE(qi.mode_quests, 0)::int AS mode_quests_completed,
+                  ROW_NUMBER() OVER (ORDER BY COALESCE(qi.mode_xp, 0) DESC) AS xp_rank
+           FROM users u
+           JOIN user_modes um ON um.user_id = u.id AND um.is_active = true
+           JOIN modes m ON m.id = um.mode_id AND m.name = $2
+           LEFT JOIN (
+             SELECT s.user_id, s.current_streak
+             FROM streaks s
+             JOIN modes m ON m.id = s.mode_id AND m.name = $2
+           ) s ON s.user_id = u.id
+           LEFT JOIN (
+             SELECT qi.user_id,
+                    SUM(qi.xp_awarded)::int AS mode_xp,
+                    COUNT(*)::int AS mode_quests
+             FROM quest_instances qi
+             JOIN quests q ON q.id = qi.quest_id
+             JOIN modes m ON m.id = q.mode_id AND m.name = $2
+             WHERE qi.status = 'completed'
+             GROUP BY qi.user_id
+           ) qi ON qi.user_id = u.id
+           WHERE u.is_active = true
+           ORDER BY COALESCE(qi.mode_xp, 0) DESC
+           LIMIT $1`,
+          [limit, mode]
+        )
+      );
+
+      const formatted = entries.map((row: any) => ({
+        user_id: row.user_id,
+        telegram_id: row.telegram_id,
+        username: row.username,
+        first_name: row.first_name,
+        level: row.current_level,
+        total_xp: row.total_xp,
+        mode_xp: row.mode_xp,
+        mode_streak: row.mode_streak,
+        mode_quests_completed: row.mode_quests_completed,
+        xp_rank: parseInt(row.xp_rank) || 0,
+      }));
+
+      return res.json({ success: true, mode, data: formatted });
+    }
+
+    // Default cross-mode leaderboard
     const entries = await cached(`leaderboard:${limit}`, TTL.SHORT, () =>
       query(
         `SELECT u.id AS user_id, u.telegram_id, u.username, u.first_name,
