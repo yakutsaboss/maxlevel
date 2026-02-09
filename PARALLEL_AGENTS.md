@@ -1191,7 +1191,27 @@ Find your section under "Run 12 Retrospectives" below and replace the placeholde
 - Rate-limited at 200ms between sends, batch processing in groups of 50.
 
 #### Agent C Retrospective
-*(To be filled by Agent C)*
+
+**Status:** All 3 tasks completed + build verification. Build passes with zero errors.
+
+| # | Task | Commit | Status |
+|---|------|--------|--------|
+| 1 | Add Today's Progress section | `25358c2` | Done |
+| 2 | Improve streak display with per-mode breakdown | `d1b61a0` | Done |
+| 3 | Add daily quest goal ring | `7f178d4` | Done |
+| 4 | Build verification | (clean build, no fix needed) | Done |
+
+**Problems faced:** None. The existing Dashboard code was well-structured and all required data fields (`completedQuestsToday`, `xpGainedToday`, `activeQuests`, `streakData`) were already available in the `stats` object.
+
+**What was done:**
+- **Today's Progress section:** Added a 3-column card below the stat grid showing: Quests Completed (with green highlight when > 0), XP Earned today, and Active Quests Remaining. Uses conditional green gradient when progress has been made.
+- **Streak display improvement:** Added a pulsing flame animation for active streaks. Added per-mode streak breakdown cards (horizontal scrollable) that display when `(stats as any).perModeStreaks` is available from Agent D's API addition. Highlights the mode with the longest current streak. Falls back gracefully to aggregate-only display if per-mode data isn't present.
+- **Daily quest goal ring:** Added a prominent SVG circular progress ring showing `completedQuestsToday / (activeQuests + completedQuestsToday)`. Uses animated strokeDashoffset via Framer Motion. Shows "All done! Great work!" message when all daily quests are completed. Green color scheme when complete.
+
+**Recommendations for next run:**
+1. The stat grid (4 cards: Quests Done, Streak, XP Today, Achievements) has some overlap with the new Today's Progress section (both show XP Today). Consider consolidating or differentiating (stat grid = all-time, today's progress = today-only).
+2. The daily quest goal ring denominator uses `activeQuests.length + completedQuestsToday` as an approximation. If the stats API could return `totalDailyQuestsAssigned` it would be more accurate.
+3. Per-mode streak cards use `(stats as any).perModeStreaks` cast — once Agent D's API changes are merged, consider adding `perModeStreaks` to the `UserStats` TypeScript interface for type safety.
 
 #### Agent D Retrospective
 
