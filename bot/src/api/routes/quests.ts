@@ -4,6 +4,7 @@ import { mutationLimiter, readLimiter } from '../middleware/rateLimiter.js';
 import { executePythonTool } from '../../utils/pythonTools.js';
 import { queryOne, transaction } from '../../utils/db.js';
 import { invalidateUserCache } from '../../utils/cache.js';
+import { checkAndUnlockAchievements } from '../../utils/achievementEngine.js';
 
 const router = Router();
 
@@ -104,6 +105,21 @@ router.post('/:questId/complete', authenticateTelegram, mutationLimiter, async (
     }
 
     const data = result.data as any;
+
+    // Fire-and-forget: update streak and check achievements
+    const questInfo = await queryOne(
+      `SELECT q.mode_id, qi.user_id FROM quest_instances qi JOIN quests q ON q.id = qi.quest_id WHERE qi.id = $1`,
+      [parseInt(questId)]
+    );
+    if (questInfo) {
+      const uid = questInfo.user_id;
+      const modeId = questInfo.mode_id;
+      Promise.allSettled([
+        executePythonTool('streak_manager', ['--update-streak', '--user-id', String(uid), '--mode-id', String(modeId)]),
+        checkAndUnlockAchievements(uid),
+      ]).catch(console.error);
+    }
+
     res.json({
       message: 'Quest completed successfully',
       xpEarned: data?.xp_awarded || 0,
@@ -218,7 +234,7 @@ router.patch('/:questId/progress', authenticateTelegram, mutationLimiter, async 
     // Fetch the quest instance and its target
     const quest = await queryOne(
       `SELECT qi.id, qi.user_id, qi.status, qi.check_in_count AS current_progress,
-              q.xp_reward, q.title, 1 AS target
+              q.xp_reward, q.title, q.mode_id, 1 AS target
        FROM quest_instances qi
        JOIN quests q ON qi.quest_id = q.id
        WHERE qi.id = $1`,
@@ -253,6 +269,12 @@ router.patch('/:questId/progress', authenticateTelegram, mutationLimiter, async 
       });
 
       invalidateUserCache(user_id);
+
+      // Fire-and-forget: update streak and check achievements
+      Promise.allSettled([
+        executePythonTool('streak_manager', ['--update-streak', '--user-id', String(user_id), '--mode-id', String(quest.mode_id)]),
+        checkAndUnlockAchievements(user_id),
+      ]).catch(console.error);
 
       return res.json({
         success: true,
