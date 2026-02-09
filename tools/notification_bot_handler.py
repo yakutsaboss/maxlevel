@@ -189,13 +189,71 @@ async def ping_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     except Exception:
         results.append(f"\u274C Database \u2014 timeout")
 
+    # 5. Last backup info (Timeweb API)
+    backup_line = ""
+    try:
+        tw_token = os.getenv('TIMEWEB_CLOUD_API_TOKEN', '')
+        server_id = os.getenv('TIMEWEB_SERVER_ID', '6590889')
+        disk_id = os.getenv('TIMEWEB_DISK_ID', '23234485')
+        if tw_token:
+            req = urllib.request.Request(
+                f"https://api.timeweb.cloud/api/v1/servers/{server_id}/disks/{disk_id}/backups",
+                headers={"Authorization": f"Bearer {tw_token}"}
+            )
+            with urllib.request.urlopen(req, timeout=10) as resp:
+                data = json.loads(resp.read())
+                backups = data.get("backups", [])
+                if backups:
+                    latest = backups[0]
+                    created = latest.get("created_at", "")[:16].replace("T", " ")
+                    status = latest.get("status", "unknown")
+                    btype = latest.get("type", "unknown")
+                    icon = "\u2705" if status == "done" else "\u23F3"
+                    backup_line = f"{icon} <b>Last backup:</b> {created} UTC ({btype}, {status})"
+                else:
+                    backup_line = "\u26A0\uFE0F <b>Last backup:</b> none found"
+    except Exception as e:
+        backup_line = f"\u274C <b>Backup check failed:</b> {str(e)[:40]}"
+
+    # 6. Claude Code usage (from local ccusage data if available)
+    claude_line = ""
+    try:
+        ccusage_file = PROJECT_ROOT / ".tmp" / "claude_usage.json"
+        if ccusage_file.exists():
+            with open(ccusage_file) as f:
+                usage = json.load(f)
+            tokens_used = usage.get("tokens_used", 0)
+            tokens_limit = usage.get("tokens_limit", 0)
+            updated = usage.get("updated_at", "")[:16]
+            if tokens_limit > 0:
+                pct = int(tokens_used / tokens_limit * 100)
+                bar_filled = pct // 10
+                bar_empty = 10 - bar_filled
+                bar = "\u2588" * bar_filled + "\u2591" * bar_empty
+                claude_line = (
+                    f"\U0001F916 <b>Claude Code:</b> {tokens_used:,}/{tokens_limit:,} tokens ({pct}%)\n"
+                    f"    <code>[{bar}]</code>  <i>updated {updated}</i>"
+                )
+            else:
+                claude_line = f"\U0001F916 <b>Claude Code:</b> {tokens_used:,} tokens used <i>({updated})</i>"
+        else:
+            claude_line = "\U0001F916 <b>Claude Code:</b> run <code>npx ccusage daily</code> locally to sync"
+    except Exception:
+        claude_line = "\U0001F916 <b>Claude Code:</b> usage data unavailable"
+
     await thinking.delete()
 
     # Format output
     all_ok = all("\u2705" in r for r in results)
-    footer = "\n\nAll systems operational." if all_ok else "\n\n\u26A0\uFE0F Some services have issues."
+    status_footer = "All systems operational." if all_ok else "\u26A0\uFE0F Some services have issues."
 
-    msg = "<b>\U0001F3D3 Health Check</b>\n\n" + "\n".join(results) + footer
+    msg = (
+        "<b>\U0001F3D3 Pong!</b>\n\n"
+        + "\n".join(results)
+        + f"\n\n{status_footer}"
+        + (f"\n\n{backup_line}" if backup_line else "")
+        + (f"\n{claude_line}" if claude_line else "")
+    )
     await update.message.reply_html(msg)
 
 
