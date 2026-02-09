@@ -16,6 +16,8 @@ import {
   handleModeSummary,
   showModeSelection
 } from './handlers/onboarding.js';
+import { handleSettings, handleSettingsCallback } from './handlers/settings.js';
+import { handleStats, handleStatsCallback } from './handlers/stats.js';
 import { startApiServer } from './api/server.js';
 import { startJobQueue, stopJobQueue } from './jobs/boss.js';
 import { registerAllJobs } from './jobs/registerJobs.js';
@@ -28,6 +30,8 @@ bot.command('app', handleOpenApp);
 bot.command('quests', handleOpenQuests);
 bot.command('profile', handleOpenProfile);
 bot.command('modes', handleModesCommand);
+bot.command('settings', handleSettings);
+bot.command('stats', handleStats);
 
 // Register callback query handlers
 bot.callbackQuery(/^mode_select_/, handleModeSelection);
@@ -39,6 +43,8 @@ bot.callbackQuery('start_mode_selection', async (ctx) => {
 });
 bot.callbackQuery('mode_summary', handleModeSummary);
 bot.callbackQuery(/^(open_app|view_quests|view_profile)$/, handleQuickAction);
+bot.callbackQuery(/^settings:/, handleSettingsCallback);
+bot.callbackQuery(/^stats:/, handleStatsCallback);
 
 // Menu command
 bot.command('menu', async (ctx) => {
@@ -50,6 +56,8 @@ bot.command('menu', async (ctx) => {
       '/quests - View your quests\n' +
       '/profile - View your profile\n' +
       '/modes - Manage your modes\n' +
+      '/settings - Configure notifications & timezone\n' +
+      '/stats - View your statistics\n' +
       '/menu - Show this menu\n' +
       '/help - Get help\n' +
       '/ping - Check if bot is alive\n\n' +
