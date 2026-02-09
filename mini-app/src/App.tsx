@@ -8,6 +8,7 @@ import { Leaderboard } from '@/pages/Leaderboard';
 import { Settings } from '@/pages/Settings';
 import { Achievements } from '@/pages/Achievements';
 import { Onboarding } from '@/pages/Onboarding';
+import { Admin } from '@/pages/Admin';
 import { Navigation } from '@/components/Navigation';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { useTelegram } from '@/hooks/useTelegram';
@@ -127,6 +128,7 @@ function AppContent() {
           path="/settings"
           element={needsOnboarding ? <Navigate to="/onboarding" replace /> : <PageWrapper><Settings /></PageWrapper>}
         />
+        <Route path="/admin" element={<Admin />} />
       </Routes>
       {showNavigation && <Navigation />}
     </div>
