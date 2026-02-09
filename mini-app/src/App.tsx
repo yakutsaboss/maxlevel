@@ -9,6 +9,7 @@ import { Settings } from '@/pages/Settings';
 import { Achievements } from '@/pages/Achievements';
 import { Onboarding } from '@/pages/Onboarding';
 import { Navigation } from '@/components/Navigation';
+import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { useTelegram } from '@/hooks/useTelegram';
 import { useOnboarding } from '@/hooks/useOnboarding';
 import { apiClient } from '@/api/client';
@@ -154,9 +155,11 @@ function App() {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <BrowserRouter basename="/levelapp">
-        <AppContent />
-      </BrowserRouter>
+      <ErrorBoundary>
+        <BrowserRouter basename="/levelapp">
+          <AppContent />
+        </BrowserRouter>
+      </ErrorBoundary>
     </QueryClientProvider>
   );
 }
