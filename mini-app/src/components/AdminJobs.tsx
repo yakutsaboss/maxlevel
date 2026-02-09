@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Play, RefreshCw, Clock, CheckCircle, XCircle } from 'lucide-react';
+import { Play, RefreshCw, Clock } from 'lucide-react';
 import { Toast } from '@/components/Toast';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
