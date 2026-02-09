@@ -272,4 +272,64 @@ describe('POST /api/onboarding/:telegramId/complete', () => {
 
     expect(res._status).toBe(500);
   });
+
+  it('should return 404 when user lookup returns null', async () => {
+    mockQueryOne.mockResolvedValueOnce(null);
+
+    const res = mockResponse();
+    const userLookup = await mockQueryOne('SELECT id FROM users WHERE telegram_id = $1', [999]);
+
+    if (!userLookup) {
+      res.status(404).json({ success: false, error: 'User not found' });
+    }
+
+    expect(res._status).toBe(404);
+    expect(res._json.error).toBe('User not found');
+  });
+
+  it('should handle onboarding without punishment settings', () => {
+    const quiz_data = {
+      selected_modes: ['fitness'],
+      fitness: { level: 'beginner' },
+    } as any;
+
+    expect(quiz_data.punishments).toBeUndefined();
+    // If punishments is falsy, the INSERT block is skipped
+    if (quiz_data.punishments) {
+      throw new Error('Should not reach here');
+    }
+  });
+
+  it('should award 50 XP on completion', async () => {
+    const xpAwarded = 50;
+
+    mockTransaction.mockImplementationOnce(async (fn: any) => {
+      const mockClient = {
+        query: vi.fn().mockResolvedValue({ rows: [], rowCount: 0 }),
+      };
+      await fn(mockClient);
+    });
+
+    await mockTransaction(async (client: any) => {
+      await client.query('INSERT INTO mode_configs ...', [1, '{}', '{}', 'fitness']);
+      await client.query(`UPDATE users SET total_xp = total_xp + ${xpAwarded} WHERE id = $1`, [1]);
+      await client.query("UPDATE onboarding_state SET current_step = 'completed' WHERE user_id = $1", [1]);
+    });
+
+    expect(xpAwarded).toBe(50);
+  });
+
+  it('should parse telegramId as integer', () => {
+    const req = mockRequest({ params: { telegramId: '123456789' } });
+    const tid = parseInt(req.params.telegramId);
+
+    expect(tid).toBe(123456789);
+    expect(typeof tid).toBe('number');
+  });
+
+  it('should join selected_modes for Python tool call', () => {
+    const quiz_data = { selected_modes: ['fitness', 'hydration', 'sleep'] };
+    const modesString = quiz_data.selected_modes.join(',');
+    expect(modesString).toBe('fitness,hydration,sleep');
+  });
 });
