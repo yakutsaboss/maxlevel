@@ -7,12 +7,10 @@
 
 INSERT INTO modes (name, display_name, description, icon_emoji) VALUES
 ('fitness', 'Fitness', 'Physical exercise and workouts', '🏋️'),
-('hydration', 'Hydration', 'Water intake and hydration tracking', '💧')
+('hydration', 'Hydration', 'Water intake and hydration tracking', '💧'),
+('finance', 'Finance', 'Saving goals and budget tracking', '💰'),
+('learning', 'Learning', 'Reading and skill development', '📚')
 ON CONFLICT (name) DO NOTHING;
-
--- Future modes (commented out for v2)
--- ('finance', 'Finance', 'Saving goals and budget tracking', '💰'),
--- ('learning', 'Learning', 'Reading and skill development', '📚')
 
 -- ========================================
 -- ACHIEVEMENTS (MVP)
@@ -49,14 +47,18 @@ ON CONFLICT (name) DO NOTHING;
 -- QUEST TEMPLATES (MVP)
 -- ========================================
 
--- Get mode IDs for fitness and hydration
+-- Get mode IDs for all modes
 DO $$
 DECLARE
     fitness_mode_id INT;
     hydration_mode_id INT;
+    finance_mode_id INT;
+    learning_mode_id INT;
 BEGIN
     SELECT id INTO fitness_mode_id FROM modes WHERE name = 'fitness';
     SELECT id INTO hydration_mode_id FROM modes WHERE name = 'hydration';
+    SELECT id INTO finance_mode_id FROM modes WHERE name = 'finance';
+    SELECT id INTO learning_mode_id FROM modes WHERE name = 'learning';
 
     -- Fitness Quest Templates
     INSERT INTO quests (mode_id, title, description, quest_type, xp_reward, difficulty, requires_timer, timer_window_start, timer_window_end, readiness_check_enabled, readiness_check_time, is_mandatory) VALUES
@@ -70,6 +72,22 @@ BEGIN
     (hydration_mode_id, 'Drink Water (Every 2 Hours)', 'Stay hydrated throughout the day - 12 glasses target', 'daily', 40, 'easy', FALSE, NULL, NULL, FALSE, NULL, TRUE),
     (hydration_mode_id, 'Morning Hydration', 'Drink 2 glasses of water within 1 hour of waking up', 'daily', 20, 'easy', TRUE, '07:00:00', '09:00:00', FALSE, NULL, FALSE),
     (hydration_mode_id, 'Weekly Hydration Goal', 'Stay hydrated every day this week', 'weekly', 150, 'easy', FALSE, NULL, NULL, FALSE, NULL, TRUE)
+    ON CONFLICT DO NOTHING;
+
+    -- Finance Quest Templates (added in Run 5, active in production)
+    INSERT INTO quests (mode_id, title, description, quest_type, xp_reward, difficulty, requires_timer, timer_window_start, timer_window_end, readiness_check_enabled, readiness_check_time, is_mandatory) VALUES
+    (finance_mode_id, 'Track Daily Expenses', 'Log all your expenses for today', 'daily', 40, 'easy', FALSE, NULL, NULL, FALSE, NULL, TRUE),
+    (finance_mode_id, 'Review Budget', 'Review your budget and adjust categories if needed', 'daily', 30, 'easy', FALSE, NULL, NULL, FALSE, NULL, FALSE),
+    (finance_mode_id, 'Weekly Savings Check', 'Check your savings progress and transfer to savings account', 'weekly', 150, 'medium', FALSE, NULL, NULL, FALSE, NULL, TRUE),
+    (finance_mode_id, 'Weekly Finance Review', 'Review all spending categories and plan next week', 'weekly', 200, 'medium', FALSE, NULL, NULL, FALSE, NULL, TRUE)
+    ON CONFLICT DO NOTHING;
+
+    -- Learning Quest Templates (added in Run 5, active in production)
+    INSERT INTO quests (mode_id, title, description, quest_type, xp_reward, difficulty, requires_timer, timer_window_start, timer_window_end, readiness_check_enabled, readiness_check_time, is_mandatory) VALUES
+    (learning_mode_id, 'Daily Study Session', 'Complete your daily study or reading session', 'daily', 50, 'medium', FALSE, NULL, NULL, FALSE, NULL, TRUE),
+    (learning_mode_id, 'Practice Skills', 'Practice what you learned with exercises or projects', 'daily', 40, 'medium', FALSE, NULL, NULL, FALSE, NULL, FALSE),
+    (learning_mode_id, 'Weekly Learning Review', 'Review what you learned this week and plan next topics', 'weekly', 150, 'medium', FALSE, NULL, NULL, FALSE, NULL, TRUE),
+    (learning_mode_id, 'Weekly Goal: 5 Sessions', 'Complete at least 5 study sessions this week', 'weekly', 200, 'medium', FALSE, NULL, NULL, FALSE, NULL, TRUE)
     ON CONFLICT DO NOTHING;
 END $$;
 
