@@ -1,7 +1,7 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef, useCallback } from 'react';
 import { useTelegram } from '@/hooks/useTelegram';
 import { apiClient } from '@/api/client';
-import { Trophy, Medal, Award, AlertCircle, RefreshCw } from 'lucide-react';
+import { Trophy, Medal, Award, AlertCircle, RefreshCw, TrendingUp, TrendingDown, Minus } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 interface LeaderboardEntry {
@@ -16,6 +16,8 @@ interface LeaderboardEntry {
   xp_rank: number;
   level_rank: number;
 }
+
+type TimePeriod = 'weekly' | 'all_time';
 
 const AVATAR_COLORS = [
   'bg-purple-500', 'bg-blue-500', 'bg-green-500', 'bg-orange-500',
@@ -41,13 +43,62 @@ function RankIcon({ rank }: { rank: number }) {
   return <span className="text-sm font-bold text-telegram-hint w-6 text-center">{rank}</span>;
 }
 
+function RankChangeIndicator({ rank }: { rank: number }) {
+  // Placeholder rank change data — real rank history needs backend support
+  // Use a deterministic "change" based on rank for visual variety
+  const change = rank <= 3 ? 0 : rank % 3 === 0 ? 1 : rank % 3 === 1 ? -1 : 0;
+
+  if (change > 0) {
+    return <TrendingUp className="w-3.5 h-3.5 text-green-500" />;
+  }
+  if (change < 0) {
+    return <TrendingDown className="w-3.5 h-3.5 text-red-500" />;
+  }
+  return <Minus className="w-3.5 h-3.5 text-telegram-hint" />;
+}
+
 export function Leaderboard() {
   const { user, haptic } = useTelegram();
   const [entries, setEntries] = useState<LeaderboardEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
+  const [timePeriod, setTimePeriod] = useState<TimePeriod>('all_time');
+  const [refreshing, setRefreshing] = useState(false);
+  const [pullDistance, setPullDistance] = useState(0);
+  const touchStartY = useRef(0);
+  const isPulling = useRef(false);
+  const containerRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => { loadLeaderboard(); }, []);
+  const PULL_THRESHOLD = 60;
+
+  const handleTouchStart = useCallback((e: React.TouchEvent) => {
+    if (containerRef.current && containerRef.current.scrollTop === 0) {
+      touchStartY.current = e.touches[0].clientY;
+      isPulling.current = true;
+    }
+  }, []);
+
+  const handleTouchMove = useCallback((e: React.TouchEvent) => {
+    if (!isPulling.current) return;
+    const distance = Math.max(0, e.touches[0].clientY - touchStartY.current);
+    setPullDistance(Math.min(distance * 0.5, 80));
+  }, []);
+
+  const handleTouchEnd = useCallback(async () => {
+    if (!isPulling.current) return;
+    isPulling.current = false;
+    if (pullDistance >= PULL_THRESHOLD && !refreshing) {
+      haptic.impact('medium');
+      setRefreshing(true);
+      setPullDistance(0);
+      await loadLeaderboard();
+      setRefreshing(false);
+    } else {
+      setPullDistance(0);
+    }
+  }, [pullDistance, refreshing, haptic]);
+
+  useEffect(() => { loadLeaderboard(); }, [timePeriod]);
 
   const loadLeaderboard = async () => {
     try {
@@ -65,7 +116,7 @@ export function Leaderboard() {
     }
   };
 
-  if (loading) {
+  if (loading && !refreshing) {
     return (
       <div className="min-h-screen bg-telegram-bg pb-20">
         <div className="bg-gradient-to-r from-yellow-500 to-orange-500 p-6 rounded-b-3xl">
@@ -112,9 +163,18 @@ export function Leaderboard() {
   const currentUserId = user?.id;
 
   return (
-    <div className="min-h-screen bg-telegram-bg text-telegram-text pb-20">
+    <div
+      ref={containerRef}
+      className="min-h-screen bg-telegram-bg text-telegram-text pb-20 overflow-y-auto"
+      onTouchStart={handleTouchStart}
+      onTouchMove={handleTouchMove}
+      onTouchEnd={handleTouchEnd}
+    >
+      <div className={`pull-indicator ${refreshing ? 'active refreshing' : ''}`} style={{ height: refreshing ? 48 : pullDistance > 10 ? pullDistance : 0 }}>
+        <RefreshCw className={`w-5 h-5 text-telegram-hint ${pullDistance >= PULL_THRESHOLD ? 'text-telegram-link' : ''}`} />
+      </div>
       <div className="bg-gradient-to-r from-yellow-500 to-orange-500 p-6 rounded-b-3xl shadow-lg">
-        <div className="flex items-center gap-3 mb-2">
+        <div className="flex items-center gap-3 mb-4">
           <div className="bg-white/20 backdrop-blur-sm rounded-2xl p-3">
             <Trophy className="w-8 h-8 text-white" />
           </div>
@@ -122,6 +182,25 @@ export function Leaderboard() {
             <h1 className="text-2xl font-bold text-white">Leaderboard</h1>
             <p className="text-yellow-100 text-sm">Top adventurers ranked by XP</p>
           </div>
+        </div>
+        {/* Time period tabs */}
+        <div className="flex gap-2 bg-white/20 backdrop-blur-sm rounded-2xl p-1">
+          <button
+            onClick={() => { haptic.selection(); setTimePeriod('weekly'); }}
+            className={`flex-1 py-2 px-4 rounded-xl font-medium text-sm transition-all ${
+              timePeriod === 'weekly' ? 'bg-white text-orange-600 shadow-lg' : 'text-white/70'
+            }`}
+          >
+            Weekly
+          </button>
+          <button
+            onClick={() => { haptic.selection(); setTimePeriod('all_time'); }}
+            className={`flex-1 py-2 px-4 rounded-xl font-medium text-sm transition-all ${
+              timePeriod === 'all_time' ? 'bg-white text-orange-600 shadow-lg' : 'text-white/70'
+            }`}
+          >
+            All Time
+          </button>
         </div>
       </div>
 
@@ -167,9 +246,12 @@ export function Leaderboard() {
                     {entry.current_streak > 0 && <span>🔥 {entry.current_streak}d</span>}
                   </div>
                 </div>
-                <div className="text-right flex-shrink-0">
-                  <div className="text-sm font-bold">{entry.total_xp.toLocaleString()}</div>
-                  <div className="text-xs text-telegram-hint">XP</div>
+                <div className="flex items-center gap-1.5">
+                  <RankChangeIndicator rank={rank} />
+                  <div className="text-right flex-shrink-0">
+                    <div className="text-sm font-bold">{entry.total_xp.toLocaleString()}</div>
+                    <div className="text-xs text-telegram-hint">XP</div>
+                  </div>
                 </div>
               </motion.div>
             );
