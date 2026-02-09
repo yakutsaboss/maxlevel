@@ -1,20 +1,35 @@
 import { useEffect, useState } from 'react';
 import { useTelegram } from '@/hooks/useTelegram';
 import { apiClient } from '@/api/client';
-import { UserStats, UserAchievement } from '@/types';
-import { Trophy, Award, TrendingUp, Calendar, Zap, Star, AlertCircle, RefreshCw } from 'lucide-react';
+import { UserStats, UserAchievement, Achievement } from '@/types';
+import { Trophy, Award, TrendingUp, Calendar, Zap, Star, AlertCircle, RefreshCw, Pencil, Lock, CheckCircle } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { ProfileEditModal } from '@/components/ProfileEditModal';
 
 function formatDate(dateStr: string): string {
   return new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric', year: 'numeric' }).format(new Date(dateStr));
+}
+
+function getAchievementProgress(ach: Achievement, stats: UserStats | null): number | null {
+  if (!stats) return null;
+  switch (ach.requirement_type) {
+    case 'quests_completed': return stats.user.total_quests_completed;
+    case 'level_reached': return stats.user.level;
+    case 'streak_days': return stats.user.current_streak;
+    case 'xp_earned': return stats.user.xp;
+    case 'modes_activated': return stats.modes.length;
+    default: return null;
+  }
 }
 
 export function Profile() {
   const { user, haptic } = useTelegram();
   const [stats, setStats] = useState<UserStats | null>(null);
   const [achievements, setAchievements] = useState<UserAchievement[]>([]);
+  const [allAchievements, setAllAchievements] = useState<Achievement[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
+  const [editModalOpen, setEditModalOpen] = useState(false);
 
   useEffect(() => { loadProfileData(); }, [user]);
 
@@ -23,12 +38,14 @@ export function Profile() {
     try {
       setLoading(true);
       setError(false);
-      const [statsRes, achievementsRes] = await Promise.all([
+      const [statsRes, achievementsRes, allAchRes] = await Promise.all([
         apiClient.getUserStats(user.id),
         apiClient.getUserAchievements(user.id),
+        apiClient.getAchievements(),
       ]);
       if (statsRes.success && statsRes.data) { setStats(statsRes.data); }
       if (achievementsRes.success && achievementsRes.data) { setAchievements(achievementsRes.data); }
+      if (allAchRes.success && allAchRes.data) { setAllAchievements(allAchRes.data); }
     } catch (error) {
       console.error('Failed to load profile data:', error);
       setError(true);
@@ -107,7 +124,15 @@ export function Profile() {
               <span className="text-sm font-bold text-purple-900">Lv {stats.user.level}</span>
             </div>
           </motion.div>
-          <h1 className="text-2xl font-bold text-white mb-1">{stats.user.first_name} {stats.user.last_name || ''}</h1>
+          <div className="flex items-center justify-center gap-2 mb-1">
+            <h1 className="text-2xl font-bold text-white">{stats.user.first_name} {stats.user.last_name || ''}</h1>
+            <button
+              onClick={() => { haptic.impact('light'); setEditModalOpen(true); }}
+              className="bg-white/20 backdrop-blur-sm rounded-full p-1.5 active:scale-90 transition-transform"
+            >
+              <Pencil className="w-4 h-4 text-white" />
+            </button>
+          </div>
           {stats.user.username && <p className="text-purple-100 text-sm mb-4">@{stats.user.username}</p>}
           <div className="flex justify-center gap-6 mt-6">
             <StatBadge icon={<Trophy className="w-5 h-5" />} value={stats.user.total_quests_completed} label="Quests" />
@@ -150,25 +175,65 @@ export function Profile() {
 
       <div className="px-4 mt-6 mb-6">
         <h2 className="text-lg font-semibold mb-3 flex items-center gap-2">
-          <Trophy className="w-5 h-5 text-telegram-link" />Achievements ({achievements.length})
+          <Trophy className="w-5 h-5 text-telegram-link" />Achievements ({achievements.length}/{allAchievements.length || achievements.length})
         </h2>
-        {achievements.length === 0 ? (
+        {allAchievements.length === 0 && achievements.length === 0 ? (
           <div className="text-center py-8 bg-telegram-secondaryBg rounded-2xl border border-telegram-hint/10">
             <Trophy className="w-10 h-10 text-telegram-hint mx-auto mb-2" />
-            <p className="text-telegram-hint text-sm">Complete quests to unlock achievements!</p>
+            <p className="text-telegram-hint text-sm">Achievements will appear here</p>
           </div>
         ) : (
           <div className="grid-achievements">
-            {achievements.map((userAch, index) => (
-              <motion.div key={userAch.achievement_id} initial={{ opacity: 0, scale: 0 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: index * 0.05, type: 'spring', stiffness: 200 }} whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.95 }} onClick={() => { haptic.impact('light'); }} className="bg-telegram-secondaryBg rounded-2xl p-3 border border-telegram-hint/10 cursor-pointer">
-                <div className="text-4xl text-center mb-2">{userAch.achievement.icon}</div>
-                <p className="text-xs text-center font-medium line-clamp-2">{userAch.achievement.name}</p>
-                <div className="flex items-center justify-center gap-1 mt-2">
-                  <Star className="w-3 h-3 text-yellow-500" />
-                  <span className="text-xs text-yellow-600 font-semibold">{userAch.achievement.xp_reward}</span>
-                </div>
-              </motion.div>
-            ))}
+            {(allAchievements.length > 0 ? allAchievements : achievements.map(ua => ua.achievement)).map((ach, index) => {
+              const unlocked = achievements.find(ua => ua.achievement_id === ach.id);
+              const progress = getAchievementProgress(ach, stats);
+              return (
+                <motion.div
+                  key={ach.id}
+                  initial={{ opacity: 0, scale: 0 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ delay: index * 0.03, type: 'spring', stiffness: 200 }}
+                  whileTap={{ scale: 0.95 }}
+                  onClick={() => haptic.impact('light')}
+                  className={`rounded-2xl p-3 border cursor-pointer relative ${
+                    unlocked
+                      ? 'bg-telegram-secondaryBg border-green-300'
+                      : 'bg-telegram-secondaryBg/60 border-telegram-hint/10 opacity-75'
+                  }`}
+                >
+                  {unlocked && (
+                    <div className="absolute -top-1 -right-1 bg-green-500 rounded-full p-0.5">
+                      <CheckCircle className="w-3.5 h-3.5 text-white" />
+                    </div>
+                  )}
+                  {!unlocked && !ach.is_hidden && (
+                    <div className="absolute -top-1 -right-1 bg-telegram-hint/50 rounded-full p-0.5">
+                      <Lock className="w-3.5 h-3.5 text-white" />
+                    </div>
+                  )}
+                  <div className={`text-3xl text-center mb-1 ${!unlocked ? 'grayscale' : ''}`}>{ach.icon}</div>
+                  <p className="text-xs text-center font-medium line-clamp-2">{ach.is_hidden && !unlocked ? '???' : ach.name}</p>
+                  {unlocked ? (
+                    <div className="flex items-center justify-center gap-1 mt-1.5">
+                      <Star className="w-3 h-3 text-yellow-500" />
+                      <span className="text-xs text-yellow-600 font-semibold">{ach.xp_reward}</span>
+                    </div>
+                  ) : !ach.is_hidden && progress !== null ? (
+                    <div className="mt-1.5">
+                      <div className="bg-telegram-hint/20 rounded-full h-1.5 overflow-hidden">
+                        <div className="h-full bg-telegram-link/60 transition-all" style={{ width: `${Math.min((progress / ach.requirement_value) * 100, 100)}%` }} />
+                      </div>
+                      <p className="text-[10px] text-telegram-hint text-center mt-0.5">{progress}/{ach.requirement_value}</p>
+                    </div>
+                  ) : (
+                    <div className="flex items-center justify-center gap-1 mt-1.5">
+                      <Star className="w-3 h-3 text-telegram-hint" />
+                      <span className="text-xs text-telegram-hint">{ach.xp_reward}</span>
+                    </div>
+                  )}
+                </motion.div>
+              );
+            })}
           </div>
         )}
       </div>
@@ -196,6 +261,17 @@ export function Profile() {
           </div>
         </div>
       </div>
+
+      <ProfileEditModal
+        isOpen={editModalOpen}
+        onClose={() => setEditModalOpen(false)}
+        onSave={(_nickname, _avatarIndex) => {
+          // TODO: call profile update API when endpoint exists
+          setEditModalOpen(false);
+        }}
+        currentName={stats.user.first_name}
+        haptic={{ impact: haptic.impact, selection: haptic.selection }}
+      />
     </div>
   );
 }
