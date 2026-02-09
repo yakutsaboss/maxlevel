@@ -18,6 +18,7 @@ import {
 } from './handlers/onboarding.js';
 import { handleSettings, handleSettingsCallback } from './handlers/settings.js';
 import { handleStats, handleStatsCallback } from './handlers/stats.js';
+import { handleLeaderboard } from './handlers/leaderboard.js';
 import { startApiServer } from './api/server.js';
 import { startJobQueue, stopJobQueue } from './jobs/boss.js';
 import { registerAllJobs } from './jobs/registerJobs.js';
@@ -32,6 +33,7 @@ bot.command('profile', handleOpenProfile);
 bot.command('modes', handleModesCommand);
 bot.command('settings', handleSettings);
 bot.command('stats', handleStats);
+bot.command('leaderboard', handleLeaderboard);
 
 // Register callback query handlers
 bot.callbackQuery(/^mode_select_/, handleModeSelection);
@@ -58,6 +60,7 @@ bot.command('menu', async (ctx) => {
       '/modes - Manage your modes\n' +
       '/settings - Configure notifications & timezone\n' +
       '/stats - View your statistics\n' +
+      '/leaderboard - View top players\n' +
       '/menu - Show this menu\n' +
       '/help - Get help\n' +
       '/ping - Check if bot is alive\n\n' +
