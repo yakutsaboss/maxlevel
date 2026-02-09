@@ -1165,4 +1165,26 @@ Find your section under "Run 12 Retrospectives" below and replace the placeholde
 *(To be filled by Agent E)*
 
 #### Agent F Retrospective
-*(To be filled by Agent F)*
+
+**Status:** All 5 tasks completed. Build passes with zero errors.
+
+| # | Task | Commit | Status |
+|---|------|--------|--------|
+| 1 | Remove fake RankChangeIndicator | `72f7b7a` | Done |
+| 2 | Enhance leaderboard entries with quest count | `f3f0a59` | Done |
+| 3 | Add punishment settings methods to API client | `402b0a2` | Done |
+| 4 | Add accountability toggle to Settings page | `c2d0d50` | Done |
+| 5 | Build verification | (clean build, no fix needed) | Done |
+
+**Problems faced:** None. All files were straightforward with clear patterns to follow.
+
+**What was done:**
+- Leaderboard: Removed the `RankChangeIndicator` component and its fake deterministic rank change data (modulo-based up/down arrows). Removed unused `TrendingUp`, `TrendingDown`, `Minus` imports. The rank display is now clean — just rank icon/number + XP.
+- Leaderboard entries now show quest count in the subtitle: "Lv X · Y quests" using the existing `total_quests_completed` field from the `LeaderboardEntry` interface.
+- API client: Added `getPunishmentSettings(telegramId)` and `updatePunishmentSettings(telegramId, data)` methods. Note: Agent E may also add `getPunishmentSettings` — Agent 0 should resolve the duplicate during merge.
+- Settings page: Added full "Accountability" section with consent toggle (red theme), intensity level selector (4-option grid: light/medium/hard/extreme with XP penalty descriptions), and safe mode toggle. Loads punishment settings in parallel with user preferences on mount, saves both on "Save Settings" tap. Handles missing punishment API gracefully (shows "Coming soon" if endpoint returns error/404).
+
+**Recommendations for next run:**
+1. `client.ts` GRAY AREA conflict: Agent E also adds `getPunishmentSettings`. Agent 0 should keep one copy and remove the duplicate during merge.
+2. Monthly leaderboard tab was mentioned in the task description but skipped — the API has no monthly endpoint. Consider adding `GET /leaderboard/monthly` in a future run if monthly ranking is desired.
+3. The Settings accountability section currently saves on the global "Save Settings" button. A future improvement could auto-save punishment settings independently (toggle → immediate API call) for better UX.
