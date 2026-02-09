@@ -9,6 +9,7 @@ import bot from './bot.js';
 import { config } from './config.js';
 import { handleStart } from './handlers/start.js';
 import { handleOpenApp, handleOpenQuests, handleOpenProfile } from './handlers/miniapp.js';
+import { handleProfile } from './handlers/profile.js';
 import {
   handleModeSelection,
   handleQuickAction,
@@ -29,7 +30,7 @@ import type http from 'http';
 bot.command('start', handleStart);
 bot.command('app', handleOpenApp);
 bot.command('quests', handleOpenQuests);
-bot.command('profile', handleOpenProfile);
+bot.command('profile', handleProfile);
 bot.command('modes', handleModesCommand);
 bot.command('settings', handleSettings);
 bot.command('stats', handleStats);
