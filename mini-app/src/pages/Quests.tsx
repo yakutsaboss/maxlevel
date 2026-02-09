@@ -225,7 +225,7 @@ export function Quests() {
 
       <AnimatePresence>
         {selectedQuest && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-end" onClick={() => setSelectedQuest(null)}>
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-end" onClick={() => { haptic.impact('light'); setSelectedQuest(null); }}>
             <motion.div
               layoutId={`quest-${selectedQuest.id}`}
               initial={{ y: '100%' }}
@@ -286,7 +286,7 @@ export function Quests() {
                   <span className="text-sm text-telegram-hint">Update Progress</span>
                   <div className="flex gap-2 ml-auto">
                     <button
-                      onClick={() => handleUpdateProgress(1)}
+                      onClick={() => { haptic.impact('light'); handleUpdateProgress(1); }}
                       disabled={updatingProgress || selectedQuest.progress >= selectedQuest.target}
                       className="flex items-center gap-1 bg-telegram-link text-white px-3 py-2 rounded-xl text-sm font-medium disabled:opacity-50 active:scale-95 transition-transform"
                     >
@@ -294,7 +294,7 @@ export function Quests() {
                     </button>
                     {selectedQuest.target >= 5 && (
                       <button
-                        onClick={() => handleUpdateProgress(5)}
+                        onClick={() => { haptic.impact('light'); handleUpdateProgress(5); }}
                         disabled={updatingProgress || selectedQuest.progress >= selectedQuest.target}
                         className="flex items-center gap-1 bg-telegram-link text-white px-3 py-2 rounded-xl text-sm font-medium disabled:opacity-50 active:scale-95 transition-transform"
                       >
