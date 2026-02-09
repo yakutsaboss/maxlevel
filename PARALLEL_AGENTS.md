@@ -573,3 +573,35 @@ Add your retrospective to PARALLEL_AGENTS.md at the bottom under "Run 3 Retrospe
 ## Run 3 Retrospectives
 
 *(Agents: add your retrospective sections below this line when you finish)*
+
+### Agent A Retrospective (Mini App Polish)
+
+**Completed Tasks:**
+| # | Task | Status | Commits |
+|---|------|--------|---------|
+| 1 | Page transition animations | Done | `b2e401f` |
+| 2 | Dashboard re-render optimization | Done | `4730451` |
+| 3 | Settings page | Done | `1f77ceb` |
+| 4 | Leaderboard improvements | Done | `1bcc2fc` |
+| 5 | Haptic feedback audit | Done | `d0234ed` |
+| 6 | ProfileEditModal API connection | Done | `766b7a3` |
+
+**Build:** `mini-app` builds clean (0 errors, 0 warnings).
+
+**What went well:**
+- All 6 tasks completed without issues
+- Worktree isolation worked perfectly (zero conflicts with bot/ or tools/)
+- framer-motion `PageWrapper` approach is clean and doesn't require `AnimatePresence` exit animations (which cause layout issues in Telegram)
+- Settings page reuses existing patterns (pull-to-refresh, loading skeleton, error state)
+- ProfileEditModal gracefully handles missing backend endpoint
+
+**What to note for Agent 0 / next run:**
+- Settings page uses `(apiClient as any).client` to access the raw axios instance for preferences endpoints (GET/PATCH) — Agent B's profile update endpoint (`PATCH /users/:telegramId/profile`) is expected but may not be merged yet; the ProfileEditModal has a try/catch fallback
+- Leaderboard time period tabs are UI-only — both "Weekly" and "All Time" fetch the same data because the backend doesn't support time-filtered leaderboard queries yet
+- RankChangeIndicator uses placeholder deterministic data — real rank history needs a backend table
+
+**Recommendations for Run 4:**
+1. Add backend support for time-filtered leaderboard (weekly query)
+2. Add rank history tracking table + API
+3. The Settings timezone input could be improved with a searchable dropdown
+4. Consider adding a "Theme" preference in Settings (light/dark mode override)
