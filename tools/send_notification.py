@@ -341,8 +341,18 @@ def main():
     date = datetime.now().strftime("%Y-%m-%d")
 
     if action == "start":
-        # First, cleanly end any previous active session (prevents race with SessionEnd hook)
+        # Debounce: if a session was started less than 15 seconds ago, skip
+        # (prevents duplicate messages when multiple Claude Code instances start simultaneously)
         old_state = load_session()
+        if old_state:
+            old_start = old_state.get("start_epoch_ts", 0)
+            if old_start and (time.time() - old_start) < 15:
+                old_session = get_current_session(old_state)
+                if old_session and not old_session.get("ended_at"):
+                    print("Session just started (<15s ago), skipping duplicate.")
+                    sys.exit(0)
+
+        # Cleanly end any previous active session (prevents race with SessionEnd hook)
         if old_state and old_state.get("message_id"):
             old_session = get_current_session(old_state)
             if old_session and not old_session.get("ended_at"):
