@@ -145,9 +145,11 @@ def build_session_message(state: dict) -> str:
     sessions = state.get("sessions", [])
     date = state.get("date", "")
     vds_summary = state.get("vds_summary", "")
+    msg_id = state.get("message_id", "")
+    session_label = f"Session {msg_id}" if msg_id else "Claude Code"
 
     if not sessions:
-        return "\U0001F7E1 <b>Claude Code \u2014 Starting</b>"
+        return f"\U0001F7E1 <b>{session_label} \u2014 Starting</b>"
 
     current = sessions[-1]
     is_active = current.get("ended_at") is None
@@ -158,13 +160,13 @@ def build_session_message(state: dict) -> str:
     # 🔴 Red    - waiting for user approval
     # ⚫ Black  - session ended
     if not is_active:
-        header = "\u26AB <b>Claude Code \u2014 Session Ended</b>"
+        header = f"\u26AB <b>{session_label} \u2014 Session Ended</b>"
     elif current.get("waiting_approval"):
-        header = "\U0001F534 <b>Claude Code \u2014 Needs Approval</b>"
+        header = f"\U0001F534 <b>{session_label} \u2014 Needs Approval</b>"
     elif any(t["status"] in ("in_progress", "done") for t in current.get("tasks", [])):
-        header = "\U0001F7E2 <b>Claude Code \u2014 Active</b>"
+        header = f"\U0001F7E2 <b>{session_label} \u2014 Active</b>"
     else:
-        header = "\U0001F7E1 <b>Claude Code \u2014 Starting</b>"
+        header = f"\U0001F7E1 <b>{session_label} \u2014 Starting</b>"
 
     msg = header + "\n\n"
     msg += f"\U0001F4C1 Wibecode | \U0001F4C5 {date}\n"
@@ -292,6 +294,8 @@ def main():
         if result:
             state["message_id"] = result["message_id"]
             save_session(state)
+            # Re-edit to include session number in header
+            update_session_message(state)
             print("Notification sent.")
         else:
             print("Failed to send notification.")
