@@ -2318,3 +2318,41 @@ Add your retrospective to PARALLEL_AGENTS.md at the bottom under "Run 6 Retrospe
 **Recommendations for next run:**
 - The achievement check logic in `POST /users/:userId/check` doesn't handle the new `quest_complete`, `streak`, or `quest_complete_consecutive` criteria types with mode filtering — it only checks `level`, `total_xp`, `quest_count`, `streak` generically. A future task should add mode-aware achievement checking.
 - Consider adding a `GET /api/achievements/categories` endpoint for the mini-app to discover available categories.
+
+### Agent C — Final Test Coverage
+
+**Status**: All tasks completed successfully.
+
+**Test counts before/after**:
+| Suite | Before | After | Delta |
+|---|---|---|---|
+| TypeScript (vitest) | 234 | 282 | +48 |
+| Python (pytest) | 172 | 172 | 0 |
+| **Total** | **406** | **454** | **+48** |
+
+**Commits** (5 total):
+1. `75ab147` — Add 8 tests for miniapp.ts handler (handleOpenApp, handleOpenQuests, handleOpenProfile)
+2. `a29cf52` — Add 27 tests for admin.ts route (stats, users CRUD, modes, jobs, broadcast, analytics)
+3. `20b3555` — Add 5 more tests for onboarding.ts route (404 user lookup, no punishments, XP award, telegramId parse, modes join)
+4. `da64354` — Add 8 more tests for achievements.ts route (criteria types, recent endpoint, error handling)
+5. `193ae78` — Fix leaderboardRefresh test (mock db.query/cache instead of stale executePythonTool)
+
+**Task completion**:
+| Task | Status | Tests Added |
+|---|---|---|
+| miniapp.ts handler | Done | 8 new |
+| admin.ts route (biggest gap) | Done | 27 new (new file) |
+| onboarding.ts route | Done | 5 new (enhanced existing) |
+| achievements.ts route | Done | 8 new (enhanced existing) |
+| Fix pre-existing failure | Done | Fixed leaderboardRefresh.test.ts |
+
+**Problems faced**:
+1. **Test files missing from worktree** — The `bot/src/__tests__/` directory was in git but not checked out in the worktree. Had to `git checkout HEAD -- bot/src/__tests__/` to restore them.
+2. **leaderboardRefresh.test.ts was broken** — It mocked `executePythonTool` but the source was rewritten to use `db.query` + `cache.cached` directly. All 4 tests failed with `DATABASE_URL not set`. Rewrote the test to mock the correct modules.
+3. **No supertest available** — `package.json` doesn't include supertest, so I couldn't test routes through Express directly. Followed the existing test pattern of testing logic through mock function calls.
+
+**Recommendations for next run**:
+- Consider adding `supertest` as a dev dependency to enable proper HTTP-level route testing
+- The existing test pattern (testing mock functions directly) tests logic but doesn't exercise Express routing/middleware integration
+- All previously untested handlers (miniapp, admin, onboarding routes, achievements routes) now have coverage
+- Python tests were already comprehensive (172) — no gaps found
