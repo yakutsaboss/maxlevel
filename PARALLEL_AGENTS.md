@@ -3729,3 +3729,24 @@ Add your retrospective to PARALLEL_AGENTS.md at the bottom under "Run 9 Retrospe
 - `All tests passing after backend fixes`
 
 **Files modified:** `bot/src/api/routes/users.ts`, `bot/src/api/routes/admin-stats.ts`, `bot/src/__tests__/routes/http/admin.http.test.ts`
+
+### Agent C — Run 9 Retrospective
+
+**Tasks completed:**
+1. `test_db_operations.py` — 24 tests covering connection pool, context managers, CRUD helpers, transactions, connection testing, pool cleanup
+2. `test_notification_bot_handler.py` — 17 tests covering authorization, all command handlers (/start, /help, /status, /metrics), _run_cmd SSH/local routing, _is_on_server detection
+3. `test_server_metrics.py` — 15 tests covering ssh_exec (remote/local/error/timeout), _safe_split marker parsing, collect_metrics parsing (CPU/RAM/disk/PM2), format_current/comparison/start_summary
+4. `test_sync_todos_notification.py` — 14 tests covering STATUS_MAP, main() sync flow, early exits (invalid JSON, empty todos, no session, ended session), stale task guard, subagent guard, waiting_approval flag
+
+**Total: 70 new tests added (172 → 244 total), all passing in 0.72s**
+
+**What went well:**
+- Reading all 4 source files upfront gave me full context before writing any tests
+- Following the existing test patterns (from test_send_notification.py) kept style consistent
+- All 4 test files were created and initially run in one pass
+
+**Issues encountered & resolved:**
+- **Async tests**: `pytest-asyncio` not installed, so `pytest.mark.asyncio` didn't work. Fixed by using `asyncio.run()` to run async handlers synchronously — simpler and dependency-free
+- **SystemExit expectations**: `sync_todos_notification.main()` only calls `sys.exit(0)` on early exits, not on success path. Initial tests wrapped successful paths in `pytest.raises(SystemExit)` which failed. Fixed by removing the wrapper for success cases
+
+**No conftest.py changes needed** — each test file is self-contained with its own env setup and imports, consistent with the existing pattern.
