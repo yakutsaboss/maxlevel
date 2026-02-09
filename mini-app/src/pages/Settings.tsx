@@ -50,22 +50,13 @@ export function Settings() {
     try {
       setLoading(true);
       setError(false);
-      const response = await apiClient.getUserStats(user.id);
-      if (response.success && response.data) {
-        // Try to fetch preferences
-        try {
-          const res = await (apiClient as any).client.get(`/users/${user.id}/preferences`);
-          if (res.data?.success && res.data?.data) {
-            const p = res.data.data;
-            setPrefs({
-              notifications_enabled: p.notifications_enabled ?? true,
-              reminder_time: p.reminder_time ?? 18,
-              timezone: p.timezone || detectTimezone(),
-            });
-          }
-        } catch {
-          // Preferences endpoint may not exist yet; use defaults
-        }
+      const res = await apiClient.getUserPreferences(user.id);
+      if (res.success && res.data) {
+        setPrefs({
+          notifications_enabled: res.data.notification_enabled ?? true,
+          reminder_time: res.data.reminder_time ?? 18,
+          timezone: res.data.timezone || detectTimezone(),
+        });
       }
     } catch (err) {
       console.error('Failed to load preferences:', err);
@@ -79,12 +70,15 @@ export function Settings() {
     setSaving(true);
     setSaved(false);
     try {
-      await (apiClient as any).client.patch(`/users/${user.id}/preferences`, prefs);
+      await apiClient.updateUserPreferences(user.id, {
+        notification_enabled: prefs.notifications_enabled,
+        reminder_time: prefs.reminder_time,
+        timezone: prefs.timezone,
+      });
       setSaved(true);
       haptic.notification('success');
       setTimeout(() => setSaved(false), 2000);
     } catch {
-      // If endpoint doesn't exist, show success anyway (graceful)
       haptic.notification('warning');
       setSaved(true);
       setTimeout(() => setSaved(false), 2000);
