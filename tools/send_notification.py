@@ -43,6 +43,7 @@ load_dotenv(PROJECT_ROOT / ".env")
 BOT_TOKEN = os.getenv('TELEGRAM_NOTIFICATION_BOT_TOKEN')
 CHAT_ID = os.getenv('TELEGRAM_NOTIFICATION_CHAT_ID')
 SESSION_FILE = PROJECT_ROOT / ".tmp" / "session_notification.json"
+START_LOCK_FILE = PROJECT_ROOT / ".tmp" / "session_start.lock"
 
 if not BOT_TOKEN or not CHAT_ID:
     print("ERROR: Missing TELEGRAM_NOTIFICATION_BOT_TOKEN or TELEGRAM_NOTIFICATION_CHAT_ID")
@@ -341,16 +342,20 @@ def main():
     date = datetime.now().strftime("%Y-%m-%d")
 
     if action == "start":
-        # Debounce: if a session was started less than 15 seconds ago, skip
-        # (prevents duplicate messages when multiple Claude Code instances start simultaneously)
+        # Debounce via lock file: prevents duplicate messages when multiple
+        # Claude Code instances fire SessionStart hooks simultaneously.
+        # The lock file is written BEFORE any API call, closing the race window
+        # that existed with the old session-file-based check.
+        START_LOCK_FILE.parent.mkdir(parents=True, exist_ok=True)
+        if START_LOCK_FILE.exists():
+            lock_age = time.time() - START_LOCK_FILE.stat().st_mtime
+            if lock_age < 30:
+                print(f"Session start locked ({lock_age:.0f}s ago), skipping duplicate.")
+                sys.exit(0)
+        # Write lock immediately — before any slow operations (API calls, SSH)
+        START_LOCK_FILE.write_text(str(time.time()), encoding="utf-8")
+
         old_state = load_session()
-        if old_state:
-            old_start = old_state.get("start_epoch_ts", 0)
-            if old_start and (time.time() - old_start) < 15:
-                old_session = get_current_session(old_state)
-                if old_session and not old_session.get("ended_at"):
-                    print("Session just started (<15s ago), skipping duplicate.")
-                    sys.exit(0)
 
         # Cleanly end any previous active session (prevents race with SessionEnd hook)
         if old_state and old_state.get("message_id"):
@@ -567,6 +572,9 @@ def main():
 
         # Edit the original message to ⚫ Session Ended — no second message
         if update_session_message(state):
+            # Remove lock file so next session start isn't blocked
+            if START_LOCK_FILE.exists():
+                START_LOCK_FILE.unlink()
             print("Session finished (message updated).")
         else:
             print("Failed to update message.")
