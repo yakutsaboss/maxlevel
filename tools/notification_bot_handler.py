@@ -28,7 +28,7 @@ if not BOT_TOKEN or not CHAT_ID:
 
 CHAT_ID = int(CHAT_ID)
 
-SERVER_IP = "85.239.53.57"
+SERVER_IP = "85.239.58.205"
 
 
 def _is_on_server() -> bool:
