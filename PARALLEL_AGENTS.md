@@ -575,3 +575,36 @@ Find your section under "Run 11 Retrospectives" below and replace the placeholde
 2. Similarly, `apiClient.getUserAchievements()` hits the users.ts route (returns `{success, data}`) but the dedicated achievements.ts route at `/achievements/users/:userId` returns `{achievements, unlocked, total, progress}`. Inconsistency should be resolved.
 3. Consider adding per-mode streak data to the stats API so Dashboard can show streak breakdown by mode.
 4. The achievement check could also be triggered after quest completion on the Quests page if the internal user ID is made available there (e.g., stored in a context/hook after initial stats load).
+
+---
+
+### Run 12 Retrospectives
+
+#### Agent B Retrospective
+
+**Status:** All 5 tasks completed. Build passes with zero errors.
+
+| # | Task | Commit | Status |
+|---|------|--------|--------|
+| 1 | Create punishment API routes (settings + history) | `2f5b3bf` | Done |
+| 2 | Create punishment check job (daily at 00:30 UTC) | `71fc274` | Done |
+| 3 | Mount punishment route in server.ts | `9ee4147` | Done |
+| 4 | Register punishment check job in registerJobs.ts | `7644547` | Done |
+| 5 | Build verification | (clean build, no fix needed) | Done |
+
+**Problems faced:** None. The existing codebase patterns (achievementNotifier.ts for job structure with setBotInstance, achievements.ts for route auth patterns) were clear and consistent. DB schema for punishment_settings and punishment_history matched the task spec exactly.
+
+**Design decisions:**
+- `punishment.ts` routes use `telegramId` in URL params (matching other route patterns like users.ts) and look up the internal `user_id` via JOIN or separate query.
+- `PATCH /settings` builds a dynamic SET clause so only provided fields are updated. If no row exists yet, it falls back to INSERT with defaults — this handles edge cases where a user skipped the punishment onboarding step.
+- `punishmentCheck.ts` runs at 00:30 UTC (30 min after dailyQuestReset at midnight) to avoid racing with quest assignment.
+- The job first marks expired quests as `failed`, then processes punishments only for users with `consent_given = true`.
+- XP penalty formula: `quest.xp_reward * intensity_multiplier`, capped by `max_xp_penalty`. Safe mode adds a daily cap to prevent excessive XP loss.
+- Users WITHOUT consent still get a notification about expired quests (no penalty applied).
+- All Telegram notifications are rate-limited at 200ms between sends, with batch processing in groups of 50.
+- Cache is invalidated via `invalidateUserCache(userId)` after XP deductions so the dashboard reflects updated totals.
+
+**Recommendations for next run:**
+- The `punishment_history` table has a `streak_days_lost` column, but this implementation only applies `xp_penalty` punishment type. Streak reset punishments could be added as a future enhancement for `high`/`extreme` intensity levels.
+- Consider adding a `notified_at` column or flag to prevent duplicate notifications if the job runs twice in quick succession.
+- The punishment settings `notes` column in the DB schema is `text` but the task spec referenced it as a column in `punishment_history` — the actual schema column is `message_sent`. Used `message_sent` to match the real schema.
