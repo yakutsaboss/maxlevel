@@ -10,6 +10,7 @@ import { config } from './config.js';
 import { handleStart } from './handlers/start.js';
 import { handleOpenApp, handleOpenQuests, handleOpenProfile } from './handlers/miniapp.js';
 import { handleProfile } from './handlers/profile.js';
+import { handleHelp, handleHelpCallback } from './handlers/help.js';
 import {
   handleModeSelection,
   handleQuickAction,
@@ -70,25 +71,9 @@ bot.command('menu', async (ctx) => {
   );
 });
 
-// Help command
-bot.command('help', async (ctx) => {
-  await ctx.reply(
-    '🤖 *Telegram RPG Quest Bot*\n\n' +
-      'Turn your real-life goals into epic quests!\n\n' +
-      '**Getting Started:**\n' +
-      '1. Use /start to create your account\n' +
-      '2. Select your modes (Fitness, Hydration)\n' +
-      '3. Complete quests to earn XP and level up\n' +
-      '4. Unlock achievements and maintain streaks\n\n' +
-      '**Commands:**\n' +
-      '/start - Start or restart\n' +
-      '/menu - View menu\n' +
-      '/help - Show this help\n' +
-      '/ping - Check bot status\n\n' +
-      '_For more info, visit: [Telegram RPG Bot](https://github.com/your-repo)_',
-    { parse_mode: 'Markdown' }
-  );
-});
+// Help command (extracted to handlers/help.ts with inline keyboard categories)
+bot.command('help', handleHelp);
+bot.callbackQuery(/^help:/, handleHelpCallback);
 
 // Ping command for testing
 bot.command('ping', async (ctx) => {
