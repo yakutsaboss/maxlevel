@@ -1,11 +1,13 @@
 /**
  * Daily Quest Reset Job
  * Assigns new daily quests to all active users at midnight UTC.
+ * On Mondays (UTC), also assigns weekly quests.
  *
  * Improvements:
  * - Pagination: processes users in batches of 100
  * - Retry logic: max 3 retries per user with exponential backoff
  * - Logs failed user IDs for debugging
+ * - Weekly quest assignment on Mondays
  */
 
 import type { Job } from 'pg-boss';
@@ -79,6 +81,43 @@ export async function handler(jobs: Job[]): Promise<void> {
     if (users.length < BATCH_SIZE) break;
   }
 
+  // Weekly quest assignment on Mondays (UTC day 1)
+  let weeklyAssigned = 0;
+  let weeklyFailed = 0;
+  const isMonday = new Date().getUTCDay() === 1;
+
+  if (isMonday) {
+    console.log(`[JOB:${JOB_NAME}] Monday detected — assigning weekly quests`);
+
+    let weeklyOffset = 0;
+    while (true) {
+      const usersResult = await executePythonTool('user_manager', [
+        '--list-users', '--limit', BATCH_SIZE.toString(), '--offset', weeklyOffset.toString(),
+      ]);
+
+      if (!usersResult.success || !Array.isArray(usersResult.data)) break;
+      const users = usersResult.data;
+      if (users.length === 0) break;
+
+      for (const user of users) {
+        const result = await executePythonTool('quest_manager', [
+          '--assign-weekly', '--user-id', String(user.id), '--count', '2',
+        ]);
+        if (result.success) {
+          weeklyAssigned++;
+        } else {
+          weeklyFailed++;
+          console.warn(`[JOB:${JOB_NAME}] Weekly quest assignment failed for user ${user.id}: ${result.error}`);
+        }
+      }
+
+      weeklyOffset += users.length;
+      if (users.length < BATCH_SIZE) break;
+    }
+
+    console.log(`[JOB:${JOB_NAME}] Weekly quests — assigned: ${weeklyAssigned}, failed: ${weeklyFailed}`);
+  }
+
   const elapsed = Date.now() - startTime;
 
   if (failedUserIds.length > 0) {
@@ -87,6 +126,7 @@ export async function handler(jobs: Job[]): Promise<void> {
 
   console.log(
     `[JOB:${JOB_NAME}] Completed in ${elapsed}ms — ` +
-    `assigned: ${assigned}, failed: ${failed}, skipped: ${skipped}`
+    `daily assigned: ${assigned}, daily failed: ${failed}, skipped: ${skipped}` +
+    (isMonday ? `, weekly assigned: ${weeklyAssigned}, weekly failed: ${weeklyFailed}` : '')
   );
 }
