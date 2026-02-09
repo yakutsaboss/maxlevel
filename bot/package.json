@@ -46,6 +46,8 @@
     "eslint": "^8.56.0",
     "tsx": "^4.7.0",
     "typescript": "^5.3.3",
+    "supertest": "^7.0.0",
+    "@types/supertest": "^6.0.2",
     "vitest": "^4.0.18"
   },
   "engines": {
