@@ -179,6 +179,525 @@ Use this structure when creating a new run. Copy and adapt:
 
 ---
 
-## Current Run
+## RUN 13: Parallel Agents (6 Agents + Agent 0)
 
-*(No active run. Ready for Run 13 design.)*
+### Focus: Fix Broken Game Loop — Check-in Targets, Achievement Dedup, TypeScript Types, UX Polish
+
+Run 12 added check-in UI, punishment backend, per-mode streaks, and dashboard enhancements. But the core game loop is still broken: every check-in auto-completes quests (hardcoded target=1), achievement notifications spam users (no dedup), TypeScript types are out of sync with the API (perModeStreaks uses `as any` casts), and the Dashboard has redundant stat sections. This run fixes all of these and polishes the UX.
+
+### Copy-Paste Prompts
+
+**Agent 0** (open in: `c:\Users\Asus\Desktop\Wibecode`):
+```
+Read PARALLEL_AGENTS.md — you are Agent 0 for Run 13. After all agents finish, I'll tell you to merge.
+```
+
+**Agent A** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-a`):
+```
+Read PARALLEL_AGENTS.md — you are Agent A for Run 13. Your job: fix the check-in target bug — currently every check-in auto-completes quests because target is hardcoded to 1. Add a target column to quest_instances and wire it through. Do your tasks in order, commit after each, and write your retrospective when done.
+```
+
+**Agent B** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-b`):
+```
+Read PARALLEL_AGENTS.md — you are Agent B for Run 13. Your job: fix achievement notification spam (add dedup), consolidate duplicated achievement checking code, and fix the inconsistent achievements API response. Do your tasks in order, commit after each, and write your retrospective when done.
+```
+
+**Agent C** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-c`):
+```
+Read PARALLEL_AGENTS.md — you are Agent C for Run 13. Your job: fix TypeScript types (add perModeStreaks to UserStats), remove unsafe `as any` casts in Dashboard, and consolidate overlapping Dashboard sections. Do your tasks in order, commit after each, and write your retrospective when done.
+```
+
+**Agent D** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-d`):
+```
+Read PARALLEL_AGENTS.md — you are Agent D for Run 13. Your job: polish the Profile page — fix type casts, add a link from accountability section to Settings, and add punishment history display. Do your tasks in order, commit after each, and write your retrospective when done.
+```
+
+**Agent E** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-e`):
+```
+Read PARALLEL_AGENTS.md — you are Agent E for Run 13. Your job: improve quest detail UX — show target info, improve CheckInButton to show remaining check-ins, and polish the quest detail modal. Do your tasks in order, commit after each, and write your retrospective when done.
+```
+
+**Agent F** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-f`):
+```
+Read PARALLEL_AGENTS.md — you are Agent F for Run 13. Your job: polish Settings with auto-save for accountability toggles, and improve the Leaderboard with better stats display. Do your tasks in order, commit after each, and write your retrospective when done.
+```
+
+---
+
+### Agent A — Check-in Target Fix (Backend)
+
+**Branch:** `feature/checkin-target`
+
+**CONTEXT:**
+- **CRITICAL BUG:** `bot/src/api/routes/checkins.ts` line 28 has `1 AS target` hardcoded in the SQL query. This means EVERY quest auto-completes after exactly 1 check-in, regardless of the quest's intended difficulty.
+- The `quest_instances` table has `check_in_count` but NO `target` column. The `quests` table also has no `target` column.
+- Need to: 1) add a `target` column to `quest_instances`, 2) fix checkins.ts to use it, 3) update quest assignment to set proper targets.
+- Quest difficulty already exists in the `quests` table: `difficulty VARCHAR(20) CHECK (difficulty IN ('easy', 'medium', 'hard'))`. Targets should map: easy=1, medium=3, hard=5.
+- `dailyQuestReset.ts` assigns quests via Python tool `quest_manager --assign-daily`. The Python tool creates quest_instances rows — but since there's no target column, it can't set it. We need a SQL approach instead: after assignment, update target based on quest difficulty.
+
+**FILES YOU OWN:**
+- `bot/src/api/routes/checkins.ts` — fix the hardcoded target query
+- `database/migrations/run13_quest_target.sql` — NEW: migration to add target column
+
+**GRAY AREA:**
+- `bot/src/jobs/definitions/dailyQuestReset.ts` — you may ONLY add a query AFTER the existing quest assignment loop to set target for newly assigned quests that have target=NULL. Do NOT modify the existing assignment logic.
+
+**FILES YOU MUST NOT TOUCH:**
+- `mini-app/` (all)
+- `tools/` (all Python files)
+- `bot/src/api/routes/users.ts`, `bot/src/api/routes/quests.ts`, `bot/src/api/routes/achievements.ts`
+- `bot/src/api/server.ts`, `bot/src/jobs/registerJobs.ts`
+- `.env`
+
+**RULES (NON-NEGOTIABLE):**
+- You are ALREADY on branch `feature/checkin-target` — do NOT run `git checkout`
+- Commit after EVERY task — atomic: `git add FILES && git commit -m "MSG"` in one Bash call
+- Do NOT push to remote or deploy to server
+- Do NOT add any new npm packages
+
+**Task 1: Create migration SQL**
+- Create `database/migrations/run13_quest_target.sql`
+- Add `target` column to `quest_instances`: `ALTER TABLE quest_instances ADD COLUMN IF NOT EXISTS target INTEGER DEFAULT 1;`
+- Backfill existing rows based on quest difficulty:
+  ```sql
+  UPDATE quest_instances qi
+  SET target = CASE
+    WHEN q.difficulty = 'easy' THEN 1
+    WHEN q.difficulty = 'medium' THEN 3
+    WHEN q.difficulty = 'hard' THEN 5
+    ELSE 1
+  END
+  FROM quests q WHERE qi.quest_id = q.id AND qi.target = 1;
+  ```
+- Make script idempotent (safe to run multiple times)
+- Commit: "Add target column to quest_instances with difficulty-based backfill"
+
+**Task 2: Fix checkins.ts query**
+- Read `bot/src/api/routes/checkins.ts`
+- Replace `1 AS target` with `qi.target` in the SELECT query (line 28)
+- The completion check at line 51 (`quest.target || 1`) should now work correctly since qi.target will have real values
+- Also fix the auto-complete logic: when `check_in_count + 1 >= target`, mark quest as completed
+- Commit: "Fix check-in to use quest_instances.target instead of hardcoded 1"
+
+**Task 3: Update dailyQuestReset to set target on new quests**
+- Edit `bot/src/jobs/definitions/dailyQuestReset.ts`
+- AFTER the existing assignment loop (after all users have been processed), add a query to set target for any newly assigned quests that still have target=1 (the default):
+  ```sql
+  UPDATE quest_instances qi
+  SET target = CASE
+    WHEN q.difficulty = 'easy' THEN 1
+    WHEN q.difficulty = 'medium' THEN 3
+    WHEN q.difficulty = 'hard' THEN 5
+    ELSE 1
+  END
+  FROM quests q
+  WHERE qi.quest_id = q.id AND qi.instance_date = CURRENT_DATE AND qi.target = 1
+  ```
+- Log: "Updated targets for {N} quest instances"
+- Commit: "Set quest target based on difficulty in daily quest reset"
+
+**Task 4: Build verification**
+- Run `cd bot && npm run build`
+- Fix any TypeScript errors
+- Commit only if fixes were needed: "Fix TypeScript errors from check-in target fix"
+
+### RETROSPECTIVE (DO THIS LAST)
+Find your section under "Run 13 Retrospectives" below and replace the placeholder with your retrospective.
+
+---
+
+### Agent B — Achievement System Fix (Backend)
+
+**Branch:** `feature/achievement-fix`
+
+**CONTEXT:**
+- **BUG: Achievement notification spam** — `achievementNotifier.ts` queries `unlocked_at > NOW() - INTERVAL '20 minutes'` but runs every 15 minutes. An achievement unlocked at 00:05 gets notified at 00:15, 00:30, and possibly 00:45. No dedup exists.
+- **Code duplication** — `checkCriteriaMet()` is duplicated in `achievements.ts` (lines 213-308) and `achievementEngine.ts` (lines 15-105). ~150 lines of identical logic. The `POST /users/:userId/achievements/check` endpoint in achievements.ts has its own copy of the unlock logic instead of calling `checkAndUnlockAchievements()` from achievementEngine.ts.
+- **Inconsistent response format** — `GET /achievements/users/:userId` returns `{ achievements: [...], unlocked, total, progress }` but should return `{ success: true, data: { achievements: [...], unlocked, total, progress } }` for consistency with other endpoints.
+- `user_achievements` table schema: `(id, user_id, achievement_id, unlocked_at, UNIQUE(user_id, achievement_id))`.
+
+**FILES YOU OWN:**
+- `bot/src/api/routes/achievements.ts` — fix response format, consolidate POST /check
+- `bot/src/utils/achievementEngine.ts` — keep as single source of truth
+- `bot/src/jobs/definitions/achievementNotifier.ts` — add dedup
+- `database/migrations/run13_achievement_dedup.sql` — NEW: add notification_sent_at column
+
+**FILES YOU MUST NOT TOUCH:**
+- `mini-app/` (all)
+- `tools/` (all Python files)
+- `bot/src/api/routes/users.ts`, `bot/src/api/routes/quests.ts`, `bot/src/api/routes/checkins.ts`
+- `bot/src/api/server.ts`, `bot/src/jobs/registerJobs.ts`
+- `.env`
+
+**RULES (NON-NEGOTIABLE):**
+- You are ALREADY on branch `feature/achievement-fix` — do NOT run `git checkout`
+- Commit after EVERY task — atomic: `git add FILES && git commit -m "MSG"` in one Bash call
+- Do NOT push to remote or deploy to server
+- Do NOT add any new npm packages
+
+**Task 1: Create migration SQL for achievement dedup**
+- Create `database/migrations/run13_achievement_dedup.sql`
+- `ALTER TABLE user_achievements ADD COLUMN IF NOT EXISTS notification_sent_at TIMESTAMPTZ;`
+- Idempotent (safe to run multiple times)
+- Commit: "Add notification_sent_at column to user_achievements"
+
+**Task 2: Fix achievementNotifier.ts dedup**
+- Read `bot/src/jobs/definitions/achievementNotifier.ts`
+- Change the query to also check `AND ua.notification_sent_at IS NULL`
+- After successfully sending each notification, update: `UPDATE user_achievements SET notification_sent_at = NOW() WHERE user_id = $1 AND achievement_id = $2`
+- This ensures each achievement is only notified once, regardless of how many times the job runs
+- Commit: "Fix achievement notifier to prevent duplicate notifications"
+
+**Task 3: Refactor POST /check to use achievementEngine**
+- Read `bot/src/api/routes/achievements.ts` and `bot/src/utils/achievementEngine.ts`
+- In achievements.ts, the `POST /users/:userId/achievements/check` endpoint (should be around line 332-410) has its own copy of the check+unlock logic
+- Replace the handler body with a call to `checkAndUnlockAchievements(userId)` from achievementEngine.ts
+- Import: `import { checkAndUnlockAchievements } from '../../utils/achievementEngine.js';`
+- The response should still return: `{ success: true, data: { newAchievements: [...], count: N } }`
+- Remove the duplicate `checkCriteriaMet()` and `filterQualifyingAchievements()` functions from achievements.ts (they now live only in achievementEngine.ts)
+- Commit: "Refactor POST /check to use achievementEngine (eliminate 150 lines of duplication)"
+
+**Task 4: Fix GET /achievements/users/:userId response format**
+- In achievements.ts, find the `GET /users/:userId` handler
+- Currently returns: `res.json({ achievements: [...], unlocked: N, total: M, progress: P })`
+- Change to: `res.json({ success: true, data: { achievements: [...], unlocked: N, total: M, progress: P } })`
+- Commit: "Fix GET /achievements/users/:userId to use {success, data} format"
+
+**Task 5: Build verification**
+- Run `cd bot && npm run build`
+- Fix any TypeScript errors
+- Commit only if fixes were needed: "Fix TypeScript errors from achievement system fix"
+
+### RETROSPECTIVE (DO THIS LAST)
+Find your section under "Run 13 Retrospectives" below and replace the placeholder with your retrospective.
+
+---
+
+### Agent C — TypeScript Types + Dashboard Cleanup (Frontend)
+
+**Branch:** `feature/types-dashboard`
+
+**CONTEXT:**
+- `UserStats` interface in `types/index.ts` is MISSING the `perModeStreaks` field. The backend (users.ts) returns it, but the TypeScript type doesn't include it.
+- Dashboard.tsx uses `(stats as any).perModeStreaks` cast (line 385) which is unsafe and defeats TypeScript's purpose.
+- Dashboard has **redundant sections**: the Stat Grid (4 cards: Quests Done, Streak, XP Today, Achievements) overlaps with Today's Progress (Completed, XP Earned, Remaining) — both show XP Today. The Streak section also re-displays the current streak from the stat grid.
+- The stat grid should show all-time/aggregate metrics, while Today's Progress shows today-only. Currently both mix the two.
+
+**FILES YOU OWN:**
+- `mini-app/src/types/index.ts` — add perModeStreaks to UserStats
+- `mini-app/src/pages/Dashboard.tsx` — remove casts, consolidate sections
+
+**FILES YOU MUST NOT TOUCH:**
+- `bot/` (all backend files)
+- `tools/` (all Python files)
+- `mini-app/src/api/client.ts`
+- `mini-app/src/pages/Quests.tsx`, `mini-app/src/pages/Profile.tsx`, `mini-app/src/pages/Leaderboard.tsx`, `mini-app/src/pages/Settings.tsx`
+- `mini-app/src/App.tsx`
+- `.env`
+
+**RULES (NON-NEGOTIABLE):**
+- You are ALREADY on branch `feature/types-dashboard` — do NOT run `git checkout`
+- Commit after EVERY task — atomic: `git add FILES && git commit -m "MSG"` in one Bash call
+- Do NOT push to remote or deploy to server
+- Do NOT add any new npm packages
+
+**Task 1: Add perModeStreaks to UserStats interface**
+- Read `mini-app/src/types/index.ts`
+- Add to the `UserStats` interface:
+  ```typescript
+  perModeStreaks?: Array<{
+    mode_id: number;
+    mode_name: string;
+    mode_icon: string;
+    current_streak: number;
+    longest_streak: number;
+  }>;
+  ```
+- Make it optional (`?`) since older API versions won't include it
+- Commit: "Add perModeStreaks to UserStats TypeScript interface"
+
+**Task 2: Remove unsafe casts in Dashboard**
+- Read `mini-app/src/pages/Dashboard.tsx`
+- Find all `(stats as any).perModeStreaks` casts
+- Replace with `stats.perModeStreaks` (now that the type includes it)
+- The existing optional chaining (`stats.perModeStreaks?.length`) will handle backward compat
+- Commit: "Remove unsafe (stats as any) casts in Dashboard"
+
+**Task 3: Consolidate Dashboard stat sections**
+- The **Stat Grid** should show all-time aggregates: Total Quests, Longest Streak, Total XP, Achievements
+- The **Today's Progress** section should show today-only: Quests Done Today, XP Earned Today, Active Quests Remaining
+- Currently both show "XP Today" which is redundant. Change stat grid to show Total XP instead.
+- Also change stat grid "Current Streak" to "Longest Streak" (since the streak section below already shows the current streak prominently)
+- Keep the stat grid compact (4 items) and make Today's Progress the detailed section
+- Commit: "Consolidate Dashboard stat grid and Today's Progress sections"
+
+**Task 4: Build verification**
+- Run `cd mini-app && npm run build`
+- Fix any TypeScript errors
+- Commit only if fixes were needed: "Fix TypeScript errors from types and Dashboard cleanup"
+
+### RETROSPECTIVE (DO THIS LAST)
+Find your section under "Run 13 Retrospectives" below and replace the placeholder with your retrospective.
+
+---
+
+### Agent D — Profile Polish (Frontend)
+
+**Branch:** `feature/profile-polish`
+
+**CONTEXT:**
+- Profile.tsx uses `(stats as any).perModeStreaks` cast (line 172) — same issue as Dashboard, should use proper type after Agent C adds it to `UserStats`
+- The Accountability section shows status but doesn't link to Settings for editing. Users see "Accountability Off — Enable in Settings" but can't tap to navigate there.
+- Punishment history API already exists: `GET /api/punishment/:telegramId/history` returns `{ success: true, data: { punishments: [...], page, total } }`. Each punishment has: `xp_deducted`, `punishment_type`, `applied_at`, `notes`. But the Profile doesn't display it.
+- Profile currently has sections: Avatar+Name, Stats, Modes, Achievements, Accountability, Account Info.
+
+**FILES YOU OWN:**
+- `mini-app/src/pages/Profile.tsx` — polish and enhance
+
+**GRAY AREA:**
+- `mini-app/src/api/client.ts` — you may ONLY add: `getPunishmentHistory(telegramId, page?, limit?)` method. Do NOT modify existing methods.
+
+**FILES YOU MUST NOT TOUCH:**
+- `bot/` (all backend files)
+- `tools/` (all Python files)
+- `mini-app/src/types/index.ts` (Agent C is modifying this)
+- `mini-app/src/pages/Dashboard.tsx`, `mini-app/src/pages/Quests.tsx`, `mini-app/src/pages/Leaderboard.tsx`, `mini-app/src/pages/Settings.tsx`
+- `mini-app/src/App.tsx`
+- `.env`
+
+**RULES (NON-NEGOTIABLE):**
+- You are ALREADY on branch `feature/profile-polish` — do NOT run `git checkout`
+- Commit after EVERY task — atomic: `git add FILES && git commit -m "MSG"` in one Bash call
+- Do NOT push to remote or deploy to server
+- Do NOT add any new npm packages
+
+**Task 1: Add getPunishmentHistory to API client**
+- Read `mini-app/src/api/client.ts`
+- Add method:
+  ```typescript
+  async getPunishmentHistory(telegramId: number, page = 1, limit = 5): Promise<ApiResponse<{ punishments: any[]; page: number; total: number }>> {
+    const response = await this.client.get(`/punishment/${telegramId}/history?page=${page}&limit=${limit}`);
+    return response.data;
+  }
+  ```
+- Commit: "Add getPunishmentHistory method to API client"
+
+**Task 2: Fix perModeStreaks type cast**
+- In Profile.tsx, the `(stats as any).perModeStreaks` cast on line 172 should be replaced with `stats.perModeStreaks` (Agent C is adding it to the type)
+- Since Agent C might not have merged yet, use `(stats as any).perModeStreaks` for now BUT add a `// TODO: Remove cast once perModeStreaks is in UserStats type` comment
+- Actually, safer approach: keep the existing cast but make it cleaner — `const perModeStreaks = (stats as any).perModeStreaks as Array<{...}> | undefined;` is already done, just keep it
+- Commit: "Clean up perModeStreaks type handling in Profile"
+
+**Task 3: Add navigation link from Accountability to Settings**
+- In the Accountability section, when showing "Accountability Off — Enable in Settings", make "Settings" a tappable link
+- Use `navigate('/settings')` from react-router
+- Add `useNavigate` import (should already exist since Profile uses it for the edit modal)
+- When accountability is active, add a small "Edit in Settings" link below the status
+- Both links should have `haptic.impact('light')` on tap
+- Commit: "Add navigation from Profile accountability to Settings"
+
+**Task 4: Add punishment history section**
+- Below the Accountability section, add a "Recent Penalties" sub-section (only shown when accountability is active AND there are punishments)
+- Load punishment history during `loadProfileData` (non-blocking, like punishment settings)
+- Show last 5 punishments in a compact list: each with XP deducted (red text), date, and quest name from notes
+- If no punishments, show "No penalties yet — keep it up!"
+- Design: simple list with red accent for XP loss, gray timestamps
+- Commit: "Add punishment history display to Profile"
+
+**Task 5: Build verification**
+- Run `cd mini-app && npm run build`
+- Fix any TypeScript errors
+- Commit only if fixes were needed: "Fix TypeScript errors from Profile polish"
+
+### RETROSPECTIVE (DO THIS LAST)
+Find your section under "Run 13 Retrospectives" below and replace the placeholder with your retrospective.
+
+---
+
+### Agent E — Quest Detail UX (Frontend)
+
+**Branch:** `feature/quest-ux`
+
+**CONTEXT:**
+- The quest detail modal (in Quests.tsx) shows progress as `{progress}/{target}` but the target is always 1 (due to the check-in bug Agent A is fixing). After the fix, quests can have targets of 1, 3, or 5. The UI should clearly show this.
+- `CheckInButton.tsx` fires a check-in but doesn't tell the user how many check-ins remain. It just says "Check In" and "Checked in!" — no context about progress.
+- The quest detail modal could benefit from: better target display ("Check in 3 times"), visual step indicators (3 dots/circles), and the remaining count on the CheckInButton.
+- Quest objects have: `id`, `progress`, `target`, `status`, `difficulty`, `frequency`, `xp_reward`, `mode`, `title`, `description`.
+
+**FILES YOU OWN:**
+- `mini-app/src/pages/Quests.tsx` — improve quest detail modal
+- `mini-app/src/components/CheckInButton.tsx` — show remaining count
+
+**FILES YOU MUST NOT TOUCH:**
+- `bot/` (all backend files)
+- `tools/` (all Python files)
+- `mini-app/src/api/client.ts` (no changes needed)
+- `mini-app/src/types/index.ts` (Agent C is modifying this)
+- `mini-app/src/pages/Dashboard.tsx`, `mini-app/src/pages/Profile.tsx`, `mini-app/src/pages/Leaderboard.tsx`, `mini-app/src/pages/Settings.tsx`
+- `mini-app/src/App.tsx`
+- `.env`
+
+**RULES (NON-NEGOTIABLE):**
+- You are ALREADY on branch `feature/quest-ux` — do NOT run `git checkout`
+- Commit after EVERY task — atomic: `git add FILES && git commit -m "MSG"` in one Bash call
+- Do NOT push to remote or deploy to server
+- Do NOT add any new npm packages
+
+**Task 1: Improve CheckInButton to show remaining count**
+- Read `mini-app/src/components/CheckInButton.tsx`
+- Add new props: `currentProgress: number`, `target: number`
+- Change button text from "Check In" to "Check In ({remaining} left)" where remaining = target - currentProgress
+- When remaining is 1, show "Check In (last one!)" for motivational effect
+- On success, the parent updates progress so the count refreshes automatically
+- Keep the existing loading/success states
+- Commit: "Improve CheckInButton to show remaining check-in count"
+
+**Task 2: Add step indicator to quest detail modal**
+- In Quests.tsx, in the quest detail modal, add a visual step indicator below the progress bar
+- Show `target` number of circles/dots: filled for completed check-ins, empty for remaining
+- Example for target=3, progress=1: [●][○][○]
+- Use small colored circles: green for filled, gray for empty
+- Only show this for quests with target > 1 (for target=1, the progress bar is sufficient)
+- Commit: "Add check-in step indicator to quest detail modal"
+
+**Task 3: Improve quest detail modal content**
+- Add clear target description: "Check in {target} time{s} to complete" below the quest description
+- Pass `currentProgress` and `target` props to CheckInButton
+- Update the handleCheckinSuccess callback to properly update progress
+- Show XP reward more prominently: "🏆 {xp_reward} XP" badge
+- Commit: "Improve quest detail modal with target info and XP badge"
+
+**Task 4: Build verification**
+- Run `cd mini-app && npm run build`
+- Fix any TypeScript errors
+- Commit only if fixes were needed: "Fix TypeScript errors from quest UX improvements"
+
+### RETROSPECTIVE (DO THIS LAST)
+Find your section under "Run 13 Retrospectives" below and replace the placeholder with your retrospective.
+
+---
+
+### Agent F — Settings Auto-save + Leaderboard Polish (Frontend)
+
+**Branch:** `feature/settings-leaderboard`
+
+**CONTEXT:**
+- Settings.tsx accountability section currently saves on the global "Save Settings" button. Better UX: auto-save when user toggles consent/intensity/safe mode (immediate API call).
+- Leaderboard.tsx only has "Weekly" and "All Time" tabs. No monthly endpoint exists, but the display can be improved with better stats and visual treatment.
+- The leaderboard entries show "Lv {level} · {quests} quests" but could also show days active or achievements earned for richer profiles.
+
+**FILES YOU OWN:**
+- `mini-app/src/pages/Settings.tsx` — add auto-save for accountability
+- `mini-app/src/pages/Leaderboard.tsx` — improve display
+
+**FILES YOU MUST NOT TOUCH:**
+- `bot/` (all backend files)
+- `tools/` (all Python files)
+- `mini-app/src/api/client.ts`
+- `mini-app/src/types/index.ts` (Agent C is modifying this)
+- `mini-app/src/pages/Dashboard.tsx`, `mini-app/src/pages/Quests.tsx`, `mini-app/src/pages/Profile.tsx`
+- `mini-app/src/components/` (all)
+- `mini-app/src/App.tsx`
+- `.env`
+
+**RULES (NON-NEGOTIABLE):**
+- You are ALREADY on branch `feature/settings-leaderboard` — do NOT run `git checkout`
+- Commit after EVERY task — atomic: `git add FILES && git commit -m "MSG"` in one Bash call
+- Do NOT push to remote or deploy to server
+- Do NOT add any new npm packages
+
+**Task 1: Add auto-save for accountability toggles**
+- Read `mini-app/src/pages/Settings.tsx`
+- Currently, punishment settings are saved with the global "Save Settings" button
+- Add immediate auto-save when user changes accountability settings:
+  - When consent_given toggle changes: immediately call `apiClient.updatePunishmentSettings(...)`
+  - When intensity_level changes: debounce 500ms, then auto-save
+  - When safe_mode toggles: immediately auto-save
+- Show a brief "Saved" indicator (small text below the section, fades after 2 seconds)
+- Keep the global "Save Settings" button for notification preferences (those don't need auto-save)
+- Use `haptic.notification('success')` on successful auto-save
+- Commit: "Add auto-save for accountability settings"
+
+**Task 2: Add save indicator feedback**
+- Add a small animated "Saved ✓" text that appears near the accountability section after auto-save
+- Use Framer Motion for fade-in/out animation (appears for 2 seconds then fades)
+- If save fails, show "Failed to save" in red briefly
+- Commit: "Add save indicator for accountability auto-save"
+
+**Task 3: Improve leaderboard visual design**
+- Read `mini-app/src/pages/Leaderboard.tsx`
+- Improve the top 3 entries with special styling: larger avatar areas, gradient backgrounds, or medal-colored borders
+- Add a subtle separator between top 3 and the rest of the list
+- Make the current user's entry sticky at the bottom if they're not in the visible list (or highlight more prominently)
+- Commit: "Improve leaderboard top 3 styling and user highlight"
+
+**Task 4: Build verification**
+- Run `cd mini-app && npm run build`
+- Fix any TypeScript errors
+- Commit only if fixes were needed: "Fix TypeScript errors from Settings and Leaderboard polish"
+
+### RETROSPECTIVE (DO THIS LAST)
+Find your section under "Run 13 Retrospectives" below and replace the placeholder with your retrospective.
+
+---
+
+### Run 13 File Ownership Matrix
+
+| File/Directory | Agent A | Agent B | Agent C | Agent D | Agent E | Agent F | Nobody |
+|---|---|---|---|---|---|---|---|
+| bot/src/api/routes/checkins.ts | OWNS | - | - | - | - | - | - |
+| database/migrations/run13_quest_target.sql (NEW) | OWNS | - | - | - | - | - | - |
+| bot/src/api/routes/achievements.ts | - | OWNS | - | - | - | - | - |
+| bot/src/utils/achievementEngine.ts | - | OWNS | - | - | - | - | - |
+| bot/src/jobs/definitions/achievementNotifier.ts | - | OWNS | - | - | - | - | - |
+| database/migrations/run13_achievement_dedup.sql (NEW) | - | OWNS | - | - | - | - | - |
+| mini-app/src/types/index.ts | - | - | OWNS | - | - | - | - |
+| mini-app/src/pages/Dashboard.tsx | - | - | OWNS | - | - | - | - |
+| mini-app/src/pages/Profile.tsx | - | - | - | OWNS | - | - | - |
+| mini-app/src/pages/Quests.tsx | - | - | - | - | OWNS | - | - |
+| mini-app/src/components/CheckInButton.tsx | - | - | - | - | OWNS | - | - |
+| mini-app/src/pages/Settings.tsx | - | - | - | - | - | OWNS | - |
+| mini-app/src/pages/Leaderboard.tsx | - | - | - | - | - | OWNS | - |
+| mini-app/src/api/client.ts | - | - | - | GRAY (add 1) | - | - | - |
+| bot/src/jobs/definitions/dailyQuestReset.ts | GRAY (add query) | - | - | - | - | - | - |
+| mini-app/src/App.tsx | - | - | - | - | - | - | LOCKED |
+| bot/src/api/server.ts | - | - | - | - | - | - | LOCKED |
+| bot/src/jobs/registerJobs.ts | - | - | - | - | - | - | LOCKED |
+| bot/src/bot.ts | - | - | - | - | - | - | LOCKED |
+| .env | - | - | - | - | - | - | LOCKED |
+
+### Run 13 Merge Order
+
+1. **Agent A first** — Check-in target fix (backend changes that affect quest behavior)
+2. **Agent B second** — Achievement system fix (backend, no overlap with A)
+3. **Agent C third** — TypeScript types (frontend types that D/E/F benefit from)
+4. **Agent D fourth** — Profile polish (touches client.ts GRAY AREA)
+5. **Agent E fifth** — Quest UX (independent frontend, no GRAY AREA)
+6. **Agent F last** — Settings + Leaderboard (independent pages)
+
+**Conflict expectations:**
+- `client.ts` — only Agent D touches it (adds 1 method). No conflicts expected.
+- `PARALLEL_AGENTS.md` — pre-allocated retro sections should auto-merge. If Agent F committed to main again (like Run 12), use the `git checkout --ours` + splice pattern.
+- No other GRAY AREA overlaps.
+
+---
+
+### Run 13 Retrospectives
+
+#### Agent A Retrospective
+*(To be filled by Agent A)*
+
+#### Agent B Retrospective
+*(To be filled by Agent B)*
+
+#### Agent C Retrospective
+*(To be filled by Agent C)*
+
+#### Agent D Retrospective
+*(To be filled by Agent D)*
+
+#### Agent E Retrospective
+*(To be filled by Agent E)*
+
+#### Agent F Retrospective
+*(To be filled by Agent F)*
