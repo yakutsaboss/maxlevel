@@ -154,6 +154,17 @@ class ApiClient {
     return response.data;
   }
 
+  // Punishment settings endpoints
+  async getPunishmentSettings(telegramId: number): Promise<ApiResponse<any>> {
+    const response = await this.client.get(`/punishment/${telegramId}/settings`);
+    return response.data;
+  }
+
+  async updatePunishmentSettings(telegramId: number, data: { consent_given?: boolean; intensity_level?: string; safe_mode?: boolean }): Promise<ApiResponse<any>> {
+    const response = await this.client.patch(`/punishment/${telegramId}/settings`, data);
+    return response.data;
+  }
+
   // Onboarding endpoints
   async getOnboardingState(telegramId: number): Promise<ApiResponse<{ current_step: string | null; quiz_data: Record<string, any> | null }>> {
     const response = await this.client.get(`/onboarding/${telegramId}`);
