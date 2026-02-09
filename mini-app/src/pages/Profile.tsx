@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useTelegram } from '@/hooks/useTelegram';
 import { apiClient } from '@/api/client';
 import { UserStats, UserAchievement, Achievement } from '@/types';
-import { Trophy, Award, TrendingUp, Calendar, Zap, AlertCircle, RefreshCw, Pencil, Settings } from 'lucide-react';
+import { Trophy, Award, TrendingUp, Calendar, Zap, AlertCircle, RefreshCw, Pencil, Settings, Shield } from 'lucide-react';
 
 import { motion } from 'framer-motion';
 import { ProfileEditModal, AVATAR_OPTIONS } from '@/components/ProfileEditModal';
@@ -23,6 +23,7 @@ export function Profile() {
   const [error, setError] = useState(false);
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [toast, setToast] = useState<{ message: string; variant: 'success' | 'error' | 'info' } | null>(null);
+  const [punishmentSettings, setPunishmentSettings] = useState<{ consent_given: boolean; intensity_level: string; safe_mode: boolean } | null>(null);
 
   useEffect(() => { loadProfileData(); }, [user]);
 
@@ -39,6 +40,11 @@ export function Profile() {
       if (statsRes.success && statsRes.data) { setStats(statsRes.data); }
       if (achievementsRes.success && achievementsRes.data) { setAchievements(achievementsRes.data); }
       if (allAchRes.success && allAchRes.data) { setAllAchievements(allAchRes.data); }
+      // Load punishment settings separately (non-blocking, API may not exist yet)
+      try {
+        const punishRes = await apiClient.getPunishmentSettings(user.id);
+        if (punishRes.success && punishRes.data) { setPunishmentSettings(punishRes.data); }
+      } catch { /* Punishment API not available yet — silently skip */ }
     } catch (error) {
       console.error('Failed to load profile data:', error);
       setError(true);
@@ -168,13 +174,22 @@ export function Profile() {
           <TrendingUp className="w-5 h-5 text-telegram-link" />My Modes
         </h2>
         <div className="grid grid-cols-2 gap-3">
-          {stats.modes.map((userMode, index) => (
-            <motion.div key={userMode.mode_id} initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: index * 0.1 }} whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} onClick={() => haptic.impact('light')} className="bg-telegram-secondaryBg rounded-2xl p-4 border border-telegram-hint/10">
-              <div className="text-4xl text-center mb-2">{userMode.mode.icon}</div>
-              <h3 className="font-semibold text-center text-sm">{userMode.mode.display_name}</h3>
-              <p className="text-xs text-telegram-hint text-center mt-1">Since {formatDate(userMode.activated_at)}</p>
-            </motion.div>
-          ))}
+          {stats.modes.map((userMode, index) => {
+            const perModeStreaks = (stats as any).perModeStreaks as Array<{ mode_id: number; mode_name: string; mode_icon: string; current_streak: number; longest_streak: number }> | undefined;
+            const modeStreak = perModeStreaks?.find((s) => s.mode_id === userMode.mode_id);
+            return (
+              <motion.div key={userMode.mode_id} initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: index * 0.1 }} whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} onClick={() => haptic.impact('light')} className="bg-telegram-secondaryBg rounded-2xl p-4 border border-telegram-hint/10">
+                <div className="text-4xl text-center mb-2">{userMode.mode.icon}</div>
+                <h3 className="font-semibold text-center text-sm">{userMode.mode.display_name}</h3>
+                <p className="text-xs text-telegram-hint text-center mt-1">Since {formatDate(userMode.activated_at)}</p>
+                {modeStreak && modeStreak.current_streak > 0 ? (
+                  <p className="text-xs text-center mt-1.5 font-medium text-orange-500">🔥 {modeStreak.current_streak} day streak</p>
+                ) : modeStreak ? (
+                  <p className="text-xs text-center mt-1.5 text-telegram-hint">No active streak</p>
+                ) : null}
+              </motion.div>
+            );
+          })}
         </div>
       </div>
 
@@ -187,21 +202,50 @@ export function Profile() {
           animate={{ opacity: 1, y: 0 }}
           className="bg-telegram-secondaryBg rounded-2xl p-4 border border-telegram-hint/10"
         >
-          <div className="flex items-center justify-between mb-3">
-            <span className="text-sm text-telegram-hint">Unlocked</span>
-            <span className="text-sm font-bold">{achievements.length}/{allAchievements.length || achievements.length}</span>
-          </div>
+          {/* Progress indicator */}
+          {(() => {
+            const total = allAchievements.length || achievements.length;
+            const unlocked = achievements.length;
+            const pct = total > 0 ? Math.round((unlocked / total) * 100) : 0;
+            return (
+              <div className="mb-4">
+                <div className="flex items-center justify-between mb-1.5">
+                  <span className="text-sm text-telegram-hint">{unlocked}/{total} unlocked</span>
+                  <span className="text-xs font-semibold text-telegram-link">{pct}%</span>
+                </div>
+                <div className="w-full h-2 bg-telegram-bg rounded-full overflow-hidden">
+                  <motion.div
+                    initial={{ width: 0 }}
+                    animate={{ width: `${pct}%` }}
+                    transition={{ duration: 0.8, ease: 'easeOut' }}
+                    className="h-full bg-gradient-to-r from-yellow-400 to-amber-500 rounded-full"
+                  />
+                </div>
+              </div>
+            );
+          })()}
+          {/* Achievement grid (2x2) */}
           {achievements.length > 0 ? (
-            <div className="flex gap-3 mb-3">
+            <div className="grid grid-cols-2 gap-2.5 mb-3">
               {achievements
                 .sort((a, b) => new Date(b.unlocked_at).getTime() - new Date(a.unlocked_at).getTime())
-                .slice(0, 3)
-                .map((ua) => (
-                  <div key={ua.achievement_id} className="flex items-center gap-1.5 bg-telegram-bg rounded-xl px-2.5 py-1.5">
-                    <span className="text-lg">{ua.achievement.icon}</span>
-                    <span className="text-xs font-medium line-clamp-1">{ua.achievement.name}</span>
-                  </div>
-                ))}
+                .slice(0, 4)
+                .map((ua) => {
+                  const rarity = (ua.achievement as any).rarity || (ua.achievement as any).category || '';
+                  const rarityColor = rarity === 'legendary' ? 'text-yellow-500' : rarity === 'epic' ? 'text-purple-500' : rarity === 'rare' ? 'text-blue-500' : 'text-telegram-hint';
+                  return (
+                    <motion.div
+                      key={ua.achievement_id}
+                      whileTap={{ scale: 0.95 }}
+                      onClick={() => haptic.impact('light')}
+                      className="bg-telegram-bg rounded-xl p-3 text-center cursor-pointer"
+                    >
+                      <div className="text-3xl mb-1">{ua.achievement.icon}</div>
+                      <div className="text-xs font-medium line-clamp-1">{ua.achievement.name}</div>
+                      {rarity && <div className={`text-[10px] font-semibold capitalize mt-0.5 ${rarityColor}`}>{rarity}</div>}
+                    </motion.div>
+                  );
+                })}
             </div>
           ) : (
             <p className="text-sm text-telegram-hint mb-3">Complete quests to earn achievements!</p>
@@ -212,6 +256,48 @@ export function Profile() {
           >
             View all achievements
           </button>
+        </motion.div>
+      </div>
+
+      <div className="px-4 mt-6">
+        <h2 className="text-lg font-semibold mb-3 flex items-center gap-2">
+          <Shield className="w-5 h-5 text-telegram-link" />Accountability
+        </h2>
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="bg-telegram-secondaryBg rounded-2xl p-4 border border-telegram-hint/10"
+        >
+          {punishmentSettings && punishmentSettings.consent_given ? (
+            <div>
+              <div className="flex items-center gap-2 mb-3">
+                <div className="w-8 h-8 rounded-full bg-green-500/20 flex items-center justify-center">
+                  <Shield className="w-4 h-4 text-green-500" />
+                </div>
+                <span className="text-sm font-semibold text-green-500">Accountability Active</span>
+              </div>
+              <div className="space-y-2 text-sm">
+                <div className="flex justify-between">
+                  <span className="text-telegram-hint">Intensity</span>
+                  <span className="font-medium capitalize">{punishmentSettings.intensity_level}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-telegram-hint">Safe mode</span>
+                  <span className="font-medium">{punishmentSettings.safe_mode ? 'ON' : 'OFF'}</span>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-full bg-telegram-hint/20 flex items-center justify-center">
+                <Shield className="w-4 h-4 text-telegram-hint" />
+              </div>
+              <div>
+                <span className="text-sm font-medium text-telegram-hint">Accountability Off</span>
+                <p className="text-xs text-telegram-hint/70">Enable in Settings to add quest failure penalties</p>
+              </div>
+            </div>
+          )}
         </motion.div>
       </div>
 
