@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useTelegram } from '@/hooks/useTelegram';
 import { useBackButton } from '@/hooks/useTelegram';
 import { apiClient } from '@/api/client';
-import { Bell, Clock, Globe, AlertCircle, RefreshCw, Loader2 } from 'lucide-react';
+import { Bell, Clock, Globe, AlertCircle, RefreshCw, Loader2, Shield } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { Toast } from '@/components/Toast';
 
@@ -12,6 +12,19 @@ interface UserPreferences {
   reminder_time: number;
   timezone: string;
 }
+
+interface PunishmentSettings {
+  consent_given: boolean;
+  intensity_level: string;
+  safe_mode: boolean;
+}
+
+const INTENSITY_LEVELS = [
+  { value: 'light', label: 'Light', description: '0.5x XP penalty' },
+  { value: 'medium', label: 'Medium', description: '1x XP penalty' },
+  { value: 'hard', label: 'Hard', description: '1.5x XP penalty' },
+  { value: 'extreme', label: 'Extreme', description: '2x XP penalty' },
+];
 
 const ALL_HOURS = Array.from({ length: 24 }, (_, i) => i);
 
@@ -47,6 +60,12 @@ export function Settings() {
     reminder_time: 18,
     timezone: detectTimezone(),
   });
+  const [punishment, setPunishment] = useState<PunishmentSettings>({
+    consent_given: false,
+    intensity_level: 'medium',
+    safe_mode: true,
+  });
+  const [punishmentAvailable, setPunishmentAvailable] = useState(true);
 
   const handleBack = useCallback(() => navigate('/profile'), [navigate]);
   useBackButton(handleBack);
@@ -58,13 +77,25 @@ export function Settings() {
     try {
       setLoading(true);
       setError(false);
-      const res = await apiClient.getUserPreferences(user.id);
+      const [res, punishRes] = await Promise.all([
+        apiClient.getUserPreferences(user.id),
+        apiClient.getPunishmentSettings(user.id).catch(() => null),
+      ]);
       if (res.success && res.data) {
         setPrefs({
           notifications_enabled: res.data.notification_enabled ?? true,
           reminder_time: res.data.reminder_time ?? 18,
           timezone: res.data.timezone || detectTimezone(),
         });
+      }
+      if (punishRes && punishRes.success && punishRes.data) {
+        setPunishment({
+          consent_given: punishRes.data.consent_given ?? false,
+          intensity_level: punishRes.data.intensity_level || 'medium',
+          safe_mode: punishRes.data.safe_mode ?? true,
+        });
+      } else {
+        setPunishmentAvailable(false);
       }
     } catch (err) {
       console.error('Failed to load preferences:', err);
@@ -77,11 +108,23 @@ export function Settings() {
     haptic.impact('medium');
     setSaving(true);
     try {
-      await apiClient.updateUserPreferences(user.id, {
-        notification_enabled: prefs.notifications_enabled,
-        reminder_time: prefs.reminder_time,
-        timezone: prefs.timezone,
-      });
+      const saves: Promise<any>[] = [
+        apiClient.updateUserPreferences(user.id, {
+          notification_enabled: prefs.notifications_enabled,
+          reminder_time: prefs.reminder_time,
+          timezone: prefs.timezone,
+        }),
+      ];
+      if (punishmentAvailable) {
+        saves.push(
+          apiClient.updatePunishmentSettings(user.id, {
+            consent_given: punishment.consent_given,
+            intensity_level: punishment.intensity_level,
+            safe_mode: punishment.safe_mode,
+          }).catch(() => {})
+        );
+      }
+      await Promise.all(saves);
       haptic.notification('success');
       setToast({ message: 'Settings saved!', variant: 'success' });
     } catch {
@@ -235,6 +278,97 @@ export function Settings() {
           >
             Auto-detect timezone
           </button>
+        </motion.div>
+        {/* Accountability */}
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.15 }}
+          className="bg-telegram-secondaryBg rounded-2xl p-4 border border-telegram-hint/10"
+        >
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-3">
+              <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-white ${punishment.consent_given ? 'bg-red-500' : 'bg-gray-500'}`}>
+                <Shield className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="font-semibold text-sm">Accountability</h3>
+                <p className="text-xs text-telegram-hint">Penalties for failed quests</p>
+              </div>
+            </div>
+            <button
+              onClick={() => {
+                haptic.selection();
+                if (!punishmentAvailable) return;
+                setPunishment(p => ({ ...p, consent_given: !p.consent_given }));
+              }}
+              className={`w-12 h-7 rounded-full transition-colors relative ${
+                !punishmentAvailable ? 'bg-telegram-hint/20 opacity-50' :
+                punishment.consent_given ? 'bg-red-500' : 'bg-telegram-hint/30'
+              }`}
+            >
+              <motion.div
+                className="w-5 h-5 bg-white rounded-full absolute top-1 shadow-sm"
+                animate={{ left: punishment.consent_given ? 26 : 4 }}
+                transition={{ type: 'spring', stiffness: 500, damping: 30 }}
+              />
+            </button>
+          </div>
+
+          {!punishmentAvailable && (
+            <p className="text-xs text-telegram-hint">Coming soon — complete onboarding to enable</p>
+          )}
+
+          {punishmentAvailable && punishment.consent_given && (
+            <div className="space-y-3 mt-2">
+              {/* Intensity Level */}
+              <div>
+                <label className="text-xs font-medium text-telegram-hint mb-1.5 block">Intensity Level</label>
+                <div className="grid grid-cols-4 gap-1.5">
+                  {INTENSITY_LEVELS.map((level) => (
+                    <button
+                      key={level.value}
+                      onClick={() => {
+                        haptic.selection();
+                        setPunishment(p => ({ ...p, intensity_level: level.value }));
+                      }}
+                      className={`py-2 px-1 rounded-xl text-center transition-all active:scale-95 ${
+                        punishment.intensity_level === level.value
+                          ? 'bg-red-500 text-white shadow-md'
+                          : 'bg-telegram-bg text-telegram-hint border border-telegram-hint/20'
+                      }`}
+                    >
+                      <div className="text-xs font-semibold">{level.label}</div>
+                    </button>
+                  ))}
+                </div>
+                <p className="text-[10px] text-telegram-hint mt-1">
+                  {INTENSITY_LEVELS.find(l => l.value === punishment.intensity_level)?.description}
+                </p>
+              </div>
+
+              {/* Safe Mode Toggle */}
+              <div className="flex items-center justify-between">
+                <div>
+                  <span className="text-sm font-medium">Safe Mode</span>
+                  <p className="text-xs text-telegram-hint">Cap daily XP loss</p>
+                </div>
+                <button
+                  onClick={() => {
+                    haptic.selection();
+                    setPunishment(p => ({ ...p, safe_mode: !p.safe_mode }));
+                  }}
+                  className={`w-12 h-7 rounded-full transition-colors relative ${punishment.safe_mode ? 'bg-telegram-link' : 'bg-telegram-hint/30'}`}
+                >
+                  <motion.div
+                    className="w-5 h-5 bg-white rounded-full absolute top-1 shadow-sm"
+                    animate={{ left: punishment.safe_mode ? 26 : 4 }}
+                    transition={{ type: 'spring', stiffness: 500, damping: 30 }}
+                  />
+                </button>
+              </div>
+            </div>
+          )}
         </motion.div>
       </div>
 
