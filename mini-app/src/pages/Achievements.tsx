@@ -18,6 +18,12 @@ function formatDate(dateStr: string): string {
   return new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric' }).format(new Date(dateStr));
 }
 
+function isRecentlyUnlocked(unlockedAt: string): boolean {
+  const unlockTime = new Date(unlockedAt).getTime();
+  const oneDayAgo = Date.now() - 24 * 60 * 60 * 1000;
+  return unlockTime > oneDayAgo;
+}
+
 export function Achievements() {
   const { user, haptic } = useTelegram();
   const [allAchievements, setAllAchievements] = useState<Achievement[]>([]);
@@ -187,6 +193,7 @@ export function Achievements() {
                 {achs.map((ach, index) => {
                   const isUnlocked = unlockedIds.has(ach.id);
                   const userAch = userAchievements.find(ua => ua.achievement_id === ach.id);
+                  const isNew = isUnlocked && userAch && isRecentlyUnlocked(userAch.unlocked_at);
 
                   return (
                     <motion.div
@@ -200,8 +207,13 @@ export function Achievements() {
                         isUnlocked
                           ? `bg-telegram-secondaryBg ${rarityStyle.border}`
                           : 'bg-telegram-secondaryBg/60 border-telegram-hint/10 opacity-60'
-                      }`}
+                      } ${isNew ? 'achievement-new' : ''}`}
                     >
+                      {isNew && (
+                        <div className="absolute -top-2 -left-2 bg-yellow-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full shadow-sm z-10">
+                          NEW
+                        </div>
+                      )}
                       {isUnlocked && (
                         <div className="absolute -top-1.5 -right-1.5 bg-green-500 rounded-full p-0.5 shadow-sm">
                           <CheckCircle className="w-4 h-4 text-white" />
