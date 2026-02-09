@@ -4,15 +4,15 @@
  * Called from a background job (pg-boss), NOT a command handler.
  */
 
-import type { Bot } from 'grammy';
+import type { Bot, Context } from 'grammy';
 import { queryOne } from '../utils/db.js';
 
 /**
  * Send a daily summary notification to a user.
- * @param bot Grammy bot instance (needed to send messages)
+ * @param bot Grammy bot instance (only uses bot.api, so any context type works)
  * @param userId Internal user ID (users.id, not telegram_id)
  */
-export async function sendDailySummary(bot: Bot, userId: number): Promise<boolean> {
+export async function sendDailySummary<C extends Context>(bot: Bot<C>, userId: number): Promise<boolean> {
   try {
     // Fetch user's telegram_id and daily stats in one query
     const stats = await queryOne(

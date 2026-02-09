@@ -56,7 +56,7 @@ export async function handler(jobs: Job[]): Promise<void> {
   for (let i = 0; i < users.length; i++) {
     const user = users[i];
 
-    const success = await sendDailySummary(botRef as any, user.id);
+    const success = await sendDailySummary(botRef, user.id);
     if (success) {
       sent++;
     } else {
