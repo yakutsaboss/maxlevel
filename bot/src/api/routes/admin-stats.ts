@@ -6,6 +6,7 @@
 import { Router, Request, Response } from 'express';
 import { requireRole } from '../middleware/adminAuth.js';
 import { executePythonTool } from '../../utils/pythonTools.js';
+import { query } from '../../utils/db.js';
 
 const router = Router();
 
@@ -116,17 +117,78 @@ router.post('/broadcast', requireRole('admin'), async (req: Request, res: Respon
   try {
     const { message } = req.body;
 
-    if (!message) {
+    if (!message || typeof message !== 'string' || message.trim().length === 0) {
       return res.status(400).json({
         error: 'Bad Request',
         message: 'Message is required',
       });
     }
 
-    res.status(501).json({
-      error: 'Not Implemented',
-      message: 'Broadcast feature not yet implemented. Coming soon!',
-    });
+    const botToken = process.env.TELEGRAM_BOT_TOKEN;
+    if (!botToken) {
+      return res.status(503).json({
+        error: 'Service Unavailable',
+        message: 'Bot token not configured',
+      });
+    }
+
+    // Get all active users
+    const users = await query<{ telegram_id: number }>(
+      'SELECT telegram_id FROM users WHERE is_active = true'
+    );
+
+    if (users.length === 0) {
+      return res.json({ success: true, sent: 0, failed: 0, total: 0 });
+    }
+
+    const adminUser = (req as any).adminUser;
+    console.log(`[ADMIN] Broadcast initiated by ${adminUser.username} to ${users.length} users`);
+
+    let sent = 0;
+    let failed = 0;
+    const BATCH_SIZE = 20;
+
+    // Send in batches of 20 with 1-second delay between batches
+    for (let i = 0; i < users.length; i += BATCH_SIZE) {
+      const batch = users.slice(i, i + BATCH_SIZE);
+
+      const results = await Promise.allSettled(
+        batch.map(async (user) => {
+          const url = `https://api.telegram.org/bot${botToken}/sendMessage`;
+          const response = await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              chat_id: user.telegram_id,
+              text: message.trim(),
+              parse_mode: 'HTML',
+            }),
+          });
+          if (!response.ok) {
+            const err = await response.text();
+            throw new Error(`Telegram API ${response.status}: ${err}`);
+          }
+        })
+      );
+
+      for (const result of results) {
+        if (result.status === 'fulfilled') {
+          sent++;
+        } else {
+          failed++;
+          console.warn(`[ADMIN] Broadcast failed for user:`, result.reason?.message);
+        }
+      }
+
+      // Rate limit delay between batches (skip after last batch)
+      if (i + BATCH_SIZE < users.length) {
+        await new Promise(resolve => setTimeout(resolve, 1000));
+      }
+    }
+
+    console.log(`[ADMIN] Broadcast complete: ${sent} sent, ${failed} failed`);
+
+    res.json({ success: true, sent, failed, total: sent + failed });
   } catch (error) {
     console.error('[ADMIN] Error broadcasting:', error);
     res.status(500).json({
