@@ -2,7 +2,7 @@ import { useEffect, useState, useRef, useCallback, memo } from 'react';
 import { useTelegram } from '@/hooks/useTelegram';
 import { apiClient } from '@/api/client';
 import { UserStats, Quest, UserMode, UserAchievement } from '@/types';
-import { Trophy, Zap, Target, Flame, TrendingUp, AlertCircle, RefreshCw, Compass, Scroll } from 'lucide-react';
+import { Trophy, Zap, Target, Flame, TrendingUp, AlertCircle, RefreshCw, Compass, Scroll, Award, Calendar } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 const StatCard = memo(function StatCard({ icon, label, value, color }: { icon: React.ReactNode; label: string; value: string | number; color: string }) {
@@ -234,6 +234,44 @@ export function Dashboard() {
             ))}
           </div>
         )}
+      </div>
+
+      {/* Streak Section */}
+      <div className="px-4 mt-6">
+        <h2 className="text-lg font-semibold mb-3 flex items-center gap-2"><Flame className="w-5 h-5 text-orange-500" />Your Streak</h2>
+        <div className="bg-gradient-to-r from-orange-500 to-amber-500 rounded-2xl p-4 shadow-sm">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="bg-white/20 backdrop-blur-sm rounded-xl p-3">
+                <Flame className="w-8 h-8 text-white" />
+              </div>
+              <div>
+                <div className="text-3xl font-bold text-white">{stats.streakData.current}</div>
+                <div className="text-orange-100 text-sm">day{stats.streakData.current !== 1 ? 's' : ''} in a row</div>
+              </div>
+            </div>
+            <div className="flex flex-col gap-2 text-right">
+              <div className="flex items-center gap-1.5 justify-end">
+                <Award className="w-4 h-4 text-orange-100" />
+                <span className="text-sm text-white font-medium">Best: {stats.streakData.longest}</span>
+              </div>
+              <div className="flex items-center gap-1.5 justify-end">
+                <Calendar className="w-4 h-4 text-orange-100" />
+                <span className="text-sm text-white font-medium">{stats.streakData.daysActive} active</span>
+              </div>
+            </div>
+          </div>
+          {stats.streakData.current > 0 && stats.streakData.longest > 0 && (
+            <div className="mt-3 bg-white/20 backdrop-blur-sm rounded-full h-2 overflow-hidden">
+              <motion.div
+                className="h-full bg-white rounded-full"
+                initial={{ width: 0 }}
+                animate={{ width: `${Math.min((stats.streakData.current / stats.streakData.longest) * 100, 100)}%` }}
+                transition={{ duration: 0.8, ease: 'easeOut' }}
+              />
+            </div>
+          )}
+        </div>
       </div>
 
       <div className="px-4 mt-6">
