@@ -4283,3 +4283,24 @@ Add your retrospective to PARALLEL_AGENTS.md at the bottom under "Run 10 Retrosp
 ## Run 10 Retrospectives
 
 *(Agents: add your retrospective sections below this line when you finish)*
+
+### Agent D — Punishment System Redesign
+
+**Commits:** 3 (data types, PunishmentConfig rewrite, Summary update)
+**Build:** Clean pass, zero TypeScript errors.
+
+**What went well:**
+- Tasks 2+3 (type selection + difficulty) combined naturally into a single rewrite since they're both in PunishmentConfig.tsx. Made two logical commits from one file change.
+- The 2-step AnimatePresence flow (type -> difficulty) gives a clean UX without needing new routes/steps.
+- Backward compatibility was straightforward: `intensity_level: difficulty` covers the backend mapping.
+- No conflicts with other agents — file ownership was clearly isolated.
+
+**Decisions made:**
+- Used AnimatePresence with `mode="wait"` for step transitions rather than separate onboarding steps. This keeps the punishment config as a single step in the stepper while feeling like two screens.
+- Kept `save()` helper that writes all fields including backward compat on every update, rather than split saves.
+- Difficulty defaults to `'easy'` rather than `null` — always has a selection, reducing empty state bugs.
+
+**What could be better:**
+- The Summary `punishmentSummary()` function duplicates the difficulty labels from PunishmentConfig. A shared constant file would be cleaner, but was out of scope (would need a new file or editing locked files).
+
+**No blockers encountered.**
