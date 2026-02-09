@@ -24,6 +24,7 @@ export function Quests() {
   const [updatingProgress, setUpdatingProgress] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [pullDistance, setPullDistance] = useState(0);
+  const [todayCheckinCount, setTodayCheckinCount] = useState(0);
   const touchStartY = useRef(0);
   const isPulling = useRef(false);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -59,6 +60,16 @@ export function Quests() {
 
   useEffect(() => { loadQuests(); }, [user]);
 
+  const loadTodayCheckins = async () => {
+    if (!user?.id) return;
+    try {
+      const res = await apiClient.getTodayCheckins(user.id);
+      if (res.success && res.data) { setTodayCheckinCount(res.data.count); }
+    } catch (err) {
+      console.error('Failed to load today check-ins:', err);
+    }
+  };
+
   const loadQuests = async () => {
     if (!user?.id) { setLoading(false); return; }
     try {
@@ -70,6 +81,7 @@ export function Quests() {
       ]);
       if (activeRes.success && activeRes.data) { setActiveQuests(activeRes.data); }
       if (completedRes.success && completedRes.data) { setCompletedQuests(completedRes.data); }
+      loadTodayCheckins();
     } catch (error) {
       console.error('Failed to load quests:', error);
       setError(true);
@@ -121,6 +133,7 @@ export function Quests() {
     if (selectedQuest) {
       setSelectedQuest({ ...selectedQuest, progress: result.current, status: result.completed ? 'completed' : selectedQuest.status });
     }
+    loadTodayCheckins();
     if (result.completed) {
       haptic.notification('success');
       loadQuests().then(() => setSelectedQuest(null));
@@ -215,6 +228,12 @@ export function Quests() {
           <TabButton active={activeTab === 'active'} onClick={() => { setActiveTab('active'); haptic.selection(); }} icon={<Clock className="w-4 h-4" />} label="Active" count={activeQuests.length} />
           <TabButton active={activeTab === 'completed'} onClick={() => { setActiveTab('completed'); haptic.selection(); }} icon={<CheckCircle className="w-4 h-4" />} label="Completed" count={completedQuests.length} />
         </div>
+        {todayCheckinCount > 0 && (
+          <div className="flex items-center justify-center gap-1.5 mt-3 bg-white/15 backdrop-blur-sm rounded-xl px-3 py-1.5">
+            <CheckCircle className="w-3.5 h-3.5 text-green-300" />
+            <span className="text-white/90 text-xs font-medium">Today: {todayCheckinCount} check-in{todayCheckinCount !== 1 ? 's' : ''}</span>
+          </div>
+        )}
       </div>
 
       <div className="px-4 mt-6">
