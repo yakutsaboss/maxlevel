@@ -4283,3 +4283,25 @@ Add your retrospective to PARALLEL_AGENTS.md at the bottom under "Run 10 Retrosp
 ## Run 10 Retrospectives
 
 *(Agents: add your retrospective sections below this line when you finish)*
+
+### Agent B — Run 10 Retrospective
+
+**Tasks completed:** 4/4
+- Created `bot/src/api/routes/checkins.ts` with 3 endpoints (POST create, GET today, GET history)
+- Registered route in `server.ts`
+- Created 11 HTTP integration tests in `checkins.http.test.ts`
+- Build passes, all 412 tests pass (32 test files)
+
+**Commits:** 3
+1. `Add check-ins API routes with quest progress integration`
+2. `Register check-ins route in API server`
+3. `Add HTTP integration tests for check-ins routes`
+
+**What went well:**
+- Clean separation: the check-ins route follows the exact same patterns as quests.ts (transaction for writes, query for reads, cache invalidation)
+- All tests pass first try — the mock patterns from users.http.test.ts transferred perfectly
+- No files outside ownership touched (only checkins.ts, server.ts import/route line, test file)
+
+**Notes for merge:**
+- Agent B merges first per Run 10 merge order. The server.ts change is minimal (1 import + 1 route line) so conflicts should be trivial for later agents.
+- The `target` field on quest_instances is hardcoded to `1` in the query (matching the existing pattern in quests.ts PATCH progress). If a real target column is added later, the query just needs updating.
