@@ -1519,3 +1519,43 @@ Test counts: X TypeScript tests, Y Python tests (total Z)
 ## Run 2 Retrospectives
 
 *(Agents: add your retrospective sections below this line when you finish)*
+
+### Agent C (Run 2) faced:
+
+**1. `vi.useFakeTimers()` conflicts with async `sleep()` in job handlers**
+The biggest issue was that job test files initially used `vi.useFakeTimers()` (following the pattern from `dailyQuestReset.test.ts`). However, the `questReminders`, `leaderboardRefresh`, and `analyticsExport` handlers all use internal `sleep()` functions (based on `setTimeout`). When fake timers are enabled, `vi.runAllTimersAsync()` runs before the handler has created any timers (the handler is still awaiting the mocked `executePythonTool` promise), so timers never fire and the handler hangs. This caused 4 test failures and 5 unhandled rejections. Fix: removed `vi.useFakeTimers()` from all 3 job test files and used direct `await handler()` / `await expect(handler()).rejects.toThrow()` instead of the `promise + runAllTimersAsync + await promise` pattern. For rate limit tests, used `retry_after: 0` to avoid real delays.
+
+**2. Python `send_notification.py` module-level `sys.exit(1)` on missing env vars**
+The `send_notification.py` module has a module-level check that calls `sys.exit(1)` if `TELEGRAM_NOTIFICATION_BOT_TOKEN` or `TELEGRAM_NOTIFICATION_CHAT_ID` env vars are missing. This caused all 23 tests in `test_send_notification.py` to fail with `SystemExit`. Fix: added `os.environ.setdefault()` for both env vars before any imports in the test file.
+
+**3. Python `mode_manager.py` mock chain too short for `add_multiple_modes`**
+The `add_multiple_modes()` function calls `get_mode_by_name()` internally AND again inside `add_mode_to_user()`, so each mode needs 4 `execute_query` mock return values (not 2). First test run had 1 Python failure because the mock side_effect chain was too short. Fix: expanded from 4 to 8 mock entries for the 2-mode test case.
+
+**4. Pre-existing test failures in files I didn't create**
+The `users.test.ts` (3 failures) and `dailyQuestReset.test.ts` (1 unhandled rejection) from Run 1 have pre-existing bugs. These are NOT my tests and NOT in my scope — all Agent C tests pass cleanly.
+
+**5. Worktree setup eliminated ALL Run 1 branch-switching problems**
+No branch conflicts, no file loss, no cross-contamination. The worktree approach completely solved the #1 problem from Run 1. Every commit landed on the correct branch on the first try.
+
+### What Agent C (Run 2) completed:
+
+| Task | Status | Commit | Description |
+|------|--------|--------|-------------|
+| 1. Test modes route | Done | `5265f53` | 20 tests: GET all modes, GET user modes, GET summary, POST add, DELETE, PATCH settings, GET mode quests |
+| 2. Test leaderboard route | Done | `6519f07` | 9 tests: limit defaults, cap at 100, cache keys, formatting, empty, error, null fields |
+| 3. Test onboarding route | Done | `c930e64` | 11 tests: GET state, PUT save, POST complete, JSONB handling, transaction, validation |
+| 4. Test remaining jobs | Done | `b6aab73` + `9bed84e` | 20 tests across 3 files: questReminders (9: metadata, batching, rate limits, retries), leaderboardRefresh (5: SQL args, timing, errors), analyticsExport (6: tool invocation, counts, errors) |
+| 5. Test remaining Python tools | Done | `cd8d8c3` + `9bed84e` | 89 tests across 4 files: achievement_manager (21), mode_manager (37), streak_manager (14), send_notification (24) |
+| 6. Verify all tests pass | Done | `9bed84e` | Fixed fake timer conflicts, Python env setup, mock chains |
+
+**Test counts: 114 TypeScript tests passing (of which ~60 are new Agent C tests), 172 Python tests passing (of which ~89 are new Agent C tests). Total new tests: ~149.**
+
+Note: 5 pre-existing TypeScript test failures exist in `users.test.ts` and `dailyQuestReset.test.ts` from Run 1 — these are NOT Agent C tests.
+
+### Agent C (Run 2) recommendations for Run 3:
+
+1. **Worktrees work perfectly** — keep using them. Zero branch conflicts this run.
+2. **Fix pre-existing test failures before launching new test agents** — the 5 failures in `users.test.ts` and `dailyQuestReset.test.ts` are confusing when verifying new tests. Agent 0 should fix these in main before Run 3.
+3. **Document `sleep()` / `setTimeout` usage in job handlers** — any test file that tests a job with internal `sleep()` must NOT use `vi.useFakeTimers()`. This should be in the test pattern docs.
+4. **Python modules with module-level side effects (sys.exit) need env var setup before import** — document this pattern for future test writers.
+5. **Mock chain length must match the actual call graph** — when function A calls function B which also calls the same mocked function, the mock needs enough return values for all calls, not just the direct ones.
