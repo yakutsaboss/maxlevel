@@ -2295,6 +2295,7 @@ Add your retrospective to PARALLEL_AGENTS.md at the bottom under "Run 6 Retrospe
 
 *(Agents: add your retrospective sections below this line when you finish)*
 
+<<<<<<< HEAD
 ### Agent B Retrospective
 
 **Branch:** `feature/achievements-backend`
@@ -2356,3 +2357,33 @@ Add your retrospective to PARALLEL_AGENTS.md at the bottom under "Run 6 Retrospe
 - The existing test pattern (testing mock functions directly) tests logic but doesn't exercise Express routing/middleware integration
 - All previously untested handlers (miniapp, admin, onboarding routes, achievements routes) now have coverage
 - Python tests were already comprehensive (172) — no gaps found
+
+### Agent A Retrospective (Run 6 — Achievements Page & UX Polish)
+
+**Tasks completed: 5/5**
+
+| # | Task | Status | Notes |
+|---|------|--------|-------|
+| 1 | Create Achievements page | Done | Full page with rarity-grouped grid (common/rare/epic/legendary), progress bar header, pull-to-refresh, loading skeleton, error retry |
+| 2 | Add Achievements to navigation | Done | 5th nav item using Award icon (Trophy was taken by Leaderboard), label "Awards" |
+| 3 | Add achievements route | Done | `/achievements` route in App.tsx with PageWrapper and onboarding guard |
+| 4 | Achievements summary on Profile | Done | Replaced full achievements grid with compact summary card: unlocked count, 3 most recent, "View all" link to /achievements |
+| 5 | Reusable Toast component | Done | Created Toast with success/error/info variants, framer-motion animations, auto-dismiss after 3s. Integrated in ProfileEditModal (replaced inline "Saved!" button) and Settings (replaced inline saved state) |
+
+**What went well:**
+- All 5 tasks completed cleanly with atomic commits after each
+- Build passes with zero TypeScript errors
+- Consistent patterns: pull-to-refresh, loading skeletons, error states all match existing pages
+- Toast component is properly reusable — simple props interface, auto-dismiss, three variants
+- Profile page is cleaner now — compact achievements card instead of full grid (full grid lives on dedicated page)
+
+**Issues encountered:**
+- Initially removed `Achievement` type import and `Award` icon from Profile.tsx imports when cleaning up the grid, but they were still needed for `allAchievements` state and `StatBadge`. Caught and fixed before commit.
+- Trophy icon was already used by Leaderboard nav item, so used Award for Achievements to avoid confusion
+
+**Commits (5 total):**
+1. `df7fa0a` — Add Achievements page with rarity groups, progress bar, pull-to-refresh
+2. `0b9e4b4` — Add Achievements as 5th nav item with Award icon
+3. `e616628` — Add /achievements route to App.tsx
+4. `0a8ee79` — Replace achievements grid with compact summary card linking to /achievements
+5. `3ae2661` — Add reusable Toast component, integrate in ProfileEditModal and Settings

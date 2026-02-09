@@ -3,24 +3,13 @@ import { useNavigate } from 'react-router-dom';
 import { useTelegram } from '@/hooks/useTelegram';
 import { apiClient } from '@/api/client';
 import { UserStats, UserAchievement, Achievement } from '@/types';
-import { Trophy, Award, TrendingUp, Calendar, Zap, Star, AlertCircle, RefreshCw, Pencil, Lock, CheckCircle, Settings } from 'lucide-react';
+import { Trophy, Award, TrendingUp, Calendar, Zap, AlertCircle, RefreshCw, Pencil, Settings } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { ProfileEditModal, AVATAR_OPTIONS } from '@/components/ProfileEditModal';
+import { Toast } from '@/components/Toast';
 
 function formatDate(dateStr: string): string {
   return new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric', year: 'numeric' }).format(new Date(dateStr));
-}
-
-function getAchievementProgress(ach: Achievement, stats: UserStats | null): number | null {
-  if (!stats) return null;
-  switch (ach.requirement_type) {
-    case 'quests_completed': return stats.user.total_quests_completed;
-    case 'level_reached': return stats.user.level;
-    case 'streak_days': return stats.user.current_streak;
-    case 'xp_earned': return stats.user.xp;
-    case 'modes_activated': return stats.modes.length;
-    default: return null;
-  }
 }
 
 export function Profile() {
@@ -32,6 +21,7 @@ export function Profile() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const [editModalOpen, setEditModalOpen] = useState(false);
+  const [toast, setToast] = useState<{ message: string; variant: 'success' | 'error' | 'info' } | null>(null);
 
   useEffect(() => { loadProfileData(); }, [user]);
 
@@ -189,67 +179,39 @@ export function Profile() {
 
       <div className="px-4 mt-6 mb-6">
         <h2 className="text-lg font-semibold mb-3 flex items-center gap-2">
-          <Trophy className="w-5 h-5 text-telegram-link" />Achievements ({achievements.length}/{allAchievements.length || achievements.length})
+          <Trophy className="w-5 h-5 text-telegram-link" />Achievements
         </h2>
-        {allAchievements.length === 0 && achievements.length === 0 ? (
-          <div className="text-center py-8 bg-telegram-secondaryBg rounded-2xl border border-telegram-hint/10">
-            <Trophy className="w-10 h-10 text-telegram-hint mx-auto mb-2" />
-            <p className="text-telegram-hint text-sm">Achievements will appear here</p>
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="bg-telegram-secondaryBg rounded-2xl p-4 border border-telegram-hint/10"
+        >
+          <div className="flex items-center justify-between mb-3">
+            <span className="text-sm text-telegram-hint">Unlocked</span>
+            <span className="text-sm font-bold">{achievements.length}/{allAchievements.length || achievements.length}</span>
           </div>
-        ) : (
-          <div className="grid-achievements">
-            {(allAchievements.length > 0 ? allAchievements : achievements.map(ua => ua.achievement)).map((ach, index) => {
-              const unlocked = achievements.find(ua => ua.achievement_id === ach.id);
-              const progress = getAchievementProgress(ach, stats);
-              return (
-                <motion.div
-                  key={ach.id}
-                  initial={{ opacity: 0, scale: 0 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  transition={{ delay: index * 0.03, type: 'spring', stiffness: 200 }}
-                  whileTap={{ scale: 0.95 }}
-                  onClick={() => haptic.impact('light')}
-                  className={`rounded-2xl p-3 border cursor-pointer relative ${
-                    unlocked
-                      ? 'bg-telegram-secondaryBg border-green-300'
-                      : 'bg-telegram-secondaryBg/60 border-telegram-hint/10 opacity-75'
-                  }`}
-                >
-                  {unlocked && (
-                    <div className="absolute -top-1 -right-1 bg-green-500 rounded-full p-0.5">
-                      <CheckCircle className="w-3.5 h-3.5 text-white" />
-                    </div>
-                  )}
-                  {!unlocked && !ach.is_hidden && (
-                    <div className="absolute -top-1 -right-1 bg-telegram-hint/50 rounded-full p-0.5">
-                      <Lock className="w-3.5 h-3.5 text-white" />
-                    </div>
-                  )}
-                  <div className={`text-3xl text-center mb-1 ${!unlocked ? 'grayscale' : ''}`}>{ach.icon}</div>
-                  <p className="text-xs text-center font-medium line-clamp-2">{ach.is_hidden && !unlocked ? '???' : ach.name}</p>
-                  {unlocked ? (
-                    <div className="flex items-center justify-center gap-1 mt-1.5">
-                      <Star className="w-3 h-3 text-yellow-500" />
-                      <span className="text-xs text-yellow-600 font-semibold">{ach.xp_reward}</span>
-                    </div>
-                  ) : !ach.is_hidden && progress !== null ? (
-                    <div className="mt-1.5">
-                      <div className="bg-telegram-hint/20 rounded-full h-1.5 overflow-hidden">
-                        <div className="h-full bg-telegram-link/60 transition-all" style={{ width: `${Math.min((progress / ach.requirement_value) * 100, 100)}%` }} />
-                      </div>
-                      <p className="text-[10px] text-telegram-hint text-center mt-0.5">{progress}/{ach.requirement_value}</p>
-                    </div>
-                  ) : (
-                    <div className="flex items-center justify-center gap-1 mt-1.5">
-                      <Star className="w-3 h-3 text-telegram-hint" />
-                      <span className="text-xs text-telegram-hint">{ach.xp_reward}</span>
-                    </div>
-                  )}
-                </motion.div>
-              );
-            })}
-          </div>
-        )}
+          {achievements.length > 0 ? (
+            <div className="flex gap-3 mb-3">
+              {achievements
+                .sort((a, b) => new Date(b.unlocked_at).getTime() - new Date(a.unlocked_at).getTime())
+                .slice(0, 3)
+                .map((ua) => (
+                  <div key={ua.achievement_id} className="flex items-center gap-1.5 bg-telegram-bg rounded-xl px-2.5 py-1.5">
+                    <span className="text-lg">{ua.achievement.icon}</span>
+                    <span className="text-xs font-medium line-clamp-1">{ua.achievement.name}</span>
+                  </div>
+                ))}
+            </div>
+          ) : (
+            <p className="text-sm text-telegram-hint mb-3">Complete quests to earn achievements!</p>
+          )}
+          <button
+            onClick={() => { haptic.impact('light'); navigate('/achievements'); }}
+            className="w-full py-2.5 rounded-xl bg-telegram-link/10 text-telegram-link text-sm font-semibold active:scale-[0.98] transition-transform"
+          >
+            View all achievements
+          </button>
+        </motion.div>
       </div>
 
       <div className="px-4 mt-6 mb-6">
@@ -279,12 +241,23 @@ export function Profile() {
       <ProfileEditModal
         isOpen={editModalOpen}
         onClose={() => setEditModalOpen(false)}
-        onSaved={() => loadProfileData()}
+        onSaved={() => {
+          loadProfileData();
+          setToast({ message: 'Profile saved successfully!', variant: 'success' });
+        }}
         telegramId={user!.id}
         currentName={stats.user.first_name}
         currentAvatarId={stats.user.avatar_id ?? 1}
         haptic={{ impact: haptic.impact, notification: haptic.notification, selection: haptic.selection }}
       />
+
+      {toast && (
+        <Toast
+          message={toast.message}
+          variant={toast.variant}
+          onDismiss={() => setToast(null)}
+        />
+      )}
     </div>
   );
 }
