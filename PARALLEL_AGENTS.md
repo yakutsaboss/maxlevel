@@ -3340,3 +3340,373 @@ Add your retrospective to PARALLEL_AGENTS.md at the bottom under "Run 8 Retrospe
 - Finance mode has no day-grid, so no frequency question was needed. If a day-grid is added to Finance later, add a `check_frequency` slider before it.
 - The `avatar_id` mapping changed from 8 to 16 options. Existing users with `avatar_id` 1-8 will see different avatars than before. Consider a one-time migration if this matters.
 - Hydration mode also has no day-grid, so no changes were needed there.
+
+---
+
+## Run 8 Retrospective (Agent 0)
+
+### Merge Results
+| Branch | Merge | Conflicts | Resolution |
+|--------|-------|-----------|------------|
+| `feature/http-test-coverage` → main | Merge commit | 0 | Clean |
+| `feature/test-infra-polish` → main | Merge commit | 1 (PARALLEL_AGENTS.md) | Both retrospectives kept |
+| `feature/miniapp-onboarding-fix` → main | Merge commit | 1 (PARALLEL_AGENTS.md) | All 3 retrospectives kept |
+
+### What Was Delivered
+**Agent A** (mini-app): Fixed critical day-grid validation bug (mode-agnostic frequency), fixed Summary.tsx, upgraded avatars to 16 emoji-based options. 4 commits, all tasks done.
+
+**Agent B** (HTTP tests): Added 49 new HTTP integration tests — quests (20), modes (18), leaderboard (11). Completed all route HTTP coverage. 4 commits.
+
+**Agent C** (test infra): Enhanced shared mockResponse() with setHeader/getHeader, refactored adminAuth tests, added 24 new HTTP tests — admin (13), onboarding (11). 6 commits.
+
+### Test Totals After Merge
+- **394 TypeScript tests** (31 files) — all passing
+- **172 Python tests** — unchanged
+- **Total: 566 tests, 0 failures**
+
+### What Went Right
+- All 3 agents completed ALL tasks with zero issues
+- Only expected PARALLEL_AGENTS.md conflicts (all agents append retrospectives to same line)
+- HTTP test coverage now 100% — all 7 route files have integration tests
+- Both builds passed on first try after merge
+- `supertest` was in package.json but not installed in main repo (worktrees had it) — quickly fixed with `npm install`
+
+### Known Issues Carried Forward
+1. **Avatar_id validation bug (BLOCKER)** — Backend `users.ts:562` caps `avatar_id` at 8, but frontend now supports 16 emoji avatars. Saves for avatars 9-16 will fail with 400 error.
+2. **Broadcast endpoint 501** — `POST /api/admin/broadcast` returns "Not Implemented"
+3. **Admin logs endpoint 501** — `GET /api/admin/logs` returns "Not Implemented"
+4. **pg-boss Node.js mismatch** — requires 22.12+, server has 20.20 (works but warns)
+5. **Python test gap** — 7+ tools without tests (db_operations, notification_bot_handler, server_metrics, etc.)
+6. **No admin panel UI** — Admin API endpoints exist but no web interface
+
+### Known Issues for Run 9
+1. **Avatar_id validation: 1-8 → 1-16** — One-line backend fix in users.ts, but needs coordination
+2. **Broadcast implementation** — Send message to all active users via Grammy bot instance
+3. **Admin logs endpoint** — Read PM2/system logs, return recent entries
+4. **Python tool tests** — db_operations, notification_bot_handler, server_metrics need test coverage
+5. **Check-in system** — `check_ins` table exists in schema but has no API endpoint for direct check-ins
+6. **No admin panel web UI** — All admin operations require API calls, no dashboard exists
+
+---
+
+## RUN 9: Parallel Agents (3 Agents + Agent 0)
+
+### Focus: Backend Bug Fixes, Admin Features & Python Test Coverage
+
+Run 9 fixes the avatar_id validation blocker, implements the broadcast and logs admin endpoints, adds a web-based admin dashboard, and closes the Python tool test gap.
+
+### How to Launch
+
+Open 4 separate Claude Code sessions. **Start Agent 0 FIRST** — it sets up worktrees. Only start A/B/C after Agent 0 says "Ready."
+
+### Copy-Paste Prompts
+
+**Agent 0** (open in: `c:\Users\Asus\Desktop\Wibecode`):
+```
+Read PARALLEL_AGENTS.md — you are Agent 0 for Run 9. Set up worktrees and tell me when ready. After all agents finish, I'll tell you to merge.
+```
+
+**Agent A** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-a`):
+```
+Read PARALLEL_AGENTS.md — you are Agent A for Run 9. Do your tasks.
+```
+
+**Agent B** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-b`):
+```
+Read PARALLEL_AGENTS.md — you are Agent B for Run 9. Do your tasks.
+```
+
+**Agent C** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-c`):
+```
+Read PARALLEL_AGENTS.md — you are Agent C for Run 9. Do your tasks.
+```
+
+---
+
+## Agent 0 — Orchestrator (Run 9)
+
+**You are Agent 0.** Set up the environment, WAIT for agents, then merge and deploy.
+
+**Working directory:** `c:\Users\Asus\Desktop\Wibecode` (main repo, `main` branch)
+
+### Phase 1: Pre-Run Setup
+
+**Step 1: Verify clean state**
+```bash
+git status  # should be clean
+git log --oneline -3  # verify Run 8 merges at top
+```
+
+**Step 2: Create worktrees**
+```bash
+git branch feature/admin-dashboard 2>/dev/null
+git branch feature/backend-fixes 2>/dev/null
+git branch feature/python-test-coverage 2>/dev/null
+git worktree add ../Wibecode-agent-a feature/admin-dashboard
+git worktree add ../Wibecode-agent-b feature/backend-fixes
+git worktree add ../Wibecode-agent-c feature/python-test-coverage
+```
+
+**Step 3: Install dependencies**
+```bash
+cd ../Wibecode-agent-a/mini-app && npm install
+cd ../../Wibecode-agent-b/bot && npm install
+cd ../../Wibecode-agent-c/bot && npm install
+```
+
+**Step 4: Verify worktrees**
+```bash
+cd c:\Users\Asus\Desktop\Wibecode
+git worktree list
+```
+
+**Step 5: Tell the user** "Ready to launch Agents A, B, C."
+
+### Phase 2: WAIT for all 3 agents to finish
+
+### Phase 3: Post-Run Merge
+
+```bash
+# Check each branch
+git log main..feature/backend-fixes --oneline
+git log main..feature/python-test-coverage --oneline
+git log main..feature/admin-dashboard --oneline
+```
+
+**Merge order:**
+1. `git merge feature/backend-fixes --no-edit` → verify `cd bot && npm run build`
+2. `git merge feature/python-test-coverage --no-edit` → verify Python tests pass
+3. `git merge feature/admin-dashboard --no-edit` → verify `cd mini-app && npm run build`
+
+**Deploy + Clean up** (see Agent 0 Self-Protocol above).
+
+### Phase 4: Prepare Run 10
+
+After deploying Run 9, write retrospective, design next run, set up worktrees.
+
+---
+
+## Agent A — Admin Dashboard Mini-App Page (Run 9)
+
+**You are Agent A.** You build an admin dashboard page in the mini-app.
+
+**Working directory:** `c:\Users\Asus\Desktop\Wibecode-agent-a` (branch `feature/admin-dashboard`)
+
+**YOUR files (ONLY edit these):**
+- `mini-app/src/pages/Admin.tsx` (NEW)
+- `mini-app/src/components/AdminStatsCard.tsx` (NEW)
+- `mini-app/src/components/AdminUserList.tsx` (NEW)
+- `mini-app/src/components/AdminBroadcast.tsx` (NEW)
+- `mini-app/src/App.tsx` — ONLY add `<Route>` for /admin
+- `mini-app/src/index.css` — add admin-specific styles
+
+**DO NOT edit:** `mini-app/src/api/client.ts`, `mini-app/src/types/index.ts`, `mini-app/src/hooks/`, `mini-app/src/components/onboarding/`, `bot/`, `tools/`
+
+### CONTEXT
+- Admin API exists with Basic Auth: `GET /api/admin/stats`, `GET /api/admin/users`, `GET /api/admin/users/:id`, `GET /api/admin/jobs`, `POST /api/admin/jobs/:name/trigger`, `POST /api/admin/broadcast`
+- Admin auth uses Basic Auth (username + password) — NOT Telegram WebApp auth
+- Admin credentials: from environment vars `ADMIN_USERNAME` and `ADMIN_PASSWORD`
+- The admin page should be accessible via direct URL `/levelapp/admin` — no navigation tab (keep the 4 existing tabs)
+- Use `fetch()` directly with Basic Auth header (NOT apiClient which uses Telegram HMAC auth)
+
+### TASKS (do in order, commit after each)
+
+**Task 1: Create Admin page skeleton with auth**
+- Create `mini-app/src/pages/Admin.tsx`
+- Show a login form: username + password inputs + "Login" button
+- Store credentials in sessionStorage after login
+- On login, call `GET /api/admin/stats` with Basic Auth header to verify credentials
+- If 401 → show error. If 200 → show the dashboard.
+- Use existing Tailwind classes for styling (match app theme)
+- Add route in App.tsx: `<Route path="/admin" element={<Admin />} />`
+- Commit: "Add Admin page with Basic Auth login"
+
+**Task 2: Create AdminStatsCard component**
+- Create `mini-app/src/components/AdminStatsCard.tsx`
+- Displays: total users, active users (7d), total quests completed, total achievements unlocked
+- Data comes from `GET /api/admin/stats` (already fetched in Task 1)
+- Show as a grid of stat cards with labels + numbers
+- Commit: "Add AdminStatsCard component for dashboard overview"
+
+**Task 3: Create AdminUserList component**
+- Create `mini-app/src/components/AdminUserList.tsx`
+- Calls `GET /api/admin/users?page=1&limit=20` with Basic Auth
+- Shows table: name, telegram ID, XP, level, active modes, last active date
+- Add pagination (next/prev buttons)
+- Click on a user → show detail view inline (call `GET /api/admin/users/:id`)
+- Commit: "Add AdminUserList component with pagination"
+
+**Task 4: Create AdminBroadcast component**
+- Create `mini-app/src/components/AdminBroadcast.tsx`
+- Textarea for message + "Send Broadcast" button
+- Calls `POST /api/admin/broadcast` with message body
+- Show success/error toast (use existing Toast component pattern)
+- NOTE: endpoint currently returns 501 — show a clear message: "Broadcast not yet enabled on server"
+- Commit: "Add AdminBroadcast component for mass messaging"
+
+**Task 5: Build verification**
+- Run `cd mini-app && npm run build`
+- Fix any TypeScript errors
+- Commit only if fixes were needed: "Fix TypeScript errors from Run 9 tasks"
+
+### RETROSPECTIVE (DO THIS LAST)
+Add your retrospective to PARALLEL_AGENTS.md at the bottom under "Run 9 Retrospectives".
+
+---
+
+## Agent B — Backend Fixes & Admin Features (Run 9)
+
+**You are Agent B.** You fix the avatar_id blocker and implement admin endpoints.
+
+**Working directory:** `c:\Users\Asus\Desktop\Wibecode-agent-b` (branch `feature/backend-fixes`)
+
+**YOUR files (ONLY edit these):**
+- `bot/src/api/routes/users.ts` — fix avatar_id validation
+- `bot/src/api/routes/admin-stats.ts` — implement broadcast + logs endpoints
+- `bot/src/api/routes/admin-jobs.ts` — minor enhancements
+
+**DO NOT edit:** `bot/src/bot.ts`, `bot/src/config.ts`, `bot/src/utils/`, `bot/src/types/`, `bot/src/jobs/`, `bot/src/api/middleware/`, `bot/src/api/server.ts`, `bot/package.json`, `mini-app/`, `tools/`
+
+### CONTEXT
+- `users.ts:562` has `aid > 8` — must change to `aid > 16` to match the 16 emoji avatars added in Run 8
+- `admin-stats.ts` has two 501 endpoints: broadcast and logs
+- Broadcast should use Grammy's `bot.api.sendMessage()` — but we can't import the bot instance directly. Instead, use `executePythonTool('send_notification', ...)` which already exists and sends Telegram messages
+- Logs endpoint should read from PM2 log files or return structured log entries from pg-boss job history
+
+### TASKS (do in order, commit after each)
+
+**Task 1: Fix avatar_id validation (CRITICAL — 1-minute fix)**
+- In `bot/src/api/routes/users.ts` line 562, change `aid > 8` to `aid > 16`
+- Commit: "Fix avatar_id validation to support 16 emoji avatars"
+
+**Task 2: Implement broadcast endpoint**
+- In `admin-stats.ts`, replace the 501 response in `/broadcast` with actual functionality
+- Read `bot/src/utils/pythonTools.ts` to understand `executePythonTool`
+- Read `tools/send_notification.py` to understand how to send messages
+- Logic: 1) Query all active users (`SELECT telegram_id FROM users WHERE is_active = true`), 2) For each user, call `executePythonTool('send_notification', { telegram_id, message })`, 3) Return count of sent messages
+- Add rate limiting: batch 20 messages at a time with 1-second delay between batches (Telegram rate limits)
+- Return: `{ success: true, sent: N, failed: M, total: N+M }`
+- Commit: "Implement broadcast endpoint with batch message sending"
+
+**Task 3: Implement logs endpoint**
+- In `admin-stats.ts`, replace the 501 response in `/logs` with job history
+- Query pg-boss completed/failed jobs: `SELECT name, state, completedon, output FROM pgboss.job WHERE completedon IS NOT NULL ORDER BY completedon DESC LIMIT 50`
+- Also include recent admin actions from a simple in-memory array (optional — skip if complex)
+- Return: `{ logs: [{ timestamp, level, source, message }] }`
+- Commit: "Implement admin logs endpoint with job history"
+
+**Task 4: Build verification + run tests**
+- Run `cd bot && npm run build`
+- Run `cd bot && npx vitest run --reporter=verbose`
+- Fix any failures
+- Commit: "All tests passing after backend fixes"
+
+### RETROSPECTIVE (DO THIS LAST)
+Add your retrospective to PARALLEL_AGENTS.md at the bottom under "Run 9 Retrospectives".
+
+---
+
+## Agent C — Python Tool Test Coverage (Run 9)
+
+**You are Agent C.** You close the Python test gap and enhance test quality.
+
+**Working directory:** `c:\Users\Asus\Desktop\Wibecode-agent-c` (branch `feature/python-test-coverage`)
+
+**YOUR files (ONLY edit these):**
+- `tools/tests/test_db_operations.py` (NEW)
+- `tools/tests/test_server_metrics.py` (NEW)
+- `tools/tests/test_notification_bot_handler.py` (NEW)
+- `tools/tests/test_sync_todos_notification.py` (NEW)
+- `tools/tests/conftest.py` — may add shared fixtures
+
+**DO NOT edit:** Source code in `tools/*.py` (read-only), `bot/`, `mini-app/`, `.env`
+
+### CONTEXT
+- Python tests use `pytest` with mock-heavy patterns
+- Current: 172 Python tests across 7 test files, all passing
+- Tools WITHOUT tests: `db_operations.py`, `server_metrics.py`, `notification_bot_handler.py`, `sync_todos_notification.py`, `mini_app_diagnostic.py`, `sheets_analytics_export.py`, `timeweb_cloud_manager.py`, `project_status_tracker.py`
+- Prioritize the 4 most critical: db_operations (core), notification_bot_handler, server_metrics, sync_todos_notification
+- Read each source file carefully before writing tests — understand what it imports, what DB calls it makes, what external APIs it uses
+- Mock ALL external dependencies (database, HTTP, Telegram Bot API, environment variables)
+
+### TASKS (do in order, commit after each)
+
+**Task 1: Add tests for db_operations.py**
+- Read `tools/db_operations.py` thoroughly
+- Create `tools/tests/test_db_operations.py`
+- Mock `psycopg2` (or whatever DB library it uses)
+- Test all public functions: CRUD operations, error handling, connection management
+- Target: 15-20 tests
+- Commit: "Add tests for db_operations.py (N tests)"
+
+**Task 2: Add tests for notification_bot_handler.py**
+- Read `tools/notification_bot_handler.py`
+- Create `tools/tests/test_notification_bot_handler.py`
+- Mock Telegram Bot API calls, database queries
+- Test: message formatting, user targeting, error handling, rate limiting
+- Target: 10-15 tests
+- Commit: "Add tests for notification_bot_handler.py (N tests)"
+
+**Task 3: Add tests for server_metrics.py**
+- Read `tools/server_metrics.py`
+- Create `tools/tests/test_server_metrics.py`
+- Mock system calls (psutil, subprocess, etc.)
+- Test: CPU/memory/disk metrics collection, formatting, thresholds
+- Target: 8-12 tests
+- Commit: "Add tests for server_metrics.py (N tests)"
+
+**Task 4: Add tests for sync_todos_notification.py**
+- Read `tools/sync_todos_notification.py`
+- Create `tools/tests/test_sync_todos_notification.py`
+- Mock database queries, Telegram API calls
+- Test: todo syncing logic, notification sending, edge cases
+- Target: 8-12 tests
+- Commit: "Add tests for sync_todos_notification.py (N tests)"
+
+**Task 5: Run ALL Python tests and verify**
+- Run `python -m pytest tools/tests/ -v`
+- Fix ANY failures
+- Final commit with total counts: "All Python tests passing: N tests, 0 failures"
+
+### RETROSPECTIVE (DO THIS LAST)
+Add your retrospective to PARALLEL_AGENTS.md at the bottom under "Run 9 Retrospectives".
+
+---
+
+## Run 9 File Ownership Matrix
+
+| File/Directory | Agent A | Agent B | Agent C | Nobody |
+|---|---|---|---|---|
+| mini-app/src/pages/Admin.tsx (NEW) | OWNS | - | - | - |
+| mini-app/src/components/AdminStatsCard.tsx (NEW) | OWNS | - | - | - |
+| mini-app/src/components/AdminUserList.tsx (NEW) | OWNS | - | - | - |
+| mini-app/src/components/AdminBroadcast.tsx (NEW) | OWNS | - | - | - |
+| mini-app/src/App.tsx | OWNS (route only) | - | - | - |
+| mini-app/src/index.css | OWNS | - | - | - |
+| bot/src/api/routes/users.ts | - | OWNS | - | - |
+| bot/src/api/routes/admin-stats.ts | - | OWNS | - | - |
+| bot/src/api/routes/admin-jobs.ts | - | OWNS | - | - |
+| tools/tests/test_db_operations.py (NEW) | - | - | OWNS | - |
+| tools/tests/test_server_metrics.py (NEW) | - | - | OWNS | - |
+| tools/tests/test_notification_bot_handler.py (NEW) | - | - | OWNS | - |
+| tools/tests/test_sync_todos_notification.py (NEW) | - | - | OWNS | - |
+| tools/tests/conftest.py | - | - | OWNS | - |
+| mini-app/src/api/client.ts | - | - | - | LOCKED |
+| mini-app/src/types/index.ts | - | - | - | LOCKED |
+| bot/src/bot.ts | - | - | - | LOCKED |
+| bot/src/config.ts | - | - | - | LOCKED |
+| bot/src/utils/ | - | - | - | LOCKED |
+| bot/src/index.ts | - | - | - | LOCKED |
+| .env | - | - | - | LOCKED |
+
+## Run 9 Merge Order
+
+1. **Agent B first** — Backend fixes (avatar_id, broadcast, logs)
+2. **Agent C second** — Python tests (independent of code changes)
+3. **Agent A last** — Mini-app admin dashboard (independent of other agents)
+
+---
+
+## Run 9 Retrospectives
+
+*(Agents: add your retrospective sections below this line when you finish)*
