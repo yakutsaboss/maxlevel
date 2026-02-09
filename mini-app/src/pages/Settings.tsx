@@ -3,8 +3,9 @@ import { useNavigate } from 'react-router-dom';
 import { useTelegram } from '@/hooks/useTelegram';
 import { useBackButton } from '@/hooks/useTelegram';
 import { apiClient } from '@/api/client';
-import { Bell, Clock, Globe, AlertCircle, RefreshCw, Loader2, Check } from 'lucide-react';
+import { Bell, Clock, Globe, AlertCircle, RefreshCw, Loader2 } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { Toast } from '@/components/Toast';
 
 interface UserPreferences {
   notifications_enabled: boolean;
@@ -33,7 +34,7 @@ export function Settings() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [saved, setSaved] = useState(false);
+  const [toast, setToast] = useState<{ message: string; variant: 'success' | 'error' | 'info' } | null>(null);
   const [prefs, setPrefs] = useState<UserPreferences>({
     notifications_enabled: true,
     reminder_time: 18,
@@ -68,20 +69,17 @@ export function Settings() {
     if (!user?.id || saving) return;
     haptic.impact('medium');
     setSaving(true);
-    setSaved(false);
     try {
       await apiClient.updateUserPreferences(user.id, {
         notification_enabled: prefs.notifications_enabled,
         reminder_time: prefs.reminder_time,
         timezone: prefs.timezone,
       });
-      setSaved(true);
       haptic.notification('success');
-      setTimeout(() => setSaved(false), 2000);
+      setToast({ message: 'Settings saved!', variant: 'success' });
     } catch {
       haptic.notification('warning');
-      setSaved(true);
-      setTimeout(() => setSaved(false), 2000);
+      setToast({ message: 'Failed to save settings', variant: 'error' });
     } finally { setSaving(false); }
   };
 
@@ -239,13 +237,19 @@ export function Settings() {
         >
           {saving ? (
             <><Loader2 className="w-5 h-5 animate-spin" />Saving...</>
-          ) : saved ? (
-            <><Check className="w-5 h-5" />Saved!</>
           ) : (
             'Save Settings'
           )}
         </button>
       </div>
+
+      {toast && (
+        <Toast
+          message={toast.message}
+          variant={toast.variant}
+          onDismiss={() => setToast(null)}
+        />
+      )}
     </div>
   );
 }

@@ -32,14 +32,12 @@ export function ProfileEditModal({ isOpen, onClose, onSaved, telegramId, current
   const [nickname, setNickname] = useState(currentName);
   const [selectedAvatar, setSelectedAvatar] = useState(Math.max(0, currentAvatarId - 1));
   const [saving, setSaving] = useState(false);
-  const [saved, setSaved] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
 
   useEffect(() => {
     if (isOpen) {
       setNickname(currentName);
       setSelectedAvatar(Math.max(0, currentAvatarId - 1));
-      setSaved(false);
       setErrorMsg('');
     }
   }, [isOpen, currentName, currentAvatarId]);
@@ -53,12 +51,9 @@ export function ProfileEditModal({ isOpen, onClose, onSaved, telegramId, current
         first_name: nickname.trim() || currentName,
         avatar_id: selectedAvatar + 1,
       });
-      setSaved(true);
       haptic.notification('success');
-      setTimeout(() => {
-        onSaved();
-        onClose();
-      }, 1000);
+      onSaved();
+      onClose();
     } catch {
       setErrorMsg('Failed to save profile. Tap Save to retry.');
       haptic.notification('error');
@@ -151,15 +146,11 @@ export function ProfileEditModal({ isOpen, onClose, onSaved, telegramId, current
               </button>
               <button
                 onClick={handleSave}
-                disabled={saving || saved}
-                className={`flex-1 py-3 rounded-xl font-medium flex items-center justify-center gap-2 active:scale-95 transition-all disabled:opacity-70 ${
-                  saved ? 'bg-green-500 text-white' : 'bg-telegram-link text-white'
-                }`}
+                disabled={saving}
+                className="flex-1 py-3 rounded-xl font-medium flex items-center justify-center gap-2 active:scale-95 transition-all disabled:opacity-70 bg-telegram-link text-white"
               >
                 {saving ? (
                   <><Loader2 className="w-4 h-4 animate-spin" />Saving...</>
-                ) : saved ? (
-                  <><Check className="w-4 h-4" />Saved!</>
                 ) : (
                   <><Check className="w-4 h-4" />Save</>
                 )}

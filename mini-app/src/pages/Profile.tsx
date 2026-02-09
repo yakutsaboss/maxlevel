@@ -6,6 +6,7 @@ import { UserStats, UserAchievement, Achievement } from '@/types';
 import { Trophy, Award, TrendingUp, Calendar, Zap, AlertCircle, RefreshCw, Pencil, Settings } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { ProfileEditModal, AVATAR_OPTIONS } from '@/components/ProfileEditModal';
+import { Toast } from '@/components/Toast';
 
 function formatDate(dateStr: string): string {
   return new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric', year: 'numeric' }).format(new Date(dateStr));
@@ -20,6 +21,7 @@ export function Profile() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const [editModalOpen, setEditModalOpen] = useState(false);
+  const [toast, setToast] = useState<{ message: string; variant: 'success' | 'error' | 'info' } | null>(null);
 
   useEffect(() => { loadProfileData(); }, [user]);
 
@@ -239,12 +241,23 @@ export function Profile() {
       <ProfileEditModal
         isOpen={editModalOpen}
         onClose={() => setEditModalOpen(false)}
-        onSaved={() => loadProfileData()}
+        onSaved={() => {
+          loadProfileData();
+          setToast({ message: 'Profile saved successfully!', variant: 'success' });
+        }}
         telegramId={user!.id}
         currentName={stats.user.first_name}
         currentAvatarId={stats.user.avatar_id ?? 1}
         haptic={{ impact: haptic.impact, notification: haptic.notification, selection: haptic.selection }}
       />
+
+      {toast && (
+        <Toast
+          message={toast.message}
+          variant={toast.variant}
+          onDismiss={() => setToast(null)}
+        />
+      )}
     </div>
   );
 }
