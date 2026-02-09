@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useTelegram } from '@/hooks/useTelegram';
 import { apiClient } from '@/api/client';
 import { UserStats, UserAchievement } from '@/types';
-import { Trophy, Award, TrendingUp, Calendar, Zap, Star } from 'lucide-react';
+import { Trophy, Award, TrendingUp, Calendar, Zap, Star, AlertCircle, RefreshCw } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 export function Profile() {
@@ -10,6 +10,7 @@ export function Profile() {
   const [stats, setStats] = useState<UserStats | null>(null);
   const [achievements, setAchievements] = useState<UserAchievement[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
 
   useEffect(() => {
     loadProfileData();
@@ -23,6 +24,7 @@ export function Profile() {
 
     try {
       setLoading(true);
+      setError(false);
       const [statsRes, achievementsRes] = await Promise.all([
         apiClient.getUserStats(user.id),
         apiClient.getUserAchievements(user.id),
@@ -36,6 +38,7 @@ export function Profile() {
       }
     } catch (error) {
       console.error('Failed to load profile data:', error);
+      setError(true);
     } finally {
       setLoading(false);
     }
@@ -92,10 +95,24 @@ export function Profile() {
     );
   }
 
-  if (!stats) {
+  if (error || !stats) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-telegram-bg">
-        <div className="text-telegram-hint">No data available</div>
+      <div className="flex items-center justify-center min-h-screen bg-telegram-bg px-4">
+        <div className="bg-red-50 border border-red-200 rounded-2xl p-6 text-center max-w-sm w-full">
+          <AlertCircle className="w-12 h-12 text-red-400 mx-auto mb-3" />
+          <h3 className="text-lg font-semibold text-red-700 mb-1">Something went wrong</h3>
+          <p className="text-sm text-red-500 mb-4">Could not load your profile</p>
+          <button
+            onClick={() => {
+              haptic.impact('light');
+              loadProfileData();
+            }}
+            className="inline-flex items-center gap-2 bg-red-500 text-white px-5 py-2.5 rounded-xl font-medium active:scale-95 transition-transform"
+          >
+            <RefreshCw className="w-4 h-4" />
+            Retry
+          </button>
+        </div>
       </div>
     );
   }

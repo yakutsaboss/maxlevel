@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useTelegram, useMainButton } from '@/hooks/useTelegram';
 import { apiClient } from '@/api/client';
 import { Quest } from '@/types';
-import { Target, Zap, CheckCircle, Clock, Trophy } from 'lucide-react';
+import { Target, Zap, CheckCircle, Clock, Trophy, AlertCircle, RefreshCw } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 type QuestTab = 'active' | 'completed';
@@ -13,6 +13,7 @@ export function Quests() {
   const [activeQuests, setActiveQuests] = useState<Quest[]>([]);
   const [completedQuests, setCompletedQuests] = useState<Quest[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
   const [selectedQuest, setSelectedQuest] = useState<Quest | null>(null);
 
   useEffect(() => {
@@ -27,6 +28,7 @@ export function Quests() {
 
     try {
       setLoading(true);
+      setError(false);
       const [activeRes, completedRes] = await Promise.all([
         apiClient.getActiveQuests(user.id),
         apiClient.getCompletedQuests(user.id, 50),
@@ -40,6 +42,7 @@ export function Quests() {
       }
     } catch (error) {
       console.error('Failed to load quests:', error);
+      setError(true);
     } finally {
       setLoading(false);
     }
@@ -112,6 +115,28 @@ export function Quests() {
               </div>
             </div>
           ))}
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-telegram-bg px-4">
+        <div className="bg-red-50 border border-red-200 rounded-2xl p-6 text-center max-w-sm w-full">
+          <AlertCircle className="w-12 h-12 text-red-400 mx-auto mb-3" />
+          <h3 className="text-lg font-semibold text-red-700 mb-1">Something went wrong</h3>
+          <p className="text-sm text-red-500 mb-4">Could not load your quests</p>
+          <button
+            onClick={() => {
+              haptic.impact('light');
+              loadQuests();
+            }}
+            className="inline-flex items-center gap-2 bg-red-500 text-white px-5 py-2.5 rounded-xl font-medium active:scale-95 transition-transform"
+          >
+            <RefreshCw className="w-4 h-4" />
+            Retry
+          </button>
         </div>
       </div>
     );
