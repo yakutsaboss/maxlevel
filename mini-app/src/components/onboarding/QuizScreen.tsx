@@ -96,6 +96,15 @@ export function QuizScreen({ config, progress, data, modeBadge, onAnswer, onNext
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Get required day count based on current mode
+  const getRequiredDayCount = (): number => {
+    switch (config.dataKey) {
+      case 'fitness': return (data.fitness?.workout_frequency as number) || 0;
+      case 'learning': return (data.learning?.study_frequency as number) || 0;
+      default: return 0;
+    }
+  };
+
   // Validation
   const isValid = (): boolean => {
     switch (config.type) {
@@ -108,7 +117,7 @@ export function QuizScreen({ config, progress, data, modeBadge, onAnswer, onNext
       case 'slider':
         return true;
       case 'day-grid': {
-        const freq = (data.fitness?.workout_frequency as number) || 0;
+        const freq = getRequiredDayCount();
         return freq > 0 ? daysValue.length === freq : daysValue.length > 0;
       }
       case 'dual-time':
@@ -308,7 +317,7 @@ export function QuizScreen({ config, progress, data, modeBadge, onAnswer, onNext
               <DaySelector
                 selected={daysValue}
                 onChange={handleDaysChange}
-                requiredCount={data.fitness?.workout_frequency}
+                requiredCount={getRequiredDayCount() || undefined}
               />
             </div>
           )}
