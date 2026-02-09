@@ -204,10 +204,34 @@ router.post('/broadcast', requireRole('admin'), async (req: Request, res: Respon
  */
 router.get('/logs', requireRole('admin'), async (req: Request, res: Response) => {
   try {
-    res.status(501).json({
-      error: 'Not Implemented',
-      message: 'Log viewing not yet implemented. Use PM2 logs or Docker logs instead.',
-    });
+    const limit = Math.min(parseInt(req.query.limit as string) || 50, 200);
+
+    // Query pg-boss job history for completed/failed jobs
+    const jobs = await query<{
+      name: string;
+      state: string;
+      completedon: string;
+      output: any;
+      createdon: string;
+    }>(
+      `SELECT name, state, completedon, output, createdon
+       FROM pgboss.job
+       WHERE completedon IS NOT NULL
+       ORDER BY completedon DESC
+       LIMIT $1`,
+      [limit]
+    );
+
+    const logs = jobs.map((job) => ({
+      timestamp: job.completedon,
+      level: job.state === 'completed' ? 'info' : 'error',
+      source: `job:${job.name}`,
+      message: job.state === 'completed'
+        ? `Job "${job.name}" completed successfully`
+        : `Job "${job.name}" failed${job.output ? ': ' + JSON.stringify(job.output) : ''}`,
+    }));
+
+    res.json({ logs });
   } catch (error) {
     console.error('[ADMIN] Error fetching logs:', error);
     res.status(500).json({
