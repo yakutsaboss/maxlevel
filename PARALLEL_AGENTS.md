@@ -1519,3 +1519,36 @@ Test counts: X TypeScript tests, Y Python tests (total Z)
 ## Run 2 Retrospectives
 
 *(Agents: add your retrospective sections below this line when you finish)*
+
+### Agent A (Run 2) faced:
+
+**1. Worktrees eliminated ALL Run 1 branch-switching problems.**
+No branch conflicts, no file loss, no stash chaos. The dedicated `Wibecode-agent-a` worktree directory meant zero interference from other agents. Every write succeeded on the first attempt, every commit landed on the correct branch. This is exactly what Run 1 recommended.
+
+**2. Two minor build errors (unused imports) — trivially fixed.**
+After replacing the quest detail modal's `InfoBox` component with inline badges, the old `Trophy` import and `InfoBox` function became unused. TypeScript strict mode caught these as errors. Fixed by removing both in a separate commit.
+
+**3. No other problems.**
+The entire session was smooth. All 6 tasks completed in order, each committed individually. No context exhaustion, no race conditions, no file conflicts.
+
+### What Agent A (Run 2) completed:
+
+| Task | Status | Commit | Description |
+|------|--------|--------|-------------|
+| 1. Leaderboard page | Done | `1fe8b8f` | New Leaderboard.tsx with ranked list, avatar circles, Trophy/Medal/Award for top 3, current user highlight, loading/error/empty states |
+| 2. Leaderboard in Navigation | Done | `5262f87` | 4th nav item (Trophy icon, "Ranks"), adjusted icon sizes for 4-item layout |
+| 3. Pull-to-refresh | Done | `4215423` | Touch-based pull gesture on Dashboard + Quests, 60px threshold, haptic feedback, spinning RefreshCw |
+| 4. Quest detail improvement | Done | `6e79644` | Rich modal with XP/difficulty/frequency badges, due date, mode icon, +1/+5 progress steppers, layoutId transitions |
+| 5. Profile editing | Done | `9d25d55` | ProfileEditModal.tsx with nickname input, 8 avatar options (class icons), edit pencil button in Profile header |
+| 6. Achievement progress | Done | `138f8b4` | All achievements grid (unlocked + locked), green checkmark/lock badges, progress bars from user stats, hidden achievements show "???" |
+| Build fix | Done | `419f293` | Removed unused Trophy import and InfoBox from Quests.tsx |
+
+**Final branch:** `feature/mini-app-features` — 7 commits on top of main. `tsc && vite build` passes with zero errors. Branch is NOT pushed per instructions.
+
+### Agent A (Run 2) recommendations for Run 3:
+
+1. **Worktrees are the solution.** Run 2 was dramatically smoother than Run 1. Keep this approach for all future parallel runs.
+2. **Commit after each task** was enforced and worked perfectly. Every task survived independently.
+3. **Build after each commit** would catch issues earlier (the unused import issue only showed at the end). Consider adding a build step after each commit.
+4. **Agent A's tasks were well-scoped** — each was independent, no task depended on another's output. Good task design.
+5. **No file boundary violations** — the OWNED/FORBIDDEN lists were clear and sufficient.
