@@ -4,6 +4,10 @@ PostToolUse hook for TodoWrite — syncs Claude's todo list to the notification 
 
 Called automatically by Claude Code after every TodoWrite tool call.
 Reads hook JSON from stdin, extracts todos, and updates the Telegram session message.
+
+Subagent protection: if the incoming todo list is completely different from the
+existing one (zero name overlap), it's likely from a parallel Task subagent and
+gets skipped to avoid overwriting the main agent's task list.
 """
 
 import sys
@@ -47,6 +51,26 @@ def main():
         status = STATUS_MAP.get(todo.get("status", ""), "pending")
         if content:
             tasks.append({"name": content, "status": status})
+
+    if not tasks:
+        sys.exit(0)
+
+    # Subagent protection: detect if this TodoWrite is from a parallel subagent.
+    # If the existing task list has items AND the new task list has ZERO name overlap,
+    # it's likely a subagent writing its own todo list — skip to protect the main agent's tasks.
+    existing_tasks = current.get("tasks", [])
+    if existing_tasks:
+        existing_names = {t["name"].lower().strip() for t in existing_tasks}
+        new_names = {t["name"].lower().strip() for t in tasks}
+
+        # Check for any overlap in task names
+        overlap = existing_names & new_names
+        if not overlap:
+            # Zero overlap — check if all existing tasks are done (main agent moving to new phase)
+            all_done = all(t["status"] == "done" for t in existing_tasks)
+            if not all_done:
+                # Existing tasks still in progress + completely different names = subagent
+                sys.exit(0)
 
     current["tasks"] = tasks
     current.pop("waiting_approval", None)

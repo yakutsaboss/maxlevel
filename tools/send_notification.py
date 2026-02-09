@@ -31,6 +31,7 @@ import urllib.parse
 import urllib.error
 import json
 import time
+import hashlib
 from pathlib import Path
 from datetime import datetime
 from dotenv import load_dotenv
@@ -340,13 +341,25 @@ def main():
     date = datetime.now().strftime("%Y-%m-%d")
 
     if action == "start":
-        # Always send a fresh message for each new session
+        # First, cleanly end any previous active session (prevents race with SessionEnd hook)
+        old_state = load_session()
+        if old_state and old_state.get("message_id"):
+            old_session = get_current_session(old_state)
+            if old_session and not old_session.get("ended_at"):
+                old_session["ended_at"] = now
+                for t in old_session.get("tasks", []):
+                    if t["status"] != "done":
+                        t["status"] = "done"
+                update_session_message(old_state)
+
+        # Now create a fresh session
         vds_summary = get_server_snapshot()
 
         state = {
             "message_id": None,
             "date": date,
             "vds_summary": vds_summary,
+            "start_epoch_ts": time.time(),
             "sessions": [{
                 "started_at": now,
                 "ended_at": None,
@@ -514,17 +527,33 @@ def main():
             sys.exit(0)
 
         current = get_current_session(state)
-        if current:
-            # Store key moments if passed as argument
-            if len(sys.argv) > 2:
-                current["key_moments"] = " ".join(sys.argv[2:])
+        if not current:
+            print("No session segment found.")
+            sys.exit(0)
 
-            # Mark all remaining tasks as done
-            for t in current.get("tasks", []):
-                if t["status"] != "done":
-                    t["status"] = "done"
-            # Set end time
-            current["ended_at"] = now
+        # Idempotency: if session already ended, skip
+        if current.get("ended_at"):
+            print("Session already ended, skipping.")
+            sys.exit(0)
+
+        # Race condition guard: if a new session just started (within 30 seconds),
+        # this finish is from the OLD session but the state was already overwritten
+        # by the new session's start. Skip to avoid killing the new session.
+        start_epoch = state.get("start_epoch_ts", 0)
+        if start_epoch and (time.time() - start_epoch) < 30:
+            print("New session just started, skipping stale finish.")
+            sys.exit(0)
+
+        # Store key moments if passed as argument
+        if len(sys.argv) > 2:
+            current["key_moments"] = " ".join(sys.argv[2:])
+
+        # Mark all remaining tasks as done
+        for t in current.get("tasks", []):
+            if t["status"] != "done":
+                t["status"] = "done"
+        # Set end time
+        current["ended_at"] = now
 
         # Edit the original message to ⚫ Session Ended — no second message
         if update_session_message(state):
