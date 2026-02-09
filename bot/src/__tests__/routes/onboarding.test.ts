@@ -48,7 +48,7 @@ vi.mock('../../api/middleware/rateLimiter.js', () => ({
 }));
 
 beforeEach(() => {
-  vi.clearAllMocks();
+  vi.resetAllMocks();
 });
 
 // ─── Tests ───────────────────────────────────────────────────────────

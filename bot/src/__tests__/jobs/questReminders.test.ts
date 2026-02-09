@@ -16,7 +16,7 @@ vi.mock('../../utils/pythonTools.js', () => ({
 }));
 
 beforeEach(() => {
-  vi.clearAllMocks();
+  vi.resetAllMocks();
 });
 
 // ─── Import after mocks ─────────────────────────────────────────────
@@ -113,6 +113,8 @@ describe('questReminders', () => {
   });
 
   it('should handle Telegram 429 rate limit and retry after waiting', async () => {
+    vi.useFakeTimers();
+
     const consoleSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
     const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
 
@@ -122,9 +124,11 @@ describe('questReminders', () => {
 
     mockExecutePythonTool.mockResolvedValueOnce({ success: true, data: users });
 
+    // Note: retry_after=0 is falsy so handler's `|| 5` defaults to 5.
+    // Use fake timers to avoid the real 5s delay.
     const rateLimitError = Object.assign(new Error('Rate limited'), {
       error_code: 429,
-      parameters: { retry_after: 0 }, // Use 0s to avoid real delays in tests
+      parameters: { retry_after: 0 },
     });
 
     const mockBot = {
@@ -136,14 +140,17 @@ describe('questReminders', () => {
     } as any;
     setBotInstance(mockBot);
 
-    await handler([{} as any]);
+    const promise = handler([{} as any]);
+    await vi.runAllTimersAsync();
+    await promise;
 
     // Should have called sendMessage twice (initial + retry)
     expect(mockBot.api.sendMessage).toHaveBeenCalledTimes(2);
-    expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('Rate limited, waiting 0s'));
+    expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('Rate limited, waiting'));
 
     consoleSpy.mockRestore();
     logSpy.mockRestore();
+    vi.useRealTimers();
   });
 
   it('should use default first_name when missing', async () => {
