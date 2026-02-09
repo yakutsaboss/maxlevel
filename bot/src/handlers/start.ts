@@ -32,19 +32,26 @@ export async function handleStart(ctx: MyContext) {
       ctx.session.username = username;
       ctx.session.firstName = userName;
 
-      // Get active quests count
+      // Get active quests count — handle failure explicitly
+      let questLine = '';
       const questsResult = await executePythonTool('quest_manager', [
         '--get-active',
         '--user-id',
         user.id.toString(),
       ]);
-      const activeQuests = (questsResult.data as any)?.quests || [];
-      const questCount = activeQuests.length;
 
-      let statusLine = `⭐ Level ${user.current_level} · 💎 ${user.total_xp} XP`;
-      if (questCount > 0) {
-        statusLine += `\n🎯 ${questCount} active quest${questCount > 1 ? 's' : ''} waiting`;
+      if (questsResult.success) {
+        const activeQuests = (questsResult.data as any)?.quests || [];
+        const questCount = activeQuests.length;
+        if (questCount > 0) {
+          questLine = `\n🎯 ${questCount} active quest${questCount > 1 ? 's' : ''} waiting`;
+        }
+      } else {
+        questLine = `\n⚠️ Couldn't load quests — try /quests later`;
+        console.warn(`[/start] Failed to load quests for user ${user.id}: ${questsResult.error}`);
       }
+
+      const statusLine = `⭐ Level ${user.current_level} · 💎 ${user.total_xp} XP` + questLine;
 
       await sendMarkdownMessage(
         ctx,
@@ -82,16 +89,50 @@ export async function handleStart(ctx: MyContext) {
         // Start onboarding flow for new user
         await handleOnboarding(ctx);
       } else {
-        throw new Error(
-          createUserResult.error || 'Failed to create user account'
-        );
+        // Specific error for account creation failure
+        const reason = createUserResult.error || 'Unknown error';
+        console.error(`[/start] Failed to create user ${telegramId}: ${reason}`);
+
+        if (reason.includes('duplicate') || reason.includes('already exists')) {
+          await ctx.reply(
+            `⚠️ Your account already exists but couldn't be loaded.\n\n` +
+            `Please try /start again. If this keeps happening, contact support.`
+          );
+        } else if (reason.includes('connection') || reason.includes('timeout')) {
+          await ctx.reply(
+            `⚠️ Database is temporarily unavailable.\n\n` +
+            `Please try again in a few seconds.`
+          );
+        } else {
+          await ctx.reply(
+            `❌ Couldn't create your account: ${reason}\n\n` +
+            `Please try again or contact support.`
+          );
+        }
       }
     }
   } catch (error: any) {
-    console.error('Error in /start handler:', error);
-    await ctx.reply(
-      `❌ Error: ${error.message}\n\n` +
-        `Please make sure the database is set up correctly and try again.`
-    );
+    console.error('[/start] Unhandled error:', error);
+
+    // Provide specific error messages based on error type
+    const msg = error.message || '';
+
+    if (msg.includes('ECONNREFUSED') || msg.includes('connection')) {
+      await ctx.reply(
+        `⚠️ The bot's database is temporarily offline.\n\nPlease try again in a moment.`
+      );
+    } else if (msg.includes('timeout') || msg.includes('ETIMEDOUT')) {
+      await ctx.reply(
+        `⏳ The request timed out. The server might be under heavy load.\n\nPlease try again.`
+      );
+    } else if (msg.includes('Python') || msg.includes('spawn')) {
+      await ctx.reply(
+        `⚠️ A backend service is currently unavailable.\n\nPlease try again shortly.`
+      );
+    } else {
+      await ctx.reply(
+        `❌ Something went wrong. Please try again.\n\nIf this keeps happening, contact support.`
+      );
+    }
   }
 }
