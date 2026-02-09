@@ -573,3 +573,32 @@ Add your retrospective to PARALLEL_AGENTS.md at the bottom under "Run 3 Retrospe
 ## Run 3 Retrospectives
 
 *(Agents: add your retrospective sections below this line when you finish)*
+
+### Agent B Retrospective (Run 3)
+
+**Branch:** `feature/bot-features`
+**Build:** `cd bot && npm run build` — PASS (0 errors)
+
+| # | Task | Status | Commits |
+|---|------|--------|---------|
+| 1 | PATCH /api/users/:telegramId/profile endpoint | Done | `77e1240` |
+| 2 | /profile bot command (level, XP, modes, streaks, achievements) | Done | `ea656c9` |
+| 3 | /help command with inline keyboard (Commands, How to Play, FAQ) | Done | `42f9aaa` |
+| 4 | Daily summary notification handler (sendDailySummary) | Done | `9b03e25` |
+| 5 | Set BotFather commands programmatically (setMyCommands) | Done | `344fd2f` |
+
+**Files Created:**
+- `bot/src/handlers/profile.ts` — /profile command handler
+- `bot/src/handlers/help.ts` — /help command with inline keyboard categories
+- `bot/src/handlers/dailySummary.ts` — exported `sendDailySummary(bot, userId)` for pg-boss jobs
+- `bot/src/handlers/REGISTER_THESE_RUN3.md` — documents new registrations
+
+**Files Modified:**
+- `bot/src/api/routes/users.ts` — added PATCH profile endpoint
+- `bot/src/index.ts` — imported profile + help handlers, replaced inline /help, added setMyCommands
+
+**Notes for Agent 0:**
+- The `/profile` command replaced `handleOpenProfile` from miniapp.ts for the `/profile` route. The old `handleOpenProfile` is still imported (used nowhere now for `/profile` command) but `handleOpenQuests` and `handleOpenApp` still use it. Safe to leave.
+- `sendDailySummary` is exported but NOT wired to a pg-boss job yet — that's a Task for a future run (needs a job in `bot/src/jobs/`).
+- Profile update endpoint assumes `avatar_id` column exists on users table. If it doesn't, a migration `ALTER TABLE users ADD COLUMN avatar_id INTEGER DEFAULT 1` is needed.
+- No issues encountered. All 5 tasks completed cleanly.
