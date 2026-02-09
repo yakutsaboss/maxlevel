@@ -1722,3 +1722,34 @@ Add your retrospective to PARALLEL_AGENTS.md at the bottom under "Run 5 Retrospe
 1. Consider adding Finance and Learning achievements to `seed_data.sql` (currently only Fitness and Hydration have achievements)
 2. The leaderboard direct query may get slow with many users — consider adding a composite index `CREATE INDEX idx_qi_completed ON quest_instances(user_id, status) WHERE status = 'completed'`
 3. Daily summary job could use timezone-aware scheduling (use `reminder_time` per user instead of fixed 9 PM UTC for all)
+
+### Agent C Retrospective (Run 5) — Test Coverage: Untested Handlers
+
+**Branch:** `feature/test-handlers`
+**Build:** `cd bot && npm run build` — PASS (0 errors)
+
+| # | Task | Status | Tests Added |
+|---|------|--------|-------------|
+| 1 | Add tests for /start handler | Done | 11 new tests |
+| 2 | Add tests for /settings handler | Done | 15 new tests |
+| 3 | Add tests for /stats handler | Done | 12 new tests |
+| 4 | Add tests for /modes handler (onboarding.ts) | Done | 24 new tests |
+| 5 | Run ALL tests and verify | Done | 234 TS + 172 Python = 406 total, 0 failures |
+
+**Final Test Counts:** 234 TypeScript (up from 172), 172 Python (unchanged) = 406 total
+
+**Files Created:**
+- `bot/src/__tests__/handlers/start.test.ts` — 11 tests: welcome back (with/without quests), new user + onboarding, missing telegramId, duplicate/connection/generic creation errors, ECONNREFUSED/ETIMEDOUT/Python spawn/generic exceptions
+- `bot/src/__tests__/handlers/settings.test.ts` — 15 tests: main menu, missing user/from, notification toggle (on/off), reminder time menu + set, timezone menu + set, back button, early returns for missing/non-settings data
+- `bot/src/__tests__/handlers/stats.test.ts` — 12 tests: weekly stats with streaks, no streaks, missing from/user, empty stats row, callback week/all toggle, all-time with joined date, editMessageText error handling
+- `bot/src/__tests__/handlers/onboarding.test.ts` — 24 tests: handleOnboarding (welcome + mode selection, missing userId), showModeSelection (modes display, load error, no userId), handleModeSelection (add/remove mode, mode_done with/without selections, mode_info, getUserByTelegramId failure), handleQuickAction (open_app, view_quests, view_profile, missing action), handleModesCommand (active modes, no modes, load error, no userId), handleModeSummary (summary display, user/summary load errors, no userId)
+
+**Problems Faced:**
+- None significant. One minor fix: the `/start` test initially expected `undefined` for username arg but the mock ctx included `username: 'testuser'` — fixed to match actual behavior.
+- The `handleModeSelection > mode_done` test takes ~1s due to a real `setTimeout(1000)` in `completeModeSelection`. Could be optimized with fake timers but passes fine.
+
+**Recommendations for Next Run:**
+1. **All 4 previously-untested handlers now have full test coverage.** Remaining untested source files are: `bot/src/handlers/miniapp.ts`, `bot/src/api/routes/onboarding.ts` (API routes), and `bot/src/api/server.ts` (integration).
+2. **Consider adding integration tests** — all current tests mock DB and Python tools. A small set of tests with real DB would catch schema mismatches.
+3. **The `completeModeSelection` function has a 1s real `setTimeout`** — consider wrapping it in a utility for easier testing (or always use fake timers in that test).
+4. **Python tests unchanged** at 172 — no new Python tools were added in Runs 3-5 that needed testing.
