@@ -2,7 +2,7 @@ import { useEffect, useState, useRef, useCallback } from 'react';
 import { useTelegram, useMainButton } from '@/hooks/useTelegram';
 import { apiClient } from '@/api/client';
 import { Quest } from '@/types';
-import { Target, Zap, CheckCircle, Clock, Trophy, AlertCircle, RefreshCw, Loader2 } from 'lucide-react';
+import { Target, Zap, CheckCircle, Clock, Trophy, AlertCircle, RefreshCw, Loader2, Plus, Calendar } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 type QuestTab = 'active' | 'completed';
@@ -20,6 +20,7 @@ export function Quests() {
   const [error, setError] = useState(false);
   const [selectedQuest, setSelectedQuest] = useState<Quest | null>(null);
   const [completing, setCompleting] = useState(false);
+  const [updatingProgress, setUpdatingProgress] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [pullDistance, setPullDistance] = useState(0);
   const touchStartY = useRef(0);
@@ -93,6 +94,26 @@ export function Quests() {
       console.error('Failed to complete quest:', error);
       haptic.notification('error');
     } finally { setCompleting(false); }
+  };
+
+  const handleUpdateProgress = async (amount: number) => {
+    if (!selectedQuest || updatingProgress) return;
+    const newProgress = Math.min(selectedQuest.progress + amount, selectedQuest.target);
+    if (newProgress === selectedQuest.progress) return;
+    try {
+      setUpdatingProgress(true);
+      const response = await apiClient.updateQuestProgress(selectedQuest.id, newProgress);
+      if (response.success) {
+        haptic.impact('light');
+        setSelectedQuest({ ...selectedQuest, progress: newProgress });
+        await loadQuests();
+      }
+    } catch (err) {
+      console.error('Failed to update progress:', err);
+      haptic.notification('error');
+    } finally {
+      setUpdatingProgress(false);
+    }
   };
 
   useMainButton(
@@ -205,23 +226,85 @@ export function Quests() {
       <AnimatePresence>
         {selectedQuest && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-end" onClick={() => setSelectedQuest(null)}>
-            <motion.div initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }} transition={{ type: 'spring', damping: 30, stiffness: 300 }} className="bg-telegram-secondaryBg rounded-t-3xl w-full p-6" onClick={(e) => e.stopPropagation()}>
+            <motion.div
+              layoutId={`quest-${selectedQuest.id}`}
+              initial={{ y: '100%' }}
+              animate={{ y: 0 }}
+              exit={{ y: '100%' }}
+              transition={{ type: 'spring', damping: 30, stiffness: 300 }}
+              className="bg-telegram-secondaryBg rounded-t-3xl w-full p-6 max-h-[80vh] overflow-y-auto"
+              onClick={(e) => e.stopPropagation()}
+            >
               <div className="w-12 h-1 bg-telegram-hint/30 rounded-full mx-auto mb-4" />
-              <h2 className="text-xl font-bold mb-2">{selectedQuest.title}</h2>
-              <p className="text-telegram-hint mb-4">{selectedQuest.description}</p>
-              <div className="grid grid-cols-2 gap-3 mb-4">
-                <InfoBox icon={<Zap />} label="XP Reward" value={selectedQuest.xp_reward} />
-                <InfoBox icon={<Trophy />} label="Difficulty" value={selectedQuest.difficulty} />
+              <h2 className="text-xl font-bold mb-1">{selectedQuest.title}</h2>
+              <p className="text-telegram-hint text-sm mb-4">{selectedQuest.description}</p>
+
+              <div className="flex flex-wrap gap-2 mb-4">
+                <span className="inline-flex items-center gap-1 bg-yellow-100 text-yellow-700 px-3 py-1.5 rounded-xl text-sm font-semibold">
+                  <Zap className="w-4 h-4" />{selectedQuest.xp_reward} XP
+                </span>
+                <span className={`px-3 py-1.5 rounded-xl text-sm font-semibold ${
+                  selectedQuest.difficulty === 'easy' ? 'bg-green-100 text-green-700' :
+                  selectedQuest.difficulty === 'medium' ? 'bg-yellow-100 text-yellow-700' :
+                  'bg-red-100 text-red-700'
+                }`}>
+                  {selectedQuest.difficulty.charAt(0).toUpperCase() + selectedQuest.difficulty.slice(1)}
+                </span>
+                <span className="bg-telegram-hint/20 text-telegram-hint px-3 py-1.5 rounded-xl text-sm">
+                  {selectedQuest.frequency}
+                </span>
+                {selectedQuest.mode && (
+                  <span className="bg-blue-100 text-blue-700 px-3 py-1.5 rounded-xl text-sm">
+                    {selectedQuest.mode.icon} {selectedQuest.mode.display_name}
+                  </span>
+                )}
               </div>
+
+              {selectedQuest.due_date && (
+                <div className="flex items-center gap-2 text-sm text-telegram-hint mb-4">
+                  <Calendar className="w-4 h-4" />
+                  <span>Due {formatDate(selectedQuest.due_date)}</span>
+                </div>
+              )}
+
               <div className="mb-4">
                 <div className="flex justify-between text-sm mb-2">
                   <span className="text-telegram-hint">Progress</span>
                   <span className="font-semibold">{selectedQuest.progress} / {selectedQuest.target}</span>
                 </div>
                 <div className="bg-telegram-hint/20 rounded-full h-3 overflow-hidden">
-                  <motion.div className="h-full bg-gradient-to-r from-blue-500 to-purple-500" initial={{ width: 0 }} animate={{ width: `${(selectedQuest.progress / selectedQuest.target) * 100}%` }} />
+                  <motion.div
+                    className={`h-full ${selectedQuest.progress >= selectedQuest.target ? 'bg-green-500' : 'bg-gradient-to-r from-blue-500 to-purple-500'}`}
+                    initial={{ width: 0 }}
+                    animate={{ width: `${(selectedQuest.progress / selectedQuest.target) * 100}%` }}
+                  />
                 </div>
               </div>
+
+              {selectedQuest.target > 1 && selectedQuest.progress < selectedQuest.target && selectedQuest.status === 'active' && (
+                <div className="flex items-center gap-3 mb-4">
+                  <span className="text-sm text-telegram-hint">Update Progress</span>
+                  <div className="flex gap-2 ml-auto">
+                    <button
+                      onClick={() => handleUpdateProgress(1)}
+                      disabled={updatingProgress || selectedQuest.progress >= selectedQuest.target}
+                      className="flex items-center gap-1 bg-telegram-link text-white px-3 py-2 rounded-xl text-sm font-medium disabled:opacity-50 active:scale-95 transition-transform"
+                    >
+                      {updatingProgress ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}+1
+                    </button>
+                    {selectedQuest.target >= 5 && (
+                      <button
+                        onClick={() => handleUpdateProgress(5)}
+                        disabled={updatingProgress || selectedQuest.progress >= selectedQuest.target}
+                        className="flex items-center gap-1 bg-telegram-link text-white px-3 py-2 rounded-xl text-sm font-medium disabled:opacity-50 active:scale-95 transition-transform"
+                      >
+                        {updatingProgress ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}+5
+                      </button>
+                    )}
+                  </div>
+                </div>
+              )}
+
               {selectedQuest.progress >= selectedQuest.target && (
                 <div className="bg-green-100 border border-green-300 rounded-2xl p-4 text-center">
                   {completing ? (
