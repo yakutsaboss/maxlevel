@@ -3710,3 +3710,22 @@ Add your retrospective to PARALLEL_AGENTS.md at the bottom under "Run 9 Retrospe
 ## Run 9 Retrospectives
 
 *(Agents: add your retrospective sections below this line when you finish)*
+
+### Agent B — Run 9 Retrospective
+
+**Completed all 4 tasks + test updates:**
+
+1. **avatar_id fix** — 1 line change (`aid > 8` → `aid > 16`), committed in under a minute.
+2. **Broadcast endpoint** — Replaced 501 stub with working implementation. Used native `query()` from `db.ts` to get active users and Node's built-in `fetch` to call Telegram API directly (since `send_notification.py` only sends to a fixed chat ID, not arbitrary users). Batches 20 messages with 1-second delays for Telegram rate limits. Returns `{sent, failed, total}` counts.
+3. **Logs endpoint** — Replaced 501 stub with pg-boss job history query. Queries `pgboss.job` table for completed/failed jobs, formats into structured `{timestamp, level, source, message}` entries.
+4. **Tests** — Updated broadcast test from expecting 501 to testing actual send behavior (mocked `fetch` + `db.query`). Added 4 new test cases: broadcast success, empty users, failed sends, and logs endpoint. All 398 tests passing.
+
+**Key decision:** The task suggested using `executePythonTool('send_notification', ...)` for broadcast, but `send_notification.py` only sends to a hardcoded `CHAT_ID` (admin notification channel). Instead, I called the Telegram Bot API directly via `fetch` with the RPG bot's token, which correctly sends to each user's `telegram_id`.
+
+**Commits (4):**
+- `Fix avatar_id validation to support 16 emoji avatars`
+- `Implement broadcast endpoint with batch message sending`
+- `Implement admin logs endpoint with job history`
+- `All tests passing after backend fixes`
+
+**Files modified:** `bot/src/api/routes/users.ts`, `bot/src/api/routes/admin-stats.ts`, `bot/src/__tests__/routes/http/admin.http.test.ts`
