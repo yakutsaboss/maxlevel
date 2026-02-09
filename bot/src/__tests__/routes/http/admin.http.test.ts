@@ -36,6 +36,18 @@ vi.mock('../../../api/middleware/adminAuth.js', () => ({
   requireRole: () => (_req: any, _res: any, next: any) => next(),
 }));
 
+const mockQuery = vi.fn();
+
+vi.mock('../../../utils/db.js', () => ({
+  query: (...args: any[]) => mockQuery(...args),
+  queryOne: vi.fn(),
+  execute: vi.fn(),
+  transaction: vi.fn(),
+  getPool: vi.fn(),
+  testConnection: vi.fn(),
+  closePool: vi.fn(),
+}));
+
 const mockGetRegisteredJobs = vi.fn();
 const mockGetJobQueue = vi.fn();
 
@@ -229,13 +241,41 @@ describe('POST /api/admin/jobs/:name/trigger', () => {
 // ─── Broadcast ─────────────────────────────────────────────────────
 
 describe('POST /api/admin/broadcast', () => {
-  it('should return 501 (not implemented) with valid message', async () => {
+  it('should broadcast to all active users', async () => {
+    process.env.TELEGRAM_BOT_TOKEN = 'test-token';
+    mockQuery.mockResolvedValueOnce([
+      { telegram_id: 111 },
+      { telegram_id: 222 },
+    ]);
+
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = vi.fn().mockResolvedValue({ ok: true, text: () => Promise.resolve('{}') }) as any;
+
     const res = await request(buildApp())
       .post('/api/admin/broadcast')
       .send({ message: 'Hello everyone!' })
-      .expect(501);
+      .expect(200);
 
-    expect(res.body.error).toBe('Not Implemented');
+    expect(res.body.success).toBe(true);
+    expect(res.body.sent).toBe(2);
+    expect(res.body.failed).toBe(0);
+    expect(res.body.total).toBe(2);
+
+    globalThis.fetch = originalFetch;
+  });
+
+  it('should return 200 with zero sent when no active users', async () => {
+    process.env.TELEGRAM_BOT_TOKEN = 'test-token';
+    mockQuery.mockResolvedValueOnce([]);
+
+    const res = await request(buildApp())
+      .post('/api/admin/broadcast')
+      .send({ message: 'Hello everyone!' })
+      .expect(200);
+
+    expect(res.body.success).toBe(true);
+    expect(res.body.sent).toBe(0);
+    expect(res.body.total).toBe(0);
   });
 
   it('should return 400 when message is missing', async () => {
@@ -245,5 +285,59 @@ describe('POST /api/admin/broadcast', () => {
       .expect(400);
 
     expect(res.body.error).toBe('Bad Request');
+  });
+
+  it('should handle failed message sends gracefully', async () => {
+    process.env.TELEGRAM_BOT_TOKEN = 'test-token';
+    mockQuery.mockResolvedValueOnce([
+      { telegram_id: 111 },
+      { telegram_id: 222 },
+    ]);
+
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = vi.fn()
+      .mockResolvedValueOnce({ ok: true, text: () => Promise.resolve('{}') })
+      .mockResolvedValueOnce({ ok: false, status: 403, text: () => Promise.resolve('Forbidden') }) as any;
+
+    const res = await request(buildApp())
+      .post('/api/admin/broadcast')
+      .send({ message: 'Hello!' })
+      .expect(200);
+
+    expect(res.body.success).toBe(true);
+    expect(res.body.sent).toBe(1);
+    expect(res.body.failed).toBe(1);
+
+    globalThis.fetch = originalFetch;
+  });
+});
+
+// ─── Logs ─────────────────────────────────────────────────────────
+
+describe('GET /api/admin/logs', () => {
+  it('should return job history logs', async () => {
+    mockQuery.mockResolvedValueOnce([
+      { name: 'streak-check', state: 'completed', completedon: '2026-02-09T10:00:00Z', output: null, createdon: '2026-02-09T09:59:00Z' },
+      { name: 'quest-assign', state: 'failed', completedon: '2026-02-09T09:00:00Z', output: { error: 'timeout' }, createdon: '2026-02-09T08:59:00Z' },
+    ]);
+
+    const res = await request(buildApp())
+      .get('/api/admin/logs')
+      .expect(200);
+
+    expect(res.body.logs).toHaveLength(2);
+    expect(res.body.logs[0].level).toBe('info');
+    expect(res.body.logs[0].source).toBe('job:streak-check');
+    expect(res.body.logs[1].level).toBe('error');
+  });
+
+  it('should return empty logs when no jobs found', async () => {
+    mockQuery.mockResolvedValueOnce([]);
+
+    const res = await request(buildApp())
+      .get('/api/admin/logs')
+      .expect(200);
+
+    expect(res.body.logs).toHaveLength(0);
   });
 });
