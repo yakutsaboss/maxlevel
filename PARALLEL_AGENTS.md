@@ -1119,7 +1119,6 @@ Add your retrospective to PARALLEL_AGENTS.md at the bottom under "Run 4 Retrospe
 
 *(Agents: add your retrospective sections below this line when you finish)*
 
-<<<<<<< HEAD
 ### Agent B Retrospective (Run 4)
 
 **Branch:** `feature/backend-fixes`
@@ -1222,3 +1221,466 @@ Add your retrospective to PARALLEL_AGENTS.md at the bottom under "Run 4 Retrospe
 2. Add weekly leaderboard support to mini-app (once Agent B adds the backend endpoint)
 3. Settings page timezone input could use a searchable dropdown for better UX
 4. Consider adding image-based avatars (currently using Lucide icons as placeholders)
+
+---
+
+## Run 4 Retrospective (Agent 0)
+
+### Merge Results
+| Branch | Merge | Conflicts | Resolution |
+|--------|-------|-----------|------------|
+| `feature/backend-fixes` → main | Merge commit | 0 | Clean |
+| `feature/test-expansion` → main | Merge commit | 1 (PARALLEL_AGENTS.md) | Kept both retrospectives |
+| `feature/mini-app-integration` → main | Merge commit | 1 (PARALLEL_AGENTS.md) | Kept all 3 retrospectives |
+
+### What Was Delivered
+**Agent A** (mini-app, 5/5 tasks): API client methods for preferences/profile, Settings page fixed to use proper API client (removed `(apiClient as any).client` hack), ProfileEditModal connected to real API with saving/error states, avatar display in Profile page.
+
+**Agent B** (backend, 5/5 tasks): Fixed questReminders.ts `||` → `??` bug, synced schema.sql with new columns, wired daily summary pg-boss job (9 PM UTC cron, batch processing), weekly leaderboard endpoint (`GET /api/leaderboard/weekly`).
+
+**Agent C** (tests, 6/6 tasks): Enabled `mockReset: true` globally in vitest config, 32 new tests (profile handler, help handler, profile update API, daily summary handler). Total: 172 TS + 172 Python = 344 tests, 0 failures.
+
+### What Went Right
+- Fourth consecutive successful run with worktrees — zero interference
+- All 16/16 tasks completed across 3 agents
+- Both builds passed on first try after all 3 merges
+- Only expected PARALLEL_AGENTS.md conflicts
+- Agent C's global mockReset config change didn't break any existing tests
+
+### Post-Run Hotfix (Agent 0)
+**Critical bug discovered during user testing**: Onboarding "Failed to save" error.
+- **Root cause**: `bot/src/api/routes/onboarding.ts` lines 86 and 151 passed `--telegram-id` to Python tools (`mode_manager`, `quest_manager`) that only accept `--user-id`. This was a pre-Run-1 bug — onboarding has NEVER worked.
+- **Fix**: Look up `userId` before Python tool calls, change `--telegram-id` to `--user-id`.
+- **Also added**: Finance & Learning modes + 8 quest templates to production database.
+- **Deployed**: Commit `904184c`.
+
+### Known Issues for Run 5
+1. **Mini-app shows finance/learning as "Coming Soon"** — needs quiz questions and UI unlock
+2. **No quiz questions exist for finance/learning** — only fitness (12 Qs) and hydration (7 Qs) defined
+3. **`avatar_id` not in User TypeScript type** — causes `as any` casts in mini-app
+4. **`leaderboard_mv` materialized view missing** — leaderboard-refresh job fails every 30 min
+5. **No tests for /start, /settings, /stats, /modes handlers** — 4 untested handler files
+6. **seed_data.sql out of sync** — finance/learning modes in DB but not in seed file
+
+---
+
+## RUN 5: Parallel Agents (3 Agents + Agent 0)
+
+### Focus: Unlock New Modes & Make App Fully Testable
+
+Run 5 is focused on **enabling the full game loop**: unlock Finance & Learning modes with onboarding quizzes, fix remaining backend issues, and expand test coverage.
+
+### How to Launch
+
+Open 4 separate Claude Code sessions. **Start Agent 0 FIRST** — it sets up worktrees. Only start A/B/C after Agent 0 says "Ready."
+
+### Copy-Paste Prompts
+
+**Agent 0** (open in: `c:\Users\Asus\Desktop\Wibecode`):
+```
+Read PARALLEL_AGENTS.md — you are Agent 0 for Run 5. Set up worktrees and tell me when ready. After all agents finish, I'll tell you to merge.
+```
+
+**Agent A** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-a`):
+```
+Read PARALLEL_AGENTS.md — you are Agent A for Run 5. Do your tasks.
+```
+
+**Agent B** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-b`):
+```
+Read PARALLEL_AGENTS.md — you are Agent B for Run 5. Do your tasks.
+```
+
+**Agent C** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-c`):
+```
+Read PARALLEL_AGENTS.md — you are Agent C for Run 5. Do your tasks.
+```
+
+---
+
+## Agent 0 — Orchestrator (Run 5)
+
+**You are Agent 0.** Set up the environment, WAIT for agents, then merge and deploy.
+
+**Working directory:** `c:\Users\Asus\Desktop\Wibecode` (main repo, `main` branch)
+
+### Phase 1: Pre-Run Setup
+
+**Step 1: Verify clean state**
+```bash
+git status  # should be clean
+```
+
+**Step 2: Create worktrees**
+```bash
+git branch feature/onboarding-modes 2>/dev/null
+git branch feature/backend-quality 2>/dev/null
+git branch feature/test-handlers 2>/dev/null
+git worktree add ../Wibecode-agent-a feature/onboarding-modes
+git worktree add ../Wibecode-agent-b feature/backend-quality
+git worktree add ../Wibecode-agent-c feature/test-handlers
+```
+
+**Step 3: Install dependencies**
+```bash
+cd ../Wibecode-agent-a/mini-app && npm install
+cd ../../Wibecode-agent-b/bot && npm install
+cd ../../Wibecode-agent-c/bot && npm install
+```
+
+**Step 4: Verify worktrees**
+```bash
+cd c:\Users\Asus\Desktop\Wibecode
+git worktree list
+```
+
+**Step 5: Tell the user** "Ready to launch Agents A, B, C."
+
+### Phase 2: WAIT for all 3 agents to finish
+
+### Phase 3: Post-Run Merge
+
+```bash
+# Check each branch
+git log main..feature/backend-quality --oneline
+git log main..feature/test-handlers --oneline
+git log main..feature/onboarding-modes --oneline
+```
+
+**Merge order:**
+1. `git merge feature/backend-quality --no-edit` → verify `cd bot && npm run build`
+2. `git merge feature/test-handlers --no-edit` → verify `cd bot && npm run build`
+3. `git merge feature/onboarding-modes --no-edit` → verify `cd mini-app && npm run build`
+
+**Deploy + Clean up** (see Agent 0 Self-Protocol above).
+
+### Phase 4: Prepare Run 6
+
+After deploying Run 5, write retrospective, design next run, set up worktrees.
+
+---
+
+## Agent A — Onboarding: Finance & Learning Modes (Run 5)
+
+**You are Agent A.** You unlock Finance & Learning modes with full quiz flows.
+
+**Working directory:** `c:\Users\Asus\Desktop\Wibecode-agent-a`
+**Branch:** `feature/onboarding-modes` (you are ALREADY on it — do NOT switch branches)
+**Build command:** `cd mini-app && npm run build`
+
+### RULES (NON-NEGOTIABLE)
+
+1. You are ALREADY on branch `feature/onboarding-modes` — do NOT run `git checkout`
+2. Commit after EVERY task — atomic: `git add FILES && git commit -m "MSG"`
+3. Do NOT push to remote or deploy to server
+4. Do NOT add any new npm packages
+5. After ALL changes, run `cd mini-app && npm run build` and fix errors
+
+### FILES YOU OWN
+```
+mini-app/src/data/onboardingQuestions.ts          — add finance & learning questions
+mini-app/src/components/onboarding/PathSelect.tsx — unlock finance & learning
+mini-app/src/hooks/useOnboarding.ts               — add step types, buildStepSequence
+mini-app/src/pages/Onboarding.tsx                 — add mode badge matching
+mini-app/src/types/index.ts                       — add avatar_id to User type
+mini-app/src/pages/Profile.tsx                    — remove as any casts
+mini-app/src/pages/Leaderboard.tsx                — connect weekly endpoint
+mini-app/src/components/ProfileEditModal.tsx       — remove as any casts
+mini-app/src/components/onboarding/Summary.tsx    — if needed for new modes
+```
+
+### FILES YOU MUST NOT TOUCH
+```
+mini-app/src/api/client.ts                        — stable from Run 4
+mini-app/src/components/onboarding/QuizScreen.tsx  — generic renderer, works for all modes
+mini-app/src/components/onboarding/LaunchScreen.tsx — save logic, works fine
+mini-app/src/components/onboarding/PunishmentConfig.tsx — generic, works fine
+mini-app/src/components/onboarding/NotificationPrefs.tsx — generic
+mini-app/vite.config.ts                           — build config
+mini-app/package.json                             — no new dependencies
+bot/                                              — not your area
+tools/                                            — not your area
+```
+
+### PROJECT CONTEXT
+
+- The quiz system is **fully parameterized**: QuizScreen.tsx renders any QuestionConfig without mode-specific logic
+- Question types: `single-select`, `multi-select`, `drum-roller`, `slider`, `day-grid`, `dual-time`
+- Fitness has 12 questions, Hydration has 7 questions
+- Finance & Learning modes exist in the production DB with quest templates
+- `buildStepSequence()` in useOnboarding.ts dynamically builds steps based on selected modes
+- OnboardingStep is a union type that must include all step names
+
+### TASKS (do in order, commit after each)
+
+**Task 1: Add avatar_id to User type + remove as any casts**
+- Read `mini-app/src/types/index.ts`
+- Add `avatar_id?: number` to the `User` interface
+- Read `mini-app/src/pages/Profile.tsx` — replace `(stats.user as any).avatar_id` with `stats.user.avatar_id`
+- Read `mini-app/src/components/ProfileEditModal.tsx` — fix any `as any` casts related to avatar_id
+- This is a small but important type safety fix
+
+**Task 2: Create Finance quiz questions**
+- Read `mini-app/src/data/onboardingQuestions.ts` — understand the FITNESS_QUESTIONS pattern
+- Add `FINANCE_QUESTIONS: QuestionConfig[]` array with 5-7 questions:
+  - `finance_goals` (multi-select): save_more, reduce_debt, invest, budget_better, emergency_fund, track_spending
+  - `finance_income` (single-select): student, low, medium, high, prefer_not_to_say
+  - `finance_spending` (multi-select): food, entertainment, shopping, transport, subscriptions, other
+  - `finance_savings_target` (drum-roller): monthly savings amount, 0-100000 (currency agnostic)
+  - `finance_frequency` (single-select): daily_tracking, weekly_review, monthly_only
+- Add to `getQuestionForStep()` function
+- Follow the same patterns as FITNESS_QUESTIONS (dataKey: 'finance', nestedKey matches)
+
+**Task 3: Create Learning quiz questions**
+- Add `LEARNING_QUESTIONS: QuestionConfig[]` array with 5-7 questions:
+  - `learning_goals` (multi-select): new_language, programming, reading, professional_skills, creativity, science, other
+  - `learning_style` (single-select): visual, reading, hands_on, audio, mixed
+  - `learning_time` (drum-roller): minutes per day, 10-180
+  - `learning_days` (day-grid): which days to study
+  - `learning_resources` (multi-select): books, online_courses, videos, podcasts, practice_projects, tutoring
+- Add to `getQuestionForStep()` function
+
+**Task 4: Wire new modes into onboarding flow**
+- Read `mini-app/src/hooks/useOnboarding.ts`
+- Add finance_* and learning_* step names to the `OnboardingStep` union type
+- Update `buildStepSequence()` to add finance/learning question steps when those modes are selected
+- Add `finance?: Record<string, any>` and `learning?: Record<string, any>` to `OnboardingData` interface
+- Read `mini-app/src/pages/Onboarding.tsx` — add mode badge matching for finance_/learning_ prefixes
+
+**Task 5: Unlock Finance & Learning in PathSelect**
+- Read `mini-app/src/components/onboarding/PathSelect.tsx`
+- Change `available: false` to `available: true` for finance and learning modes
+- Remove the "Soon" badge for these modes (or update it)
+- Verify Summary.tsx already has MODE_INFO entries for finance and learning (it should from Run 2)
+
+**Task 6: Connect Leaderboard to weekly endpoint**
+- Read `mini-app/src/pages/Leaderboard.tsx`
+- The "Weekly" tab currently shows same data as "All Time"
+- Call `apiClient` with the weekly endpoint path: `GET /api/leaderboard/weekly`
+- If the weekly endpoint returns data, show it; otherwise fall back to all-time data
+- May need to add a method to apiClient — if so, add `getWeeklyLeaderboard()` to `mini-app/src/api/client.ts` (you own this file for this task only)
+
+### RETROSPECTIVE (DO THIS LAST)
+Add your retrospective to PARALLEL_AGENTS.md at the bottom under "Run 5 Retrospectives".
+
+---
+
+## Agent B — Backend Quality & Data Sync (Run 5)
+
+**You are Agent B.** You fix backend issues, sync seed data, and improve infrastructure.
+
+**Working directory:** `c:\Users\Asus\Desktop\Wibecode-agent-b`
+**Branch:** `feature/backend-quality` (you are ALREADY on it — do NOT switch branches)
+**Build command:** `cd bot && npm run build`
+
+### RULES (NON-NEGOTIABLE)
+
+1. You are ALREADY on branch `feature/backend-quality` — do NOT run `git checkout`
+2. Commit after EVERY task — atomic: `git add FILES && git commit -m "MSG"`
+3. Do NOT push to remote or deploy to server
+4. Do NOT add any new npm packages
+5. ESM project: ALL local imports need `.js` extensions
+6. After ALL changes, run `cd bot && npm run build` and fix errors
+
+### FILES YOU OWN
+```
+database/seed_data.sql                             — sync with production DB
+bot/src/jobs/definitions/leaderboardRefresh.ts     — fix materialized view issue
+bot/src/api/routes/leaderboard.ts                  — if needed for leaderboard fix
+bot/src/handlers/dailySummary.ts                   — fix type cast
+bot/src/jobs/definitions/dailySummary.ts           — improve if needed
+```
+
+### FILES YOU MUST NOT TOUCH
+```
+bot/src/bot.ts                                     — Grammy instance, locked
+bot/src/config.ts                                  — centralized, locked
+bot/src/utils/                                     — db, cache, pythonTools all locked
+bot/src/types/                                     — shared types, locked
+bot/src/handlers/ (except dailySummary.ts)         — handlers stable, locked
+bot/src/index.ts                                   — command registration stable, locked
+bot/src/api/routes/onboarding.ts                   — just hotfixed by Agent 0, locked
+bot/src/api/routes/users.ts                        — stable, locked
+bot/src/api/middleware/                             — auth works fine
+bot/package.json                                   — no new dependencies
+mini-app/                                          — not your area
+tools/                                             — not your area
+```
+
+### GRAY AREA
+```
+bot/src/api/server.ts — you MAY add a new router.use() if needed but must NOT change existing middleware, CORS, or routes
+```
+
+### PROJECT CONTEXT
+
+- Grammy bot framework, ESM (`"type": "module"`), TypeScript strict
+- `db.query(sql, params)`, `db.queryOne(sql, params)`, `db.transaction(callback)` from utils/db.ts
+- `cache.cached(key, ttl, fn)`, `cache.invalidateUserCache(userId)` from utils/cache.ts
+- Production DB now has 4 modes (fitness, hydration, finance, learning) with 14 quest templates
+- `leaderboard_mv` materialized view does NOT exist — leaderboard-refresh job fails every 30 min
+- `sendDailySummary` uses `as any` cast for Bot type
+
+### TASKS (do in order, commit after each)
+
+**Task 1: Sync seed_data.sql with production database**
+- Read `database/seed_data.sql`
+- Add finance and learning modes to the INSERT statements (they were added to prod DB by Agent 0)
+- Add the 8 new quest templates (4 finance, 4 learning) matching what's in production
+- Keep the commented-out finance/learning section but mark it as "now active"
+
+**Task 2: Fix leaderboard-refresh job (materialized view)**
+- Read `bot/src/jobs/definitions/leaderboardRefresh.ts`
+- The job references `leaderboard_mv` which doesn't exist and never was created
+- **Option A** (preferred): Rewrite the job to use a direct query instead of a materialized view — this is simpler and consistent with the weekly leaderboard endpoint pattern
+- **Option B**: Create the materialized view in the job itself with `CREATE MATERIALIZED VIEW IF NOT EXISTS`
+- Pick whichever is simpler and more reliable. The job runs every hour, so performance matters.
+- Make sure to use `cache.cached()` pattern if doing direct query
+
+**Task 3: Fix dailySummary.ts Bot type cast**
+- Read `bot/src/handlers/dailySummary.ts`
+- Read `bot/src/jobs/definitions/dailySummary.ts`
+- The job stores `Bot<MyContext>` but passes it as `any` to `sendDailySummary()`
+- Fix the type signature so it accepts `Bot<any>` or the actual bot context type
+- This should be a small type-level fix, not a logic change
+
+**Task 4: Add database migration script**
+- Create `database/migrations/run5_sync.sql`
+- Include all Run 4 + Run 5 changes in one idempotent script:
+  - `ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar_id INTEGER DEFAULT 1`
+  - `ALTER TABLE users ADD COLUMN IF NOT EXISTS notification_enabled BOOLEAN DEFAULT true`
+  - `ALTER TABLE users ADD COLUMN IF NOT EXISTS reminder_time INTEGER DEFAULT 9`
+  - `INSERT INTO modes ... ON CONFLICT DO NOTHING` (finance, learning)
+  - `INSERT INTO quests ...` (8 quest templates)
+- This makes deployments reproducible (currently changes are only in prod via manual SQL)
+
+**Task 5: Verify builds pass**
+- Run `cd bot && npm run build` and fix any errors
+- Create `bot/src/handlers/REGISTER_THESE_RUN5.md` documenting what was changed
+
+### RETROSPECTIVE (DO THIS LAST)
+Add your retrospective to PARALLEL_AGENTS.md at the bottom under "Run 5 Retrospectives".
+
+---
+
+## Agent C — Test Coverage: Untested Handlers (Run 5)
+
+**You are Agent C.** You add tests for the 4 remaining untested handler files.
+
+**Working directory:** `c:\Users\Asus\Desktop\Wibecode-agent-c`
+**Branch:** `feature/test-handlers` (you are ALREADY on it — do NOT switch branches)
+**Build command:** `cd bot && npm run build`
+
+### RULES (NON-NEGOTIABLE)
+
+1. You are ALREADY on branch `feature/test-handlers` — do NOT run `git checkout`
+2. Commit after EVERY task — atomic: `git add FILES && git commit -m "MSG"`
+3. Do NOT push to remote or deploy to server
+4. Do NOT modify package.json or requirements.txt
+5. After ALL changes, run `cd bot && npm run build` and fix errors
+
+### FILES YOU OWN
+```
+bot/src/__tests__/                                 — ALL test files (existing + new)
+bot/src/__tests__/setup.ts                         — mock helpers (may add new ones)
+bot/vitest.config.ts                               — test config
+tools/tests/                                       — ALL Python test files
+```
+
+### FILES YOU MUST NOT TOUCH
+```
+bot/src/ (ALL non-test .ts files)                  — source code, read-only
+mini-app/                                          — not your area
+tools/*.py                                         — source tools, read-only
+database/                                          — schema, read-only
+bot/package.json                                   — no deps
+.env                                               — secrets
+```
+
+### PROJECT CONTEXT
+
+- **Vitest** for TypeScript tests (ESM, globals enabled), config at `bot/vitest.config.ts`
+- **pytest** for Python tests with `unittest.mock`
+- `mockReset: true` is enabled globally in vitest config — no need for per-file `vi.resetAllMocks()`
+- **Total tests**: 172 TypeScript, 172 Python = 344 total
+- Untested handlers: `/start` (start.ts), `/settings` (settings.ts), `/stats` (stats.ts), `/modes` (onboarding.ts handler)
+- Mock Grammy context pattern: `{ reply: vi.fn(), from: { id: 123 }, message: { text: '/start' } }`
+- Most handlers use `executePythonTool()` which must be mocked
+
+### TASKS (do in order, commit after each)
+
+**Task 1: Add tests for /start handler**
+- Read `bot/src/handlers/start.ts`
+- Create `bot/src/__tests__/handlers/start.test.ts`
+- Test: new user welcome message, returning user greeting, sets session data, handles missing ctx.from, handles DB error
+- Mock: `executePythonTool`, Grammy context
+
+**Task 2: Add tests for /settings handler**
+- Read `bot/src/handlers/settings.ts`
+- Create `bot/src/__tests__/handlers/settings.test.ts`
+- Test: shows settings menu with inline keyboard, callback for toggling notifications, callback for changing reminder time, callback for timezone, handles unknown callback, handles DB error
+- Mock: Grammy context, `executePythonTool`, callback queries
+
+**Task 3: Add tests for /stats handler**
+- Read `bot/src/handlers/stats.ts`
+- Create `bot/src/__tests__/handlers/stats.test.ts`
+- Test: shows stats overview, callback for detailed stats (quests, achievements, streaks), handles user with no data, handles DB error
+- Mock: Grammy context, `executePythonTool`, callback queries
+
+**Task 4: Add tests for /modes handler (onboarding.ts)**
+- Read `bot/src/handlers/onboarding.ts`
+- Create `bot/src/__tests__/handlers/onboarding.test.ts`
+- Test: shows mode selection, handles mode select callback, handles mode done callback, handles mode info callback, handles quick action callbacks
+- Mock: Grammy context, `executePythonTool`, callback queries
+
+**Task 5: Run ALL tests and verify everything passes**
+- Run `cd bot && npx vitest run --reporter=verbose`
+- Run `python -m pytest tools/tests/ -v`
+- Fix ANY failures
+- Final commit with total counts: "All tests passing: X TypeScript, Y Python"
+
+### RETROSPECTIVE (DO THIS LAST)
+Add your retrospective to PARALLEL_AGENTS.md at the bottom under "Run 5 Retrospectives".
+
+---
+
+## Run 5 File Ownership Matrix
+
+| File/Directory | Agent A | Agent B | Agent C | Nobody |
+|---|---|---|---|---|
+| mini-app/src/data/onboardingQuestions.ts | OWNS | - | - | - |
+| mini-app/src/components/onboarding/PathSelect.tsx | OWNS | - | - | - |
+| mini-app/src/hooks/useOnboarding.ts | OWNS | - | - | - |
+| mini-app/src/pages/Onboarding.tsx | OWNS | - | - | - |
+| mini-app/src/types/index.ts | OWNS | - | - | - |
+| mini-app/src/pages/Profile.tsx | OWNS | - | - | - |
+| mini-app/src/pages/Leaderboard.tsx | OWNS | - | - | - |
+| mini-app/src/components/ProfileEditModal.tsx | OWNS | - | - | - |
+| mini-app/src/api/client.ts (weekly endpoint only) | GRAY | - | - | - |
+| database/seed_data.sql | - | OWNS | - | - |
+| database/migrations/ | - | OWNS | - | - |
+| bot/src/jobs/definitions/leaderboardRefresh.ts | - | OWNS | - | - |
+| bot/src/handlers/dailySummary.ts | - | OWNS | - | - |
+| bot/src/jobs/definitions/dailySummary.ts | - | OWNS | - | - |
+| bot/src/__tests__/ | - | - | OWNS | - |
+| tools/tests/ | - | - | OWNS | - |
+| bot/vitest.config.ts | - | - | OWNS | - |
+| mini-app/src/api/client.ts | - | - | - | LOCKED |
+| mini-app/src/components/onboarding/QuizScreen.tsx | - | - | - | LOCKED |
+| bot/src/utils/ | - | - | - | LOCKED |
+| bot/src/config.ts | - | - | - | LOCKED |
+| bot/src/index.ts | - | - | - | LOCKED |
+| bot/src/api/routes/onboarding.ts | - | - | - | LOCKED |
+| .env | - | - | - | LOCKED |
+
+## Run 5 Merge Order
+
+1. **Agent B first** — backend fixes + seed data sync
+2. **Agent C second** — tests (reference stable source)
+3. **Agent A last** — mini-app onboarding (completely independent)
+
+---
+
+## Run 5 Retrospectives
+
+*(Agents: add your retrospective sections below this line when you finish)*
