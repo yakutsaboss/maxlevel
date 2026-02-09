@@ -232,6 +232,8 @@ export function Leaderboard() {
                   </div>
                   <div className="flex items-center gap-2 text-xs text-telegram-hint">
                     <span>Lv {entry.level}</span>
+                    <span>·</span>
+                    <span>{entry.total_quests_completed} quests</span>
                     {entry.current_streak > 0 && <span>🔥 {entry.current_streak}d</span>}
                   </div>
                 </div>
