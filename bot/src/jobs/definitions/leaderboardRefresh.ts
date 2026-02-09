@@ -10,7 +10,8 @@ export const JOB_NAME = 'leaderboard-refresh';
 export const CRON_SCHEDULE = '*/30 * * * *';
 
 export async function handler(jobs: Job[]): Promise<void> {
-  console.log(`[JOB] ${JOB_NAME} started`);
+  const startTime = Date.now();
+  console.log(`[JOB:${JOB_NAME}] Started`);
 
   const result = await executePythonTool('db_operations', [
     '--execute',
@@ -21,5 +22,6 @@ export async function handler(jobs: Job[]): Promise<void> {
     throw new Error(`Leaderboard refresh failed: ${result.error}`);
   }
 
-  console.log(`[JOB] ${JOB_NAME} done`);
+  const elapsed = Date.now() - startTime;
+  console.log(`[JOB:${JOB_NAME}] Completed in ${elapsed}ms`);
 }

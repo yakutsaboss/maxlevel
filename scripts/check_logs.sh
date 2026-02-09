@@ -35,7 +35,7 @@ echo "DB errors:    $DB_ERRORS"
 echo ""
 
 if [ "$ERRORS" -gt 10 ]; then
-  echo "HIGH ERROR COUNT ($ERRORS errors in last $LINES lines)"
+  echo "⚠ HIGH ERROR COUNT ($ERRORS errors in last $LINES lines)"
   echo ""
   echo "--- Recent errors ---"
   echo "$LOGS" | grep -i "error\|exception\|fatal" | tail -10
@@ -43,7 +43,7 @@ if [ "$ERRORS" -gt 10 ]; then
 fi
 
 if [ "$DB_ERRORS" -gt 0 ]; then
-  echo "DATABASE ERRORS DETECTED"
+  echo "⚠ DATABASE ERRORS DETECTED"
   echo ""
   echo "--- DB errors ---"
   echo "$LOGS" | grep -i "DB.*error\|connection.*refused\|pool.*error" | tail -5
