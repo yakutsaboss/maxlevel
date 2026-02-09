@@ -504,4 +504,31 @@ Find your section under "Run 11 Retrospectives" below and replace the placeholde
 *(To be filled by Agent B)*
 
 #### Agent C Retrospective
-*(To be filled by Agent C)*
+
+**Completed Tasks:**
+
+| # | Task | Commit | Status |
+|---|------|--------|--------|
+| 1 | Fix Achievement type to match API | `06750a1` | Done |
+| 2 | Add checkAchievements to API client | `f5b5fce` | Done |
+| 3 | Add streak display section to Dashboard | `667a636` | Done |
+| 4 | Create AchievementToast component | `d0d6624` | Done |
+| 5 | Integrate achievement toast in Dashboard | `49cabd5` | Done |
+| 6 | Build verification | (no errors) | Done |
+
+**Problems Faced:**
+- The `POST /users/:userId/achievements/check` endpoint expects the internal user ID, but the Quests page only has the Telegram ID. Integrated the achievement check into Dashboard's pull-to-refresh instead, where the internal user ID is available from `stats.user.id`.
+- The `GET /achievements` endpoint returns `{achievements, count}` (not `{success, data}`), so `apiClient.getAchievements()` has a response format mismatch. The Achievements page's `allRes.success` check silently fails. Did not fix this since it's an existing issue outside my task scope, but it means the all-achievements list doesn't load.
+
+**What was done:**
+- Achievement type updated: removed `requirement_type`, `requirement_value`, `is_hidden`; added `rarity`, `criteria`.
+- Achievements page updated to group by `rarity` field instead of `category` (which now maps to mode, not rarity). Removed `is_hidden` check.
+- Dashboard now shows a prominent streak section with gradient card, current streak count, best streak, days active, and progress bar (current vs best).
+- New `AchievementToast` component with slide-up animation, gold/amber theme, auto-dismiss after 4 seconds.
+- Dashboard pull-to-refresh triggers an achievement check; if new achievements are found, shows the toast with haptic feedback.
+
+**Recommendations for Next Run:**
+1. Fix `apiClient.getAchievements()` response handling — the endpoint returns `{achievements, count}` not `{success, data}`.
+2. Similarly, `apiClient.getUserAchievements()` hits the users.ts route (returns `{success, data}`) but the dedicated achievements.ts route at `/achievements/users/:userId` returns `{achievements, unlocked, total, progress}`. Inconsistency should be resolved.
+3. Consider adding per-mode streak data to the stats API so Dashboard can show streak breakdown by mode.
+4. The achievement check could also be triggered after quest completion on the Quests page if the internal user ID is made available there (e.g., stored in a context/hook after initial stats load).
