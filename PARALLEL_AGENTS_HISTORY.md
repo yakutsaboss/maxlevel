@@ -1,6 +1,6 @@
 # Parallel Agents — Run History (Archive)
 
-This file contains completed run logs from Runs 2–10 (retrospectives, task descriptions, file matrices, merge results).
+This file contains completed run logs from Runs 2–12 (retrospectives, task descriptions, file matrices, merge results).
 For the active protocol and current run, see `PARALLEL_AGENTS.md`.
 
 ---
@@ -4278,3 +4278,1122 @@ Add your retrospective to PARALLEL_AGENTS.md at the bottom under "Run 10 Retrosp
 **Commits:** 2
 - `Add LazyPageWrapper component for lazy-loaded routes`
 - `Implement lazy loading for non-critical pages`
+---
+
+## RUN 11: Parallel Agents (3 Agents + Agent 0)
+
+### Focus: Complete the MVP Game Loop — Achievement Engine, Streak Wiring, Quest Content
+
+The game UI is polished but the loop is broken: achievements never unlock, streaks aren't updated on quest completion, and quest variety is too low. This run wires everything together so the core RPG mechanics actually work.
+
+### Copy-Paste Prompts
+
+**Agent 0** (open in: `c:\Users\Asus\Desktop\Wibecode`):
+```
+Read PARALLEL_AGENTS.md — you are Agent 0 for Run 11. Set up worktrees and tell me when ready. After all agents finish, I'll tell you to merge.
+```
+
+**Agent A** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-a`):
+```
+Read PARALLEL_AGENTS.md — you are Agent A for Run 11. Your job: wire achievement checks and streak updates into the quest completion flow, and create an achievement batch-check background job. Do your tasks in order, commit after each, and write your retrospective when done.
+```
+
+**Agent B** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-b`):
+```
+Read PARALLEL_AGENTS.md — you are Agent B for Run 11. Your job: add more quest templates to the database, add weekly quest assignment to the daily reset job, and add an achievement unlock notification system. Do your tasks in order, commit after each, and write your retrospective when done.
+```
+
+**Agent C** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-c`):
+```
+Read PARALLEL_AGENTS.md — you are Agent C for Run 11. Your job: add streak display to the Dashboard, add a checkAchievements API method, and show an achievement unlock toast. Do your tasks in order, commit after each, and write your retrospective when done.
+```
+
+---
+
+### Agent A — Achievement Engine & Streak Wiring (Backend)
+
+**Branch:** `feature/achievement-engine`
+
+**CONTEXT:**
+- The `POST /api/users/:userId/achievements/check` endpoint ALREADY EXISTS in `bot/src/api/routes/achievements.ts` (line 335). It evaluates ALL criteria types (level, streak, quest_complete, multi_mode_active, etc.), batch-unlocks qualifying achievements in a single transaction, and awards XP bonus. It just needs to be CALLED.
+- `executePythonTool('streak_manager', ['--update-streak', '--user-id', ID, '--mode-id', MODE_ID])` updates the streak for a user+mode. It exists but is NEVER CALLED after quest completion.
+- Quest completion happens in two places in `quests.ts`:
+  1. `POST /:questId/complete` (line 84) — calls Python `quest_manager --complete-quest`
+  2. `PATCH /:questId/progress` (line 203) — auto-completes when progress >= target (native SQL)
+- Both paths award XP but neither updates streaks nor checks achievements.
+
+**FILES YOU OWN:**
+- `bot/src/api/routes/quests.ts` — modify quest completion to trigger streak + achievement check
+- `bot/src/utils/achievementEngine.ts` — NEW: shared function to check achievements for a user
+- `bot/src/jobs/definitions/achievementBatchCheck.ts` — NEW: periodic batch job
+- `bot/src/jobs/registerJobs.ts` — register the new job
+
+**FILES YOU MUST NOT TOUCH:**
+- `bot/src/api/routes/achievements.ts` (Agent A reads it for reference but does NOT edit)
+- `mini-app/` (all)
+- `tools/` (all Python files)
+- `.env`, `bot/src/config.ts`, `bot/src/bot.ts`
+
+**RULES (NON-NEGOTIABLE):**
+- You are ALREADY on branch `feature/achievement-engine` — do NOT run `git checkout`
+- Commit after EVERY task — atomic: `git add FILES && git commit -m "MSG"` in one Bash call
+- Do NOT push to remote or deploy to server
+- Do NOT add any new npm packages
+
+**Task 1: Create achievementEngine.ts utility**
+- Read `bot/src/api/routes/achievements.ts` lines 216-413 to understand the existing `checkCriteriaMet()` and `filterQualifyingAchievements()` functions, and the `POST /check` endpoint logic.
+- Create `bot/src/utils/achievementEngine.ts` that exports an `async function checkAndUnlockAchievements(userId: number): Promise<any[]>` function.
+- This function should contain the core logic from the `POST /check` endpoint:
+  1. Fetch user stats (level, total_xp, current_streak, quests_completed)
+  2. Fetch available (not yet unlocked) achievements
+  3. Evaluate each achievement's criteria using the same `checkCriteriaMet()` logic
+  4. Batch-unlock qualifying achievements in a transaction (INSERT ON CONFLICT DO NOTHING)
+  5. Award XP bonus for newly unlocked achievements
+  6. Return array of newly unlocked achievements (empty array if none)
+- Import `query`, `queryOne`, `transaction` from `../../utils/db.js`
+- Import `invalidateUserCache` from `../../utils/cache.js`
+- This utility can be called from both API routes AND background jobs without HTTP overhead.
+- Commit: "Add achievementEngine utility for checking and unlocking achievements"
+
+**Task 2: Wire streak update + achievement check into quest completion**
+- Edit `bot/src/api/routes/quests.ts`
+- Import `executePythonTool` is already imported. Import `checkAndUnlockAchievements` from your new utility.
+- In `POST /:questId/complete` (line 84-120):
+  - After the successful `executePythonTool('quest_manager', ...)` call and before the response
+  - Get the quest's `mode_id` — you'll need to query it: `SELECT q.mode_id, qi.user_id FROM quest_instances qi JOIN quests q ON q.id = qi.quest_id WHERE qi.id = $1`
+  - Call `executePythonTool('streak_manager', ['--update-streak', '--user-id', String(userId), '--mode-id', String(modeId)])` — fire-and-forget, don't block the response on this
+  - Call `checkAndUnlockAchievements(userId)` — also fire-and-forget (use `.catch(console.error)`)
+  - Include any newly unlocked achievements in the response (optional, nice-to-have)
+- In `PATCH /:questId/progress` (line 203-295):
+  - In the auto-complete branch (line 241, `clampedProgress >= target`), after the transaction:
+  - Get `mode_id` from the quest query (add `q.mode_id` to the existing SELECT on line 220)
+  - Same streak update + achievement check calls as above
+- Both streak and achievement calls should be non-blocking (don't delay the API response). Use `Promise.allSettled([streakPromise, achievementPromise]).catch(console.error)` pattern.
+- Commit: "Wire streak update and achievement check into quest completion"
+
+**Task 3: Create achievement batch check job**
+- Create `bot/src/jobs/definitions/achievementBatchCheck.ts`
+- Follow the same pattern as other job files (export `JOB_NAME`, `CRON_SCHEDULE`, `handler`)
+- `JOB_NAME = 'achievement-batch-check'`
+- `CRON_SCHEDULE = '0 */6 * * *'` (every 6 hours — safety net, not primary trigger)
+- Handler: Query all active users, call `checkAndUnlockAchievements(userId)` for each, log results
+- Process in batches of 50 users with small delays between batches to avoid DB pressure
+- Log: total users checked, total new achievements unlocked
+- Commit: "Add achievement batch check job (every 6 hours)"
+
+**Task 4: Register the new job**
+- Edit `bot/src/jobs/registerJobs.ts`
+- Add import: `import * as achievementBatchCheck from './definitions/achievementBatchCheck.js';`
+- Add to the `jobs` array: `{ name: achievementBatchCheck.JOB_NAME, cron: achievementBatchCheck.CRON_SCHEDULE, handler: achievementBatchCheck.handler }`
+- Commit: "Register achievement batch check job in registerJobs"
+
+**Task 5: Build verification**
+- Run `cd bot && npm run build`
+- Fix any TypeScript errors
+- Commit only if fixes were needed: "Fix TypeScript errors from achievement engine"
+
+### RETROSPECTIVE (DO THIS LAST)
+Find your section under "Run 11 Retrospectives" below and replace the placeholder with your retrospective.
+
+---
+
+### Agent B — Quest Content & Weekly Assignment (Backend + DB)
+
+**Branch:** `feature/quest-content`
+
+**CONTEXT:**
+- Currently only 14 quest templates exist in `database/seed_data.sql` (3-4 per mode). This is too few for variety.
+- `dailyQuestReset.ts` assigns 3 daily quests at midnight UTC but does NOT handle weekly quests. The `quest_manager.py` supports `--assign-weekly` but no job calls it.
+- When achievements unlock (via Agent A's work), users should get a Telegram message. The notification jobs (`questReminders.ts`, `dailySummary.ts`) use `bot.api.sendMessage()` and receive the bot instance via `setBotInstance(bot)`.
+
+**FILES YOU OWN:**
+- `bot/src/jobs/definitions/dailyQuestReset.ts` — add weekly quest assignment
+- `database/migrations/run11_quest_templates.sql` — NEW: additional quest templates
+- `bot/src/jobs/definitions/achievementNotifier.ts` — NEW: sends Telegram messages for new achievements
+
+**FILES YOU MUST NOT TOUCH:**
+- `bot/src/api/routes/` (all route files)
+- `bot/src/utils/` (all utility files)
+- `mini-app/` (all)
+- `tools/` (all Python files)
+- `.env`, `bot/src/config.ts`, `bot/src/bot.ts`
+
+**GRAY AREA:**
+- `bot/src/jobs/registerJobs.ts` — you may ONLY add your new job import + array entry (Agent A also modifies this file, so keep changes minimal and clearly separated)
+
+**RULES (NON-NEGOTIABLE):**
+- You are ALREADY on branch `feature/quest-content` — do NOT run `git checkout`
+- Commit after EVERY task — atomic: `git add FILES && git commit -m "MSG"` in one Bash call
+- Do NOT push to remote or deploy to server
+
+**Task 1: Add more quest templates**
+- Create `database/migrations/run11_quest_templates.sql`
+- Add at least 20 new quest templates (5+ per mode), mix of daily and weekly
+- Follow the exact column format from `seed_data.sql`: `(mode_id, title, description, quest_type, xp_reward, difficulty, requires_timer, timer_window_start, timer_window_end, readiness_check_enabled, readiness_check_time, is_mandatory)`
+- Use subqueries for mode_id: `(SELECT id FROM modes WHERE name = 'fitness')`
+- Use `INSERT ... ON CONFLICT DO NOTHING` or check `WHERE NOT EXISTS` to make the script idempotent (safe to run multiple times)
+- **Fitness ideas:** Stretching routine, Walk 10k steps, Plank challenge, Yoga session, Hydration + workout combo
+- **Hydration ideas:** Herbal tea break, Water before each meal, Evening hydration, Track water intake, Lemon water morning
+- **Finance ideas:** No-spend day, Review subscriptions, Compare prices, Set savings goal, Track impulse purchases
+- **Learning ideas:** Watch educational video, Write summary of chapter, Teach someone what you learned, Code challenge, Language practice
+- Vary XP rewards: easy=20-30, medium=40-60, hard=80-100, weekly=100-200
+- Commit: "Add 20+ quest templates across all modes"
+
+**Task 2: Add weekly quest assignment to daily reset job**
+- Edit `bot/src/jobs/definitions/dailyQuestReset.ts`
+- After the daily quest assignment loop, add a check: if today is Monday (`new Date().getUTCDay() === 1`), also assign weekly quests
+- Call `executePythonTool('quest_manager', ['--assign-weekly', '--user-id', String(userId), '--count', '2'])` for each user
+- Log separately: "Assigned {N} weekly quests to {M} users"
+- Commit: "Add weekly quest assignment on Mondays"
+
+**Task 3: Create achievement notification job**
+- Create `bot/src/jobs/definitions/achievementNotifier.ts`
+- This job checks for recently unlocked achievements (last 1 hour) and sends Telegram notifications
+- Follow the pattern from `questReminders.ts`: export `JOB_NAME`, `CRON_SCHEDULE`, `handler`, `setBotInstance()`
+- `JOB_NAME = 'achievement-notifier'`
+- `CRON_SCHEDULE = '*/15 * * * *'` (every 15 minutes)
+- Handler:
+  1. Query: `SELECT ua.user_id, u.telegram_id, a.name, a.badge_icon, a.xp_bonus FROM user_achievements ua JOIN users u ON u.id = ua.user_id JOIN achievements a ON a.id = ua.achievement_id WHERE ua.unlocked_at > NOW() - INTERVAL '20 minutes'`
+  2. For each result, send Telegram message: `"🏆 Achievement Unlocked!\n\n{badge_icon} {name}\n+{xp_bonus} XP bonus"`
+  3. Use `bot.api.sendMessage(telegramId, message)` with try/catch per user
+  4. Rate limit: 200ms delay between sends (same as dailySummary)
+  5. Log: "Sent {N} achievement notifications"
+- Commit: "Add achievement notifier job (every 15 minutes)"
+
+**Task 4: Register the new job**
+- Edit `bot/src/jobs/registerJobs.ts`
+- Add import: `import * as achievementNotifier from './definitions/achievementNotifier.js';`
+- Add `achievementNotifier.setBotInstance(bot);` in `registerAllJobs` (after the existing setBotInstance calls)
+- Add to the `jobs` array: `{ name: achievementNotifier.JOB_NAME, cron: achievementNotifier.CRON_SCHEDULE, handler: achievementNotifier.handler }`
+- Commit: "Register achievement notifier job in registerJobs"
+
+**Task 5: Build verification**
+- Run `cd bot && npm run build`
+- Fix any TypeScript errors
+- Commit only if fixes were needed: "Fix TypeScript errors from quest content additions"
+
+### RETROSPECTIVE (DO THIS LAST)
+Find your section under "Run 11 Retrospectives" below and replace the placeholder with your retrospective.
+
+---
+
+### Agent C — Mini-App: Streak Display & Achievement UX (Frontend)
+
+**Branch:** `feature/miniapp-streaks`
+
+**CONTEXT:**
+- The `UserStats` type already has `streakData: { current, longest, daysActive }` but Dashboard doesn't prominently display streaks.
+- The `apiClient` has `getAchievements()` and `getUserAchievements()` but NO method to call `POST /users/:userId/achievements/check`.
+- The Achievement type in `types/index.ts` has fields like `category`, `requirement_type`, `requirement_value`, `is_hidden` — but the API returns `rarity`, `icon` (mapped from `badge_icon`), `xp_reward` (mapped from `xp_bonus`), and `criteria` (JSONB). There's a field mismatch that may cause display issues.
+- Dashboard.tsx already has `StatCard` components for XP, Level, Quests, Streak — but streak is just one number among many. A mode-specific streak breakdown would be more useful.
+
+**FILES YOU OWN:**
+- `mini-app/src/pages/Dashboard.tsx` — add streak section
+- `mini-app/src/pages/Achievements.tsx` — improve achievement display
+- `mini-app/src/api/client.ts` — add `checkAchievements()` method
+- `mini-app/src/types/index.ts` — fix Achievement type to match API
+- `mini-app/src/components/AchievementToast.tsx` — NEW: unlock celebration
+
+**FILES YOU MUST NOT TOUCH:**
+- `bot/` (all backend files)
+- `tools/` (all Python files)
+- `mini-app/src/App.tsx` (locked — already set up routes)
+- `mini-app/src/hooks/useOnboarding.ts`
+- `.env`
+
+**RULES (NON-NEGOTIABLE):**
+- You are ALREADY on branch `feature/miniapp-streaks` — do NOT run `git checkout`
+- Commit after EVERY task — atomic: `git add FILES && git commit -m "MSG"` in one Bash call
+- Do NOT push to remote or deploy to server
+- Do NOT add any new npm packages
+
+**Task 1: Fix Achievement type to match API**
+- Read `mini-app/src/types/index.ts` — the `Achievement` interface has `category`, `requirement_type`, `requirement_value`, `is_hidden`
+- The API actually returns: `id`, `name`, `description`, `icon` (from badge_icon), `xp_reward` (from xp_bonus), `rarity` (string: common/rare/epic/legendary), `category` (from criteria mode), `criteria` (JSONB object)
+- Update the `Achievement` interface to match what the API sends:
+  ```typescript
+  export interface Achievement {
+    id: number;
+    name: string;
+    description: string;
+    icon: string;
+    xp_reward: number;
+    rarity: string;
+    category: string;
+    criteria?: Record<string, any>;
+  }
+  ```
+- Commit: "Fix Achievement type to match API response fields"
+
+**Task 2: Add checkAchievements to API client**
+- Edit `mini-app/src/api/client.ts`
+- Add method:
+  ```typescript
+  async checkAchievements(userId: number): Promise<ApiResponse<{ newAchievements: any[]; count: number }>> {
+    const response = await this.client.post(`/users/${userId}/achievements/check`);
+    return { success: true, data: response.data };
+  }
+  ```
+- This calls the existing backend endpoint that Agent A is wiring into the quest flow
+- Commit: "Add checkAchievements method to API client"
+
+**Task 3: Add streak section to Dashboard**
+- Edit `mini-app/src/pages/Dashboard.tsx`
+- After the existing modes section, add a "Streaks" section that shows per-mode streak data
+- The `stats.streakData` object has `current`, `longest`, `daysActive` — but this is aggregate, not per-mode
+- The `stats.modes` array has mode info. Check if the users API returns per-mode streak data
+- Read `bot/src/api/routes/users.ts` to understand what `streakData` contains
+- If per-mode data isn't available: show the aggregate streak prominently with a flame icon, current vs longest, and days active
+- Design: horizontal scrollable cards per mode (like the existing mode cards), each showing mode icon + current streak number + flame emoji for active streaks
+- Use the existing `StatCard` or `ModeCard` pattern
+- Commit: "Add streak display section to Dashboard"
+
+**Task 4: Create AchievementToast component**
+- Create `mini-app/src/components/AchievementToast.tsx`
+- A small toast/popup that appears when a new achievement is detected
+- Props: `achievement: Achievement`, `onClose: () => void`
+- Design: slide-up from bottom, achievement icon + name + XP bonus, auto-dismiss after 4 seconds
+- Use Framer Motion for animation: `initial={{ y: 100, opacity: 0 }}` → `animate={{ y: 0, opacity: 1 }}`
+- Gold/amber color scheme for celebration feel
+- Commit: "Add AchievementToast component for unlock celebration"
+
+**Task 5: Integrate achievement checking in Quests page**
+- Edit `mini-app/src/pages/Quests.tsx` (if you need to) OR `Dashboard.tsx`
+- After a quest is completed (the user taps "Complete"), call `apiClient.checkAchievements(userId)` in the background
+- If `newAchievements.length > 0`, show the `AchievementToast` for the first one
+- This is a nice-to-have — if it's complex due to how quests page works, you can skip and just add the toast trigger to Dashboard's pull-to-refresh instead
+- Commit: "Show achievement toast on quest completion"
+
+**Task 6: Build verification**
+- Run `cd mini-app && npm run build`
+- Fix any TypeScript errors
+- Commit only if fixes were needed: "Fix TypeScript errors from streak and achievement UI"
+
+### RETROSPECTIVE (DO THIS LAST)
+Find your section under "Run 11 Retrospectives" below and replace the placeholder with your retrospective.
+
+---
+
+### Run 11 File Ownership Matrix
+
+| File/Directory | Agent A | Agent B | Agent C | Nobody |
+|---|---|---|---|---|
+| bot/src/api/routes/quests.ts | OWNS | - | - | - |
+| bot/src/utils/achievementEngine.ts (NEW) | OWNS | - | - | - |
+| bot/src/jobs/definitions/achievementBatchCheck.ts (NEW) | OWNS | - | - | - |
+| bot/src/jobs/definitions/dailyQuestReset.ts | - | OWNS | - | - |
+| database/migrations/run11_quest_templates.sql (NEW) | - | OWNS | - | - |
+| bot/src/jobs/definitions/achievementNotifier.ts (NEW) | - | OWNS | - | - |
+| bot/src/jobs/registerJobs.ts | OWNS (add job) | OWNS (add job) | - | - |
+| mini-app/src/pages/Dashboard.tsx | - | - | OWNS | - |
+| mini-app/src/pages/Achievements.tsx | - | - | OWNS | - |
+| mini-app/src/api/client.ts | - | - | OWNS (add method) | - |
+| mini-app/src/types/index.ts | - | - | OWNS (fix type) | - |
+| mini-app/src/components/AchievementToast.tsx (NEW) | - | - | OWNS | - |
+| mini-app/src/App.tsx | - | - | - | LOCKED |
+| bot/src/api/routes/achievements.ts | - | - | - | LOCKED |
+| bot/src/bot.ts | - | - | - | LOCKED |
+| bot/src/config.ts | - | - | - | LOCKED |
+| .env | - | - | - | LOCKED |
+
+### Run 11 Merge Order
+
+1. **Agent A first** — Achievement engine + quest completion wiring (touches quests.ts + registerJobs.ts)
+2. **Agent B second** — Quest content + weekly assignment + notifier (touches dailyQuestReset.ts + registerJobs.ts, may conflict on registerJobs)
+3. **Agent C last** — Mini-app changes (fully independent frontend, zero backend overlap)
+
+---
+
+### Run 11 Retrospectives
+
+#### Agent A Retrospective
+
+**Status:** All 5 tasks completed. Build passes with zero errors.
+
+| # | Task | Commit | Status |
+|---|------|--------|--------|
+| 1 | Create `achievementEngine.ts` utility | `e5588c1` | Done |
+| 2 | Wire streak + achievement into quest completion | `860f8aa` | Done |
+| 3 | Create achievement batch check job | `9630f0a` | Done |
+| 4 | Register new job in `registerJobs.ts` | `fbca569` | Done |
+| 5 | Build verification | (clean build, no fix needed) | Done |
+
+**Problems faced:** None. The existing codebase was well-structured — `achievements.ts` had clean `checkCriteriaMet()` logic that translated directly into the standalone utility. Import paths and DB utility signatures matched expectations.
+
+**Design decisions:**
+- `checkAndUnlockAchievements()` is a standalone function (not an API call), so it avoids HTTP overhead when called from jobs or quest completion hooks.
+- Streak + achievement calls in quest completion are fire-and-forget (`Promise.allSettled(...).catch(console.error)`) to avoid blocking the API response.
+- Batch check job processes users in batches of 50 with 500ms delays to avoid DB pressure.
+- `POST /:questId/complete` queries quest info (user_id + mode_id) after the Python tool call since the tool doesn't return mode info.
+- `PATCH /:questId/progress` adds `q.mode_id` to the existing SELECT to get mode context for streak updates.
+
+**Recommendations for next run:**
+- The `checkCriteriaMet()` logic is now duplicated between `achievements.ts` (route) and `achievementEngine.ts` (utility). Agent 0 should consider having the route call the utility instead to eliminate duplication.
+- The achievement batch check job queries all users with active modes. If user count grows large, consider adding a `last_activity` filter to only check recently active users.
+
+#### Agent B Retrospective
+
+**Status:** All 5 tasks completed. Build passes with zero errors.
+
+| # | Task | Commit | Status |
+|---|------|--------|--------|
+| 1 | Add 24 quest templates (SQL migration) | `a64dd57` | Done |
+| 2 | Add weekly quest assignment on Mondays | `4401db7` | Done |
+| 3 | Create achievement notifier job | `881f4ae` | Done |
+| 4 | Register achievement notifier in registerJobs | `0cf34b7` | Done |
+| 5 | Build verification | (clean build, no fix needed) | Done |
+
+**Problems faced:** None. All files were straightforward, no conflicts with other agents' owned files.
+
+**Notes:**
+- Quest templates: 24 new (6 per mode), using `WHERE NOT EXISTS` for idempotency. SQL migration file ready to run on server.
+- Weekly assignment: Added to `dailyQuestReset.ts` handler — checks `getUTCDay() === 1` (Monday) then calls `quest_manager --assign-weekly` for 2 quests per user.
+- Achievement notifier: Follows `questReminders.ts` pattern — queries `user_achievements` from last 20 minutes, sends Telegram messages with rate limiting. 15-minute cron with 20-minute lookback gives overlap to avoid missed notifications.
+- `registerJobs.ts` is a GRAY AREA file (Agent A also modifies it). My changes are on separate lines (import at bottom of imports, array entry at end of array, setBotInstance after existing calls), so merge should be clean.
+
+**Recommendations for next run:**
+- Run the `run11_quest_templates.sql` migration on the production database after merge.
+- Achievement notifier may send duplicate notifications if a user unlocks an achievement that persists across the 20-minute window — consider adding a `notified_at` column to `user_achievements` in a future run to track sent notifications.
+
+#### Agent C Retrospective
+
+**Completed Tasks:**
+
+| # | Task | Commit | Status |
+|---|------|--------|--------|
+| 1 | Fix Achievement type to match API | `06750a1` | Done |
+| 2 | Add checkAchievements to API client | `f5b5fce` | Done |
+| 3 | Add streak display section to Dashboard | `667a636` | Done |
+| 4 | Create AchievementToast component | `d0d6624` | Done |
+| 5 | Integrate achievement toast in Dashboard | `49cabd5` | Done |
+| 6 | Build verification | (no errors) | Done |
+
+**Problems Faced:**
+- The `POST /users/:userId/achievements/check` endpoint expects the internal user ID, but the Quests page only has the Telegram ID. Integrated the achievement check into Dashboard's pull-to-refresh instead, where the internal user ID is available from `stats.user.id`.
+- The `GET /achievements` endpoint returns `{achievements, count}` (not `{success, data}`), so `apiClient.getAchievements()` has a response format mismatch. The Achievements page's `allRes.success` check silently fails. Did not fix this since it's an existing issue outside my task scope, but it means the all-achievements list doesn't load.
+
+**What was done:**
+- Achievement type updated: removed `requirement_type`, `requirement_value`, `is_hidden`; added `rarity`, `criteria`.
+- Achievements page updated to group by `rarity` field instead of `category` (which now maps to mode, not rarity). Removed `is_hidden` check.
+- Dashboard now shows a prominent streak section with gradient card, current streak count, best streak, days active, and progress bar (current vs best).
+- New `AchievementToast` component with slide-up animation, gold/amber theme, auto-dismiss after 4 seconds.
+- Dashboard pull-to-refresh triggers an achievement check; if new achievements are found, shows the toast with haptic feedback.
+
+**Recommendations for Next Run:**
+1. Fix `apiClient.getAchievements()` response handling — the endpoint returns `{achievements, count}` not `{success, data}`.
+2. Similarly, `apiClient.getUserAchievements()` hits the users.ts route (returns `{success, data}`) but the dedicated achievements.ts route at `/achievements/users/:userId` returns `{achievements, unlocked, total, progress}`. Inconsistency should be resolved.
+3. Consider adding per-mode streak data to the stats API so Dashboard can show streak breakdown by mode.
+4. The achievement check could also be triggered after quest completion on the Quests page if the internal user ID is made available there (e.g., stored in a context/hook after initial stats load).
+
+---
+
+## RUN 12: Parallel Agents (6 Agents + Agent 0)
+
+### Focus: Complete MVP Loop — Check-in Flow, Punishment Execution, API Fixes, UI Polish
+
+Run 11 wired the achievement engine, streaks, and quest content. But several MVP gaps remain: users can't check in on quests from the mini-app, the punishment system has DB schema + onboarding UI but no backend execution, the achievements list page is broken due to API response format mismatch, and the leaderboard shows fake rank change data. This run closes all these gaps across 6 parallel agents.
+
+### Copy-Paste Prompts
+
+**Agent 0** (open in: `c:\Users\Asus\Desktop\Wibecode`):
+```
+Read PARALLEL_AGENTS.md — you are Agent 0 for Run 12. After all agents finish, I'll tell you to merge.
+```
+
+**Agent A** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-a`):
+```
+Read PARALLEL_AGENTS.md — you are Agent A for Run 12. Your job: add check-in functionality to the Quests page in the mini-app. The backend check-in API already exists (POST /api/checkins, GET /api/checkins/:telegramId/today). You need to wire it into the frontend. Do your tasks in order, commit after each, and write your retrospective when done.
+```
+
+**Agent B** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-b`):
+```
+Read PARALLEL_AGENTS.md — you are Agent B for Run 12. Your job: create the punishment backend — API routes for punishment settings/history, and a daily job that checks for failed quests and applies penalties. The DB tables (punishment_settings, punishment_history) and onboarding UI already exist. Do your tasks in order, commit after each, and write your retrospective when done.
+```
+
+**Agent C** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-c`):
+```
+Read PARALLEL_AGENTS.md — you are Agent C for Run 12. Your job: enhance the Dashboard page with today's progress section and better daily goal visualization. Do your tasks in order, commit after each, and write your retrospective when done.
+```
+
+**Agent D** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-d`):
+```
+Read PARALLEL_AGENTS.md — you are Agent D for Run 12. Your job: fix API response format issues — the GET /achievements endpoint returns wrong format, and the stats API needs per-mode streak data. Do your tasks in order, commit after each, and write your retrospective when done.
+```
+
+**Agent E** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-e`):
+```
+Read PARALLEL_AGENTS.md — you are Agent E for Run 12. Your job: enhance the Profile page with per-mode stats, punishment accountability status, and better achievement showcase. Do your tasks in order, commit after each, and write your retrospective when done.
+```
+
+**Agent F** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-f`):
+```
+Read PARALLEL_AGENTS.md — you are Agent F for Run 12. Your job: fix the Leaderboard page (remove fake rank changes, add monthly tab) and add punishment accountability toggle to Settings. Do your tasks in order, commit after each, and write your retrospective when done.
+```
+
+---
+
+### Agent A — Check-in Frontend (Mini-App)
+
+**Branch:** `feature/checkin-ui`
+
+**CONTEXT:**
+- The check-in backend API already exists in `bot/src/api/routes/checkins.ts`:
+  - `POST /api/checkins` — creates a check-in for a quest instance. Requires `{ telegram_id, quest_instance_id, notes }`. Returns `{ check_in_id, quest_progress: { current, target }, completed }`. Auto-completes quest if check_in_count >= target.
+  - `GET /api/checkins/:telegramId/today` — returns today's check-ins: `{ check_ins: [...], count }`.
+- The Quests page (`Quests.tsx`) displays active quests with a detail modal. Quest objects have `id` (which is `quest_instance_id`), `progress`, `target`, `status`.
+- The `user.id` from `useTelegram()` is the Telegram ID.
+- Currently, quest progress is updated via `PATCH /api/quests/:questId/progress` and `POST /api/quests/:questId/complete`. Check-in is an alternative flow: each check-in increments progress by 1 and auto-completes when target reached.
+
+**FILES YOU OWN:**
+- `mini-app/src/pages/Quests.tsx` — add check-in button and today's check-ins display
+- `mini-app/src/components/CheckInButton.tsx` — NEW: reusable check-in button component
+
+**GRAY AREA:**
+- `mini-app/src/api/client.ts` — you may ONLY add these 2 methods: `createCheckin(telegramId, questInstanceId, notes?)` and `getTodayCheckins(telegramId)`. Do NOT modify existing methods.
+
+**FILES YOU MUST NOT TOUCH:**
+- `bot/` (all backend files)
+- `tools/` (all Python files)
+- `mini-app/src/App.tsx`, `mini-app/src/types/index.ts`
+- `mini-app/src/pages/Dashboard.tsx`, `mini-app/src/pages/Profile.tsx`, `mini-app/src/pages/Leaderboard.tsx`, `mini-app/src/pages/Settings.tsx`
+- `.env`
+
+**RULES (NON-NEGOTIABLE):**
+- You are ALREADY on branch `feature/checkin-ui` — do NOT run `git checkout`
+- Commit after EVERY task — atomic: `git add FILES && git commit -m "MSG"` in one Bash call
+- Do NOT push to remote or deploy to server
+- Do NOT add any new npm packages
+
+**Task 1: Add check-in API methods to client.ts**
+- Read `mini-app/src/api/client.ts` to understand the existing pattern.
+- Add two methods:
+  ```typescript
+  async createCheckin(telegramId: number, questInstanceId: number, notes?: string): Promise<ApiResponse<{ check_in_id: number; quest_progress: { current: number; target: number }; completed: boolean }>> {
+    const response = await this.client.post('/checkins', { telegram_id: telegramId, quest_instance_id: questInstanceId, notes });
+    return { success: true, data: response.data };
+  }
+
+  async getTodayCheckins(telegramId: number): Promise<ApiResponse<{ check_ins: any[]; count: number }>> {
+    const response = await this.client.get(`/checkins/${telegramId}/today`);
+    return { success: true, data: response.data };
+  }
+  ```
+- Commit: "Add check-in API methods to client"
+
+**Task 2: Create CheckInButton component**
+- Create `mini-app/src/components/CheckInButton.tsx`
+- Props: `questInstanceId: number`, `telegramId: number`, `onSuccess: (result: { completed: boolean; current: number; target: number }) => void`, `disabled?: boolean`
+- On tap: calls `apiClient.createCheckin(telegramId, questInstanceId)`, shows loading spinner, calls `onSuccess` with the result
+- Design: prominent button with a checkmark icon, green gradient, pulse animation on success
+- Use haptic feedback: `impactOccurred('medium')` on tap, `notificationOccurred('success')` on success
+- Show brief "Checked in!" text animation after success
+- Commit: "Create CheckInButton component"
+
+**Task 3: Add check-in to quest detail modal**
+- Edit `mini-app/src/pages/Quests.tsx`
+- In the quest detail bottom sheet (the `selectedQuest` modal), add the `CheckInButton` between the progress bar and the "Quest Complete" section
+- Show the CheckInButton only when: quest is active AND progress < target
+- When check-in succeeds: update the quest's progress locally (`setSelectedQuest({ ...selectedQuest, progress: result.current })`), then reload quests
+- If `result.completed` is true, haptic `notificationOccurred('success')` and show the completion UI
+- Commit: "Add check-in button to quest detail modal"
+
+**Task 4: Show today's check-in count in header**
+- In the Quests page header area (after the tab buttons), add a small badge showing today's total check-ins
+- Load today's check-ins on mount using `apiClient.getTodayCheckins(user.id)`
+- Display: "Today: {count} check-ins" with a small checkmark icon
+- Refresh this count after each successful check-in
+- Commit: "Show today's check-in count in Quests header"
+
+**Task 5: Build verification**
+- Run `cd mini-app && npm run build`
+- Fix any TypeScript errors
+- Commit only if fixes were needed: "Fix TypeScript errors from check-in UI"
+
+### RETROSPECTIVE (DO THIS LAST)
+Find your section under "Run 12 Retrospectives" below and replace the placeholder with your retrospective.
+
+---
+
+### Agent B — Punishment Backend (Bot)
+
+**Branch:** `feature/punishment-backend`
+
+**CONTEXT:**
+- **DB tables exist** (from `database/schema.sql`):
+  - `punishment_settings` — columns: `user_id` (FK UNIQUE), `consent_given` (bool), `consent_timestamp`, `intensity_level` (varchar), `safe_mode` (bool), `custom_punishments` (jsonb), `max_xp_penalty` (int default 100), `max_streak_reset` (int default 3)
+  - `punishment_history` — columns: `id`, `user_id` (FK), `quest_instance_id` (FK nullable), `punishment_type` (varchar), `severity` (varchar), `xp_deducted` (int default 0), `streaks_lost` (int default 0), `applied_at` (timestamptz), `notes` (text)
+- **Onboarding saves settings** — `bot/src/api/routes/onboarding.ts` (line 117-131) inserts into `punishment_settings` with `consent_given`, `intensity_level`, `safe_mode`, `custom_punishments`.
+- **Quest failure** — quests can have status `'failed'` in `quest_instances` table. The `dailyQuestReset.ts` job resets expired quests daily. Failed quests currently have no consequences.
+- **Notification pattern** — `achievementNotifier.ts` and `questReminders.ts` show the pattern: export `setBotInstance(bot)`, store in module var, use `bot.api.sendMessage(telegramId, text)`.
+
+**FILES YOU OWN:**
+- `bot/src/api/routes/punishment.ts` — NEW: REST endpoints for punishment settings/history
+- `bot/src/jobs/definitions/punishmentCheck.ts` — NEW: daily job to apply punishments for failed quests
+
+**GRAY AREA:**
+- `bot/src/api/server.ts` — you may ONLY add: `import { punishmentRouter } from './routes/punishment.js';` and `app.use('/api/punishment', punishmentRouter);`. Place the import after the existing imports (after line 19), and the route mount after the existing mounts (after line 77). Do NOT modify anything else.
+- `bot/src/jobs/registerJobs.ts` — you may ONLY add: the import for your job, the job entry in the `jobs` array, and `punishmentCheck.setBotInstance(bot)` in `registerAllJobs`. Do NOT modify existing entries.
+
+**FILES YOU MUST NOT TOUCH:**
+- `mini-app/` (all)
+- `tools/` (all Python files)
+- `bot/src/api/routes/users.ts`, `bot/src/api/routes/quests.ts`, `bot/src/api/routes/achievements.ts`
+- `bot/src/utils/achievementEngine.ts`
+- `bot/src/bot.ts`, `bot/src/config.ts`
+- `.env`
+
+**RULES (NON-NEGOTIABLE):**
+- You are ALREADY on branch `feature/punishment-backend` — do NOT run `git checkout`
+- Commit after EVERY task — atomic: `git add FILES && git commit -m "MSG"` in one Bash call
+- Do NOT push to remote or deploy to server
+- Do NOT add any new npm packages
+
+**Task 1: Create punishment.ts API routes**
+- Create `bot/src/api/routes/punishment.ts`
+- Import pattern: `import { Router, Request, Response } from 'express';` + `authenticateTelegram`, `query`, `queryOne`, `transaction`, `invalidateUserCache`
+- Implement these endpoints:
+  - `GET /api/punishment/:telegramId/settings` — returns user's punishment settings (consent, intensity, safe mode, max penalties). Return `{ success: true, data: { ... } }` or `{ success: false, error: 'No settings found' }` if user hasn't configured punishment.
+  - `PATCH /api/punishment/:telegramId/settings` — update punishment settings (consent_given, intensity_level, safe_mode, custom_punishments). Only update fields that are provided.
+  - `GET /api/punishment/:telegramId/history` — paginated punishment history (page, limit params, default 20, max 100). Return `{ success: true, data: { punishments: [...], page, total } }`.
+- All routes use `authenticateTelegram` middleware.
+- Export as `punishmentRouter`.
+- Commit: "Create punishment API routes (settings + history)"
+
+**Task 2: Create punishmentCheck.ts job**
+- Create `bot/src/jobs/definitions/punishmentCheck.ts`
+- Follow the established job pattern: export `JOB_NAME`, `CRON_SCHEDULE`, `handler`, `setBotInstance()`
+- `JOB_NAME = 'punishment-check'`
+- `CRON_SCHEDULE = '30 0 * * *'` (12:30 AM UTC — runs after dailyQuestReset at midnight)
+- Handler logic:
+  1. Find quests that expired yesterday and were NOT completed: `SELECT qi.id, qi.user_id, u.telegram_id, q.title, q.xp_reward FROM quest_instances qi JOIN quests q ON qi.quest_id = q.id JOIN users u ON qi.user_id = u.id WHERE qi.status IN ('pending', 'ready', 'in_progress') AND qi.instance_date < CURRENT_DATE AND qi.instance_date >= CURRENT_DATE - INTERVAL '1 day'`
+  2. Mark these quests as failed: `UPDATE quest_instances SET status = 'failed' WHERE id = ANY($1)`
+  3. For each failed quest, check if the user has `consent_given = true` in `punishment_settings`
+  4. If consented, apply punishment:
+     - Calculate XP penalty: `MIN(quest.xp_reward * intensity_multiplier, max_xp_penalty)`. Intensity multiplier: light=0.5, medium=1.0, hard=1.5, extreme=2.0
+     - If `safe_mode = true`: cap daily total XP loss at `max_xp_penalty` (check how much was already deducted today)
+     - Deduct XP from user: `UPDATE users SET total_xp = GREATEST(0, total_xp - $1) WHERE id = $2`
+     - Insert into `punishment_history`: `(user_id, quest_instance_id, punishment_type, severity, xp_deducted, notes)`
+  5. Send Telegram notification for each punished user: "Failed quest: {title}. -{xp_deducted} XP penalty applied."
+  6. Log summary: "Punishment check: {N} quests failed, {M} punishments applied, {X} total XP deducted"
+- Process in batches of 50 users with 200ms delay between sends.
+- Commit: "Create punishment check job (daily at 00:30 UTC)"
+
+**Task 3: Mount punishment route in server.ts**
+- Edit `bot/src/api/server.ts`
+- Add import after line 19: `import { punishmentRouter } from './routes/punishment.js';`
+- Add route mount after line 77: `app.use('/api/punishment', punishmentRouter);`
+- Commit: "Mount punishment route in server.ts"
+
+**Task 4: Register punishment job in registerJobs.ts**
+- Edit `bot/src/jobs/registerJobs.ts`
+- Add import: `import * as punishmentCheck from './definitions/punishmentCheck.js';`
+- Add to `jobs` array: `{ name: punishmentCheck.JOB_NAME, cron: punishmentCheck.CRON_SCHEDULE, handler: punishmentCheck.handler }`
+- Add `punishmentCheck.setBotInstance(bot);` after the existing setBotInstance calls in `registerAllJobs`
+- Commit: "Register punishment check job"
+
+**Task 5: Build verification**
+- Run `cd bot && npm run build`
+- Fix any TypeScript errors
+- Commit only if fixes were needed: "Fix TypeScript errors from punishment backend"
+
+### RETROSPECTIVE (DO THIS LAST)
+Find your section under "Run 12 Retrospectives" below and replace the placeholder with your retrospective.
+
+---
+
+### Agent C — Dashboard Enhancement (Mini-App)
+
+**Branch:** `feature/dashboard-v2`
+
+**CONTEXT:**
+- Dashboard.tsx currently shows: user card (level, XP progress bar), modes section, streak card (added in Run 11), and achievement toast on pull-to-refresh.
+- The `stats` object (from `GET /api/users/:telegramId/stats`) includes:
+  - `stats.completedQuestsToday` — quests completed today (int)
+  - `stats.xpGainedToday` — XP earned today (int)
+  - `stats.activeQuests` — array of active quest objects
+  - `stats.streakData` — `{ current, longest, daysActive }` (aggregate, not per-mode)
+  - `stats.modes` — array of user's active modes with mode details
+- Agent D (backend) is simultaneously adding per-mode streak data to the stats API. The new field will be `stats.perModeStreaks: Array<{ mode_id, mode_name, mode_icon, current_streak, longest_streak }>`. Write your code to handle this field gracefully — use it if present, fall back to aggregate `streakData` if not.
+
+**FILES YOU OWN:**
+- `mini-app/src/pages/Dashboard.tsx` — enhance with today's progress and daily goals
+
+**FILES YOU MUST NOT TOUCH:**
+- `bot/` (all backend files)
+- `tools/` (all Python files)
+- `mini-app/src/App.tsx`, `mini-app/src/api/client.ts`, `mini-app/src/types/index.ts`
+- `mini-app/src/pages/Quests.tsx`, `mini-app/src/pages/Profile.tsx`, `mini-app/src/pages/Leaderboard.tsx`, `mini-app/src/pages/Settings.tsx`
+- `mini-app/src/components/AchievementToast.tsx`
+- `.env`
+
+**RULES (NON-NEGOTIABLE):**
+- You are ALREADY on branch `feature/dashboard-v2` — do NOT run `git checkout`
+- Commit after EVERY task — atomic: `git add FILES && git commit -m "MSG"` in one Bash call
+- Do NOT push to remote or deploy to server
+- Do NOT add any new npm packages
+
+**Task 1: Add "Today's Progress" section**
+- Below the user card, add a new "Today's Progress" section
+- Show 3 key metrics in a horizontal card layout:
+  - Quests completed today: `stats.completedQuestsToday` with a target (e.g., out of active quests count)
+  - XP earned today: `stats.xpGainedToday` with a fun visualization
+  - Active quests remaining: `stats.activeQuests.length`
+- Use a clean card design with icons (Target, Zap, Clock icons from lucide-react)
+- If `completedQuestsToday > 0`, show a celebratory color (green gradient)
+- Commit: "Add Today's Progress section to Dashboard"
+
+**Task 2: Improve streak display with per-mode breakdown**
+- Refactor the streak section (added in Run 11) to be more prominent and informative
+- If `(stats as any).perModeStreaks` array is available and non-empty:
+  - Show horizontal scrollable cards, one per mode: mode icon + current streak + flame emoji
+  - Highlight the mode with the longest current streak
+- If not available (pre-Run 12 API): keep the aggregate display but make it more visually appealing
+  - Show current streak with a large number + flame animation
+  - Show "Best: X days" and "Active: Y days" below
+- Commit: "Improve streak display with per-mode breakdown support"
+
+**Task 3: Add daily quest goal ring**
+- Add a circular progress ring showing daily quest completion
+- Numerator: `stats.completedQuestsToday`
+- Denominator: total daily quests assigned (use `stats.activeQuests.length + stats.completedQuestsToday` as approximation)
+- Use SVG circle for the ring (similar to fitness app design)
+- Centered text: "{completed}/{total}" with "Daily Quests" label below
+- Place this prominently — either in the header area or as the first section
+- Commit: "Add daily quest goal ring to Dashboard"
+
+**Task 4: Build verification**
+- Run `cd mini-app && npm run build`
+- Fix any TypeScript errors
+- Commit only if fixes were needed: "Fix TypeScript errors from Dashboard enhancement"
+
+### RETROSPECTIVE (DO THIS LAST)
+Find your section under "Run 12 Retrospectives" below and replace the placeholder with your retrospective.
+
+---
+
+### Agent D — API Response Fixes (Backend)
+
+**Branch:** `feature/api-fixes`
+
+**CONTEXT:**
+- **BUG: `GET /api/achievements`** returns `{ achievements: [...], count: N }` but the mini-app expects `{ success: true, data: [...] }`. This causes the Achievements page and Profile page to silently fail when loading the full achievement list. The mini-app calls `apiClient.getAchievements()` which expects `ApiResponse<Achievement[]>` format.
+- **BUG: User achievements response** in `users.ts` (line 319-333) includes legacy fields `requirement_type: '', requirement_value: 0, is_hidden: false` that don't exist in the Achievement type anymore (fixed in Run 11). These should be removed.
+- **MISSING: Per-mode streaks** — the stats API returns aggregate streak data (`streakData: { current, longest, daysActive }`) from the `MAX()` of all user streaks. The `streaks` table has per-mode data (`user_id, mode_id, current_streak, longest_streak`) but it's not exposed. Dashboard and Profile need per-mode breakdown.
+- The `streaks` table schema: `(id, user_id, mode_id, current_streak, longest_streak, last_activity_date, created_at, updated_at)`.
+
+**FILES YOU OWN:**
+- `bot/src/api/routes/achievements.ts` — fix `GET /` response format
+- `bot/src/api/routes/users.ts` — add per-mode streaks to stats, clean up achievement response
+
+**FILES YOU MUST NOT TOUCH:**
+- `mini-app/` (all)
+- `tools/` (all Python files)
+- `bot/src/api/routes/quests.ts`, `bot/src/api/routes/checkins.ts`
+- `bot/src/api/server.ts`, `bot/src/jobs/` (all)
+- `bot/src/utils/achievementEngine.ts`
+- `bot/src/bot.ts`, `bot/src/config.ts`
+- `.env`
+
+**RULES (NON-NEGOTIABLE):**
+- You are ALREADY on branch `feature/api-fixes` — do NOT run `git checkout`
+- Commit after EVERY task — atomic: `git add FILES && git commit -m "MSG"` in one Bash call
+- Do NOT push to remote or deploy to server
+- Do NOT add any new npm packages
+
+**Task 1: Fix GET /achievements response format**
+- Read `bot/src/api/routes/achievements.ts` and find the `GET /` handler
+- The current response is something like: `res.json({ achievements: formattedList, count: N })`
+- Change it to: `res.json({ success: true, data: formattedList })`
+- Make sure the achievement objects in the array include: `id`, `name`, `description`, `icon` (from `badge_icon`), `xp_reward` (from `xp_bonus`), `rarity`, `category`, `criteria`
+- If there's an error path, make sure it returns `{ success: false, error: '...' }`
+- Commit: "Fix GET /achievements to return {success, data} format"
+
+**Task 2: Add per-mode streaks to stats API**
+- Edit `bot/src/api/routes/users.ts`, in the `GET /:telegramId/stats` handler
+- Add a query to fetch per-mode streaks: `SELECT s.mode_id, s.current_streak, s.longest_streak, m.name AS mode_name, m.display_name AS mode_display_name, m.icon_emoji AS mode_icon FROM streaks s JOIN modes m ON s.mode_id = m.id WHERE s.user_id = $1 AND s.current_streak > 0 ORDER BY s.current_streak DESC`
+- Run this query in parallel with the existing queries (add to the `Promise.all`)
+- Add the result to the response as `perModeStreaks`:
+  ```typescript
+  perModeStreaks: modeStreaks.map((s: any) => ({
+    mode_id: s.mode_id,
+    mode_name: s.mode_display_name,
+    mode_icon: s.mode_icon,
+    current_streak: s.current_streak,
+    longest_streak: s.longest_streak,
+  })),
+  ```
+- Commit: "Add per-mode streaks to stats API response"
+
+**Task 3: Clean up user achievements response**
+- Edit `bot/src/api/routes/users.ts`, in the `GET /:telegramId/achievements` handler (line 303-341)
+- Remove the legacy fields from the achievement mapping: `requirement_type: '', requirement_value: 0, is_hidden: false`
+- Add `rarity` field (query `a.rarity` in the SELECT) — currently it maps `a.rarity AS category` but the frontend `Achievement` type has both `rarity` and `category` as separate fields
+- Updated mapping should be:
+  ```typescript
+  achievement: {
+    id: row.achievement_id,
+    name: row.name,
+    description: row.description,
+    icon: row.icon || '🏆',
+    xp_reward: row.xp_reward,
+    rarity: row.rarity,
+    category: row.category || '',
+  }
+  ```
+- Update the SQL query to select `a.rarity, a.category` separately (not `a.rarity AS category`)
+- Commit: "Clean up user achievements response format"
+
+**Task 4: Build verification**
+- Run `cd bot && npm run build`
+- Fix any TypeScript errors
+- Commit only if fixes were needed: "Fix TypeScript errors from API fixes"
+
+### RETROSPECTIVE (DO THIS LAST)
+Find your section under "Run 12 Retrospectives" below and replace the placeholder with your retrospective.
+
+---
+
+### Agent E — Profile Enhancement (Mini-App)
+
+**Branch:** `feature/profile-v2`
+
+**CONTEXT:**
+- Profile.tsx currently shows: avatar + level badge, name + username, 3 stat badges (Quests, Achievements, XP), streak card, modes section, achievements section (3 most recent + "View all" button), account info section.
+- The achievements section on Profile calls `apiClient.getAchievements()` which is currently broken (returns wrong format). Agent D is fixing this concurrently. Your code should handle both the current broken state and the fixed state gracefully (check `allRes.success` AND `allRes.data`).
+- `stats.modes` has the user's active modes with icons and activation dates.
+- Agent D is adding `perModeStreaks` to the stats API. If present, use it. If not, gracefully skip.
+- Punishment settings were saved during onboarding to the `punishment_settings` table. Agent B is creating `GET /api/punishment/:telegramId/settings` concurrently. You can add a call to this endpoint, but it might not exist yet. Handle 404 gracefully.
+
+**FILES YOU OWN:**
+- `mini-app/src/pages/Profile.tsx` — enhance with per-mode stats and punishment status
+
+**GRAY AREA:**
+- `mini-app/src/api/client.ts` — you may ONLY add: `getPunishmentSettings(telegramId)` method. Do NOT modify existing methods.
+
+**FILES YOU MUST NOT TOUCH:**
+- `bot/` (all backend files)
+- `tools/` (all Python files)
+- `mini-app/src/App.tsx`, `mini-app/src/types/index.ts`
+- `mini-app/src/pages/Dashboard.tsx`, `mini-app/src/pages/Quests.tsx`, `mini-app/src/pages/Leaderboard.tsx`, `mini-app/src/pages/Settings.tsx`
+- `mini-app/src/components/AchievementToast.tsx`, `mini-app/src/components/ProfileEditModal.tsx`
+- `.env`
+
+**RULES (NON-NEGOTIABLE):**
+- You are ALREADY on branch `feature/profile-v2` — do NOT run `git checkout`
+- Commit after EVERY task — atomic: `git add FILES && git commit -m "MSG"` in one Bash call
+- Do NOT push to remote or deploy to server
+- Do NOT add any new npm packages
+
+**Task 1: Add getPunishmentSettings to API client**
+- Edit `mini-app/src/api/client.ts`
+- Add method:
+  ```typescript
+  async getPunishmentSettings(telegramId: number): Promise<ApiResponse<{ consent_given: boolean; intensity_level: string; safe_mode: boolean; custom_punishments: Record<string, any> | null }>> {
+    const response = await this.client.get(`/punishment/${telegramId}/settings`);
+    return response.data;
+  }
+  ```
+- Commit: "Add getPunishmentSettings method to API client"
+
+**Task 2: Enhance modes section with per-mode streaks**
+- In the "My Modes" section, add streak info per mode
+- Try to read `(stats as any).perModeStreaks` — if it exists, match each mode to its streak data by `mode_id`
+- For each mode card, show the current streak below the activation date: "🔥 {streak} day streak" or "No active streak" if 0
+- If `perModeStreaks` is not available, skip the streak display (backward compatible)
+- Commit: "Add per-mode streak display to Profile modes section"
+
+**Task 3: Add accountability status section**
+- Add a new section between Achievements and Account Info: "Accountability"
+- Try to load punishment settings via `apiClient.getPunishmentSettings(user.id)` during `loadProfileData`
+- If loaded successfully and `consent_given = true`:
+  - Show: Shield icon + "Accountability Active" badge (green)
+  - Show intensity level (e.g., "Medium intensity")
+  - Show safe mode status ("Safe mode: ON/OFF")
+- If `consent_given = false` or settings not found:
+  - Show: Shield icon + "Accountability Off" (gray)
+  - Small text: "Enable during onboarding"
+- Handle API errors gracefully (404 = no settings, show "Not configured")
+- Commit: "Add accountability status section to Profile"
+
+**Task 4: Improve achievement showcase**
+- Make the achievements section more visually appealing
+- Instead of just 3 achievements in a row, show a mini grid (2x2) with the most recent 4 achievements
+- Each achievement shows: icon (large emoji), name, and the rarity badge (from `achievement.rarity` if available, or `achievement.category`)
+- Add a progress indicator: "{unlocked}/{total} unlocked" with a small progress bar
+- Make each achievement card tappable with haptic feedback
+- Commit: "Improve achievement showcase on Profile"
+
+**Task 5: Build verification**
+- Run `cd mini-app && npm run build`
+- Fix any TypeScript errors
+- Commit only if fixes were needed: "Fix TypeScript errors from Profile enhancement"
+
+### RETROSPECTIVE (DO THIS LAST)
+Find your section under "Run 12 Retrospectives" below and replace the placeholder with your retrospective.
+
+---
+
+### Agent F — Leaderboard Fix + Settings Punishment Toggle (Mini-App)
+
+**Branch:** `feature/leaderboard-v2`
+
+**CONTEXT:**
+- Leaderboard.tsx has a `RankChangeIndicator` component (line 47-59) that shows fake trend data: `const change = rank <= 3 ? 0 : rank % 3 === 0 ? 1 : rank % 3 === 1 ? -1 : 0;`. This shows fake up/down arrows. Since no real rank history exists, these should be removed or replaced with a neutral indicator.
+- Leaderboard has "Weekly" and "All Time" tabs. The API supports both (`getLeaderboard` and `getWeeklyLeaderboard`). Adding a "Monthly" option would be useful but the API doesn't have a monthly endpoint. So either skip monthly or add a placeholder.
+- Settings.tsx currently has: notifications toggle, reminder time picker, timezone input. There's no way to manage punishment settings after onboarding. Agent B is creating `PATCH /api/punishment/:telegramId/settings` concurrently.
+- The leaderboard entries show: rank, avatar, name, level, streak (fire emoji), and XP. This is decent but could show more: quests completed, achievement count.
+
+**FILES YOU OWN:**
+- `mini-app/src/pages/Leaderboard.tsx` — fix fake data, enhance display
+- `mini-app/src/pages/Settings.tsx` — add punishment accountability toggle
+
+**GRAY AREA:**
+- `mini-app/src/api/client.ts` — you may ONLY add: `getPunishmentSettings(telegramId)` and `updatePunishmentSettings(telegramId, data)` methods. Do NOT modify existing methods. NOTE: Agent E may also add `getPunishmentSettings`. If you see it already exists when you read the file, skip adding it and just add `updatePunishmentSettings`.
+
+**FILES YOU MUST NOT TOUCH:**
+- `bot/` (all backend files)
+- `tools/` (all Python files)
+- `mini-app/src/App.tsx`, `mini-app/src/types/index.ts`
+- `mini-app/src/pages/Dashboard.tsx`, `mini-app/src/pages/Quests.tsx`, `mini-app/src/pages/Profile.tsx`
+- `mini-app/src/components/` (all existing components)
+- `.env`
+
+**RULES (NON-NEGOTIABLE):**
+- You are ALREADY on branch `feature/leaderboard-v2` — do NOT run `git checkout`
+- Commit after EVERY task — atomic: `git add FILES && git commit -m "MSG"` in one Bash call
+- Do NOT push to remote or deploy to server
+- Do NOT add any new npm packages
+
+**Task 1: Remove fake RankChangeIndicator**
+- Read `mini-app/src/pages/Leaderboard.tsx`
+- The `RankChangeIndicator` component uses deterministic fake data based on rank modulo
+- Replace it with a static rank position: just show the rank number or a dash
+- Or remove the `RankChangeIndicator` entirely from the leaderboard entry row and use the space for something useful (like quest count or achievement count)
+- Commit: "Remove fake rank change indicators from Leaderboard"
+
+**Task 2: Enhance leaderboard entry display**
+- Each entry currently shows: rank icon, avatar, name + level + streak, and XP
+- Add `total_quests_completed` to the subtitle (data is already in `LeaderboardEntry` interface)
+- Show it as: "Lv {level} · {quests} quests" or similar compact format
+- Keep the streak fire emoji for users with active streaks
+- Commit: "Enhance leaderboard entries with quest count"
+
+**Task 3: Add punishment methods to API client**
+- Read `mini-app/src/api/client.ts`
+- If `getPunishmentSettings` doesn't exist yet, add it:
+  ```typescript
+  async getPunishmentSettings(telegramId: number): Promise<ApiResponse<any>> {
+    const response = await this.client.get(`/punishment/${telegramId}/settings`);
+    return response.data;
+  }
+  ```
+- Add `updatePunishmentSettings`:
+  ```typescript
+  async updatePunishmentSettings(telegramId: number, data: { consent_given?: boolean; intensity_level?: string; safe_mode?: boolean }): Promise<ApiResponse<any>> {
+    const response = await this.client.patch(`/punishment/${telegramId}/settings`, data);
+    return response.data;
+  }
+  ```
+- Commit: "Add punishment settings methods to API client"
+
+**Task 4: Add accountability toggle to Settings**
+- Edit `mini-app/src/pages/Settings.tsx`
+- Add a new section below the timezone section: "Accountability"
+- Load punishment settings on mount (alongside existing preferences load)
+- Show a toggle for `consent_given` (enabled/disabled accountability)
+- If accountability is enabled, show intensity level selector (light/medium/hard/extreme) and safe mode toggle
+- Use the same visual pattern as the notifications toggle (rounded switch)
+- On save, call `apiClient.updatePunishmentSettings(user.id, { consent_given, intensity_level, safe_mode })`
+- Handle API errors gracefully (if punishment API not available yet, show a "Coming soon" message)
+- Commit: "Add accountability settings section to Settings page"
+
+**Task 5: Build verification**
+- Run `cd mini-app && npm run build`
+- Fix any TypeScript errors
+- Commit only if fixes were needed: "Fix TypeScript errors from Leaderboard and Settings"
+
+### RETROSPECTIVE (DO THIS LAST)
+Find your section under "Run 12 Retrospectives" below and replace the placeholder with your retrospective.
+
+---
+
+### Run 12 File Ownership Matrix
+
+| File/Directory | Agent A | Agent B | Agent C | Agent D | Agent E | Agent F | Nobody |
+|---|---|---|---|---|---|---|---|
+| mini-app/src/pages/Quests.tsx | OWNS | - | - | - | - | - | - |
+| mini-app/src/components/CheckInButton.tsx (NEW) | OWNS | - | - | - | - | - | - |
+| bot/src/api/routes/punishment.ts (NEW) | - | OWNS | - | - | - | - | - |
+| bot/src/jobs/definitions/punishmentCheck.ts (NEW) | - | OWNS | - | - | - | - | - |
+| mini-app/src/pages/Dashboard.tsx | - | - | OWNS | - | - | - | - |
+| bot/src/api/routes/achievements.ts | - | - | - | OWNS | - | - | - |
+| bot/src/api/routes/users.ts | - | - | - | OWNS | - | - | - |
+| mini-app/src/pages/Profile.tsx | - | - | - | - | OWNS | - | - |
+| mini-app/src/pages/Leaderboard.tsx | - | - | - | - | - | OWNS | - |
+| mini-app/src/pages/Settings.tsx | - | - | - | - | - | OWNS | - |
+| mini-app/src/api/client.ts | GRAY (add 2) | - | - | - | GRAY (add 1) | GRAY (add 2) | - |
+| bot/src/api/server.ts | - | GRAY (add route) | - | - | - | - | - |
+| bot/src/jobs/registerJobs.ts | - | GRAY (add job) | - | - | - | - | - |
+| mini-app/src/App.tsx | - | - | - | - | - | - | LOCKED |
+| mini-app/src/types/index.ts | - | - | - | - | - | - | LOCKED |
+| bot/src/bot.ts | - | - | - | - | - | - | LOCKED |
+| bot/src/config.ts | - | - | - | - | - | - | LOCKED |
+| .env | - | - | - | - | - | - | LOCKED |
+
+### Run 12 Merge Order
+
+1. **Agent D first** — API response fixes (changes achievement/stats format that frontend agents depend on)
+2. **Agent B second** — Punishment backend (new files + GRAY AREA touches to server.ts and registerJobs.ts)
+3. **Agent A third** — Check-in frontend (touches client.ts GRAY AREA)
+4. **Agent E fourth** — Profile enhancement (touches client.ts GRAY AREA, may conflict with Agent A)
+5. **Agent F fifth** — Leaderboard + Settings (touches client.ts GRAY AREA, may conflict with A/E)
+6. **Agent C last** — Dashboard (standalone page, no shared files)
+
+**Conflict expectations:**
+- `client.ts` will likely need manual merging — 3 agents add methods (A, E, F). Each adds different methods, so conflicts should be simple line additions.
+- `server.ts` — Agent B adds 1 import + 1 route mount. No other agent touches this file.
+- `registerJobs.ts` — Agent B adds 1 import + 1 job + 1 setBotInstance. No other agent touches this file.
+
+---
+
+### Run 12 Retrospectives
+
+#### Agent A Retrospective
+
+**Status:** All 5 tasks completed. Build passes with zero errors.
+
+| # | Task | Commit | Status |
+|---|------|--------|--------|
+| 1 | Add check-in API methods to client.ts | `64218e9` | Done |
+| 2 | Create CheckInButton component | `a999de6` | Done |
+| 3 | Add check-in button to quest detail modal | `4ebc194` | Done |
+| 4 | Show today's check-in count in Quests header | `eb0251c` | Done |
+| 5 | Build verification | (clean build, no fix needed) | Done |
+
+**Design decisions:**
+- `CheckInButton` is standalone with own loading/success states. Check-in success uses slide-up toast + haptic feedback.
+- Optimistic UI: updates quest progress locally, then refreshes from server. Auto-closes modal on quest completion.
+- Today's check-in count badge only shows when count > 0. Loaded non-blocking after quest list.
+
+**Note:** Backend check-in uses `1 AS target` hardcoded — every check-in auto-completes. Multi-step check-ins need backend change.
+
+#### Agent B Retrospective
+
+**Status:** All 5 tasks completed. Build passes with zero errors.
+
+| # | Task | Commit | Status |
+|---|------|--------|--------|
+| 1 | Create punishment API routes (settings + history) | `2f5b3bf` | Done |
+| 2 | Create punishment check job (daily at 00:30 UTC) | `71fc274` | Done |
+| 3 | Mount punishment route in server.ts | `9ee4147` | Done |
+| 4 | Register punishment check job in registerJobs.ts | `7644547` | Done |
+| 5 | Build verification | (clean build, no fix needed) | Done |
+
+**Problems faced:** None. The existing codebase patterns were clear and consistent.
+
+**Design decisions:**
+- `punishment.ts` routes use `telegramId` in URL params. `PATCH /settings` uses dynamic SET clause with INSERT fallback.
+- `punishmentCheck.ts` runs at 00:30 UTC (30 min after dailyQuestReset). Marks expired quests as `failed`, then applies XP penalties for consented users.
+- XP penalty: `quest.xp_reward * intensity_multiplier`, capped by `max_xp_penalty`. Safe mode adds daily cap.
+- Users WITHOUT consent still get notification about expired quests (no penalty).
+- Rate-limited at 200ms between sends, batch processing in groups of 50.
+
+#### Agent C Retrospective
+
+**Status:** All 3 tasks completed + build verification. Build passes with zero errors.
+
+| # | Task | Commit | Status |
+|---|------|--------|--------|
+| 1 | Add Today's Progress section | `25358c2` | Done |
+| 2 | Improve streak display with per-mode breakdown | `d1b61a0` | Done |
+| 3 | Add daily quest goal ring | `7f178d4` | Done |
+| 4 | Build verification | (clean build, no fix needed) | Done |
+
+**Problems faced:** None. The existing Dashboard code was well-structured and all required data fields (`completedQuestsToday`, `xpGainedToday`, `activeQuests`, `streakData`) were already available in the `stats` object.
+
+**What was done:**
+- **Today's Progress section:** Added a 3-column card below the stat grid showing: Quests Completed (with green highlight when > 0), XP Earned today, and Active Quests Remaining. Uses conditional green gradient when progress has been made.
+- **Streak display improvement:** Added a pulsing flame animation for active streaks. Added per-mode streak breakdown cards (horizontal scrollable) that display when `(stats as any).perModeStreaks` is available from Agent D's API addition. Highlights the mode with the longest current streak. Falls back gracefully to aggregate-only display if per-mode data isn't present.
+- **Daily quest goal ring:** Added a prominent SVG circular progress ring showing `completedQuestsToday / (activeQuests + completedQuestsToday)`. Uses animated strokeDashoffset via Framer Motion. Shows "All done! Great work!" message when all daily quests are completed. Green color scheme when complete.
+
+**Recommendations for next run:**
+1. The stat grid (4 cards: Quests Done, Streak, XP Today, Achievements) has some overlap with the new Today's Progress section (both show XP Today). Consider consolidating or differentiating (stat grid = all-time, today's progress = today-only).
+2. The daily quest goal ring denominator uses `activeQuests.length + completedQuestsToday` as an approximation. If the stats API could return `totalDailyQuestsAssigned` it would be more accurate.
+3. Per-mode streak cards use `(stats as any).perModeStreaks` cast — once Agent D's API changes are merged, consider adding `perModeStreaks` to the `UserStats` TypeScript interface for type safety.
+
+#### Agent D Retrospective
+
+**Status:** All 4 tasks completed. Build passes with zero errors.
+
+| # | Task | Commit | Status |
+|---|------|--------|--------|
+| 1 | Fix `GET /achievements` response format | `49dc2b6` | Done |
+| 2 | Add per-mode streaks to stats API | `00704f5` | Done |
+| 3 | Clean up user achievements response | `96e285a` | Done |
+| 4 | Build verification | (clean build, no fix needed) | Done |
+
+**Problems faced:** None. The changes were straightforward — two files, well-scoped edits.
+
+**What was done:**
+- `GET /achievements` now returns `{ success: true, data: [...] }` instead of `{ achievements: [...], count: N }`, matching the `ApiResponse` format the mini-app expects. Error response also uses `{ success: false, error }`.
+- Stats API (`GET /users/:telegramId/stats`) now includes `perModeStreaks` array with per-mode streak breakdown (`mode_id`, `mode_name`, `mode_icon`, `current_streak`, `longest_streak`). Added as a 4th parallel query in the existing `Promise.all`, so no extra latency.
+- User achievements response (`GET /users/:telegramId/achievements`) cleaned up: removed legacy `requirement_type`, `requirement_value`, `is_hidden` fields. Added `rarity` as separate field. Changed `category` from being aliased from `rarity` to deriving from `criteria->>'mode'` (matching the `GET /achievements` behavior).
+- Also fixed recent achievements in the stats response — same `rarity`/`category` split and added `rarity` field.
+
+**Recommendations for next run:**
+1. The dedicated achievements route (`GET /achievements/users/:userId`) in `achievements.ts` still returns `{ achievements, unlocked, total, progress }` — not `{ success, data }`. This inconsistency with the users.ts route should be resolved (Agent C's Run 11 recommendation #2).
+2. The `perModeStreaks` query only returns modes with `current_streak > 0`. If Dashboard wants to show all modes (including those with 0 streaks), the filter could be relaxed or the frontend could merge with the modes list.
+3. Consider caching the per-mode streaks query since it runs on every stats fetch.
+
+#### Agent E Retrospective
+
+**Status:** All 5 tasks completed. Build passes with zero errors.
+
+| # | Task | Commit | Status |
+|---|------|--------|--------|
+| 1 | Add `getPunishmentSettings` to API client | `b880039` | Done |
+| 2 | Add per-mode streak display to Profile modes | `006dfc2` | Done |
+| 3 | Add accountability status section to Profile | `30f1a49` | Done |
+| 4 | Improve achievement showcase on Profile | `a4807b5` | Done |
+| 5 | Build verification | (clean build, no fix needed) | Done |
+
+**Problems Faced:**
+- The Run 12 Retrospectives section wasn't present in the worktree's copy of PARALLEL_AGENTS.md (it was added to main after branching). Appended the section manually.
+- The `allAchievements` list relies on `apiClient.getAchievements()` which is broken due to response format mismatch (returns `{achievements, count}` instead of `{success, data}`). Agent D is fixing this concurrently. The achievement showcase gracefully falls back to using `achievements.length` as the total count when `allAchievements` is empty.
+- Punishment settings API (`GET /api/punishment/:telegramId/settings`) doesn't exist yet (Agent B is creating it). The Profile loads it in a separate try/catch so it silently skips if the API returns 404.
+
+**Design Decisions:**
+- Per-mode streak display only shows when `perModeStreaks` data is available (from Agent D's stats API enhancement). If the field is missing, no streak info appears on mode cards — fully backward compatible.
+- Accountability section shows "Accountability Off" with a hint to enable in Settings when no punishment settings are found, rather than hiding the section entirely. This gives users awareness of the feature.
+- Achievement showcase uses a 2x2 grid instead of a horizontal row of 3, making each achievement more prominent with icon, name, and rarity badge. Added animated progress bar showing unlock percentage.
+- Punishment settings load is intentionally non-blocking (separate try/catch outside the main Promise.all) to avoid slowing down the Profile load if the punishment API is slow or unavailable.
+
+**Recommendations for Next Run:**
+1. Once Agent D's API fix is merged, verify that `allAchievements` populates correctly on Profile — the progress bar denominator depends on it.
+2. Consider making the mode streak cards tappable to show streak history or details for that mode.
+3. The accountability section could link directly to Settings page punishment section (once Agent F implements it) for quick access.
+
+#### Agent F Retrospective
+
+**Status:** All 5 tasks completed. Build passes with zero errors.
+
+| # | Task | Commit | Status |
+|---|------|--------|--------|
+| 1 | Remove fake RankChangeIndicator | `72f7b7a` | Done |
+| 2 | Enhance leaderboard entries with quest count | `f3f0a59` | Done |
+| 3 | Add punishment settings methods to API client | `402b0a2` | Done |
+| 4 | Add accountability toggle to Settings page | `c2d0d50` | Done |
+| 5 | Build verification | (clean build, no fix needed) | Done |
+
+**Problems faced:** None. All files were straightforward with clear patterns to follow.
+
+**What was done:**
+- Leaderboard: Removed the `RankChangeIndicator` component and its fake deterministic rank change data (modulo-based up/down arrows). Removed unused `TrendingUp`, `TrendingDown`, `Minus` imports. The rank display is now clean — just rank icon/number + XP.
+- Leaderboard entries now show quest count in the subtitle: "Lv X · Y quests" using the existing `total_quests_completed` field from the `LeaderboardEntry` interface.
+- API client: Added `getPunishmentSettings(telegramId)` and `updatePunishmentSettings(telegramId, data)` methods. Note: Agent E may also add `getPunishmentSettings` — Agent 0 should resolve the duplicate during merge.
+- Settings page: Added full "Accountability" section with consent toggle (red theme), intensity level selector (4-option grid: light/medium/hard/extreme with XP penalty descriptions), and safe mode toggle. Loads punishment settings in parallel with user preferences on mount, saves both on "Save Settings" tap. Handles missing punishment API gracefully (shows "Coming soon" if endpoint returns error/404).
+
+**Recommendations for next run:**
+1. `client.ts` GRAY AREA conflict: Agent E also adds `getPunishmentSettings`. Agent 0 should keep one copy and remove the duplicate during merge.
+2. Monthly leaderboard tab was mentioned in the task description but skipped — the API has no monthly endpoint. Consider adding `GET /leaderboard/monthly` in a future run if monthly ranking is desired.
+3. The Settings accountability section currently saves on the global "Save Settings" button. A future improvement could auto-save punishment settings independently (toggle → immediate API call) for better UX.
