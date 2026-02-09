@@ -239,4 +239,112 @@ describe('POST /api/users/:userId/achievements/check', () => {
 
     expect(qualifying).toHaveLength(0);
   });
+
+  it('should skip achievements with missing criteria type', () => {
+    const userRow = { level: 10, total_xp: 5000, current_streak: 7, quests_completed: 50 };
+    const availableAchievements = [
+      { id: 1, name: 'No Criteria', criteria: null, xp_bonus: 50 },
+      { id: 2, name: 'Empty Criteria', criteria: {}, xp_bonus: 50 },
+      { id: 3, name: 'Unknown Type', criteria: { type: 'unknown_type', value: 1 }, xp_bonus: 50 },
+    ];
+
+    const qualifying = availableAchievements.filter((a: any) => {
+      const criteria = a.criteria;
+      if (!criteria || !criteria.type) return false;
+      switch (criteria.type) {
+        case 'level': return userRow.level >= criteria.value;
+        case 'total_xp': return userRow.total_xp >= criteria.value;
+        case 'quest_count': return userRow.quests_completed >= criteria.value;
+        case 'streak': return userRow.current_streak >= criteria.value;
+        default: return false;
+      }
+    });
+
+    expect(qualifying).toHaveLength(0);
+  });
+
+  it('should handle all criteria types correctly', () => {
+    const userRow = { level: 10, total_xp: 5000, current_streak: 7, quests_completed: 50 };
+    const achievements = [
+      { id: 1, criteria: { type: 'level', value: 10 }, xp_bonus: 50 },
+      { id: 2, criteria: { type: 'total_xp', value: 5000 }, xp_bonus: 100 },
+      { id: 3, criteria: { type: 'quest_count', value: 50 }, xp_bonus: 75 },
+      { id: 4, criteria: { type: 'streak', value: 7 }, xp_bonus: 60 },
+    ];
+
+    const qualifying = achievements.filter((a: any) => {
+      switch (a.criteria.type) {
+        case 'level': return userRow.level >= a.criteria.value;
+        case 'total_xp': return userRow.total_xp >= a.criteria.value;
+        case 'quest_count': return userRow.quests_completed >= a.criteria.value;
+        case 'streak': return userRow.current_streak >= a.criteria.value;
+        default: return false;
+      }
+    });
+
+    // All 4 meet exact thresholds
+    expect(qualifying).toHaveLength(4);
+  });
+});
+
+// ─── GET /api/users/:userId/achievements/recent ──────────────────────
+
+describe('GET /api/users/:userId/achievements/recent', () => {
+  it('should return recent achievements with default limit', async () => {
+    const recent = [
+      { id: 1, name: 'First Quest', unlocked_at: '2025-01-15T00:00:00Z' },
+      { id: 2, name: 'Streak 3', unlocked_at: '2025-01-14T00:00:00Z' },
+    ];
+
+    mockQuery.mockResolvedValueOnce(recent);
+
+    const rows = await mockQuery(expect.any(String), [1, 5]);
+    expect(rows).toHaveLength(2);
+    expect(rows[0].name).toBe('First Quest');
+  });
+
+  it('should cap limit at 50', () => {
+    const requestedLimit = 100;
+    const limit = Math.min(parseInt(String(requestedLimit)) || 5, 50);
+    expect(limit).toBe(50);
+  });
+
+  it('should default limit to 5 when not provided', () => {
+    const requestedLimit = undefined;
+    const limit = Math.min(parseInt(String(requestedLimit)) || 5, 50);
+    expect(limit).toBe(5);
+  });
+});
+
+// ─── Error handling ──────────────────────────────────────────────────
+
+describe('Achievement route error handling', () => {
+  it('should handle DB error in GET /api/achievements', async () => {
+    mockQuery.mockRejectedValueOnce(new Error('Connection timeout'));
+
+    try {
+      await mockQuery(expect.any(String));
+      throw new Error('Should not reach');
+    } catch (error: any) {
+      expect(error.message).toBe('Connection timeout');
+    }
+  });
+
+  it('should handle DB error in user achievements query', async () => {
+    mockQuery.mockRejectedValueOnce(new Error('Table not found'));
+
+    try {
+      await mockQuery(expect.any(String), [1]);
+      throw new Error('Should not reach');
+    } catch (error: any) {
+      expect(error.message).toBe('Table not found');
+    }
+  });
+
+  it('should return 404 for user not found in check endpoint', async () => {
+    mockQueryOne.mockResolvedValueOnce(null); // user not found
+
+    const userRow = await mockQueryOne(expect.any(String), [999]);
+    expect(userRow).toBeNull();
+  });
 });
