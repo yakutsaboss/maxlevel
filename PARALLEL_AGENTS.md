@@ -575,3 +575,37 @@ Find your section under "Run 11 Retrospectives" below and replace the placeholde
 2. Similarly, `apiClient.getUserAchievements()` hits the users.ts route (returns `{success, data}`) but the dedicated achievements.ts route at `/achievements/users/:userId` returns `{achievements, unlocked, total, progress}`. Inconsistency should be resolved.
 3. Consider adding per-mode streak data to the stats API so Dashboard can show streak breakdown by mode.
 4. The achievement check could also be triggered after quest completion on the Quests page if the internal user ID is made available there (e.g., stored in a context/hook after initial stats load).
+
+---
+
+### Run 12 Retrospectives
+
+#### Agent A Retrospective
+
+**Status:** All 5 tasks completed. Build passes with zero errors.
+
+| # | Task | Commit | Status |
+|---|------|--------|--------|
+| 1 | Add check-in API methods to client.ts | `64218e9` | Done |
+| 2 | Create CheckInButton component | `a999de6` | Done |
+| 3 | Add check-in button to quest detail modal | `4ebc194` | Done |
+| 4 | Show today's check-in count in Quests header | `eb0251c` | Done |
+| 5 | Build verification | (clean build, no fix needed) | Done |
+
+**Problems faced:** None. The backend check-in API was well-documented in `checkins.ts` and the Quests page had a clear structure for inserting the check-in button (between the progress bar and the update progress buttons in the quest detail modal).
+
+**Design decisions:**
+- `CheckInButton` is a standalone component with its own loading/success states, making it reusable elsewhere if needed.
+- Check-in success feedback uses a slide-up "Checked in!" toast that auto-dismisses after 1.5 seconds, plus haptic feedback (medium impact on tap, success notification on completion).
+- The `handleCheckinSuccess` callback updates the selected quest's local progress immediately (optimistic UI), then refreshes the quest list from the server.
+- If the check-in auto-completes the quest (when `result.completed === true`), the modal auto-closes after the quest list refreshes.
+- Today's check-in count badge only appears when count > 0, keeping the header clean for new users.
+- The `loadTodayCheckins` function is called non-blocking after quest list loads (fire-and-forget from `loadQuests`), so it doesn't slow down the initial page load.
+
+**Notes on backend behavior:**
+- The check-in endpoint uses `1 AS target` hardcoded in the SQL query, meaning every single check-in auto-completes the quest. This makes the check-in button function as a one-tap quest completion mechanism. If multi-step check-ins are desired later, the backend would need to read the actual target from `quest_instances` or `quests`.
+
+**Recommendations for next run:**
+1. The `check_ins` table records individual check-in events but the `quest_instances.check_in_count` field and the hardcoded `target = 1` limit the usefulness. Consider using `quest_instances.target` as the check-in target for multi-step quests.
+2. Today's check-in count could be enhanced with a breakdown per quest (showing which quests were checked in today).
+3. The CheckInButton could optionally accept `notes` from the user — currently it's always empty. A small text input in the modal could let users log brief notes with each check-in.
