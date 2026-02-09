@@ -324,7 +324,9 @@ def main():
     app.add_handler(CommandHandler("ping", ping_command))
     app.add_handler(CommandHandler("metrics", metrics_command))
     app.add_handler(CommandHandler("sheets", sheets_command))
-    app.add_error_handler(lambda update, ctx: print(f"Error: {ctx.error}"))
+    async def error_handler(update, context):
+        print(f"Error: {context.error}")
+    app.add_error_handler(error_handler)
 
     print("Bot is running. Ctrl+C to stop.")
     app.run_polling(allowed_updates=Update.ALL_TYPES)
