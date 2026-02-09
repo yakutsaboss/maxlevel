@@ -164,7 +164,7 @@ async def ping_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # 3. Mini App
     try:
         t0 = time.time()
-        req = urllib.request.Request(f"https://yakutsa.ru/", method='GET')
+        req = urllib.request.Request(f"https://yakutsa.ru/levelapp/", method='GET')
         with urllib.request.urlopen(req, timeout=10) as resp:
             ms = int((time.time() - t0) * 1000)
             if resp.status == 200:
