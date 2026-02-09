@@ -2294,3 +2294,27 @@ Add your retrospective to PARALLEL_AGENTS.md at the bottom under "Run 6 Retrospe
 ## Run 6 Retrospectives
 
 *(Agents: add your retrospective sections below this line when you finish)*
+
+### Agent B Retrospective
+
+**Branch:** `feature/achievements-backend`
+**Status:** All 5 tasks completed, build passes clean.
+
+| # | Task | Status | Commits |
+|---|------|--------|---------|
+| 1 | Add Finance & Learning achievements to seed_data.sql | Done | `b9acd8b` |
+| 2 | Create run6_achievements.sql migration | Done | `c5eac0c` |
+| 3 | Make daily summary timezone-aware | Done | `1f11e25` |
+| 4 | Add category field to achievements API | Done | `5ad1e92` |
+| 5 | Verify build + REGISTER_THESE_RUN6.md | Done | `9f83959` |
+
+**Problems faced:** None. All tasks were straightforward with clear specifications. Build passed on first attempt.
+
+**Notes for Agent 0 (merge):**
+- Run `database/migrations/run6_achievements.sql` on the production DB after deploy to insert the 10 new achievements and create performance indexes.
+- The daily summary cron changed from `0 21 * * *` to `0 * * * *` — pg-boss will pick this up on restart, but verify the schedule updated in the admin dashboard.
+- The `GET /api/achievements` response now includes a `category` field — Agent A's mini-app Achievements page can use this for grouping.
+
+**Recommendations for next run:**
+- The achievement check logic in `POST /users/:userId/check` doesn't handle the new `quest_complete`, `streak`, or `quest_complete_consecutive` criteria types with mode filtering — it only checks `level`, `total_xp`, `quest_count`, `streak` generically. A future task should add mode-aware achievement checking.
+- Consider adding a `GET /api/achievements/categories` endpoint for the mini-app to discover available categories.
