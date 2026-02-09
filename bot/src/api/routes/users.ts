@@ -538,4 +538,79 @@ router.patch('/:telegramId/preferences', authenticateTelegram, async (req: Reque
   }
 });
 
+/**
+ * PATCH /api/users/:telegramId/profile
+ * Update user profile (first_name, avatar_id).
+ */
+router.patch('/:telegramId/profile', authenticateTelegram, async (req: Request, res: Response) => {
+  try {
+    const tid = parseInt(req.params.telegramId);
+    if (isNaN(tid)) {
+      return res.status(400).json({ success: false, error: 'Invalid telegram ID' });
+    }
+
+    const { first_name, avatar_id } = req.body;
+
+    // Validate fields
+    if (first_name !== undefined) {
+      if (typeof first_name !== 'string' || first_name.trim().length === 0 || first_name.trim().length > 32) {
+        return res.status(400).json({ success: false, error: 'first_name must be 1-32 characters' });
+      }
+    }
+    if (avatar_id !== undefined) {
+      const aid = parseInt(avatar_id);
+      if (isNaN(aid) || aid < 1 || aid > 8) {
+        return res.status(400).json({ success: false, error: 'avatar_id must be an integer 1-8' });
+      }
+    }
+
+    // Build SET clause dynamically
+    const sets: string[] = [];
+    const params: any[] = [];
+    let idx = 1;
+
+    if (first_name !== undefined) {
+      sets.push(`first_name = $${idx++}`);
+      params.push(first_name.trim());
+    }
+    if (avatar_id !== undefined) {
+      sets.push(`avatar_id = $${idx++}`);
+      params.push(parseInt(avatar_id));
+    }
+
+    if (sets.length === 0) {
+      return res.status(400).json({ success: false, error: 'No valid fields to update' });
+    }
+
+    params.push(tid);
+    const user = await queryOne(
+      `UPDATE users SET ${sets.join(', ')} WHERE telegram_id = $${idx} RETURNING id, telegram_id, username, first_name, current_level, total_xp, timezone`,
+      params
+    );
+
+    if (!user) {
+      return res.status(404).json({ success: false, error: 'User not found' });
+    }
+
+    // Invalidate cache for this user
+    invalidatePrefix(`user:${user.id}:`);
+
+    res.json({
+      success: true,
+      data: {
+        id: user.id,
+        telegram_id: user.telegram_id,
+        username: user.username,
+        first_name: user.first_name,
+        level: user.current_level,
+        xp: user.total_xp,
+        timezone: user.timezone,
+      },
+    });
+  } catch (error) {
+    console.error('Error updating user profile:', error);
+    res.status(500).json({ success: false, error: 'Failed to update profile' });
+  }
+});
+
 export { router as userRouter };
