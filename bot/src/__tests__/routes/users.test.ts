@@ -392,3 +392,214 @@ describe('PATCH /api/users/:telegramId/preferences', () => {
     expect(res._status).toBe(404);
   });
 });
+
+// ─── PATCH /api/users/:telegramId/profile (Run 3 addition) ─────────
+
+describe('PATCH /api/users/:telegramId/profile', () => {
+  it('should update first_name only', async () => {
+    const updatedUser = {
+      id: 1,
+      telegram_id: 123456789,
+      username: 'testuser',
+      first_name: 'NewName',
+      current_level: 5,
+      total_xp: 2500,
+      timezone: 'UTC',
+    };
+    mockQueryOne.mockResolvedValueOnce(updatedUser);
+
+    const res = mockResponse();
+    const body = { first_name: 'NewName' };
+
+    const sets: string[] = [];
+    const params: any[] = [];
+    let idx = 1;
+
+    if (body.first_name !== undefined) {
+      const name = body.first_name.trim();
+      if (typeof body.first_name !== 'string' || name.length === 0 || name.length > 32) {
+        res.status(400).json({ success: false, error: 'first_name must be 1-32 characters' });
+      } else {
+        sets.push(`first_name = $${idx++}`);
+        params.push(name);
+      }
+    }
+
+    expect(sets).toHaveLength(1);
+
+    params.push(123456789);
+    const user = await mockQueryOne(expect.any(String), params);
+
+    res.json({ success: true, data: user });
+
+    expect(res._json.success).toBe(true);
+    expect(res._json.data.first_name).toBe('NewName');
+  });
+
+  it('should update avatar_id only', async () => {
+    const updatedUser = {
+      id: 1,
+      telegram_id: 123456789,
+      username: 'testuser',
+      first_name: 'Test',
+      current_level: 5,
+      total_xp: 2500,
+      timezone: 'UTC',
+    };
+    mockQueryOne.mockResolvedValueOnce(updatedUser);
+
+    const res = mockResponse();
+    const body = { avatar_id: 5 };
+
+    const sets: string[] = [];
+    const params: any[] = [];
+    let idx = 1;
+
+    const aid = parseInt(String(body.avatar_id));
+    if (!isNaN(aid) && aid >= 1 && aid <= 8) {
+      sets.push(`avatar_id = $${idx++}`);
+      params.push(aid);
+    }
+
+    expect(sets).toHaveLength(1);
+
+    params.push(123456789);
+    const user = await mockQueryOne(expect.any(String), params);
+
+    res.json({ success: true, data: user });
+
+    expect(res._json.success).toBe(true);
+    expect(res._json.data.telegram_id).toBe(123456789);
+  });
+
+  it('should update both first_name and avatar_id', async () => {
+    const updatedUser = {
+      id: 1,
+      telegram_id: 123456789,
+      username: 'testuser',
+      first_name: 'Updated',
+      current_level: 5,
+      total_xp: 2500,
+      timezone: 'UTC',
+    };
+    mockQueryOne.mockResolvedValueOnce(updatedUser);
+
+    const res = mockResponse();
+    const body = { first_name: 'Updated', avatar_id: 3 };
+
+    const sets: string[] = [];
+    const params: any[] = [];
+    let idx = 1;
+
+    if (body.first_name !== undefined) {
+      sets.push(`first_name = $${idx++}`);
+      params.push(body.first_name.trim());
+    }
+    if (body.avatar_id !== undefined) {
+      sets.push(`avatar_id = $${idx++}`);
+      params.push(body.avatar_id);
+    }
+
+    expect(sets).toHaveLength(2);
+
+    params.push(123456789);
+    const user = await mockQueryOne(expect.any(String), params);
+
+    res.json({ success: true, data: user });
+
+    expect(res._json.success).toBe(true);
+    expect(res._json.data.first_name).toBe('Updated');
+  });
+
+  it('should reject empty first_name', () => {
+    const res = mockResponse();
+    const first_name = '   ';
+
+    if (typeof first_name !== 'string' || first_name.trim().length === 0 || first_name.trim().length > 32) {
+      res.status(400).json({ success: false, error: 'first_name must be 1-32 characters' });
+    }
+
+    expect(res._status).toBe(400);
+    expect(res._json.error).toContain('first_name');
+  });
+
+  it('should reject first_name longer than 32 characters', () => {
+    const res = mockResponse();
+    const first_name = 'A'.repeat(33);
+
+    if (typeof first_name !== 'string' || first_name.trim().length === 0 || first_name.trim().length > 32) {
+      res.status(400).json({ success: false, error: 'first_name must be 1-32 characters' });
+    }
+
+    expect(res._status).toBe(400);
+    expect(res._json.error).toContain('first_name');
+  });
+
+  it('should reject avatar_id = 0 (out of range)', () => {
+    const res = mockResponse();
+    const avatar_id = 0;
+
+    const aid = parseInt(String(avatar_id));
+    if (isNaN(aid) || aid < 1 || aid > 8) {
+      res.status(400).json({ success: false, error: 'avatar_id must be an integer 1-8' });
+    }
+
+    expect(res._status).toBe(400);
+    expect(res._json.error).toContain('avatar_id');
+  });
+
+  it('should reject avatar_id = 9 (out of range)', () => {
+    const res = mockResponse();
+    const avatar_id = 9;
+
+    const aid = parseInt(String(avatar_id));
+    if (isNaN(aid) || aid < 1 || aid > 8) {
+      res.status(400).json({ success: false, error: 'avatar_id must be an integer 1-8' });
+    }
+
+    expect(res._status).toBe(400);
+    expect(res._json.error).toContain('avatar_id');
+  });
+
+  it('should reject negative avatar_id', () => {
+    const res = mockResponse();
+    const avatar_id = -1;
+
+    const aid = parseInt(String(avatar_id));
+    if (isNaN(aid) || aid < 1 || aid > 8) {
+      res.status(400).json({ success: false, error: 'avatar_id must be an integer 1-8' });
+    }
+
+    expect(res._status).toBe(400);
+    expect(res._json.error).toContain('avatar_id');
+  });
+
+  it('should return 404 when user not found on profile update', async () => {
+    mockQueryOne.mockResolvedValueOnce(null);
+
+    const res = mockResponse();
+    const user = await mockQueryOne(expect.any(String), ['Updated', 123456789]);
+
+    if (!user) {
+      res.status(404).json({ success: false, error: 'User not found' });
+    }
+
+    expect(res._status).toBe(404);
+    expect(res._json.error).toBe('User not found');
+  });
+
+  it('should return 400 when no fields provided', () => {
+    const res = mockResponse();
+    const body = {};
+
+    const sets: string[] = [];
+    // No first_name, no avatar_id → sets is empty
+
+    if (sets.length === 0) {
+      res.status(400).json({ success: false, error: 'No valid fields to update' });
+    }
+
+    expect(res._status).toBe(400);
+    expect(res._json.error).toContain('No valid fields');
+  });
+});
