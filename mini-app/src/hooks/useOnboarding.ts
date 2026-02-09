@@ -114,11 +114,10 @@ export interface OnboardingData {
   // Punishments
   punishments?: {
     consent_given?: boolean;
-    intensity_level?: string;
+    punishment_type?: 'workout' | 'book' | 'money' | null;
+    difficulty?: 'easy' | 'medium' | 'hard' | 'extreme';
+    intensity_level?: string; // backward compat — maps to difficulty on backend
     safe_mode?: boolean;
-    xp_penalty?: number;
-    streak_reset?: boolean;
-    shame_message?: boolean;
     custom_punishments?: Record<string, string[]>;
   };
 
