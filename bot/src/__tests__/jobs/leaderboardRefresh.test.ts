@@ -2,6 +2,7 @@
  * Tests for Leaderboard Refresh Job (bot/src/jobs/definitions/leaderboardRefresh.ts)
  *
  * Tests: job metadata, materialized view refresh SQL, error handling
+ * NOTE: No fake timers — the handler uses internal sleep() which conflicts with vi.useFakeTimers()
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
@@ -13,8 +14,6 @@ const mockExecutePythonTool = vi.fn();
 vi.mock('../../utils/pythonTools.js', () => ({
   executePythonTool: (...args: any[]) => mockExecutePythonTool(...args),
 }));
-
-vi.useFakeTimers();
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -37,9 +36,7 @@ describe('leaderboardRefresh', () => {
 
     mockExecutePythonTool.mockResolvedValueOnce({ success: true });
 
-    const promise = handler([{} as any]);
-    await vi.runAllTimersAsync();
-    await promise;
+    await handler([{} as any]);
 
     expect(mockExecutePythonTool).toHaveBeenCalledWith('db_operations', [
       '--execute',
@@ -54,9 +51,7 @@ describe('leaderboardRefresh', () => {
 
     mockExecutePythonTool.mockResolvedValueOnce({ success: true });
 
-    const promise = handler([{} as any]);
-    await vi.runAllTimersAsync();
-    await promise;
+    await handler([{} as any]);
 
     expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining(`[JOB:${JOB_NAME}] Started`));
     expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining(`[JOB:${JOB_NAME}] Completed in`));
@@ -72,10 +67,7 @@ describe('leaderboardRefresh', () => {
       error: 'materialized view does not exist',
     });
 
-    const promise = handler([{} as any]);
-    await vi.runAllTimersAsync();
-
-    await expect(promise).rejects.toThrow('Leaderboard refresh failed');
+    await expect(handler([{} as any])).rejects.toThrow('Leaderboard refresh failed');
 
     consoleSpy.mockRestore();
   });
@@ -88,10 +80,7 @@ describe('leaderboardRefresh', () => {
       error: 'connection timeout after 30s',
     });
 
-    const promise = handler([{} as any]);
-    await vi.runAllTimersAsync();
-
-    await expect(promise).rejects.toThrow('connection timeout after 30s');
+    await expect(handler([{} as any])).rejects.toThrow('connection timeout after 30s');
 
     consoleSpy.mockRestore();
   });

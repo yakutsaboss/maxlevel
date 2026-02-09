@@ -275,15 +275,23 @@ class TestIsModeActiveForUser:
 
 class TestAddMultipleModes:
     def test_adds_multiple(self, mock_db):
-        # Each mode needs: get_mode_by_name, check existing, insert
+        # add_multiple_modes calls for EACH mode:
+        # 1. get_mode_by_name (execute_query) — in add_multiple_modes
+        # 2. execute_query existing check — in add_multiple_modes
+        # 3. add_mode_to_user → get_mode_by_name (execute_query)
+        # 4. add_mode_to_user → execute_query existing check
+        # 5. add_mode_to_user → execute_insert user_mode
+        # 6. add_mode_to_user → execute_insert streak
         fitness = {"id": 1, "name": "fitness"}
         hydration = {"id": 2, "name": "hydration"}
         user_mode1 = {"id": 1, "user_id": 1, "mode_id": 1, "is_active": True}
         user_mode2 = {"id": 2, "user_id": 1, "mode_id": 2, "is_active": True}
 
         mock_db.execute_query.side_effect = [
-            fitness, None,  # add_mode_to_user for fitness: get_mode, check existing
-            hydration, None,  # add_mode_to_user for hydration: get_mode, check existing
+            fitness, None,       # add_multiple_modes: get_mode + check existing (fitness)
+            fitness, None,       # add_mode_to_user: get_mode + check existing (fitness)
+            hydration, None,     # add_multiple_modes: get_mode + check existing (hydration)
+            hydration, None,     # add_mode_to_user: get_mode + check existing (hydration)
         ]
         mock_db.execute_insert.side_effect = [user_mode1, None, user_mode2, None]
 

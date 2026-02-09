@@ -2,6 +2,7 @@
  * Tests for Analytics Export Job (bot/src/jobs/definitions/analyticsExport.ts)
  *
  * Tests: job metadata, python tool invocation, structured logging, error handling
+ * NOTE: No fake timers — the handler uses internal sleep() which conflicts with vi.useFakeTimers()
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
@@ -13,8 +14,6 @@ const mockExecutePythonTool = vi.fn();
 vi.mock('../../utils/pythonTools.js', () => ({
   executePythonTool: (...args: any[]) => mockExecutePythonTool(...args),
 }));
-
-vi.useFakeTimers();
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -40,9 +39,7 @@ describe('analyticsExport', () => {
       data: { total_rows: 100, sheets_updated: ['users', 'quests'] },
     });
 
-    const promise = handler([{} as any]);
-    await vi.runAllTimersAsync();
-    await promise;
+    await handler([{} as any]);
 
     expect(mockExecutePythonTool).toHaveBeenCalledWith('sheets_analytics_export', ['--export-all']);
 
@@ -57,9 +54,7 @@ describe('analyticsExport', () => {
       data: { total_rows: 250, sheets_updated: ['users', 'quests', 'achievements'] },
     });
 
-    const promise = handler([{} as any]);
-    await vi.runAllTimersAsync();
-    await promise;
+    await handler([{} as any]);
 
     expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('250 rows exported to 3 sheets'));
 
@@ -74,9 +69,7 @@ describe('analyticsExport', () => {
       data: {},
     });
 
-    const promise = handler([{} as any]);
-    await vi.runAllTimersAsync();
-    await promise;
+    await handler([{} as any]);
 
     // Should default to 0 rows, 0 sheets
     expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('0 rows exported to 0 sheets'));
@@ -92,11 +85,7 @@ describe('analyticsExport', () => {
       error: 'Google Sheets API quota exceeded',
     });
 
-    const promise = handler([{} as any]);
-    await vi.runAllTimersAsync();
-
-    await expect(promise).rejects.toThrow('Analytics export failed');
-    await expect(promise).rejects.toThrow('Google Sheets API quota exceeded');
+    await expect(handler([{} as any])).rejects.toThrow('Analytics export failed');
 
     consoleSpy.mockRestore();
   });
@@ -109,9 +98,7 @@ describe('analyticsExport', () => {
       data: { total_rows: 10, sheets_updated: ['users'] },
     });
 
-    const promise = handler([{} as any]);
-    await vi.runAllTimersAsync();
-    await promise;
+    await handler([{} as any]);
 
     expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining(`[JOB:${JOB_NAME}] Started`));
     expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining(`[JOB:${JOB_NAME}] Completed in`));

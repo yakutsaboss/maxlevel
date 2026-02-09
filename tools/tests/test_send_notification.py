@@ -11,6 +11,10 @@ from io import BytesIO
 # Add project root to path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
+# Set required env vars BEFORE importing send_notification (it sys.exit(1) without them)
+os.environ.setdefault('TELEGRAM_NOTIFICATION_BOT_TOKEN', 'test_token_for_tests')
+os.environ.setdefault('TELEGRAM_NOTIFICATION_CHAT_ID', '123456789')
+
 
 class TestTruncateMessage:
     """Test the truncate_message helper function."""
