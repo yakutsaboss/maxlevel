@@ -1,9 +1,10 @@
 import { useEffect, useState, useRef, useCallback, memo } from 'react';
 import { useTelegram } from '@/hooks/useTelegram';
 import { apiClient } from '@/api/client';
-import { UserStats, Quest, UserMode, UserAchievement } from '@/types';
+import { UserStats, Quest, UserMode, UserAchievement, Achievement } from '@/types';
 import { Trophy, Zap, Target, Flame, TrendingUp, AlertCircle, RefreshCw, Compass, Scroll, Award, Calendar } from 'lucide-react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
+import { AchievementToast } from '@/components/AchievementToast';
 
 const StatCard = memo(function StatCard({ icon, label, value, color }: { icon: React.ReactNode; label: string; value: string | number; color: string }) {
   return (
@@ -66,6 +67,7 @@ export function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [toastAchievement, setToastAchievement] = useState<Achievement | null>(null);
   const [pullDistance, setPullDistance] = useState(0);
   const touchStartY = useRef(0);
   const isPulling = useRef(false);
@@ -93,22 +95,48 @@ export function Dashboard() {
       haptic.impact('medium');
       setRefreshing(true);
       setPullDistance(0);
-      await loadUserStats();
+      await loadUserStats(true);
       setRefreshing(false);
     } else {
       setPullDistance(0);
     }
   }, [pullDistance, refreshing, haptic]);
 
-  useEffect(() => { loadUserStats(); }, [user]);
+  useEffect(() => { loadUserStats(false); }, [user]);
 
-  const loadUserStats = async () => {
+  const checkForNewAchievements = async (userId: number) => {
+    try {
+      const res = await apiClient.checkAchievements(userId);
+      if (res.success && res.data && res.data.newAchievements.length > 0) {
+        const ach = res.data.newAchievements[0];
+        setToastAchievement({
+          id: ach.id,
+          name: ach.name,
+          description: ach.description,
+          icon: ach.badge_icon || ach.icon || '🏆',
+          xp_reward: ach.xp_bonus || ach.xp_reward || 0,
+          rarity: ach.rarity || 'common',
+          category: ach.category || 'general',
+        });
+        haptic.notification('success');
+      }
+    } catch (err) {
+      console.error('Achievement check failed:', err);
+    }
+  };
+
+  const loadUserStats = async (checkAchievements = false) => {
     if (!user?.id) { setLoading(false); return; }
     try {
       setLoading(true);
       setError(false);
       const response = await apiClient.getUserStats(user.id);
-      if (response.success && response.data) { setStats(response.data); }
+      if (response.success && response.data) {
+        setStats(response.data);
+        if (checkAchievements && response.data.user.id) {
+          checkForNewAchievements(response.data.user.id).catch(console.error);
+        }
+      }
     } catch (error) {
       console.error('Failed to load user stats:', error);
       setError(true);
@@ -300,6 +328,15 @@ export function Dashboard() {
           </div>
         </div>
       )}
+
+      <AnimatePresence>
+        {toastAchievement && (
+          <AchievementToast
+            achievement={toastAchievement}
+            onClose={() => setToastAchievement(null)}
+          />
+        )}
+      </AnimatePresence>
     </div>
   );
 }
