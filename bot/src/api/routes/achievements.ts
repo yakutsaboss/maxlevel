@@ -187,8 +187,127 @@ router.get('/users/:userId/recent', authenticateTelegram, async (req: Request, r
 });
 
 /**
+ * Check if a single achievement's criteria is met for a user.
+ * Handles both generic and mode-specific criteria.
+ */
+async function checkCriteriaMet(userId: number, userRow: any, criteria: any): Promise<boolean> {
+  if (!criteria || !criteria.type) return false;
+
+  switch (criteria.type) {
+    // Generic (cross-mode) criteria
+    case 'level':
+    case 'level_reached':
+      return userRow.level >= (criteria.value ?? criteria.level ?? 0);
+
+    case 'total_xp':
+      return userRow.total_xp >= (criteria.value ?? criteria.amount ?? 0);
+
+    case 'quest_count':
+      return userRow.quests_completed >= (criteria.value ?? criteria.count ?? 0);
+
+    case 'streak': {
+      if (criteria.mode) {
+        // Mode-specific streak: check streaks table filtered by mode
+        const row = await queryOne(
+          `SELECT COALESCE(s.current_streak, 0)::int AS streak
+           FROM streaks s
+           JOIN modes m ON m.id = s.mode_id
+           WHERE s.user_id = $1 AND m.name = $2`,
+          [userId, criteria.mode]
+        );
+        return (row?.streak ?? 0) >= (criteria.days ?? criteria.value ?? 0);
+      }
+      return userRow.current_streak >= (criteria.days ?? criteria.value ?? 0);
+    }
+
+    case 'quest_complete': {
+      if (criteria.mode) {
+        // Count completed quests for a specific mode
+        const row = await queryOne(
+          `SELECT COUNT(*)::int AS cnt
+           FROM quest_instances qi
+           JOIN quests q ON q.id = qi.quest_id
+           JOIN modes m ON m.id = q.mode_id
+           WHERE qi.user_id = $1 AND qi.status = 'completed' AND m.name = $2`,
+          [userId, criteria.mode]
+        );
+        return (row?.cnt ?? 0) >= (criteria.count ?? 0);
+      }
+      return userRow.quests_completed >= (criteria.count ?? 0);
+    }
+
+    case 'quest_complete_consecutive': {
+      if (criteria.mode) {
+        // Count max consecutive days with completed quests in a specific mode
+        const row = await queryOne(
+          `WITH daily AS (
+             SELECT DISTINCT qi.instance_date
+             FROM quest_instances qi
+             JOIN quests q ON q.id = qi.quest_id
+             JOIN modes m ON m.id = q.mode_id
+             WHERE qi.user_id = $1 AND qi.status = 'completed' AND m.name = $2
+             ORDER BY qi.instance_date
+           ),
+           grouped AS (
+             SELECT instance_date,
+                    instance_date - (ROW_NUMBER() OVER (ORDER BY instance_date))::int AS grp
+             FROM daily
+           )
+           SELECT MAX(cnt)::int AS max_consecutive
+           FROM (SELECT COUNT(*) AS cnt FROM grouped GROUP BY grp) sub`,
+          [userId, criteria.mode]
+        );
+        return (row?.max_consecutive ?? 0) >= (criteria.days ?? 0);
+      }
+      return false;
+    }
+
+    case 'multi_mode_active': {
+      const row = await queryOne(
+        `SELECT COUNT(DISTINCT mode_id)::int AS cnt
+         FROM user_modes
+         WHERE user_id = $1 AND is_active = true`,
+        [userId]
+      );
+      return (row?.cnt ?? 0) >= (criteria.count ?? 0);
+    }
+
+    case 'streak_rebuild': {
+      // Check if user rebuilt a streak to at least N days after it was broken
+      const row = await queryOne(
+        `SELECT MAX(current_streak)::int AS best
+         FROM streaks WHERE user_id = $1`,
+        [userId]
+      );
+      return (row?.best ?? 0) >= (criteria.days ?? 0);
+    }
+
+    default:
+      return false;
+  }
+}
+
+/**
+ * Filter available achievements to find those whose criteria are met.
+ */
+async function filterQualifyingAchievements(
+  userId: number,
+  userRow: any,
+  achievements: any[]
+): Promise<any[]> {
+  const results = await Promise.all(
+    achievements.map(async (a: any) => {
+      const met = await checkCriteriaMet(userId, userRow, a.criteria);
+      return met ? a : null;
+    })
+  );
+  return results.filter(Boolean);
+}
+
+/**
  * POST /api/users/:userId/achievements/check
  * Batches all unlocks in a single transaction instead of N+1 loop.
+ * Supports mode-aware criteria: quest_complete, streak, quest_complete_consecutive.
  */
 router.post('/users/:userId/check', authenticateTelegram, async (req: Request, res: Response) => {
   try {
@@ -222,17 +341,8 @@ router.post('/users/:userId/check', authenticateTelegram, async (req: Request, r
       return res.status(404).json({ error: 'Not Found', message: 'User not found' });
     }
 
-    const qualifying = availableAchievements.filter((a: any) => {
-      const criteria = a.criteria;
-      if (!criteria || !criteria.type) return false;
-      switch (criteria.type) {
-        case 'level': return userRow.level >= criteria.value;
-        case 'total_xp': return userRow.total_xp >= criteria.value;
-        case 'quest_count': return userRow.quests_completed >= criteria.value;
-        case 'streak': return userRow.current_streak >= criteria.value;
-        default: return false;
-      }
-    });
+    // Check mode-aware criteria asynchronously
+    const qualifying = await filterQualifyingAchievements(userId, userRow, availableAchievements);
 
     if (qualifying.length === 0) {
       return res.json({ newAchievements: [], count: 0, message: 'No new achievements unlocked' });
