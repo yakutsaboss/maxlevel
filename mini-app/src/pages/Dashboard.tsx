@@ -2,7 +2,7 @@ import { useEffect, useState, useRef, useCallback, memo } from 'react';
 import { useTelegram } from '@/hooks/useTelegram';
 import { apiClient } from '@/api/client';
 import { UserStats, Quest, UserMode, UserAchievement, Achievement } from '@/types';
-import { Trophy, Zap, Target, Flame, TrendingUp, AlertCircle, RefreshCw, Compass, Scroll, Award, Calendar } from 'lucide-react';
+import { Trophy, Zap, Target, Flame, TrendingUp, AlertCircle, RefreshCw, Compass, Scroll, Award, Calendar, Clock } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { AchievementToast } from '@/components/AchievementToast';
 
@@ -246,6 +246,38 @@ export function Dashboard() {
         <StatCard icon={<Flame className="w-5 h-5" />} label="Current Streak" value={`${stats.user.current_streak} days`} color="bg-orange-500" />
         <StatCard icon={<Zap className="w-5 h-5" />} label="XP Today" value={`+${stats.xpGainedToday}`} color="bg-yellow-500" />
         <StatCard icon={<Trophy className="w-5 h-5" />} label="Achievements" value={stats.recentAchievements.length} color="bg-purple-500" />
+      </div>
+
+      {/* Today's Progress */}
+      <div className="px-4 mt-6">
+        <h2 className="text-lg font-semibold mb-3 flex items-center gap-2">
+          <Calendar className="w-5 h-5 text-telegram-link" />Today's Progress
+        </h2>
+        <div className={`rounded-2xl p-4 shadow-sm ${stats.completedQuestsToday > 0 ? 'bg-gradient-to-r from-green-500/10 to-emerald-500/10 border border-green-500/20' : 'bg-telegram-secondaryBg border border-telegram-hint/10'}`}>
+          <div className="grid grid-cols-3 gap-3">
+            <div className="text-center">
+              <div className={`w-10 h-10 rounded-xl flex items-center justify-center mx-auto mb-2 ${stats.completedQuestsToday > 0 ? 'bg-green-500' : 'bg-telegram-hint/30'}`}>
+                <Target className={`w-5 h-5 ${stats.completedQuestsToday > 0 ? 'text-white' : 'text-telegram-hint'}`} />
+              </div>
+              <div className={`text-xl font-bold ${stats.completedQuestsToday > 0 ? 'text-green-600' : 'text-telegram-text'}`}>{stats.completedQuestsToday}</div>
+              <div className="text-xs text-telegram-hint">Completed</div>
+            </div>
+            <div className="text-center">
+              <div className="w-10 h-10 rounded-xl flex items-center justify-center mx-auto mb-2 bg-yellow-500">
+                <Zap className="w-5 h-5 text-white" />
+              </div>
+              <div className="text-xl font-bold text-yellow-600">+{stats.xpGainedToday}</div>
+              <div className="text-xs text-telegram-hint">XP Earned</div>
+            </div>
+            <div className="text-center">
+              <div className="w-10 h-10 rounded-xl flex items-center justify-center mx-auto mb-2 bg-blue-500">
+                <Clock className="w-5 h-5 text-white" />
+              </div>
+              <div className="text-xl font-bold text-telegram-text">{stats.activeQuests.length}</div>
+              <div className="text-xs text-telegram-hint">Remaining</div>
+            </div>
+          </div>
+        </div>
       </div>
 
       <div className="px-4 mt-6">
