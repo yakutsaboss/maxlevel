@@ -202,21 +202,50 @@ export function Profile() {
           animate={{ opacity: 1, y: 0 }}
           className="bg-telegram-secondaryBg rounded-2xl p-4 border border-telegram-hint/10"
         >
-          <div className="flex items-center justify-between mb-3">
-            <span className="text-sm text-telegram-hint">Unlocked</span>
-            <span className="text-sm font-bold">{achievements.length}/{allAchievements.length || achievements.length}</span>
-          </div>
+          {/* Progress indicator */}
+          {(() => {
+            const total = allAchievements.length || achievements.length;
+            const unlocked = achievements.length;
+            const pct = total > 0 ? Math.round((unlocked / total) * 100) : 0;
+            return (
+              <div className="mb-4">
+                <div className="flex items-center justify-between mb-1.5">
+                  <span className="text-sm text-telegram-hint">{unlocked}/{total} unlocked</span>
+                  <span className="text-xs font-semibold text-telegram-link">{pct}%</span>
+                </div>
+                <div className="w-full h-2 bg-telegram-bg rounded-full overflow-hidden">
+                  <motion.div
+                    initial={{ width: 0 }}
+                    animate={{ width: `${pct}%` }}
+                    transition={{ duration: 0.8, ease: 'easeOut' }}
+                    className="h-full bg-gradient-to-r from-yellow-400 to-amber-500 rounded-full"
+                  />
+                </div>
+              </div>
+            );
+          })()}
+          {/* Achievement grid (2x2) */}
           {achievements.length > 0 ? (
-            <div className="flex gap-3 mb-3">
+            <div className="grid grid-cols-2 gap-2.5 mb-3">
               {achievements
                 .sort((a, b) => new Date(b.unlocked_at).getTime() - new Date(a.unlocked_at).getTime())
-                .slice(0, 3)
-                .map((ua) => (
-                  <div key={ua.achievement_id} className="flex items-center gap-1.5 bg-telegram-bg rounded-xl px-2.5 py-1.5">
-                    <span className="text-lg">{ua.achievement.icon}</span>
-                    <span className="text-xs font-medium line-clamp-1">{ua.achievement.name}</span>
-                  </div>
-                ))}
+                .slice(0, 4)
+                .map((ua) => {
+                  const rarity = (ua.achievement as any).rarity || (ua.achievement as any).category || '';
+                  const rarityColor = rarity === 'legendary' ? 'text-yellow-500' : rarity === 'epic' ? 'text-purple-500' : rarity === 'rare' ? 'text-blue-500' : 'text-telegram-hint';
+                  return (
+                    <motion.div
+                      key={ua.achievement_id}
+                      whileTap={{ scale: 0.95 }}
+                      onClick={() => haptic.impact('light')}
+                      className="bg-telegram-bg rounded-xl p-3 text-center cursor-pointer"
+                    >
+                      <div className="text-3xl mb-1">{ua.achievement.icon}</div>
+                      <div className="text-xs font-medium line-clamp-1">{ua.achievement.name}</div>
+                      {rarity && <div className={`text-[10px] font-semibold capitalize mt-0.5 ${rarityColor}`}>{rarity}</div>}
+                    </motion.div>
+                  );
+                })}
             </div>
           ) : (
             <p className="text-sm text-telegram-hint mb-3">Complete quests to earn achievements!</p>
