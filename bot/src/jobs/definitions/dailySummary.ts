@@ -1,9 +1,9 @@
 /**
  * Daily Summary Job
  * Sends daily stats summary to users who have notifications enabled.
- * Runs at 9 PM UTC (midnight MSK).
+ * Runs every hour — sends to users whose reminder_time matches the current UTC hour.
  *
- * - Queries users with notification_enabled = true
+ * - Each hour, queries users where reminder_time = current UTC hour AND notification_enabled = true
  * - Batches 50 users at a time with 200ms delay between sends
  * - Uses sendDailySummary handler for message formatting
  */
@@ -21,7 +21,7 @@ export function setBotInstance(bot: Bot<MyContext>): void {
 }
 
 export const JOB_NAME = 'daily-summary';
-export const CRON_SCHEDULE = '0 21 * * *'; // 9 PM UTC = midnight MSK
+export const CRON_SCHEDULE = '0 * * * *'; // Every hour — sends to users whose reminder_time matches
 
 const BATCH_SIZE = 50;
 const DELAY_BETWEEN_SENDS_MS = 200;
@@ -36,10 +36,12 @@ export async function handler(jobs: Job[]): Promise<void> {
   const startTime = Date.now();
   console.log(`[JOB:${JOB_NAME}] Started`);
 
-  // Fetch all active users with notifications enabled
+  // Fetch active users whose reminder_time matches the current UTC hour
   const users = await query(
     `SELECT id, telegram_id FROM users
-     WHERE is_active = true AND notification_enabled = true
+     WHERE is_active = true
+       AND notification_enabled = true
+       AND reminder_time = EXTRACT(HOUR FROM NOW() AT TIME ZONE 'UTC')::int
      ORDER BY id`,
     []
   );
