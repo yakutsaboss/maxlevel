@@ -3265,3 +3265,26 @@ Add your retrospective to PARALLEL_AGENTS.md at the bottom under "Run 8 Retrospe
 ## Run 8 Retrospectives
 
 *(Agents: add your retrospective sections below this line when you finish)*
+
+### Agent B Retrospective (Run 8)
+
+**Tasks completed:**
+1. HTTP integration tests for quests routes (20 tests) — covers active/completed quests, quest completion, quest assignment with validation, and progress updates including auto-complete on target reached
+2. HTTP integration tests for modes routes (18 tests) — covers listing all modes, user modes, adding/removing modes, updating mode settings, and mode quest templates
+3. HTTP integration tests for leaderboard routes (11 tests) — covers cross-mode leaderboard, mode-filtered leaderboard (`?mode=`), weekly rankings, limit capping, and error handling
+
+**Test totals:** 370 TypeScript (29 files) + 172 Python = 542 total, 0 failures
+
+**What went well:**
+- The existing HTTP test pattern (users.http.test.ts, achievements.http.test.ts) from Run 7 was very clear and consistent — made it straightforward to replicate for new routes
+- Writing all three test files was fast because the mock structure (db, cache, pythonTools, auth, rateLimiter) was identical across routes
+- Only 2 test failures in the initial run, both due to mock field name mismatches (`total_completed` vs `total_quests_completed` SQL alias, `mode_quests` vs `mode_quests_completed`), fixed quickly
+
+**What could be improved:**
+- When writing mock data for query results, always double-check the SQL column aliases in the route code — the column name from the subquery (e.g., `total_completed`) may differ from the final alias in the SELECT (e.g., `AS total_quests_completed`). Reading the formatting function that maps `row.field_name` is the quickest way to get mock field names right
+- The quests route has a mix of `executePythonTool`-based endpoints and direct SQL endpoints (`PATCH /progress`), which required two different mocking strategies in the same test file
+
+**Commits:**
+1. `27d2b9d` — Add HTTP integration tests for quests routes
+2. `ddb8350` — Add HTTP integration tests for modes routes
+3. `99d3439` — Add HTTP integration tests for leaderboard routes
