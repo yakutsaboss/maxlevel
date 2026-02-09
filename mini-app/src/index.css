@@ -201,3 +201,12 @@ a:focus-visible,
 .pull-indicator.refreshing svg {
   animation: spin 0.8s linear infinite;
 }
+
+@keyframes achievementGlow {
+  0%, 100% { box-shadow: 0 0 4px rgba(234, 179, 8, 0.3); }
+  50% { box-shadow: 0 0 12px rgba(234, 179, 8, 0.6); }
+}
+
+.achievement-new {
+  animation: achievementGlow 2s ease-in-out infinite;
+}

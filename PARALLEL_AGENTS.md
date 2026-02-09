@@ -2859,3 +2859,24 @@ Add your retrospective to PARALLEL_AGENTS.md at the bottom under "Run 7 Retrospe
 - Consider adding `setHeader` to the shared `mockResponse()` in setup.ts so all middleware tests can use it.
 - The Python test count (172) hasn't grown — could add tests for any new Python tools.
 - HTTP tests currently don't test auth middleware behavior (it's mocked to pass-through). Consider adding dedicated tests where auth rejects requests to verify 401 responses at the HTTP level.
+
+### Agent A Retrospective (Run 7 — Mini-App UX Polish)
+
+**Completed: 5/5 tasks**
+
+**Commits (3):**
+1. `69a0000` — Expand reminder time picker to full 24-hour range
+2. `494c371` — Add ErrorBoundary component for graceful error recovery
+3. `d954747` — Highlight recently unlocked achievements with NEW badge
+
+**What was done:**
+- **Settings.tsx**: Replaced 4 hardcoded reminder time buttons with a horizontal scrollable 24-hour picker. Each hour shows the UTC time plus the user's local equivalent (via `toLocaleTimeString`). The currently selected hour remains highlighted.
+- **ErrorBoundary.tsx**: Created a new React class component error boundary. Catches render errors and shows a friendly UI with "Try Again" button that reloads the page. Styled consistently with existing error states (red-50 card, AlertCircle icon).
+- **Retry buttons (Task 3)**: All 6 pages (Dashboard, Quests, Profile, Leaderboard, Achievements, Settings) already had retry buttons with RefreshCw icons from previous runs. No changes needed.
+- **Achievements.tsx**: Added `isRecentlyUnlocked()` helper checking if `unlocked_at` is within 24 hours. Recently unlocked achievements get a yellow "NEW" badge (top-left) and a subtle CSS glow animation (`achievement-new` class in index.css).
+- **Build verification**: `tsc && vite build` passes cleanly — 0 errors, 6 output files.
+
+**Observations:**
+- Task 3 (retry buttons) was a no-op — all error states already had retry functionality from Run 6's work. The consistent error pattern across pages made this straightforward to verify.
+- The ErrorBoundary is created but not wired into App.tsx (which is LOCKED for Agent A). It should be wrapped around routes in App.tsx during merge.
+- The achievement glow uses pure CSS animation (no framer-motion dependency for this effect) keeping it lightweight.
