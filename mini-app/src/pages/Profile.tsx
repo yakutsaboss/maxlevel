@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useTelegram } from '@/hooks/useTelegram';
 import { apiClient } from '@/api/client';
 import { UserStats, UserAchievement, Achievement } from '@/types';
-import { Trophy, Award, TrendingUp, Calendar, Zap, Star, AlertCircle, RefreshCw, Pencil, Lock, CheckCircle } from 'lucide-react';
+import { Trophy, Award, TrendingUp, Calendar, Zap, Star, AlertCircle, RefreshCw, Pencil, Lock, CheckCircle, Settings } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { ProfileEditModal } from '@/components/ProfileEditModal';
 
@@ -24,6 +25,7 @@ function getAchievementProgress(ach: Achievement, stats: UserStats | null): numb
 
 export function Profile() {
   const { user, haptic } = useTelegram();
+  const navigate = useNavigate();
   const [stats, setStats] = useState<UserStats | null>(null);
   const [achievements, setAchievements] = useState<UserAchievement[]>([]);
   const [allAchievements, setAllAchievements] = useState<Achievement[]>([]);
@@ -114,7 +116,13 @@ export function Profile() {
 
   return (
     <div className="min-h-screen bg-telegram-bg text-telegram-text pb-20">
-      <div className="bg-gradient-to-br from-purple-600 via-pink-600 to-orange-500 p-6 rounded-b-3xl shadow-lg">
+      <div className="bg-gradient-to-br from-purple-600 via-pink-600 to-orange-500 p-6 rounded-b-3xl shadow-lg relative">
+        <button
+          onClick={() => { haptic.impact('light'); navigate('/settings'); }}
+          className="absolute top-4 right-4 bg-white/20 backdrop-blur-sm rounded-full p-2 active:scale-90 transition-transform z-10"
+        >
+          <Settings className="w-5 h-5 text-white" />
+        </button>
         <div className="text-center">
           <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ type: 'spring', stiffness: 200 }} className="inline-block relative mb-4">
             <div className="w-24 h-24 bg-white rounded-full flex items-center justify-center text-4xl font-bold text-purple-600 shadow-xl">
