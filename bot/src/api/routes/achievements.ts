@@ -12,14 +12,16 @@ const router = Router();
  */
 router.get('/', authenticateTelegram, async (req: Request, res: Response) => {
   try {
-    const achievements = await cached('achievements:all', TTL.MEDIUM, () =>
-      query(
+    const achievements = await cached('achievements:all', TTL.MEDIUM, async () => {
+      const rows = await query(
         `SELECT id, name, description, badge_icon AS icon, xp_bonus AS xp_reward,
-                rarity, criteria
+                rarity, criteria,
+                COALESCE(criteria->>'mode', 'general') AS category
          FROM achievements
          ORDER BY rarity DESC, name ASC`
-      )
-    );
+      );
+      return rows;
+    });
 
     res.json({
       achievements,
