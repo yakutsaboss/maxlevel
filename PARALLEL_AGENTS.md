@@ -575,3 +575,31 @@ Find your section under "Run 11 Retrospectives" below and replace the placeholde
 2. Similarly, `apiClient.getUserAchievements()` hits the users.ts route (returns `{success, data}`) but the dedicated achievements.ts route at `/achievements/users/:userId` returns `{achievements, unlocked, total, progress}`. Inconsistency should be resolved.
 3. Consider adding per-mode streak data to the stats API so Dashboard can show streak breakdown by mode.
 4. The achievement check could also be triggered after quest completion on the Quests page if the internal user ID is made available there (e.g., stored in a context/hook after initial stats load).
+
+---
+
+### Run 12 Retrospectives
+
+#### Agent D Retrospective
+
+**Status:** All 4 tasks completed. Build passes with zero errors.
+
+| # | Task | Commit | Status |
+|---|------|--------|--------|
+| 1 | Fix `GET /achievements` response format | `49dc2b6` | Done |
+| 2 | Add per-mode streaks to stats API | `00704f5` | Done |
+| 3 | Clean up user achievements response | `96e285a` | Done |
+| 4 | Build verification | (clean build, no fix needed) | Done |
+
+**Problems faced:** None. The changes were straightforward — two files, well-scoped edits.
+
+**What was done:**
+- `GET /achievements` now returns `{ success: true, data: [...] }` instead of `{ achievements: [...], count: N }`, matching the `ApiResponse` format the mini-app expects. Error response also uses `{ success: false, error }`.
+- Stats API (`GET /users/:telegramId/stats`) now includes `perModeStreaks` array with per-mode streak breakdown (`mode_id`, `mode_name`, `mode_icon`, `current_streak`, `longest_streak`). Added as a 4th parallel query in the existing `Promise.all`, so no extra latency.
+- User achievements response (`GET /users/:telegramId/achievements`) cleaned up: removed legacy `requirement_type`, `requirement_value`, `is_hidden` fields. Added `rarity` as separate field. Changed `category` from being aliased from `rarity` to deriving from `criteria->>'mode'` (matching the `GET /achievements` behavior).
+- Also fixed recent achievements in the stats response — same `rarity`/`category` split and added `rarity` field.
+
+**Recommendations for next run:**
+1. The dedicated achievements route (`GET /achievements/users/:userId`) in `achievements.ts` still returns `{ achievements, unlocked, total, progress }` — not `{ success, data }`. This inconsistency with the users.ts route should be resolved (Agent C's Run 11 recommendation #2).
+2. The `perModeStreaks` query only returns modes with `current_streak > 0`. If Dashboard wants to show all modes (including those with 0 streaks), the filter could be relaxed or the frontend could merge with the modes list.
+3. Consider caching the per-mode streaks query since it runs on every stats fetch.
