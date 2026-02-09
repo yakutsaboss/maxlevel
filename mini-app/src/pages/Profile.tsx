@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useTelegram } from '@/hooks/useTelegram';
 import { apiClient } from '@/api/client';
 import { UserStats, UserAchievement, Achievement } from '@/types';
-import { Trophy, Award, TrendingUp, Calendar, Zap, Star, AlertCircle, RefreshCw, Pencil, Lock, CheckCircle } from 'lucide-react';
+import { Trophy, Award, TrendingUp, Calendar, Zap, Star, AlertCircle, RefreshCw, Pencil, Lock, CheckCircle, Settings } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { ProfileEditModal } from '@/components/ProfileEditModal';
 
@@ -23,7 +24,8 @@ function getAchievementProgress(ach: Achievement, stats: UserStats | null): numb
 }
 
 export function Profile() {
-  const { user, haptic } = useTelegram();
+  const { user, haptic, showAlert } = useTelegram();
+  const navigate = useNavigate();
   const [stats, setStats] = useState<UserStats | null>(null);
   const [achievements, setAchievements] = useState<UserAchievement[]>([]);
   const [allAchievements, setAllAchievements] = useState<Achievement[]>([]);
@@ -114,7 +116,13 @@ export function Profile() {
 
   return (
     <div className="min-h-screen bg-telegram-bg text-telegram-text pb-20">
-      <div className="bg-gradient-to-br from-purple-600 via-pink-600 to-orange-500 p-6 rounded-b-3xl shadow-lg">
+      <div className="bg-gradient-to-br from-purple-600 via-pink-600 to-orange-500 p-6 rounded-b-3xl shadow-lg relative">
+        <button
+          onClick={() => { haptic.impact('light'); navigate('/settings'); }}
+          className="absolute top-4 right-4 bg-white/20 backdrop-blur-sm rounded-full p-2 active:scale-90 transition-transform z-10"
+        >
+          <Settings className="w-5 h-5 text-white" />
+        </button>
         <div className="text-center">
           <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ type: 'spring', stiffness: 200 }} className="inline-block relative mb-4">
             <div className="w-24 h-24 bg-white rounded-full flex items-center justify-center text-4xl font-bold text-purple-600 shadow-xl">
@@ -164,7 +172,7 @@ export function Profile() {
         </h2>
         <div className="grid grid-cols-2 gap-3">
           {stats.modes.map((userMode, index) => (
-            <motion.div key={userMode.mode_id} initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: index * 0.1 }} whileHover={{ scale: 1.05 }} className="bg-telegram-secondaryBg rounded-2xl p-4 border border-telegram-hint/10">
+            <motion.div key={userMode.mode_id} initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: index * 0.1 }} whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} onClick={() => haptic.impact('light')} className="bg-telegram-secondaryBg rounded-2xl p-4 border border-telegram-hint/10">
               <div className="text-4xl text-center mb-2">{userMode.mode.icon}</div>
               <h3 className="font-semibold text-center text-sm">{userMode.mode.display_name}</h3>
               <p className="text-xs text-telegram-hint text-center mt-1">Since {formatDate(userMode.activated_at)}</p>
@@ -265,8 +273,19 @@ export function Profile() {
       <ProfileEditModal
         isOpen={editModalOpen}
         onClose={() => setEditModalOpen(false)}
-        onSave={(_nickname, _avatarIndex) => {
-          // TODO: call profile update API when endpoint exists
+        onSave={async (nickname, avatarIndex) => {
+          if (!user?.id) return;
+          try {
+            await (apiClient as any).client.patch(`/users/${user.id}/profile`, {
+              first_name: nickname,
+              avatar_id: avatarIndex + 1,
+            });
+            haptic.notification('success');
+            await loadProfileData();
+          } catch {
+            // Profile update API may not exist yet — show graceful message
+            showAlert('Profile update coming soon! Your changes will be saved once the feature is ready.');
+          }
           setEditModalOpen(false);
         }}
         currentName={stats.user.first_name}

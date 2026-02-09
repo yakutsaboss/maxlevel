@@ -1,9 +1,11 @@
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { motion } from 'framer-motion';
 import { Dashboard } from '@/pages/Dashboard';
 import { Quests } from '@/pages/Quests';
 import { Profile } from '@/pages/Profile';
 import { Leaderboard } from '@/pages/Leaderboard';
+import { Settings } from '@/pages/Settings';
 import { Onboarding } from '@/pages/Onboarding';
 import { Navigation } from '@/components/Navigation';
 import { useTelegram } from '@/hooks/useTelegram';
@@ -11,6 +13,18 @@ import { useOnboarding } from '@/hooks/useOnboarding';
 import { apiClient } from '@/api/client';
 import { useEffect, useState } from 'react';
 import type { OnboardingStep } from '@/hooks/useOnboarding';
+
+function PageWrapper({ children }: { children: React.ReactNode }) {
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.2, ease: 'easeOut' }}
+    >
+      {children}
+    </motion.div>
+  );
+}
 
 // Create React Query client
 const queryClient = new QueryClient({
@@ -89,19 +103,23 @@ function AppContent() {
         <Route path="/onboarding" element={<Onboarding />} />
         <Route
           path="/dashboard"
-          element={needsOnboarding ? <Navigate to="/onboarding" replace /> : <Dashboard />}
+          element={needsOnboarding ? <Navigate to="/onboarding" replace /> : <PageWrapper><Dashboard /></PageWrapper>}
         />
         <Route
           path="/quests"
-          element={needsOnboarding ? <Navigate to="/onboarding" replace /> : <Quests />}
+          element={needsOnboarding ? <Navigate to="/onboarding" replace /> : <PageWrapper><Quests /></PageWrapper>}
         />
         <Route
           path="/profile"
-          element={needsOnboarding ? <Navigate to="/onboarding" replace /> : <Profile />}
+          element={needsOnboarding ? <Navigate to="/onboarding" replace /> : <PageWrapper><Profile /></PageWrapper>}
         />
         <Route
           path="/leaderboard"
-          element={needsOnboarding ? <Navigate to="/onboarding" replace /> : <Leaderboard />}
+          element={needsOnboarding ? <Navigate to="/onboarding" replace /> : <PageWrapper><Leaderboard /></PageWrapper>}
+        />
+        <Route
+          path="/settings"
+          element={needsOnboarding ? <Navigate to="/onboarding" replace /> : <PageWrapper><Settings /></PageWrapper>}
         />
       </Routes>
       {showNavigation && <Navigation />}

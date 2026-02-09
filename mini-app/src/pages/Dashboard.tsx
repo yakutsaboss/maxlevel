@@ -1,9 +1,64 @@
-import { useEffect, useState, useRef, useCallback } from 'react';
+import { useEffect, useState, useRef, useCallback, memo } from 'react';
 import { useTelegram } from '@/hooks/useTelegram';
 import { apiClient } from '@/api/client';
-import { UserStats } from '@/types';
+import { UserStats, Quest, UserMode, UserAchievement } from '@/types';
 import { Trophy, Zap, Target, Flame, TrendingUp, AlertCircle, RefreshCw, Compass, Scroll } from 'lucide-react';
 import { motion } from 'framer-motion';
+
+const StatCard = memo(function StatCard({ icon, label, value, color }: { icon: React.ReactNode; label: string; value: string | number; color: string }) {
+  return (
+    <motion.div className="bg-telegram-secondaryBg rounded-2xl p-4 shadow-sm border border-telegram-hint/10" whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+      <div className={`${color} w-10 h-10 rounded-xl flex items-center justify-center text-white mb-2`}>{icon}</div>
+      <div className="text-xs text-telegram-hint">{label}</div>
+      <div className="text-xl font-bold text-telegram-text mt-1">{value}</div>
+    </motion.div>
+  );
+});
+
+const ModeCard = memo(function ModeCard({ userMode }: { userMode: UserMode }) {
+  return (
+    <motion.div className="flex-shrink-0 bg-telegram-secondaryBg rounded-xl px-4 py-2 border border-telegram-hint/20" whileHover={{ scale: 1.05 }}>
+      <div className="text-2xl mb-1">{userMode.mode.icon}</div>
+      <div className="text-sm font-medium">{userMode.mode.display_name}</div>
+    </motion.div>
+  );
+});
+
+const QuestCardMini = memo(function QuestCardMini({ quest, onClick }: { quest: Quest; onClick: () => void }) {
+  return (
+    <motion.div className="bg-telegram-secondaryBg rounded-2xl p-4 border border-telegram-hint/10" whileHover={{ scale: 1.02 }} onClick={onClick}>
+      <div className="flex items-start justify-between mb-2">
+        <div className="flex-1 min-w-0">
+          <h3 className="font-semibold text-telegram-text truncate">{quest.title}</h3>
+          <p className="text-sm text-telegram-hint mt-1 line-clamp-2">{quest.description}</p>
+        </div>
+        <div className="flex items-center gap-1 ml-2 flex-shrink-0">
+          <Zap className="w-4 h-4 text-yellow-500" />
+          <span className="text-sm font-semibold text-yellow-600">{quest.xp_reward}</span>
+        </div>
+      </div>
+      <div className="mt-3">
+        <div className="flex justify-between text-xs text-telegram-hint mb-1"><span>Progress</span><span>{quest.progress} / {quest.target}</span></div>
+        <div className="bg-telegram-hint/20 rounded-full h-2 overflow-hidden">
+          <motion.div className="h-full bg-telegram-link" initial={{ width: 0 }} animate={{ width: `${(quest.progress / quest.target) * 100}%` }} transition={{ duration: 0.5 }} />
+        </div>
+      </div>
+      <div className="mt-2 flex items-center gap-2">
+        <span className={`text-xs px-2 py-1 rounded-full ${quest.difficulty === 'easy' ? 'bg-green-100 text-green-700' : quest.difficulty === 'medium' ? 'bg-yellow-100 text-yellow-700' : 'bg-red-100 text-red-700'}`}>{quest.difficulty}</span>
+        <span className="text-xs text-telegram-hint">{quest.frequency}</span>
+      </div>
+    </motion.div>
+  );
+});
+
+const AchievementCard = memo(function AchievementCard({ userAch }: { userAch: UserAchievement }) {
+  return (
+    <motion.div className="bg-telegram-secondaryBg rounded-xl p-3 border border-telegram-hint/10" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
+      <div className="text-3xl text-center mb-2">{userAch.achievement.icon}</div>
+      <div className="text-xs font-medium text-center">{userAch.achievement.name}</div>
+    </motion.div>
+  );
+});
 
 export function Dashboard() {
   const { user, haptic } = useTelegram();
@@ -60,7 +115,7 @@ export function Dashboard() {
     } finally { setLoading(false); }
   };
 
-  const handleQuestClick = (_questId: number) => { haptic.impact('light'); };
+  const handleQuestClick = useCallback((_questId: number) => { haptic.impact('light'); }, [haptic]);
 
   if (loading) {
     return (
@@ -175,10 +230,7 @@ export function Dashboard() {
         ) : (
           <div className="flex gap-2 overflow-x-auto pb-2">
             {stats.modes.map((userMode) => (
-              <motion.div key={userMode.mode_id} className="flex-shrink-0 bg-telegram-secondaryBg rounded-xl px-4 py-2 border border-telegram-hint/20" whileHover={{ scale: 1.05 }}>
-                <div className="text-2xl mb-1">{userMode.mode.icon}</div>
-                <div className="text-sm font-medium">{userMode.mode.display_name}</div>
-              </motion.div>
+              <ModeCard key={userMode.mode_id} userMode={userMode} />
             ))}
           </div>
         )}
@@ -194,28 +246,7 @@ export function Dashboard() {
             </div>
           ) : (
             stats.activeQuests.map((quest) => (
-              <motion.div key={quest.id} className="bg-telegram-secondaryBg rounded-2xl p-4 border border-telegram-hint/10" whileHover={{ scale: 1.02 }} onClick={() => handleQuestClick(quest.id)}>
-                <div className="flex items-start justify-between mb-2">
-                  <div className="flex-1 min-w-0">
-                    <h3 className="font-semibold text-telegram-text truncate">{quest.title}</h3>
-                    <p className="text-sm text-telegram-hint mt-1 line-clamp-2">{quest.description}</p>
-                  </div>
-                  <div className="flex items-center gap-1 ml-2 flex-shrink-0">
-                    <Zap className="w-4 h-4 text-yellow-500" />
-                    <span className="text-sm font-semibold text-yellow-600">{quest.xp_reward}</span>
-                  </div>
-                </div>
-                <div className="mt-3">
-                  <div className="flex justify-between text-xs text-telegram-hint mb-1"><span>Progress</span><span>{quest.progress} / {quest.target}</span></div>
-                  <div className="bg-telegram-hint/20 rounded-full h-2 overflow-hidden">
-                    <motion.div className="h-full bg-telegram-link" initial={{ width: 0 }} animate={{ width: `${(quest.progress / quest.target) * 100}%` }} transition={{ duration: 0.5 }} />
-                  </div>
-                </div>
-                <div className="mt-2 flex items-center gap-2">
-                  <span className={`text-xs px-2 py-1 rounded-full ${quest.difficulty === 'easy' ? 'bg-green-100 text-green-700' : quest.difficulty === 'medium' ? 'bg-yellow-100 text-yellow-700' : 'bg-red-100 text-red-700'}`}>{quest.difficulty}</span>
-                  <span className="text-xs text-telegram-hint">{quest.frequency}</span>
-                </div>
-              </motion.div>
+              <QuestCardMini key={quest.id} quest={quest} onClick={() => handleQuestClick(quest.id)} />
             ))
           )}
         </div>
@@ -226,24 +257,11 @@ export function Dashboard() {
           <h2 className="text-lg font-semibold mb-3 flex items-center gap-2"><Trophy className="w-5 h-5 text-telegram-link" />Recent Achievements</h2>
           <div className="grid grid-cols-2 gap-3">
             {stats.recentAchievements.slice(0, 4).map((userAch) => (
-              <motion.div key={userAch.achievement_id} className="bg-telegram-secondaryBg rounded-xl p-3 border border-telegram-hint/10" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
-                <div className="text-3xl text-center mb-2">{userAch.achievement.icon}</div>
-                <div className="text-xs font-medium text-center">{userAch.achievement.name}</div>
-              </motion.div>
+              <AchievementCard key={userAch.achievement_id} userAch={userAch} />
             ))}
           </div>
         </div>
       )}
     </div>
-  );
-}
-
-function StatCard({ icon, label, value, color }: { icon: React.ReactNode; label: string; value: string | number; color: string }) {
-  return (
-    <motion.div className="bg-telegram-secondaryBg rounded-2xl p-4 shadow-sm border border-telegram-hint/10" whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
-      <div className={`${color} w-10 h-10 rounded-xl flex items-center justify-center text-white mb-2`}>{icon}</div>
-      <div className="text-xs text-telegram-hint">{label}</div>
-      <div className="text-xl font-bold text-telegram-text mt-1">{value}</div>
-    </motion.div>
   );
 }
