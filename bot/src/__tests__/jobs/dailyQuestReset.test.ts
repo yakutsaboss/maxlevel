@@ -57,9 +57,10 @@ describe('dailyQuestReset', () => {
     });
 
     const promise = handler([{} as any]);
+    // Attach rejection handler BEFORE running timers to avoid unhandled rejection
+    const assertion = expect(promise).rejects.toThrow('Failed to list users');
     await vi.runAllTimersAsync();
-
-    await expect(promise).rejects.toThrow('Failed to list users');
+    await assertion;
   });
 
   it('should retry failed user assignments up to 3 times', async () => {
