@@ -13,12 +13,19 @@ interface UserPreferences {
   timezone: string;
 }
 
-const REMINDER_TIMES = [
-  { value: 8, label: '8:00 AM' },
-  { value: 12, label: '12:00 PM' },
-  { value: 18, label: '6:00 PM' },
-  { value: 21, label: '9:00 PM' },
-];
+const ALL_HOURS = Array.from({ length: 24 }, (_, i) => i);
+
+function formatUTCHour(hour: number): string {
+  const suffix = hour < 12 ? 'AM' : 'PM';
+  const h = hour === 0 ? 12 : hour > 12 ? hour - 12 : hour;
+  return `${h}${suffix}`;
+}
+
+function getLocalHour(utcHour: number): string {
+  const now = new Date();
+  const utcDate = new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate(), utcHour, 0));
+  return utcDate.toLocaleTimeString(undefined, { hour: 'numeric', hour12: true });
+}
 
 function detectTimezone(): string {
   try {
@@ -173,21 +180,24 @@ export function Settings() {
               <p className="text-xs text-telegram-hint">When to send daily reminder</p>
             </div>
           </div>
-          <div className="grid grid-cols-4 gap-2">
-            {REMINDER_TIMES.map((time) => (
+          <div className="flex gap-2 overflow-x-auto pb-2 hide-scrollbar">
+            {ALL_HOURS.map((hour) => (
               <button
-                key={time.value}
+                key={hour}
                 onClick={() => {
                   haptic.selection();
-                  setPrefs(p => ({ ...p, reminder_time: time.value }));
+                  setPrefs(p => ({ ...p, reminder_time: hour }));
                 }}
-                className={`py-2 px-1 rounded-xl text-xs font-medium transition-all active:scale-95 ${
-                  prefs.reminder_time === time.value
+                className={`flex-shrink-0 py-2 px-3 rounded-xl text-center transition-all active:scale-95 ${
+                  prefs.reminder_time === hour
                     ? 'bg-telegram-link text-white shadow-md'
                     : 'bg-telegram-bg text-telegram-hint border border-telegram-hint/20'
                 }`}
               >
-                {time.label}
+                <div className="text-xs font-semibold">{formatUTCHour(hour)}</div>
+                <div className={`text-[10px] mt-0.5 ${prefs.reminder_time === hour ? 'text-white/70' : 'text-telegram-hint/70'}`}>
+                  {getLocalHour(hour)}
+                </div>
               </button>
             ))}
           </div>
