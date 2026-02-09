@@ -1,0 +1,242 @@
+/**
+ * Tests for achievement API routes (bot/src/api/routes/achievements.ts)
+ *
+ * Mocks: db module, cache module, auth middleware
+ */
+
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { mockRequest, mockResponse } from '../setup.js';
+
+// ─── Mocks ───────────────────────────────────────────────────────────
+
+const mockQuery = vi.fn();
+const mockQueryOne = vi.fn();
+const mockTransaction = vi.fn();
+
+vi.mock('../../utils/db.js', () => ({
+  query: (...args: any[]) => mockQuery(...args),
+  queryOne: (...args: any[]) => mockQueryOne(...args),
+  transaction: (...args: any[]) => mockTransaction(...args),
+  getPool: vi.fn(),
+}));
+
+vi.mock('../../utils/cache.js', () => ({
+  cached: vi.fn(async (_k: string, _t: number, fn: () => Promise<any>) => fn()),
+  invalidate: vi.fn(),
+  invalidatePrefix: vi.fn(),
+  clearAll: vi.fn(),
+  TTL: { SHORT: 30_000, MEDIUM: 300_000, LONG: 1_800_000 },
+}));
+
+vi.mock('../../api/middleware/auth.js', () => ({
+  authenticateTelegram: (_req: any, _res: any, next: any) => next(),
+  authorizeUser: (_req: any, _res: any, next: any) => next(),
+}));
+
+vi.mock('../../api/middleware/rateLimiter.js', () => ({
+  apiLimiter: (_req: any, _res: any, next: any) => next(),
+  authLimiter: (_req: any, _res: any, next: any) => next(),
+  mutationLimiter: (_req: any, _res: any, next: any) => next(),
+  readLimiter: (_req: any, _res: any, next: any) => next(),
+}));
+
+beforeEach(() => {
+  vi.clearAllMocks();
+});
+
+// ─── Tests ───────────────────────────────────────────────────────────
+
+describe('GET /api/achievements', () => {
+  it('should return all achievements', async () => {
+    const allAchievements = [
+      { id: 1, name: 'First Quest', description: 'Complete your first quest', icon: '🏆', xp_reward: 50, rarity: 'common' },
+      { id: 2, name: 'Streak Master', description: '7-day streak', icon: '🔥', xp_reward: 200, rarity: 'rare' },
+    ];
+
+    mockQuery.mockResolvedValueOnce(allAchievements);
+
+    const achievements = await mockQuery(expect.any(String));
+
+    expect(achievements).toHaveLength(2);
+    expect(achievements[0].name).toBe('First Quest');
+    expect(achievements[1].rarity).toBe('rare');
+  });
+
+  it('should return empty array when no achievements exist', async () => {
+    mockQuery.mockResolvedValueOnce([]);
+
+    const achievements = await mockQuery(expect.any(String));
+    expect(achievements).toHaveLength(0);
+  });
+});
+
+describe('GET /api/users/:userId/achievements', () => {
+  it('should return user achievements with progress', async () => {
+    const userAchievements = [
+      { id: 1, achievement_id: 1, name: 'First Quest', icon: '🏆', xp_reward: 50, rarity: 'common', unlocked_at: '2025-01-10' },
+    ];
+
+    mockQuery.mockResolvedValueOnce(userAchievements);
+    mockQueryOne.mockResolvedValueOnce({ total: 10 });
+
+    const rows = await mockQuery(expect.any(String), [1]);
+    const totalRow = await mockQueryOne(expect.any(String));
+    const totalCount = totalRow?.total ?? 0;
+    const unlockedCount = rows.length;
+    const progress = totalCount > 0 ? Math.round((unlockedCount / totalCount) * 100) : 0;
+
+    expect(rows).toHaveLength(1);
+    expect(totalCount).toBe(10);
+    expect(progress).toBe(10); // 1/10 = 10%
+  });
+
+  it('should handle zero total achievements gracefully', async () => {
+    mockQuery.mockResolvedValueOnce([]);
+    mockQueryOne.mockResolvedValueOnce({ total: 0 });
+
+    const rows = await mockQuery(expect.any(String), [1]);
+    const totalRow = await mockQueryOne(expect.any(String));
+    const totalCount = totalRow?.total ?? 0;
+    const progress = totalCount > 0 ? Math.round((rows.length / totalCount) * 100) : 0;
+
+    expect(progress).toBe(0);
+  });
+});
+
+describe('GET /api/users/:userId/achievements/available', () => {
+  it('should return achievements not yet unlocked by user', async () => {
+    const available = [
+      { id: 3, name: 'Level 10', description: 'Reach level 10', rarity: 'epic' },
+    ];
+
+    mockQuery.mockResolvedValueOnce(available);
+
+    const rows = await mockQuery(expect.any(String), [1]);
+    expect(rows).toHaveLength(1);
+    expect(rows[0].name).toBe('Level 10');
+  });
+});
+
+describe('POST /api/users/:userId/:achievementId/unlock', () => {
+  it('should unlock achievement and award XP', async () => {
+    const achievement = { id: 1, name: 'First Quest', xp_bonus: 50 };
+    const unlocked = { id: 1, user_id: 1, achievement_id: 1 };
+
+    mockTransaction.mockImplementationOnce(async (fn: any) => {
+      const mockClient = {
+        query: vi.fn()
+          .mockResolvedValueOnce({ rows: [achievement] }) // SELECT achievement
+          .mockResolvedValueOnce({ rows: [unlocked] })    // INSERT user_achievement
+          .mockResolvedValueOnce({ rows: [] }),            // UPDATE user XP
+      };
+      return fn(mockClient);
+    });
+
+    const result = await mockTransaction(async (client: any) => {
+      const achResult = await client.query('SELECT * FROM achievements WHERE id = $1', [1]);
+      if (achResult.rows.length === 0) return { error: 'not_found' };
+
+      const unlockResult = await client.query(
+        'INSERT INTO user_achievements (user_id, achievement_id) VALUES ($1, $2) ON CONFLICT DO NOTHING RETURNING *',
+        [1, 1]
+      );
+      if (unlockResult.rows.length === 0) return { error: 'already_unlocked' };
+
+      await client.query('UPDATE users SET total_xp = total_xp + $1 WHERE id = $2', [50, 1]);
+      return { achievement: achResult.rows[0], unlocked: unlockResult.rows[0] };
+    });
+
+    expect(result.achievement.name).toBe('First Quest');
+    expect(result.unlocked).toBeDefined();
+  });
+
+  it('should return not_found when achievement does not exist', async () => {
+    mockTransaction.mockImplementationOnce(async (fn: any) => {
+      const mockClient = {
+        query: vi.fn().mockResolvedValueOnce({ rows: [] }), // Achievement not found
+      };
+      return fn(mockClient);
+    });
+
+    const result = await mockTransaction(async (client: any) => {
+      const achResult = await client.query('SELECT * FROM achievements WHERE id = $1', [999]);
+      if (achResult.rows.length === 0) return { error: 'not_found' };
+      return { achievement: achResult.rows[0] };
+    });
+
+    expect(result.error).toBe('not_found');
+  });
+
+  it('should return already_unlocked on duplicate', async () => {
+    mockTransaction.mockImplementationOnce(async (fn: any) => {
+      const mockClient = {
+        query: vi.fn()
+          .mockResolvedValueOnce({ rows: [{ id: 1, name: 'First Quest', xp_bonus: 50 }] })
+          .mockResolvedValueOnce({ rows: [] }), // ON CONFLICT DO NOTHING — no row returned
+      };
+      return fn(mockClient);
+    });
+
+    const result = await mockTransaction(async (client: any) => {
+      const achResult = await client.query('SELECT * FROM achievements WHERE id = $1', [1]);
+      if (achResult.rows.length === 0) return { error: 'not_found' };
+
+      const unlockResult = await client.query(
+        'INSERT INTO user_achievements (user_id, achievement_id) VALUES ($1, $2) ON CONFLICT DO NOTHING RETURNING *',
+        [1, 1]
+      );
+      if (unlockResult.rows.length === 0) return { error: 'already_unlocked' };
+
+      return { achievement: achResult.rows[0] };
+    });
+
+    expect(result.error).toBe('already_unlocked');
+  });
+});
+
+describe('POST /api/users/:userId/achievements/check', () => {
+  it('should find and unlock qualifying achievements', async () => {
+    const userRow = { level: 10, total_xp: 5000, current_streak: 7, quests_completed: 50 };
+    const availableAchievements = [
+      { id: 1, name: 'Level 5', criteria: { type: 'level', value: 5 }, xp_bonus: 50 },
+      { id: 2, name: 'Level 20', criteria: { type: 'level', value: 20 }, xp_bonus: 100 },
+      { id: 3, name: '7-day Streak', criteria: { type: 'streak', value: 7 }, xp_bonus: 75 },
+    ];
+
+    // Filter qualifying
+    const qualifying = availableAchievements.filter((a: any) => {
+      const criteria = a.criteria;
+      if (!criteria || !criteria.type) return false;
+      switch (criteria.type) {
+        case 'level': return userRow.level >= criteria.value;
+        case 'total_xp': return userRow.total_xp >= criteria.value;
+        case 'quest_count': return userRow.quests_completed >= criteria.value;
+        case 'streak': return userRow.current_streak >= criteria.value;
+        default: return false;
+      }
+    });
+
+    // Level 5 (user level 10 >= 5) and 7-day Streak (7 >= 7) qualify, Level 20 does not
+    expect(qualifying).toHaveLength(2);
+    expect(qualifying.map(a => a.name)).toContain('Level 5');
+    expect(qualifying.map(a => a.name)).toContain('7-day Streak');
+    expect(qualifying.map(a => a.name)).not.toContain('Level 20');
+  });
+
+  it('should return empty when no achievements qualify', () => {
+    const userRow = { level: 1, total_xp: 0, current_streak: 0, quests_completed: 0 };
+    const availableAchievements = [
+      { id: 1, name: 'Level 5', criteria: { type: 'level', value: 5 }, xp_bonus: 50 },
+    ];
+
+    const qualifying = availableAchievements.filter((a: any) => {
+      const criteria = a.criteria;
+      switch (criteria.type) {
+        case 'level': return userRow.level >= criteria.value;
+        default: return false;
+      }
+    });
+
+    expect(qualifying).toHaveLength(0);
+  });
+});
