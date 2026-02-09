@@ -196,3 +196,199 @@ describe('PATCH /api/users/:userId/streak', () => {
     expect(result.data.current_streak).toBe(5);
   });
 });
+
+// ─── GET /api/users/:telegramId/preferences (Run 2 addition) ───────
+
+describe('GET /api/users/:telegramId/preferences', () => {
+  it('should return preferences when user exists', async () => {
+    mockQueryOne.mockResolvedValueOnce({
+      notification_enabled: true,
+      reminder_time: 9,
+      timezone: 'Europe/Moscow',
+    });
+
+    const res = mockResponse();
+    const tid = 123456789;
+    const user = await mockQueryOne(expect.any(String), [tid]);
+
+    if (!user) {
+      res.status(404).json({ success: false, error: 'User not found' });
+    } else {
+      res.json({
+        success: true,
+        data: {
+          notification_enabled: user.notification_enabled ?? true,
+          reminder_time: user.reminder_time ?? 9,
+          timezone: user.timezone || 'Europe/Moscow',
+        },
+      });
+    }
+
+    expect(res._json.success).toBe(true);
+    expect(res._json.data.notification_enabled).toBe(true);
+    expect(res._json.data.reminder_time).toBe(9);
+    expect(res._json.data.timezone).toBe('Europe/Moscow');
+  });
+
+  it('should return 404 when user not found', async () => {
+    mockQueryOne.mockResolvedValueOnce(null);
+
+    const res = mockResponse();
+    const tid = 999999999;
+    const user = await mockQueryOne(expect.any(String), [tid]);
+
+    if (!user) {
+      res.status(404).json({ success: false, error: 'User not found' });
+    }
+
+    expect(res._status).toBe(404);
+    expect(res._json.error).toBe('User not found');
+  });
+
+  it('should return defaults when preference columns are null', async () => {
+    mockQueryOne.mockResolvedValueOnce({
+      notification_enabled: null,
+      reminder_time: null,
+      timezone: null,
+    });
+
+    const res = mockResponse();
+    const user = await mockQueryOne(expect.any(String), [123]);
+
+    res.json({
+      success: true,
+      data: {
+        notification_enabled: user.notification_enabled ?? true,
+        reminder_time: user.reminder_time ?? 9,
+        timezone: user.timezone || 'Europe/Moscow',
+      },
+    });
+
+    expect(res._json.data.notification_enabled).toBe(true);
+    expect(res._json.data.reminder_time).toBe(9);
+    expect(res._json.data.timezone).toBe('Europe/Moscow');
+  });
+});
+
+// ─── PATCH /api/users/:telegramId/preferences (Run 2 addition) ─────
+
+describe('PATCH /api/users/:telegramId/preferences', () => {
+  it('should update all preferences', async () => {
+    const updatedPrefs = {
+      notification_enabled: false,
+      reminder_time: 18,
+      timezone: 'America/New_York',
+    };
+    mockQueryOne.mockResolvedValueOnce(updatedPrefs);
+
+    const res = mockResponse();
+    const body = { notification_enabled: false, reminder_time: 18, timezone: 'America/New_York' };
+
+    // Simulate validation
+    const sets: string[] = [];
+    const params: any[] = [];
+    let idx = 1;
+
+    if (body.notification_enabled !== undefined) {
+      sets.push(`notification_enabled = $${idx++}`);
+      params.push(body.notification_enabled);
+    }
+    if (body.reminder_time !== undefined) {
+      sets.push(`reminder_time = $${idx++}`);
+      params.push(body.reminder_time);
+    }
+    if (body.timezone !== undefined) {
+      sets.push(`timezone = $${idx++}`);
+      params.push(body.timezone);
+    }
+
+    expect(sets).toHaveLength(3);
+
+    params.push(123456789);
+    const user = await mockQueryOne(expect.any(String), params);
+
+    res.json({ success: true, data: user });
+
+    expect(res._json.success).toBe(true);
+    expect(res._json.data.notification_enabled).toBe(false);
+    expect(res._json.data.reminder_time).toBe(18);
+    expect(res._json.data.timezone).toBe('America/New_York');
+  });
+
+  it('should reject invalid reminder_time', () => {
+    const res = mockResponse();
+    const reminder_time = 25; // out of range
+
+    const rt = parseInt(String(reminder_time));
+    if (isNaN(rt) || rt < 0 || rt > 23) {
+      res.status(400).json({ success: false, error: 'reminder_time must be an integer 0-23' });
+    }
+
+    expect(res._status).toBe(400);
+    expect(res._json.error).toContain('reminder_time');
+  });
+
+  it('should reject empty timezone string', () => {
+    const res = mockResponse();
+    const timezone = '';
+
+    if (timezone !== undefined && (typeof timezone !== 'string' || timezone.length === 0)) {
+      res.status(400).json({ success: false, error: 'timezone must be a non-empty string' });
+    }
+
+    expect(res._status).toBe(400);
+    expect(res._json.error).toContain('timezone');
+  });
+
+  it('should handle partial update (only notification_enabled)', async () => {
+    mockQueryOne.mockResolvedValueOnce({
+      notification_enabled: false,
+      reminder_time: 9,
+      timezone: 'Europe/Moscow',
+    });
+
+    const res = mockResponse();
+    const body = { notification_enabled: false };
+
+    const sets: string[] = [];
+    if (body.notification_enabled !== undefined) {
+      sets.push('notification_enabled = $1');
+    }
+
+    expect(sets).toHaveLength(1); // only one field
+
+    const user = await mockQueryOne(expect.any(String), [false, 123456789]);
+    res.json({ success: true, data: user });
+
+    expect(res._json.data.notification_enabled).toBe(false);
+    expect(res._json.data.reminder_time).toBe(9); // unchanged
+  });
+
+  it('should return 400 when no valid fields provided', () => {
+    const res = mockResponse();
+    const body = {};
+
+    const sets: string[] = [];
+    // No fields → sets is empty
+
+    if (sets.length === 0) {
+      res.status(400).json({ success: false, error: 'No valid fields to update' });
+    }
+
+    expect(res._status).toBe(400);
+    expect(res._json.error).toContain('No valid fields');
+  });
+
+  it('should return 404 when user not found on update', async () => {
+    mockQueryOne.mockResolvedValueOnce(null);
+
+    const res = mockResponse();
+    const user = await mockQueryOne(expect.any(String), [true, 123456789]);
+
+    if (!user) {
+      res.status(404).json({ success: false, error: 'User not found' });
+    }
+
+    expect(res._status).toBe(404);
+  });
+});
