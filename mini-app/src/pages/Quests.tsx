@@ -2,7 +2,7 @@ import { useEffect, useState, useRef, useCallback } from 'react';
 import { useTelegram, useMainButton } from '@/hooks/useTelegram';
 import { apiClient } from '@/api/client';
 import { Quest } from '@/types';
-import { Target, Zap, CheckCircle, Clock, Trophy, AlertCircle, RefreshCw, Loader2, Plus, Calendar } from 'lucide-react';
+import { Target, Zap, CheckCircle, Clock, AlertCircle, RefreshCw, Loader2, Plus, Calendar } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 type QuestTab = 'active' | 'completed';
@@ -377,14 +377,3 @@ function QuestCard({ quest, index, isSelected, onClick }: { quest: Quest; index:
   );
 }
 
-function InfoBox({ icon, label, value }: { icon: React.ReactNode; label: string; value: string | number }) {
-  return (
-    <div className="bg-telegram-bg rounded-xl p-3">
-      <div className="flex items-center gap-2 mb-1">
-        <div className="text-telegram-link">{icon}</div>
-        <span className="text-xs text-telegram-hint">{label}</span>
-      </div>
-      <div className="text-lg font-bold">{value}</div>
-    </div>
-  );
-}
