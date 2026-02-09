@@ -2803,3 +2803,28 @@ Add your retrospective to PARALLEL_AGENTS.md at the bottom under "Run 7 Retrospe
 ## Run 7 Retrospectives
 
 *(Agents: add your retrospective sections below this line when you finish)*
+
+### Agent B Retrospective (Run 7)
+
+**Tasks completed:** 5/5
+**Commits:** 5 on `feature/mode-achievements`
+**Build status:** TypeScript passes with 0 errors
+
+**What went well:**
+- Mode-aware achievement checking was clean to implement — the seed data had well-structured criteria JSON, so I could pattern-match directly
+- The gap-and-island SQL pattern for `quest_complete_consecutive` works correctly for counting max consecutive days
+- Admin refactor from 498 lines to 3 focused sub-routers keeps all API paths identical — zero breaking changes
+- Using `Promise.all` in `filterQualifyingAchievements` to check all criteria in parallel keeps the check endpoint fast
+
+**What needed attention:**
+- When splitting admin.ts, modes/broadcast/logs routes were initially placed in admin-users.ts, which would have changed their API paths from `/api/admin/modes` to `/api/admin/users/modes`. Caught this before commit and moved them to admin-stats.ts (mounted at `/` from admin.ts)
+- The leaderboard mode filter required careful JOIN ordering — users must have the mode active (`user_modes`) to appear on mode-specific leaderboards
+
+**Files changed:**
+- `bot/src/api/routes/achievements.ts` — mode-aware criteria + categories endpoint
+- `bot/src/api/routes/leaderboard.ts` — mode filter param
+- `bot/src/api/routes/admin.ts` — thin router mounting sub-routers
+- `bot/src/api/routes/admin-stats.ts` (NEW) — stats, analytics, modes, broadcast, logs
+- `bot/src/api/routes/admin-users.ts` (NEW) — user CRUD
+- `bot/src/api/routes/admin-jobs.ts` (NEW) — job management
+- `bot/src/handlers/REGISTER_THESE_RUN7.md` (NEW) — change documentation
