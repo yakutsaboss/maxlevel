@@ -1684,3 +1684,41 @@ Add your retrospective to PARALLEL_AGENTS.md at the bottom under "Run 5 Retrospe
 ## Run 5 Retrospectives
 
 *(Agents: add your retrospective sections below this line when you finish)*
+
+### Agent B Retrospective (Run 5)
+
+**Branch:** `feature/backend-quality`
+**Build:** `cd bot && npm run build` — PASS (0 errors)
+
+| # | Task | Status | Commits |
+|---|------|--------|---------|
+| 1 | Sync seed_data.sql (add finance & learning modes + 8 quest templates) | Done | `1e0808e` |
+| 2 | Fix leaderboard-refresh job + GET /api/leaderboard (remove leaderboard_mv) | Done | `e8eb563` |
+| 3 | Fix dailySummary.ts Bot type cast (generic instead of as any) | Done | `30f7bb0` |
+| 4 | Add idempotent migration script (database/migrations/run5_sync.sql) | Done | `8212ecc` |
+| 5 | Verify build + create REGISTER_THESE_RUN5.md | Done | `5492049` |
+
+**Files Created:**
+- `database/migrations/run5_sync.sql` — Idempotent migration combining Run 4+5 changes (columns, modes, quests)
+- `bot/src/handlers/REGISTER_THESE_RUN5.md` — Documents all changes
+
+**Files Modified:**
+- `database/seed_data.sql` — Added finance + learning modes (un-commented) and 8 new quest templates
+- `bot/src/jobs/definitions/leaderboardRefresh.ts` — Complete rewrite: direct SQL query + cache pre-warming instead of `REFRESH MATERIALIZED VIEW` on non-existent `leaderboard_mv`
+- `bot/src/api/routes/leaderboard.ts` — `GET /api/leaderboard` now uses direct SQL query with JOINs on streaks + quest_instances instead of `leaderboard_mv`
+- `bot/src/handlers/dailySummary.ts` — Generic type: `sendDailySummary<C extends Context>(bot: Bot<C>, ...)` accepts any Grammy context
+- `bot/src/jobs/definitions/dailySummary.ts` — Removed `as any` cast on `sendDailySummary(botRef, ...)`
+
+**Problems Faced:**
+- None. All 5 tasks completed cleanly. Build passed on first try.
+
+**Notes for Agent 0:**
+- The `leaderboardRefresh` job no longer uses `executePythonTool` — it was completely rewritten to use `query()` + `cached()` directly. This also removes the dependency on `db_operations.py` for this job.
+- The `GET /api/leaderboard` endpoint query matches the refresh job query exactly (same columns, same format) — cache keys are compatible.
+- No changes to `bot/src/index.ts` — no new command registrations needed.
+- The migration script (`run5_sync.sql`) is fully idempotent and can be run on any environment (dev, staging, prod).
+
+**Recommendations for Next Run:**
+1. Consider adding Finance and Learning achievements to `seed_data.sql` (currently only Fitness and Hydration have achievements)
+2. The leaderboard direct query may get slow with many users — consider adding a composite index `CREATE INDEX idx_qi_completed ON quest_instances(user_id, status) WHERE status = 'completed'`
+3. Daily summary job could use timezone-aware scheduling (use `reminder_time` per user instead of fixed 9 PM UTC for all)
