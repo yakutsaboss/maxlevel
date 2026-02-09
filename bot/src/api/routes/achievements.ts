@@ -23,13 +23,10 @@ router.get('/', authenticateTelegram, async (req: Request, res: Response) => {
       return rows;
     });
 
-    res.json({
-      achievements,
-      count: achievements.length,
-    });
+    res.json({ success: true, data: achievements });
   } catch (error) {
     console.error('Error fetching achievements:', error);
-    res.status(500).json({ error: 'Server Error', message: 'Failed to fetch achievements' });
+    res.status(500).json({ success: false, error: 'Failed to fetch achievements' });
   }
 });
 
