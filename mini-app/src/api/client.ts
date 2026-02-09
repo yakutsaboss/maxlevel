@@ -117,6 +117,23 @@ class ApiClient {
     return response.data;
   }
 
+  // User preferences endpoints
+  async getUserPreferences(telegramId: number): Promise<ApiResponse<{ notification_enabled: boolean; reminder_time: number; timezone: string }>> {
+    const response = await this.client.get(`/users/${telegramId}/preferences`);
+    return response.data;
+  }
+
+  async updateUserPreferences(telegramId: number, data: { notification_enabled?: boolean; reminder_time?: number; timezone?: string }): Promise<ApiResponse<any>> {
+    const response = await this.client.patch(`/users/${telegramId}/preferences`, data);
+    return response.data;
+  }
+
+  // User profile update
+  async updateUserProfile(telegramId: number, data: { first_name?: string; avatar_id?: number }): Promise<ApiResponse<any>> {
+    const response = await this.client.patch(`/users/${telegramId}/profile`, data);
+    return response.data;
+  }
+
   // Leaderboard endpoints
   async getLeaderboard(limit = 50): Promise<ApiResponse<any[]>> {
     const response = await this.client.get('/leaderboard', {

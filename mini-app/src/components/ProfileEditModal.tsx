@@ -1,19 +1,23 @@
-import { useState } from 'react';
-import { X, Check, User, Sword, Shield, Heart, Flame, Star, Crown, Gem } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { X, Check, User, Sword, Shield, Heart, Flame, Star, Crown, Gem, Loader2, AlertCircle } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { apiClient } from '@/api/client';
 
 interface ProfileEditModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSave: (nickname: string, avatarIndex: number) => void;
+  onSaved: () => void;
+  telegramId: number;
   currentName: string;
+  currentAvatarId: number;
   haptic: {
     impact: (style: 'light' | 'medium' | 'heavy' | 'rigid' | 'soft') => void;
+    notification: (type: 'error' | 'success' | 'warning') => void;
     selection: () => void;
   };
 }
 
-const AVATAR_OPTIONS = [
+export const AVATAR_OPTIONS = [
   { icon: <User className="w-6 h-6" />, color: 'bg-purple-500', label: 'Adventurer' },
   { icon: <Sword className="w-6 h-6" />, color: 'bg-red-500', label: 'Warrior' },
   { icon: <Shield className="w-6 h-6" />, color: 'bg-blue-500', label: 'Guardian' },
@@ -24,17 +28,47 @@ const AVATAR_OPTIONS = [
   { icon: <Gem className="w-6 h-6" />, color: 'bg-cyan-500', label: 'Mystic' },
 ];
 
-export function ProfileEditModal({ isOpen, onClose, onSave, currentName, haptic }: ProfileEditModalProps) {
+export function ProfileEditModal({ isOpen, onClose, onSaved, telegramId, currentName, currentAvatarId, haptic }: ProfileEditModalProps) {
   const [nickname, setNickname] = useState(currentName);
-  const [selectedAvatar, setSelectedAvatar] = useState(0);
+  const [selectedAvatar, setSelectedAvatar] = useState(Math.max(0, currentAvatarId - 1));
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+  const [errorMsg, setErrorMsg] = useState('');
 
-  const handleSave = () => {
+  useEffect(() => {
+    if (isOpen) {
+      setNickname(currentName);
+      setSelectedAvatar(Math.max(0, currentAvatarId - 1));
+      setSaved(false);
+      setErrorMsg('');
+    }
+  }, [isOpen, currentName, currentAvatarId]);
+
+  const handleSave = async () => {
     haptic.impact('medium');
-    onSave(nickname.trim() || currentName, selectedAvatar);
-    // TODO: call profile update API when endpoint exists
+    setSaving(true);
+    setErrorMsg('');
+    try {
+      await apiClient.updateUserProfile(telegramId, {
+        first_name: nickname.trim() || currentName,
+        avatar_id: selectedAvatar + 1,
+      });
+      setSaved(true);
+      haptic.notification('success');
+      setTimeout(() => {
+        onSaved();
+        onClose();
+      }, 1000);
+    } catch {
+      setErrorMsg('Failed to save profile. Tap Save to retry.');
+      haptic.notification('error');
+    } finally {
+      setSaving(false);
+    }
   };
 
   const handleCancel = () => {
+    if (saving) return;
     haptic.impact('light');
     onClose();
   };
@@ -100,18 +134,35 @@ export function ProfileEditModal({ isOpen, onClose, onSave, currentName, haptic 
               </div>
             </div>
 
+            {errorMsg && (
+              <div className="flex items-center gap-2 text-red-500 text-sm mb-4 bg-red-50 rounded-xl px-3 py-2">
+                <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                <span>{errorMsg}</span>
+              </div>
+            )}
+
             <div className="flex gap-3">
               <button
                 onClick={handleCancel}
-                className="flex-1 py-3 rounded-xl border border-telegram-hint/20 text-telegram-hint font-medium active:scale-95 transition-transform"
+                disabled={saving}
+                className="flex-1 py-3 rounded-xl border border-telegram-hint/20 text-telegram-hint font-medium active:scale-95 transition-transform disabled:opacity-50"
               >
                 Cancel
               </button>
               <button
                 onClick={handleSave}
-                className="flex-1 py-3 rounded-xl bg-telegram-link text-white font-medium flex items-center justify-center gap-2 active:scale-95 transition-transform"
+                disabled={saving || saved}
+                className={`flex-1 py-3 rounded-xl font-medium flex items-center justify-center gap-2 active:scale-95 transition-all disabled:opacity-70 ${
+                  saved ? 'bg-green-500 text-white' : 'bg-telegram-link text-white'
+                }`}
               >
-                <Check className="w-4 h-4" />Save
+                {saving ? (
+                  <><Loader2 className="w-4 h-4 animate-spin" />Saving...</>
+                ) : saved ? (
+                  <><Check className="w-4 h-4" />Saved!</>
+                ) : (
+                  <><Check className="w-4 h-4" />Save</>
+                )}
               </button>
             </div>
           </motion.div>

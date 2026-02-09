@@ -5,7 +5,7 @@ import { apiClient } from '@/api/client';
 import { UserStats, UserAchievement, Achievement } from '@/types';
 import { Trophy, Award, TrendingUp, Calendar, Zap, Star, AlertCircle, RefreshCw, Pencil, Lock, CheckCircle, Settings } from 'lucide-react';
 import { motion } from 'framer-motion';
-import { ProfileEditModal } from '@/components/ProfileEditModal';
+import { ProfileEditModal, AVATAR_OPTIONS } from '@/components/ProfileEditModal';
 
 function formatDate(dateStr: string): string {
   return new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric', year: 'numeric' }).format(new Date(dateStr));
@@ -24,7 +24,7 @@ function getAchievementProgress(ach: Achievement, stats: UserStats | null): numb
 }
 
 export function Profile() {
-  const { user, haptic, showAlert } = useTelegram();
+  const { user, haptic } = useTelegram();
   const navigate = useNavigate();
   const [stats, setStats] = useState<UserStats | null>(null);
   const [achievements, setAchievements] = useState<UserAchievement[]>([]);
@@ -125,9 +125,15 @@ export function Profile() {
         </button>
         <div className="text-center">
           <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ type: 'spring', stiffness: 200 }} className="inline-block relative mb-4">
-            <div className="w-24 h-24 bg-white rounded-full flex items-center justify-center text-4xl font-bold text-purple-600 shadow-xl">
-              {stats.user.first_name.charAt(0).toUpperCase()}
-            </div>
+            {(() => {
+              const avatarIdx = Math.max(0, ((stats.user as any).avatar_id ?? 1) - 1);
+              const avatar = AVATAR_OPTIONS[avatarIdx] || AVATAR_OPTIONS[0];
+              return (
+                <div className={`w-24 h-24 ${avatar.color} rounded-full flex items-center justify-center shadow-xl`}>
+                  <div className="text-white scale-[2]">{avatar.icon}</div>
+                </div>
+              );
+            })()}
             <div className="absolute -bottom-2 -right-2 bg-yellow-400 rounded-full px-3 py-1 shadow-lg">
               <span className="text-sm font-bold text-purple-900">Lv {stats.user.level}</span>
             </div>
@@ -273,23 +279,11 @@ export function Profile() {
       <ProfileEditModal
         isOpen={editModalOpen}
         onClose={() => setEditModalOpen(false)}
-        onSave={async (nickname, avatarIndex) => {
-          if (!user?.id) return;
-          try {
-            await (apiClient as any).client.patch(`/users/${user.id}/profile`, {
-              first_name: nickname,
-              avatar_id: avatarIndex + 1,
-            });
-            haptic.notification('success');
-            await loadProfileData();
-          } catch {
-            // Profile update API may not exist yet — show graceful message
-            showAlert('Profile update coming soon! Your changes will be saved once the feature is ready.');
-          }
-          setEditModalOpen(false);
-        }}
+        onSaved={() => loadProfileData()}
+        telegramId={user!.id}
         currentName={stats.user.first_name}
-        haptic={{ impact: haptic.impact, selection: haptic.selection }}
+        currentAvatarId={(stats.user as any).avatar_id ?? 1}
+        haptic={{ impact: haptic.impact, notification: haptic.notification, selection: haptic.selection }}
       />
     </div>
   );
