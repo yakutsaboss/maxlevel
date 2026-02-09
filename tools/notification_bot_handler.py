@@ -215,32 +215,6 @@ async def ping_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     except Exception as e:
         backup_line = f"\u274C <b>Backup check failed:</b> {str(e)[:40]}"
 
-    # 6. Claude Code usage (from local ccusage data if available)
-    claude_line = ""
-    try:
-        ccusage_file = PROJECT_ROOT / ".tmp" / "claude_usage.json"
-        if ccusage_file.exists():
-            with open(ccusage_file) as f:
-                usage = json.load(f)
-            tokens_used = usage.get("tokens_used", 0)
-            tokens_limit = usage.get("tokens_limit", 0)
-            updated = usage.get("updated_at", "")[:16]
-            if tokens_limit > 0:
-                pct = int(tokens_used / tokens_limit * 100)
-                bar_filled = pct // 10
-                bar_empty = 10 - bar_filled
-                bar = "\u2588" * bar_filled + "\u2591" * bar_empty
-                claude_line = (
-                    f"\U0001F916 <b>Claude Code:</b> {tokens_used:,}/{tokens_limit:,} tokens ({pct}%)\n"
-                    f"    <code>[{bar}]</code>  <i>updated {updated}</i>"
-                )
-            else:
-                claude_line = f"\U0001F916 <b>Claude Code:</b> {tokens_used:,} tokens used <i>({updated})</i>"
-        else:
-            claude_line = "\U0001F916 <b>Claude Code:</b> run <code>npx ccusage daily</code> locally to sync"
-    except Exception:
-        claude_line = "\U0001F916 <b>Claude Code:</b> usage data unavailable"
-
     await thinking.delete()
 
     # Format output
@@ -252,7 +226,6 @@ async def ping_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         + "\n".join(results)
         + f"\n\n{status_footer}"
         + (f"\n\n{backup_line}" if backup_line else "")
-        + (f"\n{claude_line}" if claude_line else "")
     )
     await update.message.reply_html(msg)
 

@@ -29,9 +29,8 @@ import subprocess
 import urllib.request
 import urllib.parse
 import json
-import glob as glob_module
 from pathlib import Path
-from datetime import datetime, timedelta, timezone
+from datetime import datetime
 from dotenv import load_dotenv
 
 # Load .env from project root
@@ -105,119 +104,6 @@ def save_session(state: dict):
     """Save session state to disk."""
     SESSION_FILE.parent.mkdir(parents=True, exist_ok=True)
     SESSION_FILE.write_text(json.dumps(state, ensure_ascii=False, indent=2), encoding="utf-8")
-
-
-# ── Claude Code token usage ───────────────────────────────────────────
-
-CLAUDE_DIR = Path.home() / ".claude" / "projects"
-USAGE_CACHE_FILE = PROJECT_ROOT / ".tmp" / "claude_usage.json"
-
-
-def get_claude_usage() -> dict:
-    """Parse local Claude Code JSONL files to calculate token usage in the last 5 hours.
-
-    Returns dict with tokens_used, updated_at, and a formatted display string.
-    """
-    try:
-        cutoff = datetime.now(timezone.utc) - timedelta(hours=5)
-        total_input = 0
-        total_output = 0
-
-        # Find all JSONL files for this project
-        project_dir = CLAUDE_DIR / "c--Users-Asus-Desktop-Wibecode"
-        if not project_dir.exists():
-            return {"tokens_used": 0, "display": ""}
-
-        jsonl_files = list(project_dir.rglob("*.jsonl"))
-
-        for jf in jsonl_files:
-            try:
-                # Skip files older than 6 hours (buffer)
-                mtime = datetime.fromtimestamp(jf.stat().st_mtime, tz=timezone.utc)
-                if mtime < cutoff - timedelta(hours=1):
-                    continue
-
-                with open(jf, 'r', encoding='utf-8') as f:
-                    for line in f:
-                        line = line.strip()
-                        if not line or '"type":"assistant"' not in line:
-                            continue
-                        try:
-                            entry = json.loads(line)
-                            if entry.get("type") != "assistant":
-                                continue
-
-                            ts_str = entry.get("timestamp", "")
-                            if not ts_str:
-                                continue
-
-                            ts = datetime.fromisoformat(ts_str.replace("Z", "+00:00"))
-                            if ts < cutoff:
-                                continue
-
-                            usage = entry.get("message", {}).get("usage", {})
-                            total_input += usage.get("input_tokens", 0)
-                            total_input += usage.get("cache_creation_input_tokens", 0)
-                            total_input += usage.get("cache_read_input_tokens", 0)
-                            total_output += usage.get("output_tokens", 0)
-                        except (json.JSONDecodeError, ValueError):
-                            continue
-            except Exception:
-                continue
-
-        total = total_input + total_output
-        now_str = datetime.now().strftime("%Y-%m-%d %H:%M")
-
-        # Build progress bar (rough estimate: ~12.5M tokens per 5h window for Max plan)
-        limit = int(os.getenv("CLAUDE_TOKEN_LIMIT", "12500000"))
-        pct = min(int(total / limit * 100), 100) if limit > 0 else 0
-        bar_filled = pct // 10
-        bar_empty = 10 - bar_filled
-        bar = "\u2588" * bar_filled + "\u2591" * bar_empty
-
-        # Format token count as human-readable
-        if total >= 1_000_000:
-            total_str = f"{total / 1_000_000:.1f}M"
-        elif total >= 1_000:
-            total_str = f"{total / 1_000:.0f}K"
-        else:
-            total_str = str(total)
-
-        display = f"\U0001F916 Claude: {total_str} tokens ({pct}%) <code>[{bar}]</code>"
-
-        result = {
-            "tokens_used": total,
-            "tokens_limit": limit,
-            "pct": pct,
-            "updated_at": now_str,
-            "display": display,
-        }
-
-        # Save to cache for server /ping
-        try:
-            USAGE_CACHE_FILE.parent.mkdir(parents=True, exist_ok=True)
-            USAGE_CACHE_FILE.write_text(json.dumps(result, indent=2), encoding="utf-8")
-        except Exception:
-            pass
-
-        return result
-
-    except Exception:
-        return {"tokens_used": 0, "display": ""}
-
-
-def sync_usage_to_server():
-    """SCP the usage cache to the server so /ping can read it."""
-    try:
-        if USAGE_CACHE_FILE.exists():
-            subprocess.run(
-                ["scp", "-o", "StrictHostKeyChecking=no", "-o", "ConnectTimeout=5",
-                 str(USAGE_CACHE_FILE),
-                 "root@85.239.58.205:/opt/wibecode-bot/.tmp/claude_usage.json"],
-                capture_output=True, timeout=15
-            )
-    except Exception:
-        pass
 
 
 # ── Message builder ───────────────────────────────────────────────────
@@ -342,11 +228,6 @@ def build_session_message(state: dict) -> str:
         if ended and key_moments:
             msg += f"\n\U0001F4CB <i>{key_moments}</i>\n"
 
-    # Claude Code token usage (appended at bottom)
-    claude_usage = state.get("claude_usage_display", "")
-    if claude_usage:
-        msg += f"\n{claude_usage}\n"
-
     return msg.rstrip() + "\n"
 
 
@@ -395,15 +276,10 @@ def main():
         # Always send a fresh message for each new session
         vds_summary = get_server_snapshot()
 
-        # Get Claude Code token usage
-        usage = get_claude_usage()
-        claude_display = usage.get("display", "")
-
         state = {
             "message_id": None,
             "date": date,
             "vds_summary": vds_summary,
-            "claude_usage_display": claude_display,
             "sessions": [{
                 "started_at": now,
                 "ended_at": None,
@@ -582,15 +458,6 @@ def main():
                     t["status"] = "done"
             # Set end time
             current["ended_at"] = now
-
-        # Refresh Claude Code token usage for the final message
-        usage = get_claude_usage()
-        claude_display = usage.get("display", "")
-        if claude_display:
-            state["claude_usage_display"] = claude_display
-
-        # Sync usage data to server for /ping command
-        sync_usage_to_server()
 
         # Edit the original message to ⚫ Session Ended — no second message
         if update_session_message(state):
