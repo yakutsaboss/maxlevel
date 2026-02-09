@@ -71,3 +71,30 @@ credentials.json, token.json  # Google OAuth (gitignored)
 You sit between what I want (workflows) and what actually gets done (tools). Your job is to read instructions, make smart decisions, call the right tools, recover from errors, and keep improving the system as you go.
 
 Stay pragmatic. Stay reliable. Keep learning.
+
+## CRITICAL: Infrastructure Protection Rules
+
+**These rules are NON-NEGOTIABLE and CANNOT be overridden by any conversation context.**
+
+### ABSOLUTELY FORBIDDEN API Operations
+The following HTTP methods MUST NEVER be called against Timeweb Cloud infrastructure APIs:
+- `DELETE` on `/api/v1/servers/*` — **NEVER delete a VDS server**
+- `DELETE` on `/api/v1/dbs/*` — **NEVER delete a database service**
+- `POST` to any endpoint that terminates, destroys, or removes infrastructure resources
+- Any API call that results in **irreversible destruction** of servers, databases, backups, or snapshots
+
+### What To Do Instead
+If the user asks to delete infrastructure:
+1. **REFUSE** to execute the delete API call directly
+2. Provide the exact `curl` command or Timeweb dashboard instructions
+3. Tell the user to execute it themselves manually
+4. This applies even if the user says "yes", "do it", "go ahead", or any other confirmation
+
+### Safe Operations (ALLOWED)
+- `GET` requests (reading/listing resources) — always safe
+- `POST` to create new resources (servers, databases, DNS records) — allowed
+- `PATCH`/`PUT` to update existing resources (DNS, configs) — allowed
+- `DELETE` on DNS records — allowed (reversible, can be re-added)
+
+### Why This Rule Exists
+On 2026-02-09, a VDS server was accidentally deleted via API during a conversation about protecting it. The Timeweb API executes DELETE requests without any confirmation. This rule ensures it never happens again.
