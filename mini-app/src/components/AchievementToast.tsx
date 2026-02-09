@@ -1,0 +1,45 @@
+import { useEffect } from 'react';
+import { motion } from 'framer-motion';
+import { Achievement } from '@/types';
+import { Zap } from 'lucide-react';
+
+interface AchievementToastProps {
+  achievement: Achievement;
+  onClose: () => void;
+}
+
+export function AchievementToast({ achievement, onClose }: AchievementToastProps) {
+  useEffect(() => {
+    const timer = setTimeout(onClose, 4000);
+    return () => clearTimeout(timer);
+  }, [onClose]);
+
+  return (
+    <motion.div
+      initial={{ y: 100, opacity: 0 }}
+      animate={{ y: 0, opacity: 1 }}
+      exit={{ y: 100, opacity: 0 }}
+      transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+      className="fixed bottom-24 left-4 right-4 z-50"
+    >
+      <div
+        className="bg-gradient-to-r from-amber-500 to-yellow-500 rounded-2xl p-4 shadow-lg border border-amber-400/50"
+        onClick={onClose}
+      >
+        <div className="flex items-center gap-3">
+          <div className="bg-white/20 backdrop-blur-sm rounded-xl p-2.5 text-3xl flex-shrink-0">
+            {achievement.icon || '🏆'}
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="text-xs font-semibold text-amber-900/70 uppercase tracking-wider">Achievement Unlocked!</div>
+            <div className="text-base font-bold text-white truncate mt-0.5">{achievement.name}</div>
+            <div className="flex items-center gap-1 mt-1">
+              <Zap className="w-3.5 h-3.5 text-white" />
+              <span className="text-sm font-semibold text-white">+{achievement.xp_reward} XP</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </motion.div>
+  );
+}

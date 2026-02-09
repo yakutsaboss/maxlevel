@@ -104,6 +104,11 @@ class ApiClient {
     return response.data;
   }
 
+  async checkAchievements(userId: number): Promise<ApiResponse<{ newAchievements: any[]; count: number }>> {
+    const response = await this.client.post(`/users/${userId}/achievements/check`);
+    return { success: true, data: response.data };
+  }
+
   // Mode endpoints
   async addUserMode(userId: number, modeId: number): Promise<ApiResponse<any>> {
     const response = await this.client.post(`/users/${userId}/modes`, {

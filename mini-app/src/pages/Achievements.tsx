@@ -88,10 +88,10 @@ export function Achievements() {
   const unlockedCount = userAchievements.length;
   const totalCount = allAchievements.length;
 
-  // Group by rarity (category field maps to rarity)
+  // Group by rarity
   const grouped = RARITY_ORDER.map(rarity => ({
     rarity,
-    achievements: allAchievements.filter(a => a.category === rarity),
+    achievements: allAchievements.filter(a => a.rarity === rarity),
   })).filter(g => g.achievements.length > 0);
 
   if (loading) {
@@ -229,7 +229,7 @@ export function Achievements() {
                         {isUnlocked ? ach.icon : '?'}
                       </div>
                       <h3 className="text-sm font-semibold text-center line-clamp-2 mb-1">
-                        {isUnlocked || !ach.is_hidden ? ach.name : '???'}
+                        {isUnlocked ? ach.name : '???'}
                       </h3>
                       {isUnlocked ? (
                         <>

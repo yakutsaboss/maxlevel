@@ -62,10 +62,9 @@ export interface Achievement {
   description: string;
   icon: string;
   xp_reward: number;
+  rarity: string;
   category: string;
-  requirement_type: string;
-  requirement_value: number;
-  is_hidden: boolean;
+  criteria?: Record<string, any>;
 }
 
 export interface UserAchievement {
