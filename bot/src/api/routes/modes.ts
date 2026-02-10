@@ -40,7 +40,7 @@ router.get('/users/:userId', authenticateTelegram, async (req: Request, res: Res
       [userId]
     );
 
-    res.json({ modes: rows, count: rows.length });
+    res.json({ success: true, data: { modes: rows, count: rows.length } });
   } catch (error) {
     console.error('Error fetching user modes:', error);
     res.status(500).json({ error: 'Server Error', message: 'Failed to fetch user modes' });
