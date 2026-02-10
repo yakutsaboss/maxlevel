@@ -42,13 +42,6 @@ function AppContent() {
     checkOnboardingState();
   }, [user?.id]);
 
-  // When onboarding completes in-session, update routing immediately
-  useEffect(() => {
-    if (store.isCompleted) {
-      setNeedsOnboarding(false);
-    }
-  }, [store.isCompleted]);
-
   const checkOnboardingState = async () => {
     if (!user?.id) {
       setCheckingOnboarding(false);
@@ -79,6 +72,10 @@ function AppContent() {
     }
   };
 
+  // Derive synchronously: if store says completed, override needsOnboarding immediately
+  // This prevents the race where useEffect fires too late and ProtectedRoute redirects back
+  const effectiveNeedsOnboarding = needsOnboarding && !store.isCompleted;
+
   if (checkingOnboarding) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-telegram-bg">
@@ -88,7 +85,7 @@ function AppContent() {
   }
 
   const isOnboardingRoute = location.pathname === '/onboarding';
-  const showNavigation = !isOnboardingRoute && !needsOnboarding;
+  const showNavigation = !isOnboardingRoute && !effectiveNeedsOnboarding;
 
   return (
     <div className="app-container">
@@ -96,18 +93,18 @@ function AppContent() {
         <Route
           path="/"
           element={
-            needsOnboarding
+            effectiveNeedsOnboarding
               ? <Navigate to="/onboarding" replace />
               : <Navigate to="/dashboard" replace />
           }
         />
         <Route path="/onboarding" element={<Onboarding />} />
-        <Route path="/dashboard" element={<ProtectedRoute needsOnboarding={needsOnboarding}><Dashboard /></ProtectedRoute>} />
-        <Route path="/quests" element={<ProtectedRoute needsOnboarding={needsOnboarding}><Quests /></ProtectedRoute>} />
-        <Route path="/profile" element={<ProtectedRoute needsOnboarding={needsOnboarding}><Profile /></ProtectedRoute>} />
-        <Route path="/leaderboard" element={<ProtectedRoute needsOnboarding={needsOnboarding} lazy><Leaderboard /></ProtectedRoute>} />
-        <Route path="/achievements" element={<ProtectedRoute needsOnboarding={needsOnboarding} lazy><Achievements /></ProtectedRoute>} />
-        <Route path="/settings" element={<ProtectedRoute needsOnboarding={needsOnboarding} lazy><Settings /></ProtectedRoute>} />
+        <Route path="/dashboard" element={<ProtectedRoute needsOnboarding={effectiveNeedsOnboarding}><Dashboard /></ProtectedRoute>} />
+        <Route path="/quests" element={<ProtectedRoute needsOnboarding={effectiveNeedsOnboarding}><Quests /></ProtectedRoute>} />
+        <Route path="/profile" element={<ProtectedRoute needsOnboarding={effectiveNeedsOnboarding}><Profile /></ProtectedRoute>} />
+        <Route path="/leaderboard" element={<ProtectedRoute needsOnboarding={effectiveNeedsOnboarding} lazy><Leaderboard /></ProtectedRoute>} />
+        <Route path="/achievements" element={<ProtectedRoute needsOnboarding={effectiveNeedsOnboarding} lazy><Achievements /></ProtectedRoute>} />
+        <Route path="/settings" element={<ProtectedRoute needsOnboarding={effectiveNeedsOnboarding} lazy><Settings /></ProtectedRoute>} />
         <Route path="/admin" element={<LazyPageWrapper><Admin /></LazyPageWrapper>} />
       </Routes>
       {showNavigation && <Navigation />}
