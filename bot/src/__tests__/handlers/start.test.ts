@@ -65,6 +65,7 @@ describe('handleStart', () => {
       id: 1,
       current_level: 5,
       total_xp: 2500,
+      is_active: true,
     };
 
     // getUserByTelegramId → queryOne returns user directly
@@ -103,7 +104,7 @@ describe('handleStart', () => {
     mockGetUserName.mockReturnValue('Bob');
 
     // getUserByTelegramId → queryOne returns user
-    mockQueryOne.mockResolvedValueOnce({ id: 2, current_level: 3, total_xp: 800 });
+    mockQueryOne.mockResolvedValueOnce({ id: 2, current_level: 3, total_xp: 800, is_active: true });
 
     // getActiveQuests → query throws (DB error)
     mockQuery.mockRejectedValueOnce(new Error('timeout'));
