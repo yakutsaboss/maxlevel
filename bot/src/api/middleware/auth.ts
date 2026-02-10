@@ -1,7 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import crypto from 'crypto';
 import { TelegramUser, TelegramInitData } from '../../types/telegram.js';
-import { getUserByTelegramId, getUserById } from '../../utils/pythonTools.js';
+import { queryOne } from '../../utils/db.js';
 
 /**
  * Validates Telegram WebApp initData
@@ -187,10 +187,21 @@ export async function authorizeUser(req: Request, res: Response, next: NextFunct
   }
 
   try {
-    // Get user from database
-    const result = await getUserByTelegramId(telegramUser.id);
+    // Get user from database (native SQL — no Python subprocess)
+    const dbUser = await queryOne<{
+      id: number;
+      telegram_id: bigint;
+      username: string | null;
+      first_name: string;
+      avatar_id: number | null;
+      is_active: boolean;
+    }>(
+      `SELECT id, telegram_id, username, first_name, avatar_id, is_active
+       FROM users WHERE telegram_id = $1`,
+      [telegramUser.id]
+    );
 
-    if (!result.success || !result.data) {
+    if (!dbUser) {
       console.warn(`[AUTHZ] User not found in database: telegram_id=${telegramUser.id}`);
       res.status(404).json({
         error: 'Not Found',
@@ -198,8 +209,6 @@ export async function authorizeUser(req: Request, res: Response, next: NextFunct
       });
       return;
     }
-
-    const dbUser = result.data;
 
     // Check if user is active
     if (!dbUser.is_active) {
