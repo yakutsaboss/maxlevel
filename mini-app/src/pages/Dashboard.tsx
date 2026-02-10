@@ -1,9 +1,6 @@
-import { useEffect, useState, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { useTelegram } from '@/hooks/useTelegram';
-import { usePullToRefresh, PullIndicator } from '@/hooks/usePullToRefresh';
-import { apiClient } from '@/api/client';
-import { UserStats, Achievement } from '@/types';
+import { useDashboardData } from '@/hooks/useDashboardData';
+import { PullIndicator } from '@/hooks/usePullToRefresh';
 import { Trophy, Zap, Target, Flame, TrendingUp, Compass, Scroll } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { AchievementToast } from '@/components/AchievementToast';
@@ -19,59 +16,13 @@ import { DashboardSkeleton } from '@/components/dashboard/DashboardSkeleton';
 
 export function Dashboard() {
   const { user, haptic } = useTelegram();
-  const navigate = useNavigate();
-  const [stats, setStats] = useState<UserStats | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(false);
-  const [toastAchievement, setToastAchievement] = useState<Achievement | null>(null);
-
-  const checkForNewAchievements = async (userId: number) => {
-    try {
-      const res = await apiClient.checkAchievements(userId);
-      if (res.success && res.data && res.data.newAchievements.length > 0) {
-        const ach = res.data.newAchievements[0];
-        setToastAchievement({
-          id: ach.id,
-          name: ach.name,
-          description: ach.description,
-          icon: ach.badge_icon || ach.icon || '🏆',
-          xp_reward: ach.xp_bonus || ach.xp_reward || 0,
-          rarity: ach.rarity || 'common',
-          category: ach.category || 'general',
-        });
-        haptic.notification('success');
-      }
-    } catch (err) {
-      console.error('Achievement check failed:', err);
-    }
-  };
-
-  const loadUserStats = async (checkAchievements = false) => {
-    if (!user?.id) { setLoading(false); return; }
-    try {
-      setLoading(true);
-      setError(false);
-      const response = await apiClient.getUserStats(user.id);
-      if (response.success && response.data) {
-        setStats(response.data);
-        if (checkAchievements && response.data.user.id) {
-          checkForNewAchievements(response.data.user.id).catch(console.error);
-        }
-      }
-    } catch (error) {
-      console.error('Failed to load user stats:', error);
-      setError(true);
-    } finally { setLoading(false); }
-  };
-
-  const handleRefresh = useCallback(async () => {
-    await loadUserStats(true);
-  }, []);
-  const { containerRef, pullDistance, refreshing, pullThreshold, touchHandlers } = usePullToRefresh(handleRefresh, haptic);
-
-  useEffect(() => { loadUserStats(false); }, [user]);
-
-  const handleQuestClick = useCallback((_questId: number) => { haptic.impact('light'); navigate('/quests'); }, [haptic, navigate]);
+  const {
+    stats, loading, error,
+    toastAchievement, setToastAchievement,
+    loadUserStats,
+    containerRef, pullDistance, refreshing, pullThreshold, touchHandlers,
+    handleQuestClick,
+  } = useDashboardData({ userId: user?.id, haptic });
 
   if (loading) {
     return <DashboardSkeleton />;
