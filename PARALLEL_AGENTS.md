@@ -191,17 +191,23 @@ Use this structure when creating a new run. Copy and adapt:
 
 ---
 
-## Known Issues (Updated after Run 23, Run 24 targets marked)
+## Known Issues (Updated after Run 24)
 
 ### Still Open
 1. **pg-boss Node.js mismatch** — Requires 22.12+, server has 20.20. Only triggers warnings, no functional impact yet.
 2. **Mode configs unused** — `mode_configs` table stores quiz responses + personalized plans, but data is never consumed.
 3. **Delete account e2e testing** — confirm soft delete flow works end-to-end in Telegram (Agent B Run 18 recommendation).
-4. **POST /analytics/export still uses executePythonTool** — Justified (Google Sheets OAuth integration), only remaining Python subprocess in ALL routes.
-5. **`updateStreak()` duplicated** — Same logic exists in quests.ts (Agent C) and users.ts (Agent E). Could extract to shared `utils/streak.ts` (Agent C Run 23 recommendation). **→ Run 24 Agent D**
-6. **Onboarding mode-add outside transaction** — Step 1 in onboarding.ts runs mode adds outside the transaction block. Could move inside for atomicity (Agent E Run 23 recommendation).
-7. **Python tools still called by jobs/handlers** — `executePythonTool` eliminated from all API routes, but still used by: `dailyQuestReset.ts`, `questReminders.ts`, `streakCheck.ts`, `analyticsExport.ts` jobs + `stats.ts`, `settings.ts`, `start.ts`, `onboarding.ts` handlers. **→ Run 24 Agents A/B/C**
-8. **settings.ts handler uses BROKEN Python command** — `--update-user` doesn't exist in `user_manager.py`. Notification toggle and reminder hour updates are currently non-functional. **→ Run 24 Agent B**
+4. **POST /analytics/export still uses executePythonTool** — Justified (Google Sheets OAuth integration), only remaining Python subprocess in ALL routes + jobs.
+5. **Onboarding mode-add outside transaction** — Step 1 in onboarding.ts runs mode adds outside the transaction block. Could move inside for atomicity (Agent E Run 23 recommendation).
+6. **Local SQL helpers duplicated** — `getUserByTelegramId`, `listAllModes`, `getUserActiveModes` now exist locally in `handlers/onboarding.ts`. Could extract to shared `utils/queries.ts` (Agent A Run 24 recommendation).
+7. **Test setup.ts still mocks old wrapper functions** — `__tests__/setup.ts` mocks removed pythonTools wrappers (Agent D Run 24 recommendation).
+
+### Resolved (Run 24)
+- ~~`updateStreak()` duplicated~~ — Extracted to shared `utils/streak.ts`, used by quests.ts + users.ts (Run 24 Agent D)
+- ~~Python tools called by handlers~~ — ALL handler executePythonTool calls migrated to native SQL (Run 24 Agents A/B + Agent 0)
+- ~~Python tools called by jobs~~ — dailyQuestReset + questReminders + streakCheck all native SQL (Run 24 Agent C)
+- ~~settings.ts BROKEN Python command~~ — Fixed notification toggle + reminder hour with direct SQL UPDATE (Run 24 Agent B)
+- ~~pythonTools.ts bloated wrappers~~ — 261→83 lines, all unused wrappers removed (Run 24 Agent D)
 
 ### Resolved (Runs 13–23)
 - ~~Leaderboard getXpValue/getXpLabel duplication~~ — Exported from TopThreeCard, imported in LeaderboardRow (Run 23 Agent A)
@@ -2731,6 +2737,24 @@ const mockExecute = vi.mocked(execute);
 **Note for Agent 0:** These test mocks are written to match the *expected* migrated code from Agents A/B/C. If those agents changed the exact SQL patterns or error handling from what was specified in the task description, some mock sequences may need adjustment after merge. Key assumption: errors in native SQL are thrown as exceptions (caught by try/catch), not returned as `{success: false}` objects.
 
 #### Agent 0 Retrospective
-*(To be filled by Agent 0 after merge + deploy)*
+**Merge:** D → C → B → A → E. All 5 merges completed with **zero code conflicts**. PARALLEL_AGENTS.md retros auto-merged cleanly thanks to pre-allocated sections. Agent D was fast-forward. Agents C/B/A/E all auto-merged.
+
+**Post-merge fix:** `start.ts` failed build — it still imported `createUser` and `getUserByTelegramId` wrappers from pythonTools.ts (removed by Agent D). Agent B migrated only the quest query but left the user lookup/creation on old wrappers. Agent 0 migrated these 2 remaining calls to native SQL (queryOne INSERT/SELECT). Build passed after fix.
+
+**Build:** Both `bot` and `mini-app` pass with zero errors locally and on server.
+
+**Deploy:** `6a13379` deployed to production. 19 files changed (+838/-797 lines). PM2 restarted. Telegram notification sent.
+
+**Net result — Run 24 milestone:**
+- **handlers/onboarding.ts:** 19 Python→SQL calls migrated. 3 local SQL helpers created.
+- **handlers/start.ts:** createUser + getUserByTelegramId + quest query all native SQL now.
+- **handlers/stats.ts:** user lookup + streak query now native SQL.
+- **handlers/settings.ts:** **FIXED broken functionality** — notification toggle and reminder hour were calling nonexistent `--update-user` Python command. Now direct SQL UPDATEs.
+- **3 job files:** All Python subprocess calls replaced with native SQL.
+- **utils/streak.ts:** New shared utility (extracted from quests.ts, used by users.ts).
+- **utils/pythonTools.ts:** 261 → 83 lines (178 lines of unused wrappers removed).
+- **7 test files:** Updated to mock native SQL instead of executePythonTool.
+
+**executePythonTool status after Run 24:** 2 remaining calls (both Google Sheets analytics export — justified). Down from ~33 at start of Run 24.
 
 <!-- Next run goes here. Agent 0 will append RUN 25 below this line. -->
