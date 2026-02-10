@@ -1,5 +1,6 @@
-import { useEffect, useState, useRef, useCallback } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useTelegram } from '@/hooks/useTelegram';
+import { usePullToRefresh, PullIndicator } from '@/hooks/usePullToRefresh';
 import { apiClient } from '@/api/client';
 import { Trophy, Medal, Award, AlertCircle, RefreshCw } from 'lucide-react';
 import { motion } from 'framer-motion';
@@ -43,42 +44,6 @@ export function Leaderboard() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const [timePeriod, setTimePeriod] = useState<TimePeriod>('all_time');
-  const [refreshing, setRefreshing] = useState(false);
-  const [pullDistance, setPullDistance] = useState(0);
-  const touchStartY = useRef(0);
-  const isPulling = useRef(false);
-  const containerRef = useRef<HTMLDivElement>(null);
-
-  const PULL_THRESHOLD = 60;
-
-  const handleTouchStart = useCallback((e: React.TouchEvent) => {
-    if (containerRef.current && containerRef.current.scrollTop === 0) {
-      touchStartY.current = e.touches[0].clientY;
-      isPulling.current = true;
-    }
-  }, []);
-
-  const handleTouchMove = useCallback((e: React.TouchEvent) => {
-    if (!isPulling.current) return;
-    const distance = Math.max(0, e.touches[0].clientY - touchStartY.current);
-    setPullDistance(Math.min(distance * 0.5, 80));
-  }, []);
-
-  const handleTouchEnd = useCallback(async () => {
-    if (!isPulling.current) return;
-    isPulling.current = false;
-    if (pullDistance >= PULL_THRESHOLD && !refreshing) {
-      haptic.impact('medium');
-      setRefreshing(true);
-      setPullDistance(0);
-      await loadLeaderboard();
-      setRefreshing(false);
-    } else {
-      setPullDistance(0);
-    }
-  }, [pullDistance, refreshing, haptic]);
-
-  useEffect(() => { loadLeaderboard(); }, [timePeriod]);
 
   const loadLeaderboard = async () => {
     try {
@@ -99,6 +64,11 @@ export function Leaderboard() {
       setLoading(false);
     }
   };
+
+  const handleRefresh = useCallback(async () => { await loadLeaderboard(); }, []);
+  const { containerRef, pullDistance, refreshing, pullThreshold, touchHandlers } = usePullToRefresh(handleRefresh, haptic);
+
+  useEffect(() => { loadLeaderboard(); }, [timePeriod]);
 
   if (loading && !refreshing) {
     return (
@@ -150,14 +120,10 @@ export function Leaderboard() {
     <div
       ref={containerRef}
       className="min-h-screen bg-telegram-bg text-telegram-text pb-20 overflow-y-auto"
-      onTouchStart={handleTouchStart}
-      onTouchMove={handleTouchMove}
-      onTouchEnd={handleTouchEnd}
+      {...touchHandlers}
     >
-      <div className={`pull-indicator ${refreshing ? 'active refreshing' : ''}`} style={{ height: refreshing ? 48 : pullDistance > 10 ? pullDistance : 0 }}>
-        <RefreshCw className={`w-5 h-5 text-telegram-hint ${pullDistance >= PULL_THRESHOLD ? 'text-telegram-link' : ''}`} />
-      </div>
-      <div className="bg-gradient-to-r from-yellow-500 to-orange-500 p-6 rounded-b-3xl shadow-lg">
+      <PullIndicator pullDistance={pullDistance} refreshing={refreshing} pullThreshold={pullThreshold} />
+      <div className="bg-gradient-to-r from-yellow-500 to-orange-500 p-6 rounded-b-3xl shadow-lg safe-area-top">
         <div className="flex items-center gap-3 mb-4">
           <div className="bg-white/20 backdrop-blur-sm rounded-2xl p-3">
             <Trophy className="w-8 h-8 text-white" />

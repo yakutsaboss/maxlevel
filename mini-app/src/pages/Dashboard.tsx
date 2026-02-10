@@ -1,10 +1,13 @@
-import { useEffect, useState, useRef, useCallback, memo } from 'react';
+import { useEffect, useState, useCallback, memo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useTelegram } from '@/hooks/useTelegram';
+import { usePullToRefresh, PullIndicator } from '@/hooks/usePullToRefresh';
 import { apiClient } from '@/api/client';
 import { UserStats, Quest, UserMode, UserAchievement, Achievement } from '@/types';
 import { Trophy, Zap, Target, Flame, TrendingUp, AlertCircle, RefreshCw, Compass, Scroll, Award, Calendar, Clock } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { AchievementToast } from '@/components/AchievementToast';
+import { QuestDifficultyBadge } from '@/components/QuestDifficultyBadge';
 
 const StatCard = memo(function StatCard({ icon, label, value, color }: { icon: React.ReactNode; label: string; value: string | number; color: string }) {
   return (
@@ -45,7 +48,7 @@ const QuestCardMini = memo(function QuestCardMini({ quest, onClick }: { quest: Q
         </div>
       </div>
       <div className="mt-2 flex items-center gap-2">
-        <span className={`text-xs px-2 py-1 rounded-full ${quest.difficulty === 'easy' ? 'bg-green-100 text-green-700' : quest.difficulty === 'medium' ? 'bg-yellow-100 text-yellow-700' : 'bg-red-100 text-red-700'}`}>{quest.difficulty}</span>
+        <QuestDifficultyBadge difficulty={quest.difficulty} />
         <span className="text-xs text-telegram-hint">{quest.frequency}</span>
       </div>
     </motion.div>
@@ -63,46 +66,11 @@ const AchievementCard = memo(function AchievementCard({ userAch }: { userAch: Us
 
 export function Dashboard() {
   const { user, haptic } = useTelegram();
+  const navigate = useNavigate();
   const [stats, setStats] = useState<UserStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
-  const [refreshing, setRefreshing] = useState(false);
   const [toastAchievement, setToastAchievement] = useState<Achievement | null>(null);
-  const [pullDistance, setPullDistance] = useState(0);
-  const touchStartY = useRef(0);
-  const isPulling = useRef(false);
-  const containerRef = useRef<HTMLDivElement>(null);
-
-  const PULL_THRESHOLD = 60;
-
-  const handleTouchStart = useCallback((e: React.TouchEvent) => {
-    if (containerRef.current && containerRef.current.scrollTop === 0) {
-      touchStartY.current = e.touches[0].clientY;
-      isPulling.current = true;
-    }
-  }, []);
-
-  const handleTouchMove = useCallback((e: React.TouchEvent) => {
-    if (!isPulling.current) return;
-    const distance = Math.max(0, e.touches[0].clientY - touchStartY.current);
-    setPullDistance(Math.min(distance * 0.5, 80));
-  }, []);
-
-  const handleTouchEnd = useCallback(async () => {
-    if (!isPulling.current) return;
-    isPulling.current = false;
-    if (pullDistance >= PULL_THRESHOLD && !refreshing) {
-      haptic.impact('medium');
-      setRefreshing(true);
-      setPullDistance(0);
-      await loadUserStats(true);
-      setRefreshing(false);
-    } else {
-      setPullDistance(0);
-    }
-  }, [pullDistance, refreshing, haptic]);
-
-  useEffect(() => { loadUserStats(false); }, [user]);
 
   const checkForNewAchievements = async (userId: number) => {
     try {
@@ -143,7 +111,14 @@ export function Dashboard() {
     } finally { setLoading(false); }
   };
 
-  const handleQuestClick = useCallback((_questId: number) => { haptic.impact('light'); }, [haptic]);
+  const handleRefresh = useCallback(async () => {
+    await loadUserStats(true);
+  }, []);
+  const { containerRef, pullDistance, refreshing, pullThreshold, touchHandlers } = usePullToRefresh(handleRefresh, haptic);
+
+  useEffect(() => { loadUserStats(false); }, [user]);
+
+  const handleQuestClick = useCallback((_questId: number) => { haptic.impact('light'); navigate('/quests'); }, [haptic, navigate]);
 
   if (loading) {
     return (
@@ -211,13 +186,9 @@ export function Dashboard() {
     <div
       ref={containerRef}
       className="min-h-screen bg-telegram-bg text-telegram-text pb-20 overflow-y-auto"
-      onTouchStart={handleTouchStart}
-      onTouchMove={handleTouchMove}
-      onTouchEnd={handleTouchEnd}
+      {...touchHandlers}
     >
-      <div className={`pull-indicator ${refreshing ? 'active refreshing' : ''}`} style={{ height: refreshing ? 48 : pullDistance > 10 ? pullDistance : 0 }}>
-        <RefreshCw className={`w-5 h-5 text-telegram-hint ${pullDistance >= PULL_THRESHOLD ? 'text-telegram-link' : ''}`} />
-      </div>
+      <PullIndicator pullDistance={pullDistance} refreshing={refreshing} pullThreshold={pullThreshold} />
       <div className="bg-gradient-to-br from-purple-600 to-blue-600 p-6 rounded-b-3xl shadow-lg safe-area-top">
         <div className="flex items-center justify-between mb-4">
           <div className="min-w-0 flex-1 mr-3">
