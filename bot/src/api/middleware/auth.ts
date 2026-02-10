@@ -190,13 +190,20 @@ export async function authorizeUser(req: Request, res: Response, next: NextFunct
     // Get user from database (native SQL — no Python subprocess)
     const dbUser = await queryOne<{
       id: number;
-      telegram_id: bigint;
+      telegram_id: number;
       username: string | null;
-      first_name: string;
+      first_name: string | null;
       avatar_id: number | null;
+      current_level: number;
+      total_xp: number;
+      timezone: string;
       is_active: boolean;
+      created_at: string;
+      updated_at: string;
     }>(
-      `SELECT id, telegram_id, username, first_name, avatar_id, is_active
+      `SELECT id, telegram_id, username, first_name, avatar_id,
+              current_level, total_xp, timezone, is_active,
+              created_at, updated_at
        FROM users WHERE telegram_id = $1`,
       [telegramUser.id]
     );
