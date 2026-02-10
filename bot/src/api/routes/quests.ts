@@ -17,6 +17,25 @@ import {
 
 const router = Router();
 
+/** Update streak for a user+mode after quest completion (fire-and-forget). */
+async function updateStreak(userId: number, modeId: number): Promise<void> {
+  const today = new Date().toISOString().split('T')[0];
+  const yesterday = new Date(Date.now() - 86400000).toISOString().split('T')[0];
+  const streak = await queryOne(
+    'SELECT id, current_streak, longest_streak, last_activity_date FROM streaks WHERE user_id = $1 AND mode_id = $2',
+    [userId, modeId]
+  );
+  if (!streak) return;
+  const lastDate = streak.last_activity_date ? new Date(streak.last_activity_date).toISOString().split('T')[0] : null;
+  if (lastDate === today) return; // already counted
+  const newStreak = lastDate === yesterday ? streak.current_streak + 1 : 1;
+  const newLongest = Math.max(streak.longest_streak, newStreak);
+  await execute(
+    'UPDATE streaks SET current_streak = $1, longest_streak = $2, last_activity_date = $3 WHERE user_id = $4 AND mode_id = $5',
+    [newStreak, newLongest, today, userId, modeId]
+  );
+}
+
 /**
  * GET /api/users/:userId/quests/active
  * Get all active quests for a user
@@ -68,47 +87,58 @@ router.get('/users/:userId/completed', authenticateTelegram, authorizeUser, read
  * Mark a quest as completed
  */
 router.post('/:questId/complete', authenticateTelegram, mutationLimiter, asyncHandler(async (req: Request, res: Response) => {
-  const { questId } = req.params;
+  const questId = parseInt(req.params.questId);
 
-  const result = await executePythonTool('quest_manager', [
-    '--complete-quest',
-    '--quest-id', questId,
-  ]);
+  // Fetch quest instance with template info
+  const instance = await queryOne(
+    `SELECT qi.id, qi.user_id, qi.status, q.title, q.xp_reward, q.quest_type, q.difficulty, q.mode_id
+     FROM quest_instances qi
+     JOIN quests q ON qi.quest_id = q.id
+     WHERE qi.id = $1`,
+    [questId]
+  );
 
-  if (!result.success) {
-    const data = result.data as any;
-    const errorMsg = data?.error || result.error || 'Failed to complete quest';
-
-    if (errorMsg.includes('not found')) {
-      throw new NotFoundError(errorMsg);
-    }
-    if (errorMsg.includes('already completed')) {
-      throw new BadRequestError(errorMsg);
-    }
-    throw new InternalServerError(errorMsg);
+  if (!instance) {
+    throw new NotFoundError('Quest instance not found');
+  }
+  if (instance.status === QUEST_STATUS.COMPLETED) {
+    throw new BadRequestError('Quest already completed');
   }
 
-  const data = result.data as any;
+  const xpReward = instance.xp_reward;
+
+  // Transaction: mark completed, award XP, compute level
+  const result = await transaction(async (client) => {
+    await client.query(
+      `UPDATE quest_instances SET status = 'completed', completed_at = NOW(), xp_awarded = $1 WHERE id = $2`,
+      [xpReward, questId]
+    );
+    const userRow = await client.query(
+      `UPDATE users SET total_xp = total_xp + $1 WHERE id = $2 RETURNING total_xp, current_level`,
+      [xpReward, instance.user_id]
+    );
+    const user = userRow.rows[0];
+    const newLevel = Math.floor(user.total_xp / 500) + 1;
+    const leveledUp = newLevel > user.current_level;
+    if (leveledUp) {
+      await client.query(`UPDATE users SET current_level = $1 WHERE id = $2`, [newLevel, instance.user_id]);
+    }
+    return { newLevel: leveledUp ? newLevel : null, leveledUp };
+  });
+
+  invalidateUserCache(instance.user_id);
 
   // Fire-and-forget: update streak and check achievements
-  const questInfo = await queryOne(
-    `SELECT q.mode_id, qi.user_id FROM quest_instances qi JOIN quests q ON q.id = qi.quest_id WHERE qi.id = $1`,
-    [parseInt(questId)]
-  );
-  if (questInfo) {
-    const uid = questInfo.user_id;
-    const modeId = questInfo.mode_id;
-    Promise.allSettled([
-      executePythonTool('streak_manager', ['--update-streak', '--user-id', String(uid), '--mode-id', String(modeId)]),
-      checkAndUnlockAchievements(uid),
-    ]).catch(console.error);
-  }
+  Promise.allSettled([
+    updateStreak(instance.user_id, instance.mode_id),
+    checkAndUnlockAchievements(instance.user_id),
+  ]).catch(console.error);
 
   res.json(successResponse({
     message: 'Quest completed successfully',
-    xpEarned: data?.xp_awarded || 0,
-    newLevel: data?.new_level || null,
-    leveledUp: !!data?.new_level,
+    xpEarned: xpReward,
+    newLevel: result.newLevel,
+    leveledUp: result.leveledUp,
   }));
 }));
 
