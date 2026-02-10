@@ -119,6 +119,55 @@ git branch -d feature/BRANCH-A feature/BRANCH-B feature/BRANCH-C
 
 ---
 
+## Deploy Verification Protocol
+
+### The Problem
+During a multi-hour debugging session (pre-Run 25), the developer repeatedly restarted `telegram-rpg-api` (PM2 ids 1,2) instead of `telegram-rpg-bot` (PM2 id 0). Nginx routes **all traffic** to port 3000, which is served exclusively by `telegram-rpg-bot`. The `telegram-rpg-api` cluster process exists in `ecosystem.config.js` but receives **zero traffic**. There was also no way to verify which code version was running on the server.
+
+### Which PM2 Process to Restart
+- **ALWAYS restart:** `telegram-rpg-bot` (PM2 id 0, fork mode, port 3000)
+- **NEVER restart:** `telegram-rpg-api` (PM2 ids 1-2, cluster mode — NOT used by nginx)
+- **NEVER restart:** `telegram-rpg-scheduler` (PM2 id 3 — disabled)
+
+### How to Verify a Deploy
+After restarting, curl the health endpoint and check the `version` field:
+```bash
+curl -s https://yakutsa.ru/health | python3 -m json.tool
+```
+The response includes:
+- `version` — should match the latest git commit hash (set by deploy script)
+- `build_timestamp` — when the build was deployed
+- `uptime` — should be low (seconds) after a fresh restart
+
+### Preferred Deploy Method
+Use the deploy script from the project root:
+```bash
+./scripts/deploy.sh
+```
+This script: pushes to GitHub, SSHs to server, builds bot + mini-app, restarts ONLY `telegram-rpg-bot`, waits 3 seconds, then verifies the version matches.
+
+### Manual Fallback
+If the deploy script fails or is unavailable:
+```bash
+git push origin main
+ssh root@85.239.58.205 "cd /opt/wibecode-bot && git pull && cd bot && npm install && npm run build && cd ../mini-app && npm run build && BUILD_VERSION=$(git rev-parse --short HEAD) BUILD_TIMESTAMP=$(date -u +%Y-%m-%dT%H:%M:%SZ) pm2 restart telegram-rpg-bot --update-env"
+# Then verify:
+curl -s https://yakutsa.ru/health | python3 -m json.tool
+```
+
+### Agent 0 Deploy Checklist
+When deploying after a merge:
+1. Push to `origin/main`
+2. SSH and pull
+3. Build bot: `cd bot && npm install && npm run build`
+4. Build mini-app: `cd mini-app && npm run build`
+5. Set version env vars and restart: `BUILD_VERSION=<hash> BUILD_TIMESTAMP=<iso> pm2 restart telegram-rpg-bot --update-env`
+6. Wait 3 seconds
+7. Verify: `curl -s https://yakutsa.ru/health` — check `version` matches the commit hash
+8. Send Telegram notification
+
+---
+
 ## Lessons Learned
 
 ### Run 1 (shared directory — DISASTER)
@@ -191,16 +240,29 @@ Use this structure when creating a new run. Copy and adapt:
 
 ---
 
-## Known Issues (Updated after Run 24)
+## Known Issues (Updated after Run 25)
 
 ### Still Open
 1. **pg-boss Node.js mismatch** — Requires 22.12+, server has 20.20. Only triggers warnings, no functional impact yet.
 2. **Mode configs unused** — `mode_configs` table stores quiz responses + personalized plans, but data is never consumed.
 3. **Delete account e2e testing** — confirm soft delete flow works end-to-end in Telegram (Agent B Run 18 recommendation).
 4. **POST /analytics/export still uses executePythonTool** — Justified (Google Sheets OAuth integration), only remaining Python subprocess in ALL routes + jobs.
-5. **Onboarding mode-add outside transaction** — Step 1 in onboarding.ts runs mode adds outside the transaction block. Could move inside for atomicity (Agent E Run 23 recommendation).
-6. **Local SQL helpers duplicated** — `getUserByTelegramId`, `listAllModes`, `getUserActiveModes` now exist locally in `handlers/onboarding.ts`. Could extract to shared `utils/queries.ts` (Agent A Run 24 recommendation).
-7. **Test setup.ts still mocks old wrapper functions** — `__tests__/setup.ts` mocks removed pythonTools wrappers (Agent D Run 24 recommendation).
+5. **Local SQL helpers duplicated** — `getUserByTelegramId`, `listAllModes`, `getUserActiveModes` now exist locally in `handlers/onboarding.ts`. Could extract to shared `utils/queries.ts` (Agent A Run 24 recommendation).
+6. **Test setup.ts still mocks old wrapper functions** — `__tests__/setup.ts` mocks removed pythonTools wrappers (Agent D Run 24 recommendation).
+
+### Resolved (Run 25)
+- ~~Authorization gap — cross-user access~~ — `requireOwnership(req)` added to all routes using `:telegramId`/`:userId` params; previously only quests.ts enforced ownership (Run 25 Agent A)
+- ~~Non-idempotent XP award in onboarding~~ — Idempotency guard checks `onboarding_state.current_step = 'completed'` before processing (Run 25 Agent C)
+- ~~Onboarding mode-add outside transaction~~ — Mode creation + quest assignment moved inside transaction block for atomicity (Run 25 Agent C)
+- ~~Onboarding state UPSERT missing~~ — UPDATE replaced with INSERT...ON CONFLICT for robustness (Run 25 Agent C)
+- ~~Missing reminders table in DELETE account~~ — Added `DELETE FROM reminders` to soft-delete transaction (Run 25 Agent C)
+- ~~Dead structured logger~~ — Rewrote `logger.ts` with JSON output, request tracing via `requestId`, replaced raw console.* in middleware (Run 25 Agent B)
+- ~~No request tracing~~ — Request context middleware generates `requestId` per request, logs start/finish with duration (Run 25 Agent B)
+- ~~No deploy version verification~~ — `/health` now returns `version` + `build_timestamp`; `scripts/deploy.sh` auto-verifies (Run 25 Agent E)
+- ~~PM2 process confusion (telegram-rpg-api vs telegram-rpg-bot)~~ — Added WARNING comment to ecosystem.config.js, documented Deploy Verification Protocol (Run 25 Agent E)
+- ~~telegramId=0 silent failure in Onboarding.tsx~~ — Changed from `user?.id || 0` to `user?.id` with proper null handling (Run 25 Agent D)
+- ~~Double-fire completeOnboarding stacking XP~~ — Added `useRef(false)` guard in LaunchScreen.tsx (Run 25 Agent D)
+- ~~API error sends users to onboarding~~ — Changed catch default to `setNeedsOnboarding(false)` in App.tsx (Run 25 Agent D)
 
 ### Resolved (Run 24)
 - ~~`updateStreak()` duplicated~~ — Extracted to shared `utils/streak.ts`, used by quests.ts + users.ts (Run 24 Agent D)
@@ -1291,7 +1353,31 @@ Additionally, the DELETE account transaction misses the `reminders` table.
 *(To be filled by Agent D)*
 
 #### Agent E Retrospective
-*(To be filled by Agent E)*
+**Status:** All 6 tasks completed. Build passes (`tsc` — zero errors).
+
+| # | Task | Status |
+|---|------|--------|
+| 1 | Add BUILD_VERSION + BUILD_TIMESTAMP to /health endpoint in server.ts | Done |
+| 2 | Create scripts/deploy.sh with version verification | Done |
+| 3 | Update ecosystem.config.js — add env vars + WARNING comment to telegram-rpg-api | Done |
+| 4 | Add Deploy Verification Protocol section to PARALLEL_AGENTS.md | Done |
+| 5 | Update Known Issues — mark 12 issues resolved by Run 25 | Done |
+| 6 | Build verification | Pass |
+
+**Commits:** 5 atomic commits on `feature/r25-deploy-protocol`.
+
+**Implementation details:**
+- **server.ts**: Added 2 const declarations (`BUILD_VERSION`, `BUILD_TIMESTAMP`) after PORT declaration. Modified ONLY the health endpoint response object (lines 63-69) — added `version` and `build_timestamp` fields. No other changes to server.ts.
+- **deploy.sh**: Full deploy pipeline — push, SSH build (bot + mini-app), restart ONLY `telegram-rpg-bot`, 3-second wait, curl /health, compare version to local git hash. Color-coded output. Clear failure diagnostics with manual fix command.
+- **ecosystem.config.js**: Added `BUILD_VERSION` and `BUILD_TIMESTAMP` to `env_production` (defaults to `'set-by-deploy-script'`). Added 4-line WARNING comment above `telegram-rpg-api` explaining it receives zero traffic.
+- **Deploy Verification Protocol**: New section between Safety Protocol and Lessons Learned. Covers: which process to restart, how to verify, preferred deploy method, manual fallback, Agent 0 deploy checklist.
+- **Known Issues**: Updated header to "after Run 25". Moved issue #5 to resolved. Added 12 resolved entries covering all 5 agents' work. Renumbered remaining open issues.
+
+**Problems faced:** None. All tasks were straightforward documentation + config changes with one small server.ts modification.
+
+**Recommendations for next run:**
+- The `scripts/deploy.sh` sets BUILD_VERSION via environment variable on PM2 restart. Agent 0 should verify this works on first real deploy (env var propagation through PM2 can be tricky).
+- Consider updating the Agent 0 "Deploy Command" at the top of PARALLEL_AGENTS.md to reference `scripts/deploy.sh` instead of the inline SSH command.
 
 #### Agent 0 Retrospective
 *(To be filled by Agent 0)*

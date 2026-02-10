@@ -23,6 +23,8 @@ import { ApiError } from './utils/errors.js';
 
 const app: Express = express();
 const PORT = process.env.API_PORT || 3000;
+const BUILD_VERSION = process.env.BUILD_VERSION || 'dev';
+const BUILD_TIMESTAMP = process.env.BUILD_TIMESTAMP || new Date().toISOString();
 
 // Trust nginx reverse proxy (required for correct req.ip behind proxy)
 app.set('trust proxy', 1);
@@ -63,6 +65,8 @@ app.use('/api', apiLimiter);
 app.get('/health', (req: Request, res: Response) => {
   res.json({
     status: 'ok',
+    version: BUILD_VERSION,
+    build_timestamp: BUILD_TIMESTAMP,
     timestamp: new Date().toISOString(),
     uptime: process.uptime(),
   });
