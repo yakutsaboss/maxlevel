@@ -2611,7 +2611,26 @@ const mockExecute = vi.mocked(execute);
 *(To be filled by Agent A)*
 
 #### Agent B Retrospective
-*(To be filled by Agent B)*
+| # | Task | Status |
+|---|------|--------|
+| 1 | Migrate start.ts: quest_manager --get-active → native SQL query | Done |
+| 2 | Migrate stats.ts: user_manager --get-user → queryOne | Done |
+| 3 | Migrate stats.ts: streak_manager --get-streak → query with modes JOIN | Done |
+| 4 | Migrate settings.ts: getUserData() → queryOne | Done |
+| 5 | FIX settings.ts: notification toggle (BROKEN --update-user) → SQL UPDATE | Done |
+| 6 | FIX settings.ts: reminder hour (BROKEN --update-user) → SQL UPDATE | Done |
+| 7 | Migrate settings.ts: timezone → SQL UPDATE | Done |
+| 8 | Build verification (tsc) | Pass — zero errors |
+
+**Problems faced:** None. All tasks were straightforward single-file edits.
+
+**Key fix:** settings.ts notification toggle and reminder hour were completely non-functional — they called `--update-user` which doesn't exist in `user_manager.py`. The Python subprocess would have returned an error silently. Now they use direct SQL UPDATEs that actually persist the changes.
+
+**Commits:** 3 atomic commits (one per file: start.ts, stats.ts, settings.ts).
+
+**Recommendations for next run:**
+- start.ts still imports `createUser` and `getUserByTelegramId` from `pythonTools.js` — these wrapper functions are used for new user creation flow. Once Agent D cleans up pythonTools.ts, verify these wrappers still exist or migrate them too.
+- Consider adding error handling to settings.ts UPDATE calls (currently fire-and-forget without error feedback to user).
 
 #### Agent C Retrospective
 *(To be filled by Agent C)*
