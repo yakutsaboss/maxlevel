@@ -12,6 +12,7 @@
 
 import type { Job } from 'pg-boss';
 import { executePythonTool } from '../../utils/pythonTools.js';
+import { execute } from '../../utils/db.js';
 
 export const JOB_NAME = 'daily-quest-reset';
 export const CRON_SCHEDULE = '0 0 * * *';
@@ -129,4 +130,18 @@ export async function handler(jobs: Job[]): Promise<void> {
     `daily assigned: ${assigned}, daily failed: ${failed}, skipped: ${skipped}` +
     (isMonday ? `, weekly assigned: ${weeklyAssigned}, weekly failed: ${weeklyFailed}` : '')
   );
+
+  // Set target for newly assigned quests that still have the default target=1
+  const updatedTargets = await execute(`
+    UPDATE quest_instances qi
+    SET target = CASE
+      WHEN q.difficulty = 'easy' THEN 1
+      WHEN q.difficulty = 'medium' THEN 3
+      WHEN q.difficulty = 'hard' THEN 5
+      ELSE 1
+    END
+    FROM quests q
+    WHERE qi.quest_id = q.id AND qi.instance_date = CURRENT_DATE AND qi.target = 1
+  `);
+  console.log(`[JOB:${JOB_NAME}] Updated targets for ${updatedTargets} quest instances`);
 }
