@@ -5,7 +5,8 @@
 
 import { InlineKeyboard } from 'grammy';
 import { MyContext, getUserName, getTelegramId, sendMarkdownMessage } from '../bot.js';
-import { createUser, getUserByTelegramId, executePythonTool } from '../utils/pythonTools.js';
+import { createUser, getUserByTelegramId } from '../utils/pythonTools.js';
+import { query } from '../utils/db.js';
 import { handleOnboarding } from './onboarding.js';
 
 export async function handleStart(ctx: MyContext) {
@@ -32,23 +33,22 @@ export async function handleStart(ctx: MyContext) {
       ctx.session.username = username;
       ctx.session.firstName = userName;
 
-      // Get active quests count — handle failure explicitly
+      // Get active quests count
       let questLine = '';
-      const questsResult = await executePythonTool('quest_manager', [
-        '--get-active',
-        '--user-id',
-        user.id.toString(),
-      ]);
-
-      if (questsResult.success) {
-        const activeQuests = (questsResult.data as any)?.quests || [];
+      try {
+        const activeQuests = await query(
+          `SELECT qi.id
+           FROM quest_instances qi
+           WHERE qi.user_id = $1 AND qi.status IN ('pending', 'ready', 'in_progress')`,
+          [user.id]
+        );
         const questCount = activeQuests.length;
         if (questCount > 0) {
           questLine = `\n🎯 ${questCount} active quest${questCount > 1 ? 's' : ''} waiting`;
         }
-      } else {
+      } catch (err) {
         questLine = `\n⚠️ Couldn't load quests — try /quests later`;
-        console.warn(`[/start] Failed to load quests for user ${user.id}: ${questsResult.error}`);
+        console.warn(`[/start] Failed to load quests for user ${user.id}:`, err);
       }
 
       const statusLine = `⭐ Level ${user.current_level} · 💎 ${user.total_xp} XP` + questLine;

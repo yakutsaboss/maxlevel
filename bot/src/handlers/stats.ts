@@ -5,8 +5,7 @@
 
 import { InlineKeyboard } from 'grammy';
 import type { MyContext } from '../bot.js';
-import { executePythonTool } from '../utils/pythonTools.js';
-import { query } from '../utils/db.js';
+import { query, queryOne } from '../utils/db.js';
 
 const CB = {
   WEEK: 'stats:week',
@@ -14,10 +13,8 @@ const CB = {
 } as const;
 
 async function getInternalUserId(telegramId: number): Promise<number | null> {
-  const result = await executePythonTool('user_manager', [
-    '--get-user', '--telegram-id', telegramId.toString(),
-  ]);
-  return result.success ? result.data?.id : null;
+  const user = await queryOne('SELECT id FROM users WHERE telegram_id = $1', [telegramId]);
+  return user?.id ?? null;
 }
 
 async function getWeeklyStats(userId: number) {
@@ -50,12 +47,14 @@ async function getAllTimeStats(userId: number) {
 }
 
 async function getStreaks(userId: number) {
-  const result = await executePythonTool('streak_manager', [
-    '--get-streak', '--user-id', userId.toString(),
-  ]);
-
-  if (!result.success || !result.data) return [];
-  return Array.isArray(result.data) ? result.data : [result.data];
+  return query(
+    `SELECT s.*, m.name AS mode_name, m.display_name, m.icon_emoji
+     FROM streaks s
+     JOIN modes m ON m.id = s.mode_id
+     WHERE s.user_id = $1
+     ORDER BY s.current_streak DESC`,
+    [userId]
+  );
 }
 
 function formatWeeklyMessage(
