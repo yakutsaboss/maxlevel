@@ -158,11 +158,17 @@ router.post('/:telegramId/complete', authenticateTelegram, asyncHandler(async (r
       `UPDATE users SET total_xp = total_xp + 50,
        current_level = ((total_xp + 50) / 500) + 1,
        is_active = true,
-       first_name = CASE WHEN first_name = 'Deleted User' THEN $2 ELSE first_name END,
-       username = CASE WHEN username IS NULL AND $3::text IS NOT NULL THEN $3::text ELSE username END
+       first_name = CASE WHEN first_name = 'Deleted User' THEN $2 ELSE first_name END
        WHERE id = $1`,
-      [userId, restoreName, restoreUsername]
+      [userId, restoreName]
     );
+    // Restore username separately (only if Telegram provides one)
+    if (restoreUsername) {
+      await client.query(
+        `UPDATE users SET username = $2 WHERE id = $1 AND username IS NULL`,
+        [userId, restoreUsername]
+      );
+    }
 
     // 5. Mark onboarding as completed
     await client.query(
