@@ -1261,7 +1261,28 @@ Additionally, the DELETE account transaction misses the `reminders` table.
 *(To be filled by Agent C)*
 
 #### Agent D Retrospective
-*(To be filled by Agent D)*
+**Status:** All 5 tasks completed. Build passes (`tsc --noEmit` + `vite build` — zero errors).
+
+| # | Task | Status |
+|---|------|--------|
+| 1 | Guard telegramId in Onboarding.tsx — remove `\|\|0`, add error screen | Done |
+| 2 | Add idempotency guard to LaunchScreen.tsx — `useRef(false)` | Done |
+| 3 | Improve delete redirect in useSettingsData.ts — 500ms + `replace()` | Done |
+| 4 | Fix API error catch in App.tsx — `setNeedsOnboarding(false)` | Done |
+| 5 | Add `completed` case to Onboarding.tsx renderStep | Done |
+
+**Commits:** 5 atomic commits on `feature/r25-frontend-hardening` (one per task).
+
+**Implementation details:**
+- **Onboarding.tsx telegramId:** Changed `user?.id || 0` to `user?.id` (now `number | undefined`). Added `mounted` state via `useState(false)` + `useEffect` to track mount. When `mounted && !telegramId`, renders "Please open this app from Telegram" screen. Used `telegramId!` non-null assertion when passing to LaunchScreen since early return guarantees it's defined.
+- **LaunchScreen.tsx:** Added `calledRef = useRef(false)` — checked and set to `true` before `completeOnboarding()` call. Prevents XP stacking on re-mount.
+- **useSettingsData.ts:** `setTimeout` reduced 1200ms→500ms. `window.location.href` → `window.location.replace()` to remove deleted-account page from browser history (back button won't return to stale state).
+- **App.tsx:** Catch block now sets `setNeedsOnboarding(false)` — existing users on network error stay on their page instead of briefly seeing onboarding.
+- **Onboarding.tsx renderStep:** Added `case 'completed':` that calls `navigate('/dashboard', { replace: true })` and returns `null`. Eliminates the "Unknown step: completed" fallback text.
+
+**Problems faced:** None — all 5 fixes were surgical, isolated changes.
+
+**Recommendations for next run:** None — all assigned edge cases resolved.
 
 #### Agent E Retrospective
 *(To be filled by Agent E)*
