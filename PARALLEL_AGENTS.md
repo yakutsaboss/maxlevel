@@ -42,25 +42,31 @@ ssh root@85.239.58.205 "cd /opt/wibecode-bot && git pull && cd bot && npm instal
 ```
 
 ### Notification Command
-```bash
-# Load notification bot credentials from .env
-export $(grep -E '^TELEGRAM_NOTIFICATION' .env | tr -d '\r')
+**IMPORTANT:** Send from local Python only. Do NOT attempt via SSH (the SSH client may timeout while the server-side command still executes, causing duplicate sends — this happened in Run 14).
 
-# Send run completion summary (replace MESSAGE with actual content)
-curl -s -X POST "https://api.telegram.org/bot${TELEGRAM_NOTIFICATION_BOT_TOKEN}/sendMessage" \
-  -H "Content-Type: application/json" \
-  -d "{\"chat_id\": \"${TELEGRAM_NOTIFICATION_CHAT_ID}\", \"text\": \"MESSAGE\", \"parse_mode\": \"HTML\"}"
-```
+```python
+# Run from project root: python -c "..." (one-liner below)
+# Or save as .tmp/notify.py and run: python .tmp/notify.py
 
-**Message template** (use `<b>` for bold in HTML parse mode):
-```
-✅ <b>Run N merged & deployed</b>
+import os, json, urllib.request
+env = {}
+for line in open('.env'):
+    if '=' in line and not line.startswith('#'):
+        k, v = line.strip().split('=', 1)
+        env[k] = v
+token = env['TELEGRAM_NOTIFICATION_BOT_TOKEN']
+chat_id = env['TELEGRAM_NOTIFICATION_CHAT_ID']
+msg = """<b>Run N merged and deployed</b>
 
-• Agent A: [1-line summary]
-• Agent B: [1-line summary]
-• Agent C: [1-line summary]
+Agent A: [summary]
+Agent B: [summary]
 
-Issues: [any problems or "None"]
+Issues: None"""
+data = json.dumps({'chat_id': chat_id, 'text': msg, 'parse_mode': 'HTML'}).encode()
+req = urllib.request.Request(f'https://api.telegram.org/bot{token}/sendMessage', data=data, headers={'Content-Type': 'application/json'})
+resp = urllib.request.urlopen(req)
+result = json.loads(resp.read())
+print('Sent!' if result.get('ok') else f'FAILED: {result}')
 ```
 
 ### Worktree Setup Command
