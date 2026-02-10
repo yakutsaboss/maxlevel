@@ -269,10 +269,16 @@ export function Quests() {
             >
               <div className="w-12 h-1 bg-telegram-hint/30 rounded-full mx-auto mb-4" />
               <h2 className="text-xl font-bold mb-1">{selectedQuest.title}</h2>
-              <p className="text-telegram-hint text-sm mb-4">{selectedQuest.description}</p>
+              <p className="text-telegram-hint text-sm mb-2">{selectedQuest.description}</p>
+              {selectedQuest.target > 1 && (
+                <p className="text-sm text-telegram-link font-medium mb-4">
+                  Check in {selectedQuest.target} time{selectedQuest.target !== 1 ? 's' : ''} to complete
+                </p>
+              )}
+              {selectedQuest.target <= 1 && <div className="mb-2" />}
 
               <div className="flex flex-wrap gap-2 mb-4">
-                <span className="inline-flex items-center gap-1 bg-yellow-100 text-yellow-700 px-3 py-1.5 rounded-xl text-sm font-semibold">
+                <span className="inline-flex items-center gap-1 bg-gradient-to-r from-yellow-400 to-orange-400 text-white px-4 py-2 rounded-xl text-sm font-bold shadow-sm">
                   <Zap className="w-4 h-4" />{selectedQuest.xp_reward} XP
                 </span>
                 <span className={`px-3 py-1.5 rounded-xl text-sm font-semibold ${
@@ -339,6 +345,8 @@ export function Quests() {
                     telegramId={user.id}
                     onSuccess={handleCheckinSuccess}
                     disabled={completing}
+                    currentProgress={selectedQuest.progress}
+                    target={selectedQuest.target}
                   />
                 </div>
               )}
