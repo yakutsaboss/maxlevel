@@ -444,7 +444,7 @@ router.patch('/:userId/streak', authenticateTelegram, async (req: Request, res: 
       return res.status(500).json({ error: 'Server Error', message: 'Failed to update streak' });
     }
 
-    res.json({ message: 'Streak updated successfully', streak: (result.data as any)?.current_streak });
+    res.json({ success: true, data: { message: 'Streak updated successfully', streak: (result.data as any)?.current_streak } });
   } catch (error) {
     console.error('Error updating streak:', error);
     res.status(500).json({ error: 'Server Error', message: 'Failed to update streak' });
