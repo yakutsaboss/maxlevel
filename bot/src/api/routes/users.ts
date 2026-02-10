@@ -15,7 +15,7 @@ async function resolveUser(telegramId: string) {
   if (isNaN(tid)) return null;
 
   const u = await queryOne(
-    `SELECT u.id, u.telegram_id, u.username, u.first_name,
+    `SELECT u.id, u.telegram_id, u.username, u.first_name, u.avatar_id,
             u.current_level, u.total_xp, u.is_active, u.timezone, u.created_at,
             COALESCE(s.current_streak, 0)::int AS current_streak,
             COALESCE(s.longest_streak, 0)::int AS longest_streak,
@@ -41,6 +41,7 @@ async function resolveUser(telegramId: string) {
     username: u.username,
     first_name: u.first_name,
     last_name: null,
+    avatar_id: u.avatar_id ?? null,
     level: u.current_level,
     xp: u.total_xp,
     xp_to_next_level: u.current_level * 100,
@@ -604,7 +605,7 @@ router.patch('/:telegramId/profile', authenticateTelegram, async (req: Request, 
 
     params.push(tid);
     const user = await queryOne(
-      `UPDATE users SET ${sets.join(', ')} WHERE telegram_id = $${idx} RETURNING id, telegram_id, username, first_name, current_level, total_xp, timezone`,
+      `UPDATE users SET ${sets.join(', ')} WHERE telegram_id = $${idx} RETURNING id, telegram_id, username, first_name, avatar_id, current_level, total_xp, timezone`,
       params
     );
 
@@ -622,6 +623,7 @@ router.patch('/:telegramId/profile', authenticateTelegram, async (req: Request, 
         telegram_id: user.telegram_id,
         username: user.username,
         first_name: user.first_name,
+        avatar_id: user.avatar_id,
         level: user.current_level,
         xp: user.total_xp,
         timezone: user.timezone,
@@ -630,6 +632,39 @@ router.patch('/:telegramId/profile', authenticateTelegram, async (req: Request, 
   } catch (error) {
     console.error('Error updating user profile:', error);
     res.status(500).json({ success: false, error: 'Failed to update profile' });
+  }
+});
+
+/**
+ * DELETE /api/users/:telegramId/account
+ * Soft delete: deactivate account and anonymize PII.
+ */
+router.delete('/:telegramId/account', authenticateTelegram, async (req: Request, res: Response) => {
+  try {
+    const tid = parseInt(req.params.telegramId);
+    if (isNaN(tid)) {
+      return res.status(400).json({ success: false, error: 'Invalid telegram ID' });
+    }
+
+    const user = await queryOne(
+      `UPDATE users
+       SET is_active = false, first_name = 'Deleted User', username = NULL
+       WHERE telegram_id = $1 AND is_active = true
+       RETURNING id`,
+      [tid]
+    );
+
+    if (!user) {
+      return res.status(404).json({ success: false, error: 'User not found or already deleted' });
+    }
+
+    // Invalidate cache for this user
+    invalidatePrefix(`user:${user.id}:`);
+
+    res.json({ success: true, data: { message: 'Account deleted successfully' } });
+  } catch (error) {
+    console.error('Error deleting user account:', error);
+    res.status(500).json({ success: false, error: 'Failed to delete account' });
   }
 });
 

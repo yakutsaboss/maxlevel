@@ -361,7 +361,24 @@ Read PARALLEL_AGENTS.md — you are Agent C for Run 18. Your job: fix resolveUse
 *(To be filled by Agent B)*
 
 #### Agent C Retrospective
-*(To be filled by Agent C)*
+**Completed Tasks:**
+| # | Task | Status |
+|---|------|--------|
+| 1 | Add `avatar_id` to `resolveUser()` SELECT + return object | Done |
+| 2 | Add `avatar_id` to PATCH `/profile` RETURNING clause + response | Done |
+| 3 | Add `DELETE /users/:telegramId/account` endpoint (soft delete, anonymize PII) | Done |
+| 4 | Build verification (`npm run build`) | Pass — zero errors |
+
+**Problems:** None. All three tasks were straightforward single-file edits.
+
+**Implementation Notes:**
+- `resolveUser()` now includes `u.avatar_id` in SELECT; return object has `avatar_id: u.avatar_id ?? null`.
+- PATCH `/profile` RETURNING now includes `avatar_id`; response object includes `avatar_id: user.avatar_id`.
+- DELETE endpoint does soft delete: `is_active = false`, `first_name = 'Deleted User'`, `username = NULL`. Only updates rows where `is_active = true` (idempotent). Invalidates user cache. Returns `{ success: true, data: { message } }`.
+
+**Recommendations for Next Run:**
+- Consider also nullifying `timezone` in delete if stricter GDPR compliance is needed.
+- The POST `/users` creation endpoint returns `RETURNING *` so `avatar_id` is already present, but the response isn't explicitly shaped like `resolveUser()` — low priority to align.
 
 #### Agent 0 Retrospective
 *(To be filled by Agent 0 after merge & deploy)*
