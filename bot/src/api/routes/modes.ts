@@ -76,7 +76,7 @@ router.get('/users/:userId/summary', authenticateTelegram, async (req: Request, 
       [userId]
     );
 
-    res.json({ summary: rows });
+    res.json({ success: true, data: { summary: rows } });
   } catch (error) {
     console.error('Error fetching mode summary:', error);
     res.status(500).json({ error: 'Server Error', message: 'Failed to fetch mode summary' });
