@@ -8,10 +8,14 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 // ─── Mocks ───────────────────────────────────────────────────────────
 
-const mockExecutePythonTool = vi.fn();
+const mockQuery = vi.fn();
+const mockExecute = vi.fn();
 
-vi.mock('../../utils/pythonTools.js', () => ({
-  executePythonTool: (...args: any[]) => mockExecutePythonTool(...args),
+vi.mock('../../utils/db.js', () => ({
+  query: (...args: any[]) => mockQuery(...args),
+  queryOne: vi.fn(),
+  execute: (...args: any[]) => mockExecute(...args),
+  getPool: vi.fn(),
 }));
 
 beforeEach(() => {
@@ -31,39 +35,46 @@ describe('streakCheck', () => {
   });
 
   it('should complete successfully with streak data', async () => {
-    mockExecutePythonTool.mockResolvedValueOnce({
-      success: true,
-      data: { broken: 5, maintained: 95 },
-    });
+    const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+
+    const yesterday = new Date(Date.now() - 86400000).toISOString().split('T')[0];
+
+    // query returns active streaks
+    mockQuery.mockResolvedValueOnce([
+      { id: 1, user_id: 1, mode_id: 1, current_streak: 5, longest_streak: 10, last_activity_date: yesterday, telegram_id: 111, first_name: 'Alice' },
+      { id: 2, user_id: 2, mode_id: 1, current_streak: 3, longest_streak: 3, last_activity_date: '2020-01-01', telegram_id: 222, first_name: 'Bob' },
+    ]);
+
+    // execute for resetting broken streak (Bob's is stale)
+    mockExecute.mockResolvedValue(1);
 
     await handler([{} as any]);
 
-    expect(mockExecutePythonTool).toHaveBeenCalledWith('streak_manager', ['--check-all-streaks']);
+    // Should query for active streaks
+    expect(mockQuery).toHaveBeenCalledTimes(1);
+    const sql = mockQuery.mock.calls[0][0] as string;
+    expect(sql).toContain('streaks');
+    expect(sql).toContain('current_streak');
+
+    consoleSpy.mockRestore();
   });
 
-  it('should throw on failure', async () => {
-    mockExecutePythonTool.mockResolvedValueOnce({
-      success: false,
-      error: 'Connection refused',
-    });
+  it('should throw on query failure', async () => {
+    mockQuery.mockRejectedValueOnce(new Error('Connection refused'));
 
-    await expect(handler([{} as any])).rejects.toThrow('Streak check failed');
+    await expect(handler([{} as any])).rejects.toThrow();
   });
 
   it('should log broken streak details when available', async () => {
     const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
 
-    mockExecutePythonTool.mockResolvedValueOnce({
-      success: true,
-      data: {
-        broken: 2,
-        maintained: 10,
-        broken_details: [
-          { user_id: 5, mode_id: 1, current_streak: 3 },
-          { user_id: 8, mode_id: 2, previous_streak: 7 },
-        ],
-      },
-    });
+    // Both streaks are stale (old last_activity_date) → both should break
+    mockQuery.mockResolvedValueOnce([
+      { id: 1, user_id: 5, mode_id: 1, current_streak: 3, longest_streak: 5, last_activity_date: '2020-01-01', telegram_id: 555, first_name: 'User5' },
+      { id: 2, user_id: 8, mode_id: 2, current_streak: 7, longest_streak: 7, last_activity_date: '2020-01-01', telegram_id: 888, first_name: 'User8' },
+    ]);
+
+    mockExecute.mockResolvedValue(1);
 
     await handler([{} as any]);
 
@@ -77,28 +88,36 @@ describe('streakCheck', () => {
     consoleSpy.mockRestore();
   });
 
-  it('should handle missing broken_details gracefully', async () => {
-    mockExecutePythonTool.mockResolvedValueOnce({
-      success: true,
-      data: { broken: 0, maintained: 50 },
-    });
-
-    await expect(handler([{} as any])).resolves.toBeUndefined();
-  });
-
-  it('should handle null data fields with defaults', async () => {
+  it('should handle no active streaks gracefully', async () => {
     const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
 
-    mockExecutePythonTool.mockResolvedValueOnce({
-      success: true,
-      data: {},
-    });
+    // query returns empty array — no active streaks
+    mockQuery.mockResolvedValueOnce([]);
 
-    await handler([{} as any]);
+    await expect(handler([{} as any])).resolves.toBeUndefined();
 
     expect(consoleSpy).toHaveBeenCalledWith(
       expect.stringContaining('broken: 0, maintained: 0')
     );
+
+    consoleSpy.mockRestore();
+  });
+
+  it('should maintain streaks with recent activity', async () => {
+    const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+
+    const yesterday = new Date(Date.now() - 86400000).toISOString().split('T')[0];
+
+    // All streaks have yesterday's activity → should be maintained
+    mockQuery.mockResolvedValueOnce([
+      { id: 1, user_id: 1, mode_id: 1, current_streak: 10, longest_streak: 10, last_activity_date: yesterday, telegram_id: 111, first_name: 'Alice' },
+      { id: 2, user_id: 2, mode_id: 2, current_streak: 5, longest_streak: 5, last_activity_date: yesterday, telegram_id: 222, first_name: 'Bob' },
+    ]);
+
+    await handler([{} as any]);
+
+    // execute should NOT have been called (no broken streaks)
+    expect(mockExecute).not.toHaveBeenCalled();
 
     consoleSpy.mockRestore();
   });
