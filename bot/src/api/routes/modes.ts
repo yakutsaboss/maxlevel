@@ -187,7 +187,7 @@ router.get('/:modeId/quests', authenticateTelegram, async (req: Request, res: Re
       )
     );
 
-    res.json({ quests, count: quests.length });
+    res.json({ success: true, data: { quests, count: quests.length } });
   } catch (error) {
     console.error('Error fetching mode quests:', error);
     res.status(500).json({ error: 'Server Error', message: 'Failed to fetch mode quests' });
