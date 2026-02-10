@@ -70,14 +70,10 @@ router.post('/analytics/export', requireRole('admin'), asyncHandler(async (req: 
  * List all modes
  */
 router.get('/modes', asyncHandler(async (req: Request, res: Response) => {
-  const result = await executePythonTool('mode_manager', ['--list-modes']);
-
-  if (!result.success) {
-    throw new InternalServerError('Failed to fetch modes');
-  }
+  const modes = await query('SELECT * FROM modes ORDER BY id');
 
   res.json(successResponse({
-    modes: result.data || [],
+    modes,
     timestamp: new Date().toISOString(),
   }));
 }));
