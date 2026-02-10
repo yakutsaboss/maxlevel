@@ -481,12 +481,18 @@ class AchievementManager:
                 cursor.close()
 
     @staticmethod
-    def _format_criteria(criteria_type: str, criteria_value: int) -> str:
-        """Format criteria for display"""
+    def _format_criteria(criteria: Optional[Dict]) -> str:
+        """Format JSONB criteria dict for display"""
+        if not criteria:
+            return "Unknown criteria"
+        criteria_type = criteria.get('type', '')
+        criteria_value = criteria.get('value') or criteria.get('days') or criteria.get('count')
         formats = {
             'level': f"Reach level {criteria_value}",
             'total_xp': f"Earn {criteria_value} total XP",
             'quest_count': f"Complete {criteria_value} quests",
+            'quest_complete': f"Complete {criteria_value} quests",
+            'quest_complete_consecutive': f"Complete quests {criteria_value} days in a row",
             'streak': f"Maintain a {criteria_value}-day streak",
             'longest_streak': f"Achieve a {criteria_value}-day streak",
             'daily_quests': f"Complete {criteria_value} daily quests",
