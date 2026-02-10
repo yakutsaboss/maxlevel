@@ -183,7 +183,24 @@ Use this structure when creating a new run. Copy and adapt:
 *(To be filled by Agent A)*
 
 #### Agent B Retrospective
-*(To be filled by Agent B)*
+**Status:** All 4 tasks completed. Build passes cleanly (0 errors, tsc + vite build).
+
+| # | Task | Status |
+|---|------|--------|
+| 1 | Create `useDashboardData` hook in `hooks/useDashboardData.ts` | Done |
+| 2 | Simplify `Dashboard.tsx` to use hook (183→134 lines, -49 lines) | Done |
+| 3 | Create `ProfileStreak.tsx` in `components/profile/` | Done |
+| 4 | Simplify `Profile.tsx` to use `<ProfileStreak />` (125→110 lines, -15 lines) | Done |
+
+**Problems:** None. Straightforward extraction — no surprises.
+
+**Changes summary:**
+- `useDashboardData.ts` (new, 81 lines): Encapsulates all Dashboard state — stats, loading, error, toastAchievement, achievement checking, data fetching, pull-to-refresh, quest click navigation.
+- `Dashboard.tsx`: Removed `useState`, `useCallback`, `useEffect`, `useNavigate`, `apiClient`, type imports. Component is now pure rendering.
+- `ProfileStreak.tsx` (new, 27 lines): Self-contained streak card with Calendar icon, gradient, fire emoji. Props: `currentStreak`, `longestStreak`.
+- `Profile.tsx`: Removed `Calendar` (lucide-react) and `motion` (framer-motion) imports, replaced 15-line inline block with single component.
+
+**Recommendations for next run:** None — mini-app component extraction is largely complete.
 
 #### Agent C Retrospective
 *(To be filled by Agent C)*
