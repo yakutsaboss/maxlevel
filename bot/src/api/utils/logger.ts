@@ -35,6 +35,17 @@ interface LogEntry {
 
 const isProduction = process.env.NODE_ENV === 'production';
 
+const LEVEL_ORDER: Record<LogLevel, number> = {
+  debug: 0,
+  info: 1,
+  warn: 2,
+  error: 3,
+};
+
+const minLevel: number = LEVEL_ORDER[
+  (process.env.LOG_LEVEL as LogLevel) || (isProduction ? 'info' : 'debug')
+] ?? LEVEL_ORDER.debug;
+
 class Logger {
   private context: LogContext;
 
@@ -50,7 +61,6 @@ class Logger {
   }
 
   debug(message: string, meta?: Record<string, unknown>): void {
-    if (isProduction) return;
     this.write('debug', message, undefined, meta);
   }
 
@@ -67,6 +77,8 @@ class Logger {
   }
 
   private write(level: LogLevel, message: string, err?: unknown, meta?: Record<string, unknown>): void {
+    if (LEVEL_ORDER[level] < minLevel) return;
+
     const entry: LogEntry = {
       timestamp: new Date().toISOString(),
       level,
