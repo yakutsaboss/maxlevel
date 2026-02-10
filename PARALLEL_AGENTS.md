@@ -151,7 +151,29 @@ Use this structure when creating a new run. Copy and adapt:
 *(To be filled by Agent A)*
 
 #### Agent B Retrospective
-*(To be filled by Agent B)*
+**All 5 tasks completed. Build passes clean.**
+
+| # | Task | Status | Commit |
+|---|------|--------|--------|
+| 1 | Create migration SQL (notification_sent_at column) | Done | `ca03140` |
+| 2 | Fix achievementNotifier.ts dedup (IS NULL filter + update after send) | Done | `1e8292f` |
+| 3 | Refactor POST /check to use achievementEngine (-189 lines of duplication) | Done | `8c031bc` |
+| 4 | Fix GET /achievements/users/:userId to {success, data} format | Done | `95ae0c1` |
+| 5 | Build verification (fix missing `transaction` import) | Done | `3c3e4ae` |
+
+**Problems faced:**
+- Removed `transaction` from db.js import when cleaning up POST /check, but the `/unlock` endpoint still used it. Caught by build step, fixed immediately.
+
+**Key changes:**
+- `achievementNotifier.ts`: Query now filters `notification_sent_at IS NULL` and marks each achievement as notified after successful send. No more spam across the 20-min lookback window.
+- `achievements.ts`: Removed ~150 lines of duplicated `checkCriteriaMet()` and `filterQualifyingAchievements()`. POST /check now delegates entirely to `checkAndUnlockAchievements()` from `achievementEngine.ts`.
+- GET `/achievements/users/:userId` now returns `{ success: true, data: { achievements, unlocked, total, progress } }` consistent with other endpoints.
+
+**Migration needed:** `run13_achievement_dedup.sql` must be run on the server before deploy.
+
+**Recommendations for next run:**
+- The mini-app client may need updating if it reads the old `GET /achievements/users/:userId` response shape (no `success`/`data` wrapper). Check `client.ts` for how it parses this endpoint.
+- Consider adding `notification_sent_at` backfill for existing rows (set to `unlocked_at` for all current records) to prevent a one-time notification burst on first deploy.
 
 #### Agent C Retrospective
 *(To be filled by Agent C)*
