@@ -1,14 +1,13 @@
 import { useNavigate } from 'react-router-dom';
 import { useTelegram } from '@/hooks/useTelegram';
 import { useProfileData } from '@/hooks/useProfileData';
-import { Calendar } from 'lucide-react';
-import { motion } from 'framer-motion';
 import { ProfileEditModal } from '@/components/ProfileEditModal';
 import { Toast } from '@/components/Toast';
 import { ProfileHeader } from '@/components/profile/ProfileHeader';
 import { ProfileModes } from '@/components/profile/ProfileModes';
 import { ProfileAchievements } from '@/components/profile/ProfileAchievements';
 import { ProfileAccountability } from '@/components/profile/ProfileAccountability';
+import { ProfileStreak } from '@/components/profile/ProfileStreak';
 import { ProfileSkeleton } from '@/components/profile/ProfileSkeleton';
 import { ErrorSection } from '@/components/ErrorSection';
 import { formatDate } from '@/utils/formatDate';
@@ -43,21 +42,7 @@ export function Profile() {
         haptic={haptic}
       />
 
-      <div className="px-4 mt-6">
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="bg-gradient-to-r from-orange-500 to-red-500 rounded-2xl p-4 text-white shadow-lg">
-          <div className="flex items-center justify-between">
-            <div>
-              <div className="flex items-center gap-2 mb-1">
-                <Calendar className="w-5 h-5" />
-                <h3 className="font-semibold">Streak</h3>
-              </div>
-              <div className="text-3xl font-bold">{stats.user.current_streak} days</div>
-              <p className="text-sm text-orange-100 mt-1">Best: {stats.user.longest_streak} days</p>
-            </div>
-            <div className="text-6xl">🔥</div>
-          </div>
-        </motion.div>
-      </div>
+      <ProfileStreak currentStreak={stats.user.current_streak} longestStreak={stats.user.longest_streak} />
 
       <ProfileModes modes={stats.modes} perModeStreaks={stats.perModeStreaks} haptic={haptic} />
 
