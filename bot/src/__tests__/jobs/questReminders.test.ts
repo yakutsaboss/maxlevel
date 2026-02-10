@@ -40,20 +40,14 @@ describe('questReminders', () => {
   });
 
   it('should handle query failure gracefully', async () => {
-    const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
-
-    // query throws (DB error) — handler should catch and log
+    // query throws (DB error) — error propagates (no try/catch in handler)
     mockQuery.mockRejectedValueOnce(new Error('DB error'));
 
     const mockBot = { api: { sendMessage: vi.fn() } } as any;
     setBotInstance(mockBot);
 
-    await handler([{} as any]);
-
+    await expect(handler([{} as any])).rejects.toThrow('DB error');
     expect(mockBot.api.sendMessage).not.toHaveBeenCalled();
-    expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('Completed'));
-
-    consoleSpy.mockRestore();
   });
 
   it('should handle empty result gracefully', async () => {
