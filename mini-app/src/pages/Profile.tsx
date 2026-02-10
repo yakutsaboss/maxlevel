@@ -24,6 +24,7 @@ export function Profile() {
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [toast, setToast] = useState<{ message: string; variant: 'success' | 'error' | 'info' } | null>(null);
   const [punishmentSettings, setPunishmentSettings] = useState<{ consent_given: boolean; intensity_level: string; safe_mode: boolean } | null>(null);
+  const [punishmentHistory, setPunishmentHistory] = useState<Array<{ xp_deducted: number; punishment_type: string; applied_at: string; notes: string }>>([]);
 
   useEffect(() => { loadProfileData(); }, [user]);
 
@@ -40,10 +41,19 @@ export function Profile() {
       if (statsRes.success && statsRes.data) { setStats(statsRes.data); }
       if (achievementsRes.success && achievementsRes.data) { setAchievements(achievementsRes.data); }
       if (allAchRes.success && allAchRes.data) { setAllAchievements(allAchRes.data); }
-      // Load punishment settings separately (non-blocking, API may not exist yet)
+      // Load punishment settings and history separately (non-blocking, API may not exist yet)
       try {
         const punishRes = await apiClient.getPunishmentSettings(user.id);
         if (punishRes.success && punishRes.data) { setPunishmentSettings(punishRes.data); }
+        // Load punishment history if accountability is active
+        if (punishRes.success && punishRes.data?.consent_given) {
+          try {
+            const historyRes = await apiClient.getPunishmentHistory(user.id);
+            if (historyRes.success && historyRes.data?.punishments) {
+              setPunishmentHistory(historyRes.data.punishments);
+            }
+          } catch { /* History API not available yet */ }
+        }
       } catch { /* Punishment API not available yet — silently skip */ }
     } catch (error) {
       console.error('Failed to load profile data:', error);
@@ -175,6 +185,7 @@ export function Profile() {
         </h2>
         <div className="grid grid-cols-2 gap-3">
           {stats.modes.map((userMode, index) => {
+            // TODO: Remove cast once perModeStreaks is in UserStats type (Agent C, Run 13)
             const perModeStreaks = (stats as any).perModeStreaks as Array<{ mode_id: number; mode_name: string; mode_icon: string; current_streak: number; longest_streak: number }> | undefined;
             const modeStreak = perModeStreaks?.find((s) => s.mode_id === userMode.mode_id);
             return (
@@ -286,20 +297,56 @@ export function Profile() {
                   <span className="font-medium">{punishmentSettings.safe_mode ? 'ON' : 'OFF'}</span>
                 </div>
               </div>
+              <button
+                onClick={() => { haptic.impact('light'); navigate('/settings'); }}
+                className="mt-3 text-xs text-telegram-link font-medium active:opacity-70 transition-opacity"
+              >
+                Edit in Settings →
+              </button>
             </div>
           ) : (
-            <div className="flex items-center gap-3">
+            <div
+              className="flex items-center gap-3 cursor-pointer active:opacity-70 transition-opacity"
+              onClick={() => { haptic.impact('light'); navigate('/settings'); }}
+            >
               <div className="w-8 h-8 rounded-full bg-telegram-hint/20 flex items-center justify-center">
                 <Shield className="w-4 h-4 text-telegram-hint" />
               </div>
               <div>
                 <span className="text-sm font-medium text-telegram-hint">Accountability Off</span>
-                <p className="text-xs text-telegram-hint/70">Enable in Settings to add quest failure penalties</p>
+                <p className="text-xs text-telegram-link">Tap to enable in Settings →</p>
               </div>
             </div>
           )}
         </motion.div>
       </div>
+
+      {punishmentSettings?.consent_given && (
+        <div className="px-4 mt-4">
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="bg-telegram-secondaryBg rounded-2xl p-4 border border-telegram-hint/10"
+          >
+            <h3 className="text-sm font-semibold mb-3 text-telegram-hint">Recent Penalties</h3>
+            {punishmentHistory.length > 0 ? (
+              <div className="space-y-2.5">
+                {punishmentHistory.slice(0, 5).map((p, i) => (
+                  <div key={i} className="flex items-center justify-between">
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm truncate">{p.notes || p.punishment_type}</p>
+                      <p className="text-[11px] text-telegram-hint">{formatDate(p.applied_at)}</p>
+                    </div>
+                    <span className="text-sm font-semibold text-red-500 ml-3 shrink-0">-{p.xp_deducted} XP</span>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-sm text-telegram-hint">No penalties yet — keep it up!</p>
+            )}
+          </motion.div>
+        </div>
+      )}
 
       <div className="px-4 mt-6 mb-6">
         <div className="bg-telegram-secondaryBg rounded-2xl p-4 border border-telegram-hint/10">
