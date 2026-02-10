@@ -1255,7 +1255,32 @@ Additionally, the DELETE account transaction misses the `reminders` table.
 *(To be filled by Agent A)*
 
 #### Agent B Retrospective
-*(To be filled by Agent B)*
+**Status:** All 6 tasks completed. Build passes (`tsc --noEmit` — zero errors).
+
+| # | Task | Status |
+|---|------|--------|
+| 1 | Rewrite `logger.ts` with structured JSON output, `child()`, `generateRequestId()` | Done |
+| 2 | Add request tracing middleware to `server.ts` + `requestId` to `express.d.ts` | Done |
+| 3 | Replace 12+ `console.*` calls in `auth.ts` with structured logger, remove `logAuthAttempt` | Done |
+| 4 | Replace 4 `console.*` calls in `rateLimiter.ts` + 4 in `db.ts` with structured logger | Done |
+| 5 | Update global error handler + startup logs in `server.ts` with `logger.error/info` | Done |
+| 6 | Build verification | Pass |
+
+**Commits:** 6 atomic commits on `feature/r25-structured-logging`.
+
+**Implementation highlights:**
+- Logger outputs JSON lines in production (for PM2 log parsing) and human-readable format in development.
+- `child(ctx)` creates context-bound loggers — every auth/db/rateLimiter log entry automatically includes its component name.
+- Request tracing middleware generates UUID per request, attaches to `req.requestId`, logs start/finish with duration and status code.
+- All `auth.ts` logs now include `requestId`, `telegramUserId`, and `ip` — enabling correlation of auth attempts with the request that triggered them.
+- Removed the 22-line `logAuthAttempt` helper (replaced by 1-line structured logger calls).
+- Server startup consolidated from 13 console.log lines to 1 structured logger.info call.
+
+**Problems faced:** Minor TS2790 error — `delete rest.level` not allowed on non-optional property. Fixed by destructuring `level` out of the spread instead.
+
+**Recommendations for next run:**
+- The remaining ~130 `console.*` calls in route files and handlers still use raw console. A future run could migrate them to the structured logger for full traceability.
+- Consider adding a `morgan` custom token for `requestId` so HTTP access logs also include the request trace ID.
 
 #### Agent C Retrospective
 *(To be filled by Agent C)*
