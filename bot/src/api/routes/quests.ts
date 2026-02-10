@@ -1,7 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { authenticateTelegram, authorizeUser } from '../middleware/auth.js';
 import { mutationLimiter, readLimiter } from '../middleware/rateLimiter.js';
-import { executePythonTool } from '../../utils/pythonTools.js';
 import { query, queryOne, execute, transaction } from '../../utils/db.js';
 import { invalidateUserCache } from '../../utils/cache.js';
 import { checkAndUnlockAchievements } from '../../utils/achievementEngine.js';
@@ -12,7 +11,6 @@ import {
   BadRequestError,
   NotFoundError,
   ForbiddenError,
-  InternalServerError,
 } from '../utils/errors.js';
 
 const router = Router();
