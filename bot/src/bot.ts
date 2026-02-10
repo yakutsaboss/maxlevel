@@ -5,6 +5,9 @@
 
 import { Bot, Context, session } from 'grammy';
 import type { ParseMode } from 'grammy/types';
+import { logger } from './api/utils/logger.js';
+
+const log = logger.child({ component: 'bot' });
 
 // Session data structure
 export interface SessionData {
@@ -43,14 +46,13 @@ bot.use(
 // Error handler
 bot.catch((err) => {
   const ctx = err.ctx;
-  console.error(`Error while handling update ${ctx.update.update_id}:`);
-  console.error('Error:', err.error);
+  log.error(`Error while handling update ${ctx.update.update_id}`, err.error as Error);
 
   // Send error message to user
   ctx.reply(
     '❌ Oops! Something went wrong. Please try again or contact support.',
     { parse_mode: 'Markdown' as ParseMode }
-  ).catch(console.error);
+  ).catch((replyErr) => log.error('Failed to send error message to user', replyErr as Error));
 });
 
 // Helper function to format user name

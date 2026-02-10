@@ -4,6 +4,10 @@
  * All env vars validated at import time — fail fast on missing required vars.
  */
 
+import { logger } from './api/utils/logger.js';
+
+const log = logger.child({ component: 'config' });
+
 function requireEnv(name: string): string {
   const val = process.env[name];
   if (!val) {
@@ -32,10 +36,10 @@ const WEBHOOK_DOMAIN = optionalEnv('WEBHOOK_DOMAIN', '');
 
 // Log warnings for missing optional vars
 if (!process.env.ADMIN_PASSWORD_HASH) {
-  console.warn('[CONFIG] Warning: ADMIN_PASSWORD_HASH not set — admin API uses default credentials');
+  log.warn('ADMIN_PASSWORD_HASH not set — admin API uses default credentials');
 }
 if (!process.env.WEBHOOK_DOMAIN && USE_WEBHOOK) {
-  console.warn('[CONFIG] Warning: USE_WEBHOOK=true but WEBHOOK_DOMAIN not set');
+  log.warn('USE_WEBHOOK=true but WEBHOOK_DOMAIN not set');
 }
 
 export const config = {

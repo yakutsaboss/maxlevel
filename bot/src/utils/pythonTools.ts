@@ -7,6 +7,9 @@ import { execFile } from 'child_process';
 import { promisify } from 'util';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { logger } from '../api/utils/logger.js';
+
+const log = logger.child({ component: 'pythonTools' });
 
 const execFileAsync = promisify(execFile);
 const __filename = fileURLToPath(import.meta.url);
@@ -43,7 +46,7 @@ export async function executePythonTool<T = any>(
 
     const toolPath = path.join(TOOLS_PATH, `${toolName}.py`);
 
-    console.log(`[Python] Executing: ${toolName} ${args.join(' ').substring(0, 100)}...`);
+    log.info(`Executing: ${toolName} ${args.join(' ').substring(0, 100)}...`);
 
     const { stdout, stderr } = await execFileAsync(
       PYTHON_EXECUTABLE,
@@ -52,7 +55,7 @@ export async function executePythonTool<T = any>(
     );
 
     if (stderr && stderr.trim().length > 0) {
-      console.warn(`[Python] stderr: ${stderr}`);
+      log.warn(`stderr: ${stderr}`);
     }
 
     // Try to parse JSON output
@@ -72,7 +75,7 @@ export async function executePythonTool<T = any>(
       };
     }
   } catch (error: any) {
-    console.error(`[Python] Error executing ${toolName}:`, error);
+    log.error(`Error executing ${toolName}`, error as Error);
     return {
       success: false,
       error: error.message,
