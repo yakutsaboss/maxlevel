@@ -1466,4 +1466,348 @@ Additionally, the DELETE account transaction misses the `reminders` table.
 - Local SQL helpers duplicated across handlers (could extract to shared utils/queries.ts)
 - `__tests__/setup.ts` still mocks old wrapper functions
 
-<!-- Next run goes here. Agent 0 will append RUN 26 below this line. -->
+## RUN 26: Fix All Test Failures + Complete Structured Logger Migration (4 Agents + Agent 0)
+
+### Focus: Fix all 114 failing tests (11 test files) caused by Run 25 auth additions and response shape mismatches, plus migrate remaining 109 `console.*` calls across 25 files to the structured `logger` system introduced in Run 25. After Run 26, all 412 tests pass and every log entry across the entire codebase is structured JSON with component context.
+
+### Root Causes of Test Failures
+
+**Issue 1 — Response shape mismatch (affects ALL HTTP tests):**
+Routes use `successResponse()` from `api/utils/errors.ts` which wraps data as `{success: true, data: {...}}`. But HTTP tests written before that change still assert `res.body.modes`, `res.body.message`, etc. instead of `res.body.data.modes`, `res.body.data.message`.
+
+**Issue 2 — Missing `requireOwnership` in auth mock (affects `:telegramId` route tests):**
+Run 25 Agent A added `requireOwnership(req)` as a function call inside handler bodies. The auth mock in tests only exports `authenticateTelegram` and `authorizeUser`. When the handler calls `requireOwnership`, it gets `undefined` → crash → 500. Fix: add `requireOwnership: vi.fn()` to the auth mock.
+
+**Issue 3 — Error response shape:**
+Routes throw `ApiError` subclasses (BadRequestError, NotFoundError, ForbiddenError) caught by the global error handler, which returns `{success: false, error: "...", message: "..."}`. Tests may expect different error shapes. The error handler mock/behavior needs verification per test file.
+
+### Copy-Paste Prompts
+
+**Agent 0** (open in: `c:\Users\Asus\Desktop\Wibecode`):
+```
+Read PARALLEL_AGENTS.md — you are Agent 0 for Run 26. Wait for agents to finish, then merge and deploy.
+```
+
+**Agent A** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-a`):
+```
+Read PARALLEL_AGENTS.md — you are Agent A for Run 26. Your job: Fix 3 failing HTTP test files for :telegramId routes: users.http.test.ts (20 failures), onboarding.http.test.ts (10 failures), checkins.http.test.ts (13 failures).
+
+TWO ROOT CAUSES to fix in each file:
+1. Auth mock missing requireOwnership — add `requireOwnership: vi.fn()` to the vi.mock for auth.js
+2. Response shape mismatch — routes use successResponse() which wraps as {success: true, data: {...}}. Change `res.body.X` to `res.body.data.X` for success assertions. Error responses use {success: false, error: "...", message: "..."}.
+
+APPROACH for each file:
+- Read the ACTUAL route handler first (bot/src/api/routes/users.ts, onboarding.ts, checkins.ts)
+- Understand exactly what each endpoint returns (check successResponse/errorResponse calls)
+- Read the test file and fix assertions to match actual response shapes
+- Run `npx vitest --run <test-file>` after fixing each file to verify ALL tests pass
+
+IMPORTANT: You must also check if the error handler is being mocked. The global error handler in server.ts converts ApiError instances to proper HTTP responses. If the test app (createTestApp) doesn't include the error handler, thrown errors will become 500s. Check `__tests__/helpers/testApp.ts` to see if error handling middleware is included.
+
+Follow the Safety Protocol. Commit after each file passes tests. Write your retrospective when done.
+```
+
+**Agent B** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-b`):
+```
+Read PARALLEL_AGENTS.md — you are Agent B for Run 26. Your job: Fix 3 failing HTTP test files for :userId routes and quests: modes.http.test.ts (18 failures), achievements.http.test.ts (10 failures), quests.http.test.ts (21 failures).
+
+TWO ROOT CAUSES to fix in each file:
+1. Auth mock may need requireOwnership — add `requireOwnership: vi.fn()` to the vi.mock for auth.js (even if these routes use authorizeUser middleware, the mock must export all auth functions)
+2. Response shape mismatch — routes use successResponse() which wraps as {success: true, data: {...}}. Change `res.body.X` to `res.body.data.X` for success assertions. Error responses use {success: false, error: "...", message: "..."}.
+
+APPROACH for each file:
+- Read the ACTUAL route handler first (bot/src/api/routes/modes.ts, achievements.ts, quests.ts)
+- Understand exactly what each endpoint returns (check successResponse wrapper)
+- Read the test file and fix assertions to match actual response shapes
+- Run `npx vitest --run <test-file>` after fixing each file to verify ALL tests pass
+
+IMPORTANT: Check `__tests__/helpers/testApp.ts` to see if the error handling middleware is included. If thrown ApiErrors aren't caught by the error handler, they become 500s. Also check if `asyncHandler` wrapping is tested correctly.
+
+Follow the Safety Protocol. Commit after each file passes tests. Write your retrospective when done.
+```
+
+**Agent C** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-c`):
+```
+Read PARALLEL_AGENTS.md — you are Agent C for Run 26. Your job: Fix remaining test failures (22 failures across 5 files) and clean up stale test setup.
+
+FILES TO FIX:
+1. admin.http.test.ts (14 failures) — admin routes, check auth + response shape
+2. leaderboard.http.test.ts (2 failures) — error handling assertions
+3. onboarding.test.ts (3 handler test failures) — check mock patterns match Run 24 native SQL migration
+4. start.test.ts (2 handler test failures) — check mock patterns match Run 24 migration
+5. questReminders.test.ts (1 job test failure) — check mock pattern
+
+ALSO: Clean up `__tests__/setup.ts` — it still mocks pythonTools wrapper functions that were removed in Run 24. Remove stale mock entries for deleted functions (getUserById, getUserByTelegramId, getUserStats, etc.). Keep only the executePythonTool mock (still used by admin-stats.ts).
+
+APPROACH for HTTP test files:
+- Read actual route handler to understand response format
+- Add requireOwnership to auth mock if missing
+- Fix response assertions: routes use successResponse() wrapping as {success: true, data: {...}}
+- Run `npx vitest --run <test-file>` after each fix
+
+Follow the Safety Protocol. Commit after each file passes tests. Write your retrospective when done.
+```
+
+**Agent D** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-d`):
+```
+Read PARALLEL_AGENTS.md — you are Agent D for Run 26. Your job: Migrate all remaining 109 console.* calls to the structured logger from bot/src/api/utils/logger.ts across 25 files.
+
+CONTEXT: Run 25 Agent B created a structured JSON logger at `bot/src/api/utils/logger.ts` and migrated console.* in auth.ts, rateLimiter.ts, db.ts, and server.ts. 25 other files (109 calls total) still use raw console.log/warn/error.
+
+APPROACH:
+For each file, import the logger and create a component-scoped child:
+```ts
+import { logger } from '../../api/utils/logger.js'; // adjust relative path
+const log = logger.child({ component: 'fileName' });
+```
+Then replace:
+- `console.log(...)` → `log.info(...)`
+- `console.warn(...)` → `log.warn(...)`
+- `console.error(...)` → `log.error(...)`
+
+SPECIAL CASES:
+- `bot/src/api/utils/logger.ts` (4 calls) — SKIP, these are the logger's own output methods
+- `bot/src/index.ts` (25 calls) — This is the main entry point with startup/shutdown logs. Use `logger.child({ component: 'main' })`
+- `bot/src/bot.ts` (3 calls) — Grammy bot setup. Use `logger.child({ component: 'bot' })`
+- `bot/src/config.ts` (2 calls) — Config validation. Use `logger.child({ component: 'config' })`
+- Job files (10 files, ~40 calls) — Each job should use `logger.child({ component: 'jobName' })`
+- Handler files (4 files, ~7 calls) — Each handler should use `logger.child({ component: 'handlerName' })`
+- API files (6 files, ~20 calls) — Use `logger.child({ component: 'routeName' })`
+
+IMPORTANT:
+- Keep the log message content the same — only change the call from console.X to log.X
+- For error calls with Error objects: use `log.error('message', error)` (2nd param is the Error)
+- Do NOT modify test files or any file structure
+- Build verification: `cd bot && npm run build`
+
+TASK ORDER:
+1. Migrate API route + middleware files (adminAuth.ts, admin-jobs.ts, admin-users.ts, admin-stats.ts, quests.ts)
+2. Migrate handler files (start.ts, profile.ts, leaderboard.ts, dailySummary.ts)
+3. Migrate job files (10 files: registerJobs.ts, boss.ts, dailyQuestReset.ts, questReminders.ts, streakCheck.ts, achievementNotifier.ts, achievementBatchCheck.ts, dailySummary.ts, dbCleanup.ts, analyticsExport.ts, leaderboardRefresh.ts, punishmentCheck.ts)
+4. Migrate core files (index.ts, config.ts, bot.ts, pythonTools.ts)
+5. Build verification
+
+Follow the Safety Protocol. Commit after each task. Write your retrospective when done.
+```
+
+---
+
+### Agent A — Fix HTTP Tests: users.http + onboarding.http + checkins.http (43 failures)
+
+**Branch:** `feature/r26-http-tests-telegramid`
+**Worktree:** `../Wibecode-agent-a`
+
+**Context:** These 3 test files cover routes that use `:telegramId` URL parameters. Run 25 added `requireOwnership(req)` inside handlers. Tests crash with 500 because the auth mock doesn't export `requireOwnership`. Additionally, all success response assertions use `res.body.X` but routes return `{success: true, data: {...}}`.
+
+**Tasks:**
+
+1. **Read helpers + understand test infrastructure** — Read `__tests__/helpers/testApp.ts` to understand what middleware the test app includes. Check if the error handler from `server.ts` is included. Read `api/utils/errors.ts` to understand `successResponse()` and `ApiError` classes.
+
+2. **Fix `users.http.test.ts` (20 failures)** — Read `api/routes/users.ts` to check exact response shapes. Add `requireOwnership: vi.fn()` to auth mock. Fix all `res.body.X` to `res.body.data.X` for success responses. Fix error assertions to match `ApiError` response format. Run `npx vitest --run src/__tests__/routes/http/users.http.test.ts` to verify.
+
+3. **Fix `onboarding.http.test.ts` (10 failures)** — Read `api/routes/onboarding.ts` (note: Run 25 Agent C restructured transactions). Add `requireOwnership: vi.fn()` to auth mock. Fix response assertions. Run tests to verify.
+
+4. **Fix `checkins.http.test.ts` (13 failures)** — Read `api/routes/checkins.ts`. Add `requireOwnership: vi.fn()` to auth mock. Note: Run 25 Agent A added body `telegram_id` check in POST — the test mock auth may need to set `req.telegramUser` for this check. Fix response assertions. Run tests to verify.
+
+5. **Build verification**: `cd bot && npm run build`
+
+**OWNED files:**
+- `bot/src/__tests__/routes/http/users.http.test.ts`
+- `bot/src/__tests__/routes/http/onboarding.http.test.ts`
+- `bot/src/__tests__/routes/http/checkins.http.test.ts`
+
+**FORBIDDEN:**
+- `bot/src/api/**` (production code)
+- `bot/src/handlers/**`, `bot/src/jobs/**`, `bot/src/utils/**`
+- `bot/src/__tests__/routes/http/modes.http.test.ts`, `quests.http.test.ts`, `achievements.http.test.ts`, `admin.http.test.ts`, `leaderboard.http.test.ts`
+- `bot/src/__tests__/handlers/**`, `bot/src/__tests__/jobs/**`
+- `mini-app/**`, `tools/**`, `database/**`, `scripts/**`
+
+---
+
+### Agent B — Fix HTTP Tests: modes.http + achievements.http + quests.http (49 failures)
+
+**Branch:** `feature/r26-http-tests-userid`
+**Worktree:** `../Wibecode-agent-b`
+
+**Context:** These 3 test files cover routes that use `:userId` URL parameters (modes, achievements) and quests. Run 25 added `authorizeUser` middleware to these routes (already mocked in tests). The primary issue is response shape — `successResponse()` wraps data as `{success: true, data: {...}}`.
+
+**Tasks:**
+
+1. **Read helpers + understand test infrastructure** — Read `__tests__/helpers/testApp.ts`. Read `api/utils/errors.ts` for `successResponse` and `ApiError` shapes.
+
+2. **Fix `modes.http.test.ts` (18 failures)** — Read `api/routes/modes.ts` for exact response shapes. Add `requireOwnership: vi.fn()` to auth mock (export completeness). Fix all `res.body.modes` → `res.body.data.modes`, etc. Fix error assertions. Run `npx vitest --run src/__tests__/routes/http/modes.http.test.ts` to verify.
+
+3. **Fix `achievements.http.test.ts` (10 failures)** — Read `api/routes/achievements.ts`. Fix response shape assertions. Run tests to verify.
+
+4. **Fix `quests.http.test.ts` (21 failures)** — Read `api/routes/quests.ts`. Note: quests already had `authorizeUser` before Run 25. Fix response shape assertions. Run tests to verify.
+
+5. **Build verification**: `cd bot && npm run build`
+
+**OWNED files:**
+- `bot/src/__tests__/routes/http/modes.http.test.ts`
+- `bot/src/__tests__/routes/http/achievements.http.test.ts`
+- `bot/src/__tests__/routes/http/quests.http.test.ts`
+
+**FORBIDDEN:**
+- `bot/src/api/**` (production code)
+- `bot/src/handlers/**`, `bot/src/jobs/**`, `bot/src/utils/**`
+- `bot/src/__tests__/routes/http/users.http.test.ts`, `onboarding.http.test.ts`, `checkins.http.test.ts`, `admin.http.test.ts`, `leaderboard.http.test.ts`
+- `bot/src/__tests__/handlers/**`, `bot/src/__tests__/jobs/**`
+- `mini-app/**`, `tools/**`, `database/**`, `scripts/**`
+
+---
+
+### Agent C — Fix Remaining Tests: admin + leaderboard + handlers + jobs + setup cleanup (22 failures)
+
+**Branch:** `feature/r26-remaining-tests`
+**Worktree:** `../Wibecode-agent-c`
+
+**Context:** 5 test files with 22 total failures, plus stale `setup.ts` cleanup.
+
+**Tasks:**
+
+1. **Fix `admin.http.test.ts` (14 failures)** — Read `api/routes/admin-stats.ts`, `admin-users.ts`, `admin-jobs.ts`. Check adminAuth mock. Fix response shape assertions. Run `npx vitest --run src/__tests__/routes/http/admin.http.test.ts`.
+
+2. **Fix `leaderboard.http.test.ts` (2 failures)** — Read `api/routes/leaderboard.ts`. Fix error response assertions. Run tests.
+
+3. **Fix `onboarding.test.ts` (3 handler failures)** — Read `handlers/onboarding.ts` + the test file. The 3 failures are: showModeSelection error case, handleQuickAction profile case, handleModeSummary failure case. Check if mock patterns match the native SQL code from Run 24. Run tests.
+
+4. **Fix `start.test.ts` (2 handler failures)** — Read `handlers/start.ts` + the test file. The 2 failures are: welcome back existing user (with quests) and quest fetch failure. Check if mock patterns match Run 24 native SQL. Run tests.
+
+5. **Fix `questReminders.test.ts` (1 job failure)** — Read `jobs/definitions/questReminders.ts` + the test file. The failure is "handle query failure gracefully". Check error mock pattern. Run tests.
+
+6. **Clean up `__tests__/setup.ts`** — Remove stale mocks for deleted pythonTools wrapper functions. Keep only `executePythonTool` and `PythonToolResult` mocks (still needed by admin-stats tests).
+
+7. **Build verification**: `cd bot && npm run build`
+
+**OWNED files:**
+- `bot/src/__tests__/routes/http/admin.http.test.ts`
+- `bot/src/__tests__/routes/http/leaderboard.http.test.ts`
+- `bot/src/__tests__/handlers/onboarding.test.ts`
+- `bot/src/__tests__/handlers/start.test.ts`
+- `bot/src/__tests__/jobs/questReminders.test.ts`
+- `bot/src/__tests__/setup.ts`
+
+**FORBIDDEN:**
+- `bot/src/api/**` (production code)
+- `bot/src/handlers/**`, `bot/src/jobs/**`, `bot/src/utils/**`
+- All other test files not listed above
+- `mini-app/**`, `tools/**`, `database/**`, `scripts/**`
+
+---
+
+### Agent D — Complete Structured Logger Migration (109 calls → 0)
+
+**Branch:** `feature/r26-logger-migration`
+**Worktree:** `../Wibecode-agent-d`
+
+**Context:** Run 25 Agent B created a structured logger at `bot/src/api/utils/logger.ts` and migrated `auth.ts`, `rateLimiter.ts`, `db.ts`, and `server.ts`. 25 other files (109 `console.*` calls) still use raw console output. Migrate them all to the structured logger.
+
+**Tasks:**
+
+1. **Read the logger API** — Read `bot/src/api/utils/logger.ts` to understand the interface: `logger.child({})`, `.info()`, `.warn()`, `.error()` method signatures. Note: `.error(message, error?, metadata?)`.
+
+2. **Migrate API route + middleware files (5 files, ~20 calls)** — Import logger and replace console.* in:
+   - `api/middleware/adminAuth.ts` (7 calls)
+   - `api/routes/admin-jobs.ts` (3 calls)
+   - `api/routes/admin-users.ts` (4 calls)
+   - `api/routes/admin-stats.ts` (4 calls)
+   - `api/routes/quests.ts` (2 calls)
+
+3. **Migrate handler files (4 files, ~7 calls)** — Import logger and replace in:
+   - `handlers/start.ts` (3 calls)
+   - `handlers/profile.ts` (1 call)
+   - `handlers/leaderboard.ts` (1 call)
+   - `handlers/dailySummary.ts` (2 calls)
+
+4. **Migrate job files (10 files, ~40 calls)** — Import logger and replace in:
+   - `jobs/registerJobs.ts` (1), `jobs/boss.ts` (3)
+   - `jobs/definitions/dailyQuestReset.ts` (8), `questReminders.ts` (6), `streakCheck.ts` (4)
+   - `jobs/definitions/achievementNotifier.ts` (5), `achievementBatchCheck.ts` (2)
+   - `jobs/definitions/dailySummary.ts` (4), `dbCleanup.ts` (3), `analyticsExport.ts` (2)
+   - `jobs/definitions/leaderboardRefresh.ts` (2), `punishmentCheck.ts` (5)
+
+5. **Migrate core files (3 files, ~30 calls)** — Import logger and replace in:
+   - `index.ts` (25 calls) — use `logger.child({ component: 'main' })`
+   - `config.ts` (2 calls) — use `logger.child({ component: 'config' })`
+   - `bot.ts` (3 calls) — use `logger.child({ component: 'bot' })`
+   - `utils/pythonTools.ts` (3 calls) — use `logger.child({ component: 'pythonTools' })`
+   - SKIP `api/utils/logger.ts` (4 calls are the logger's own console.* output — intentional)
+
+6. **Build verification**: `cd bot && npm run build`
+
+**OWNED files:**
+- `bot/src/index.ts`
+- `bot/src/config.ts`
+- `bot/src/bot.ts`
+- `bot/src/utils/pythonTools.ts`
+- `bot/src/api/middleware/adminAuth.ts`
+- `bot/src/api/routes/admin-jobs.ts`
+- `bot/src/api/routes/admin-users.ts`
+- `bot/src/api/routes/admin-stats.ts`
+- `bot/src/api/routes/quests.ts`
+- `bot/src/handlers/start.ts`
+- `bot/src/handlers/profile.ts`
+- `bot/src/handlers/leaderboard.ts`
+- `bot/src/handlers/dailySummary.ts`
+- `bot/src/jobs/registerJobs.ts`
+- `bot/src/jobs/boss.ts`
+- `bot/src/jobs/definitions/*` (all 10 job definition files)
+
+**FORBIDDEN:**
+- `bot/src/api/utils/logger.ts` (already complete — do NOT modify)
+- `bot/src/api/server.ts`, `bot/src/api/middleware/auth.ts`, `bot/src/api/middleware/rateLimiter.ts`, `bot/src/utils/db.ts` (already migrated by Run 25)
+- `bot/src/__tests__/**` (test files — other agents own these)
+- `mini-app/**`, `tools/**`, `database/**`, `scripts/**`
+
+---
+
+### Run 26 File Ownership Matrix
+
+| File | Agent A | Agent B | Agent C | Agent D |
+|------|---------|---------|---------|---------|
+| `__tests__/routes/http/users.http.test.ts` | **OWN** | FORBID | FORBID | FORBID |
+| `__tests__/routes/http/onboarding.http.test.ts` | **OWN** | FORBID | FORBID | FORBID |
+| `__tests__/routes/http/checkins.http.test.ts` | **OWN** | FORBID | FORBID | FORBID |
+| `__tests__/routes/http/modes.http.test.ts` | FORBID | **OWN** | FORBID | FORBID |
+| `__tests__/routes/http/achievements.http.test.ts` | FORBID | **OWN** | FORBID | FORBID |
+| `__tests__/routes/http/quests.http.test.ts` | FORBID | **OWN** | FORBID | FORBID |
+| `__tests__/routes/http/admin.http.test.ts` | FORBID | FORBID | **OWN** | FORBID |
+| `__tests__/routes/http/leaderboard.http.test.ts` | FORBID | FORBID | **OWN** | FORBID |
+| `__tests__/handlers/onboarding.test.ts` | FORBID | FORBID | **OWN** | FORBID |
+| `__tests__/handlers/start.test.ts` | FORBID | FORBID | **OWN** | FORBID |
+| `__tests__/jobs/questReminders.test.ts` | FORBID | FORBID | **OWN** | FORBID |
+| `__tests__/setup.ts` | FORBID | FORBID | **OWN** | FORBID |
+| `api/routes/quests.ts` | FORBID | FORBID | FORBID | **OWN** (logger only) |
+| `api/routes/admin-*.ts` | FORBID | FORBID | FORBID | **OWN** (logger only) |
+| `api/middleware/adminAuth.ts` | FORBID | FORBID | FORBID | **OWN** (logger only) |
+| `handlers/*.ts` | FORBID | FORBID | FORBID | **OWN** (logger only) |
+| `jobs/**/*.ts` | FORBID | FORBID | FORBID | **OWN** (logger only) |
+| `index.ts`, `config.ts`, `bot.ts` | FORBID | FORBID | FORBID | **OWN** (logger only) |
+| `PARALLEL_AGENTS.md` | retro only | retro only | retro only | retro only |
+
+### Run 26 Merge Order
+1. **Agent D** (logger migration — production code, no test overlap)
+2. **Agent A** (HTTP tests — telegramId routes)
+3. **Agent B** (HTTP tests — userId routes)
+4. **Agent C** (remaining tests + setup cleanup)
+
+### Run 26 Retrospectives
+
+#### Agent A Retrospective
+*(To be filled by Agent A)*
+
+#### Agent B Retrospective
+*(To be filled by Agent B)*
+
+#### Agent C Retrospective
+*(To be filled by Agent C)*
+
+#### Agent D Retrospective
+*(To be filled by Agent D)*
+
+#### Agent 0 Retrospective
+*(To be filled by Agent 0)*
+
+<!-- Next run goes here. Agent 0 will append RUN 27 below this line. -->
