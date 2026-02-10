@@ -161,7 +161,7 @@ router.patch('/users/:userId/:modeId', authenticateTelegram, async (req: Request
       return res.status(404).json({ error: 'Not Found', message: 'Mode not found for user' });
     }
 
-    res.json({ message: 'Mode settings updated successfully', settings: row.settings || settings });
+    res.json({ success: true, data: { message: 'Mode settings updated successfully', settings: row.settings || settings } });
   } catch (error) {
     console.error('Error updating mode settings:', error);
     res.status(500).json({ error: 'Server Error', message: 'Failed to update mode settings' });
