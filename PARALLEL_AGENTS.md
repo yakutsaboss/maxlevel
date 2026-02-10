@@ -925,4 +925,348 @@ const mockExecute = vi.mocked(execute);
 
 **executePythonTool status after Run 24:** 2 remaining calls (both Google Sheets analytics export — justified). Down from ~33 at start of Run 24.
 
-<!-- Next run goes here. Agent 0 will append RUN 25 below this line. -->
+## RUN 25: Security, Observability & Deployment Hardening (5 Agents + Agent 0)
+
+### Focus: Fix all HIGH/MEDIUM severity issues discovered during the post-Run-24 debugging session: authorization gaps allowing cross-user access, non-idempotent XP awards, mode creation outside transactions, dead structured logger, no request tracing, missing table cleanup in delete, frontend edge cases, and deployment coupling confusion. After Run 25, every API request is traceable end-to-end via structured logs, all routes enforce resource ownership, onboarding completion is idempotent and atomic, and deployment is verifiable via a version endpoint + mandatory deploy script.
+
+### Copy-Paste Prompts
+
+**Agent 0** (open in: `c:\Users\Asus\Desktop\Wibecode`):
+```
+Read PARALLEL_AGENTS.md — you are Agent 0 for Run 25. Wait for agents to finish, then merge and deploy.
+```
+
+**Agent A** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-a`):
+```
+Read PARALLEL_AGENTS.md — you are Agent A for Run 25. Your job: Fix the authorization gap across ALL route files. Currently only quests.ts uses authorizeUser. All other routes (users.ts, onboarding.ts, modes.ts, checkins.ts, achievements.ts, punishment.ts) allow any authenticated user to access/modify ANY other user's data by changing the URL parameter.
+
+Your approach:
+1. Add a lightweight `requireOwnership(req)` function to `bot/src/api/middleware/auth.ts` that compares `parseInt(req.params.telegramId)` to `req.telegramUser?.id` and throws ForbiddenError on mismatch. Add it at the BOTTOM of the file after `authorizeUser`. Import ForbiddenError from `../utils/errors.js`.
+2. In routes using `:telegramId` params (users.ts: DELETE account, GET stats, GET quests/active, GET quests/completed, GET achievements, GET preferences, PATCH preferences, PATCH profile; onboarding.ts: all 3 routes; punishment.ts: all 3 routes): add `requireOwnership(req)` as the FIRST line inside the handler after the `const tid = parseInt(...)` line.
+3. In routes using `:userId` params (modes.ts: 5 endpoints; achievements.ts: userId-based endpoints): add `authorizeUser` to the middleware chain between `authenticateTelegram` and `asyncHandler`.
+4. For checkins.ts: verify that the user performing the check-in owns the resource.
+
+IMPORTANT: Do NOT modify business logic in any handler. ONLY add authorization checks. Agent C is modifying transaction logic in onboarding.ts and users.ts DELETE — your changes are on different lines (top of handler vs body). Do NOT touch the health endpoint, logger, or server.ts.
+
+Follow the Safety Protocol. Commit after each file. Write your retrospective when done.
+```
+
+**Agent B** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-b`):
+```
+Read PARALLEL_AGENTS.md — you are Agent B for Run 25. Your job: Replace the dead logger with a structured logging system that enables request tracing.
+
+Current state: `bot/src/api/utils/logger.ts` has a Logger class that is NEVER imported anywhere. All 144 logging calls across 30 files use raw console.* with inconsistent tag prefixes. During debugging, the developer cannot correlate log entries for a single request.
+
+Your approach:
+1. Rewrite `logger.ts` with structured JSON output: each log entry includes timestamp, level, message, requestId, telegramUserId, plus any additional metadata. Add a `child(ctx)` method for creating context-bound loggers. Add a `generateRequestId()` export using `crypto.randomUUID()`.
+2. Add request context middleware to `server.ts` (after body parsing at line 57, before routes): generate requestId, attach to `req.requestId`, log request start/finish with duration and status code. Add `requestId?: string` to Express Request interface in `bot/src/types/express.d.ts`.
+3. Replace console.* calls in `auth.ts` with `logger.child({requestId: req.requestId})` calls. Remove the local `logAuthAttempt` function. ONLY replace console calls — do NOT add/modify authorization logic (Agent A owns that).
+4. Replace console.* calls in `rateLimiter.ts` (4 calls) and `db.ts` (4 calls) with logger calls.
+5. Update the global error handler in `server.ts` (lines 132-143) to use `logger.error()`.
+
+IMPORTANT constraints:
+- Do NOT touch the health endpoint in server.ts (lines 63-69) — Agent E owns that.
+- In auth.ts, ONLY replace console.* calls. Do NOT add/modify authorization logic — Agent A adds `requireOwnership` at the bottom.
+- Do NOT touch route files other than quests.ts (Agent A is modifying all other route files for auth).
+- Do NOT touch bot handlers (bot/src/handlers/*) or job files — those are Telegram-side, not API.
+
+Follow the Safety Protocol. Commit after each task. Write your retrospective when done.
+```
+
+**Agent C** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-c`):
+```
+Read PARALLEL_AGENTS.md — you are Agent C for Run 25. Your job: Fix 3 atomicity/idempotency bugs in `bot/src/api/routes/onboarding.ts` and 1 missing table in `bot/src/api/routes/users.ts` DELETE.
+
+Issues to fix:
+1. **Non-idempotent XP award** (onboarding.ts line 158): `total_xp = total_xp + 50` stacks on every call. Add an idempotency guard BEFORE any processing: check if `onboarding_state.current_step = 'completed'`. If yes, return `{ xp_awarded: 0, already_completed: true }` immediately.
+2. **Mode creation outside transaction** (onboarding.ts lines 81-109): Move the entire "Add selected modes" block INSIDE the `transaction()` callback, converting `queryOne()`/`execute()` calls to `client.query()` with `.rows[0]` access.
+3. **Onboarding state row might not exist** (onboarding.ts line 173-176): Replace the UPDATE with a UPSERT: `INSERT INTO onboarding_state (user_id, current_step, last_updated) VALUES ($1, 'completed', NOW()) ON CONFLICT (user_id) DO UPDATE SET current_step = 'completed', last_updated = NOW()`.
+4. **Quest assignment outside transaction** (onboarding.ts lines 181-207): Move inside the transaction, using `client.query()`.
+5. **Missing reminders table in DELETE** (users.ts lines 605-649): Add `DELETE FROM reminders WHERE user_id = $1` after the streaks delete and before the user update.
+
+IMPORTANT: Agent A is adding `requireOwnership(req)` as the first line of each handler in these same files. Your changes are in the BODY of the handlers (transaction restructure). These are different lines and will auto-merge. Do NOT modify the first 2 lines of any handler.
+
+Follow the Safety Protocol. Commit after each task. Write your retrospective when done.
+```
+
+**Agent D** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-d`):
+```
+Read PARALLEL_AGENTS.md — you are Agent D for Run 25. Your job: Harden the mini-app frontend against edge cases discovered during the debugging session.
+
+Issues to fix:
+1. **telegramId=0 silent failure** (Onboarding.tsx line 38): `user?.id || 0` causes API calls with telegramId=0 when user is null. Change to `user?.id` (undefined, not 0). Add early returns when telegramId is falsy. Add a "Please open from Telegram" error screen if user is null after mount.
+2. **Double-fire completeOnboarding** (LaunchScreen.tsx): useEffect fires completeOnboarding on mount, but if component re-mounts it fires again (stacking XP). Add a `useRef(false)` guard that gets set to true after the first call.
+3. **1.2s stale page after delete** (useSettingsData.ts lines 165-167): Reduce setTimeout from 1200ms to 500ms. Use `window.location.replace()` instead of `.href` to prevent back-button returning to deleted state.
+4. **API error sends users to onboarding** (App.tsx lines 67-69): The catch block sets `setNeedsOnboarding(true)`, briefly redirecting existing users to onboarding on network error. Change to `setNeedsOnboarding(false)` — safer default. Let individual pages handle auth failures.
+5. **"Unknown step: completed"** (Onboarding.tsx renderStep): Add a `case 'completed':` that navigates to `/dashboard` with `replace: true` and returns null. This handles the edge case where the onboarding page is rendered with `currentStep = 'completed'`.
+
+Follow the Safety Protocol. Commit after each task. Write your retrospective when done.
+```
+
+**Agent E** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-e`):
+```
+Read PARALLEL_AGENTS.md — you are Agent E for Run 25. Your job: Add version tracking to the health endpoint, create a deploy script, and document the Deploy Verification Protocol.
+
+Context: During a debugging session, the developer kept restarting `telegram-rpg-api` (PM2 ids 1,2) instead of `telegram-rpg-bot` (PM2 id 0). Nginx routes to port 3000 which is served by `telegram-rpg-bot`. The `telegram-rpg-api` cluster process exists in ecosystem.config.js but does NOT receive traffic. There was also no way to verify which code version was running.
+
+Your approach:
+1. Modify the `/health` endpoint in `server.ts` (lines 63-69 ONLY) to return `version` (from `BUILD_VERSION` env var, default 'dev') and `build_timestamp` (from `BUILD_TIMESTAMP` env var). Add const declarations near the top of the file.
+2. Create `scripts/deploy.sh` — a bash script that pushes to GitHub, SSHs to server, runs `git pull`, builds both bot and mini-app, restarts ONLY `telegram-rpg-bot` (NEVER telegram-rpg-api), waits 3 seconds, then verifies by curling /health and comparing the version to the local git commit hash. Make it executable.
+3. Update `ecosystem.config.js` — add `BUILD_VERSION` and `BUILD_TIMESTAMP` to `env_production`. Add a WARNING comment to the `telegram-rpg-api` section explaining it is NOT used by nginx.
+4. Add "Deploy Verification Protocol" section to PARALLEL_AGENTS.md after "Safety Protocol". Include: which process to restart, how to verify, deploy command, manual fallback.
+5. Update "Known Issues" in PARALLEL_AGENTS.md — mark issues that Run 25 resolves.
+
+IMPORTANT: In server.ts, ONLY modify the health endpoint (lines 63-69) and add const declarations. Do NOT modify routes, middleware, error handler, or anything else — Agent B owns those parts.
+
+Follow the Safety Protocol. Commit after each task. Write your retrospective when done.
+```
+
+---
+
+### Agent A — Authorization + Security Hardening
+
+**Branch:** `feature/r25-auth-hardening`
+**Worktree:** `../Wibecode-agent-a`
+
+**Context:** The `authorizeUser` middleware at `bot/src/api/middleware/auth.ts` line 178 validates that URL params match the authenticated user. But only `quests.ts` uses it. All other route files use `authenticateTelegram` alone — meaning any authenticated Telegram user can access/modify ANY other user's data by changing the URL parameter. The DELETE account endpoint is the most dangerous: any authenticated user can delete any other user's account.
+
+**Tasks:**
+
+1. **Create `requireOwnership(req)` helper in `auth.ts`** — Add at the BOTTOM of the file (after `authorizeUser`). A lightweight function that extracts `:telegramId` from `req.params` and compares to `req.telegramUser?.id`. Throws `ForbiddenError` on mismatch. Import `ForbiddenError` from `../utils/errors.js`.
+
+2. **Add authorization to `users.ts`** — Add `requireOwnership(req)` as the FIRST line inside each handler (after `const tid = parseInt(...)`) for all 8 `:telegramId` endpoints: GET stats, GET quests/active, GET quests/completed, GET achievements, GET preferences, PATCH preferences, PATCH profile, DELETE account.
+
+3. **Add authorization to `onboarding.ts`** — Add `requireOwnership(req)` as first line in all 3 handlers.
+
+4. **Add authorization to `modes.ts`** — Add `authorizeUser` to the middleware chain for 5 `:userId` endpoints.
+
+5. **Add authorization to `checkins.ts`, `achievements.ts`, `punishment.ts`** — For checkins: verify user owns the resource. For achievements: add `authorizeUser` to `:userId` endpoints. For punishment: add `requireOwnership(req)` to all 3 `:telegramId` endpoints.
+
+6. **Build verification**: `cd bot && npm run build`
+
+**OWNED files:**
+- `bot/src/api/middleware/auth.ts` (add requireOwnership function at bottom ONLY)
+- `bot/src/api/routes/users.ts` (auth lines ONLY — do not change business logic)
+- `bot/src/api/routes/onboarding.ts` (auth lines ONLY)
+- `bot/src/api/routes/modes.ts` (auth middleware ONLY)
+- `bot/src/api/routes/checkins.ts` (auth additions ONLY)
+- `bot/src/api/routes/achievements.ts` (auth additions ONLY)
+- `bot/src/api/routes/punishment.ts` (auth additions ONLY)
+
+**FORBIDDEN:**
+- `mini-app/**`, `tools/**`, `database/**`
+- `bot/src/api/server.ts`, `bot/src/api/utils/**`
+- `bot/src/api/routes/quests.ts` (already has authorization)
+- `bot/src/api/routes/admin*.ts`, `leaderboard.ts`
+- `bot/src/handlers/**`, `bot/src/jobs/**`, `bot/src/utils/**`
+- `scripts/**`
+- `PARALLEL_AGENTS.md` (except retrospective)
+
+---
+
+### Agent B — Structured Logger + Request Tracing
+
+**Branch:** `feature/r25-structured-logging`
+**Worktree:** `../Wibecode-agent-b`
+
+**Context:** `bot/src/api/utils/logger.ts` has a 54-line Logger class that is NEVER imported anywhere. All 144 logging calls use raw `console.*`. During the multi-hour debugging session, the developer could not correlate log entries for a single request — every error looked isolated.
+
+**Tasks:**
+
+1. **Rewrite `bot/src/api/utils/logger.ts`** — Structured JSON logger with `child(ctx)` method for context-bound loggers, `generateRequestId()` using `crypto.randomUUID()`. In production outputs JSON lines, in development outputs readable format.
+
+2. **Add request tracing middleware to `server.ts`** — After body parsing (line 57), before routes. Generates `requestId`, attaches to `req.requestId`. Logs request start and uses `res.on('finish', ...)` to log completion with duration/status. Update `bot/src/types/express.d.ts` to declare `requestId?: string` on Request.
+
+3. **Replace `console.*` in `auth.ts`** — Replace all 12+ `console.*` calls with `logger.child({requestId: req.requestId}).info/warn/error(...)`. Remove the local `logAuthAttempt` function. **ONLY replace console calls — do NOT modify authorization logic.**
+
+4. **Replace `console.*` in `rateLimiter.ts` and `db.ts`** — Use `logger.child({ component: 'rateLimiter' })` and `logger.child({ component: 'db' })`.
+
+5. **Update global error handler in `server.ts`** — Replace `console.error('Error:', err)` with `logger.error('Unhandled error', err, { requestId: req.requestId })`.
+
+6. **Build verification**: `cd bot && npm run build`
+
+**OWNED files:**
+- `bot/src/api/utils/logger.ts` (full rewrite)
+- `bot/src/api/server.ts` (GRAY AREA: add middleware + update error handler ONLY — do NOT touch health endpoint lines 63-69)
+- `bot/src/types/express.d.ts` (add requestId field)
+- `bot/src/api/middleware/rateLimiter.ts` (console replacement only)
+- `bot/src/utils/db.ts` (console replacement only)
+
+**GRAY AREA:**
+- `bot/src/api/middleware/auth.ts` — ONLY replace `console.*` with logger calls. Do NOT change authorization logic (Agent A owns that).
+
+**FORBIDDEN:**
+- `mini-app/**`, `tools/**`, `database/**`
+- `bot/src/api/routes/*.ts` (except GRAY on quests.ts for console swap if needed)
+- `bot/src/handlers/**`, `bot/src/jobs/**`
+- `bot/src/index.ts`
+- `scripts/**`, `ecosystem.config.js`
+- `PARALLEL_AGENTS.md` (except retrospective)
+
+---
+
+### Agent C — Transaction Atomicity + Idempotency Fixes
+
+**Branch:** `feature/r25-transaction-fixes`
+**Worktree:** `../Wibecode-agent-c`
+
+**Context:** The `completeOnboarding` endpoint has 3 atomicity/idempotency bugs:
+1. Mode creation (lines 81-109) runs OUTSIDE the transaction — orphaned rows on rollback.
+2. `total_xp + 50` is not idempotent — double calls award 100 XP.
+3. UPDATE on `onboarding_state` step 5 matches zero rows if no row exists — user never marked completed.
+
+Additionally, the DELETE account transaction misses the `reminders` table.
+
+**Tasks:**
+
+1. **Add idempotency guard to `onboarding.ts` POST complete** — After userId lookup, before any processing: check `onboarding_state.current_step`. If already `'completed'`, return early with `{ xp_awarded: 0, already_completed: true }`.
+
+2. **Move mode creation inside the transaction** — Move lines 81-109 inside the `transaction()` callback. Convert `queryOne()`/`execute()` to `client.query()` with `.rows[0]` access pattern. This ensures atomicity.
+
+3. **Replace UPDATE with UPSERT for onboarding completion** — Change step 5 (lines 173-176) from UPDATE to INSERT ... ON CONFLICT (user_id) DO UPDATE SET current_step = 'completed'. This handles the case where no onboarding_state row exists.
+
+4. **Move quest assignment inside the transaction** — Move lines 181-207 inside the transaction callback, using `client.query()`. This ensures a user never ends up with "completed onboarding" but zero quests.
+
+5. **Add reminders cleanup to users.ts DELETE** — Add `DELETE FROM reminders WHERE user_id = $1` to the transaction in `users.ts` (after streaks delete, before user update).
+
+6. **Build verification**: `cd bot && npm run build`
+
+**OWNED files:**
+- `bot/src/api/routes/onboarding.ts` (transaction body restructure + idempotency guard)
+- `bot/src/api/routes/users.ts` (add reminders DELETE to transaction ONLY)
+
+**FORBIDDEN:**
+- `mini-app/**`, `tools/**`, `database/**`
+- `bot/src/api/server.ts`, `bot/src/api/middleware/**`, `bot/src/api/utils/**`
+- `bot/src/api/routes/quests.ts`, `modes.ts`, `checkins.ts`, `achievements.ts`, `punishment.ts`, `leaderboard.ts`, `admin*.ts`
+- `bot/src/handlers/**`, `bot/src/jobs/**`, `bot/src/utils/**`
+- `scripts/**`, `ecosystem.config.js`
+- `PARALLEL_AGENTS.md` (except retrospective)
+
+---
+
+### Agent D — Frontend Hardening
+
+**Branch:** `feature/r25-frontend-hardening`
+**Worktree:** `../Wibecode-agent-d`
+
+**Context:** Multiple frontend edge cases were discovered during the debugging session: telegramId=0 causing silent API failures, double-fire of completeOnboarding stacking XP, 1.2s stale page after delete, API errors sending all users to onboarding, "Unknown step: completed" with no render case.
+
+**Tasks:**
+
+1. **Guard telegramId in `Onboarding.tsx`** — Change `user?.id || 0` to `user?.id` (undefined, not 0). Add early returns when telegramId is falsy. Add error screen "Please open this app from Telegram" when user is null after component mounts.
+
+2. **Add idempotency guard to `LaunchScreen.tsx`** — Add `const calledRef = useRef(false)` and check it before calling `completeOnboarding()` in useEffect. Set it to `true` after the first call.
+
+3. **Improve delete redirect in `useSettingsData.ts`** — Reduce setTimeout from 1200ms to 500ms. Use `window.location.replace()` instead of `.href` to prevent back-button returning to deleted state.
+
+4. **Fix API error catch in `App.tsx`** — In `checkOnboardingState()` catch block (lines 67-69), change `setNeedsOnboarding(true)` to `setNeedsOnboarding(false)`. Safer default: let individual pages handle auth failures rather than temporarily routing all users to onboarding.
+
+5. **Add `completed` case to `Onboarding.tsx` renderStep** — Add `case 'completed':` that calls `navigate('/dashboard', { replace: true })` and returns null. Handles the edge case where the onboarding page renders with `currentStep = 'completed'`.
+
+6. **Build verification**: `cd mini-app && npm run build`
+
+**OWNED files:**
+- `mini-app/src/pages/Onboarding.tsx`
+- `mini-app/src/components/onboarding/LaunchScreen.tsx`
+- `mini-app/src/hooks/useSettingsData.ts`
+- `mini-app/src/App.tsx`
+
+**FORBIDDEN:**
+- `bot/**`, `tools/**`, `database/**`
+- `mini-app/src/api/client.ts`
+- `mini-app/src/hooks/useOnboarding.ts`
+- `mini-app/src/components/ProtectedRoute.tsx`
+- `mini-app/src/components/settings/DangerZone.tsx`
+- `scripts/**`, `ecosystem.config.js`
+- `PARALLEL_AGENTS.md` (except retrospective)
+
+---
+
+### Agent E — Deploy Protocol + Version Tracking
+
+**Branch:** `feature/r25-deploy-protocol`
+**Worktree:** `../Wibecode-agent-e`
+
+**Context:** During a multi-hour debugging session, the developer repeatedly restarted `telegram-rpg-api` (PM2 ids 1,2) instead of `telegram-rpg-bot` (PM2 id 0). Nginx routes to port 3000 which is served exclusively by `telegram-rpg-bot`. The separate `telegram-rpg-api` cluster exists but receives zero traffic. There was no way to verify which code version was running on the server.
+
+**Tasks:**
+
+1. **Add version info to `/health` endpoint in `server.ts`** — ONLY modify lines 63-69. Add `version: BUILD_VERSION` and `build_timestamp: BUILD_TIMESTAMP` to the response. Add const declarations near the top: `const BUILD_VERSION = process.env.BUILD_VERSION || 'dev'` and `const BUILD_TIMESTAMP = process.env.BUILD_TIMESTAMP || new Date().toISOString()`.
+
+2. **Create `scripts/deploy.sh`** — Push to GitHub, SSH to server, git pull, build both bot and mini-app, restart ONLY `telegram-rpg-bot`, wait 3 seconds, verify via /health endpoint comparing version to local commit hash. Make executable. Include clear success/failure output.
+
+3. **Update `ecosystem.config.js`** — Add `BUILD_VERSION: 'set-by-deploy-script'` and `BUILD_TIMESTAMP: 'set-by-deploy-script'` to `env_production` block. Add WARNING comment to `telegram-rpg-api` section: "This process is NOT used. Nginx routes to telegram-rpg-bot. DO NOT restart this process."
+
+4. **Add "Deploy Verification Protocol" to `PARALLEL_AGENTS.md`** — New section after "Safety Protocol" explaining: which PM2 process to always restart, how to verify, preferred deploy command, manual fallback, and the cautionary tale from the debugging session.
+
+5. **Update "Known Issues" in `PARALLEL_AGENTS.md`** — Add resolutions for issues fixed in Run 25 (authorization gap, XP idempotency, transaction atomicity, dead logger, deploy coupling).
+
+6. **Build verification**: `cd bot && npm run build`
+
+**OWNED files:**
+- `bot/src/api/server.ts` (GRAY AREA: health endpoint lines 63-69 ONLY + const declarations at top)
+- `scripts/deploy.sh` (new)
+- `ecosystem.config.js`
+- `PARALLEL_AGENTS.md` (Deploy Protocol section + Known Issues + retrospective)
+
+**FORBIDDEN:**
+- `mini-app/**`, `tools/**`, `database/**`
+- `bot/src/api/routes/**`, `bot/src/api/middleware/**`, `bot/src/api/utils/**`
+- `bot/src/handlers/**`, `bot/src/jobs/**`, `bot/src/utils/**`
+- `bot/src/index.ts`
+
+---
+
+### Run 25 File Ownership Matrix
+
+| File | Agent A | Agent B | Agent C | Agent D | Agent E |
+|------|---------|---------|---------|---------|---------|
+| `bot/src/api/middleware/auth.ts` | **OWN** (add requireOwnership) | GRAY (console swap) | FORBID | FORBID | FORBID |
+| `bot/src/api/routes/users.ts` | **OWN** (auth lines) | FORBID | **OWN** (delete txn) | FORBID | FORBID |
+| `bot/src/api/routes/onboarding.ts` | **OWN** (auth lines) | FORBID | **OWN** (txn+idempotency) | FORBID | FORBID |
+| `bot/src/api/routes/modes.ts` | **OWN** (auth) | FORBID | FORBID | FORBID | FORBID |
+| `bot/src/api/routes/checkins.ts` | **OWN** (auth) | FORBID | FORBID | FORBID | FORBID |
+| `bot/src/api/routes/achievements.ts` | **OWN** (auth) | FORBID | FORBID | FORBID | FORBID |
+| `bot/src/api/routes/punishment.ts` | **OWN** (auth) | FORBID | FORBID | FORBID | FORBID |
+| `bot/src/api/utils/logger.ts` | FORBID | **OWN** | FORBID | FORBID | FORBID |
+| `bot/src/api/server.ts` | FORBID | **OWN** (middleware+error) | FORBID | FORBID | GRAY (health only) |
+| `bot/src/api/middleware/rateLimiter.ts` | FORBID | **OWN** (console swap) | FORBID | FORBID | FORBID |
+| `bot/src/utils/db.ts` | FORBID | **OWN** (console swap) | FORBID | FORBID | FORBID |
+| `bot/src/types/express.d.ts` | FORBID | **OWN** (requestId) | FORBID | FORBID | FORBID |
+| `mini-app/src/pages/Onboarding.tsx` | FORBID | FORBID | FORBID | **OWN** | FORBID |
+| `mini-app/src/components/onboarding/LaunchScreen.tsx` | FORBID | FORBID | FORBID | **OWN** | FORBID |
+| `mini-app/src/hooks/useSettingsData.ts` | FORBID | FORBID | FORBID | **OWN** | FORBID |
+| `mini-app/src/App.tsx` | FORBID | FORBID | FORBID | **OWN** | FORBID |
+| `scripts/deploy.sh` (new) | FORBID | FORBID | FORBID | FORBID | **OWN** |
+| `ecosystem.config.js` | FORBID | FORBID | FORBID | FORBID | **OWN** |
+| `PARALLEL_AGENTS.md` | retro only | retro only | retro only | retro only | **OWN** (protocol + retro) |
+
+### Run 25 Merge Order
+1. **Agent E** (deploy protocol + version endpoint — infrastructure, no deps)
+2. **Agent B** (structured logging — foundation for all backend logging)
+3. **Agent A** (authorization — adds guards to routes)
+4. **Agent C** (transaction fixes — modifies handler bodies, layers on A's auth)
+5. **Agent D** (frontend — completely independent of backend changes)
+
+### Run 25 Retrospectives
+
+#### Agent A Retrospective
+*(To be filled by Agent A)*
+
+#### Agent B Retrospective
+*(To be filled by Agent B)*
+
+#### Agent C Retrospective
+*(To be filled by Agent C)*
+
+#### Agent D Retrospective
+*(To be filled by Agent D)*
+
+#### Agent E Retrospective
+*(To be filled by Agent E)*
+
+#### Agent 0 Retrospective
+*(To be filled by Agent 0)*
+
+<!-- Next run goes here. Agent 0 will append RUN 26 below this line. -->
