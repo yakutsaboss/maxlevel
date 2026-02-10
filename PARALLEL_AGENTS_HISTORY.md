@@ -7545,3 +7545,28 @@ Find your section under "Run 16 Retrospectives" below and replace the placeholde
 - **Agent E**: Created `punishment_manager.py` (484 lines, 6 functions), synced schema.sql, added 5 performance indexes migration.
 
 **Post-deploy TODO:** Run `run16_indexes.sql` on production database.
+
+---
+
+## Run 17 Retrospective (Agent 0)
+
+### Focus: Type Safety Completion, Admin API Consistency, Mini-App Architecture Cleanup
+
+### Merge Results
+| Branch | Merge | Conflicts | Resolution |
+|--------|-------|-----------|------------|
+| `feature/r17-admin-api` → main | Merge commit | 0 | Clean |
+| `feature/r17-types` → main | Merge commit | 1 (PARALLEL_AGENTS.md) | Ours + manual retro splice |
+| `feature/r17-miniapp-arch` → main | Merge commit | 1 (PARALLEL_AGENTS.md) | Ours + manual retro splice |
+
+### What Was Delivered
+- **Agent A**: Moved LeaderboardEntry to shared types, replaced all `any[]` in client.ts with proper types (LeaderboardEntry[], Achievement[]), replaced `Record<string, any>` with `Record<string, unknown>`. Added `badge_icon`/`xp_bonus` optional fields to Achievement type.
+- **Agent B**: Wrapped all admin route responses (admin-jobs, admin-stats, admin-users — 13 endpoints total) in `{success, data}` format. Standardized error responses. Deleted 6 stale REGISTER_THESE_RUN*.md files.
+- **Agent C**: Created `api/adminClient.ts` (shared API_BASE_URL + adminFetch), extracted `ProtectedRoute` component, refactored App.tsx (30 lines removed), replaced `(tg as any)` casts with proper `in` type guards in useTelegram.ts.
+
+### Issues
+- Two merge conflicts in PARALLEL_AGENTS.md retrospective sections (expected — retro text shifted by prior merges).
+- Agent A had a `Record<string, unknown>` build error in LaunchScreen.tsx — fixed with type assertion.
+
+### Deploy
+Deployed to production. Commit c2d493c on server.
