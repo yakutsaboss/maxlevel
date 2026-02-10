@@ -16,7 +16,7 @@ router.get('/', authenticateTelegram, async (req: Request, res: Response) => {
       query(`SELECT id, name, display_name, description, icon_emoji AS icon FROM modes ORDER BY id`)
     );
 
-    res.json({ modes, count: modes.length });
+    res.json({ success: true, data: { modes, count: modes.length } });
   } catch (error) {
     console.error('Error fetching modes:', error);
     res.status(500).json({ error: 'Server Error', message: 'Failed to fetch modes' });
