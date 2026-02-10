@@ -61,7 +61,9 @@ export interface Achievement {
   name: string;
   description: string;
   icon: string;
+  badge_icon?: string;
   xp_reward: number;
+  xp_bonus?: number;
   rarity: string;
   category: string;
   criteria?: Record<string, any>;

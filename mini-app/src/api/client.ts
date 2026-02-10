@@ -108,7 +108,7 @@ class ApiClient {
     return response.data;
   }
 
-  async checkAchievements(userId: number): Promise<ApiResponse<{ newAchievements: any[]; count: number }>> {
+  async checkAchievements(userId: number): Promise<ApiResponse<{ newAchievements: Achievement[]; count: number }>> {
     const response = await this.client.post(`/users/${userId}/achievements/check`);
     return response.data;
   }
