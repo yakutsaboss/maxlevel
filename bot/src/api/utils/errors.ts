@@ -1,3 +1,5 @@
+import { Request, Response, NextFunction } from 'express';
+
 /**
  * Custom error classes for API
  */
@@ -53,8 +55,8 @@ export class InternalServerError extends ApiError {
 /**
  * Async handler wrapper to catch errors in async routes
  */
-export const asyncHandler = (fn: Function) => {
-  return (req: any, res: any, next: any) => {
+export const asyncHandler = (fn: (req: Request, res: Response, next: NextFunction) => Promise<any>) => {
+  return (req: Request, res: Response, next: NextFunction): void => {
     Promise.resolve(fn(req, res, next)).catch(next);
   };
 };
@@ -62,7 +64,7 @@ export const asyncHandler = (fn: Function) => {
 /**
  * Success response formatter
  */
-export const successResponse = (data: any, message?: string) => {
+export const successResponse = (data: any, message?: string): { success: true; data: any; message?: string } => {
   return {
     success: true,
     ...(message && { message }),

@@ -1216,7 +1216,25 @@ Read PARALLEL_AGENTS.md — you are Agent E for Run 21. Your job: (1) Apply asyn
 *(To be filled by Agent C)*
 
 #### Agent D Retrospective
-*(To be filled by Agent D)*
+**Status:** All tasks completed. Build passes with zero errors.
+
+| # | Task | Status |
+|---|------|--------|
+| 1 | Fix `asyncHandler` typing — replace `Function` with Express `Request/Response/NextFunction` types, add `successResponse` return type | Done |
+| 2 | Apply asyncHandler to `quests.ts` — 6 handlers wrapped, try-catch removed, error classes + successResponse applied | Done |
+| 3 | Apply asyncHandler to `achievements.ts` — 7 handlers wrapped (task said 8 but file has 7), try-catch removed | Done |
+| 4 | Apply asyncHandler to `modes.ts` — 7 handlers wrapped, try-catch removed, error classes + successResponse applied | Done |
+| 5 | Build verification (`tsc`) | Pass — zero errors |
+
+**Problems faced:** None. The pattern from Run 20 was well-established and easy to replicate.
+
+**Implementation notes:**
+- `errors.ts`: Added `import { Request, Response, NextFunction } from 'express'`, replaced `(fn: Function)` → proper Express types, typed return function, added return type to `successResponse`.
+- `achievements.ts` unlock handler: Kept transaction return-value pattern and throw after transaction.
+- Total handlers migrated this run: 20 (6 + 7 + 7).
+
+**Recommendations:**
+- `errorResponse()` in `errors.ts` is now unused by any route file — could be removed.
 
 #### Agent E Retrospective
 *(To be filled by Agent E)*
