@@ -1,10 +1,10 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTelegram } from '@/hooks/useTelegram';
 import { useBackButton } from '@/hooks/useTelegram';
 import { apiClient } from '@/api/client';
-import { Bell, Clock, Globe, AlertCircle, RefreshCw, Loader2, Shield } from 'lucide-react';
-import { motion } from 'framer-motion';
+import { Bell, Clock, Globe, AlertCircle, RefreshCw, Loader2, Shield, Check } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { Toast } from '@/components/Toast';
 
 interface UserPreferences {
@@ -66,6 +66,9 @@ export function Settings() {
     safe_mode: true,
   });
   const [punishmentAvailable, setPunishmentAvailable] = useState(true);
+  const [accountabilitySaveStatus, setAccountabilitySaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
+  const intensityDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const saveStatusTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const handleBack = useCallback(() => navigate('/profile'), [navigate]);
   useBackButton(handleBack);
@@ -103,28 +106,65 @@ export function Settings() {
     } finally { setLoading(false); }
   };
 
+  const autoSaveAccountability = useCallback(async (settings: PunishmentSettings) => {
+    if (!user?.id || !punishmentAvailable) return;
+    setAccountabilitySaveStatus('saving');
+    try {
+      await apiClient.updatePunishmentSettings(user.id, {
+        consent_given: settings.consent_given,
+        intensity_level: settings.intensity_level,
+        safe_mode: settings.safe_mode,
+      });
+      haptic.notification('success');
+      setAccountabilitySaveStatus('saved');
+      if (saveStatusTimeoutRef.current) clearTimeout(saveStatusTimeoutRef.current);
+      saveStatusTimeoutRef.current = setTimeout(() => setAccountabilitySaveStatus('idle'), 2000);
+    } catch {
+      setAccountabilitySaveStatus('error');
+      if (saveStatusTimeoutRef.current) clearTimeout(saveStatusTimeoutRef.current);
+      saveStatusTimeoutRef.current = setTimeout(() => setAccountabilitySaveStatus('idle'), 2000);
+    }
+  }, [user?.id, punishmentAvailable, haptic]);
+
+  const handleConsentToggle = useCallback(() => {
+    haptic.selection();
+    if (!punishmentAvailable) return;
+    setPunishment(prev => {
+      const updated = { ...prev, consent_given: !prev.consent_given };
+      autoSaveAccountability(updated);
+      return updated;
+    });
+  }, [haptic, punishmentAvailable, autoSaveAccountability]);
+
+  const handleIntensityChange = useCallback((value: string) => {
+    haptic.selection();
+    setPunishment(prev => {
+      const updated = { ...prev, intensity_level: value };
+      if (intensityDebounceRef.current) clearTimeout(intensityDebounceRef.current);
+      intensityDebounceRef.current = setTimeout(() => autoSaveAccountability(updated), 500);
+      return updated;
+    });
+  }, [haptic, autoSaveAccountability]);
+
+  const handleSafeModeToggle = useCallback(() => {
+    haptic.selection();
+    setPunishment(prev => {
+      const updated = { ...prev, safe_mode: !prev.safe_mode };
+      autoSaveAccountability(updated);
+      return updated;
+    });
+  }, [haptic, autoSaveAccountability]);
+
   const handleSave = async () => {
     if (!user?.id || saving) return;
     haptic.impact('medium');
     setSaving(true);
     try {
-      const saves: Promise<any>[] = [
-        apiClient.updateUserPreferences(user.id, {
-          notification_enabled: prefs.notifications_enabled,
-          reminder_time: prefs.reminder_time,
-          timezone: prefs.timezone,
-        }),
-      ];
-      if (punishmentAvailable) {
-        saves.push(
-          apiClient.updatePunishmentSettings(user.id, {
-            consent_given: punishment.consent_given,
-            intensity_level: punishment.intensity_level,
-            safe_mode: punishment.safe_mode,
-          }).catch(() => {})
-        );
-      }
-      await Promise.all(saves);
+      await apiClient.updateUserPreferences(user.id, {
+        notification_enabled: prefs.notifications_enabled,
+        reminder_time: prefs.reminder_time,
+        timezone: prefs.timezone,
+      });
       haptic.notification('success');
       setToast({ message: 'Settings saved!', variant: 'success' });
     } catch {
@@ -297,11 +337,7 @@ export function Settings() {
               </div>
             </div>
             <button
-              onClick={() => {
-                haptic.selection();
-                if (!punishmentAvailable) return;
-                setPunishment(p => ({ ...p, consent_given: !p.consent_given }));
-              }}
+              onClick={handleConsentToggle}
               className={`w-12 h-7 rounded-full transition-colors relative ${
                 !punishmentAvailable ? 'bg-telegram-hint/20 opacity-50' :
                 punishment.consent_given ? 'bg-red-500' : 'bg-telegram-hint/30'
@@ -328,10 +364,7 @@ export function Settings() {
                   {INTENSITY_LEVELS.map((level) => (
                     <button
                       key={level.value}
-                      onClick={() => {
-                        haptic.selection();
-                        setPunishment(p => ({ ...p, intensity_level: level.value }));
-                      }}
+                      onClick={() => handleIntensityChange(level.value)}
                       className={`py-2 px-1 rounded-xl text-center transition-all active:scale-95 ${
                         punishment.intensity_level === level.value
                           ? 'bg-red-500 text-white shadow-md'
@@ -354,10 +387,7 @@ export function Settings() {
                   <p className="text-xs text-telegram-hint">Cap daily XP loss</p>
                 </div>
                 <button
-                  onClick={() => {
-                    haptic.selection();
-                    setPunishment(p => ({ ...p, safe_mode: !p.safe_mode }));
-                  }}
+                  onClick={handleSafeModeToggle}
                   className={`w-12 h-7 rounded-full transition-colors relative ${punishment.safe_mode ? 'bg-telegram-link' : 'bg-telegram-hint/30'}`}
                 >
                   <motion.div
@@ -369,6 +399,33 @@ export function Settings() {
               </div>
             </div>
           )}
+
+          {/* Auto-save indicator */}
+          <AnimatePresence>
+            {accountabilitySaveStatus !== 'idle' && (
+              <motion.div
+                initial={{ opacity: 0, y: -4 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -4 }}
+                transition={{ duration: 0.2 }}
+                className="mt-2 flex items-center gap-1.5"
+              >
+                {accountabilitySaveStatus === 'saving' && (
+                  <span className="text-xs text-telegram-hint flex items-center gap-1">
+                    <Loader2 className="w-3 h-3 animate-spin" /> Saving...
+                  </span>
+                )}
+                {accountabilitySaveStatus === 'saved' && (
+                  <span className="text-xs text-green-500 flex items-center gap-1">
+                    <Check className="w-3 h-3" /> Saved
+                  </span>
+                )}
+                {accountabilitySaveStatus === 'error' && (
+                  <span className="text-xs text-red-500">Failed to save</span>
+                )}
+              </motion.div>
+            )}
+          </AnimatePresence>
         </motion.div>
       </div>
 
