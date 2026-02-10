@@ -1444,6 +1444,26 @@ Additionally, the DELETE account transaction misses the `reminders` table.
 - Consider updating the Agent 0 "Deploy Command" at the top of PARALLEL_AGENTS.md to reference `scripts/deploy.sh` instead of the inline SSH command.
 
 #### Agent 0 Retrospective
-*(To be filled by Agent 0)*
+**Merge:** E → B → A (already on main) → C → D. 4 merges total, **1 conflict** in `auth.ts` imports (Agent A added `ForbiddenError`, Agent B added `logger` — both kept). All other merges auto-merged cleanly.
+
+**Post-merge fix:** None needed — all builds passed on first try.
+
+**Build:** Both `bot` (tsc) and `mini-app` (tsc + vite) pass with zero errors locally and on server.
+
+**Deploy:** `8e72c6c` deployed to production. 19 files changed (+974/-183 lines). PM2 restarted `telegram-rpg-bot` (id 0). Telegram notification sent.
+
+**Net result — Run 25 milestone:**
+- **Security:** 27 API endpoints now enforce resource ownership (was: only quests.ts). Cross-user data access eliminated.
+- **Observability:** Structured JSON logger with requestId tracing. All middleware uses `logger.child()` — request correlation now possible.
+- **Atomicity:** Onboarding completion is idempotent (XP guard) and fully transactional (modes + quests + state inside single transaction). UPSERT handles missing onboarding_state row.
+- **Data integrity:** DELETE account now cleans `reminders` table.
+- **Frontend:** telegramId=0 guarded, double-fire prevented, faster delete redirect, safer error routing, completed step handled.
+- **Deploy protocol:** `/health` returns version + build timestamp. `scripts/deploy.sh` created. ecosystem.config.js warns about unused `telegram-rpg-api`.
+
+**Issues carried forward:**
+- pg-boss Node.js mismatch (server has 20.20, needs 22.12+) — warnings only
+- `mode_configs` table unused
+- Local SQL helpers duplicated across handlers (could extract to shared utils/queries.ts)
+- `__tests__/setup.ts` still mocks old wrapper functions
 
 <!-- Next run goes here. Agent 0 will append RUN 26 below this line. -->
