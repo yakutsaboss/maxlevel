@@ -2614,7 +2614,30 @@ const mockExecute = vi.mocked(execute);
 *(To be filled by Agent B)*
 
 #### Agent C Retrospective
-*(To be filled by Agent C)*
+
+**Status:** All 6 tasks completed. Build passes.
+
+| # | Task | Status |
+|---|------|--------|
+| 1 | Migrate `dailyQuestReset.ts` — user pagination (2 calls) | Done |
+| 2 | Migrate `dailyQuestReset.ts` — assign daily quests | Done |
+| 3 | Migrate `dailyQuestReset.ts` — assign weekly quests | Done |
+| 4 | Migrate `questReminders.ts` — db_operations query | Done |
+| 5 | Migrate `streakCheck.ts` — streak_manager | Done |
+| 6 | Clean up imports + build verification | Done |
+
+**Changes made:**
+- `dailyQuestReset.ts`: Replaced 4 `executePythonTool` calls. User pagination now uses direct `query()`. Daily quest assignment inlined as 3-step SQL (get active modes → find unassigned templates → INSERT). Weekly quest assignment uses similar logic with 7-day lookback and status filter. Kept retry logic and pagination structure intact.
+- `questReminders.ts`: Replaced 1 `executePythonTool('db_operations', ['--query', ...])` call with direct `query()`. Added `::int` cast on COUNT. Changed result iteration from `result.data[i]` to `usersWithQuests[i]`.
+- `streakCheck.ts`: Replaced 1 `executePythonTool('streak_manager', ['--check-all-streaks'])` call. Now fetches active streaks via JOIN query, loops to compare `last_activity_date` against yesterday, resets broken streaks with UPDATE. Typed `brokenDetails` array replaces the `data?.broken_details` wrapper.
+
+**Problems:** None. The plan was precise and the SQL was straightforward.
+
+**Commits:** 3 atomic commits (one per file).
+
+**Recommendations for next run:**
+- After all Run 24 agents merge, the only remaining `executePythonTool` call in the entire codebase should be in `analyticsExport.ts` (Google Sheets OAuth — justified).
+- The `dailyQuestReset` job now makes N+1 queries per user (get modes + get templates + N inserts). If user count grows, consider batching the INSERT into a single multi-row INSERT per user.
 
 #### Agent D Retrospective
 

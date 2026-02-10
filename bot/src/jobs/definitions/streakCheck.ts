@@ -7,7 +7,7 @@
  */
 
 import type { Job } from 'pg-boss';
-import { executePythonTool } from '../../utils/pythonTools.js';
+import { query, execute } from '../../utils/db.js';
 
 export const JOB_NAME = 'streak-check';
 export const CRON_SCHEDULE = '0 1 * * *';
@@ -16,24 +16,46 @@ export async function handler(jobs: Job[]): Promise<void> {
   const startTime = Date.now();
   console.log(`[JOB:${JOB_NAME}] Started`);
 
-  const result = await executePythonTool('streak_manager', ['--check-all-streaks']);
+  const yesterday = new Date(Date.now() - 86400000).toISOString().split('T')[0];
 
-  if (!result.success) {
-    throw new Error(`Streak check failed: ${result.error}`);
+  // Get all active streaks that might be broken
+  const activeStreaks = await query(`
+    SELECT s.id, s.user_id, s.mode_id, s.current_streak, s.longest_streak,
+           s.last_activity_date, u.telegram_id, u.first_name
+    FROM streaks s
+    JOIN users u ON u.id = s.user_id
+    WHERE u.is_active = true AND s.current_streak > 0
+  `);
+
+  let broken = 0;
+  let maintained = 0;
+  const brokenDetails: { user_id: number; telegram_id: number; mode_id: number; was_streak: number }[] = [];
+
+  for (const streak of activeStreaks) {
+    const lastDate = streak.last_activity_date
+      ? new Date(streak.last_activity_date).toISOString().split('T')[0]
+      : null;
+    if (lastDate === null || lastDate < yesterday) {
+      await execute('UPDATE streaks SET current_streak = 0 WHERE id = $1', [streak.id]);
+      broken++;
+      brokenDetails.push({
+        user_id: streak.user_id,
+        telegram_id: streak.telegram_id,
+        mode_id: streak.mode_id,
+        was_streak: streak.current_streak,
+      });
+    } else {
+      maintained++;
+    }
   }
 
-  const data = result.data as any;
-  const broken = data?.broken ?? 0;
-  const maintained = data?.maintained ?? 0;
-
-  // Log details of broken streaks if available
-  const brokenStreaks = data?.broken_details || data?.broken_streaks || [];
-  if (Array.isArray(brokenStreaks) && brokenStreaks.length > 0) {
+  // Log details of broken streaks
+  if (brokenDetails.length > 0) {
     console.log(`[JOB:${JOB_NAME}] Broken streak details:`);
-    for (const streak of brokenStreaks) {
+    for (const s of brokenDetails) {
       console.log(
-        `[JOB:${JOB_NAME}]   user_id=${streak.user_id}, mode_id=${streak.mode_id}, ` +
-        `previous_streak=${streak.current_streak ?? streak.previous_streak ?? '?'}`
+        `[JOB:${JOB_NAME}]   user_id=${s.user_id}, mode_id=${s.mode_id}, ` +
+        `previous_streak=${s.was_streak}`
       );
     }
   }

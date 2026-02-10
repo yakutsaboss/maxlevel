@@ -11,7 +11,7 @@
 import type { Job } from 'pg-boss';
 import type { Bot } from 'grammy';
 import type { MyContext } from '../../bot.js';
-import { executePythonTool } from '../../utils/pythonTools.js';
+import { query } from '../../utils/db.js';
 
 let botRef: Bot<MyContext> | null = null;
 
@@ -34,20 +34,19 @@ export async function handler(jobs: Job[]): Promise<void> {
   const startTime = Date.now();
   console.log(`[JOB:${JOB_NAME}] Started`);
 
-  const result = await executePythonTool('db_operations', [
-    '--query',
-    `SELECT DISTINCT u.telegram_id, u.first_name, COUNT(qi.id) as pending_count
-     FROM quest_instances qi
-     JOIN users u ON qi.user_id = u.id
-     WHERE qi.instance_date = CURRENT_DATE
-       AND qi.status IN ('pending', 'ready', 'in_progress')
-       AND u.is_active = true
-     GROUP BY u.telegram_id, u.first_name`,
-  ]);
+  const usersWithQuests = await query(`
+    SELECT DISTINCT u.telegram_id, u.first_name, COUNT(qi.id)::int AS pending_count
+    FROM quest_instances qi
+    JOIN users u ON qi.user_id = u.id
+    WHERE qi.instance_date = CURRENT_DATE
+      AND qi.status IN ('pending', 'ready', 'in_progress')
+      AND u.is_active = true
+    GROUP BY u.telegram_id, u.first_name
+  `);
 
-  if (!result.success || !Array.isArray(result.data)) {
+  if (usersWithQuests.length === 0) {
     const elapsed = Date.now() - startTime;
-    console.log(`[JOB:${JOB_NAME}] Completed in ${elapsed}ms — no pending quests or query failed`);
+    console.log(`[JOB:${JOB_NAME}] Completed in ${elapsed}ms — no pending quests`);
     return;
   }
 
@@ -55,8 +54,8 @@ export async function handler(jobs: Job[]): Promise<void> {
   let failed = 0;
   const failedUserIds: number[] = [];
 
-  for (let i = 0; i < result.data.length; i++) {
-    const user = result.data[i];
+  for (let i = 0; i < usersWithQuests.length; i++) {
+    const user = usersWithQuests[i];
 
     try {
       await botRef.api.sendMessage(
@@ -90,7 +89,7 @@ export async function handler(jobs: Job[]): Promise<void> {
     }
 
     // Rate limiting: pause every BATCH_RATE messages for 1 second
-    if ((i + 1) % BATCH_RATE === 0 && i + 1 < result.data.length) {
+    if ((i + 1) % BATCH_RATE === 0 && i + 1 < usersWithQuests.length) {
       await sleep(1000);
     }
   }
@@ -103,6 +102,6 @@ export async function handler(jobs: Job[]): Promise<void> {
 
   console.log(
     `[JOB:${JOB_NAME}] Completed in ${elapsed}ms — ` +
-    `sent: ${sent}, failed: ${failed}, total: ${result.data.length}`
+    `sent: ${sent}, failed: ${failed}, total: ${usersWithQuests.length}`
   );
 }
