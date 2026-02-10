@@ -36,9 +36,14 @@ vi.mock('../../../utils/pythonTools.js', () => ({
   getUserById: vi.fn(),
 }));
 
+vi.mock('../../../utils/achievementEngine.js', () => ({
+  checkAndUnlockAchievements: vi.fn().mockResolvedValue([]),
+}));
+
 vi.mock('../../../api/middleware/auth.js', () => ({
   authenticateTelegram: (_req: any, _res: any, next: any) => next(),
   authorizeUser: (_req: any, _res: any, next: any) => next(),
+  requireOwnership: vi.fn(),
 }));
 
 vi.mock('../../../api/middleware/rateLimiter.js', () => ({
@@ -48,10 +53,22 @@ vi.mock('../../../api/middleware/rateLimiter.js', () => ({
 // ─── Import router after mocks ─────────────────────────────────────
 
 import { achievementRouter } from '../../../api/routes/achievements.js';
+import { ApiError } from '../../../api/utils/errors.js';
 
 function buildApp() {
   const app = createTestApp();
   app.use('/api/achievements', achievementRouter);
+  // Replicate global error handler from server.ts
+  app.use((err: any, _req: any, res: any, _next: any) => {
+    if (err instanceof ApiError) {
+      res.status(err.statusCode).json({ success: false, error: err.message });
+      return;
+    }
+    res.status(500).json({
+      error: 'Internal Server Error',
+      message: 'Something went wrong',
+    });
+  });
   return app;
 }
 
@@ -72,9 +89,10 @@ describe('GET /api/achievements', () => {
       .get('/api/achievements')
       .expect(200);
 
-    expect(res.body.achievements).toHaveLength(2);
-    expect(res.body.count).toBe(2);
-    expect(res.body.achievements[0].name).toBe('First Quest');
+    // Route: successResponse(achievements) — data IS the array
+    expect(res.body.success).toBe(true);
+    expect(res.body.data).toHaveLength(2);
+    expect(res.body.data[0].name).toBe('First Quest');
   });
 
   it('should return empty array when no achievements exist', async () => {
@@ -84,8 +102,7 @@ describe('GET /api/achievements', () => {
       .get('/api/achievements')
       .expect(200);
 
-    expect(res.body.achievements).toHaveLength(0);
-    expect(res.body.count).toBe(0);
+    expect(res.body.data).toHaveLength(0);
   });
 
   it('should return 500 when database throws', async () => {
@@ -95,7 +112,7 @@ describe('GET /api/achievements', () => {
       .get('/api/achievements')
       .expect(500);
 
-    expect(res.body.error).toBe('Server Error');
+    expect(res.body.error).toBe('Internal Server Error');
   });
 });
 
@@ -105,17 +122,17 @@ describe('GET /api/achievements/users/:userId', () => {
     mockQuery.mockResolvedValueOnce([
       { id: 1, achievement_id: 10, name: 'Early Bird', description: 'desc', icon: '🐦', xp_reward: 100, rarity: 'common', unlocked_at: '2025-06-01' },
     ]);
-    // Total achievements count (cached call executes fn)
+    // Total achievements count (cached call executes fn → queryOne)
     mockQueryOne.mockResolvedValueOnce({ total: 5 });
 
     const res = await request(buildApp())
       .get('/api/achievements/users/1')
       .expect(200);
 
-    expect(res.body.achievements).toHaveLength(1);
-    expect(res.body.unlocked).toBe(1);
-    expect(res.body.total).toBe(5);
-    expect(res.body.progress).toBe(20);
+    expect(res.body.data.achievements).toHaveLength(1);
+    expect(res.body.data.unlocked).toBe(1);
+    expect(res.body.data.total).toBe(5);
+    expect(res.body.data.progress).toBe(20);
   });
 
   it('should return 0 progress when no achievements unlocked', async () => {
@@ -126,8 +143,8 @@ describe('GET /api/achievements/users/:userId', () => {
       .get('/api/achievements/users/1')
       .expect(200);
 
-    expect(res.body.unlocked).toBe(0);
-    expect(res.body.progress).toBe(0);
+    expect(res.body.data.unlocked).toBe(0);
+    expect(res.body.data.progress).toBe(0);
   });
 
   it('should handle zero total achievements gracefully', async () => {
@@ -138,7 +155,7 @@ describe('GET /api/achievements/users/:userId', () => {
       .get('/api/achievements/users/1')
       .expect(200);
 
-    expect(res.body.progress).toBe(0);
+    expect(res.body.data.progress).toBe(0);
   });
 
   it('should return 500 when database throws', async () => {
@@ -148,7 +165,7 @@ describe('GET /api/achievements/users/:userId', () => {
       .get('/api/achievements/users/1')
       .expect(500);
 
-    expect(res.body.error).toBe('Server Error');
+    expect(res.body.error).toBe('Internal Server Error');
   });
 });
 
@@ -168,8 +185,8 @@ describe('POST /api/achievements/users/:userId/:achievementId/unlock', () => {
       .post('/api/achievements/users/1/5/unlock')
       .expect(200);
 
-    expect(res.body.message).toBe('Achievement unlocked successfully');
-    expect(res.body.achievement.name).toBe('Hero');
+    expect(res.body.data.message).toBe('Achievement unlocked successfully');
+    expect(res.body.data.achievement.name).toBe('Hero');
   });
 
   it('should return 404 when achievement does not exist', async () => {
@@ -184,7 +201,7 @@ describe('POST /api/achievements/users/:userId/:achievementId/unlock', () => {
       .post('/api/achievements/users/1/999/unlock')
       .expect(404);
 
-    expect(res.body.error).toBe('Not Found');
+    expect(res.body.error).toContain('not found');
   });
 
   it('should return 400 when achievement already unlocked', async () => {
@@ -201,7 +218,6 @@ describe('POST /api/achievements/users/:userId/:achievementId/unlock', () => {
       .post('/api/achievements/users/1/5/unlock')
       .expect(400);
 
-    expect(res.body.error).toBe('Bad Request');
-    expect(res.body.message).toBe('Achievement already unlocked');
+    expect(res.body.error).toBe('Achievement already unlocked');
   });
 });

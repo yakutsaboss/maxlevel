@@ -1821,7 +1821,29 @@ Follow the Safety Protocol. Commit after each task. Write your retrospective whe
 - The `requireOwnership` + `req.telegramUser` mock pattern should be standardized across all HTTP test files
 
 #### Agent B Retrospective
-*(To be filled by Agent B)*
+**Status:** All 5 tasks completed. All 52 tests pass (20 modes + 10 achievements + 22 quests). Build passes (tsc — zero errors).
+
+| # | Task | Status |
+|---|------|--------|
+| 1 | Read helpers + understand test infrastructure | Done |
+| 2 | Fix `modes.http.test.ts` (18→0 failures) | Done |
+| 3 | Fix `achievements.http.test.ts` (10→0 failures) | Done |
+| 4 | Fix `quests.http.test.ts` (21→0 failures) | Done |
+| 5 | Build verification | Done |
+
+**Problems faced:**
+- The task plan assumed the main issue was response shape (`res.body.X` → `res.body.data.X`). In reality, the issues were much deeper:
+  1. **No error handler** in `buildApp()` — routes throw `ApiError` via `asyncHandler`, but `testApp` has no error handler middleware.
+  2. **Routes completely rewritten from pythonTool to direct SQL** — Tests mocked `mockExecutePythonTool` but routes call `query()/queryOne()/transaction()`. Had to rewrite all mock patterns.
+  3. **Missing module mocks** — `quests.ts` imports `achievementEngine.js` and `streak.js`. Without mocks, module resolution could fail.
+  4. **Error message format mismatch** — Tests expected generic status text but `server.ts` error handler returns `err.message` for ApiError.
+  5. **PATCH /progress ownership check** — Route uses `req.dbUser?.id` (set by `authorizeUser`), but mock just called `next()`. Had to set `req.dbUser = { id: 10 }`.
+  6. **`GET /achievements` returns bare array** — `successResponse(achievements)` wraps the array directly as `data`.
+  7. **POST modes body changed** — Route now expects mode names (strings), not IDs.
+
+**Recommendations for next run:**
+- Extract the error handler into `testApp.ts` so all HTTP tests automatically get it
+- Remove `pythonTools.js` mock from `modes.http.test.ts` and `quests.http.test.ts`
 
 #### Agent C Retrospective
 *(To be filled by Agent C)*
