@@ -1,5 +1,5 @@
 import axios, { AxiosInstance } from 'axios';
-import type { ApiResponse, UserStats, Quest, Achievement, UserAchievement, QuestCompleteResponse, CheckinResponse } from '@/types';
+import type { ApiResponse, UserStats, Quest, Achievement, UserAchievement, QuestCompleteResponse, CheckinResponse, CheckinListResponse } from '@/types';
 
 // API Base URL - should come from environment
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
@@ -92,7 +92,7 @@ class ApiClient {
     return response.data;
   }
 
-  async getTodayCheckins(telegramId: number): Promise<ApiResponse<{ check_ins: any[]; count: number }>> {
+  async getTodayCheckins(telegramId: number): Promise<ApiResponse<CheckinListResponse>> {
     const response = await this.client.get(`/checkins/${telegramId}/today`);
     return response.data;
   }
