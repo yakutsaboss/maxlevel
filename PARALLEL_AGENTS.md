@@ -213,4 +213,27 @@ Use this structure when creating a new run. Copy and adapt:
 
 ---
 
-<!-- Next run goes here. Agent 0 will append RUN 17 below this line. -->
+### Run 17 Retrospectives
+
+#### Agent A Retrospective
+
+**Completed Tasks:**
+| # | Task | Status |
+|---|------|--------|
+| 1 | Move LeaderboardEntry to types/index.ts | Done |
+| 2 | Type leaderboard methods with LeaderboardEntry[] | Done |
+| 3 | Type checkAchievements with Achievement[] | Done |
+| 4 | Replace Record<string, any> with Record<string, unknown> | Done |
+| 5 | Build verification | Pass |
+
+**Problems faced:**
+- `Record<string, unknown>` caused a build error in LaunchScreen.tsx because `OnboardingData` (an interface without an index signature) is not assignable to `Record<string, unknown>`. Fixed with a minimal `as Record<string, unknown>` assertion at the call site.
+- Dashboard.tsx accesses `ach.badge_icon` and `ach.xp_bonus` on achievement objects — these fields weren't in the `Achievement` interface. Added them as optional fields to prevent type errors when `any[]` was replaced with `Achievement[]`.
+
+**Commits:** 5 (1 per task + 1 for LaunchScreen fix)
+
+**Recommendations for next run:**
+- Consider adding `[key: string]: unknown` index signature to `OnboardingData` interface instead of casting at call sites — more scalable if more call sites appear.
+- Verify `badge_icon` / `xp_bonus` field names against the actual DB schema to ensure the Achievement type matches the server response.
+
+<!-- Next run goes here. Agent 0 will append RUN 18 below this line. -->
