@@ -81,14 +81,17 @@ router.get('/users/:userId', authenticateTelegram, async (req: Request, res: Res
     const unlockedCount = rows.length;
 
     res.json({
-      achievements: rows,
-      unlocked: unlockedCount,
-      total: totalCount,
-      progress: totalCount > 0 ? Math.round((unlockedCount / totalCount) * 100) : 0,
+      success: true,
+      data: {
+        achievements: rows,
+        unlocked: unlockedCount,
+        total: totalCount,
+        progress: totalCount > 0 ? Math.round((unlockedCount / totalCount) * 100) : 0,
+      },
     });
   } catch (error) {
     console.error('Error fetching user achievements:', error);
-    res.status(500).json({ error: 'Server Error', message: 'Failed to fetch user achievements' });
+    res.status(500).json({ success: false, error: 'Failed to fetch user achievements' });
   }
 });
 
