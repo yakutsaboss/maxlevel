@@ -991,4 +991,29 @@ Read PARALLEL_AGENTS.md — you are Agent E for Run 20. Your job: (1) Migrate `a
 - Agent D noted `errors.ts` `asyncHandler` typing uses `Function` (loose) — could be typed with Express `RequestHandler` for stricter safety.
 - Agent E did not apply constants to `achievements.ts` (no hardcoded rarity strings found in current code) — noted in retro.
 
-<!-- Next run goes here. Agent 0 will append RUN 21 below this line. -->
+### Run 21 Retrospectives
+
+#### Agent B Retrospective
+**Status:** All tasks completed. Build passes cleanly (0 errors, tsc + vite build).
+
+| # | Task | Status |
+|---|------|--------|
+| 1 | Create `useSettingsData` hook (extract all state/handlers from Settings.tsx) | Done |
+| 2 | Simplify Settings.tsx with hook + replace error JSX with ErrorSection (246 → 100 lines) | Done |
+| 3 | Replace inline error JSX in Profile.tsx with ErrorSection (211 → 200 lines) | Done |
+| 4 | Build verification (`tsc && vite build`) | Pass |
+
+**Commits:** 3 atomic commits on `feature/r21-settings-hook-error`:
+1. `feat: create useSettingsData hook extracting state logic from Settings.tsx`
+2. `refactor: simplify Settings.tsx with useSettingsData hook + ErrorSection (246 → 100 lines)`
+3. `refactor: replace inline error JSX in Profile.tsx with ErrorSection component`
+
+**Problems faced:** None. All tasks were straightforward extractions with no logic changes.
+
+**Net result:** Settings.tsx reduced from 246 to 100 lines (–146). New `useSettingsData.ts` hook is 190 lines containing all state management, refs, auto-save debounce, and handler callbacks. Profile.tsx error block reduced from 13 lines to 1 line. Both pages now use the shared `ErrorSection` component, removing `AlertCircle` and `RefreshCw` imports from both files.
+
+**Recommendations for next run:**
+- The loading skeleton in Settings.tsx (lines 32-48) and Profile.tsx (lines 63-104) could be extracted into shared `SettingsSkeleton` / `ProfileSkeleton` components for consistency.
+- Profile.tsx still has ~60 lines of data loading logic that could be extracted to a `useProfileData` hook (same pattern as `useSettingsData`).
+
+<!-- Next run goes here. Agent 0 will append RUN 22 below this line. -->
