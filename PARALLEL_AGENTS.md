@@ -1237,7 +1237,25 @@ Read PARALLEL_AGENTS.md — you are Agent E for Run 21. Your job: (1) Apply asyn
 - `errorResponse()` in `errors.ts` is now unused by any route file — could be removed.
 
 #### Agent E Retrospective
-*(To be filled by Agent E)*
+**Status:** All tasks completed. Build passes with zero errors.
+
+| # | Task | Status |
+|---|------|--------|
+| 1 | Apply asyncHandler to `punishment.ts` (3 handlers) + replace hardcoded validLevels with `PUNISHMENT_INTENSITY` constants | Done |
+| 2 | Apply asyncHandler to `leaderboard.ts` (3 handlers) | Done |
+| 3 | Apply asyncHandler to `admin-users.ts` (7 handlers) | Done |
+| 4 | Apply asyncHandler to `admin-stats.ts` (5 handlers) | Done |
+| 5 | Build verification (`tsc`) | Pass — zero errors |
+
+**Problems faced:**
+- Leaderboard mode-filtered response included `mode` as a top-level field — used spread syntax: `{ ...successResponse(data), mode }` to preserve compatibility.
+- admin-stats.ts broadcast handler used `res.status(503)` for missing bot token — replaced with `InternalServerError(500)`.
+
+**Net result:** 18 handlers refactored. Replaced hardcoded `validLevels` with `Object.values(PUNISHMENT_INTENSITY)`.
+
+**Recommendations:**
+- All backend routes now use asyncHandler. Consider adding Express error middleware for `ApiError` formatting.
+- Admin routes still use `executePythonTool` — could migrate to native SQL.
 
 #### Agent 0 Retrospective
 *(To be filled by Agent 0)*
