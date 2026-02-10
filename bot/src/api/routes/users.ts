@@ -2,6 +2,7 @@ import { Router, Request, Response } from 'express';
 import { authenticateTelegram } from '../middleware/auth.js';
 import { query, queryOne, execute, transaction } from '../../utils/db.js';
 import { cached, invalidatePrefix, TTL } from '../../utils/cache.js';
+import { updateStreak } from '../../utils/streak.js';
 import {
   asyncHandler,
   validateRequired,
@@ -404,31 +405,15 @@ router.patch('/:userId/streak', authenticateTelegram, asyncHandler(async (req: R
     throw new BadRequestError('Invalid user ID');
   }
 
-  const today = new Date().toISOString().split('T')[0];
-  const yesterday = new Date(Date.now() - 86400000).toISOString().split('T')[0];
+  const streaks = await query('SELECT user_id, mode_id FROM streaks WHERE user_id = $1', [uid]);
 
-  const streaks = await query('SELECT * FROM streaks WHERE user_id = $1', [uid]);
-
-  let maxStreak = 0;
   for (const streak of streaks) {
-    const lastDate = streak.last_activity_date
-      ? new Date(streak.last_activity_date).toISOString().split('T')[0]
-      : null;
-
-    if (lastDate === today) {
-      maxStreak = Math.max(maxStreak, streak.current_streak);
-      continue;
-    }
-
-    const newStreak = lastDate === yesterday ? streak.current_streak + 1 : 1;
-    const newLongest = Math.max(streak.longest_streak, newStreak);
-    maxStreak = Math.max(maxStreak, newStreak);
-
-    await execute(
-      'UPDATE streaks SET current_streak = $1, longest_streak = $2, last_activity_date = $3 WHERE id = $4',
-      [newStreak, newLongest, today, streak.id]
-    );
+    await updateStreak(streak.user_id, streak.mode_id);
   }
+
+  // Re-fetch to get updated values
+  const updated = await query('SELECT current_streak FROM streaks WHERE user_id = $1', [uid]);
+  const maxStreak = Math.max(0, ...updated.map((s: any) => s.current_streak));
 
   res.json(successResponse({ message: 'Streaks updated', current_streak: maxStreak }));
 }));
