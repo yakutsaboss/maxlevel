@@ -73,18 +73,6 @@ export const successResponse = (data: any, message?: string): { success: true; d
 };
 
 /**
- * Error response formatter
- */
-export const errorResponse = (error: string, message: string, details?: any) => {
-  return {
-    success: false,
-    error,
-    message,
-    ...(details && { details }),
-  };
-};
-
-/**
  * Validation helper
  */
 export const validateRequired = (fields: { [key: string]: any }, fieldNames: string[]) => {
