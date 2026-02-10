@@ -41,13 +41,13 @@ interface TopThreeCardProps {
   index: number;
 }
 
-function getXpValue(entry: LeaderboardEntry, timePeriod: TimePeriod): number {
+export function getXpValue(entry: LeaderboardEntry, timePeriod: TimePeriod): number {
   if (timePeriod === 'weekly' && entry.weekly_xp != null) return entry.weekly_xp;
   if (timePeriod === 'monthly' && entry.monthly_xp != null) return entry.monthly_xp;
   return entry.total_xp;
 }
 
-function getXpLabel(timePeriod: TimePeriod): string {
+export function getXpLabel(timePeriod: TimePeriod): string {
   if (timePeriod === 'weekly') return 'Weekly XP';
   if (timePeriod === 'monthly') return 'Monthly XP';
   return 'XP';
