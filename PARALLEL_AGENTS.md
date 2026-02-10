@@ -1598,7 +1598,26 @@ Find your section under "Run 15 Retrospectives" below and replace the placeholde
 **Recommendations for next run:** None — these were clean, isolated changes.
 
 #### Agent B Retrospective
-*(To be filled by Agent B)*
+**All 4 tasks completed. Build passes clean.**
+
+| # | Task | Status | Commit |
+|---|------|--------|--------|
+| 1 | Fix checkAchievements() double-wrap bug (CRITICAL) | Done | `4eb8efe` |
+| 2 | Fix createCheckin() to passthrough backend response | Done | `8f855d0` |
+| 3 | Fix getTodayCheckins() to passthrough backend response | Done | `c450fe5` |
+| 4 | Remove dead updateQuestProgress method | Done | `88b1843` |
+| 5 | Build verification (no fixes needed) | Done | — |
+
+**Problems faced:** None — all changes were straightforward single-line edits in one file.
+
+**Key changes:**
+- `checkAchievements()`: Was returning `{ success: true, data: response.data }` but backend already returns `{success, data}` format. This caused `res.data.newAchievements` to always be `undefined` — Dashboard achievement toasts were silently broken. Fixed by passthrough (`return response.data`).
+- `createCheckin()` and `getTodayCheckins()`: Same manual wrapping removed. Agent A is wrapping these backend endpoints in this run, so after merge both sides will be consistent.
+- `updateQuestProgress()`: Dead code — the +1/+5 buttons were removed in Run 14. Grep confirmed zero usages. Deleted.
+
+**Recommendations for next run:**
+- Audit remaining client methods for similar wrapping inconsistencies (e.g., `completeQuest` at line 82 does `return response.data` — verify the backend also returns `{success, data}` after Agent A's changes).
+- The `Quest` type in `completeQuest()` return type may not match the actual backend response shape (which returns `{message, xpEarned, newLevel, leveledUp}`, not a Quest object).
 
 #### Agent 0 Retrospective
 *(To be filled by Agent 0)*

@@ -86,22 +86,15 @@ class ApiClient {
     return response.data;
   }
 
-  async updateQuestProgress(questId: number, progress: number): Promise<ApiResponse<Quest>> {
-    const response = await this.client.patch(`/quests/${questId}/progress`, {
-      progress,
-    });
-    return response.data;
-  }
-
   // Check-in endpoints
   async createCheckin(telegramId: number, questInstanceId: number, notes?: string): Promise<ApiResponse<{ check_in_id: number; quest_progress: { current: number; target: number }; completed: boolean }>> {
     const response = await this.client.post('/checkins', { telegram_id: telegramId, quest_instance_id: questInstanceId, notes });
-    return { success: true, data: response.data };
+    return response.data;
   }
 
   async getTodayCheckins(telegramId: number): Promise<ApiResponse<{ check_ins: any[]; count: number }>> {
     const response = await this.client.get(`/checkins/${telegramId}/today`);
-    return { success: true, data: response.data };
+    return response.data;
   }
 
   // Achievement endpoints
@@ -117,7 +110,7 @@ class ApiClient {
 
   async checkAchievements(userId: number): Promise<ApiResponse<{ newAchievements: any[]; count: number }>> {
     const response = await this.client.post(`/users/${userId}/achievements/check`);
-    return { success: true, data: response.data };
+    return response.data;
   }
 
   // Mode endpoints
