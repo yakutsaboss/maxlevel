@@ -5,6 +5,9 @@
 
 import { Context } from 'grammy';
 import { query, queryOne } from '../utils/db.js';
+import { logger } from '../api/utils/logger.js';
+
+const log = logger.child({ component: 'leaderboard' });
 
 export async function handleLeaderboard(ctx: Context) {
   try {
@@ -62,7 +65,7 @@ export async function handleLeaderboard(ctx: Context) {
 
     await ctx.reply(msg, { parse_mode: 'Markdown' });
   } catch (error) {
-    console.error('Error in /leaderboard:', error);
+    log.error('Error in /leaderboard', error as Error);
     await ctx.reply('Failed to load leaderboard. Try again later.');
   }
 }

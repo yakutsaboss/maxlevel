@@ -6,6 +6,9 @@
 
 import type { Bot, Context } from 'grammy';
 import { queryOne } from '../utils/db.js';
+import { logger } from '../api/utils/logger.js';
+
+const log = logger.child({ component: 'dailySummary' });
 
 /**
  * Send a daily summary notification to a user.
@@ -34,7 +37,7 @@ export async function sendDailySummary<C extends Context>(bot: Bot<C>, userId: n
     );
 
     if (!stats || !stats.telegram_id) {
-      console.warn(`[DailySummary] User ${userId} not found, skipping.`);
+      log.warn(`User ${userId} not found, skipping`);
       return false;
     }
 
@@ -71,7 +74,7 @@ export async function sendDailySummary<C extends Context>(bot: Bot<C>, userId: n
     await bot.api.sendMessage(stats.telegram_id, msg, { parse_mode: 'Markdown' });
     return true;
   } catch (error) {
-    console.error(`[DailySummary] Failed to send to user ${userId}:`, error);
+    log.error(`Failed to send to user ${userId}`, error as Error);
     return false;
   }
 }

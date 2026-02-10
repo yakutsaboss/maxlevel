@@ -7,6 +7,9 @@ import { InlineKeyboard } from 'grammy';
 import { MyContext, getUserName, getTelegramId, sendMarkdownMessage } from '../bot.js';
 import { query, queryOne, execute } from '../utils/db.js';
 import { handleOnboarding } from './onboarding.js';
+import { logger } from '../api/utils/logger.js';
+
+const log = logger.child({ component: 'start' });
 
 export async function handleStart(ctx: MyContext) {
   const telegramId = getTelegramId(ctx);
@@ -46,7 +49,7 @@ export async function handleStart(ctx: MyContext) {
         }
       } catch (err) {
         questLine = `\n⚠️ Couldn't load quests — try /quests later`;
-        console.warn(`[/start] Failed to load quests for user ${user.id}:`, err);
+        log.warn(`Failed to load quests for user ${user.id}`, { error: (err as Error)?.message });
       }
 
       const statusLine = `⭐ Level ${user.current_level} · 💎 ${user.total_xp} XP` + questLine;
@@ -110,7 +113,7 @@ export async function handleStart(ctx: MyContext) {
         }
       } catch (createErr: any) {
         const reason = createErr.message || 'Unknown error';
-        console.error(`[/start] Failed to create user ${telegramId}: ${reason}`);
+        log.error(`Failed to create user ${telegramId}: ${reason}`);
 
         if (reason.includes('duplicate') || reason.includes('already exists') || reason.includes('unique')) {
           await ctx.reply(
@@ -131,7 +134,7 @@ export async function handleStart(ctx: MyContext) {
       }
     }
   } catch (error: any) {
-    console.error('[/start] Unhandled error:', error);
+    log.error('Unhandled error', error as Error);
 
     // Provide specific error messages based on error type
     const msg = error.message || '';
