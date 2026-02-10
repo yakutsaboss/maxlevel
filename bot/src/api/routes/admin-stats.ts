@@ -36,16 +36,19 @@ router.get('/stats', async (req: Request, res: Response) => {
     ]);
 
     res.json({
-      users: usersResult.data?.[0] || { total: 0, active: 0 },
-      quests: questsResult.data?.[0] || { total: 0, active: 0, completed: 0 },
-      achievements: achievementsResult.data?.[0] || { users_with_achievements: 0 },
-      timestamp: new Date().toISOString(),
+      success: true,
+      data: {
+        users: usersResult.data?.[0] || { total: 0, active: 0 },
+        quests: questsResult.data?.[0] || { total: 0, active: 0, completed: 0 },
+        achievements: achievementsResult.data?.[0] || { users_with_achievements: 0 },
+        timestamp: new Date().toISOString(),
+      },
     });
   } catch (error) {
     console.error('[ADMIN] Error fetching stats:', error);
     res.status(500).json({
-      error: 'Server Error',
-      message: 'Failed to fetch system statistics',
+      success: false,
+      error: 'Failed to fetch system statistics',
     });
   }
 });
@@ -60,8 +63,8 @@ router.post('/analytics/export', requireRole('admin'), async (req: Request, res:
 
     if (!result.success) {
       return res.status(500).json({
-        error: 'Export Failed',
-        message: result.error || 'Analytics export failed',
+        success: false,
+        error: result.error || 'Analytics export failed',
       });
     }
 
@@ -69,14 +72,17 @@ router.post('/analytics/export', requireRole('admin'), async (req: Request, res:
     console.log(`[ADMIN] Analytics export triggered by ${adminUser.username}`);
 
     res.json({
-      message: 'Analytics export completed',
-      ...((result.data as any) || {}),
+      success: true,
+      data: {
+        message: 'Analytics export completed',
+        ...((result.data as any) || {}),
+      },
     });
   } catch (error) {
     console.error('[ADMIN] Error exporting analytics:', error);
     res.status(500).json({
-      error: 'Server Error',
-      message: 'Failed to export analytics',
+      success: false,
+      error: 'Failed to export analytics',
     });
   }
 });
@@ -91,20 +97,23 @@ router.get('/modes', async (req: Request, res: Response) => {
 
     if (!result.success) {
       return res.status(500).json({
-        error: 'Server Error',
-        message: 'Failed to fetch modes',
+        success: false,
+        error: 'Failed to fetch modes',
       });
     }
 
     res.json({
-      modes: result.data || [],
-      timestamp: new Date().toISOString(),
+      success: true,
+      data: {
+        modes: result.data || [],
+        timestamp: new Date().toISOString(),
+      },
     });
   } catch (error) {
     console.error('[ADMIN] Error listing modes:', error);
     res.status(500).json({
-      error: 'Server Error',
-      message: 'Failed to fetch modes',
+      success: false,
+      error: 'Failed to fetch modes',
     });
   }
 });
@@ -119,16 +128,16 @@ router.post('/broadcast', requireRole('admin'), async (req: Request, res: Respon
 
     if (!message || typeof message !== 'string' || message.trim().length === 0) {
       return res.status(400).json({
-        error: 'Bad Request',
-        message: 'Message is required',
+        success: false,
+        error: 'Message is required',
       });
     }
 
     const botToken = process.env.TELEGRAM_BOT_TOKEN;
     if (!botToken) {
       return res.status(503).json({
-        error: 'Service Unavailable',
-        message: 'Bot token not configured',
+        success: false,
+        error: 'Bot token not configured',
       });
     }
 
@@ -138,7 +147,7 @@ router.post('/broadcast', requireRole('admin'), async (req: Request, res: Respon
     );
 
     if (users.length === 0) {
-      return res.json({ success: true, sent: 0, failed: 0, total: 0 });
+      return res.json({ success: true, data: { sent: 0, failed: 0, total: 0 } });
     }
 
     const adminUser = (req as any).adminUser;
@@ -188,12 +197,12 @@ router.post('/broadcast', requireRole('admin'), async (req: Request, res: Respon
 
     console.log(`[ADMIN] Broadcast complete: ${sent} sent, ${failed} failed`);
 
-    res.json({ success: true, sent, failed, total: sent + failed });
+    res.json({ success: true, data: { sent, failed, total: sent + failed } });
   } catch (error) {
     console.error('[ADMIN] Error broadcasting:', error);
     res.status(500).json({
-      error: 'Server Error',
-      message: 'Failed to send broadcast',
+      success: false,
+      error: 'Failed to send broadcast',
     });
   }
 });
@@ -231,12 +240,12 @@ router.get('/logs', requireRole('admin'), async (req: Request, res: Response) =>
         : `Job "${job.name}" failed${job.output ? ': ' + JSON.stringify(job.output) : ''}`,
     }));
 
-    res.json({ logs });
+    res.json({ success: true, data: { logs } });
   } catch (error) {
     console.error('[ADMIN] Error fetching logs:', error);
     res.status(500).json({
-      error: 'Server Error',
-      message: 'Failed to fetch logs',
+      success: false,
+      error: 'Failed to fetch logs',
     });
   }
 });

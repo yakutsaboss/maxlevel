@@ -30,22 +30,25 @@ router.get('/', requirePermission('users:read'), async (req: Request, res: Respo
 
     if (!result.success) {
       return res.status(500).json({
-        error: 'Server Error',
-        message: 'Failed to fetch users',
+        success: false,
+        error: 'Failed to fetch users',
       });
     }
 
     res.json({
-      users: result.data || [],
-      limit,
-      offset,
-      timestamp: new Date().toISOString(),
+      success: true,
+      data: {
+        users: result.data || [],
+        limit,
+        offset,
+        timestamp: new Date().toISOString(),
+      },
     });
   } catch (error) {
     console.error('[ADMIN] Error listing users:', error);
     res.status(500).json({
-      error: 'Server Error',
-      message: 'Failed to fetch users',
+      success: false,
+      error: 'Failed to fetch users',
     });
   }
 });
@@ -67,21 +70,24 @@ router.get('/:userId', requirePermission('users:read'), async (req: Request, res
 
     if (!userResult.success || !userResult.data) {
       return res.status(404).json({
-        error: 'Not Found',
-        message: 'User not found',
+        success: false,
+        error: 'User not found',
       });
     }
 
     res.json({
-      user: userResult.data,
-      stats: statsResult.data,
-      timestamp: new Date().toISOString(),
+      success: true,
+      data: {
+        user: userResult.data,
+        stats: statsResult.data,
+        timestamp: new Date().toISOString(),
+      },
     });
   } catch (error) {
     console.error('[ADMIN] Error fetching user:', error);
     res.status(500).json({
-      error: 'Server Error',
-      message: 'Failed to fetch user details',
+      success: false,
+      error: 'Failed to fetch user details',
     });
   }
 });
@@ -106,8 +112,8 @@ router.patch('/:userId', requirePermission('users:update'), async (req: Request,
 
     if (Object.keys(fields).length === 0) {
       return res.status(400).json({
-        error: 'Bad Request',
-        message: 'No valid fields to update',
+        success: false,
+        error: 'No valid fields to update',
       });
     }
 
@@ -121,8 +127,8 @@ router.patch('/:userId', requirePermission('users:update'), async (req: Request,
 
     if (!result.success) {
       return res.status(500).json({
-        error: 'Server Error',
-        message: 'Failed to update user',
+        success: false,
+        error: 'Failed to update user',
       });
     }
 
@@ -130,14 +136,17 @@ router.patch('/:userId', requirePermission('users:update'), async (req: Request,
     console.log(`[ADMIN] User ${userId} updated by ${adminUser.username}:`, fields);
 
     res.json({
-      message: 'User updated successfully',
-      user: result.data,
+      success: true,
+      data: {
+        message: 'User updated successfully',
+        user: result.data,
+      },
     });
   } catch (error) {
     console.error('[ADMIN] Error updating user:', error);
     res.status(500).json({
-      error: 'Server Error',
-      message: 'Failed to update user',
+      success: false,
+      error: 'Failed to update user',
     });
   }
 });
@@ -154,8 +163,8 @@ router.delete('/:userId', requireRole('super_admin'), async (req: Request, res: 
 
     if (!userResult.success || !userResult.data) {
       return res.status(404).json({
-        error: 'Not Found',
-        message: 'User not found',
+        success: false,
+        error: 'User not found',
       });
     }
 
@@ -167,8 +176,8 @@ router.delete('/:userId', requireRole('super_admin'), async (req: Request, res: 
 
     if (!result.success) {
       return res.status(500).json({
-        error: 'Server Error',
-        message: 'Failed to delete user',
+        success: false,
+        error: 'Failed to delete user',
       });
     }
 
@@ -176,18 +185,21 @@ router.delete('/:userId', requireRole('super_admin'), async (req: Request, res: 
     console.warn(`[ADMIN] User ${userId} (telegram_id: ${userResult.data.telegram_id}) DELETED by ${adminUser.username}`);
 
     res.json({
-      message: 'User deleted successfully',
-      deletedUser: {
-        id: userId,
-        telegram_id: userResult.data.telegram_id,
-        username: userResult.data.username,
+      success: true,
+      data: {
+        message: 'User deleted successfully',
+        deletedUser: {
+          id: userId,
+          telegram_id: userResult.data.telegram_id,
+          username: userResult.data.username,
+        },
       },
     });
   } catch (error) {
     console.error('[ADMIN] Error deleting user:', error);
     res.status(500).json({
-      error: 'Server Error',
-      message: 'Failed to delete user',
+      success: false,
+      error: 'Failed to delete user',
     });
   }
 });
@@ -208,8 +220,8 @@ router.post('/:userId/deactivate', requirePermission('users:update'), async (req
 
     if (!result.success) {
       return res.status(500).json({
-        error: 'Server Error',
-        message: 'Failed to deactivate user',
+        success: false,
+        error: 'Failed to deactivate user',
       });
     }
 
@@ -217,14 +229,17 @@ router.post('/:userId/deactivate', requirePermission('users:update'), async (req
     console.log(`[ADMIN] User ${userId} deactivated by ${adminUser.username}`);
 
     res.json({
-      message: 'User deactivated successfully',
-      user: result.data,
+      success: true,
+      data: {
+        message: 'User deactivated successfully',
+        user: result.data,
+      },
     });
   } catch (error) {
     console.error('[ADMIN] Error deactivating user:', error);
     res.status(500).json({
-      error: 'Server Error',
-      message: 'Failed to deactivate user',
+      success: false,
+      error: 'Failed to deactivate user',
     });
   }
 });
@@ -247,8 +262,8 @@ router.post('/:userId/reactivate', requirePermission('users:update'), async (req
 
     if (!result.success) {
       return res.status(500).json({
-        error: 'Server Error',
-        message: 'Failed to reactivate user',
+        success: false,
+        error: 'Failed to reactivate user',
       });
     }
 
@@ -256,14 +271,17 @@ router.post('/:userId/reactivate', requirePermission('users:update'), async (req
     console.log(`[ADMIN] User ${userId} reactivated by ${adminUser.username}`);
 
     res.json({
-      message: 'User reactivated successfully',
-      user: result.data,
+      success: true,
+      data: {
+        message: 'User reactivated successfully',
+        user: result.data,
+      },
     });
   } catch (error) {
     console.error('[ADMIN] Error reactivating user:', error);
     res.status(500).json({
-      error: 'Server Error',
-      message: 'Failed to reactivate user',
+      success: false,
+      error: 'Failed to reactivate user',
     });
   }
 });

@@ -183,7 +183,28 @@ Use this structure when creating a new run. Copy and adapt:
 *(To be filled by Agent A)*
 
 #### Agent B Retrospective
-*(To be filled by Agent B)*
+
+**Status:** All 6 tasks completed. Build passes.
+
+| # | Task | Status |
+|---|------|--------|
+| 1 | Wrap admin-jobs.ts success responses in `{success, data}` | Done |
+| 2 | Wrap admin-stats.ts success responses (5 endpoints) | Done |
+| 3 | Wrap admin-users.ts success responses (6 endpoints) | Done |
+| 4 | Standardize all error responses to `{success: false, error}` | Done |
+| 5 | Delete 6 stale REGISTER_THESE_RUN*.md files | Done |
+| 6 | Build verification (`tsc` clean) | Done |
+
+**Commits:** 4 total (1 per admin route file + 1 for file cleanup)
+
+**Problems faced:** None. Straightforward mechanical refactoring. The broadcast endpoint already had a partial `success: true` pattern — wrapped its data in `data: {...}` for consistency.
+
+**Notes for Agent 0:**
+- Agent C's `adminClient.ts` auto-unwrap logic (`response.data || response`) should work cleanly with the new format — all admin responses now consistently have `success` + `data` at the top level.
+- The broadcast endpoint had a special case: when `users.length === 0`, it returned `{success: true, sent: 0, ...}` — now wrapped as `{success: true, data: {sent: 0, ...}}`.
+- No changes to non-admin routes (users.ts, quests.ts, etc.) — those were already consistent.
+
+**Recommendations:** None — the admin API response format is now fully consistent across all 3 route files.
 
 #### Agent C Retrospective
 *(To be filled by Agent C)*

@@ -18,14 +18,17 @@ router.get('/', async (req: Request, res: Response) => {
   try {
     const jobs = getRegisteredJobs();
     res.json({
-      jobs,
-      timestamp: new Date().toISOString(),
+      success: true,
+      data: {
+        jobs,
+        timestamp: new Date().toISOString(),
+      },
     });
   } catch (error) {
     console.error('[ADMIN] Error listing jobs:', error);
     res.status(500).json({
-      error: 'Server Error',
-      message: 'Failed to list jobs',
+      success: false,
+      error: 'Failed to list jobs',
     });
   }
 });
@@ -41,8 +44,8 @@ router.post('/:name/trigger', requireRole('admin'), async (req: Request, res: Re
 
     if (!boss) {
       return res.status(503).json({
-        error: 'Service Unavailable',
-        message: 'Job queue is not running',
+        success: false,
+        error: 'Job queue is not running',
       });
     }
 
@@ -51,8 +54,8 @@ router.post('/:name/trigger', requireRole('admin'), async (req: Request, res: Re
 
     if (!jobExists) {
       return res.status(404).json({
-        error: 'Not Found',
-        message: `Job '${name}' not found. Available: ${registeredJobs.map(j => j.name).join(', ')}`,
+        success: false,
+        error: `Job '${name}' not found. Available: ${registeredJobs.map(j => j.name).join(', ')}`,
       });
     }
 
@@ -62,15 +65,18 @@ router.post('/:name/trigger', requireRole('admin'), async (req: Request, res: Re
     console.log(`[ADMIN] Job '${name}' triggered by ${adminUser.username} (jobId: ${jobId})`);
 
     res.json({
-      message: `Job '${name}' triggered`,
-      jobId,
-      timestamp: new Date().toISOString(),
+      success: true,
+      data: {
+        message: `Job '${name}' triggered`,
+        jobId,
+        timestamp: new Date().toISOString(),
+      },
     });
   } catch (error) {
     console.error('[ADMIN] Error triggering job:', error);
     res.status(500).json({
-      error: 'Server Error',
-      message: 'Failed to trigger job',
+      success: false,
+      error: 'Failed to trigger job',
     });
   }
 });
