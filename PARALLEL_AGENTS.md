@@ -1570,7 +1570,26 @@ Read PARALLEL_AGENTS.md — you are Agent E for Run 22. Your job: Migrate `admin
 - `getXpValue` and `getXpLabel` helpers are duplicated in TopThreeCard.tsx and LeaderboardRow.tsx. Could extract to a shared `leaderboard/utils.ts`.
 
 #### Agent B Retrospective
-*(To be filled by Agent B)*
+**Status:** All 5 tasks completed. Build passes cleanly (0 errors, tsc + vite build).
+
+| # | Task | Status |
+|---|------|--------|
+| 1 | Create AchievementCard.tsx | Done |
+| 2 | Create RarityGroup.tsx (with RARITY_COLORS) | Done |
+| 3 | Create AchievementsSkeleton.tsx | Done |
+| 4 | Simplify Achievements.tsx (221 → 107 lines) | Done |
+| 5 | Build verification | Pass |
+
+**Problems:** None. Clean extraction — all components are self-contained with no shared state issues.
+
+**Decisions:**
+- Moved `RARITY_COLORS` into RarityGroup.tsx since it's the primary consumer. AchievementCard receives `rarityStyle` as a prop.
+- Moved `formatDate` and `isRecentlyUnlocked` helpers into AchievementCard.tsx since they're only used for card rendering.
+- Achievements.tsx retains `RARITY_ORDER` constant since it drives the grouping logic at the page level.
+
+**Line count:** Achievements.tsx went from 221 → 107 lines (–114). New files: AchievementCard.tsx (93), RarityGroup.tsx (48), AchievementsSkeleton.tsx (22). Total component code: 270 lines across 4 files.
+
+**Recommendations:** None — the Achievements page refactor is complete.
 
 #### Agent C Retrospective
 *(To be filled by Agent C)*

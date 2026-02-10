@@ -3,28 +3,13 @@ import { useTelegram } from '@/hooks/useTelegram';
 import { usePullToRefresh, PullIndicator } from '@/hooks/usePullToRefresh';
 import { apiClient } from '@/api/client';
 import { Achievement, UserAchievement } from '@/types';
-import { Trophy, Star, Lock, CheckCircle, Zap } from 'lucide-react';
+import { Trophy } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { ErrorSection } from '@/components/ErrorSection';
+import { RarityGroup } from '@/components/achievements/RarityGroup';
+import { AchievementsSkeleton } from '@/components/achievements/AchievementsSkeleton';
 
 const RARITY_ORDER = ['common', 'rare', 'epic', 'legendary'] as const;
-
-const RARITY_COLORS: Record<string, { border: string; bg: string; text: string; label: string }> = {
-  common: { border: 'border-gray-300', bg: 'bg-gray-100', text: 'text-gray-600', label: 'Common' },
-  rare: { border: 'border-blue-300', bg: 'bg-blue-50', text: 'text-blue-600', label: 'Rare' },
-  epic: { border: 'border-purple-300', bg: 'bg-purple-50', text: 'text-purple-600', label: 'Epic' },
-  legendary: { border: 'border-yellow-300', bg: 'bg-yellow-50', text: 'text-yellow-600', label: 'Legendary' },
-};
-
-function formatDate(dateStr: string): string {
-  return new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric' }).format(new Date(dateStr));
-}
-
-function isRecentlyUnlocked(unlockedAt: string): boolean {
-  const unlockTime = new Date(unlockedAt).getTime();
-  const oneDayAgo = Date.now() - 24 * 60 * 60 * 1000;
-  return unlockTime > oneDayAgo;
-}
 
 export function Achievements() {
   const { user, haptic } = useTelegram();
@@ -59,38 +44,13 @@ export function Achievements() {
   const unlockedCount = userAchievements.length;
   const totalCount = allAchievements.length;
 
-  // Group by rarity
   const grouped = RARITY_ORDER.map(rarity => ({
     rarity,
     achievements: allAchievements.filter(a => a.rarity === rarity),
   })).filter(g => g.achievements.length > 0);
 
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-telegram-bg pb-20">
-        <div className="bg-gradient-to-br from-amber-500 to-orange-600 p-6 rounded-b-3xl">
-          <div className="skeleton h-7 w-40 rounded-lg mb-2" />
-          <div className="skeleton h-4 w-28 rounded-lg" />
-        </div>
-        <div className="px-4 mt-6">
-          <div className="skeleton h-6 w-36 rounded-lg mb-4" />
-          <div className="grid grid-cols-2 gap-3">
-            {[1, 2, 3, 4, 5, 6].map(i => (
-              <div key={i} className="bg-telegram-secondaryBg rounded-2xl p-4 border border-telegram-hint/10">
-                <div className="skeleton w-12 h-12 rounded-xl mx-auto mb-3" />
-                <div className="skeleton-text h-4 w-20 mx-auto mb-2">&nbsp;</div>
-                <div className="skeleton-text h-3 w-full">&nbsp;</div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  if (error) {
-    return <ErrorSection message="Could not load achievements" onRetry={loadData} />;
-  }
+  if (loading) return <AchievementsSkeleton />;
+  if (error) return <ErrorSection message="Could not load achievements" onRetry={loadData} />;
 
   return (
     <div
@@ -124,90 +84,16 @@ export function Achievements() {
 
       {/* Achievement groups by rarity */}
       <div className="px-4 mt-6 space-y-6 mb-6">
-        {grouped.map(({ rarity, achievements: achs }) => {
-          const rarityStyle = RARITY_COLORS[rarity] || RARITY_COLORS.common;
-          const unlockedInGroup = achs.filter(a => unlockedIds.has(a.id)).length;
-
-          return (
-            <div key={rarity}>
-              <div className="flex items-center justify-between mb-3">
-                <h2 className={`text-lg font-semibold ${rarityStyle.text}`}>
-                  {rarityStyle.label}
-                </h2>
-                <span className="text-xs text-telegram-hint">
-                  {unlockedInGroup}/{achs.length}
-                </span>
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                {achs.map((ach, index) => {
-                  const isUnlocked = unlockedIds.has(ach.id);
-                  const userAch = userAchievements.find(ua => ua.achievement_id === ach.id);
-                  const isNew = isUnlocked && userAch && isRecentlyUnlocked(userAch.unlocked_at);
-
-                  return (
-                    <motion.div
-                      key={ach.id}
-                      initial={{ opacity: 0, scale: 0.9 }}
-                      animate={{ opacity: 1, scale: 1 }}
-                      transition={{ delay: index * 0.03, type: 'spring', stiffness: 200 }}
-                      whileTap={{ scale: 0.95 }}
-                      onClick={() => haptic.impact('light')}
-                      className={`rounded-2xl p-4 border relative ${
-                        isUnlocked
-                          ? `bg-telegram-secondaryBg ${rarityStyle.border}`
-                          : 'bg-telegram-secondaryBg/60 border-telegram-hint/10 opacity-60'
-                      } ${isNew ? 'achievement-new' : ''}`}
-                    >
-                      {isNew && (
-                        <div className="absolute -top-2 -left-2 bg-yellow-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full shadow-sm z-10">
-                          NEW
-                        </div>
-                      )}
-                      {isUnlocked && (
-                        <div className="absolute -top-1.5 -right-1.5 bg-green-500 rounded-full p-0.5 shadow-sm">
-                          <CheckCircle className="w-4 h-4 text-white" />
-                        </div>
-                      )}
-                      {!isUnlocked && (
-                        <div className="absolute -top-1.5 -right-1.5 bg-telegram-hint/50 rounded-full p-0.5">
-                          <Lock className="w-4 h-4 text-white" />
-                        </div>
-                      )}
-
-                      <div className={`text-4xl text-center mb-2 ${!isUnlocked ? 'grayscale opacity-50' : ''}`}>
-                        {isUnlocked ? ach.icon : '?'}
-                      </div>
-                      <h3 className="text-sm font-semibold text-center line-clamp-2 mb-1">
-                        {isUnlocked ? ach.name : '???'}
-                      </h3>
-                      {isUnlocked ? (
-                        <>
-                          <p className="text-xs text-telegram-hint text-center line-clamp-2 mb-2">
-                            {ach.description}
-                          </p>
-                          <div className="flex items-center justify-center gap-1">
-                            <Zap className="w-3.5 h-3.5 text-yellow-500" />
-                            <span className="text-xs font-semibold text-yellow-600">+{ach.xp_reward} XP</span>
-                          </div>
-                          {userAch && (
-                            <p className="text-[10px] text-telegram-hint text-center mt-1">
-                              {formatDate(userAch.unlocked_at)}
-                            </p>
-                          )}
-                        </>
-                      ) : (
-                        <div className="flex items-center justify-center gap-1 mt-1">
-                          <Star className="w-3 h-3 text-telegram-hint" />
-                          <span className="text-xs text-telegram-hint">{ach.xp_reward} XP</span>
-                        </div>
-                      )}
-                    </motion.div>
-                  );
-                })}
-              </div>
-            </div>
-          );
-        })}
+        {grouped.map(({ rarity, achievements }) => (
+          <RarityGroup
+            key={rarity}
+            rarity={rarity}
+            achievements={achievements}
+            unlockedIds={unlockedIds}
+            userAchievements={userAchievements}
+            haptic={haptic}
+          />
+        ))}
 
         {allAchievements.length === 0 && (
           <div className="text-center py-12 bg-telegram-secondaryBg rounded-2xl border border-telegram-hint/10">
