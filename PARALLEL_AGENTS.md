@@ -991,4 +991,28 @@ Read PARALLEL_AGENTS.md — you are Agent E for Run 20. Your job: (1) Migrate `a
 - Agent D noted `errors.ts` `asyncHandler` typing uses `Function` (loose) — could be typed with Express `RequestHandler` for stricter safety.
 - Agent E did not apply constants to `achievements.ts` (no hardcoded rarity strings found in current code) — noted in retro.
 
-<!-- Next run goes here. Agent 0 will append RUN 21 below this line. -->
+### Run 21 Retrospectives
+
+#### Agent D Retrospective
+**Status:** All tasks completed. Build passes with zero errors.
+
+| # | Task | Status |
+|---|------|--------|
+| 1 | Fix `asyncHandler` typing — replace `Function` with Express `Request/Response/NextFunction` types, add `successResponse` return type | Done |
+| 2 | Apply asyncHandler to `quests.ts` — 6 handlers wrapped, try-catch removed, error classes + successResponse applied | Done |
+| 3 | Apply asyncHandler to `achievements.ts` — 7 handlers wrapped (task said 8 but file has 7), try-catch removed | Done |
+| 4 | Apply asyncHandler to `modes.ts` — 7 handlers wrapped, try-catch removed, error classes + successResponse applied | Done |
+| 5 | Build verification (`tsc`) | Pass — zero errors |
+
+**Problems faced:** None. The pattern from Run 20 (users.ts, onboarding.ts, checkins.ts) was well-established and easy to replicate.
+
+**Implementation notes:**
+- `errors.ts`: Added `import { Request, Response, NextFunction } from 'express'`, replaced `(fn: Function)` → `(fn: (req: Request, res: Response, next: NextFunction) => Promise<any>)`, typed return function, added return type to `successResponse`.
+- `achievements.ts` unlock handler: Kept transaction return-value pattern (`{ error: 'not_found' }`) and throw after transaction — cleaner than throwing inside transactions.
+- Total handlers migrated this run: 20 (6 + 7 + 7). Combined with Run 20's 20 handlers, that's 40 handlers now using asyncHandler.
+
+**Recommendations for next run:**
+- The `achievements.ts` task description said 8 handlers but the file has 7. Known Issues count (39 total) may need a recount.
+- `errorResponse()` in `errors.ts` is now unused by any route file — could be removed or kept for middleware use.
+
+<!-- Next run goes here. Agent 0 will append RUN 22 below this line. -->
