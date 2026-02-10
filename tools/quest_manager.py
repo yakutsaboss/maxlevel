@@ -59,12 +59,16 @@ def assign_quest(user_id: int, quest_id: int, instance_date: Optional[str] = Non
     if existing:
         return {"success": False, "error": "Quest already assigned for this date"}
 
+    # Compute target based on quest difficulty
+    difficulty = quest.get('difficulty', 'easy')
+    target = {'easy': 1, 'medium': 3, 'hard': 5}.get(difficulty, 1)
+
     try:
         instance = execute_insert("""
-            INSERT INTO quest_instances (user_id, quest_id, instance_date, status)
-            VALUES (%s, %s, %s, 'pending')
+            INSERT INTO quest_instances (user_id, quest_id, instance_date, status, target)
+            VALUES (%s, %s, %s, 'pending', %s)
             RETURNING *
-        """, (user_id, quest_id, instance_date))
+        """, (user_id, quest_id, instance_date, target))
     except psycopg2.IntegrityError as e:
         return {"success": False, "error": f"Constraint violation: {e}"}
 
@@ -77,7 +81,8 @@ def assign_quest(user_id: int, quest_id: int, instance_date: Optional[str] = Non
             "description": quest.get('description'),
             "xp_reward": quest['xp_reward'],
             "quest_type": quest['quest_type'],
-            "difficulty": quest.get('difficulty'),
+            "difficulty": difficulty,
+            "target": target,
             "instance_date": instance_date,
             "status": "pending"
         }
