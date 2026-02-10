@@ -1,7 +1,9 @@
 -- Telegram RPG Quest Bot Database Schema
 -- PostgreSQL 12+
 
--- Drop existing tables (for fresh install)
+-- Drop existing tables and views (for fresh install)
+DROP MATERIALIZED VIEW IF EXISTS leaderboard_mv CASCADE;
+DROP TABLE IF EXISTS user_activity_log CASCADE;
 DROP TABLE IF EXISTS punishment_history CASCADE;
 DROP TABLE IF EXISTS punishment_settings CASCADE;
 DROP TABLE IF EXISTS reminders CASCADE;
@@ -105,6 +107,7 @@ CREATE TABLE quest_instances (
     completed_at TIMESTAMP,
     check_in_count INTEGER DEFAULT 0,
     xp_awarded INTEGER DEFAULT 0,
+    target INTEGER DEFAULT 1,                -- Check-in target (easy=1, medium=3, hard=5), added in Run 13
     notes TEXT,
     UNIQUE(user_id, quest_id, instance_date)
 );
@@ -141,6 +144,7 @@ CREATE TABLE user_achievements (
     user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
     achievement_id INTEGER REFERENCES achievements(id),
     unlocked_at TIMESTAMP DEFAULT NOW(),
+    notification_sent_at TIMESTAMPTZ,       -- Dedup for achievement notifier, added in Run 13
     UNIQUE(user_id, achievement_id)
 );
 CREATE INDEX idx_user_achievements_user ON user_achievements(user_id);
@@ -211,6 +215,41 @@ CREATE TABLE onboarding_state (
     last_updated TIMESTAMP DEFAULT NOW()
 );
 
+-- User activity log (tracks all interactions for engagement analytics, added in Run 3)
+CREATE TABLE user_activity_log (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+    activity_type VARCHAR(50) NOT NULL,     -- 'quest_complete', 'check_in', 'bot_command', 'miniapp_open'
+    activity_data JSONB,                     -- Optional metadata
+    created_at TIMESTAMP DEFAULT NOW()
+);
+CREATE INDEX idx_activity_log_user_date ON user_activity_log(user_id, created_at);
+CREATE INDEX idx_activity_log_type ON user_activity_log(activity_type);
+
+-- Leaderboard materialized view (cached rankings, refreshed every 30 min by pg-boss, added in Run 3)
+CREATE MATERIALIZED VIEW leaderboard_mv AS
+SELECT
+    u.id AS user_id,
+    u.telegram_id,
+    u.username,
+    u.first_name,
+    u.current_level,
+    u.total_xp,
+    COALESCE(MAX(s.current_streak), 0) AS best_current_streak,
+    COALESCE(MAX(s.longest_streak), 0) AS best_longest_streak,
+    COALESCE(COUNT(DISTINCT qi.id) FILTER (WHERE qi.status = 'completed'), 0) AS total_quests_completed,
+    RANK() OVER (ORDER BY u.total_xp DESC) AS xp_rank,
+    RANK() OVER (ORDER BY u.current_level DESC, u.total_xp DESC) AS level_rank
+FROM users u
+LEFT JOIN streaks s ON s.user_id = u.id
+LEFT JOIN quest_instances qi ON qi.user_id = u.id
+WHERE u.is_active = true
+GROUP BY u.id, u.telegram_id, u.username, u.first_name, u.current_level, u.total_xp
+ORDER BY u.total_xp DESC;
+
+CREATE UNIQUE INDEX idx_leaderboard_mv_user_id ON leaderboard_mv(user_id);
+CREATE INDEX idx_leaderboard_mv_xp_rank ON leaderboard_mv(xp_rank);
+
 -- Comments
 COMMENT ON TABLE users IS 'Core user accounts linked to Telegram';
 COMMENT ON TABLE modes IS 'Available mode categories (fitness, hydration, finance, learning)';
@@ -226,3 +265,5 @@ COMMENT ON TABLE reminders IS 'Scheduled reminders for quests';
 COMMENT ON TABLE punishment_settings IS 'User consent and punishment preferences';
 COMMENT ON TABLE punishment_history IS 'Audit log of applied punishments';
 COMMENT ON TABLE onboarding_state IS 'State for resuming interrupted onboarding';
+COMMENT ON TABLE user_activity_log IS 'Tracks all user interactions for engagement analytics';
+COMMENT ON MATERIALIZED VIEW leaderboard_mv IS 'Cached leaderboard rankings, refreshed every 30 minutes by pg-boss job';
