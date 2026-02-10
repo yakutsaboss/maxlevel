@@ -19,7 +19,6 @@ Independent from RPG bot. No shared imports except `.env`.
 | Tool | Purpose |
 |------|---------|
 | `notification_bot_handler.py` | Telegram polling bot (`/status`, `/help` commands) |
-| `send_notification.py` | Direct Telegram API calls for session notifications |
 | `project_status_tracker.py` | Analyzes project files to estimate completion % |
 
 ## Infrastructure
