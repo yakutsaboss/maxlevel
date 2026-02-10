@@ -1681,4 +1681,25 @@ Read PARALLEL_AGENTS.md — you are Agent E for Run 22. Your job: Migrate `admin
 
 **Known Issues resolved:** Items 4-9 from Run 21 list all addressed. 8 new items tracked, mostly minor (leaderboard util duplication, remaining skeletons).
 
+#### Agent E Retrospective (Run 23)
+
+| # | Task | Status |
+|---|------|--------|
+| 1 | Migrate onboarding.ts `mode_manager --add-modes` to native SQL | Done |
+| 2 | Migrate onboarding.ts `quest_manager --assign-daily` to native SQL | Done |
+| 3 | Fix broken `PATCH /:userId/streak` in users.ts with native SQL | Done |
+| 4 | Remove `executePythonTool` imports from both files + unused `InternalServerError` | Done |
+| 5 | Build verification (`tsc` clean) | Done |
+
+**Problems faced:** None — all tasks were straightforward SQL migrations with clear Python source to reference. The worktree doesn't have the Run 23 section (it was appended to main after branching), so this retrospective is appended at the end. Agent 0 will splice it into the correct location during merge.
+
+**Key decisions:**
+- Used `ON CONFLICT DO NOTHING` for quest instance inserts during onboarding to safely handle edge cases where quests might already be assigned.
+- For the streak endpoint, return the max `current_streak` across all mode-streaks since the original endpoint returned a single `current_streak` value.
+- Removed `InternalServerError` import from users.ts since it was only used by the broken streak endpoint.
+
+**Recommendations for next run:**
+- The `executePythonTool` utility may now be unused across all API routes (check `admin-stats.ts` — Known Issue #8 says POST /analytics/export is the last remaining call). Consider removing the utility entirely if analytics export can be migrated too.
+- `onboarding.ts` step 1 (add modes) runs outside the transaction block — could be moved inside for atomicity, though current behavior matches the original Python tool flow.
+
 <!-- Next run goes here. Agent 0 will append RUN 23 below this line. -->
