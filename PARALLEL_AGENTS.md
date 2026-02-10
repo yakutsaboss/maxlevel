@@ -179,6 +179,30 @@ Use this structure when creating a new run. Copy and adapt:
 
 ---
 
-## Current Run
+## Run 13 Retrospectives
 
-*(No active run. Ready for Run 13 design.)*
+#### Agent D Retrospective
+
+**Completed tasks:**
+
+| # | Task | Commit | Issues |
+|---|------|--------|--------|
+| 1 | Add `getPunishmentHistory` to API client | `9cad4b0` | None |
+| 2 | Clean up perModeStreaks type handling | `d57e4de` | Kept `as any` cast with TODO — Agent C adding type hasn't merged yet |
+| 3 | Add Settings navigation from Accountability | `e2e3ee6` | None |
+| 4 | Add punishment history display | `5d4fea5` | None |
+| 5 | Build verification | N/A (clean build) | No errors |
+
+**Problems faced:**
+- PARALLEL_AGENTS.md in worktree didn't have the Run 13 section (was committed to main after branch creation). Wrote retrospective at the end of the file; Agent 0 will resolve during merge.
+- The `perModeStreaks` type cast couldn't be fully resolved since Agent C's type change hasn't merged. Added a TODO comment to track.
+
+**What went well:**
+- All 4 code tasks completed cleanly with zero build errors.
+- GRAY AREA rule for `client.ts` was straightforward — added exactly one method, no existing code touched.
+- Punishment history section loads non-blocking and only when accountability is active — no performance impact.
+
+**Recommendations for next run:**
+- Once Agent C's `perModeStreaks` type is merged, remove the `as any` cast in Profile.tsx (marked with TODO).
+- Punishment history pagination is supported by the API (`page`/`limit` params) but the UI only shows last 5. Could add "Load more" later.
+- The `Achievement` type's `rarity` and `category` fields (Profile line 235) still use `as any` — consider adding to the TypeScript `Achievement` interface.
