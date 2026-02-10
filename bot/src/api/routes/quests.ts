@@ -311,7 +311,7 @@ router.patch('/:questId/progress', authenticateTelegram, authorizeUser, mutation
 
     // Fire-and-forget: update streak and check achievements
     Promise.allSettled([
-      executePythonTool('streak_manager', ['--update-streak', '--user-id', String(quest.user_id), '--mode-id', String(quest.mode_id)]),
+      updateStreak(quest.user_id, quest.mode_id),
       checkAndUnlockAchievements(quest.user_id),
     ]).catch(console.error);
 
