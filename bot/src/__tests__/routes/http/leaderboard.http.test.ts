@@ -56,6 +56,14 @@ import { leaderboardRouter } from '../../../api/routes/leaderboard.js';
 function buildApp() {
   const app = createTestApp();
   app.use('/api/leaderboard', leaderboardRouter);
+  // Error handler for asyncHandler errors
+  app.use((err: any, _req: any, res: any, _next: any) => {
+    const status = err.statusCode || 500;
+    res.status(status).json({
+      success: false,
+      error: err.message || 'Internal Server Error',
+    });
+  });
   return app;
 }
 
@@ -141,7 +149,7 @@ describe('GET /api/leaderboard', () => {
       .expect(500);
 
     expect(res.body.success).toBe(false);
-    expect(res.body.error).toContain('leaderboard');
+    expect(res.body.error).toBe('connection timeout');
   });
 });
 
@@ -243,6 +251,6 @@ describe('GET /api/leaderboard/weekly', () => {
       .expect(500);
 
     expect(res.body.success).toBe(false);
-    expect(res.body.error).toContain('weekly');
+    expect(res.body.error).toBe('DB failure');
   });
 });
