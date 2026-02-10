@@ -20,6 +20,7 @@ import { checkinRouter } from './routes/checkins.js';
 import { punishmentRouter } from './routes/punishment.js';
 import { apiLimiter } from './middleware/rateLimiter.js';
 import { ApiError } from './utils/errors.js';
+import { logger, generateRequestId } from './utils/logger.js';
 
 const app: Express = express();
 const PORT = process.env.API_PORT || 3000;
@@ -58,6 +59,27 @@ app.use(express.urlencoded({ extended: true, limit: '100kb' }));
 // Request logging — compact format in production
 app.use(morgan(process.env.NODE_ENV === 'production' ? 'combined' : 'dev'));
 
+// Request context — assign requestId and log request start/finish with duration
+app.use((req: Request, res: Response, next: NextFunction) => {
+  req.requestId = generateRequestId();
+  const start = Date.now();
+  const log = logger.child({ requestId: req.requestId });
+
+  log.info('Request start', { method: req.method, path: req.path, ip: req.ip });
+
+  res.on('finish', () => {
+    const duration = Date.now() - start;
+    log.info('Request finish', {
+      method: req.method,
+      path: req.path,
+      statusCode: res.statusCode,
+      durationMs: duration,
+    });
+  });
+
+  next();
+});
+
 // Rate limiting (applied to all API routes)
 app.use('/api', apiLimiter);
 
@@ -89,7 +111,7 @@ export function mountWebhook(handler: RequestHandler): void {
   if (!_webhookMounted) {
     app.post('/webhook', handler);
     _webhookMounted = true;
-    console.log('   POST /webhook (Telegram webhook)');
+    logger.info('Webhook mounted: POST /webhook');
   }
 }
 
@@ -139,7 +161,7 @@ export function startApiServer(webhookHandler?: RequestHandler): Promise<http.Se
       return;
     }
 
-    console.error('Error:', err);
+    logger.error('Unhandled error', err, { requestId: req.requestId, method: req.method, path: req.path });
     res.status(500).json({
       error: 'Internal Server Error',
       message: process.env.NODE_ENV === 'development' ? err.message : 'Something went wrong',
@@ -148,19 +170,11 @@ export function startApiServer(webhookHandler?: RequestHandler): Promise<http.Se
 
   return new Promise((resolve) => {
     const server = app.listen(PORT, () => {
-      console.log(`\n🌐 API Server running on http://localhost:${PORT}`);
-      console.log(`📊 Environment: ${process.env.NODE_ENV || 'development'}`);
-      console.log(`🔒 CORS enabled for: ${allowedOrigins.join(', ') || 'none'}`);
-      console.log(`\n📍 Available endpoints:`);
-      console.log(`   GET  /health`);
-      console.log(`   GET  /api/users/:telegramId/stats`);
-      console.log(`   GET  /api/users/:userId/quests/active`);
-      console.log(`   GET  /api/users/:userId/quests/completed`);
-      console.log(`   POST /api/quests/:questId/complete`);
-      console.log(`   GET  /api/users/:userId/achievements`);
-      console.log(`   GET  /api/achievements`);
-      console.log(`   POST /api/users/:userId/modes`);
-      console.log(`   DELETE /api/users/:userId/modes/:modeId\n`);
+      logger.info('API Server started', {
+        port: PORT,
+        environment: process.env.NODE_ENV || 'development',
+        corsOrigins: allowedOrigins,
+      });
       resolve(server);
     });
 
