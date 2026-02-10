@@ -382,7 +382,7 @@ export function Dashboard() {
 
         {/* Per-mode streak breakdown (from Agent D's API addition) */}
         {(() => {
-          const perModeStreaks = (stats as any).perModeStreaks as Array<{ mode_id: number; mode_name: string; mode_icon: string; current_streak: number; longest_streak: number }> | undefined;
+          const perModeStreaks = stats.perModeStreaks;
           if (!perModeStreaks || perModeStreaks.length === 0) return null;
           const maxStreak = Math.max(...perModeStreaks.map(s => s.current_streak));
           return (
