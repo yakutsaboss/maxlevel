@@ -179,6 +179,31 @@ Use this structure when creating a new run. Copy and adapt:
 
 ---
 
-## Current Run
+## Run 13 Retrospectives
 
-*(No active run. Ready for Run 13 design.)*
+#### Agent A Retrospective
+
+**Status:** All 4 tasks completed, build passes.
+
+| # | Task | Status | Commit |
+|---|------|--------|--------|
+| 1 | Create migration SQL (add target column + backfill) | Done | `69801e6` |
+| 2 | Fix checkins.ts hardcoded `1 AS target` to `qi.target` | Done | `54bcbce` |
+| 3 | Add target-setting query to dailyQuestReset.ts | Done | `b2dae1a` |
+| 4 | Build verification | Pass | No fix needed |
+
+**Problems faced:** None. The tasks were well-scoped and the codebase was clean. The `execute` utility from `db.ts` was perfect for the UPDATE query in dailyQuestReset.
+
+**What was done:**
+- Added `target INTEGER DEFAULT 1` column to `quest_instances` via migration SQL
+- Backfill sets target based on quest difficulty: easy=1, medium=3, hard=5
+- Fixed the critical bug in checkins.ts where `1 AS target` was hardcoded — now reads `qi.target`
+- dailyQuestReset now sets proper targets for newly assigned quests after the Python tool assigns them
+
+**Important for Agent 0 (merge/deploy):**
+- The migration `database/migrations/run13_quest_target.sql` must be run on the production database BEFORE deploying the new bot code. Otherwise `qi.target` will be NULL for old rows (the DEFAULT 1 only applies to new inserts, not the SELECT).
+- Run: `PGPASSWORD=postgres psql -h localhost -U postgres -d telegram_rpg -f /opt/wibecode-bot/database/migrations/run13_quest_target.sql`
+
+**Recommendations for next run:**
+- Verify that the quest_manager Python tool's `--assign-daily` creates quest_instances with `target` column properly populated (the backfill in dailyQuestReset handles it, but a cleaner fix would be in the Python tool itself)
+- Consider adding a `target` column to the quests table itself so difficulty-to-target mapping is explicit in the schema rather than computed at assignment time
