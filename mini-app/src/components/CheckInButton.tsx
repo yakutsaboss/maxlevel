@@ -9,9 +9,11 @@ interface CheckInButtonProps {
   telegramId: number;
   onSuccess: (result: { completed: boolean; current: number; target: number }) => void;
   disabled?: boolean;
+  currentProgress?: number;
+  target?: number;
 }
 
-export function CheckInButton({ questInstanceId, telegramId, onSuccess, disabled }: CheckInButtonProps) {
+export function CheckInButton({ questInstanceId, telegramId, onSuccess, disabled, currentProgress, target }: CheckInButtonProps) {
   const { haptic } = useTelegram();
   const [loading, setLoading] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
@@ -57,7 +59,14 @@ export function CheckInButton({ questInstanceId, telegramId, onSuccess, disabled
         ) : (
           <CheckCircle className="w-5 h-5" />
         )}
-        {loading ? 'Checking in...' : 'Check In'}
+        {loading ? 'Checking in...' : (() => {
+          if (currentProgress !== undefined && target !== undefined && target > 1) {
+            const remaining = target - currentProgress;
+            if (remaining <= 1) return 'Check In (last one!)';
+            return `Check In (${remaining} left)`;
+          }
+          return 'Check In';
+        })()}
       </motion.button>
 
       <AnimatePresence>
