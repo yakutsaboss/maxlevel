@@ -66,7 +66,7 @@ export interface Achievement {
   xp_bonus?: number;
   rarity: string;
   category: string;
-  criteria?: Record<string, any>;
+  criteria?: Record<string, unknown>;
 }
 
 export interface UserAchievement {
@@ -155,7 +155,7 @@ export interface PunishmentSettings {
   consent_timestamp: string | null;
   intensity_level: string;
   safe_mode: boolean;
-  custom_punishments: Record<string, any> | null;
+  custom_punishments: Record<string, unknown> | null;
   max_xp_penalty: number;
   max_streak_reset: number;
 }
@@ -188,7 +188,7 @@ export interface UserPreferences {
 // Onboarding state
 export interface OnboardingState {
   current_step: string | null;
-  quiz_data: Record<string, any> | null;
+  quiz_data: Record<string, unknown> | null;
 }
 
 // Telegram WebApp types

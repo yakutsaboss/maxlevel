@@ -188,7 +188,7 @@ class ApiClient {
     return response.data;
   }
 
-  async saveOnboardingState(telegramId: number, currentStep: string, quizData: Record<string, any>): Promise<ApiResponse<OnboardingState>> {
+  async saveOnboardingState(telegramId: number, currentStep: string, quizData: Record<string, unknown>): Promise<ApiResponse<OnboardingState>> {
     const response = await this.client.put(`/onboarding/${telegramId}`, {
       current_step: currentStep,
       quiz_data: quizData,
@@ -196,7 +196,7 @@ class ApiClient {
     return response.data;
   }
 
-  async completeOnboarding(telegramId: number, quizData: Record<string, any>): Promise<ApiResponse<{ xp_awarded: number }>> {
+  async completeOnboarding(telegramId: number, quizData: Record<string, unknown>): Promise<ApiResponse<{ xp_awarded: number }>> {
     const response = await this.client.post(`/onboarding/${telegramId}/complete`, {
       quiz_data: quizData,
     });
