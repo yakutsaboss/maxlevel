@@ -1,5 +1,5 @@
 import { Router, Request, Response } from 'express';
-import { authenticateTelegram } from '../middleware/auth.js';
+import { authenticateTelegram, requireOwnership } from '../middleware/auth.js';
 import { query, queryOne, execute, transaction } from '../../utils/db.js';
 import { cached, invalidatePrefix, TTL } from '../../utils/cache.js';
 import { updateStreak } from '../../utils/streak.js';
@@ -65,6 +65,7 @@ async function resolveUser(telegramId: string) {
  */
 router.get('/:telegramId/stats', authenticateTelegram, asyncHandler(async (req: Request, res: Response) => {
   const { telegramId } = req.params;
+  requireOwnership(req);
   const user = await resolveUser(telegramId);
 
   if (!user) {
@@ -216,6 +217,7 @@ router.get('/:telegramId/stats', authenticateTelegram, asyncHandler(async (req: 
 router.get('/:telegramId/quests/active', authenticateTelegram, asyncHandler(async (req: Request, res: Response) => {
   const { telegramId } = req.params;
   const tid = parseInt(telegramId);
+  requireOwnership(req);
 
   // Single query: resolve user + get quests
   const rows = await query(
@@ -264,6 +266,7 @@ router.get('/:telegramId/quests/active', authenticateTelegram, asyncHandler(asyn
 router.get('/:telegramId/quests/completed', authenticateTelegram, asyncHandler(async (req: Request, res: Response) => {
   const { telegramId } = req.params;
   const tid = parseInt(telegramId);
+  requireOwnership(req);
   const limit = Math.min(parseInt(req.query.limit as string) || 50, 100);
 
   const rows = await query(
@@ -312,6 +315,7 @@ router.get('/:telegramId/quests/completed', authenticateTelegram, asyncHandler(a
 router.get('/:telegramId/achievements', authenticateTelegram, asyncHandler(async (req: Request, res: Response) => {
   const { telegramId } = req.params;
   const tid = parseInt(telegramId);
+  requireOwnership(req);
 
   const rows = await query(
     `SELECT ua.user_id, ua.achievement_id, ua.unlocked_at,
@@ -424,6 +428,7 @@ router.patch('/:userId/streak', authenticateTelegram, asyncHandler(async (req: R
  */
 router.get('/:telegramId/preferences', authenticateTelegram, asyncHandler(async (req: Request, res: Response) => {
   const tid = parseInt(req.params.telegramId);
+  requireOwnership(req);
   if (isNaN(tid)) {
     throw new BadRequestError('Invalid telegram ID');
   }
@@ -450,6 +455,7 @@ router.get('/:telegramId/preferences', authenticateTelegram, asyncHandler(async 
  */
 router.patch('/:telegramId/preferences', authenticateTelegram, asyncHandler(async (req: Request, res: Response) => {
   const tid = parseInt(req.params.telegramId);
+  requireOwnership(req);
   if (isNaN(tid)) {
     throw new BadRequestError('Invalid telegram ID');
   }
@@ -515,6 +521,7 @@ router.patch('/:telegramId/preferences', authenticateTelegram, asyncHandler(asyn
  */
 router.patch('/:telegramId/profile', authenticateTelegram, asyncHandler(async (req: Request, res: Response) => {
   const tid = parseInt(req.params.telegramId);
+  requireOwnership(req);
   if (isNaN(tid)) {
     throw new BadRequestError('Invalid telegram ID');
   }
@@ -584,6 +591,7 @@ router.patch('/:telegramId/profile', authenticateTelegram, asyncHandler(async (r
  */
 router.delete('/:telegramId/account', authenticateTelegram, asyncHandler(async (req: Request, res: Response) => {
   const tid = parseInt(req.params.telegramId);
+  requireOwnership(req);
   if (isNaN(tid)) {
     throw new BadRequestError('Invalid telegram ID');
   }
