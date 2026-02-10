@@ -3,15 +3,15 @@ import { useNavigate } from 'react-router-dom';
 import { useTelegram } from '@/hooks/useTelegram';
 import { apiClient } from '@/api/client';
 import { UserStats, UserAchievement, Achievement } from '@/types';
-import { Trophy, Award, TrendingUp, Calendar, Zap, AlertCircle, RefreshCw, Pencil, Settings, Shield } from 'lucide-react';
-
+import { Calendar, AlertCircle, RefreshCw } from 'lucide-react';
 import { motion } from 'framer-motion';
-import { ProfileEditModal, AVATAR_OPTIONS } from '@/components/ProfileEditModal';
+import { ProfileEditModal } from '@/components/ProfileEditModal';
 import { Toast } from '@/components/Toast';
-
-function formatDate(dateStr: string): string {
-  return new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric', year: 'numeric' }).format(new Date(dateStr));
-}
+import { ProfileHeader } from '@/components/profile/ProfileHeader';
+import { ProfileModes } from '@/components/profile/ProfileModes';
+import { ProfileAchievements } from '@/components/profile/ProfileAchievements';
+import { ProfileAccountability } from '@/components/profile/ProfileAccountability';
+import { formatDate } from '@/utils/formatDate';
 
 export function Profile() {
   const { user, haptic } = useTelegram();
@@ -41,11 +41,9 @@ export function Profile() {
       if (statsRes.success && statsRes.data) { setStats(statsRes.data); }
       if (achievementsRes.success && achievementsRes.data) { setAchievements(achievementsRes.data); }
       if (allAchRes.success && allAchRes.data) { setAllAchievements(allAchRes.data); }
-      // Load punishment settings and history separately (non-blocking, API may not exist yet)
       try {
         const punishRes = await apiClient.getPunishmentSettings(user.id);
         if (punishRes.success && punishRes.data) { setPunishmentSettings(punishRes.data); }
-        // Load punishment history if accountability is active
         if (punishRes.success && punishRes.data?.consent_given) {
           try {
             const historyRes = await apiClient.getPunishmentHistory(user.id);
@@ -123,45 +121,13 @@ export function Profile() {
 
   return (
     <div className="min-h-screen bg-telegram-bg text-telegram-text pb-20">
-      <div className="bg-gradient-to-br from-purple-600 via-pink-600 to-orange-500 p-6 rounded-b-3xl shadow-lg relative" style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 1.5rem)' }}>
-        <button
-          onClick={() => { haptic.impact('light'); navigate('/settings'); }}
-          className="absolute top-4 right-4 bg-white/20 backdrop-blur-sm rounded-full p-2 active:scale-90 transition-transform z-10"
-        >
-          <Settings className="w-5 h-5 text-white" />
-        </button>
-        <div className="text-center">
-          <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ type: 'spring', stiffness: 200 }} className="inline-block relative mb-4">
-            {(() => {
-              const avatarIdx = Math.max(0, (stats.user.avatar_id ?? 1) - 1);
-              const avatar = AVATAR_OPTIONS[avatarIdx] || AVATAR_OPTIONS[0];
-              return (
-                <div className={`w-24 h-24 ${avatar.color} rounded-full flex items-center justify-center shadow-xl`}>
-                  <span className="text-5xl">{avatar.icon}</span>
-                </div>
-              );
-            })()}
-            <div className="absolute -bottom-2 -right-2 bg-yellow-400 rounded-full px-3 py-1 shadow-lg">
-              <span className="text-sm font-bold text-purple-900">Lv {stats.user.level}</span>
-            </div>
-          </motion.div>
-          <div className="flex items-center justify-center gap-2 mb-1">
-            <h1 className="text-2xl font-bold text-white">{stats.user.first_name} {stats.user.last_name || ''}</h1>
-            <button
-              onClick={() => { haptic.impact('light'); setEditModalOpen(true); }}
-              className="bg-white/20 backdrop-blur-sm rounded-full p-1.5 active:scale-90 transition-transform"
-            >
-              <Pencil className="w-4 h-4 text-white" />
-            </button>
-          </div>
-          {stats.user.username && <p className="text-purple-100 text-sm mb-4">@{stats.user.username}</p>}
-          <div className="flex justify-center gap-6 mt-6">
-            <StatBadge icon={<Trophy className="w-5 h-5" />} value={stats.user.total_quests_completed} label="Quests" />
-            <StatBadge icon={<Award className="w-5 h-5" />} value={achievements.length} label="Achievements" />
-            <StatBadge icon={<Zap className="w-5 h-5" />} value={stats.user.xp} label="Total XP" />
-          </div>
-        </div>
-      </div>
+      <ProfileHeader
+        stats={stats}
+        achievementCount={achievements.length}
+        onEdit={() => setEditModalOpen(true)}
+        onSettingsClick={() => navigate('/settings')}
+        haptic={haptic}
+      />
 
       <div className="px-4 mt-6">
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="bg-gradient-to-r from-orange-500 to-red-500 rounded-2xl p-4 text-white shadow-lg">
@@ -179,173 +145,21 @@ export function Profile() {
         </motion.div>
       </div>
 
-      <div className="px-4 mt-6">
-        <h2 className="text-lg font-semibold mb-3 flex items-center gap-2">
-          <TrendingUp className="w-5 h-5 text-telegram-link" />My Modes
-        </h2>
-        <div className="grid grid-cols-2 gap-3">
-          {stats.modes.map((userMode, index) => {
-            const perModeStreaks = stats.perModeStreaks;
-            const modeStreak = perModeStreaks?.find((s) => s.mode_id === userMode.mode_id);
-            return (
-              <motion.div key={userMode.mode_id} initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: index * 0.1 }} whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} onClick={() => haptic.impact('light')} className="bg-telegram-secondaryBg rounded-2xl p-4 border border-telegram-hint/10">
-                <div className="text-4xl text-center mb-2">{userMode.mode.icon}</div>
-                <h3 className="font-semibold text-center text-sm">{userMode.mode.display_name}</h3>
-                <p className="text-xs text-telegram-hint text-center mt-1">Since {formatDate(userMode.activated_at)}</p>
-                {modeStreak && modeStreak.current_streak > 0 ? (
-                  <p className="text-xs text-center mt-1.5 font-medium text-orange-500">🔥 {modeStreak.current_streak} day streak</p>
-                ) : modeStreak ? (
-                  <p className="text-xs text-center mt-1.5 text-telegram-hint">No active streak</p>
-                ) : null}
-              </motion.div>
-            );
-          })}
-        </div>
-      </div>
+      <ProfileModes modes={stats.modes} perModeStreaks={stats.perModeStreaks} haptic={haptic} />
 
-      <div className="px-4 mt-6 mb-6">
-        <h2 className="text-lg font-semibold mb-3 flex items-center gap-2">
-          <Trophy className="w-5 h-5 text-telegram-link" />Achievements
-        </h2>
-        <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="bg-telegram-secondaryBg rounded-2xl p-4 border border-telegram-hint/10"
-        >
-          {/* Progress indicator */}
-          {(() => {
-            const total = allAchievements.length || achievements.length;
-            const unlocked = achievements.length;
-            const pct = total > 0 ? Math.round((unlocked / total) * 100) : 0;
-            return (
-              <div className="mb-4">
-                <div className="flex items-center justify-between mb-1.5">
-                  <span className="text-sm text-telegram-hint">{unlocked}/{total} unlocked</span>
-                  <span className="text-xs font-semibold text-telegram-link">{pct}%</span>
-                </div>
-                <div className="w-full h-2 bg-telegram-bg rounded-full overflow-hidden">
-                  <motion.div
-                    initial={{ width: 0 }}
-                    animate={{ width: `${pct}%` }}
-                    transition={{ duration: 0.8, ease: 'easeOut' }}
-                    className="h-full bg-gradient-to-r from-yellow-400 to-amber-500 rounded-full"
-                  />
-                </div>
-              </div>
-            );
-          })()}
-          {/* Achievement grid (2x2) */}
-          {achievements.length > 0 ? (
-            <div className="grid grid-cols-2 gap-2.5 mb-3">
-              {achievements
-                .sort((a, b) => new Date(b.unlocked_at).getTime() - new Date(a.unlocked_at).getTime())
-                .slice(0, 4)
-                .map((ua) => {
-                  const rarity = ua.achievement.rarity || ua.achievement.category || '';
-                  const rarityColor = rarity === 'legendary' ? 'text-yellow-500' : rarity === 'epic' ? 'text-purple-500' : rarity === 'rare' ? 'text-blue-500' : 'text-telegram-hint';
-                  return (
-                    <motion.div
-                      key={ua.achievement_id}
-                      whileTap={{ scale: 0.95 }}
-                      onClick={() => haptic.impact('light')}
-                      className="bg-telegram-bg rounded-xl p-3 text-center cursor-pointer"
-                    >
-                      <div className="text-3xl mb-1">{ua.achievement.icon}</div>
-                      <div className="text-xs font-medium line-clamp-1">{ua.achievement.name}</div>
-                      {rarity && <div className={`text-[10px] font-semibold capitalize mt-0.5 ${rarityColor}`}>{rarity}</div>}
-                    </motion.div>
-                  );
-                })}
-            </div>
-          ) : (
-            <p className="text-sm text-telegram-hint mb-3">Complete quests to earn achievements!</p>
-          )}
-          <button
-            onClick={() => { haptic.impact('light'); navigate('/achievements'); }}
-            className="w-full py-2.5 rounded-xl bg-telegram-link/10 text-telegram-link text-sm font-semibold active:scale-[0.98] transition-transform"
-          >
-            View all achievements
-          </button>
-        </motion.div>
-      </div>
+      <ProfileAchievements
+        achievements={achievements}
+        allAchievements={allAchievements}
+        haptic={haptic}
+        onViewAll={() => navigate('/achievements')}
+      />
 
-      <div className="px-4 mt-6">
-        <h2 className="text-lg font-semibold mb-3 flex items-center gap-2">
-          <Shield className="w-5 h-5 text-telegram-link" />Accountability
-        </h2>
-        <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="bg-telegram-secondaryBg rounded-2xl p-4 border border-telegram-hint/10"
-        >
-          {punishmentSettings && punishmentSettings.consent_given ? (
-            <div>
-              <div className="flex items-center gap-2 mb-3">
-                <div className="w-8 h-8 rounded-full bg-green-500/20 flex items-center justify-center">
-                  <Shield className="w-4 h-4 text-green-500" />
-                </div>
-                <span className="text-sm font-semibold text-green-500">Accountability Active</span>
-              </div>
-              <div className="space-y-2 text-sm">
-                <div className="flex justify-between">
-                  <span className="text-telegram-hint">Intensity</span>
-                  <span className="font-medium capitalize">{punishmentSettings.intensity_level}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-telegram-hint">Safe mode</span>
-                  <span className="font-medium">{punishmentSettings.safe_mode ? 'ON' : 'OFF'}</span>
-                </div>
-              </div>
-              <button
-                onClick={() => { haptic.impact('light'); navigate('/settings'); }}
-                className="mt-3 text-xs text-telegram-link font-medium active:opacity-70 transition-opacity"
-              >
-                Edit in Settings →
-              </button>
-            </div>
-          ) : (
-            <div
-              className="flex items-center gap-3 cursor-pointer active:opacity-70 transition-opacity"
-              onClick={() => { haptic.impact('light'); navigate('/settings'); }}
-            >
-              <div className="w-8 h-8 rounded-full bg-telegram-hint/20 flex items-center justify-center">
-                <Shield className="w-4 h-4 text-telegram-hint" />
-              </div>
-              <div>
-                <span className="text-sm font-medium text-telegram-hint">Accountability Off</span>
-                <p className="text-xs text-telegram-link">Tap to enable in Settings →</p>
-              </div>
-            </div>
-          )}
-        </motion.div>
-      </div>
-
-      {punishmentSettings?.consent_given && (
-        <div className="px-4 mt-4">
-          <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="bg-telegram-secondaryBg rounded-2xl p-4 border border-telegram-hint/10"
-          >
-            <h3 className="text-sm font-semibold mb-3 text-telegram-hint">Recent Penalties</h3>
-            {punishmentHistory.length > 0 ? (
-              <div className="space-y-2.5">
-                {punishmentHistory.slice(0, 5).map((p, i) => (
-                  <div key={i} className="flex items-center justify-between">
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm truncate">{p.notes || p.punishment_type}</p>
-                      <p className="text-[11px] text-telegram-hint">{formatDate(p.applied_at)}</p>
-                    </div>
-                    <span className="text-sm font-semibold text-red-500 ml-3 shrink-0">-{p.xp_deducted} XP</span>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <p className="text-sm text-telegram-hint">No penalties yet — keep it up!</p>
-            )}
-          </motion.div>
-        </div>
-      )}
+      <ProfileAccountability
+        punishmentSettings={punishmentSettings}
+        punishmentHistory={punishmentHistory}
+        haptic={haptic}
+        onNavigateSettings={() => navigate('/settings')}
+      />
 
       <div className="px-4 mt-6 mb-6">
         <div className="bg-telegram-secondaryBg rounded-2xl p-4 border border-telegram-hint/10">
@@ -392,17 +206,5 @@ export function Profile() {
         />
       )}
     </div>
-  );
-}
-
-function StatBadge({ icon, value, label }: { icon: React.ReactNode; value: number; label: string }) {
-  return (
-    <motion.div whileHover={{ scale: 1.1 }} className="text-center">
-      <div className="bg-white/20 backdrop-blur-sm rounded-2xl p-3 mb-2">
-        <div className="text-white mb-1">{icon}</div>
-        <div className="text-2xl font-bold text-white">{value}</div>
-      </div>
-      <div className="text-xs text-purple-100">{label}</div>
-    </motion.div>
   );
 }
