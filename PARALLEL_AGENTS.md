@@ -461,3 +461,27 @@ Read PARALLEL_AGENTS.md — you are Agent C for Run 17. Your job: mini-app archi
 *(To be filled by Agent 0 after merge & deploy)*
 
 <!-- Next run goes here. Agent 0 will append RUN 18 below this line. -->
+
+#### Agent B Retrospective (Run 18)
+
+**Status:** All 6 tasks completed. Build passes cleanly.
+
+| # | Task | Status |
+|---|------|--------|
+| 1 | Add safe-area-inset-top to Profile.tsx header | Done |
+| 2 | Add safe-area-inset-top to Settings.tsx header | Done |
+| 3 | Add Delete Account danger zone to Settings.tsx | Done |
+| 4 | Add deleteAccount() to client.ts (append only) | Done |
+| 5 | Wire up showConfirm() + API + tg.close() flow | Done |
+| 6 | Build verification (tsc + vite build) | Pass |
+
+**Problems faced:** None significant. Worktree was branched before Agent 0's Run 18 setup commit, so the Run 18 retrospective placeholders don't exist in this branch. Writing retrospective at end of file for Agent 0 to splice during merge.
+
+**Implementation details:**
+- Safe area: Used `calc(env(safe-area-inset-top, 0px) + 1.5rem)` inline style to preserve existing 1.5rem padding while adding safe area offset.
+- Delete Account: Added `Trash2` icon import, `deleting` state, `handleDeleteAccount` async function. Uses `showConfirm()` from `useTelegram` for native Telegram confirmation dialog. On success, shows toast then calls `tg.close()` after 1.5s delay.
+- client.ts: Appended single `deleteAccount()` method at end of class per GRAY AREA rules. Uses `this.client.delete()` with proper typing.
+
+**Recommendations for next run:**
+- The `deleteAccount` endpoint should be tested end-to-end once Agent C's backend `DELETE /users/:telegramId/account` is merged.
+- Consider adding a "re-authentication" step before account deletion (e.g., requiring the user to type "DELETE" or their username) for extra safety.
