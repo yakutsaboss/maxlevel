@@ -5,50 +5,13 @@ import { useTelegram } from '@/hooks/useTelegram';
 import { useBackButton } from '@/hooks/useTelegram';
 import { useOnboarding } from '@/hooks/useOnboarding';
 import { apiClient } from '@/api/client';
-import { Bell, Clock, Globe, AlertCircle, RefreshCw, Loader2, Shield, Check, Trash2 } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { AlertCircle, RefreshCw, Loader2 } from 'lucide-react';
 import { Toast } from '@/components/Toast';
-
-interface UserPreferences {
-  notifications_enabled: boolean;
-  reminder_time: number;
-  timezone: string;
-}
-
-interface PunishmentSettings {
-  consent_given: boolean;
-  intensity_level: string;
-  safe_mode: boolean;
-}
-
-const INTENSITY_LEVELS = [
-  { value: 'light', label: 'Light', description: '0.5x XP penalty' },
-  { value: 'medium', label: 'Medium', description: '1x XP penalty' },
-  { value: 'hard', label: 'Hard', description: '1.5x XP penalty' },
-  { value: 'extreme', label: 'Extreme', description: '2x XP penalty' },
-];
-
-const ALL_HOURS = Array.from({ length: 24 }, (_, i) => i);
-
-function formatUTCHour(hour: number): string {
-  const suffix = hour < 12 ? 'AM' : 'PM';
-  const h = hour === 0 ? 12 : hour > 12 ? hour - 12 : hour;
-  return `${h}${suffix}`;
-}
-
-function getLocalHour(utcHour: number): string {
-  const now = new Date();
-  const utcDate = new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate(), utcHour, 0));
-  return utcDate.toLocaleTimeString(undefined, { hour: 'numeric', hour12: true });
-}
-
-function detectTimezone(): string {
-  try {
-    return Intl.DateTimeFormat().resolvedOptions().timeZone;
-  } catch {
-    return 'UTC';
-  }
-}
+import { NotificationSettings, detectTimezone } from '@/components/settings/NotificationSettings';
+import { AccountabilitySettings } from '@/components/settings/AccountabilitySettings';
+import { DangerZone } from '@/components/settings/DangerZone';
+import type { UserPreferences } from '@/components/settings/NotificationSettings';
+import type { PunishmentSettings } from '@/components/settings/AccountabilitySettings';
 
 export function Settings() {
   const { user, haptic, showConfirm } = useTelegram();
@@ -189,10 +152,8 @@ export function Settings() {
     try {
       const res = await apiClient.deleteAccount(user.id);
       if (res.success) {
-        // Clear all client-side state so the app starts fresh
         queryClient.clear();
         onboardingStore.reset();
-
         setToast({ message: 'Account deleted. Starting fresh...', variant: 'success' });
         setTimeout(() => navigate('/onboarding', { replace: true }), 1200);
       } else {
@@ -245,218 +206,15 @@ export function Settings() {
       </div>
 
       <div className="px-4 mt-6 space-y-4">
-        {/* Notifications Toggle */}
-        <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="bg-telegram-secondaryBg rounded-2xl p-4 border border-telegram-hint/10"
-        >
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="bg-blue-500 w-10 h-10 rounded-xl flex items-center justify-center text-white">
-                <Bell className="w-5 h-5" />
-              </div>
-              <div>
-                <h3 className="font-semibold text-sm">Notifications</h3>
-                <p className="text-xs text-telegram-hint">Daily reminders & updates</p>
-              </div>
-            </div>
-            <button
-              onClick={() => {
-                haptic.selection();
-                setPrefs(p => ({ ...p, notifications_enabled: !p.notifications_enabled }));
-              }}
-              className={`w-12 h-7 rounded-full transition-colors relative ${prefs.notifications_enabled ? 'bg-telegram-link' : 'bg-telegram-hint/30'}`}
-            >
-              <motion.div
-                className="w-5 h-5 bg-white rounded-full absolute top-1 shadow-sm"
-                animate={{ left: prefs.notifications_enabled ? 26 : 4 }}
-                transition={{ type: 'spring', stiffness: 500, damping: 30 }}
-              />
-            </button>
-          </div>
-        </motion.div>
-
-        {/* Reminder Time */}
-        <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.05 }}
-          className="bg-telegram-secondaryBg rounded-2xl p-4 border border-telegram-hint/10"
-        >
-          <div className="flex items-center gap-3 mb-3">
-            <div className="bg-orange-500 w-10 h-10 rounded-xl flex items-center justify-center text-white">
-              <Clock className="w-5 h-5" />
-            </div>
-            <div>
-              <h3 className="font-semibold text-sm">Reminder Time</h3>
-              <p className="text-xs text-telegram-hint">When to send daily reminder</p>
-            </div>
-          </div>
-          <div className="flex gap-2 overflow-x-auto pb-2 hide-scrollbar">
-            {ALL_HOURS.map((hour) => (
-              <button
-                key={hour}
-                onClick={() => {
-                  haptic.selection();
-                  setPrefs(p => ({ ...p, reminder_time: hour }));
-                }}
-                className={`flex-shrink-0 py-2 px-3 rounded-xl text-center transition-all active:scale-95 ${
-                  prefs.reminder_time === hour
-                    ? 'bg-telegram-link text-white shadow-md'
-                    : 'bg-telegram-bg text-telegram-hint border border-telegram-hint/20'
-                }`}
-              >
-                <div className="text-xs font-semibold">{formatUTCHour(hour)}</div>
-                <div className={`text-[10px] mt-0.5 ${prefs.reminder_time === hour ? 'text-white/70' : 'text-telegram-hint/70'}`}>
-                  {getLocalHour(hour)}
-                </div>
-              </button>
-            ))}
-          </div>
-        </motion.div>
-
-        {/* Timezone */}
-        <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.1 }}
-          className="bg-telegram-secondaryBg rounded-2xl p-4 border border-telegram-hint/10"
-        >
-          <div className="flex items-center gap-3 mb-3">
-            <div className="bg-green-500 w-10 h-10 rounded-xl flex items-center justify-center text-white">
-              <Globe className="w-5 h-5" />
-            </div>
-            <div>
-              <h3 className="font-semibold text-sm">Timezone</h3>
-              <p className="text-xs text-telegram-hint">Auto-detected from browser</p>
-            </div>
-          </div>
-          <input
-            type="text"
-            value={prefs.timezone}
-            onChange={(e) => setPrefs(p => ({ ...p, timezone: e.target.value }))}
-            className="w-full bg-telegram-bg border border-telegram-hint/20 rounded-xl px-4 py-2.5 text-sm text-telegram-text focus:outline-none focus:border-telegram-link transition-colors"
-            placeholder="e.g. Europe/Moscow"
-          />
-          <button
-            onClick={() => {
-              haptic.impact('light');
-              setPrefs(p => ({ ...p, timezone: detectTimezone() }));
-            }}
-            className="text-xs text-telegram-link mt-2 active:opacity-70"
-          >
-            Auto-detect timezone
-          </button>
-        </motion.div>
-        {/* Accountability */}
-        <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.15 }}
-          className="bg-telegram-secondaryBg rounded-2xl p-4 border border-telegram-hint/10"
-        >
-          <div className="flex items-center justify-between mb-3">
-            <div className="flex items-center gap-3">
-              <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-white ${punishment.consent_given ? 'bg-red-500' : 'bg-gray-500'}`}>
-                <Shield className="w-5 h-5" />
-              </div>
-              <div>
-                <h3 className="font-semibold text-sm">Accountability</h3>
-                <p className="text-xs text-telegram-hint">Penalties for failed quests</p>
-              </div>
-            </div>
-            <button
-              onClick={handleConsentToggle}
-              className={`w-12 h-7 rounded-full transition-colors relative ${
-                !punishmentAvailable ? 'bg-telegram-hint/20 opacity-50' :
-                punishment.consent_given ? 'bg-red-500' : 'bg-telegram-hint/30'
-              }`}
-            >
-              <motion.div
-                className="w-5 h-5 bg-white rounded-full absolute top-1 shadow-sm"
-                animate={{ left: punishment.consent_given ? 26 : 4 }}
-                transition={{ type: 'spring', stiffness: 500, damping: 30 }}
-              />
-            </button>
-          </div>
-
-          {!punishmentAvailable && (
-            <p className="text-xs text-telegram-hint">Coming soon — complete onboarding to enable</p>
-          )}
-
-          {punishmentAvailable && punishment.consent_given && (
-            <div className="space-y-3 mt-2">
-              {/* Intensity Level */}
-              <div>
-                <label className="text-xs font-medium text-telegram-hint mb-1.5 block">Intensity Level</label>
-                <div className="grid grid-cols-4 gap-1.5">
-                  {INTENSITY_LEVELS.map((level) => (
-                    <button
-                      key={level.value}
-                      onClick={() => handleIntensityChange(level.value)}
-                      className={`py-2 px-1 rounded-xl text-center transition-all active:scale-95 ${
-                        punishment.intensity_level === level.value
-                          ? 'bg-red-500 text-white shadow-md'
-                          : 'bg-telegram-bg text-telegram-hint border border-telegram-hint/20'
-                      }`}
-                    >
-                      <div className="text-xs font-semibold">{level.label}</div>
-                    </button>
-                  ))}
-                </div>
-                <p className="text-[10px] text-telegram-hint mt-1">
-                  {INTENSITY_LEVELS.find(l => l.value === punishment.intensity_level)?.description}
-                </p>
-              </div>
-
-              {/* Safe Mode Toggle */}
-              <div className="flex items-center justify-between">
-                <div>
-                  <span className="text-sm font-medium">Safe Mode</span>
-                  <p className="text-xs text-telegram-hint">Cap daily XP loss</p>
-                </div>
-                <button
-                  onClick={handleSafeModeToggle}
-                  className={`w-12 h-7 rounded-full transition-colors relative ${punishment.safe_mode ? 'bg-telegram-link' : 'bg-telegram-hint/30'}`}
-                >
-                  <motion.div
-                    className="w-5 h-5 bg-white rounded-full absolute top-1 shadow-sm"
-                    animate={{ left: punishment.safe_mode ? 26 : 4 }}
-                    transition={{ type: 'spring', stiffness: 500, damping: 30 }}
-                  />
-                </button>
-              </div>
-            </div>
-          )}
-
-          {/* Auto-save indicator */}
-          <AnimatePresence>
-            {accountabilitySaveStatus !== 'idle' && (
-              <motion.div
-                initial={{ opacity: 0, y: -4 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -4 }}
-                transition={{ duration: 0.2 }}
-                className="mt-2 flex items-center gap-1.5"
-              >
-                {accountabilitySaveStatus === 'saving' && (
-                  <span className="text-xs text-telegram-hint flex items-center gap-1">
-                    <Loader2 className="w-3 h-3 animate-spin" /> Saving...
-                  </span>
-                )}
-                {accountabilitySaveStatus === 'saved' && (
-                  <span className="text-xs text-green-500 flex items-center gap-1">
-                    <Check className="w-3 h-3" /> Saved
-                  </span>
-                )}
-                {accountabilitySaveStatus === 'error' && (
-                  <span className="text-xs text-red-500">Failed to save</span>
-                )}
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </motion.div>
+        <NotificationSettings prefs={prefs} onPrefsChange={setPrefs} haptic={haptic} />
+        <AccountabilitySettings
+          punishment={punishment}
+          punishmentAvailable={punishmentAvailable}
+          onConsentToggle={handleConsentToggle}
+          onIntensityChange={handleIntensityChange}
+          onSafeModeToggle={handleSafeModeToggle}
+          saveStatus={accountabilitySaveStatus}
+        />
       </div>
 
       {/* Save Button */}
@@ -474,36 +232,7 @@ export function Settings() {
         </button>
       </div>
 
-      {/* Danger Zone — Delete Account */}
-      <div className="px-4 mt-10 mb-6">
-        <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.2 }}
-          className="bg-telegram-secondaryBg rounded-2xl p-4 border border-red-500/20"
-        >
-          <div className="flex items-center gap-3 mb-3">
-            <div className="bg-red-500 w-10 h-10 rounded-xl flex items-center justify-center text-white">
-              <Trash2 className="w-5 h-5" />
-            </div>
-            <div>
-              <h3 className="font-semibold text-sm text-red-500">Delete Account</h3>
-              <p className="text-xs text-telegram-hint">Permanently remove your account and all data</p>
-            </div>
-          </div>
-          <button
-            onClick={handleDeleteAccount}
-            disabled={deleting}
-            className="w-full py-3 rounded-xl border-2 border-red-500 text-red-500 font-semibold flex items-center justify-center gap-2 active:scale-[0.98] transition-transform disabled:opacity-60"
-          >
-            {deleting ? (
-              <><Loader2 className="w-4 h-4 animate-spin" />Deleting...</>
-            ) : (
-              <><Trash2 className="w-4 h-4" />Delete Account</>
-            )}
-          </button>
-        </motion.div>
-      </div>
+      <DangerZone deleting={deleting} onDelete={handleDeleteAccount} />
 
       {toast && (
         <Toast
