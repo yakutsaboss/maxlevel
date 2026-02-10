@@ -34,6 +34,12 @@ For completed run history (Runs 2–23), see `PARALLEL_AGENTS_HISTORY.md`.
 17. **Tell the user**: "Ready to launch Run N. Here are your copy-paste prompts."
 18. **Archive completed runs (every 5 runs)** — after Runs 30, 35, 40, etc., move all completed runs except the latest to `PARALLEL_AGENTS_HISTORY.md`. Update both file headers (line 5 here + line 3 in history) with the new run range. Between archive points, completed runs stay in the main file.
 
+**MANDATORY OUTPUT RULES (added after Run 26 failure):**
+- **ALWAYS print copy-paste prompts in your chat message** — NOT just in the file. The user should NEVER have to open PARALLEL_AGENTS.md to find prompts. Print them at the end of your message with clear formatting.
+- **ALWAYS pre-allocate a retrospective section for EVERY agent** — including Agent D, E, F. Every agent listed in the run MUST have a `#### Agent X Retrospective` + `*(To be filled by Agent X)*` placeholder. Missing placeholders cause agents to write retros in random locations → merge conflicts + lost work.
+- **ALWAYS run `npx vitest --run` after merge** — if any tests fail due to cross-agent side effects (e.g., logger migration breaking test spies), fix them as Agent 0 BEFORE deploying.
+- **Count your agents, count your placeholders** — if the run has N agents, the retrospective section MUST have exactly N+1 headings (N agents + Agent 0). Verify this before committing.
+
 **The cycle**: Each Agent 0 merges Run N, then prepares Run N+1. The user just copies the prompts and launches.
 
 ### Deploy Command
@@ -196,6 +202,9 @@ When deploying after a merge:
 10. **6 agents is manageable** — Run 12 proved it, but conflicts increase with GRAY AREA files.
 11. **NEVER skip the notification** — Run 15+16 were merged without notifying the user. Always send via local Python.
 12. **Archive completed runs** — every 5 runs (after Run 30, 35, 40, etc.), move all completed runs except the latest to PARALLEL_AGENTS_HISTORY.md. Update both file headers with the new range.
+13. **Agent 0 MUST print copy-paste prompts in chat** — Run 26 Agent 0 only wrote prompts in the file, forcing the user to find them manually. ALWAYS print them at the end of the chat message.
+14. **Agent 0 MUST pre-allocate ALL retrospective placeholders** — Run 26 Agent 0 forgot Agent D's placeholder. Agent D wrote their retro after the `<!-- Next run -->` marker. Always count: N agents = N+1 placeholders (agents + Agent 0).
+15. **Agent 0 MUST run tests post-merge** — Run 26 had 9 residual failures because Agent D's logger migration broke job test spies on console.log. Always run `npx vitest --run` after all merges and fix failures before deploying.
 
 ---
 
@@ -240,15 +249,25 @@ Use this structure when creating a new run. Copy and adapt:
 
 ---
 
-## Known Issues (Updated after Run 25)
+## Known Issues (Updated after Run 26)
 
 ### Still Open
 1. **pg-boss Node.js mismatch** — Requires 22.12+, server has 20.20. Only triggers warnings, no functional impact yet.
 2. **Mode configs unused** — `mode_configs` table stores quiz responses + personalized plans, but data is never consumed.
 3. **Delete account e2e testing** — confirm soft delete flow works end-to-end in Telegram (Agent B Run 18 recommendation).
 4. **POST /analytics/export still uses executePythonTool** — Justified (Google Sheets OAuth integration), only remaining Python subprocess in ALL routes + jobs.
-5. **Local SQL helpers duplicated** — `getUserByTelegramId`, `listAllModes`, `getUserActiveModes` now exist locally in `handlers/onboarding.ts`. Could extract to shared `utils/queries.ts` (Agent A Run 24 recommendation).
-6. **Test setup.ts still mocks old wrapper functions** — `__tests__/setup.ts` mocks removed pythonTools wrappers (Agent D Run 24 recommendation).
+5. **Local SQL helpers duplicated** — `getUserByTelegramId`, `listAllModes`, `getUserActiveModes` are local to `handlers/onboarding.ts`. Should extract to shared `utils/queries.ts` (Agent A Run 24 recommendation).
+6. **testApp.ts has no error handler** — All 8 HTTP test files duplicate the same ApiError-aware error handler in their `buildApp()` functions. Should be added to `createTestApp()` once (recommended by 3 agents across Runs 25-26).
+7. **Logger has no LOG_LEVEL env var support** — Cannot filter log verbosity in prod vs dev vs test (Agent D Run 26 recommendation).
+8. **logger.ts in wrong location** — `api/utils/logger.ts` is used by everything (bot, jobs, handlers, utils), not just the API layer. Consider moving to `utils/logger.ts` (Agent D Run 26 recommendation).
+
+### Resolved (Run 26)
+- ~~114 test failures~~ — ALL 412 tests now pass. Fixed by Agents A (37 tests), B (52 tests), C (25 tests), Agent 0 (9 post-merge fixes).
+- ~~109 console.* calls in production code~~ — Agent D migrated 105 calls across 25 files to structured logger. 0 remaining `console.*` in prod (only `logger.ts` retains intentional `console.*` for dev output).
+- ~~Test setup.ts stale mocks~~ — Agent C removed 17 stale pythonTools wrapper mocks. Only `executePythonTool` remains (still used by admin-stats.ts).
+- ~~HTTP tests missing error handler~~ — All 8 test files now have `ApiError`-aware error handlers in `buildApp()` (still duplicated — consolidation planned for Run 27).
+- ~~HTTP tests response shape mismatch~~ — All assertions updated from `res.body.X` to `res.body.data.X` (matching `successResponse()` wrapper).
+- ~~HTTP tests missing requireOwnership mock~~ — All test files mock `requireOwnership` alongside `authenticateTelegram` and `authorizeUser`.
 
 ### Resolved (Run 25)
 - ~~Authorization gap — cross-user access~~ — `requireOwnership(req)` added to all routes using `:telegramId`/`:userId` params; previously only quests.ts enforced ownership (Run 25 Agent A)
@@ -1900,6 +1919,269 @@ Follow the Safety Protocol. Commit after each task. Write your retrospective whe
 - Test files still have `console.*` (excluded from this migration per task spec) — could be addressed if desired
 
 #### Agent 0 Retrospective
-*(To be filled by Agent 0)*
+**Merge:** D → A → B → C. All 4 merges had PARALLEL_AGENTS.md conflicts (used `--ours` + manual retro splicing for each). Production code auto-merged cleanly.
 
-<!-- Next run goes here. Agent 0 will append RUN 27 below this line. -->
+**Post-merge fix:** 9 job test failures — Agent D migrated `console.*` to structured logger, but 5 job test files (analyticsExport, dbCleanup, leaderboardRefresh, questReminders, streakCheck) still spied on `console.log`. Added logger mock to each and updated assertions. 412/412 tests green after fix.
+
+**Build:** Both bot (tsc) and mini-app (tsc + vite) pass with zero errors.
+
+**Deploy:** `15edced` deployed to production. 42 files changed (+1130/-551 lines). PM2 restarted. Telegram notification sent.
+
+**MISTAKES MADE IN RUN 26 (self-accountability):**
+1. **Did NOT print copy-paste prompts in chat message** — only wrote them in PARALLEL_AGENTS.md. The user had to find them manually. This is disrespectful of their time. FIXED: added mandatory rule to Agent 0 Self-Protocol + Lessons Learned #13.
+2. **Did NOT pre-allocate Agent D's retrospective placeholder** — wrote placeholders for A, B, C but forgot D. Agent D wrote their retro after the `<!-- Next run -->` marker, causing merge conflicts. FIXED: added mandatory rule to Agent 0 Self-Protocol + Lessons Learned #14.
+3. **Did NOT run tests after merge before deploying** — should have caught the 9 logger-related test failures before deploy. In Run 25 I got lucky (0 failures), in Run 26 I didn't. FIXED: added mandatory rule to Agent 0 Self-Protocol + Lessons Learned #15.
+
+**Net result — Run 26 milestone:**
+- **Tests:** 114 → 0 failures (412/412 pass). First time ALL tests pass since Run 24 migrations.
+- **Logger:** 0 remaining `console.*` in production code (105 calls migrated across 25 files). Only `logger.ts` retains its own `console.*` output (intentional).
+- **Test cleanup:** 17 stale pythonTools wrapper mocks removed from setup.ts.
+- **Process improvement:** 3 new mandatory rules added to prevent Agent 0 mistakes.
+
+## RUN 27: Test Infrastructure + Shared Utilities + Logger Enhancement (3 Agents + Agent 0)
+
+### Focus: Consolidate duplicated test infrastructure (error handler in 8 files → 1), extract shared SQL queries from onboarding.ts to reusable utils, and add LOG_LEVEL env var support to the structured logger. After Run 27: testApp.ts is the single source of truth for test app setup, SQL helpers are importable from utils/queries.ts, and logger supports `LOG_LEVEL=warn` in production to reduce noise.
+
+### Copy-Paste Prompts
+
+**Agent 0** (open in: `c:\Users\Asus\Desktop\Wibecode`):
+```
+Read PARALLEL_AGENTS.md — you are Agent 0 for Run 27. Wait for agents to finish, then merge and deploy.
+```
+
+**Agent A** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-a`):
+```
+Read PARALLEL_AGENTS.md — you are Agent A for Run 27. Your job: Add the shared ApiError-aware error handler to createTestApp() in __tests__/helpers/testApp.ts, then remove the duplicate error handler from all 8 HTTP test files' buildApp() functions. The error handler pattern is: if err instanceof ApiError → res.status(err.statusCode).json({success:false, error:err.message}), else → res.status(500).json({error:'Internal Server Error'}). Import ApiError from ../../../api/utils/errors.js into testApp.ts. After adding it to createTestApp(), go through each of the 8 HTTP test files (users, onboarding, checkins, modes, achievements, quests, admin, leaderboard) and remove the error handler from their buildApp() functions — they should just call createTestApp(), mount the router, and return the app. Run `npx vitest --run` to verify all 412 tests still pass. Follow the Safety Protocol. Commit after each task. Write your retrospective when done.
+```
+
+**Agent B** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-b`):
+```
+Read PARALLEL_AGENTS.md — you are Agent B for Run 27. Your job: Extract shared SQL helper functions from handlers/onboarding.ts into a new file bot/src/utils/queries.ts. The 3 functions to extract are: getUserByTelegramId(telegramId: number), listAllModes(), getUserActiveModes(userId: number). They currently exist as local async functions at the top of onboarding.ts (lines 11-30). Create utils/queries.ts with these functions (importing query/queryOne from ./db.js), then update onboarding.ts to import them from ../utils/queries.js instead of defining locally. Check if other files have similar duplicate SQL patterns and update them too. Run `cd bot && npm run build` to verify. Follow the Safety Protocol. Commit after each task. Write your retrospective when done.
+```
+
+**Agent C** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-c`):
+```
+Read PARALLEL_AGENTS.md — you are Agent C for Run 27. Your job: Add LOG_LEVEL env var support to the structured logger at bot/src/api/utils/logger.ts. Currently the logger has no level filtering — all logs are written regardless of severity. Add a LOG_LEVEL environment variable (values: debug, info, warn, error; default: debug in dev, info in production) that suppresses logs below the threshold. For example, LOG_LEVEL=warn should suppress debug and info. Implementation: (1) Define a LEVEL_ORDER map: {debug:0, info:1, warn:2, error:3}, (2) Read LOG_LEVEL from process.env at module init, (3) Add a shouldLog(level) check at the top of the write() method, (4) Skip the write if the log level is below threshold. Run `cd bot && npm run build` to verify. Follow the Safety Protocol. Commit after each task. Write your retrospective when done.
+```
+
+---
+
+### Agent A — Consolidate Error Handler into testApp.ts (8 test files)
+
+**Branch:** `feature/r27-test-error-handler`
+**Worktree:** `../Wibecode-agent-a`
+
+**Context:** All 8 HTTP test files (`users`, `onboarding`, `checkins`, `modes`, `achievements`, `quests`, `admin`, `leaderboard`) copy the same ~8-line ApiError error handler into their `buildApp()` function. This was added in Run 26 when agents fixed test failures. Now it should be consolidated into `createTestApp()` so new tests get it automatically.
+
+**Tasks:**
+
+1. **Read current testApp.ts and one HTTP test file** — Understand the current `createTestApp()` function and the error handler pattern in `buildApp()`. The error handler is:
+   ```ts
+   app.use((err: any, _req: any, res: any, _next: any) => {
+     if (err instanceof ApiError) {
+       res.status(err.statusCode).json({ success: false, error: err.message });
+       return;
+     }
+     res.status(500).json({ error: 'Internal Server Error' });
+   });
+   ```
+
+2. **Add error handler to createTestApp()** — Import `ApiError` from `../../../api/utils/errors.js` into `testApp.ts`. Add the error handler as the LAST middleware in `createTestApp()`. The function should return the app with JSON parsing + error handler pre-configured. Note: the error handler must be registered AFTER routes are mounted by the test file's `buildApp()`, so instead add a new export: `export function addErrorHandler(app: Express)` that test files call after mounting their router. Or better: change the pattern to `createTestApp()` returning an app, and add a `finalizeTestApp(app)` that adds the error handler.
+
+   **ACTUALLY — simplest approach:** Since Express error handlers must be LAST (after routes), create a `createTestAppWithErrorHandler()` export that wraps the pattern: create app → caller mounts routes → error handler auto-added. BUT this doesn't work because routes are mounted by the caller.
+
+   **Best approach:** Export an `addTestErrorHandler(app)` function from testApp.ts. Each `buildApp()` calls it after mounting the router. This is 1 line instead of 8 lines per file.
+   ```ts
+   // In testApp.ts:
+   export function addTestErrorHandler(app: Express): void {
+     app.use((err: any, _req: any, res: any, _next: any) => {
+       if (err instanceof ApiError) {
+         res.status(err.statusCode).json({ success: false, error: err.message });
+         return;
+       }
+       res.status(500).json({ error: 'Internal Server Error' });
+     });
+   }
+   ```
+
+3. **Update users.http.test.ts** — Remove the inline error handler from `buildApp()`. Import `addTestErrorHandler` from testApp.ts. Call `addTestErrorHandler(app)` at the end of `buildApp()` before `return app`.
+
+4. **Update onboarding.http.test.ts** — Same pattern.
+
+5. **Update checkins.http.test.ts** — Same pattern.
+
+6. **Update modes.http.test.ts** — Same pattern.
+
+7. **Update achievements.http.test.ts** — Same pattern.
+
+8. **Update quests.http.test.ts** — Same pattern.
+
+9. **Update admin.http.test.ts** — Same pattern.
+
+10. **Update leaderboard.http.test.ts** — Same pattern.
+
+11. **Run full test suite** — `npx vitest --run` to verify all 412 tests still pass. The error handling behavior should be identical.
+
+12. **Build verification** — `cd bot && npm run build`.
+
+**OWNED files:**
+- `bot/src/__tests__/helpers/testApp.ts`
+- `bot/src/__tests__/routes/http/users.http.test.ts`
+- `bot/src/__tests__/routes/http/onboarding.http.test.ts`
+- `bot/src/__tests__/routes/http/checkins.http.test.ts`
+- `bot/src/__tests__/routes/http/modes.http.test.ts`
+- `bot/src/__tests__/routes/http/achievements.http.test.ts`
+- `bot/src/__tests__/routes/http/quests.http.test.ts`
+- `bot/src/__tests__/routes/http/admin.http.test.ts`
+- `bot/src/__tests__/routes/http/leaderboard.http.test.ts`
+
+**FORBIDDEN:**
+- `mini-app/**`, `tools/**`, `database/**`
+- `bot/src/api/**` (production code)
+- `bot/src/handlers/**`, `bot/src/jobs/**`, `bot/src/utils/**`
+- `bot/src/__tests__/setup.ts`
+- `bot/src/__tests__/handlers/**`, `bot/src/__tests__/jobs/**`
+
+---
+
+### Agent B — Extract Shared SQL Queries to utils/queries.ts
+
+**Branch:** `feature/r27-shared-queries`
+**Worktree:** `../Wibecode-agent-b`
+
+**Context:** `handlers/onboarding.ts` defines 3 local SQL helper functions (`getUserByTelegramId`, `listAllModes`, `getUserActiveModes`) that could be reused by other modules. Agent A Run 24 recommended extracting them to `utils/queries.ts`.
+
+**Tasks:**
+
+1. **Read current helpers in onboarding.ts** — Understand the 3 local functions (lines 11-30) and their SQL queries.
+
+2. **Create bot/src/utils/queries.ts** — New file with the 3 extracted functions:
+   ```ts
+   import { query, queryOne } from './db.js';
+
+   export async function getUserByTelegramId(telegramId: number) {
+     return queryOne<Record<string, any>>(
+       'SELECT * FROM users WHERE telegram_id = $1',
+       [telegramId]
+     );
+   }
+
+   export async function listAllModes() {
+     return query('SELECT * FROM modes ORDER BY id');
+   }
+
+   export async function getUserActiveModes(userId: number) {
+     return query(
+       `SELECT m.id AS mode_id, m.name, m.display_name, m.description, m.icon_emoji,
+               um.id AS user_mode_id, um.enabled_at, um.is_active
+        FROM user_modes um
+        JOIN modes m ON um.mode_id = m.id
+        WHERE um.user_id = $1 AND um.is_active = true
+        ORDER BY um.enabled_at`,
+       [userId]
+     );
+   }
+   ```
+
+3. **Update handlers/onboarding.ts** — Remove the 3 local function definitions. Add import: `import { getUserByTelegramId, listAllModes, getUserActiveModes } from '../utils/queries.js';`. Verify all call sites still work.
+
+4. **Check for similar patterns in other files** — Search for `SELECT * FROM users WHERE telegram_id`, `SELECT * FROM modes ORDER BY`, and similar queries in other handler/route files. If any duplicate these exact queries, update them to import from `utils/queries.ts` instead.
+
+5. **Build verification** — `cd bot && npm run build`.
+
+**OWNED files:**
+- `bot/src/utils/queries.ts` (NEW)
+- `bot/src/handlers/onboarding.ts`
+
+**GRAY AREA:**
+- Other handler/route files — ONLY if they contain duplicate SQL queries matching the extracted functions. Update imports only, do not refactor query logic.
+
+**FORBIDDEN:**
+- `mini-app/**`, `tools/**`, `database/**`
+- `bot/src/__tests__/**` (test files)
+- `bot/src/api/utils/**`, `bot/src/api/middleware/**`
+- `bot/src/jobs/**`
+- `bot/src/utils/db.ts`, `bot/src/utils/cache.ts`, `bot/src/utils/streak.ts`
+
+---
+
+### Agent C — Add LOG_LEVEL Environment Variable Support to Logger
+
+**Branch:** `feature/r27-logger-level`
+**Worktree:** `../Wibecode-agent-c`
+
+**Context:** The structured logger (`api/utils/logger.ts`) currently writes all log levels unconditionally (except `debug` which is suppressed in production). There's no way to control verbosity via environment variables. Agent D Run 26 recommended adding `LOG_LEVEL` support.
+
+**Tasks:**
+
+1. **Read current logger.ts** — Understand the Logger class, write() method, and the existing `isProduction` debug suppression.
+
+2. **Add LOG_LEVEL support** — Implement level-based filtering:
+   ```ts
+   const LEVEL_ORDER: Record<LogLevel, number> = {
+     debug: 0,
+     info: 1,
+     warn: 2,
+     error: 3,
+   };
+
+   const minLevel: number = LEVEL_ORDER[
+     (process.env.LOG_LEVEL as LogLevel) || (isProduction ? 'info' : 'debug')
+   ] ?? LEVEL_ORDER.debug;
+   ```
+   At the top of the `write()` method, add:
+   ```ts
+   if (LEVEL_ORDER[level] < minLevel) return;
+   ```
+   Remove the old `if (isProduction) return;` check from the `debug()` method — it's now handled by the generic level filter.
+
+3. **Build verification** — `cd bot && npm run build`.
+
+4. **Quick manual test** — Verify the logger works by reading the test output. Since tests mock the logger, this is just a build check.
+
+**OWNED files:**
+- `bot/src/api/utils/logger.ts`
+
+**FORBIDDEN:**
+- `mini-app/**`, `tools/**`, `database/**`
+- `bot/src/__tests__/**` (test files)
+- `bot/src/api/routes/**`, `bot/src/api/middleware/**`
+- `bot/src/handlers/**`, `bot/src/jobs/**`
+- `bot/src/utils/**`
+- ALL other files — this is a surgical change to logger.ts only
+
+---
+
+### Run 27 File Ownership Matrix
+
+| File / Directory | Agent A | Agent B | Agent C |
+|---|---|---|---|
+| `__tests__/helpers/testApp.ts` | **OWNED** | — | — |
+| `__tests__/routes/http/*.test.ts` (8 files) | **OWNED** | — | — |
+| `utils/queries.ts` (NEW) | — | **OWNED** | — |
+| `handlers/onboarding.ts` | — | **OWNED** | — |
+| `api/utils/logger.ts` | — | — | **OWNED** |
+| `__tests__/setup.ts` | FORBIDDEN | FORBIDDEN | FORBIDDEN |
+| `api/routes/**` | FORBIDDEN | GRAY | FORBIDDEN |
+| `mini-app/**` | FORBIDDEN | FORBIDDEN | FORBIDDEN |
+
+### Run 27 Merge Order
+1. **Agent C** (logger.ts — standalone, zero overlap with A or B)
+2. **Agent B** (shared queries — production code, may touch routes)
+3. **Agent A** (test infrastructure — depends on nothing, merge last to catch any test regressions)
+
+### Run 27 Retrospectives
+
+#### Agent A Retrospective
+*(To be filled by Agent A)*
+
+#### Agent B Retrospective
+*(To be filled by Agent B)*
+
+#### Agent C Retrospective
+*(To be filled by Agent C)*
+
+#### Agent 0 Retrospective
+*(To be filled by Agent 0 after merge)*
+
+<!-- Next run goes here. Agent 0 will append RUN 28 below this line. -->
