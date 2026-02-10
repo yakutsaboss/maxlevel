@@ -191,16 +191,17 @@ Use this structure when creating a new run. Copy and adapt:
 
 ---
 
-## Known Issues (Updated after Run 23)
+## Known Issues (Updated after Run 23, Run 24 targets marked)
 
 ### Still Open
 1. **pg-boss Node.js mismatch** — Requires 22.12+, server has 20.20. Only triggers warnings, no functional impact yet.
 2. **Mode configs unused** — `mode_configs` table stores quiz responses + personalized plans, but data is never consumed.
 3. **Delete account e2e testing** — confirm soft delete flow works end-to-end in Telegram (Agent B Run 18 recommendation).
 4. **POST /analytics/export still uses executePythonTool** — Justified (Google Sheets OAuth integration), only remaining Python subprocess in ALL routes.
-5. **`updateStreak()` duplicated** — Same logic exists in quests.ts (Agent C) and users.ts (Agent E). Could extract to shared `utils/streak.ts` (Agent C Run 23 recommendation).
+5. **`updateStreak()` duplicated** — Same logic exists in quests.ts (Agent C) and users.ts (Agent E). Could extract to shared `utils/streak.ts` (Agent C Run 23 recommendation). **→ Run 24 Agent D**
 6. **Onboarding mode-add outside transaction** — Step 1 in onboarding.ts runs mode adds outside the transaction block. Could move inside for atomicity (Agent E Run 23 recommendation).
-7. **Python tools still called by jobs/handlers** — `executePythonTool` eliminated from all API routes, but still used by: `dailyQuestReset.ts`, `questReminders.ts`, `streakCheck.ts`, `analyticsExport.ts` jobs + `stats.ts`, `settings.ts`, `start.ts`, `onboarding.ts` handlers.
+7. **Python tools still called by jobs/handlers** — `executePythonTool` eliminated from all API routes, but still used by: `dailyQuestReset.ts`, `questReminders.ts`, `streakCheck.ts`, `analyticsExport.ts` jobs + `stats.ts`, `settings.ts`, `start.ts`, `onboarding.ts` handlers. **→ Run 24 Agents A/B/C**
+8. **settings.ts handler uses BROKEN Python command** — `--update-user` doesn't exist in `user_manager.py`. Notification toggle and reminder hour updates are currently non-functional. **→ Run 24 Agent B**
 
 ### Resolved (Runs 13–23)
 - ~~Leaderboard getXpValue/getXpLabel duplication~~ — Exported from TopThreeCard, imported in LeaderboardRow (Run 23 Agent A)
@@ -2093,4 +2094,535 @@ Read PARALLEL_AGENTS.md — you are Agent E for Run 23. Your job: Migrate execut
 
 **Known Issues resolved:** #4 (leaderboard utils dedup), #5 (useDashboardData hook), #6 (ProfileStreak component), #7 (Settings/Quests skeletons). #8 unchanged (justified).
 
-<!-- Next run goes here. Agent 0 will append RUN 24 below this line. -->
+## RUN 24: Complete Python→SQL Migration — Handlers + Jobs (5 Agents + Agent 0)
+
+### Focus: Migrate ALL remaining `executePythonTool` calls in handlers (onboarding, start, stats, settings) and jobs (dailyQuestReset, questReminders, streakCheck) to native SQL. Extract shared streak utility. Clean up pythonTools.ts. After Run 24, the ONLY remaining Python subprocess is `admin-stats.ts POST /analytics/export` (justified — Google Sheets OAuth).
+
+### Copy-Paste Prompts
+
+**Agent 0** (open in: `c:\Users\Asus\Desktop\Wibecode`):
+```
+Read PARALLEL_AGENTS.md — you are Agent 0 for Run 24. Wait for agents to finish, then merge and deploy.
+```
+
+**Agent A** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-a`):
+```
+Read PARALLEL_AGENTS.md — you are Agent A for Run 24. Your job: Migrate ALL 19 executePythonTool calls in handlers/onboarding.ts to native SQL. Read the Python source files (tools/mode_manager.py, tools/user_manager.py, tools/quest_manager.py) to understand the exact SQL queries. Create local helper functions for recurring patterns (listAllModes, getUserActiveModes, getUserByTelegramId). Replace every executePythonTool call with direct SQL using query()/queryOne()/execute() from ../../utils/db.js. Remove executePythonTool import. Follow the Safety Protocol. Commit after each task. Write your retrospective when done.
+```
+
+**Agent B** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-b`):
+```
+Read PARALLEL_AGENTS.md — you are Agent B for Run 24. Your job: Migrate executePythonTool calls in 3 handler files to native SQL. (1) start.ts: 1 call — quest_manager --get-active → native SQL, (2) stats.ts: 2 calls — user_manager --get-user + streak_manager --get-streak → native SQL, (3) settings.ts: 4 calls — IMPORTANT: the --update-user calls are BROKEN (command doesn't exist in user_manager.py) — replace with direct SQL UPDATE. Read Python source files for exact queries. Remove executePythonTool imports from all 3 files. Follow the Safety Protocol. Commit after each task. Write your retrospective when done.
+```
+
+**Agent C** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-c`):
+```
+Read PARALLEL_AGENTS.md — you are Agent C for Run 24. Your job: Migrate ALL executePythonTool calls in 3 job files to native SQL. (1) dailyQuestReset.ts: 4 calls — user_manager --list-users (pagination) + quest_manager --assign-daily/--assign-weekly, (2) questReminders.ts: 1 call — db_operations --query (raw SQL), (3) streakCheck.ts: 1 call — streak_manager --check-all-streaks. Read Python source files for exact SQL queries and business logic. Remove executePythonTool imports. Follow the Safety Protocol. Commit after each task. Write your retrospective when done.
+```
+
+**Agent D** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-d`):
+```
+Read PARALLEL_AGENTS.md — you are Agent D for Run 24. Your job: (1) Create shared bot/src/utils/streak.ts with updateStreak() function (extracted from routes/quests.ts lines 19-34), (2) Update routes/quests.ts to import updateStreak from ../../utils/streak.js instead of defining it locally, (3) Update routes/users.ts PATCH /:userId/streak to import and use updateStreak from ../../utils/streak.js for each streak in the loop, (4) Clean up utils/pythonTools.ts — remove ALL unused wrapper functions, keep ONLY the core executePythonTool function + PythonToolResult interface (still needed by admin-stats.ts). Follow the Safety Protocol. Commit after each task. Write your retrospective when done.
+```
+
+**Agent E** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-e`):
+```
+Read PARALLEL_AGENTS.md — you are Agent E for Run 24. Your job: Update handler and job test files to work with native SQL instead of executePythonTool mocks. (1) Update __tests__/handlers/onboarding.test.ts — replace executePythonTool mocks with query/queryOne/execute mocks from ../../utils/db.js, (2) Update __tests__/handlers/start.test.ts, (3) Update __tests__/handlers/stats.test.ts, (4) Update __tests__/handlers/settings.test.ts, (5) Update __tests__/jobs/dailyQuestReset.test.ts, (6) Update __tests__/jobs/questReminders.test.ts, (7) Update __tests__/jobs/streakCheck.test.ts. Read the CURRENT test files first to understand the mocking pattern, then replace executePythonTool mocks with db utility mocks. Follow the Safety Protocol. Commit after each task. Write your retrospective when done.
+```
+
+---
+
+### Agent A — Migrate handlers/onboarding.ts to Native SQL (19 calls)
+
+**Branch:** `feature/r24-onboarding-handler-sql`
+**Worktree:** `../Wibecode-agent-a`
+
+**Context:** `handlers/onboarding.ts` (600 lines) has 19 `executePythonTool` calls spanning 10 functions. It uses `mode_manager` (list-modes, get-active-modes, add-modes, remove-mode, get-mode-summary), `user_manager` (get-user, get-stats), and `quest_manager` (assign-daily, get-active). All must be replaced with native SQL using `query()`/`queryOne()`/`execute()` from `../../utils/db.js`.
+
+**Tasks:**
+
+1. **Create local SQL helpers at top of file** — Add these reusable async functions after imports:
+   ```ts
+   import { query, queryOne, execute } from '../../utils/db.js';
+
+   async function listAllModes() {
+     return query('SELECT * FROM modes ORDER BY id');
+   }
+
+   async function getUserByTelegramId(telegramId: number) {
+     return queryOne('SELECT * FROM users WHERE telegram_id = $1', [telegramId]);
+   }
+
+   async function getUserActiveModes(userId: number) {
+     return query(`
+       SELECT m.id AS mode_id, m.name, m.display_name, m.description, m.icon_emoji,
+              um.id AS user_mode_id, um.enabled_at, um.is_active
+       FROM user_modes um
+       JOIN modes m ON um.mode_id = m.id
+       WHERE um.user_id = $1 AND um.is_active = true
+       ORDER BY um.enabled_at`, [userId]);
+   }
+   ```
+
+2. **Migrate `showModeSelection()`** — Replace `executePythonTool('mode_manager', ['--list-modes'])` (line 45) with `await listAllModes()`. The result is a direct array of mode objects — access fields directly (e.g., `mode.name`, `mode.icon_emoji`). No `.data` wrapper.
+
+3. **Migrate `handleModeSelection()`** — Replace 4 calls (lines 115-157):
+   - `user_manager --get-user` → `await getUserByTelegramId(userId)`
+   - `mode_manager --get-active-modes` → `await getUserActiveModes(internalUserId)`
+   - `mode_manager --remove-mode` → `await execute('UPDATE user_modes SET is_active = false WHERE user_id = $1 AND mode_id = $2 AND is_active = true', [userId, modeId])`
+   - `mode_manager --add-modes` → native SQL: lookup mode, check existing, reactivate/insert, init streak (same pattern as `routes/modes.ts` POST endpoint)
+
+4. **Migrate `updateModeSelectionMessage()` + `showModeInfo()`** — Replace 3 calls (lines 171-235):
+   - `mode_manager --list-modes` → `await listAllModes()`
+   - `mode_manager --get-active-modes` → `await getUserActiveModes(userId)`
+
+5. **Migrate `completeModeSelection()` + `assignInitialQuests()`** — Replace 3 calls (lines 262-324):
+   - `user_manager --get-user` → `await getUserByTelegramId(userId)`
+   - `mode_manager --get-active-modes` → `await getUserActiveModes(internalUserId)`
+   - `quest_manager --assign-daily` → native SQL: get active mode IDs, find available daily templates not assigned today, INSERT quest_instances with target based on difficulty (`{easy:1, medium:3, hard:5}`)
+
+6. **Migrate `showQuickQuests()` + `showQuickProfile()`** — Replace 5 calls (lines 397-473):
+   - `user_manager --get-user` → `await getUserByTelegramId(userId)` (×2)
+   - `quest_manager --get-active` → native SQL:
+     ```sql
+     SELECT qi.id, qi.quest_id, q.title AS name, q.description, q.xp_reward,
+            q.quest_type, q.difficulty, q.mode_id, m.name AS mode_name,
+            m.icon_emoji AS mode_icon, qi.status, qi.instance_date, qi.check_in_count, qi.target
+     FROM quest_instances qi JOIN quests q ON qi.quest_id = q.id
+     LEFT JOIN modes m ON q.mode_id = m.id
+     WHERE qi.user_id = $1 AND qi.status IN ('pending', 'ready', 'in_progress')
+     ORDER BY qi.instance_date ASC
+     ```
+   - `user_manager --get-stats` → native SQL: query user + streaks + quest count (see `user_manager.py` `get_user_stats()`)
+
+7. **Migrate `handleModesCommand()` + `handleModeSummary()`** — Replace 4 calls (lines 501-576):
+   - `user_manager --get-user` → `await getUserByTelegramId(userId)` (×2)
+   - `mode_manager --get-active-modes` → `await getUserActiveModes(internalUserId)`
+   - `mode_manager --get-mode-summary` → native SQL: query all modes + user_modes, compute active/inactive/available counts
+
+8. **Clean up imports + Build verification** — Remove `executePythonTool` import. Add `query`, `queryOne`, `execute` from `../../utils/db.js`. Run `cd bot && npm run build`.
+
+**IMPORTANT:** When accessing Python tool results, the old code uses `(result.data as any)?.field`. With native SQL, `query()` returns an array directly, `queryOne()` returns a single row object or null. Remove all `.data` wrappers and `as any` casts — access fields directly.
+
+**OWNED files:**
+- `bot/src/handlers/onboarding.ts`
+
+**FORBIDDEN:**
+- `mini-app/**`, `tools/**`, `database/**`
+- `bot/src/index.ts`, `bot/src/api/server.ts`, `bot/src/api/routes/**`
+- `bot/src/handlers/start.ts`, `stats.ts`, `settings.ts`, `help.ts`, `profile.ts`
+- `bot/src/jobs/**`
+- `bot/src/utils/pythonTools.ts`
+- `bot/src/__tests__/**`
+
+---
+
+### Agent B — Migrate handlers/start.ts + stats.ts + settings.ts (7 calls, FIX broken settings)
+
+**Branch:** `feature/r24-small-handlers-sql`
+**Worktree:** `../Wibecode-agent-b`
+
+**Context:** Three handler files with 7 total `executePythonTool` calls. CRITICAL: `settings.ts` calls `--update-user` which **DOES NOT EXIST** in `user_manager.py` — these calls are currently BROKEN. Must be fixed with direct SQL.
+
+**Tasks:**
+
+1. **Migrate `start.ts`** — Replace 1 call (line 37-41):
+   - `quest_manager --get-active` → native SQL:
+     ```sql
+     SELECT qi.id, qi.quest_id, q.title AS name, q.description, q.xp_reward,
+            q.quest_type, q.difficulty, qi.status, qi.instance_date
+     FROM quest_instances qi
+     JOIN quests q ON qi.quest_id = q.id
+     WHERE qi.user_id = $1 AND qi.status IN ('pending', 'ready', 'in_progress')
+     ORDER BY qi.instance_date ASC
+     ```
+   - Import `query` from `../../utils/db.js`. Remove `executePythonTool` import.
+   - The result is used to show quest count in welcome message. Access as `quests.length` (direct array, no `.data` wrapper).
+
+2. **Migrate `stats.ts` — `getInternalUserId()`** — Replace call (line 17-19):
+   - `user_manager --get-user --telegram-id` → `await queryOne('SELECT * FROM users WHERE telegram_id = $1', [telegramId])`
+   - Import `queryOne`, `query` from `../../utils/db.js`.
+
+3. **Migrate `stats.ts` — `getStreaks()`** — Replace call (line 53-55):
+   - `streak_manager --get-streak` → native SQL:
+     ```sql
+     SELECT s.*, m.name AS mode_name, m.display_name, m.icon_emoji
+     FROM streaks s
+     JOIN modes m ON m.id = s.mode_id
+     WHERE s.user_id = $1
+     ORDER BY s.current_streak DESC
+     ```
+   - Remove `executePythonTool` import from stats.ts.
+
+4. **Migrate `settings.ts` — `getUserData()`** — Replace call (line 41-43):
+   - `user_manager --get-user --telegram-id` → `await queryOne('SELECT * FROM users WHERE telegram_id = $1', [telegramId])`
+   - Import `queryOne`, `execute` from `../../utils/db.js`.
+
+5. **FIX & migrate `settings.ts` — notification toggle** — Replace BROKEN call (lines 106-109):
+   - `user_manager --update-user --field notification_enabled` → native SQL:
+     ```ts
+     await execute('UPDATE users SET notification_enabled = $1 WHERE id = $2', [enabled, user.id]);
+     ```
+
+6. **FIX & migrate `settings.ts` — reminder hour** — Replace BROKEN call (lines 135-138):
+   - `user_manager --update-user --field reminder_hour` → native SQL:
+     ```ts
+     await execute('UPDATE users SET reminder_hour = $1 WHERE id = $2', [parseInt(hour), user.id]);
+     ```
+
+7. **Migrate `settings.ts` — timezone** — Replace call (lines 165-167):
+   - `user_manager --update-timezone` → native SQL:
+     ```ts
+     await execute('UPDATE users SET timezone = $1 WHERE id = $2', [tz, user.id]);
+     ```
+   - Remove `executePythonTool` import from settings.ts.
+
+8. **Build verification**: `cd bot && npm run build`
+
+**OWNED files:**
+- `bot/src/handlers/start.ts`
+- `bot/src/handlers/stats.ts`
+- `bot/src/handlers/settings.ts`
+
+**FORBIDDEN:**
+- `mini-app/**`, `tools/**`, `database/**`
+- `bot/src/index.ts`, `bot/src/api/server.ts`, `bot/src/api/routes/**`
+- `bot/src/handlers/onboarding.ts`, `help.ts`, `profile.ts`, `miniapp.ts`, `leaderboard.ts`, `dailySummary.ts`
+- `bot/src/jobs/**`
+- `bot/src/utils/pythonTools.ts`
+- `bot/src/__tests__/**`
+
+---
+
+### Agent C — Migrate Job Files to Native SQL (6 calls across 3 files)
+
+**Branch:** `feature/r24-jobs-native-sql`
+**Worktree:** `../Wibecode-agent-c`
+
+**Context:** Three job files still use `executePythonTool`. The `dailyQuestReset` job is the most complex (user pagination + quest assignment). The `questReminders` job uses a raw SQL query via Python. The `streakCheck` job calls the batch streak checker.
+
+**Tasks:**
+
+1. **Migrate `dailyQuestReset.ts` — user pagination** — Replace 2 `user_manager --list-users` calls (lines 55 and 95) with native SQL:
+   ```ts
+   const users = await query(
+     'SELECT * FROM users WHERE is_active = true ORDER BY created_at DESC LIMIT $1 OFFSET $2',
+     [BATCH_SIZE, offset]
+   );
+   ```
+   The result is a direct array of user rows. Adjust the loop to iterate `users` directly (no `.data` wrapper). Keep the pagination logic (BATCH_SIZE=100, offset increment).
+
+2. **Migrate `dailyQuestReset.ts` — assign daily quests** — Replace `quest_manager --assign-daily` call (line 29) in `assignQuestsWithRetry()` with native SQL:
+   ```ts
+   // 1. Get user's active modes
+   const modes = await query('SELECT mode_id FROM user_modes WHERE user_id = $1 AND is_active = true', [userId]);
+   if (modes.length === 0) return; // no modes
+   const modeIds = modes.map((m: any) => m.mode_id);
+   const today = new Date().toISOString().split('T')[0];
+
+   // 2. Find available daily templates not assigned today
+   const templates = await query(
+     `SELECT q.* FROM quests q
+      WHERE q.mode_id = ANY($1) AND q.quest_type = 'daily'
+      AND q.id NOT IN (SELECT quest_id FROM quest_instances WHERE user_id = $2 AND instance_date = $3)
+      ORDER BY RANDOM() LIMIT $4`,
+     [modeIds, userId, today, 3]
+   );
+
+   // 3. Assign each
+   for (const t of templates) {
+     const target = { easy: 1, medium: 3, hard: 5 }[t.difficulty as string] || 1;
+     await execute(
+       `INSERT INTO quest_instances (user_id, quest_id, instance_date, status, target)
+        VALUES ($1, $2, $3, 'pending', $4)`,
+       [userId, t.id, today, target]
+     );
+   }
+   ```
+
+3. **Migrate `dailyQuestReset.ts` — assign weekly quests** — Replace `quest_manager --assign-weekly` call (line 104) with similar native SQL. Key differences:
+   - `quest_type = 'weekly'`
+   - Check duplicates within last 7 days: `AND instance_date >= $3` where `$3 = new Date(Date.now() - 7*86400000).toISOString().split('T')[0]`
+   - Also filter by non-completed statuses: `AND status IN ('pending', 'ready', 'in_progress')`
+   - Assign 2 quests (`LIMIT $5` = 2)
+
+4. **Migrate `questReminders.ts`** — Replace `db_operations --query` call (line 37) with native SQL:
+   ```ts
+   const usersWithQuests = await query(`
+     SELECT DISTINCT u.telegram_id, u.first_name, COUNT(qi.id)::int AS pending_count
+     FROM quest_instances qi
+     JOIN users u ON qi.user_id = u.id
+     WHERE qi.instance_date = CURRENT_DATE
+       AND qi.status IN ('pending', 'ready', 'in_progress')
+       AND u.is_active = true
+     GROUP BY u.telegram_id, u.first_name
+   `);
+   ```
+   Import `query` from `../../utils/db.js`. Adjust result access (direct array, no `.data` wrapper).
+
+5. **Migrate `streakCheck.ts`** — Replace `streak_manager --check-all-streaks` call (line 19) with native SQL:
+   ```ts
+   const yesterday = new Date(Date.now() - 86400000).toISOString().split('T')[0];
+
+   // Get all active streaks that might be broken
+   const activeStreaks = await query(`
+     SELECT s.id, s.user_id, s.mode_id, s.current_streak, s.longest_streak,
+            s.last_activity_date, u.telegram_id, u.first_name
+     FROM streaks s
+     JOIN users u ON u.id = s.user_id
+     WHERE u.is_active = true AND s.current_streak > 0
+   `);
+
+   let broken = 0, maintained = 0;
+   const brokenDetails: any[] = [];
+
+   for (const streak of activeStreaks) {
+     const lastDate = streak.last_activity_date
+       ? new Date(streak.last_activity_date).toISOString().split('T')[0]
+       : null;
+     if (lastDate === null || lastDate < yesterday) {
+       await execute('UPDATE streaks SET current_streak = 0 WHERE id = $1', [streak.id]);
+       broken++;
+       brokenDetails.push({
+         user_id: streak.user_id, telegram_id: streak.telegram_id,
+         mode_id: streak.mode_id, was_streak: streak.current_streak,
+       });
+     } else {
+       maintained++;
+     }
+   }
+   ```
+   Log the results. Import `query`, `execute` from `../../utils/db.js`.
+
+6. **Clean up imports + Build verification** — Remove `executePythonTool` imports from all 3 files. Add `query`, `execute` from `../../utils/db.js`. Run `cd bot && npm run build`.
+
+**OWNED files:**
+- `bot/src/jobs/definitions/dailyQuestReset.ts`
+- `bot/src/jobs/definitions/questReminders.ts`
+- `bot/src/jobs/definitions/streakCheck.ts`
+
+**FORBIDDEN:**
+- `mini-app/**`, `tools/**`, `database/**`
+- `bot/src/index.ts`, `bot/src/api/server.ts`, `bot/src/api/routes/**`
+- `bot/src/handlers/**`
+- `bot/src/jobs/definitions/analyticsExport.ts`, `achievementNotifier.ts`, `achievementBatchCheck.ts`, `dailySummary.ts`, `leaderboardRefresh.ts`, `dbCleanup.ts`, `punishmentCheck.ts`
+- `bot/src/utils/pythonTools.ts`
+- `bot/src/__tests__/**`
+
+---
+
+### Agent D — Extract Shared Streak Utility + Clean Up pythonTools.ts
+
+**Branch:** `feature/r24-shared-utils-cleanup`
+**Worktree:** `../Wibecode-agent-d`
+
+**Context:** `updateStreak()` is duplicated in `routes/quests.ts` (lines 19-34) and inline in `routes/users.ts` PATCH streak endpoint (lines 410-430). Extract to shared utility. Also, after Run 24 all handlers and jobs will have been migrated — clean up the now-unused wrapper functions in `pythonTools.ts`.
+
+**Tasks:**
+
+1. **Create `bot/src/utils/streak.ts`** — Extract the `updateStreak()` function from `routes/quests.ts` lines 19-34 into a new shared utility:
+   ```ts
+   import { queryOne, execute } from './db.js';
+
+   /**
+    * Update streak for a user+mode after activity.
+    * - If last activity was today → no change
+    * - If last activity was yesterday → increment streak
+    * - Otherwise → reset streak to 1
+    */
+   export async function updateStreak(userId: number, modeId: number): Promise<void> {
+     const today = new Date().toISOString().split('T')[0];
+     const yesterday = new Date(Date.now() - 86400000).toISOString().split('T')[0];
+     const streak = await queryOne(
+       'SELECT id, current_streak, longest_streak, last_activity_date FROM streaks WHERE user_id = $1 AND mode_id = $2',
+       [userId, modeId]
+     );
+     if (!streak) return;
+     const lastDate = streak.last_activity_date
+       ? new Date(streak.last_activity_date).toISOString().split('T')[0]
+       : null;
+     if (lastDate === today) return;
+     const newStreak = lastDate === yesterday ? streak.current_streak + 1 : 1;
+     const newLongest = Math.max(streak.longest_streak, newStreak);
+     await execute(
+       'UPDATE streaks SET current_streak = $1, longest_streak = $2, last_activity_date = $3 WHERE user_id = $4 AND mode_id = $5',
+       [newStreak, newLongest, today, userId, modeId]
+     );
+   }
+   ```
+
+2. **Update `routes/quests.ts`** — Remove the local `updateStreak()` function (lines 19-34). Add import:
+   ```ts
+   import { updateStreak } from '../../utils/streak.js';
+   ```
+   The existing fire-and-forget calls `updateStreak(uid, modeId).catch(console.error)` stay the same.
+
+3. **Update `routes/users.ts` PATCH streak endpoint** — The current inline streak logic (lines 410-430) duplicates `updateStreak`. Refactor to use the shared utility:
+   ```ts
+   import { updateStreak } from '../../utils/streak.js';
+
+   // In PATCH /:userId/streak handler:
+   const streaks = await query('SELECT user_id, mode_id, current_streak FROM streaks WHERE user_id = $1', [uid]);
+   for (const streak of streaks) {
+     await updateStreak(streak.user_id, streak.mode_id);
+   }
+   // Re-fetch to get updated values
+   const updated = await query('SELECT current_streak FROM streaks WHERE user_id = $1', [uid]);
+   const maxStreak = Math.max(0, ...updated.map((s: any) => s.current_streak));
+   ```
+
+4. **Clean up `utils/pythonTools.ts`** — Read the file and identify all exported wrapper functions. Remove ALL wrapper/helper functions (e.g., `getUserById`, `getUserStats`, `getStreaks`, `assignDailyQuests`, etc.). Keep ONLY:
+   - The `PythonToolResult` interface (exported, used by other files)
+   - The core `executePythonTool()` function (still used by `admin-stats.ts`)
+   - The configuration constants (`PYTHON_EXECUTABLE`, `TOOLS_PATH`, `TOOL_NAME_PATTERN`)
+   After cleanup, the file should be ~80 lines (down from ~261).
+
+5. **Verify no broken imports** — Search the codebase for imports from `pythonTools.js` or `pythonTools` and ensure only `executePythonTool` and `PythonToolResult` are imported. If any file imports a removed wrapper, update that import.
+
+6. **Build verification**: `cd bot && npm run build`
+
+**OWNED files:**
+- `bot/src/utils/streak.ts` (new)
+- `bot/src/utils/pythonTools.ts`
+- `bot/src/api/routes/quests.ts` (streak import only — do NOT modify any endpoint logic)
+- `bot/src/api/routes/users.ts` (streak endpoint only — do NOT modify other endpoints)
+
+**FORBIDDEN:**
+- `mini-app/**`, `tools/**`, `database/**`
+- `bot/src/index.ts`, `bot/src/api/server.ts`
+- `bot/src/api/routes/modes.ts`, `onboarding.ts`, `admin-*.ts`, `achievements.ts`, `leaderboard.ts`, `punishment.ts`, `checkins.ts`
+- `bot/src/handlers/**`
+- `bot/src/jobs/**`
+- `bot/src/__tests__/**`
+
+---
+
+### Agent E — Update Handler + Job Test Files for Native SQL Mocks
+
+**Branch:** `feature/r24-test-updates`
+**Worktree:** `../Wibecode-agent-e`
+
+**Context:** After Agents A/B/C migrate handlers and jobs from `executePythonTool` to native SQL, the existing test files still mock `executePythonTool`. These mocks must be updated to mock the DB utilities (`query`, `queryOne`, `execute` from `../../utils/db.js`) instead. The test files are separate from the handler/job files, so this can be done in parallel.
+
+**IMPORTANT:** Read each test file first. Understand the current mocking pattern. The typical pattern is:
+```ts
+// OLD (what to remove):
+vi.mock('../../utils/pythonTools.js', () => ({ executePythonTool: vi.fn() }));
+const mockExecutePythonTool = vi.mocked(executePythonTool);
+mockExecutePythonTool.mockResolvedValue({ success: true, data: {...} });
+
+// NEW (what to replace with):
+vi.mock('../../utils/db.js', () => ({
+  query: vi.fn(),
+  queryOne: vi.fn(),
+  execute: vi.fn(),
+  transaction: vi.fn(),
+}));
+import { query, queryOne, execute } from '../../utils/db.js';
+const mockQuery = vi.mocked(query);
+const mockQueryOne = vi.mocked(queryOne);
+const mockExecute = vi.mocked(execute);
+// Then mock return values to match native SQL returns (direct rows, not {success, data} wrappers)
+```
+
+**Tasks:**
+
+1. **Update `__tests__/handlers/onboarding.test.ts`** — Replace all executePythonTool mocks with DB mocks. Key changes:
+   - `mode_manager --list-modes` mocks → `mockQuery` returning mode rows directly
+   - `user_manager --get-user` mocks → `mockQueryOne` returning user row directly
+   - `mode_manager --get-active-modes` mocks → `mockQuery` returning user_mode rows
+   - `mode_manager --add-modes/--remove-mode` mocks → `mockExecute`
+   - `quest_manager --assign-daily/--get-active` mocks → `mockQuery`
+
+2. **Update `__tests__/handlers/start.test.ts`** — Replace executePythonTool mock for quest_manager --get-active with mockQuery returning quest instance rows.
+
+3. **Update `__tests__/handlers/stats.test.ts`** — Replace mocks:
+   - `user_manager --get-user` → `mockQueryOne`
+   - `streak_manager --get-streak` → `mockQuery`
+
+4. **Update `__tests__/handlers/settings.test.ts`** — Replace mocks:
+   - `user_manager --get-user` → `mockQueryOne`
+   - `user_manager --update-user` (broken calls) → `mockExecute`
+   - `user_manager --update-timezone` → `mockExecute`
+
+5. **Update `__tests__/jobs/dailyQuestReset.test.ts`** — Replace mocks:
+   - `user_manager --list-users` → `mockQuery` returning user arrays
+   - `quest_manager --assign-daily/--assign-weekly` → `mockQuery` + `mockExecute`
+
+6. **Update `__tests__/jobs/questReminders.test.ts`** — Replace `db_operations --query` mock with `mockQuery` returning user+quest rows directly.
+
+7. **Update `__tests__/jobs/streakCheck.test.ts`** — Replace `streak_manager --check-all-streaks` mock with `mockQuery` (fetch streaks) + `mockExecute` (reset broken).
+
+8. **Build verification**: `cd bot && npm run build`
+
+**OWNED files:**
+- `bot/src/__tests__/handlers/onboarding.test.ts`
+- `bot/src/__tests__/handlers/start.test.ts`
+- `bot/src/__tests__/handlers/stats.test.ts`
+- `bot/src/__tests__/handlers/settings.test.ts`
+- `bot/src/__tests__/jobs/dailyQuestReset.test.ts`
+- `bot/src/__tests__/jobs/questReminders.test.ts`
+- `bot/src/__tests__/jobs/streakCheck.test.ts`
+
+**FORBIDDEN:**
+- `mini-app/**`, `tools/**`, `database/**`
+- `bot/src/index.ts`, `bot/src/api/server.ts`, `bot/src/api/routes/**`
+- `bot/src/handlers/**` (production code — other agents own these)
+- `bot/src/jobs/**` (production code — other agents own these)
+- `bot/src/utils/**`
+- `bot/src/__tests__/routes/**`, `bot/src/__tests__/middleware/**`
+
+---
+
+### Run 24 File Ownership Matrix
+
+| File | Agent A | Agent B | Agent C | Agent D | Agent E |
+|------|---------|---------|---------|---------|---------|
+| bot/src/handlers/onboarding.ts | **OWN** | FORBID | — | — | — |
+| bot/src/handlers/start.ts | FORBID | **OWN** | — | — | — |
+| bot/src/handlers/stats.ts | FORBID | **OWN** | — | — | — |
+| bot/src/handlers/settings.ts | FORBID | **OWN** | — | — | — |
+| bot/src/jobs/definitions/dailyQuestReset.ts | — | — | **OWN** | — | — |
+| bot/src/jobs/definitions/questReminders.ts | — | — | **OWN** | — | — |
+| bot/src/jobs/definitions/streakCheck.ts | — | — | **OWN** | — | — |
+| bot/src/utils/streak.ts (new) | — | — | — | **OWN** | — |
+| bot/src/utils/pythonTools.ts | FORBID | FORBID | FORBID | **OWN** | — |
+| bot/src/api/routes/quests.ts | — | — | — | **OWN** (streak only) | — |
+| bot/src/api/routes/users.ts | — | — | — | **OWN** (streak only) | — |
+| bot/src/__tests__/handlers/onboarding.test.ts | — | — | — | — | **OWN** |
+| bot/src/__tests__/handlers/start.test.ts | — | — | — | — | **OWN** |
+| bot/src/__tests__/handlers/stats.test.ts | — | — | — | — | **OWN** |
+| bot/src/__tests__/handlers/settings.test.ts | — | — | — | — | **OWN** |
+| bot/src/__tests__/jobs/dailyQuestReset.test.ts | — | — | — | — | **OWN** |
+| bot/src/__tests__/jobs/questReminders.test.ts | — | — | — | — | **OWN** |
+| bot/src/__tests__/jobs/streakCheck.test.ts | — | — | — | — | **OWN** |
+| PARALLEL_AGENTS.md | retro only | retro only | retro only | retro only | retro only |
+
+### Run 24 Merge Order
+1. **Agent D** (shared utils + cleanup) — creates infrastructure other agents' builds may reference
+2. **Agent C** (jobs) — independent backend, no handler overlap
+3. **Agent B** (small handlers) — independent from Agent A
+4. **Agent A** (onboarding handler) — largest migration, independent
+5. **Agent E** (test updates) — merge last since tests reference migrated code patterns
+
+### Run 24 Retrospectives
+
+#### Agent A Retrospective
+*(To be filled by Agent A)*
+
+#### Agent B Retrospective
+*(To be filled by Agent B)*
+
+#### Agent C Retrospective
+*(To be filled by Agent C)*
+
+#### Agent D Retrospective
+*(To be filled by Agent D)*
+
+#### Agent E Retrospective
+*(To be filled by Agent E)*
+
+#### Agent 0 Retrospective
+*(To be filled by Agent 0 after merge + deploy)*
+
+<!-- Next run goes here. Agent 0 will append RUN 25 below this line. -->
