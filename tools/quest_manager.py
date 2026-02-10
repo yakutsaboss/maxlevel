@@ -261,7 +261,8 @@ def get_active_quests(user_id: int) -> Dict[str, Any]:
             m.icon_emoji as mode_icon,
             qi.status,
             qi.instance_date,
-            qi.check_in_count
+            qi.check_in_count,
+            qi.target
         FROM quest_instances qi
         JOIN quests q ON qi.quest_id = q.id
         LEFT JOIN modes m ON q.mode_id = m.id
