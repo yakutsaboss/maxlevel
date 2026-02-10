@@ -87,6 +87,13 @@ export interface UserStats {
     longest: number;
     daysActive: number;
   };
+  perModeStreaks?: Array<{
+    mode_id: number;
+    mode_name: string;
+    mode_icon: string;
+    current_streak: number;
+    longest_streak: number;
+  }>;
 }
 
 // API Response types

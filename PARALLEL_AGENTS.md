@@ -735,10 +735,46 @@ Find your section under "Run 13 Retrospectives" below and replace the placeholde
 - Consider adding a `target` column to the quests table itself so difficulty-to-target mapping is explicit in the schema rather than computed at assignment time
 
 #### Agent B Retrospective
-*(To be filled by Agent B)*
+
+**All 5 tasks completed. Build passes clean.**
+
+| # | Task | Status | Commit |
+|---|------|--------|--------|
+| 1 | Create migration SQL (notification_sent_at column) | Done | `ca03140` |
+| 2 | Fix achievementNotifier.ts dedup (IS NULL filter + update after send) | Done | `1e8292f` |
+| 3 | Refactor POST /check to use achievementEngine (-189 lines of duplication) | Done | `8c031bc` |
+| 4 | Fix GET /achievements/users/:userId to {success, data} format | Done | `95ae0c1` |
+| 5 | Build verification (fix missing `transaction` import) | Done | `3c3e4ae` |
+
+**Problems faced:**
+- Removed `transaction` from db.js import when cleaning up POST /check, but the `/unlock` endpoint still used it. Caught by build step, fixed immediately.
+
+**Key changes:**
+- `achievementNotifier.ts`: Query now filters `notification_sent_at IS NULL` and marks each achievement as notified after successful send. No more spam across the 20-min lookback window.
+- `achievements.ts`: Removed ~150 lines of duplicated `checkCriteriaMet()` and `filterQualifyingAchievements()`. POST /check now delegates entirely to `checkAndUnlockAchievements()` from `achievementEngine.ts`.
+- GET `/achievements/users/:userId` now returns `{ success: true, data: { achievements, unlocked, total, progress } }` consistent with other endpoints.
+
+**Migration needed:** `run13_achievement_dedup.sql` must be run on the server before deploy.
+
+**Recommendations for next run:**
+- The mini-app client may need updating if it reads the old `GET /achievements/users/:userId` response shape (no `success`/`data` wrapper). Check `client.ts` for how it parses this endpoint.
+- Consider adding `notification_sent_at` backfill for existing rows (set to `unlocked_at` for all current records) to prevent a one-time notification burst on first deploy.
 
 #### Agent C Retrospective
-*(To be filled by Agent C)*
+
+**Status:** All 3 tasks completed, build passes cleanly.
+
+| # | Task | Commit | Result |
+|---|------|--------|--------|
+| 1 | Add `perModeStreaks` to `UserStats` interface | `e6b5229` | Added optional typed array field — clean, no downstream breakage |
+| 2 | Remove `(stats as any).perModeStreaks` cast in Dashboard | `cdda732` | Replaced with `stats.perModeStreaks` — one-line fix now that type exists |
+| 3 | Consolidate stat grid vs Today's Progress | `0a54de7` | Stat grid now shows all-time metrics (Total XP, Longest Streak); Today's Progress keeps today-only data |
+
+**Problems:** None. All tasks were straightforward edits with no surprises.
+
+**Notes for Agent 0:**
+- Agent D (Profile) still has its own `(stats as any).perModeStreaks` cast. After merging C first (per merge order), D's cast can be cleaned up to use the proper type, or left as-is since it still compiles.
+- The stat grid "Achievements" card shows `recentAchievements.length` (recent count, not total). Consider changing to a total count if/when the API provides it.
 
 #### Agent D Retrospective
 *(To be filled by Agent D)*
