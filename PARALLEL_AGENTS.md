@@ -1797,7 +1797,28 @@ Follow the Safety Protocol. Commit after each task. Write your retrospective whe
 ### Run 26 Retrospectives
 
 #### Agent A Retrospective
-*(To be filled by Agent A)*
+**Status:** All tasks completed. 37 tests passing (12 + 11 + 14). Build passes (`tsc` — zero errors).
+
+| # | Task | Status |
+|---|------|--------|
+| 1 | Read helpers + understand test infrastructure | Done |
+| 2 | Fix users.http.test.ts (12 failures) | Done — 12/12 pass |
+| 3 | Fix onboarding.http.test.ts (11 failures) | Done — 11/11 pass |
+| 4 | Fix checkins.http.test.ts (14 failures) | Done — 14/14 pass |
+| 5 | Build verification | Done — zero errors |
+
+**Root causes found (same 3 patterns across all 3 files):**
+1. **Missing `requireOwnership` export in auth mock** — Run 25 added `requireOwnership()` to routes, but tests only mocked `authenticateTelegram` and `authorizeUser`. The missing export caused every route call to crash with `TypeError: requireOwnership is not a function` → 500.
+2. **No error handler in test app** — `createTestApp()` returns bare Express with JSON parsing only. Without the error handler from `server.ts`, all `ApiError` throws (400, 403, 404) became generic Express 500 responses. Fix: added the same `ApiError`-aware error handler from `server.ts` to each test's `buildApp()`.
+3. **Response shape mismatch** — Routes use `successResponse()` which wraps data as `{success: true, data: {...}}`, but tests asserted `res.body.X` instead of `res.body.data.X`. Error assertions used old `{error: 'Bad Request', message: '...'}` format instead of the actual `{success: false, error: err.message}` format.
+
+**Additional fix in checkins.http.test.ts:** POST `/api/checkins` has an explicit `req.telegramUser?.id` check against body `telegram_id`. Had to set `req.telegramUser = { id: 111 }` in the auth mock to prevent ForbiddenError.
+
+**Additional fix in users.http.test.ts:** Stats test was missing a mock for the 4th query in `Promise.all` (`modeStreaks`), causing `recentAchievementsRows.map()` to crash on undefined.
+
+**Recommendations for next run:**
+- Consider adding the error handler to `createTestApp()` itself (in `testApp.ts`) so all HTTP tests get it automatically
+- The `requireOwnership` + `req.telegramUser` mock pattern should be standardized across all HTTP test files
 
 #### Agent B Retrospective
 *(To be filled by Agent B)*

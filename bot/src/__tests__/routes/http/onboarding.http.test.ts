@@ -8,6 +8,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import request from 'supertest';
 import { createTestApp } from '../../helpers/testApp.js';
+import { ApiError } from '../../../api/utils/errors.js';
 
 // ─── Mocks (hoisted before any route import) ───────────────────────
 
@@ -35,6 +36,7 @@ vi.mock('../../../utils/pythonTools.js', () => ({
 vi.mock('../../../api/middleware/auth.js', () => ({
   authenticateTelegram: (_req: any, _res: any, next: any) => next(),
   authorizeUser: (_req: any, _res: any, next: any) => next(),
+  requireOwnership: vi.fn(),
 }));
 
 // ─── Import router after mocks ─────────────────────────────────────
@@ -44,6 +46,13 @@ import { onboardingRouter } from '../../../api/routes/onboarding.js';
 function buildApp() {
   const app = createTestApp();
   app.use('/api/onboarding', onboardingRouter);
+  app.use((err: any, _req: any, res: any, _next: any) => {
+    if (err instanceof ApiError) {
+      res.status(err.statusCode).json({ success: false, error: err.message });
+      return;
+    }
+    res.status(500).json({ success: false, error: 'Internal Server Error' });
+  });
   return app;
 }
 
@@ -90,7 +99,7 @@ describe('GET /api/onboarding/:telegramId', () => {
       .expect(500);
 
     expect(res.body.success).toBe(false);
-    expect(res.body.error).toBe('Failed to fetch onboarding state');
+    expect(res.body.error).toBe('Internal Server Error');
   });
 });
 
@@ -117,7 +126,7 @@ describe('PUT /api/onboarding/:telegramId', () => {
       .expect(400);
 
     expect(res.body.success).toBe(false);
-    expect(res.body.error).toBe('Missing current_step');
+    expect(res.body.error).toContain('current_step');
   });
 
   it('should return 500 when database throws', async () => {
@@ -206,6 +215,6 @@ describe('POST /api/onboarding/:telegramId/complete', () => {
       .expect(500);
 
     expect(res.body.success).toBe(false);
-    expect(res.body.error).toBe('Failed to complete onboarding');
+    expect(res.body.error).toBe('Internal Server Error');
   });
 });

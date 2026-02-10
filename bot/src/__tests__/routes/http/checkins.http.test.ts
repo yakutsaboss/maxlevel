@@ -7,6 +7,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import request from 'supertest';
 import { createTestApp } from '../../helpers/testApp.js';
+import { ApiError } from '../../../api/utils/errors.js';
 
 // ─── Mocks (hoisted before any route import) ───────────────────────
 
@@ -39,8 +40,12 @@ vi.mock('../../../utils/pythonTools.js', () => ({
 }));
 
 vi.mock('../../../api/middleware/auth.js', () => ({
-  authenticateTelegram: (_req: any, _res: any, next: any) => next(),
+  authenticateTelegram: (req: any, _res: any, next: any) => {
+    req.telegramUser = { id: 111 };
+    next();
+  },
   authorizeUser: (_req: any, _res: any, next: any) => next(),
+  requireOwnership: vi.fn(),
 }));
 
 vi.mock('../../../api/middleware/rateLimiter.js', () => ({
@@ -58,6 +63,13 @@ import { checkinRouter } from '../../../api/routes/checkins.js';
 function buildApp() {
   const app = createTestApp();
   app.use('/api/checkins', checkinRouter);
+  app.use((err: any, _req: any, res: any, _next: any) => {
+    if (err instanceof ApiError) {
+      res.status(err.statusCode).json({ success: false, error: err.message });
+      return;
+    }
+    res.status(500).json({ success: false, error: 'Internal Server Error' });
+  });
   return app;
 }
 
@@ -94,10 +106,11 @@ describe('POST /api/checkins', () => {
       .send({ telegram_id: '111', quest_instance_id: 10 })
       .expect(200);
 
-    expect(res.body.check_in_id).toBe(1);
-    expect(res.body.quest_progress.current).toBe(1);
-    expect(res.body.quest_progress.target).toBe(1);
-    expect(res.body.completed).toBe(true);
+    expect(res.body.success).toBe(true);
+    expect(res.body.data.check_in_id).toBe(1);
+    expect(res.body.data.quest_progress.current).toBe(1);
+    expect(res.body.data.quest_progress.target).toBe(1);
+    expect(res.body.data.completed).toBe(true);
   });
 
   it('should increment progress without completing when target not reached', async () => {
@@ -125,10 +138,11 @@ describe('POST /api/checkins', () => {
       .send({ telegram_id: '111', quest_instance_id: 10 })
       .expect(200);
 
-    expect(res.body.check_in_id).toBe(2);
-    expect(res.body.quest_progress.current).toBe(2);
-    expect(res.body.quest_progress.target).toBe(5);
-    expect(res.body.completed).toBe(false);
+    expect(res.body.success).toBe(true);
+    expect(res.body.data.check_in_id).toBe(2);
+    expect(res.body.data.quest_progress.current).toBe(2);
+    expect(res.body.data.quest_progress.target).toBe(5);
+    expect(res.body.data.completed).toBe(false);
   });
 
   it('should return 400 for already completed quest', async () => {
@@ -147,8 +161,8 @@ describe('POST /api/checkins', () => {
       .send({ telegram_id: '111', quest_instance_id: 10 })
       .expect(400);
 
-    expect(res.body.error).toBe('Bad Request');
-    expect(res.body.message).toContain('already completed');
+    expect(res.body.success).toBe(false);
+    expect(res.body.error).toContain('already completed');
   });
 
   it('should return 404 for non-existent quest_instance', async () => {
@@ -159,7 +173,8 @@ describe('POST /api/checkins', () => {
       .send({ telegram_id: '111', quest_instance_id: 999 })
       .expect(404);
 
-    expect(res.body.error).toBe('Not Found');
+    expect(res.body.success).toBe(false);
+    expect(res.body.error).toContain('not found');
   });
 
   it('should return 400 when telegram_id is missing', async () => {
@@ -168,8 +183,8 @@ describe('POST /api/checkins', () => {
       .send({ quest_instance_id: 10 })
       .expect(400);
 
-    expect(res.body.error).toBe('Bad Request');
-    expect(res.body.message).toContain('telegram_id');
+    expect(res.body.success).toBe(false);
+    expect(res.body.error).toContain('telegram_id');
   });
 
   it('should return 400 when quest_instance_id is missing', async () => {
@@ -178,8 +193,8 @@ describe('POST /api/checkins', () => {
       .send({ telegram_id: '111' })
       .expect(400);
 
-    expect(res.body.error).toBe('Bad Request');
-    expect(res.body.message).toContain('quest_instance_id');
+    expect(res.body.success).toBe(false);
+    expect(res.body.error).toContain('quest_instance_id');
   });
 
   it('should return 500 when database throws', async () => {
@@ -190,7 +205,8 @@ describe('POST /api/checkins', () => {
       .send({ telegram_id: '111', quest_instance_id: 10 })
       .expect(500);
 
-    expect(res.body.error).toBe('Server Error');
+    expect(res.body.success).toBe(false);
+    expect(res.body.error).toBe('Internal Server Error');
   });
 });
 
@@ -205,9 +221,10 @@ describe('GET /api/checkins/:telegramId/today', () => {
       .get('/api/checkins/111/today')
       .expect(200);
 
-    expect(res.body.check_ins).toHaveLength(2);
-    expect(res.body.count).toBe(2);
-    expect(res.body.check_ins[0].quest_title).toBe('Morning Run');
+    expect(res.body.success).toBe(true);
+    expect(res.body.data.check_ins).toHaveLength(2);
+    expect(res.body.data.count).toBe(2);
+    expect(res.body.data.check_ins[0].quest_title).toBe('Morning Run');
   });
 
   it('should return empty array when no check-ins today', async () => {
@@ -217,8 +234,9 @@ describe('GET /api/checkins/:telegramId/today', () => {
       .get('/api/checkins/111/today')
       .expect(200);
 
-    expect(res.body.check_ins).toHaveLength(0);
-    expect(res.body.count).toBe(0);
+    expect(res.body.success).toBe(true);
+    expect(res.body.data.check_ins).toHaveLength(0);
+    expect(res.body.data.count).toBe(0);
   });
 
   it('should return 400 for invalid telegram ID', async () => {
@@ -226,8 +244,8 @@ describe('GET /api/checkins/:telegramId/today', () => {
       .get('/api/checkins/abc/today')
       .expect(400);
 
-    expect(res.body.error).toBe('Bad Request');
-    expect(res.body.message).toContain('Invalid telegram ID');
+    expect(res.body.success).toBe(false);
+    expect(res.body.error).toContain('Invalid telegram ID');
   });
 });
 
@@ -241,9 +259,10 @@ describe('GET /api/checkins/:telegramId/history', () => {
       .get('/api/checkins/111/history?page=1&limit=10')
       .expect(200);
 
-    expect(res.body.check_ins).toHaveLength(1);
-    expect(res.body.page).toBe(1);
-    expect(res.body.limit).toBe(10);
+    expect(res.body.success).toBe(true);
+    expect(res.body.data.check_ins).toHaveLength(1);
+    expect(res.body.data.page).toBe(1);
+    expect(res.body.data.limit).toBe(10);
   });
 
   it('should default to page=1 limit=20', async () => {
@@ -253,8 +272,9 @@ describe('GET /api/checkins/:telegramId/history', () => {
       .get('/api/checkins/111/history')
       .expect(200);
 
-    expect(res.body.page).toBe(1);
-    expect(res.body.limit).toBe(20);
+    expect(res.body.success).toBe(true);
+    expect(res.body.data.page).toBe(1);
+    expect(res.body.data.limit).toBe(20);
   });
 
   it('should return 400 for invalid telegram ID', async () => {
@@ -262,7 +282,8 @@ describe('GET /api/checkins/:telegramId/history', () => {
       .get('/api/checkins/abc/history')
       .expect(400);
 
-    expect(res.body.error).toBe('Bad Request');
+    expect(res.body.success).toBe(false);
+    expect(res.body.error).toContain('Invalid telegram ID');
   });
 
   it('should return 500 when database throws', async () => {
@@ -272,6 +293,7 @@ describe('GET /api/checkins/:telegramId/history', () => {
       .get('/api/checkins/111/history')
       .expect(500);
 
-    expect(res.body.error).toBe('Server Error');
+    expect(res.body.success).toBe(false);
+    expect(res.body.error).toBe('Internal Server Error');
   });
 });
