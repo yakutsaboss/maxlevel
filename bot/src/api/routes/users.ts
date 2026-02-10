@@ -382,7 +382,7 @@ router.post('/', async (req: Request, res: Response) => {
       [telegramId, username || null, firstName]
     );
 
-    res.status(201).json({ message: 'User created successfully', user });
+    res.status(201).json({ success: true, data: { message: 'User created successfully', user } });
   } catch (error) {
     console.error('Error creating user:', error);
     res.status(500).json({ error: 'Server Error', message: 'Failed to create user' });
@@ -415,10 +415,13 @@ router.patch('/:userId/xp', authenticateTelegram, async (req: Request, res: Resp
     }
 
     res.json({
-      message: 'XP added successfully',
-      newTotal: user.total_xp,
-      newLevel: user.current_level,
-      leveledUp: false,
+      success: true,
+      data: {
+        message: 'XP added successfully',
+        newTotal: user.total_xp,
+        newLevel: user.current_level,
+        leveledUp: false,
+      },
     });
   } catch (error) {
     console.error('Error adding XP:', error);
@@ -441,7 +444,7 @@ router.patch('/:userId/streak', authenticateTelegram, async (req: Request, res: 
       return res.status(500).json({ error: 'Server Error', message: 'Failed to update streak' });
     }
 
-    res.json({ message: 'Streak updated successfully', streak: (result.data as any)?.current_streak });
+    res.json({ success: true, data: { message: 'Streak updated successfully', streak: (result.data as any)?.current_streak } });
   } catch (error) {
     console.error('Error updating streak:', error);
     res.status(500).json({ error: 'Server Error', message: 'Failed to update streak' });

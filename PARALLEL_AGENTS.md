@@ -2360,3 +2360,27 @@ Find your section under "Run 16 Retrospectives" below and replace the placeholde
 
 #### Agent 0 Retrospective
 *(To be filled by Agent 0)*
+
+---
+
+### Run 16 Retrospectives
+
+#### Agent C Retrospective
+**All 5 tasks completed. Build passes clean.**
+
+| # | Task | Status | Commit |
+|---|------|--------|--------|
+| 1 | Wrap GET /quests/stats response in {success, data} | Done | `3cb1569` |
+| 2 | Wrap POST /quests/assign response in {success, data} | Done | `f8253de` |
+| 3 | Wrap POST /users response in {success, data} | Done | `3bbf3a9` |
+| 4 | Wrap PATCH /users/xp response in {success, data} | Done | `524bd05` |
+| 5 | Wrap PATCH /users/streak response in {success, data} | Done | `388fe3f` |
+
+**Problems faced:** None. All 5 bare endpoints were straightforward single-line or small-block wraps. No unexpected patterns.
+
+**Key changes:**
+- `quests.ts`: GET /stats now returns `{success: true, data: stats}` instead of bare stats object. POST /assign now wraps message+quests in `{success, data}`.
+- `users.ts`: POST /users, PATCH /xp, and PATCH /streak all now return `{success: true, data: {...}}` consistent with the rest of the API.
+- All other endpoints in both files were already wrapped (from Run 15 or earlier). No additional changes needed.
+
+**Recommendations for next run:** The API response format is now consistent across all route files. Client-side code (Agent D's work) should be able to rely on `result.data` always being present for success responses.
