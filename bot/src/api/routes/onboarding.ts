@@ -135,9 +135,10 @@ router.post('/:telegramId/complete', authenticateTelegram, asyncHandler(async (r
       // Frontend uses easy/hard, DB constraint expects low/high
       const intensityMap: Record<string, string> = { easy: 'low', hard: 'high' };
       const intensity = intensityMap[p.intensity_level] || p.intensity_level || 'low';
+      const consentTs = p.consent_given ? new Date().toISOString() : null;
       await client.query(
         `INSERT INTO punishment_settings (user_id, consent_given, consent_timestamp, intensity_level, safe_mode, custom_punishments)
-         VALUES ($1, $2, ${p.consent_given ? 'NOW()' : 'NULL'}, $3, $4, $5::jsonb)
+         VALUES ($1::int, $2::boolean, $3::timestamptz, $4::varchar, $5::boolean, $6::jsonb)
          ON CONFLICT (user_id)
          DO UPDATE SET
            consent_given = EXCLUDED.consent_given,
@@ -145,7 +146,7 @@ router.post('/:telegramId/complete', authenticateTelegram, asyncHandler(async (r
            intensity_level = EXCLUDED.intensity_level,
            safe_mode = EXCLUDED.safe_mode,
            custom_punishments = EXCLUDED.custom_punishments`,
-        [userId, p.consent_given || false, intensity, p.safe_mode !== false, JSON.stringify(p.custom_punishments || {})]
+        [userId, !!p.consent_given, consentTs, intensity, p.safe_mode !== false, JSON.stringify(p.custom_punishments || {})]
       );
     }
 
