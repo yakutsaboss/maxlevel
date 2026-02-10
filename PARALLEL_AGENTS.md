@@ -1902,4 +1902,30 @@ Follow the Safety Protocol. Commit after each task. Write your retrospective whe
 #### Agent 0 Retrospective
 *(To be filled by Agent 0)*
 
-<!-- Next run goes here. Agent 0 will append RUN 27 below this line. -->
+### Run 27 Retrospectives
+
+#### Agent C Retrospective
+
+**Tasks completed:**
+| # | Task | Status |
+|---|------|--------|
+| 1 | Read current logger.ts | Done |
+| 2 | Add LOG_LEVEL env var support (LEVEL_ORDER map, minLevel, write() filter) | Done |
+| 3 | Remove old hardcoded `if (isProduction) return` from debug() | Done |
+| 4 | Build verification (`npm run build`) | Done — zero errors |
+
+**What changed:**
+- Added `LEVEL_ORDER` map: `{debug:0, info:1, warn:2, error:3}`
+- Added `minLevel` computed from `process.env.LOG_LEVEL` with smart defaults: `debug` in dev, `info` in production
+- Added early return `if (LEVEL_ORDER[level] < minLevel) return` at top of `write()` method
+- Removed the old `if (isProduction) return` from `debug()` — now handled generically by the level filter
+- Net change: +13 lines, -1 line in `logger.ts`
+
+**Problems:** None. Surgical change, clean build, no conflicts possible (sole owner of logger.ts).
+
+**Recommendations for next run:**
+- Consider exporting `LEVEL_ORDER` and `minLevel` for use in tests that want to verify log suppression
+- The logger is still in `api/utils/` but used globally — moving to `utils/logger.ts` would be more logical (carried forward from Run 26 Agent D recommendation)
+- Could add a `logger.setLevel(level)` method for runtime level changes (useful for debugging in production without restart)
+
+<!-- Next run goes here. Agent 0 will append RUN 28 below this line. -->
