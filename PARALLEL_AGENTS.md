@@ -1231,4 +1231,30 @@ Find your section under "Run 14 Retrospectives" below and replace the placeholde
 *(To be filled by Agent C)*
 
 #### Agent D Retrospective
-*(To be filled by Agent D)*
+**Status:** All 6 tasks completed. Both builds pass clean.
+
+| # | Task | Status | Commit |
+|---|------|--------|--------|
+| 1 | Fix /achievements/categories to `{success, data}` format | Done | `ee7a0b5` |
+| 2 | Fix /achievements available + recent to `{success, data}` format | Done | `d444c25` |
+| 3 | Fix /achievements unlock to `{success, data}` format | Done | `f30d1ae` |
+| 4 | Add GET /leaderboard/monthly endpoint | Done | `4b43c8c` |
+| 5 | Add Monthly tab to Leaderboard frontend (client.ts + Leaderboard.tsx) | Done | `c92fa5b` |
+| 6 | Build verification (bot + mini-app) | Pass | No fix needed |
+
+**Problems faced:**
+- None. All tasks were well-scoped. The weekly endpoint was a perfect template for the monthly one. Frontend changes were minimal (add type, tab button, API call, XP label).
+
+**What was done:**
+- `achievements.ts`: All 4 bare-format endpoints now return `{success: true, data: ...}`. Error responses also standardized to `{success: false, error: ...}`.
+  - `/categories`: was `{categories}`, now `{success, data: categories}`
+  - `/users/:userId/available`: was `{achievements, count}`, now `{success, data: {achievements, count}}`
+  - `/users/:userId/recent`: was `{achievements, count}`, now `{success, data: {achievements, count}}`
+  - `/users/:userId/:achievementId/unlock`: was `{message, achievement, xpEarned}`, now `{success, data: {message, achievement, xpEarned}}`
+- `leaderboard.ts`: Added `/monthly` endpoint — identical to `/weekly` but uses `INTERVAL '30 days'`, cache key `leaderboard:monthly:${limit}`, TTL 300s, returns `monthly_xp`.
+- `client.ts`: Added `getMonthlyLeaderboard(limit?)` method.
+- `Leaderboard.tsx`: Added `monthly_xp` to interface, `'monthly'` to TimePeriod union, Monthly tab button between Weekly and All Time, updated `loadLeaderboard` switch and XP display labels. Reduced tab padding from `px-4` to `px-3` to fit 3 tabs comfortably.
+
+**Recommendations for next run:**
+- The mini-app client currently wraps some achievement responses in `{success, data}` manually (e.g., `checkAchievements` on line 120). Now that the backend returns the wrapper, these client-side wraps create double-nesting (`{success, data: {success, data: ...}}`). Consider auditing `client.ts` to remove manual wrapping where the backend now provides it.
+- The monthly leaderboard has the same rank field pattern as weekly (`rank: index + 1` computed server-side). The all-time leaderboard uses `xp_rank` from ROW_NUMBER(). Consider standardizing rank computation across all endpoints.
