@@ -30,8 +30,11 @@ router.get('/users/:userId/active', authenticateTelegram, authorizeUser, readLim
 
     const data = result.data as any;
     res.json({
-      quests: data?.quests || [],
-      count: data?.count || 0,
+      success: true,
+      data: {
+        quests: data?.quests || [],
+        count: data?.count || 0,
+      },
     });
   } catch (error) {
     console.error('Error fetching active quests:', error);
@@ -66,8 +69,11 @@ router.get('/users/:userId/completed', authenticateTelegram, authorizeUser, read
 
     const data = result.data as any;
     res.json({
-      quests: data?.quests || [],
-      count: data?.count || 0,
+      success: true,
+      data: {
+        quests: data?.quests || [],
+        count: data?.count || 0,
+      },
     });
   } catch (error) {
     console.error('Error fetching completed quests:', error);
