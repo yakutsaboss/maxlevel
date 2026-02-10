@@ -191,20 +191,27 @@ Use this structure when creating a new run. Copy and adapt:
 
 ---
 
-## Known Issues (Updated after Run 21)
+## Known Issues (Updated after Run 22)
 
 ### Still Open
 1. **pg-boss Node.js mismatch** — Requires 22.12+, server has 20.20. Only triggers warnings, no functional impact yet.
 2. **Mode configs unused** — `mode_configs` table stores quiz responses + personalized plans, but data is never consumed.
 3. **Delete account e2e testing** — confirm soft delete flow works end-to-end in Telegram (Agent B Run 18 recommendation).
-4. **`errorResponse()` unused** — Now unused by any route file after full asyncHandler migration. Could be removed (Agent D Run 21 recommendation).
-5. **Loading skeletons are inline** — Dashboard (~43 lines), Settings (~32 lines), Profile (~63 lines), Quests (~33 lines) all have inline loading skeletons that could be extracted (Agents A/B/C Run 21 recommendation).
-6. **Profile.tsx data loading could be a hook** — ~60 lines of data loading logic could become `useProfileData` (Agent B Run 21 recommendation).
-7. **Dashboard inline helper components** — StatCard, ModeCard, QuestCardMini, AchievementCard (~55 lines total) remain inline (Agent A Run 21 recommendation).
-8. **Admin routes use `executePythonTool`** — Could migrate to native SQL for performance (Agent E Run 21 recommendation).
-9. **Express error middleware** — All errors now go through `next()` via asyncHandler, but no middleware formats `ApiError` instances into consistent JSON (Agents D+E Run 21 recommendation).
+4. **Leaderboard getXpValue/getXpLabel duplication** — Duplicated in TopThreeCard.tsx and LeaderboardRow.tsx. Could extract to `leaderboard/utils.ts` (Agent A Run 22 recommendation).
+5. **Dashboard state management inline** — ~45 lines of state logic could become `useDashboardData` hook (Agent C Run 22 recommendation).
+6. **Profile streak section inline** — Could be a `ProfileStreak` sub-component (Agent C Run 22 recommendation).
+7. **Settings/Quests loading skeletons still inline** — Settings (~32 lines) and Quests (~33 lines) skeletons not yet extracted (Dashboard/Profile/Leaderboard/Achievements all done in Run 22).
+8. **POST /analytics/export still uses executePythonTool** — Justified (Google Sheets OAuth integration), but only remaining Python subprocess in admin routes.
 
-### Resolved (Runs 13–21)
+### Resolved (Runs 13–22)
+- ~~`errorResponse()` unused~~ — Removed in Run 22 Agent D
+- ~~Loading skeletons inline (Dashboard/Profile/Leaderboard/Achievements)~~ — Extracted in Run 22 Agents A/B/C
+- ~~Profile.tsx data loading not a hook~~ — Created `useProfileData` in Run 22 Agent C
+- ~~Dashboard inline helpers~~ — Extracted StatCard/ModeCard/QuestCardMini/AchievementCard in Run 22 Agent C
+- ~~Admin routes use executePythonTool~~ — admin-users.ts fully migrated (Run 22 Agent D), admin-stats.ts 3/4 migrated (Run 22 Agent E)
+- ~~Express error middleware doesn't handle ApiError~~ — Fixed in Run 22 Agent D (proper status codes returned)
+
+### Resolved (Runs 13–21, older)
 - ~~PATCH /progress authorization~~ — Fixed in Run 15
 - ~~checkAchievements() double-wrap bug~~ — Fixed in Run 15
 - ~~Bare API endpoints~~ — All endpoints now return `{success, data}` (Runs 15+16)
@@ -1658,6 +1665,20 @@ Read PARALLEL_AGENTS.md — you are Agent E for Run 22. Your job: Migrate `admin
 - The remaining `executePythonTool` usage in admin-stats.ts (POST /analytics/export) is justified — it calls `sheets_analytics_export` which involves Google Sheets OAuth, not a DB query.
 
 #### Agent 0 Retrospective
-*(To be filled by Agent 0 after merge)*
+**Merge:** D → E → A → B → C. All 5 merges had PARALLEL_AGENTS.md conflicts (expected — worktrees branched before Run 22 setup commit). Resolved with `checkout --ours` + retro splice. **Zero code file conflicts** — file ownership matrix worked perfectly for the third consecutive 5-agent run.
+
+**Build:** Both `bot` and `mini-app` pass with zero errors locally and on server.
+
+**Deploy:** `5ad3566` deployed to production. 23 files changed (14 new + 9 modified). PM2 restarted. Telegram notification sent.
+
+**Net result:**
+- **Leaderboard.tsx:** 277 → 117 lines (–160, –58%). 4 new sub-components: TimePeriodTabs, TopThreeCard, LeaderboardRow, LeaderboardSkeleton.
+- **Achievements.tsx:** 221 → 107 lines (–114, –52%). 3 new sub-components: AchievementCard, RarityGroup, AchievementsSkeleton.
+- **Dashboard.tsx:** 275 → 183 lines (–92, –33%). 5 new files: StatCard, ModeCard, QuestCardMini, DashboardAchievementCard, DashboardSkeleton.
+- **Profile.tsx:** 201 → 125 lines (–76, –38%). 2 new files: ProfileSkeleton, useProfileData hook.
+- **Backend:** Express error middleware now returns proper status codes for ApiError subclasses. `errorResponse()` removed. admin-users.ts fully migrated to native SQL (6 Python subprocess calls eliminated). admin-stats.ts partially migrated (3/4 endpoints, export kept as Python tool).
+- **Performance:** Admin API requests no longer spawn Python subprocesses for 9 of 10 endpoints.
+
+**Known Issues resolved:** Items 4-9 from Run 21 list all addressed. 8 new items tracked, mostly minor (leaderboard util duplication, remaining skeletons).
 
 <!-- Next run goes here. Agent 0 will append RUN 23 below this line. -->
