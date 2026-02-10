@@ -176,6 +176,12 @@ class ApiClient {
     return response.data;
   }
 
+  // Punishment history endpoint
+  async getPunishmentHistory(telegramId: number, page = 1, limit = 5): Promise<ApiResponse<{ punishments: any[]; page: number; total: number }>> {
+    const response = await this.client.get(`/punishment/${telegramId}/history?page=${page}&limit=${limit}`);
+    return response.data;
+  }
+
   // Onboarding endpoints
   async getOnboardingState(telegramId: number): Promise<ApiResponse<{ current_step: string | null; quiz_data: Record<string, any> | null }>> {
     const response = await this.client.get(`/onboarding/${telegramId}`);
