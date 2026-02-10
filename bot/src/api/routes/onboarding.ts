@@ -87,39 +87,41 @@ router.post('/:telegramId/complete', authenticateTelegram, asyncHandler(async (r
     return;
   }
 
-  // 1. Add selected modes (native SQL — migrated from mode_manager.py)
-  for (const modeName of quiz_data.selected_modes) {
-    const mode = await queryOne('SELECT id FROM modes WHERE name = $1', [modeName]);
-    if (!mode) continue;
+  // All steps in a single transaction for atomicity
+  await transaction(async (client) => {
 
-    const existing = await queryOne(
-      'SELECT id, is_active FROM user_modes WHERE user_id = $1 AND mode_id = $2',
-      [userId, mode.id]
-    );
+    // 1. Add selected modes (native SQL — migrated from mode_manager.py)
+    for (const modeName of quiz_data.selected_modes) {
+      const modeResult = await client.query('SELECT id FROM modes WHERE name = $1', [modeName]);
+      const mode = modeResult.rows[0];
+      if (!mode) continue;
 
-    if (existing) {
-      if (!existing.is_active) {
-        await execute(
-          'UPDATE user_modes SET is_active = true, enabled_at = NOW() WHERE id = $1',
-          [existing.id]
+      const existingResult = await client.query(
+        'SELECT id, is_active FROM user_modes WHERE user_id = $1 AND mode_id = $2',
+        [userId, mode.id]
+      );
+      const existing = existingResult.rows[0];
+
+      if (existing) {
+        if (!existing.is_active) {
+          await client.query(
+            'UPDATE user_modes SET is_active = true, enabled_at = NOW() WHERE id = $1',
+            [existing.id]
+          );
+        }
+      } else {
+        await client.query(
+          'INSERT INTO user_modes (user_id, mode_id, is_active) VALUES ($1, $2, true)',
+          [userId, mode.id]
         );
       }
-    } else {
-      await execute(
-        'INSERT INTO user_modes (user_id, mode_id, is_active) VALUES ($1, $2, true)',
+
+      // Initialize streak for this mode
+      await client.query(
+        'INSERT INTO streaks (user_id, mode_id, current_streak, longest_streak) VALUES ($1, $2, 0, 0) ON CONFLICT (user_id, mode_id) DO NOTHING',
         [userId, mode.id]
       );
     }
-
-    // Initialize streak for this mode
-    await execute(
-      'INSERT INTO streaks (user_id, mode_id, current_streak, longest_streak) VALUES ($1, $2, 0, 0) ON CONFLICT (user_id, mode_id) DO NOTHING',
-      [userId, mode.id]
-    );
-  }
-
-  // 2-5: All remaining steps in a single transaction
-  await transaction(async (client) => {
 
     // 2. Save mode configs
     for (const modeName of quiz_data.selected_modes) {
