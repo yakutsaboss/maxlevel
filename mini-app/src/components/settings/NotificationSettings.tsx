@@ -32,7 +32,7 @@ export function detectTimezone(): string {
 interface NotificationSettingsProps {
   prefs: UserPreferences;
   onPrefsChange: (prefs: UserPreferences) => void;
-  haptic: { selection: () => void; impact: (style: string) => void };
+  haptic: { selection: () => void; impact: (...args: any[]) => void };
 }
 
 export function NotificationSettings({ prefs, onPrefsChange, haptic }: NotificationSettingsProps) {
