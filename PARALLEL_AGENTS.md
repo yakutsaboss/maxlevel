@@ -447,7 +447,6 @@ Read PARALLEL_AGENTS.md — you are Agent C for Run 18. Your job: fix resolveUse
 
 **Known Issues resolved:** 5 of 5 user-reported bugs addressed (quest crash, status bar, naming, avatar, delete account). Items 6-8 in Known Issues remain open from prior runs.
 
-<<<<<<< HEAD
 ## RUN 19: Code Quality Refactoring (2 Agents + Agent 0)
 
 ### Focus: Extract duplicated pull-to-refresh + difficulty badge code into shared hooks/components, fix Leaderboard safe area, fix Dashboard quest click, create `user_stats` SQL view, GDPR timezone cleanup
@@ -620,4 +619,238 @@ Read PARALLEL_AGENTS.md — you are Agent B for Run 19. Your job: (1) Create a `
 
 **Known Issues resolved:** Items 4-9 from the "Still Open" list all addressed in this run.
 
-<!-- Next run goes here. Agent 0 will append RUN 20 below this line. -->
+## RUN 20: Page Refactors + Backend Hardening (5 Agents + Agent 0)
+
+### Focus: Break down largest mini-app pages into sub-components, extract shared ErrorSection, apply existing asyncHandler/validation utilities to backend routes, migrate authorizeUser to native SQL for performance
+
+### Copy-Paste Prompts
+
+**Agent 0** (open in: `c:\Users\Asus\Desktop\Wibecode`):
+```
+Read PARALLEL_AGENTS.md you are Agent 0 for Run 20
+```
+
+**Agent A** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-a`):
+```
+Read PARALLEL_AGENTS.md — you are Agent A for Run 20. Your job: Refactor Settings.tsx (517 lines) by extracting 3 sub-components: (1) NotificationSettings.tsx (notifications toggle + reminder time + timezone sections), (2) AccountabilitySettings.tsx (punishment consent/intensity/safe-mode with auto-save), (3) DangerZone.tsx (delete account section). Settings.tsx should become a thin orchestrator that manages loading/error state and renders the sub-components. Move shared interfaces (UserPreferences, PunishmentSettings) and helpers (INTENSITY_LEVELS, formatUTCHour, getLocalHour, detectTimezone) into the sub-components or a shared settings-utils file. Follow the Safety Protocol. Commit after each task. Write your retrospective when done.
+```
+
+**Agent B** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-b`):
+```
+Read PARALLEL_AGENTS.md — you are Agent B for Run 20. Your job: Refactor Profile.tsx (408 lines) by extracting sub-components: (1) ProfileHeader.tsx (gradient header with avatar, name, edit button, StatBadge row), (2) ProfileModes.tsx (modes grid with per-mode streaks), (3) ProfileAchievements.tsx (achievement progress bar + grid + "view all" button), (4) ProfileAccountability.tsx (accountability status + penalty history). Also create a shared utility file `utils/formatDate.ts` with the `formatDate` function currently duplicated in Profile.tsx. Follow the Safety Protocol. Commit after each task. Write your retrospective when done.
+```
+
+**Agent C** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-c`):
+```
+Read PARALLEL_AGENTS.md — you are Agent C for Run 20. Your job: (1) Create a reusable `ErrorSection` component in `components/ErrorSection.tsx` that renders the repeated error UI pattern (AlertCircle icon + "Something went wrong" + contextual message + retry button with RefreshCw icon + haptic feedback). Props: `message: string`, `onRetry: () => void`. (2) Apply ErrorSection to Dashboard.tsx, Quests.tsx, Achievements.tsx, and Leaderboard.tsx — replace their inline error JSX blocks. This will consolidate the AlertCircle + RefreshCw imports into the component and remove them from the pages. (3) Add null safety checks for quest detail modal mode fields in Quests.tsx (mode.icon, mode.display_name). Follow the Safety Protocol. Commit after each task. Write your retrospective when done.
+```
+
+**Agent D** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-d`):
+```
+Read PARALLEL_AGENTS.md — you are Agent D for Run 20. Your job: Apply existing error utilities from `api/utils/errors.ts` to backend routes. (1) In `users.ts` (11 try-catch blocks): wrap all route handlers with `asyncHandler()` to eliminate manual try-catch, use `validateRequired()` for input validation on POST/PATCH endpoints, use `successResponse()` and `errorResponse()` for consistent response formatting. (2) Apply the same pattern to `onboarding.ts` routes. (3) Apply to `checkins.ts` routes. Keep the existing business logic unchanged — only refactor the error handling wrapper and response formatting. Follow the Safety Protocol. Commit after each task. Write your retrospective when done.
+```
+
+**Agent E** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-e`):
+```
+Read PARALLEL_AGENTS.md — you are Agent E for Run 20. Your job: (1) Migrate `authorizeUser` middleware in `auth.ts` from calling `getUserByTelegramId` (Python subprocess) to a native SQL query using `queryOne` from `utils/db.ts` — query: `SELECT id, telegram_id, username, first_name, avatar_id, is_active FROM users WHERE telegram_id = $1`. Keep the same validation logic (null check, is_active check, resource ownership verification). This eliminates a Python subprocess call on every authenticated request. (2) Create a shared constants file at `api/utils/constants.ts` with enums/objects for QuestStatus, QuestFrequency, AchievementRarity, PunishmentIntensity. (3) Apply these constants in `quests.ts` and `achievements.ts` replacing hardcoded strings. Follow the Safety Protocol. Commit after each task. Write your retrospective when done.
+```
+
+---
+
+### Agent A — Mini-App: Settings.tsx Refactor
+
+**Branch:** `feature/r20-settings-refactor`
+**Worktree:** `../Wibecode-agent-a`
+
+**Tasks:**
+1. **Create `NotificationSettings.tsx`** — In `mini-app/src/components/settings/NotificationSettings.tsx`, extract the notifications toggle (lines 248-278), reminder time picker (lines 280-317), and timezone section (lines 319-351) from Settings.tsx. Props: `prefs: UserPreferences`, `onPrefsChange: (prefs: UserPreferences) => void`, `haptic`. Move `formatUTCHour`, `getLocalHour`, `detectTimezone`, `ALL_HOURS` into this file.
+2. **Create `AccountabilitySettings.tsx`** — In `mini-app/src/components/settings/AccountabilitySettings.tsx`, extract the accountability section (lines 352-459) including consent toggle, intensity picker, safe mode toggle, and auto-save indicator. Props: `punishment: PunishmentSettings`, `punishmentAvailable: boolean`, `onConsentToggle`, `onIntensityChange`, `onSafeModeToggle`, `saveStatus`. Move `INTENSITY_LEVELS` into this file.
+3. **Create `DangerZone.tsx`** — In `mini-app/src/components/settings/DangerZone.tsx`, extract the delete account section (lines 477-506). Props: `deleting: boolean`, `onDelete: () => void`.
+4. **Simplify `Settings.tsx`** — Reduce to ~120 lines: keep state management, loading/error/save handlers, and render the 3 sub-components + save button + toast. Move `UserPreferences` and `PunishmentSettings` interfaces to a shared types location or keep in Settings.tsx and pass as props.
+5. **Build verification**: `cd mini-app && npm run build`
+
+**OWNED files:**
+- `mini-app/src/pages/Settings.tsx`
+- `mini-app/src/components/settings/NotificationSettings.tsx` (new)
+- `mini-app/src/components/settings/AccountabilitySettings.tsx` (new)
+- `mini-app/src/components/settings/DangerZone.tsx` (new)
+
+**FORBIDDEN:**
+- `bot/**`, `tools/**`, `database/**`
+- `mini-app/src/pages/Profile.tsx`, `Dashboard.tsx`, `Quests.tsx`, `Achievements.tsx`, `Leaderboard.tsx`
+- `mini-app/src/api/client.ts`
+- `mini-app/src/components/Navigation.tsx`, `ErrorSection.tsx`
+- `mini-app/src/hooks/**`
+
+---
+
+### Agent B — Mini-App: Profile.tsx Refactor + Shared Utils
+
+**Branch:** `feature/r20-profile-refactor`
+**Worktree:** `../Wibecode-agent-b`
+
+**Tasks:**
+1. **Create `utils/formatDate.ts`** — In `mini-app/src/utils/formatDate.ts`, extract the `formatDate()` function currently defined at Profile.tsx line 12. Export it as a named export.
+2. **Create `ProfileHeader.tsx`** — In `mini-app/src/components/profile/ProfileHeader.tsx`, extract the gradient header section (Profile.tsx lines 126-164): avatar with level badge, name with edit button, username, StatBadge row. Also move the `StatBadge` component into this file. Props: `stats: UserStats`, `achievementCount: number`, `onEdit: () => void`, `onSettingsClick: () => void`, `haptic`.
+3. **Create `ProfileModes.tsx`** — In `mini-app/src/components/profile/ProfileModes.tsx`, extract the modes grid (lines 182-204). Props: `modes: UserStats['modes']`, `perModeStreaks: UserStats['perModeStreaks']`, `haptic`.
+4. **Create `ProfileAchievements.tsx`** — In `mini-app/src/components/profile/ProfileAchievements.tsx`, extract the achievements section (lines 206-270): progress bar + 2x2 grid + "view all" button. Props: `achievements: UserAchievement[]`, `allAchievements: Achievement[]`, `haptic`, `onViewAll: () => void`.
+5. **Create `ProfileAccountability.tsx`** — In `mini-app/src/components/profile/ProfileAccountability.tsx`, extract accountability status (lines 272-348): active/inactive state + penalty history list. Props: `punishmentSettings`, `punishmentHistory`, `haptic`, `onNavigateSettings: () => void`.
+6. **Simplify `Profile.tsx`** — Reduce to ~100 lines: state management, data loading, error/loading states, sub-component composition. Import `formatDate` from `utils/formatDate.ts`.
+7. **Build verification**: `cd mini-app && npm run build`
+
+**OWNED files:**
+- `mini-app/src/pages/Profile.tsx`
+- `mini-app/src/utils/formatDate.ts` (new)
+- `mini-app/src/components/profile/ProfileHeader.tsx` (new)
+- `mini-app/src/components/profile/ProfileModes.tsx` (new)
+- `mini-app/src/components/profile/ProfileAchievements.tsx` (new)
+- `mini-app/src/components/profile/ProfileAccountability.tsx` (new)
+
+**FORBIDDEN:**
+- `bot/**`, `tools/**`, `database/**`
+- `mini-app/src/pages/Settings.tsx`, `Dashboard.tsx`, `Quests.tsx`, `Achievements.tsx`, `Leaderboard.tsx`
+- `mini-app/src/api/client.ts`
+- `mini-app/src/components/Navigation.tsx`, `ErrorSection.tsx`, `settings/**`
+- `mini-app/src/hooks/**`
+
+---
+
+### Agent C — Mini-App: ErrorSection Component + Quest Modal Safety
+
+**Branch:** `feature/r20-error-section`
+**Worktree:** `../Wibecode-agent-c`
+
+**Tasks:**
+1. **Create `ErrorSection.tsx`** — In `mini-app/src/components/ErrorSection.tsx`, create a reusable error component that encapsulates the pattern repeated in 6 pages: centered full-screen container, red-bordered card, `AlertCircle` icon, "Something went wrong" heading, contextual message, retry button with `RefreshCw` icon and haptic feedback. Props: `message: string` (e.g. "Could not load your profile"), `onRetry: () => void`.
+2. **Apply ErrorSection to Dashboard.tsx** — Replace the inline error JSX block with `<ErrorSection message="Could not load dashboard" onRetry={...} />`. Remove `AlertCircle` and `RefreshCw` from the lucide-react import if no longer used elsewhere in the file.
+3. **Apply ErrorSection to Quests.tsx** — Same pattern. Clean up unused icon imports.
+4. **Apply ErrorSection to Achievements.tsx** — Same pattern. Clean up unused icon imports.
+5. **Apply ErrorSection to Leaderboard.tsx** — Same pattern. Clean up unused icon imports.
+6. **Add null safety to quest detail modal in Quests.tsx** — In the quest detail modal, add null checks for `selectedQuest.mode?.icon` and `selectedQuest.mode?.display_name` with fallback values (icon: `'📋'`, display_name: `'Unknown'`).
+7. **Build verification**: `cd mini-app && npm run build`
+
+**OWNED files:**
+- `mini-app/src/components/ErrorSection.tsx` (new)
+- `mini-app/src/pages/Dashboard.tsx`
+- `mini-app/src/pages/Quests.tsx`
+- `mini-app/src/pages/Achievements.tsx`
+- `mini-app/src/pages/Leaderboard.tsx`
+
+**FORBIDDEN:**
+- `bot/**`, `tools/**`, `database/**`
+- `mini-app/src/pages/Settings.tsx`, `Profile.tsx`, `Onboarding.tsx`, `Admin.tsx`
+- `mini-app/src/api/client.ts`
+- `mini-app/src/components/Navigation.tsx`, `settings/**`, `profile/**`
+- `mini-app/src/hooks/**`
+
+---
+
+### Agent D — Backend: asyncHandler + Validation for Routes
+
+**Branch:** `feature/r20-route-error-handling`
+**Worktree:** `../Wibecode-agent-d`
+
+**Tasks:**
+1. **Refactor `users.ts` with asyncHandler** — Import `asyncHandler`, `validateRequired`, `successResponse`, `errorResponse` from `../../api/utils/errors.js`. Wrap all 11 route handlers with `asyncHandler()` to eliminate manual try-catch blocks. Example: `router.get('/:telegramId/stats', authenticateTelegram, asyncHandler(async (req, res) => { ... }))`. Remove the inner try-catch — asyncHandler catches thrown errors and passes them to Express error middleware.
+2. **Add validateRequired to `users.ts` POST/PATCH** — On POST `/` (create user): validate `telegramId` and `firstName`. On PATCH `/:telegramId/profile`: validate that at least one field is provided. On PATCH `/:telegramId/preferences`: validate `telegramId`.
+3. **Use successResponse/errorResponse in `users.ts`** — Replace manual `res.json({ success: true, data: ... })` with `res.json(successResponse(data))`. Replace manual error responses with `throw new BadRequestError(...)` / `throw new NotFoundError(...)` which asyncHandler will catch.
+4. **Apply same pattern to `onboarding.ts`** — Wrap handlers with asyncHandler, add validateRequired, use response formatters.
+5. **Apply same pattern to `checkins.ts`** — Wrap handlers with asyncHandler, add validateRequired, use response formatters.
+6. **Build verification**: `cd bot && npm run build`
+
+**OWNED files:**
+- `bot/src/api/routes/users.ts`
+- `bot/src/api/routes/onboarding.ts`
+- `bot/src/api/routes/checkins.ts`
+
+**FORBIDDEN:**
+- `mini-app/**`, `tools/**`, `database/**`
+- `bot/src/index.ts`, `bot/src/api/server.ts`
+- `bot/src/api/routes/quests.ts`, `achievements.ts`, `admin*.ts`, `modes.ts`, `punishment.ts`, `leaderboard.ts`
+- `bot/src/api/middleware/**`
+- `bot/src/api/utils/errors.ts` (read-only — use as-is, do NOT modify)
+- `bot/src/utils/**`
+- `bot/src/jobs/**`
+
+---
+
+### Agent E — Backend: authorizeUser Native SQL + Constants
+
+**Branch:** `feature/r20-auth-perf`
+**Worktree:** `../Wibecode-agent-e`
+
+**Tasks:**
+1. **Migrate `authorizeUser` to native SQL** — In `bot/src/api/middleware/auth.ts`, replace `getUserByTelegramId(telegramUser.id)` (Python subprocess call) with a direct `queryOne()` call using `../../utils/db.js`. Query: `SELECT id, telegram_id, username, first_name, avatar_id, is_active FROM users WHERE telegram_id = $1`. Keep all existing validation logic (null check, is_active check, userId/telegramId ownership verification). Remove the `getUserByTelegramId` and `getUserById` imports from pythonTools if no longer used in this file. This eliminates a Python subprocess spawn on every authenticated request.
+2. **Create constants file** — In `bot/src/api/utils/constants.ts`, define typed constant objects: `QUEST_STATUS` (pending, ready, in_progress, completed, failed, skipped), `QUEST_FREQUENCY` (daily, weekly), `QUEST_DIFFICULTY` (easy, medium, hard), `ACHIEVEMENT_RARITY` (common, rare, epic, legendary), `PUNISHMENT_INTENSITY` (light, medium, hard, extreme). Use `as const` for type inference.
+3. **Apply constants to `quests.ts`** — Replace hardcoded status strings like `'completed'`, `'pending'`, `'daily'` etc. with the constants. Import from `../utils/constants.js`.
+4. **Apply constants to `achievements.ts`** — Replace hardcoded rarity strings with constants.
+5. **Build verification**: `cd bot && npm run build`
+
+**OWNED files:**
+- `bot/src/api/middleware/auth.ts`
+- `bot/src/api/utils/constants.ts` (new)
+- `bot/src/api/routes/quests.ts`
+- `bot/src/api/routes/achievements.ts`
+
+**FORBIDDEN:**
+- `mini-app/**`, `tools/**`, `database/**`
+- `bot/src/index.ts`, `bot/src/api/server.ts`
+- `bot/src/api/routes/users.ts`, `onboarding.ts`, `checkins.ts`, `admin*.ts`, `modes.ts`, `punishment.ts`, `leaderboard.ts`
+- `bot/src/api/utils/errors.ts`
+- `bot/src/utils/pythonTools.ts` (read-only — do NOT modify, just stop importing from it in auth.ts)
+- `bot/src/jobs/**`
+
+---
+
+### Run 20 File Ownership Matrix
+
+| File | Agent A | Agent B | Agent C | Agent D | Agent E |
+|------|---------|---------|---------|---------|---------|
+| mini-app/src/pages/Settings.tsx | **OWN** | FORBID | FORBID | — | — |
+| mini-app/src/components/settings/*.tsx (new) | **OWN** | FORBID | FORBID | — | — |
+| mini-app/src/pages/Profile.tsx | FORBID | **OWN** | FORBID | — | — |
+| mini-app/src/utils/formatDate.ts (new) | FORBID | **OWN** | FORBID | — | — |
+| mini-app/src/components/profile/*.tsx (new) | FORBID | **OWN** | FORBID | — | — |
+| mini-app/src/components/ErrorSection.tsx (new) | FORBID | FORBID | **OWN** | — | — |
+| mini-app/src/pages/Dashboard.tsx | FORBID | FORBID | **OWN** | — | — |
+| mini-app/src/pages/Quests.tsx | FORBID | FORBID | **OWN** | — | — |
+| mini-app/src/pages/Achievements.tsx | FORBID | FORBID | **OWN** | — | — |
+| mini-app/src/pages/Leaderboard.tsx | FORBID | FORBID | **OWN** | — | — |
+| bot/src/api/routes/users.ts | — | — | — | **OWN** | FORBID |
+| bot/src/api/routes/onboarding.ts | — | — | — | **OWN** | FORBID |
+| bot/src/api/routes/checkins.ts | — | — | — | **OWN** | FORBID |
+| bot/src/api/middleware/auth.ts | — | — | — | FORBID | **OWN** |
+| bot/src/api/utils/constants.ts (new) | — | — | — | FORBID | **OWN** |
+| bot/src/api/routes/quests.ts | — | — | — | FORBID | **OWN** |
+| bot/src/api/routes/achievements.ts | — | — | — | FORBID | **OWN** |
+| bot/src/api/utils/errors.ts | — | — | — | READ-ONLY | FORBID |
+| PARALLEL_AGENTS.md | retro only | retro only | retro only | retro only | retro only |
+
+### Run 20 Merge Order
+1. **Agent E** (backend: auth perf + constants) — no dependencies, changes middleware + quests/achievements
+2. **Agent D** (backend: route error handling) — no dependency on E (different files), changes users/onboarding/checkins
+3. **Agent C** (mini-app: ErrorSection) — pure frontend, changes 4 pages
+4. **Agent A** (mini-app: Settings refactor) — pure frontend, changes Settings only
+5. **Agent B** (mini-app: Profile refactor) — pure frontend, changes Profile only
+
+### Run 20 Retrospectives
+
+#### Agent A Retrospective
+*(To be filled by Agent A)*
+
+#### Agent B Retrospective
+*(To be filled by Agent B)*
+
+#### Agent C Retrospective
+*(To be filled by Agent C)*
+
+#### Agent D Retrospective
+*(To be filled by Agent D)*
+
+#### Agent E Retrospective
+*(To be filled by Agent E)*
+
+#### Agent 0 Retrospective
+*(To be filled by Agent 0 after merge)*
+
+<!-- Next run goes here. Agent 0 will append RUN 21 below this line. -->
