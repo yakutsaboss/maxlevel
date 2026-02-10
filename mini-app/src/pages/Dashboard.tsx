@@ -6,6 +6,7 @@ import { UserStats, Quest, UserMode, UserAchievement, Achievement } from '@/type
 import { Trophy, Zap, Target, Flame, TrendingUp, AlertCircle, RefreshCw, Compass, Scroll, Award, Calendar, Clock } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { AchievementToast } from '@/components/AchievementToast';
+import { QuestDifficultyBadge } from '@/components/QuestDifficultyBadge';
 
 const StatCard = memo(function StatCard({ icon, label, value, color }: { icon: React.ReactNode; label: string; value: string | number; color: string }) {
   return (
@@ -46,7 +47,7 @@ const QuestCardMini = memo(function QuestCardMini({ quest, onClick }: { quest: Q
         </div>
       </div>
       <div className="mt-2 flex items-center gap-2">
-        <span className={`text-xs px-2 py-1 rounded-full ${quest.difficulty === 'easy' ? 'bg-green-100 text-green-700' : quest.difficulty === 'medium' ? 'bg-yellow-100 text-yellow-700' : 'bg-red-100 text-red-700'}`}>{quest.difficulty}</span>
+        <QuestDifficultyBadge difficulty={quest.difficulty} />
         <span className="text-xs text-telegram-hint">{quest.frequency}</span>
       </div>
     </motion.div>

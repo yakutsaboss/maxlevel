@@ -6,6 +6,7 @@ import { Quest } from '@/types';
 import { Target, Zap, CheckCircle, Clock, AlertCircle, RefreshCw, Loader2, Calendar } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { CheckInButton } from '@/components/CheckInButton';
+import { QuestDifficultyBadge } from '@/components/QuestDifficultyBadge';
 
 type QuestTab = 'active' | 'completed';
 
@@ -228,13 +229,7 @@ export function Quests() {
                   <Zap className="w-4 h-4" />{selectedQuest.xp_reward} XP
                 </span>
                 {selectedQuest.difficulty && (
-                <span className={`px-3 py-1.5 rounded-xl text-sm font-semibold ${
-                  selectedQuest.difficulty === 'easy' ? 'bg-green-100 text-green-700' :
-                  selectedQuest.difficulty === 'medium' ? 'bg-yellow-100 text-yellow-700' :
-                  'bg-red-100 text-red-700'
-                }`}>
-                  {selectedQuest.difficulty.charAt(0).toUpperCase() + selectedQuest.difficulty.slice(1)}
-                </span>
+                  <QuestDifficultyBadge difficulty={selectedQuest.difficulty} size="md" />
                 )}
                 <span className="bg-telegram-hint/20 text-telegram-hint px-3 py-1.5 rounded-xl text-sm">
                   {selectedQuest.frequency}
@@ -363,7 +358,7 @@ function QuestCard({ quest, index, isSelected, onClick }: { quest: Quest; index:
       )}
       <div className="flex items-center gap-2 flex-wrap">
         {quest.difficulty && (
-        <span className={`text-xs px-2 py-1 rounded-full ${quest.difficulty === 'easy' ? 'bg-green-100 text-green-700' : quest.difficulty === 'medium' ? 'bg-yellow-100 text-yellow-700' : 'bg-red-100 text-red-700'}`}>{quest.difficulty}</span>
+          <QuestDifficultyBadge difficulty={quest.difficulty} />
         )}
         {quest.frequency && (
         <span className="text-xs px-2 py-1 rounded-full bg-telegram-hint/20 text-telegram-hint">{quest.frequency}</span>
