@@ -103,6 +103,76 @@ export interface ApiResponse<T> {
   error?: string;
 }
 
+// Quest completion response
+export interface QuestCompleteResponse {
+  message: string;
+  xpEarned: number;
+  newLevel: number;
+  leveledUp: boolean;
+}
+
+// Check-in response
+export interface CheckinResponse {
+  check_in_id: number;
+  quest_progress: { current: number; target: number };
+  completed: boolean;
+}
+
+// Check-in list response
+export interface CheckinListResponse {
+  check_ins: Array<{
+    id: number;
+    check_in_time: string;
+    notes: string | null;
+    is_valid: boolean;
+    quest_title?: string;
+    quest_status?: string;
+  }>;
+  count: number;
+}
+
+// Punishment settings
+export interface PunishmentSettings {
+  consent_given: boolean;
+  consent_timestamp: string | null;
+  intensity_level: string;
+  safe_mode: boolean;
+  custom_punishments: Record<string, any> | null;
+  max_xp_penalty: number;
+  max_streak_reset: number;
+}
+
+// Punishment history entry
+export interface PunishmentHistoryResponse {
+  punishments: Array<{
+    id: number;
+    quest_instance_id: number | null;
+    punishment_type: string;
+    severity: string;
+    xp_deducted: number;
+    streak_days_lost: number;
+    message_sent: string;
+    notes: string;
+    applied_at: string;
+    quest_title?: string;
+  }>;
+  page: number;
+  total: number;
+}
+
+// User preferences
+export interface UserPreferences {
+  notification_enabled: boolean;
+  reminder_time: number;
+  timezone: string;
+}
+
+// Onboarding state
+export interface OnboardingState {
+  current_step: string | null;
+  quiz_data: Record<string, any> | null;
+}
+
 // Telegram WebApp types
 export interface TelegramUser {
   id: number;
