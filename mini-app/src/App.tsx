@@ -1,6 +1,5 @@
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { motion } from 'framer-motion';
 import { lazy, useEffect, useState } from 'react';
 import { Dashboard } from '@/pages/Dashboard';
 import { Quests } from '@/pages/Quests';
@@ -9,6 +8,7 @@ import { Onboarding } from '@/pages/Onboarding';
 import { Navigation } from '@/components/Navigation';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { LazyPageWrapper } from '@/components/LazyPageWrapper';
+import { ProtectedRoute } from '@/components/ProtectedRoute';
 import { useTelegram } from '@/hooks/useTelegram';
 import { useOnboarding } from '@/hooks/useOnboarding';
 import { apiClient } from '@/api/client';
@@ -19,18 +19,6 @@ const Admin = lazy(() => import('@/pages/Admin').then(m => ({ default: m.Admin }
 const Achievements = lazy(() => import('@/pages/Achievements').then(m => ({ default: m.Achievements })));
 const Leaderboard = lazy(() => import('@/pages/Leaderboard').then(m => ({ default: m.Leaderboard })));
 const Settings = lazy(() => import('@/pages/Settings').then(m => ({ default: m.Settings })));
-
-function PageWrapper({ children }: { children: React.ReactNode }) {
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.2, ease: 'easeOut' }}
-    >
-      {children}
-    </motion.div>
-  );
-}
 
 // Create React Query client
 const queryClient = new QueryClient({
@@ -107,30 +95,12 @@ function AppContent() {
           }
         />
         <Route path="/onboarding" element={<Onboarding />} />
-        <Route
-          path="/dashboard"
-          element={needsOnboarding ? <Navigate to="/onboarding" replace /> : <PageWrapper><Dashboard /></PageWrapper>}
-        />
-        <Route
-          path="/quests"
-          element={needsOnboarding ? <Navigate to="/onboarding" replace /> : <PageWrapper><Quests /></PageWrapper>}
-        />
-        <Route
-          path="/profile"
-          element={needsOnboarding ? <Navigate to="/onboarding" replace /> : <PageWrapper><Profile /></PageWrapper>}
-        />
-        <Route
-          path="/leaderboard"
-          element={needsOnboarding ? <Navigate to="/onboarding" replace /> : <LazyPageWrapper><PageWrapper><Leaderboard /></PageWrapper></LazyPageWrapper>}
-        />
-        <Route
-          path="/achievements"
-          element={needsOnboarding ? <Navigate to="/onboarding" replace /> : <LazyPageWrapper><PageWrapper><Achievements /></PageWrapper></LazyPageWrapper>}
-        />
-        <Route
-          path="/settings"
-          element={needsOnboarding ? <Navigate to="/onboarding" replace /> : <LazyPageWrapper><PageWrapper><Settings /></PageWrapper></LazyPageWrapper>}
-        />
+        <Route path="/dashboard" element={<ProtectedRoute needsOnboarding={needsOnboarding}><Dashboard /></ProtectedRoute>} />
+        <Route path="/quests" element={<ProtectedRoute needsOnboarding={needsOnboarding}><Quests /></ProtectedRoute>} />
+        <Route path="/profile" element={<ProtectedRoute needsOnboarding={needsOnboarding}><Profile /></ProtectedRoute>} />
+        <Route path="/leaderboard" element={<ProtectedRoute needsOnboarding={needsOnboarding} lazy><Leaderboard /></ProtectedRoute>} />
+        <Route path="/achievements" element={<ProtectedRoute needsOnboarding={needsOnboarding} lazy><Achievements /></ProtectedRoute>} />
+        <Route path="/settings" element={<ProtectedRoute needsOnboarding={needsOnboarding} lazy><Settings /></ProtectedRoute>} />
         <Route path="/admin" element={<LazyPageWrapper><Admin /></LazyPageWrapper>} />
       </Routes>
       {showNavigation && <Navigation />}
