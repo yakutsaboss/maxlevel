@@ -3,10 +3,11 @@ import { useTelegram, useMainButton } from '@/hooks/useTelegram';
 import { usePullToRefresh, PullIndicator } from '@/hooks/usePullToRefresh';
 import { apiClient } from '@/api/client';
 import { Quest } from '@/types';
-import { Target, Zap, CheckCircle, Clock, AlertCircle, RefreshCw, Loader2, Calendar } from 'lucide-react';
+import { Target, Zap, CheckCircle, Clock, Loader2, Calendar } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { CheckInButton } from '@/components/CheckInButton';
 import { QuestDifficultyBadge } from '@/components/QuestDifficultyBadge';
+import { ErrorSection } from '@/components/ErrorSection';
 
 type QuestTab = 'active' | 'completed';
 
@@ -140,18 +141,7 @@ export function Quests() {
   }
 
   if (error) {
-    return (
-      <div className="flex items-center justify-center min-h-screen bg-telegram-bg px-4">
-        <div className="bg-red-50 border border-red-200 rounded-2xl p-6 text-center max-w-sm w-full">
-          <AlertCircle className="w-12 h-12 text-red-400 mx-auto mb-3" />
-          <h3 className="text-lg font-semibold text-red-700 mb-1">Something went wrong</h3>
-          <p className="text-sm text-red-500 mb-4">Could not load your quests</p>
-          <button onClick={() => { haptic.impact('light'); loadQuests(); }} className="inline-flex items-center gap-2 bg-red-500 text-white px-5 py-2.5 rounded-xl font-medium active:scale-95 transition-transform">
-            <RefreshCw className="w-4 h-4" />Retry
-          </button>
-        </div>
-      </div>
-    );
+    return <ErrorSection message="Could not load your quests" onRetry={loadQuests} />;
   }
 
   return (
@@ -236,7 +226,7 @@ export function Quests() {
                 </span>
                 {selectedQuest.mode && (
                   <span className="bg-blue-100 text-blue-700 px-3 py-1.5 rounded-xl text-sm">
-                    {selectedQuest.mode.icon} {selectedQuest.mode.display_name}
+                    {selectedQuest.mode.icon ?? '📋'} {selectedQuest.mode.display_name ?? 'Unknown'}
                   </span>
                 )}
               </div>
@@ -364,7 +354,7 @@ function QuestCard({ quest, index, isSelected, onClick }: { quest: Quest; index:
         <span className="text-xs px-2 py-1 rounded-full bg-telegram-hint/20 text-telegram-hint">{quest.frequency}</span>
         )}
         {quest.mode && (
-          <span className="text-xs px-2 py-1 rounded-full bg-blue-100 text-blue-700">{quest.mode.icon} {quest.mode.display_name}</span>
+          <span className="text-xs px-2 py-1 rounded-full bg-blue-100 text-blue-700">{quest.mode.icon ?? '📋'} {quest.mode.display_name ?? 'Unknown'}</span>
         )}
       </div>
     </motion.div>

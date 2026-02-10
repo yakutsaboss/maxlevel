@@ -2,9 +2,10 @@ import { useEffect, useState, useCallback } from 'react';
 import { useTelegram } from '@/hooks/useTelegram';
 import { usePullToRefresh, PullIndicator } from '@/hooks/usePullToRefresh';
 import { apiClient } from '@/api/client';
-import { Trophy, Medal, Award, AlertCircle, RefreshCw } from 'lucide-react';
+import { Trophy, Medal, Award } from 'lucide-react';
 import { motion } from 'framer-motion';
 import type { LeaderboardEntry } from '@/types';
+import { ErrorSection } from '@/components/ErrorSection';
 
 type TimePeriod = 'weekly' | 'monthly' | 'all_time';
 
@@ -100,18 +101,7 @@ export function Leaderboard() {
   }
 
   if (error) {
-    return (
-      <div className="flex items-center justify-center min-h-screen bg-telegram-bg px-4">
-        <div className="bg-red-50 border border-red-200 rounded-2xl p-6 text-center max-w-sm w-full">
-          <AlertCircle className="w-12 h-12 text-red-400 mx-auto mb-3" />
-          <h3 className="text-lg font-semibold text-red-700 mb-1">Something went wrong</h3>
-          <p className="text-sm text-red-500 mb-4">Could not load the leaderboard</p>
-          <button onClick={() => { haptic.impact('light'); loadLeaderboard(); }} className="inline-flex items-center gap-2 bg-red-500 text-white px-5 py-2.5 rounded-xl font-medium active:scale-95 transition-transform">
-            <RefreshCw className="w-4 h-4" />Retry
-          </button>
-        </div>
-      </div>
-    );
+    return <ErrorSection message="Could not load the leaderboard" onRetry={loadLeaderboard} />;
   }
 
   const currentUserId = user?.id;
