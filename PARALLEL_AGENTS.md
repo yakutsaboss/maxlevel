@@ -1621,3 +1621,26 @@ Find your section under "Run 15 Retrospectives" below and replace the placeholde
 
 #### Agent 0 Retrospective
 *(To be filled by Agent 0)*
+
+### Run 16 Retrospectives
+
+#### Agent E Retrospective
+**All 3 tasks completed. No build needed (Python + SQL only).**
+
+| # | Task | Status | Commit |
+|---|------|--------|--------|
+| 1 | Create punishment_manager.py with full CRUD + apply logic | Done | `7d54cb6` |
+| 2 | Sync schema.sql with actual DB state (add migration columns) | Done | `d721738` |
+| 3 | Add Run 16 performance indexes migration | Done | `8976ef8` |
+
+**Problems faced:** None. All tasks were new file creation or additive edits to schema.sql. No overlap with other agents.
+
+**Key changes:**
+- `tools/punishment_manager.py`: New tool with 6 functions: `get_settings()`, `update_consent()`, `update_settings()`, `apply_punishment()`, `get_history()`, `check_failed_quests()`. Follows streak_manager.py pattern (same imports, CLI structure, error handling). Apply logic checks consent, respects max caps, halves penalties in safe mode, and uses transactions for XP/streak deductions + history logging.
+- `database/schema.sql`: Added `quest_instances.target` (Run 13), `user_achievements.notification_sent_at` (Run 13), `user_activity_log` table (Run 3), and `leaderboard_mv` materialized view (Run 3). Schema now reflects actual DB state.
+- `database/migrations/run16_indexes.sql`: 5 performance indexes on quest_instances, check_ins, user_achievements, punishment_history, and punishment_settings.
+
+**Recommendations for next run:**
+- Run `run16_indexes.sql` on production after deploy.
+- Consider adding `punishment_manager.py` to the punishmentCheck pg-boss job so it auto-applies punishments for failed quests.
+- The `_difficulty_to_severity()` mapping is simplistic — may want to make this configurable per user via `custom_punishments` JSONB.
