@@ -21,16 +21,17 @@ For completed run history (Runs 2–12), see `PARALLEL_AGENTS_HISTORY.md`.
 6. **Post-merge integration**: Read any `REGISTER_THESE_RUN*.md` files in `bot/src/handlers/` to see if new commands need wiring into `index.ts`.
 7. **Build verification**: `cd bot && npm run build` and `cd mini-app && npm run build`.
 8. **Deploy**: Push to GitHub → SSH to server → git pull → rebuild → PM2 restart.
-9. **Clean up**: Remove worktrees, delete feature branches, clear stashes.
+9. **Send completion notification** — use the notification bot to send a Telegram summary of the run. Include: run number, 1-line summary per agent, deploy status. Use the Notification Command below.
+10. **Clean up**: Remove worktrees, delete feature branches, clear stashes.
 
 **Phase B — Prepare the NEXT run:**
-10. **Write retrospective** for the current run (merge results, what went right, issues carried forward).
-11. **Design next run's tasks** — analyze the codebase, read "Known Issues" and agent recommendations, and write the next Run section with full agent prompts.
-12. **Pre-allocate retrospective sections** — create a named placeholder for each agent (see Run Template below). This prevents merge conflicts.
-13. **Write copy-paste prompts** — at the top of the next Run section, include a "Copy-Paste Prompts" block with the exact text the user should paste into each Claude Code session.
-14. **Set up worktrees** for the next run: create branches, `git worktree add`, install deps.
-15. **Commit & push** the updated PARALLEL_AGENTS.md.
-16. **Tell the user**: "Ready to launch Run N. Here are your copy-paste prompts."
+11. **Write retrospective** for the current run (merge results, what went right, issues carried forward).
+12. **Design next run's tasks** — analyze the codebase, read "Known Issues" and agent recommendations, and write the next Run section with full agent prompts.
+13. **Pre-allocate retrospective sections** — create a named placeholder for each agent (see Run Template below). This prevents merge conflicts.
+14. **Write copy-paste prompts** — at the top of the next Run section, include a "Copy-Paste Prompts" block with the exact text the user should paste into each Claude Code session.
+15. **Set up worktrees** for the next run: create branches, `git worktree add`, install deps.
+16. **Commit & push** the updated PARALLEL_AGENTS.md.
+17. **Tell the user**: "Ready to launch Run N. Here are your copy-paste prompts."
 
 **The cycle**: Each Agent 0 merges Run N, then prepares Run N+1. The user just copies the prompts and launches.
 
@@ -38,6 +39,28 @@ For completed run history (Runs 2–12), see `PARALLEL_AGENTS_HISTORY.md`.
 ```bash
 git push origin main
 ssh root@85.239.58.205 "cd /opt/wibecode-bot && git pull && cd bot && npm install && npm run build && cd ../mini-app && npm run build && pm2 restart telegram-rpg-bot --update-env"
+```
+
+### Notification Command
+```bash
+# Load notification bot credentials from .env
+export $(grep -E '^TELEGRAM_NOTIFICATION' .env | tr -d '\r')
+
+# Send run completion summary (replace MESSAGE with actual content)
+curl -s -X POST "https://api.telegram.org/bot${TELEGRAM_NOTIFICATION_BOT_TOKEN}/sendMessage" \
+  -H "Content-Type: application/json" \
+  -d "{\"chat_id\": \"${TELEGRAM_NOTIFICATION_CHAT_ID}\", \"text\": \"MESSAGE\", \"parse_mode\": \"HTML\"}"
+```
+
+**Message template** (use `<b>` for bold in HTML parse mode):
+```
+✅ <b>Run N merged & deployed</b>
+
+• Agent A: [1-line summary]
+• Agent B: [1-line summary]
+• Agent C: [1-line summary]
+
+Issues: [any problems or "None"]
 ```
 
 ### Worktree Setup Command
