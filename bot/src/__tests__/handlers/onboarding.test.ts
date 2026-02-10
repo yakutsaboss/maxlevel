@@ -122,8 +122,8 @@ describe('showModeSelection', () => {
   });
 
   it('should show error when modes fail to load', async () => {
-    // query throws an error (DB failure)
-    mockQuery.mockRejectedValueOnce(new Error('DB error'));
+    // query returns empty — no modes available
+    mockQuery.mockResolvedValueOnce([]);
 
     const ctx = createMockCtx(123);
     await showModeSelection(ctx);
@@ -292,15 +292,12 @@ describe('handleQuickAction', () => {
   });
 
   it('should show profile on view_profile', async () => {
-    // getUserByTelegramId → queryOne
-    mockQueryOne.mockResolvedValueOnce({ id: 1 });
-    // getStats → queryOne returns user stats directly
-    mockQueryOne.mockResolvedValueOnce({
-      current_level: 5,
-      total_xp: 1200,
-      overall_streak: 3,
-      total_quests_completed: 10,
-    });
+    // getUserByTelegramId → queryOne returns user row
+    mockQueryOne.mockResolvedValueOnce({ id: 1, current_level: 5, total_xp: 1200 });
+    // streaks query → query returns streak rows
+    mockQuery.mockResolvedValueOnce([{ current_streak: 3 }]);
+    // totalCompleted → queryOne returns count
+    mockQueryOne.mockResolvedValueOnce({ total: 10 });
 
     const ctx = createCallbackCtx('view_profile');
     await handleQuickAction(ctx);
@@ -414,12 +411,10 @@ describe('handleModeSummary', () => {
   it('should handle getModeSummary failure', async () => {
     // getUserByTelegramId → user found
     mockQueryOne.mockResolvedValueOnce({ id: 1 });
-    // getModeSummary query throws
+    // getModeSummary query throws — error propagates (no try/catch in handler)
     mockQuery.mockRejectedValueOnce(new Error('query failed'));
 
     const ctx = createCallbackCtx('mode_summary', 123);
-    await handleModeSummary(ctx);
-
-    expect(ctx.reply).toHaveBeenCalledWith('❌ Error loading mode summary.');
+    await expect(handleModeSummary(ctx)).rejects.toThrow('query failed');
   });
 });

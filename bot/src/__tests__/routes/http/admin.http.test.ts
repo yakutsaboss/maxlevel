@@ -12,13 +12,8 @@ import { createTestApp } from '../../helpers/testApp.js';
 
 // ─── Mocks (hoisted before any route import) ───────────────────────
 
-const mockExecutePythonTool = vi.fn();
-const mockGetUserById = vi.fn();
-
 vi.mock('../../../utils/pythonTools.js', () => ({
-  executePythonTool: (...args: any[]) => mockExecutePythonTool(...args),
-  getUserByTelegramId: vi.fn(),
-  getUserById: (...args: any[]) => mockGetUserById(...args),
+  executePythonTool: vi.fn(),
 }));
 
 // Mock adminAuth — bypass authentication, attach a super_admin user
@@ -37,10 +32,11 @@ vi.mock('../../../api/middleware/adminAuth.js', () => ({
 }));
 
 const mockQuery = vi.fn();
+const mockQueryOne = vi.fn();
 
 vi.mock('../../../utils/db.js', () => ({
   query: (...args: any[]) => mockQuery(...args),
-  queryOne: vi.fn(),
+  queryOne: (...args: any[]) => mockQueryOne(...args),
   execute: vi.fn(),
   transaction: vi.fn(),
   getPool: vi.fn(),
@@ -66,6 +62,14 @@ import { adminRouter } from '../../../api/routes/admin.js';
 function buildApp() {
   const app = createTestApp();
   app.use('/api/admin', adminRouter);
+  // Error handler for asyncHandler errors (ApiError and generic)
+  app.use((err: any, _req: any, res: any, _next: any) => {
+    const status = err.statusCode || 500;
+    res.status(status).json({
+      success: false,
+      error: err.message || 'Internal Server Error',
+    });
+  });
   return app;
 }
 
@@ -79,30 +83,31 @@ beforeEach(() => {
 
 describe('GET /api/admin/stats', () => {
   it('should return 200 with system statistics', async () => {
-    mockExecutePythonTool
-      .mockResolvedValueOnce({ success: true, data: [{ total: 100, active: 85 }] })       // users
-      .mockResolvedValueOnce({ success: true, data: [{ total: 50, active: 10, completed: 40 }] }) // quests
-      .mockResolvedValueOnce({ success: true, data: [{ users_with_achievements: 30 }] }); // achievements
+    mockQuery
+      .mockResolvedValueOnce([{ total: 100, active: 85 }])
+      .mockResolvedValueOnce([{ total: 50, active: 10, completed: 40 }])
+      .mockResolvedValueOnce([{ users_with_achievements: 30 }]);
 
     const res = await request(buildApp())
       .get('/api/admin/stats')
       .expect(200);
 
-    expect(res.body.users.total).toBe(100);
-    expect(res.body.users.active).toBe(85);
-    expect(res.body.quests.completed).toBe(40);
-    expect(res.body.achievements.users_with_achievements).toBe(30);
-    expect(res.body.timestamp).toBeDefined();
+    expect(res.body.data.users.total).toBe(100);
+    expect(res.body.data.users.active).toBe(85);
+    expect(res.body.data.quests.completed).toBe(40);
+    expect(res.body.data.achievements.users_with_achievements).toBe(30);
+    expect(res.body.data.timestamp).toBeDefined();
   });
 
   it('should return 500 when database throws', async () => {
-    mockExecutePythonTool.mockRejectedValueOnce(new Error('DB down'));
+    mockQuery.mockRejectedValueOnce(new Error('DB down'));
 
     const res = await request(buildApp())
       .get('/api/admin/stats')
       .expect(500);
 
-    expect(res.body.error).toBe('Server Error');
+    expect(res.body.success).toBe(false);
+    expect(res.body.error).toBe('DB down');
   });
 });
 
@@ -110,62 +115,55 @@ describe('GET /api/admin/stats', () => {
 
 describe('GET /api/admin/users', () => {
   it('should return 200 with user list', async () => {
-    mockExecutePythonTool.mockResolvedValueOnce({
-      success: true,
-      data: [
-        { id: 1, username: 'alice', telegram_id: 111 },
-        { id: 2, username: 'bob', telegram_id: 222 },
-      ],
-    });
+    mockQuery.mockResolvedValueOnce([
+      { id: 1, username: 'alice', telegram_id: 111 },
+      { id: 2, username: 'bob', telegram_id: 222 },
+    ]);
 
     const res = await request(buildApp())
       .get('/api/admin/users')
       .expect(200);
 
-    expect(res.body.users).toHaveLength(2);
-    expect(res.body.users[0].username).toBe('alice');
-    expect(res.body.limit).toBe(50);
-    expect(res.body.offset).toBe(0);
+    expect(res.body.data.users).toHaveLength(2);
+    expect(res.body.data.users[0].username).toBe('alice');
+    expect(res.body.data.limit).toBe(50);
+    expect(res.body.data.offset).toBe(0);
   });
 
-  it('should return 500 when python tool fails', async () => {
-    mockExecutePythonTool.mockResolvedValueOnce({ success: false, error: 'timeout' });
+  it('should return 500 when database throws', async () => {
+    mockQuery.mockRejectedValueOnce(new Error('DB query failed'));
 
     const res = await request(buildApp())
       .get('/api/admin/users')
       .expect(500);
 
-    expect(res.body.error).toBe('Server Error');
+    expect(res.body.success).toBe(false);
+    expect(res.body.error).toBe('DB query failed');
   });
 });
 
 describe('GET /api/admin/users/:userId', () => {
   it('should return 200 with user detail', async () => {
-    mockGetUserById.mockResolvedValueOnce({
-      success: true,
-      data: { id: 1, username: 'alice', telegram_id: 111 },
-    });
-    mockExecutePythonTool.mockResolvedValueOnce({
-      success: true,
-      data: { total_xp: 2500, current_level: 5 },
-    });
+    mockQueryOne
+      .mockResolvedValueOnce({ id: 1, username: 'alice', telegram_id: 111 })
+      .mockResolvedValueOnce({ total_xp: 2500, current_level: 5 });
 
     const res = await request(buildApp())
       .get('/api/admin/users/1')
       .expect(200);
 
-    expect(res.body.user.username).toBe('alice');
-    expect(res.body.stats.total_xp).toBe(2500);
+    expect(res.body.data.user.username).toBe('alice');
+    expect(res.body.data.stats.total_xp).toBe(2500);
   });
 
   it('should return 404 for unknown user', async () => {
-    mockGetUserById.mockResolvedValueOnce({ success: false, data: null });
+    mockQueryOne.mockResolvedValueOnce(null);
 
     const res = await request(buildApp())
       .get('/api/admin/users/999')
       .expect(404);
 
-    expect(res.body.error).toBe('Not Found');
+    expect(res.body.error).toBe('User not found');
   });
 });
 
@@ -182,8 +180,8 @@ describe('GET /api/admin/jobs', () => {
       .get('/api/admin/jobs')
       .expect(200);
 
-    expect(res.body.jobs).toHaveLength(2);
-    expect(res.body.jobs[0].name).toBe('streak-check');
+    expect(res.body.data.jobs).toHaveLength(2);
+    expect(res.body.data.jobs[0].name).toBe('streak-check');
   });
 
   it('should return 500 when getRegisteredJobs throws', async () => {
@@ -193,7 +191,7 @@ describe('GET /api/admin/jobs', () => {
       .get('/api/admin/jobs')
       .expect(500);
 
-    expect(res.body.error).toBe('Server Error');
+    expect(res.body.error).toBe('Failed to list jobs');
   });
 });
 
@@ -209,8 +207,8 @@ describe('POST /api/admin/jobs/:name/trigger', () => {
       .post('/api/admin/jobs/streak-check/trigger')
       .expect(200);
 
-    expect(res.body.message).toBe("Job 'streak-check' triggered");
-    expect(res.body.jobId).toBe('job-id-123');
+    expect(res.body.data.message).toBe("Job 'streak-check' triggered");
+    expect(res.body.data.jobId).toBe('job-id-123');
   });
 
   it('should return 503 when job queue is not running', async () => {
@@ -220,7 +218,7 @@ describe('POST /api/admin/jobs/:name/trigger', () => {
       .post('/api/admin/jobs/streak-check/trigger')
       .expect(503);
 
-    expect(res.body.error).toBe('Service Unavailable');
+    expect(res.body.error).toBe('Job queue is not running');
   });
 
   it('should return 404 for unknown job name', async () => {
@@ -234,7 +232,7 @@ describe('POST /api/admin/jobs/:name/trigger', () => {
       .post('/api/admin/jobs/nonexistent/trigger')
       .expect(404);
 
-    expect(res.body.error).toBe('Not Found');
+    expect(res.body.error).toContain('not found');
   });
 });
 
@@ -257,9 +255,9 @@ describe('POST /api/admin/broadcast', () => {
       .expect(200);
 
     expect(res.body.success).toBe(true);
-    expect(res.body.sent).toBe(2);
-    expect(res.body.failed).toBe(0);
-    expect(res.body.total).toBe(2);
+    expect(res.body.data.sent).toBe(2);
+    expect(res.body.data.failed).toBe(0);
+    expect(res.body.data.total).toBe(2);
 
     globalThis.fetch = originalFetch;
   });
@@ -274,8 +272,8 @@ describe('POST /api/admin/broadcast', () => {
       .expect(200);
 
     expect(res.body.success).toBe(true);
-    expect(res.body.sent).toBe(0);
-    expect(res.body.total).toBe(0);
+    expect(res.body.data.sent).toBe(0);
+    expect(res.body.data.total).toBe(0);
   });
 
   it('should return 400 when message is missing', async () => {
@@ -284,7 +282,7 @@ describe('POST /api/admin/broadcast', () => {
       .send({})
       .expect(400);
 
-    expect(res.body.error).toBe('Bad Request');
+    expect(res.body.error).toBe('Message is required');
   });
 
   it('should handle failed message sends gracefully', async () => {
@@ -305,8 +303,8 @@ describe('POST /api/admin/broadcast', () => {
       .expect(200);
 
     expect(res.body.success).toBe(true);
-    expect(res.body.sent).toBe(1);
-    expect(res.body.failed).toBe(1);
+    expect(res.body.data.sent).toBe(1);
+    expect(res.body.data.failed).toBe(1);
 
     globalThis.fetch = originalFetch;
   });
@@ -325,10 +323,10 @@ describe('GET /api/admin/logs', () => {
       .get('/api/admin/logs')
       .expect(200);
 
-    expect(res.body.logs).toHaveLength(2);
-    expect(res.body.logs[0].level).toBe('info');
-    expect(res.body.logs[0].source).toBe('job:streak-check');
-    expect(res.body.logs[1].level).toBe('error');
+    expect(res.body.data.logs).toHaveLength(2);
+    expect(res.body.data.logs[0].level).toBe('info');
+    expect(res.body.data.logs[0].source).toBe('job:streak-check');
+    expect(res.body.data.logs[1].level).toBe('error');
   });
 
   it('should return empty logs when no jobs found', async () => {
@@ -338,6 +336,6 @@ describe('GET /api/admin/logs', () => {
       .get('/api/admin/logs')
       .expect(200);
 
-    expect(res.body.logs).toHaveLength(0);
+    expect(res.body.data.logs).toHaveLength(0);
   });
 });
