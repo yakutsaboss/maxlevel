@@ -64,26 +64,26 @@ class AchievementManager:
 
             # Get achievement details
             cursor.execute("""
-                SELECT id, name, description, xp_reward, rarity, icon
+                SELECT id, name, description, xp_bonus, rarity, badge_icon
                 FROM achievements
-                WHERE id = %s AND is_active = true
+                WHERE id = %s
             """, (achievement_id,))
 
             achievement = cursor.fetchone()
             if not achievement:
                 return {
                     "success": False,
-                    "error": "Achievement not found or inactive"
+                    "error": "Achievement not found"
                 }
 
-            a_id, name, description, xp_reward, rarity, icon = achievement
+            a_id, name, description, xp_bonus, rarity, badge_icon = achievement
 
             # Unlock achievement
             cursor.execute("""
                 INSERT INTO user_achievements (
-                    user_id, achievement_id, unlocked_at, progress
+                    user_id, achievement_id, unlocked_at
                 )
-                VALUES (%s, %s, NOW(), 100)
+                VALUES (%s, %s, NOW())
                 RETURNING id, unlocked_at
             """, (user_id, achievement_id))
 
@@ -96,9 +96,9 @@ class AchievementManager:
                     "id": a_id,
                     "name": name,
                     "description": description,
-                    "xp_reward": xp_reward,
+                    "xp_bonus": xp_bonus,
                     "rarity": rarity,
-                    "icon": icon,
+                    "badge_icon": badge_icon,
                     "unlocked_at": result[1].isoformat() if result[1] else None
                 },
                 "user_id": user_id
