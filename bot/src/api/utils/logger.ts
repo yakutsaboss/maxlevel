@@ -97,8 +97,7 @@ class Logger {
   }
 
   private writeDev(entry: LogEntry, level: LogLevel): void {
-    const { timestamp, message, error: errObj, ...rest } = entry;
-    delete rest.level;
+    const { timestamp, level: _level, message, error: errObj, ...rest } = entry;
 
     const time = timestamp.split('T')[1]?.replace('Z', '') ?? timestamp;
     const prefix = `[${time}] [${level.toUpperCase()}]`;
