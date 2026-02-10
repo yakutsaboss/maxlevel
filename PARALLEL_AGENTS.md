@@ -204,34 +204,38 @@ Use this structure when creating a new run. Copy and adapt:
 
 ---
 
-## Known Issues (Updated after Run 13)
+## Known Issues (Updated after Run 14)
+
+### Resolved in Run 14
+- ~~**#1 `1 AS target` in users.ts + quests.ts**~~ — Agent A fixed all 3 in users.ts + 1 in quests.ts to use `qi.target`.
+- ~~**#4 Python quest_manager.py ignores target**~~ — Agent B made assign/active/completed target-aware.
+- ~~**#5 API response format inconsistent**~~ — Agents B+D wrapped all quest + achievement endpoints in `{success, data}`.
+- ~~**#8 Profile.tsx `as any` casts**~~ — Agent C removed perModeStreaks + rarity/category casts.
+- ~~**#9 Redundant +1/+5 progress buttons**~~ — Agent C removed buttons + dead code from Quests.tsx.
+- ~~**#10 Monthly leaderboard**~~ — Agent D added backend endpoint + frontend Monthly tab.
 
 ### Resolved in Run 13
-- ~~**#1 Achievement engine duplication**~~ — Agent B consolidated: POST /check now delegates to `achievementEngine.ts`. ~150 lines removed.
-- ~~**#4 Backend check-in hardcoded target**~~ — Agent A fixed `checkins.ts` to use `qi.target`. **BUT** `1 AS target` remains in `users.ts` (3 places) and `quests.ts` (1 place) — Run 14 fixes these.
-- ~~**#5 GET /achievements/users/:userId inconsistent**~~ — Agent B wrapped in `{success, data}`. Note: other achievement endpoints still bare.
-- ~~**#8 perModeStreaks not in TypeScript**~~ — Agent C added to `UserStats` interface. Dashboard cast removed. Profile cast remains (TODO).
-- ~~**#9 Stat grid / Today's Progress overlap**~~ — Agent C consolidated: stat grid = all-time, Today's Progress = today-only.
-- ~~**#11 Settings punishment auto-save**~~ — Agent F implemented with debounce + haptic feedback.
-- ~~**#12 Achievement notifier dedup**~~ — Agent B added `notification_sent_at` column + IS NULL filter.
+- ~~Achievement engine duplication~~ — POST /check delegates to `achievementEngine.ts`.
+- ~~Backend check-in hardcoded target~~ — `checkins.ts` uses `qi.target`.
+- ~~GET /achievements/users/:userId inconsistent~~ — wrapped in `{success, data}`.
+- ~~perModeStreaks not in TypeScript~~ — added to `UserStats` interface.
+- ~~Stat grid / Today's Progress overlap~~ — consolidated sections.
+- ~~Settings punishment auto-save~~ — debounce + haptic feedback.
+- ~~Achievement notifier dedup~~ — `notification_sent_at` column + IS NULL filter.
 
 ### MVP-Critical (Still Open)
-1. **`1 AS target` still in users.ts + quests.ts** — `users.ts` lines 83, 225, 278 and `quests.ts` line 237 still return `1 AS target`. Frontend gets wrong target for quest display, step indicators, remaining counts. **Run 14 Agent A fixes this.**
-2. **Daily quest assignment UNVERIFIED** — `dailyQuestReset.ts` job exists but no confirmation it fires and assigns quests on the live server.
-3. **Notification delivery UNVERIFIED** — 10 scheduled pg-boss jobs exist but no confirmation they send Telegram messages to users.
-4. **Python quest_manager.py ignores target column** — `assign_quest()` doesn't set target, `get_active_quests()` and `get_completed_quests()` don't SELECT it. **Run 14 Agent B fixes this.**
-5. **API response format inconsistent** — `quests.ts` GET endpoints return bare `{quests, count}`, several achievement endpoints return bare format. **Run 14 Agents B+D fix this.**
+1. **Daily quest assignment UNVERIFIED** — `dailyQuestReset.ts` job exists but no confirmation it fires and assigns quests on the live server.
+2. **Notification delivery UNVERIFIED** — 10 scheduled pg-boss jobs exist but no confirmation they send Telegram messages to users.
+3. **PATCH /progress missing authorization** — Agent A removed `user_id` body check (Run 14), but no replacement ownership validation exists. Any authenticated user could update any quest instance.
 
 ### Non-Critical (Still Open)
+4. **client.ts double-wrapping** — Achievement endpoints (`checkAchievements`, etc.) and quest endpoints may double-wrap `{success, data}` now that backend returns the wrapper. Audit `client.ts`.
+5. **Dead code: `updateQuestProgress` in client.ts** — No longer called after +1/+5 button removal. Should be removed.
 6. **pg-boss Node.js mismatch** — Requires 22.12+, server has 20.20. Only triggers warnings, no functional impact yet.
 7. **Mode configs unused** — `mode_configs` table stores quiz responses + personalized plans, but data is never consumed.
-8. **Profile.tsx still has `as any` casts** — `perModeStreaks` cast (line 189) and `achievement.rarity` cast (line 245) are unnecessary. **Run 14 Agent C fixes this.**
-9. **Redundant +1/+5 progress buttons** — `Quests.tsx` has manual progress buttons that bypass check-in flow and are broken (missing `user_id`). **Run 14 Agent C removes these.**
-10. **Monthly leaderboard** — No `GET /leaderboard/monthly` endpoint exists. **Run 14 Agent D adds this.**
 
 ---
 
-<<<<<<< HEAD
 ## RUN 13: Parallel Agents (6 Agents + Agent 0)
 
 ### Focus: Fix Broken Game Loop — Check-in Targets, Achievement Dedup, TypeScript Types, UX Polish
@@ -1343,3 +1347,40 @@ PGPASSWORD=postgres psql -h localhost -U postgres -d telegram_rpg -f /opt/wibeco
 **Recommendations for next run:**
 - The mini-app client currently wraps some achievement responses in `{success, data}` manually (e.g., `checkAchievements` on line 120). Now that the backend returns the wrapper, these client-side wraps create double-nesting (`{success, data: {success, data: ...}}`). Consider auditing `client.ts` to remove manual wrapping where the backend now provides it.
 - The monthly leaderboard has the same rank field pattern as weekly (`rank: index + 1` computed server-side). The all-time leaderboard uses `xp_rank` from ROW_NUMBER(). Consider standardizing rank computation across all endpoints.
+
+#### Agent 0 Retrospective
+
+**Run 14 Merge Summary:**
+
+All 4 agents merged successfully. 19 total commits across 4 branches.
+
+| Agent | Branch | Commits | Conflict | Resolution |
+|-------|--------|---------|----------|------------|
+| A | `feature/r14-target-fix` | 5 | Pre-merged to main | Already on main before Agent 0 started |
+| B | `feature/r14-python-quest-api` | 5 | None (auto-merged) | — |
+| C | `feature/r14-frontend-cleanup` | 3 | Pre-merged to main | Already on main before Agent 0 started |
+| D | `feature/r14-api-consistency` | 6 | None (auto-merged) | — |
+
+**Migrations run on server:**
+- `run14_notification_backfill.sql` — `UPDATE 0` (no rows needed backfill — no existing achievements yet)
+
+**Protocol improvement:**
+- Added Step 9 to Agent 0 Self-Protocol: send a Telegram notification via the notification bot summarizing each agent's work after deploy. Includes Notification Command template.
+
+**What went well:**
+- Zero merge conflicts across all branches — `quests.ts` shared by A (PATCH) and B (GET) auto-merged cleanly as predicted
+- All retrospective sections were properly filled by agents (no splicing needed)
+- Both builds passed clean on first try, locally and on server
+- First notification sent via the new protocol step — confirmed delivery
+
+**Issues discovered:**
+- Agent D flagged: `client.ts` may double-wrap `{success, data}` for achievement endpoints now that backend returns the wrapper. Audit needed.
+- Agent B flagged: mini-app client may need updating to unwrap new `{success, data}` envelope from quest GET endpoints
+- Agent A flagged: PATCH `/progress` lost authorization check (body `user_id` was the only ownership validation)
+- Agent C flagged: `updateQuestProgress` in `client.ts` is now dead code
+
+**Recommendations for next run:**
+- Audit `client.ts` for double-wrapping of API responses (achievements + quests endpoints changed format)
+- Remove dead `updateQuestProgress` method from `client.ts`
+- Add quest ownership check to PATCH `/progress` endpoint
+- Verify daily quest assignment + notifications actually fire on live server (Known Issues #2 and #3)
