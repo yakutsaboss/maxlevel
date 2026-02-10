@@ -42,6 +42,13 @@ function AppContent() {
     checkOnboardingState();
   }, [user?.id]);
 
+  // When onboarding completes in-session, update routing immediately
+  useEffect(() => {
+    if (store.isCompleted) {
+      setNeedsOnboarding(false);
+    }
+  }, [store.isCompleted]);
+
   const checkOnboardingState = async () => {
     if (!user?.id) {
       setCheckingOnboarding(false);
