@@ -1621,3 +1621,35 @@ Find your section under "Run 15 Retrospectives" below and replace the placeholde
 
 #### Agent 0 Retrospective
 *(To be filled by Agent 0)*
+
+---
+
+### Run 16 Retrospectives
+
+#### Agent A Retrospective
+**All 8 tasks completed. No build needed (Python-only changes).**
+
+| # | Task | Status | Commit |
+|---|------|--------|--------|
+| 1 | Fix unlock_achievement() column names (xp_bonus, badge_icon, remove is_active, remove progress from INSERT) | Done | `23a2e3d` |
+| 2 | Fix check_and_unlock_achievements() to use JSONB criteria and correct columns | Done | `7538215` |
+| 3 | Fix get_user_achievements() column names (remove category, progress) | Done | `21fe252` |
+| 4 | Fix get_available_achievements() column names | Done | `3a0d843` |
+| 5 | Fix get_recent_achievements() column names | Done | `c6099be` |
+| 6 | Fix get_achievement_stats() (remove is_active filter, remove category grouping) | Done | `7b4318c` |
+| 7 | Fix list_all_achievements() column names | Done | `35ae1ee` |
+| 8 | Fix _format_criteria() to accept JSONB dict instead of two separate args | Done | `1742238` |
+
+**Problems faced:** None — every function followed the same pattern of wrong column names.
+
+**Key changes:**
+- **Every SQL query** now uses correct column names: `xp_bonus` (not `xp_reward`), `badge_icon` (not `icon`), `criteria` JSONB (not `criteria_type`/`criteria_value`)
+- **Removed all `is_active = true` filters** — column doesn't exist in the schema
+- **Removed all `category` references** — column doesn't exist
+- **Removed `progress` from INSERT** into user_achievements — column doesn't exist
+- **`_format_criteria()`** now accepts a JSONB dict and extracts `type`, `value`/`days`/`count` keys internally
+- **Added `quest_complete` and `quest_complete_consecutive`** to the criteria type handlers (matching actual seed data)
+
+**Recommendations for next run:**
+- The `user_stats` view/table referenced in `check_and_unlock_achievements()` (line 135) should be verified — it selects `level, total_xp, current_streak, longest_streak, quests_completed, daily_quests_completed, weekly_quests_completed` which may or may not exist as a view.
+- Consider adding a `--dry-run` flag to `check_and_unlock_achievements()` for testing without actually unlocking.
