@@ -1,5 +1,6 @@
-import { useEffect, useState, useRef, useCallback } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useTelegram } from '@/hooks/useTelegram';
+import { usePullToRefresh, PullIndicator } from '@/hooks/usePullToRefresh';
 import { apiClient } from '@/api/client';
 import { Achievement, UserAchievement } from '@/types';
 import { Trophy, AlertCircle, RefreshCw, Star, Lock, CheckCircle, Zap } from 'lucide-react';
@@ -30,42 +31,6 @@ export function Achievements() {
   const [userAchievements, setUserAchievements] = useState<UserAchievement[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
-  const [refreshing, setRefreshing] = useState(false);
-  const [pullDistance, setPullDistance] = useState(0);
-  const touchStartY = useRef(0);
-  const isPulling = useRef(false);
-  const containerRef = useRef<HTMLDivElement>(null);
-
-  const PULL_THRESHOLD = 60;
-
-  const handleTouchStart = useCallback((e: React.TouchEvent) => {
-    if (containerRef.current && containerRef.current.scrollTop === 0) {
-      touchStartY.current = e.touches[0].clientY;
-      isPulling.current = true;
-    }
-  }, []);
-
-  const handleTouchMove = useCallback((e: React.TouchEvent) => {
-    if (!isPulling.current) return;
-    const distance = Math.max(0, e.touches[0].clientY - touchStartY.current);
-    setPullDistance(Math.min(distance * 0.5, 80));
-  }, []);
-
-  const handleTouchEnd = useCallback(async () => {
-    if (!isPulling.current) return;
-    isPulling.current = false;
-    if (pullDistance >= PULL_THRESHOLD && !refreshing) {
-      haptic.impact('medium');
-      setRefreshing(true);
-      setPullDistance(0);
-      await loadData();
-      setRefreshing(false);
-    } else {
-      setPullDistance(0);
-    }
-  }, [pullDistance, refreshing, haptic]);
-
-  useEffect(() => { loadData(); }, [user]);
 
   const loadData = async () => {
     if (!user?.id) { setLoading(false); return; }
@@ -83,6 +48,11 @@ export function Achievements() {
       setError(true);
     } finally { setLoading(false); }
   };
+
+  const handleRefresh = useCallback(async () => { await loadData(); }, []);
+  const { containerRef, pullDistance, refreshing, pullThreshold, touchHandlers } = usePullToRefresh(handleRefresh, haptic);
+
+  useEffect(() => { loadData(); }, [user]);
 
   const unlockedIds = new Set(userAchievements.map(ua => ua.achievement_id));
   const unlockedCount = userAchievements.length;
@@ -139,17 +109,9 @@ export function Achievements() {
     <div
       ref={containerRef}
       className="min-h-screen bg-telegram-bg text-telegram-text pb-20 overflow-y-auto"
-      onTouchStart={handleTouchStart}
-      onTouchMove={handleTouchMove}
-      onTouchEnd={handleTouchEnd}
+      {...touchHandlers}
     >
-      {/* Pull-to-refresh indicator */}
-      <div
-        className={`pull-indicator ${pullDistance > 0 ? 'active' : ''} ${refreshing ? 'refreshing' : ''}`}
-        style={{ height: pullDistance > 0 ? pullDistance : refreshing ? 48 : 0 }}
-      >
-        <RefreshCw className="w-5 h-5 text-telegram-hint" />
-      </div>
+      <PullIndicator pullDistance={pullDistance} refreshing={refreshing} pullThreshold={pullThreshold} />
 
       {/* Header */}
       <div className="bg-gradient-to-br from-amber-500 to-orange-600 p-6 rounded-b-3xl shadow-lg safe-area-top">
