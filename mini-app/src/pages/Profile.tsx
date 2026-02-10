@@ -287,15 +287,24 @@ export function Profile() {
                   <span className="font-medium">{punishmentSettings.safe_mode ? 'ON' : 'OFF'}</span>
                 </div>
               </div>
+              <button
+                onClick={() => { haptic.impact('light'); navigate('/settings'); }}
+                className="mt-3 text-xs text-telegram-link font-medium active:opacity-70 transition-opacity"
+              >
+                Edit in Settings →
+              </button>
             </div>
           ) : (
-            <div className="flex items-center gap-3">
+            <div
+              className="flex items-center gap-3 cursor-pointer active:opacity-70 transition-opacity"
+              onClick={() => { haptic.impact('light'); navigate('/settings'); }}
+            >
               <div className="w-8 h-8 rounded-full bg-telegram-hint/20 flex items-center justify-center">
                 <Shield className="w-4 h-4 text-telegram-hint" />
               </div>
               <div>
                 <span className="text-sm font-medium text-telegram-hint">Accountability Off</span>
-                <p className="text-xs text-telegram-hint/70">Enable in Settings to add quest failure penalties</p>
+                <p className="text-xs text-telegram-link">Tap to enable in Settings →</p>
               </div>
             </div>
           )}
