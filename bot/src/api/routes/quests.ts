@@ -234,7 +234,7 @@ router.patch('/:questId/progress', authenticateTelegram, mutationLimiter, async 
     // Fetch the quest instance and its target
     const quest = await queryOne(
       `SELECT qi.id, qi.user_id, qi.status, qi.check_in_count AS current_progress,
-              q.xp_reward, q.title, q.mode_id, 1 AS target
+              q.xp_reward, q.title, q.mode_id, qi.target
        FROM quest_instances qi
        JOIN quests q ON qi.quest_id = q.id
        WHERE qi.id = $1`,
