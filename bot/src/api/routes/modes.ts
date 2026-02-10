@@ -16,7 +16,7 @@ router.get('/', authenticateTelegram, async (req: Request, res: Response) => {
       query(`SELECT id, name, display_name, description, icon_emoji AS icon FROM modes ORDER BY id`)
     );
 
-    res.json({ modes, count: modes.length });
+    res.json({ success: true, data: { modes, count: modes.length } });
   } catch (error) {
     console.error('Error fetching modes:', error);
     res.status(500).json({ error: 'Server Error', message: 'Failed to fetch modes' });
@@ -40,7 +40,7 @@ router.get('/users/:userId', authenticateTelegram, async (req: Request, res: Res
       [userId]
     );
 
-    res.json({ modes: rows, count: rows.length });
+    res.json({ success: true, data: { modes: rows, count: rows.length } });
   } catch (error) {
     console.error('Error fetching user modes:', error);
     res.status(500).json({ error: 'Server Error', message: 'Failed to fetch user modes' });
@@ -76,7 +76,7 @@ router.get('/users/:userId/summary', authenticateTelegram, async (req: Request, 
       [userId]
     );
 
-    res.json({ summary: rows });
+    res.json({ success: true, data: { summary: rows } });
   } catch (error) {
     console.error('Error fetching mode summary:', error);
     res.status(500).json({ error: 'Server Error', message: 'Failed to fetch mode summary' });
@@ -105,7 +105,7 @@ router.post('/users/:userId', authenticateTelegram, async (req: Request, res: Re
       return res.status(500).json({ error: 'Server Error', message: 'Failed to add modes' });
     }
 
-    res.json({ message: 'Modes added successfully', modes: result.data || [] });
+    res.json({ success: true, data: { message: 'Modes added successfully', modes: result.data || [] } });
   } catch (error) {
     console.error('Error adding modes:', error);
     res.status(500).json({ error: 'Server Error', message: 'Failed to add modes' });
@@ -129,7 +129,7 @@ router.delete('/users/:userId/:modeId', authenticateTelegram, async (req: Reques
       return res.status(404).json({ error: 'Not Found', message: 'Mode not found for user' });
     }
 
-    res.json({ message: 'Mode removed successfully' });
+    res.json({ success: true, data: { message: 'Mode removed successfully' } });
   } catch (error) {
     console.error('Error removing mode:', error);
     res.status(500).json({ error: 'Server Error', message: 'Failed to remove mode' });
@@ -161,7 +161,7 @@ router.patch('/users/:userId/:modeId', authenticateTelegram, async (req: Request
       return res.status(404).json({ error: 'Not Found', message: 'Mode not found for user' });
     }
 
-    res.json({ message: 'Mode settings updated successfully', settings: row.settings || settings });
+    res.json({ success: true, data: { message: 'Mode settings updated successfully', settings: row.settings || settings } });
   } catch (error) {
     console.error('Error updating mode settings:', error);
     res.status(500).json({ error: 'Server Error', message: 'Failed to update mode settings' });
@@ -187,7 +187,7 @@ router.get('/:modeId/quests', authenticateTelegram, async (req: Request, res: Re
       )
     );
 
-    res.json({ quests, count: quests.length });
+    res.json({ success: true, data: { quests, count: quests.length } });
   } catch (error) {
     console.error('Error fetching mode quests:', error);
     res.status(500).json({ error: 'Server Error', message: 'Failed to fetch mode quests' });

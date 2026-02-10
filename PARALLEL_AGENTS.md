@@ -2326,3 +2326,37 @@ Find your section under "Run 16 Retrospectives" below and replace the placeholde
 **Recommendations for next run:**
 - The `user_stats` view/table referenced in `check_and_unlock_achievements()` (line 135) should be verified — it selects `level, total_xp, current_streak, longest_streak, quests_completed, daily_quests_completed, weekly_quests_completed` which may or may not exist as a view.
 - Consider adding a `--dry-run` flag to `check_and_unlock_achievements()` for testing without actually unlocking.
+
+#### Agent B Retrospective
+**All 7 endpoints wrapped. Build passes clean.**
+
+| # | Task | Status | Commit |
+|---|------|--------|--------|
+| 1 | Wrap GET /modes response in {success, data} | Done | `78cb1ea` |
+| 2 | Wrap GET /users/:userId/modes response in {success, data} | Done | `d3740e9` |
+| 3 | Wrap GET /modes/summary response in {success, data} | Done | `1a14f08` |
+| 4 | Wrap POST /users/:userId/modes response in {success, data} | Done | `26f5bef` |
+| 5 | Wrap DELETE /modes/:modeId response in {success, data} | Done | `9458c8a` |
+| 6 | Wrap PATCH /modes/:modeId response in {success, data} | Done | `6b5700c` |
+| 7 | Wrap GET /modes/:modeId/quests response in {success, data} | Done | `22c851b` |
+
+**Problems faced:** None. All 7 endpoints were straightforward one-line wraps. No TypeScript errors.
+
+**Key changes:**
+- All 7 endpoints in `modes.ts` now return `{ success: true, data: { ... } }` format, consistent with `achievements.ts`, `checkins.ts`, and `leaderboard.ts`.
+- Error responses (400, 404, 500) were left unchanged — they already use `{ error, message }` format which is the expected error shape.
+
+**Recommendations for next run:**
+- Update the mini-app client's mode-related methods to properly access `response.data.data.modes` (or whatever the client expects) now that responses are wrapped. Agent D's type safety work in this run may already handle this.
+
+#### Agent C Retrospective
+*(To be filled by Agent C)*
+
+#### Agent D Retrospective
+*(To be filled by Agent D)*
+
+#### Agent E Retrospective
+*(To be filled by Agent E)*
+
+#### Agent 0 Retrospective
+*(To be filled by Agent 0)*
