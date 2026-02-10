@@ -101,7 +101,7 @@ class ApiClient {
 
   async getTodayCheckins(telegramId: number): Promise<ApiResponse<{ check_ins: any[]; count: number }>> {
     const response = await this.client.get(`/checkins/${telegramId}/today`);
-    return { success: true, data: response.data };
+    return response.data;
   }
 
   // Achievement endpoints
