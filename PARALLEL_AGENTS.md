@@ -1322,3 +1322,35 @@ Read PARALLEL_AGENTS.md — you are Agent E for Run 21. Your job: (1) Apply asyn
 **Known Issues resolved:** Items 4-10 all addressed.
 
 <!-- Next run goes here. Agent 0 will append RUN 22 below this line. -->
+
+### Run 22 Retrospectives
+
+#### Agent C Retrospective
+**Status:** All 7 tasks completed. Build passes cleanly (tsc + vite build, 0 errors).
+
+| # | Task | Status |
+|---|------|--------|
+| 1 | Extract Dashboard inline helpers (StatCard, ModeCard, QuestCardMini, DashboardAchievementCard) into `components/dashboard/` | Done |
+| 2 | Create `DashboardSkeleton.tsx` — extract loading skeleton (42 lines) | Done |
+| 3 | Simplify `Dashboard.tsx` — replace inline helpers + skeleton with imports (275→183 lines) | Done |
+| 4 | Create `useProfileData` hook — extract Profile.tsx state + data loading (63 lines) | Done |
+| 5 | Create `ProfileSkeleton.tsx` — extract loading skeleton (44 lines) | Done |
+| 6 | Simplify `Profile.tsx` — replace state/loading with hook + skeleton (201→125 lines) | Done |
+| 7 | Build verification (`tsc && vite build`) | Pass |
+
+**New files created:**
+- `components/dashboard/StatCard.tsx` (12 lines) — stat card with icon, label, value, color
+- `components/dashboard/ModeCard.tsx` (13 lines) — mode card with icon + name
+- `components/dashboard/QuestCardMini.tsx` (35 lines) — quest card with progress bar, XP badge, difficulty
+- `components/dashboard/DashboardAchievementCard.tsx` (12 lines) — achievement card with icon + name
+- `components/dashboard/DashboardSkeleton.tsx` (44 lines) — full dashboard loading skeleton
+- `components/profile/ProfileSkeleton.tsx` (44 lines) — full profile loading skeleton
+- `hooks/useProfileData.ts` (63 lines) — custom hook for Profile data fetching + state
+
+**Net result:** Dashboard.tsx 275→183 lines (–92). Profile.tsx 201→125 lines (–76). Total: –168 lines from page components, +223 lines in extracted modules. Code is now more modular and each component/hook has a single responsibility.
+
+**Problems faced:** None — straightforward extraction with no type issues or import complications.
+
+**Recommendations for next run:**
+- Dashboard.tsx still has inline state management (~45 lines) that could become a `useDashboardData` hook
+- The streak section in Profile.tsx (lines 46-60) could be a `ProfileStreak` sub-component for consistency with the other Profile sub-components
