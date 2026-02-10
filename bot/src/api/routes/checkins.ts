@@ -183,10 +183,13 @@ router.get('/:telegramId/history', authenticateTelegram, readLimiter, async (req
     );
 
     res.json({
-      check_ins: rows,
-      page,
-      limit,
-      count: rows.length,
+      success: true,
+      data: {
+        check_ins: rows,
+        page,
+        limit,
+        count: rows.length,
+      },
     });
   } catch (error) {
     console.error('Error fetching check-in history:', error);
