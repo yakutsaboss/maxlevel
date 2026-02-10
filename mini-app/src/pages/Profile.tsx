@@ -1,8 +1,6 @@
-import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTelegram } from '@/hooks/useTelegram';
-import { apiClient } from '@/api/client';
-import { UserStats, UserAchievement, Achievement } from '@/types';
+import { useProfileData } from '@/hooks/useProfileData';
 import { Calendar } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { ProfileEditModal } from '@/components/ProfileEditModal';
@@ -11,98 +9,24 @@ import { ProfileHeader } from '@/components/profile/ProfileHeader';
 import { ProfileModes } from '@/components/profile/ProfileModes';
 import { ProfileAchievements } from '@/components/profile/ProfileAchievements';
 import { ProfileAccountability } from '@/components/profile/ProfileAccountability';
+import { ProfileSkeleton } from '@/components/profile/ProfileSkeleton';
 import { ErrorSection } from '@/components/ErrorSection';
 import { formatDate } from '@/utils/formatDate';
 
 export function Profile() {
   const { user, haptic } = useTelegram();
   const navigate = useNavigate();
-  const [stats, setStats] = useState<UserStats | null>(null);
-  const [achievements, setAchievements] = useState<UserAchievement[]>([]);
-  const [allAchievements, setAllAchievements] = useState<Achievement[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(false);
-  const [editModalOpen, setEditModalOpen] = useState(false);
-  const [toast, setToast] = useState<{ message: string; variant: 'success' | 'error' | 'info' } | null>(null);
-  const [punishmentSettings, setPunishmentSettings] = useState<{ consent_given: boolean; intensity_level: string; safe_mode: boolean } | null>(null);
-  const [punishmentHistory, setPunishmentHistory] = useState<Array<{ xp_deducted: number; punishment_type: string; applied_at: string; notes: string }>>([]);
-
-  useEffect(() => { loadProfileData(); }, [user]);
-
-  const loadProfileData = async () => {
-    if (!user?.id) { setLoading(false); return; }
-    try {
-      setLoading(true);
-      setError(false);
-      const [statsRes, achievementsRes, allAchRes] = await Promise.all([
-        apiClient.getUserStats(user.id),
-        apiClient.getUserAchievements(user.id),
-        apiClient.getAchievements(),
-      ]);
-      if (statsRes.success && statsRes.data) { setStats(statsRes.data); }
-      if (achievementsRes.success && achievementsRes.data) { setAchievements(achievementsRes.data); }
-      if (allAchRes.success && allAchRes.data) { setAllAchievements(allAchRes.data); }
-      try {
-        const punishRes = await apiClient.getPunishmentSettings(user.id);
-        if (punishRes.success && punishRes.data) { setPunishmentSettings(punishRes.data); }
-        if (punishRes.success && punishRes.data?.consent_given) {
-          try {
-            const historyRes = await apiClient.getPunishmentHistory(user.id);
-            if (historyRes.success && historyRes.data?.punishments) {
-              setPunishmentHistory(historyRes.data.punishments);
-            }
-          } catch { /* History API not available yet */ }
-        }
-      } catch { /* Punishment API not available yet — silently skip */ }
-    } catch (error) {
-      console.error('Failed to load profile data:', error);
-      setError(true);
-    } finally { setLoading(false); }
-  };
+  const {
+    stats, achievements, allAchievements,
+    loading, error,
+    punishmentSettings, punishmentHistory,
+    loadProfileData,
+    editModalOpen, setEditModalOpen,
+    toast, setToast,
+  } = useProfileData(user?.id);
 
   if (loading) {
-    return (
-      <div className="min-h-screen bg-telegram-bg pb-20">
-        <div className="bg-gradient-to-br from-purple-600 via-pink-600 to-orange-500 p-6 rounded-b-3xl">
-          <div className="text-center">
-            <div className="skeleton w-24 h-24 rounded-full mx-auto mb-4" />
-            <div className="skeleton h-7 w-40 rounded-lg mx-auto mb-2" />
-            <div className="skeleton h-4 w-24 rounded-lg mx-auto mb-6" />
-            <div className="flex justify-center gap-6 mt-6">
-              {[1, 2, 3].map((i) => (
-                <div key={i} className="text-center">
-                  <div className="skeleton w-16 h-16 rounded-2xl mb-2" />
-                  <div className="skeleton h-3 w-14 rounded-lg" />
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-        <div className="px-4 mt-6"><div className="skeleton h-24 w-full rounded-2xl" /></div>
-        <div className="px-4 mt-6">
-          <div className="skeleton-text h-5 w-28 mb-3">&nbsp;</div>
-          <div className="grid grid-cols-2 gap-3">
-            {[1, 2].map((i) => (
-              <div key={i} className="bg-telegram-secondaryBg rounded-2xl p-4 border border-telegram-hint/10">
-                <div className="skeleton w-10 h-10 rounded-lg mx-auto mb-2" />
-                <div className="skeleton-text h-4 w-20 mx-auto">&nbsp;</div>
-              </div>
-            ))}
-          </div>
-        </div>
-        <div className="px-4 mt-6 mb-6">
-          <div className="skeleton-text h-5 w-36 mb-3">&nbsp;</div>
-          <div className="grid grid-cols-3 gap-3">
-            {[1, 2, 3].map((i) => (
-              <div key={i} className="bg-telegram-secondaryBg rounded-2xl p-3 border border-telegram-hint/10">
-                <div className="skeleton w-10 h-10 rounded-lg mx-auto mb-2" />
-                <div className="skeleton-text h-3 w-full">&nbsp;</div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-    );
+    return <ProfileSkeleton />;
   }
 
   if (error || !stats) {

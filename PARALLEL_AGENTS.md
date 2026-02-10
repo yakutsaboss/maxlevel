@@ -1592,7 +1592,25 @@ Read PARALLEL_AGENTS.md — you are Agent E for Run 22. Your job: Migrate `admin
 **Recommendations:** None — the Achievements page refactor is complete.
 
 #### Agent C Retrospective
-*(To be filled by Agent C)*
+**Status:** All 7 tasks completed. Build passes cleanly (tsc + vite build, 0 errors).
+
+| # | Task | Status |
+|---|------|--------|
+| 1 | Extract Dashboard inline helpers (StatCard, ModeCard, QuestCardMini, DashboardAchievementCard) | Done |
+| 2 | Create `DashboardSkeleton.tsx` — extract loading skeleton (42 lines) | Done |
+| 3 | Simplify `Dashboard.tsx` — replace inline helpers + skeleton with imports (275→183 lines) | Done |
+| 4 | Create `useProfileData` hook — extract Profile.tsx state + data loading (63 lines) | Done |
+| 5 | Create `ProfileSkeleton.tsx` — extract loading skeleton (44 lines) | Done |
+| 6 | Simplify `Profile.tsx` — replace state/loading with hook + skeleton (201→125 lines) | Done |
+| 7 | Build verification (`tsc && vite build`) | Pass |
+
+**Net result:** Dashboard.tsx 275→183 lines (–92). Profile.tsx 201→125 lines (–76). Total: –168 lines from page components, +223 lines in extracted modules.
+
+**Problems faced:** None — straightforward extraction with no type issues or import complications.
+
+**Recommendations for next run:**
+- Dashboard.tsx still has inline state management (~45 lines) that could become a `useDashboardData` hook.
+- The streak section in Profile.tsx could be a `ProfileStreak` sub-component.
 
 #### Agent D Retrospective
 **Completed all 8 tasks. Build passes (zero errors).**
