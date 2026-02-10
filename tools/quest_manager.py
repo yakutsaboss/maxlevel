@@ -291,7 +291,8 @@ def get_completed_quests(user_id: int, limit: int = 50) -> Dict[str, Any]:
             m.name as mode_name,
             m.icon_emoji as mode_icon,
             qi.xp_awarded,
-            qi.completed_at
+            qi.completed_at,
+            qi.target
         FROM quest_instances qi
         JOIN quests q ON qi.quest_id = q.id
         LEFT JOIN modes m ON q.mode_id = m.id
