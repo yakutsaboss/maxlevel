@@ -181,4 +181,18 @@ Use this structure when creating a new run. Copy and adapt:
 
 ## Current Run
 
-*(No active run. Ready for Run 13 design.)*
+### Run 13 — Agent C Retrospective
+
+**Status:** All 3 tasks completed, build passes cleanly.
+
+| # | Task | Commit | Result |
+|---|------|--------|--------|
+| 1 | Add `perModeStreaks` to `UserStats` interface | `e6b5229` | Added optional typed array field — clean, no downstream breakage |
+| 2 | Remove `(stats as any).perModeStreaks` cast in Dashboard | `cdda732` | Replaced with `stats.perModeStreaks` — one-line fix now that type exists |
+| 3 | Consolidate stat grid vs Today's Progress | `0a54de7` | Stat grid now shows all-time metrics (Total XP, Longest Streak); Today's Progress keeps today-only data |
+
+**Problems:** None. All tasks were straightforward edits with no surprises.
+
+**Notes for Agent 0:**
+- Agent D (Profile) still has its own `(stats as any).perModeStreaks` cast. After merging C first (per merge order), D's cast can be cleaned up to use the proper type, or left as-is since it still compiles.
+- The stat grid "Achievements" card shows `recentAchievements.length` (recent count, not total). Consider changing to a total count if/when the API provides it.
