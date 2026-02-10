@@ -415,10 +415,13 @@ router.patch('/:userId/xp', authenticateTelegram, async (req: Request, res: Resp
     }
 
     res.json({
-      message: 'XP added successfully',
-      newTotal: user.total_xp,
-      newLevel: user.current_level,
-      leveledUp: false,
+      success: true,
+      data: {
+        message: 'XP added successfully',
+        newTotal: user.total_xp,
+        newLevel: user.current_level,
+        leveledUp: false,
+      },
     });
   } catch (error) {
     console.error('Error adding XP:', error);
