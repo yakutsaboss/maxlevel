@@ -127,10 +127,13 @@ router.post('/:questId/complete', authenticateTelegram, mutationLimiter, async (
     }
 
     res.json({
-      message: 'Quest completed successfully',
-      xpEarned: data?.xp_awarded || 0,
-      newLevel: data?.new_level || null,
-      leveledUp: !!data?.new_level,
+      success: true,
+      data: {
+        message: 'Quest completed successfully',
+        xpEarned: data?.xp_awarded || 0,
+        newLevel: data?.new_level || null,
+        leveledUp: !!data?.new_level,
+      },
     });
   } catch (error) {
     console.error('Error completing quest:', error);
