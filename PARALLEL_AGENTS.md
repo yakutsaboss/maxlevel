@@ -181,23 +181,30 @@ Use this structure when creating a new run. Copy and adapt:
 
 ---
 
-## Known Issues (Updated after Run 12)
+## Known Issues (Updated after Run 13)
 
-### MVP-Critical
-1. **Achievement engine needs real-world testing** — `achievementEngine.ts` + batch check job exist (Run 11) but haven't been verified with real user data. `checkCriteriaMet()` is duplicated between `achievements.ts` and `achievementEngine.ts`.
+### Resolved in Run 13
+- ~~**#1 Achievement engine duplication**~~ — Agent B consolidated: POST /check now delegates to `achievementEngine.ts`. ~150 lines removed.
+- ~~**#4 Backend check-in hardcoded target**~~ — Agent A fixed `checkins.ts` to use `qi.target`. **BUT** `1 AS target` remains in `users.ts` (3 places) and `quests.ts` (1 place) — Run 14 fixes these.
+- ~~**#5 GET /achievements/users/:userId inconsistent**~~ — Agent B wrapped in `{success, data}`. Note: other achievement endpoints still bare.
+- ~~**#8 perModeStreaks not in TypeScript**~~ — Agent C added to `UserStats` interface. Dashboard cast removed. Profile cast remains (TODO).
+- ~~**#9 Stat grid / Today's Progress overlap**~~ — Agent C consolidated: stat grid = all-time, Today's Progress = today-only.
+- ~~**#11 Settings punishment auto-save**~~ — Agent F implemented with debounce + haptic feedback.
+- ~~**#12 Achievement notifier dedup**~~ — Agent B added `notification_sent_at` column + IS NULL filter.
+
+### MVP-Critical (Still Open)
+1. **`1 AS target` still in users.ts + quests.ts** — `users.ts` lines 83, 225, 278 and `quests.ts` line 237 still return `1 AS target`. Frontend gets wrong target for quest display, step indicators, remaining counts. **Run 14 Agent A fixes this.**
 2. **Daily quest assignment UNVERIFIED** — `dailyQuestReset.ts` job exists but no confirmation it fires and assigns quests on the live server.
 3. **Notification delivery UNVERIFIED** — 10 scheduled pg-boss jobs exist but no confirmation they send Telegram messages to users.
-4. **Backend check-in hardcoded target** — `checkins.ts` uses `1 AS target`, so every check-in auto-completes the quest. Multi-step check-ins need a backend fix to use `quest.target`.
-5. **`GET /achievements/users/:userId` inconsistent** — Returns `{achievements, unlocked, total, progress}` not `{success, data}`. Inconsistent with `GET /users/:telegramId/achievements` which returns `{success, data}`.
+4. **Python quest_manager.py ignores target column** — `assign_quest()` doesn't set target, `get_active_quests()` and `get_completed_quests()` don't SELECT it. **Run 14 Agent B fixes this.**
+5. **API response format inconsistent** — `quests.ts` GET endpoints return bare `{quests, count}`, several achievement endpoints return bare format. **Run 14 Agents B+D fix this.**
 
-### Non-Critical
+### Non-Critical (Still Open)
 6. **pg-boss Node.js mismatch** — Requires 22.12+, server has 20.20. Only triggers warnings, no functional impact yet.
 7. **Mode configs unused** — `mode_configs` table stores quiz responses + personalized plans, but data is never consumed.
-8. **`perModeStreaks` not in TypeScript interface** — Dashboard and Profile use `(stats as any).perModeStreaks` cast. Should add to `UserStats` type.
-9. **Stat grid / Today's Progress overlap** — Both show XP Today on Dashboard. Consider consolidating.
-10. **Monthly leaderboard** — No `GET /leaderboard/monthly` endpoint exists. Leaderboard only has Weekly and All Time tabs.
-11. **Settings punishment auto-save** — Currently saves on global "Save Settings" button. Could auto-save independently per toggle.
-12. **Achievement notifier dedup** — May send duplicate notifications if an achievement persists across the 20-minute lookback window. Consider adding `notified_at` column to `user_achievements`.
+8. **Profile.tsx still has `as any` casts** — `perModeStreaks` cast (line 189) and `achievement.rarity` cast (line 245) are unnecessary. **Run 14 Agent C fixes this.**
+9. **Redundant +1/+5 progress buttons** — `Quests.tsx` has manual progress buttons that bypass check-in flow and are broken (missing `user_id`). **Run 14 Agent C removes these.**
+10. **Monthly leaderboard** — No `GET /leaderboard/monthly` endpoint exists. **Run 14 Agent D adds this.**
 
 ---
 
@@ -847,3 +854,381 @@ Find your section under "Run 13 Retrospectives" below and replace the placeholde
 - Known Issue #10 (monthly leaderboard) is still open — needs a backend endpoint before frontend can add the tab.
 - Consider adding a "Your Rank" sticky footer on the leaderboard when the current user is scrolled out of view.
 - The notification preferences could benefit from auto-save too (currently still uses the global button), but that's a minor UX improvement.
+
+#### Agent 0 Retrospective
+
+**Run 13 Merge Summary:**
+
+All 6 agents merged successfully. 26 total commits across 6 branches.
+
+| Agent | Branch | Commits | Conflict | Resolution |
+|-------|--------|---------|----------|------------|
+| A | `feature/checkin-target` | 4 | PARALLEL_AGENTS.md | Spliced retro, kept main |
+| B | `feature/achievement-fix` | 6 | None (auto-merged) | — |
+| C | `feature/types-dashboard` | 4 | PARALLEL_AGENTS.md (nested) | --ours + splice B+C retros |
+| D | `feature/profile-polish` | 5 | PARALLEL_AGENTS.md | --ours + splice D retro |
+| E | `feature/quest-ux` | 4 | PARALLEL_AGENTS.md | --ours + splice E retro |
+| F | `feature/settings-leaderboard` | 3 | PARALLEL_AGENTS.md | --ours + splice F retro |
+
+**Migrations run on server:**
+- `run13_quest_target.sql` — `target` column added to `quest_instances`, 10 rows backfilled
+- `run13_achievement_dedup.sql` — `notification_sent_at` column added to `user_achievements`
+- Backfilled `notification_sent_at = unlocked_at` for all existing achievements (0 rows — none existed yet)
+
+**Issues discovered during merge analysis:**
+- `1 AS target` still hardcoded in `users.ts` (3 places) and `quests.ts` (1 place) — Agent A only fixed `checkins.ts`
+- Python `quest_manager.py` doesn't handle `target` column at all
+- Profile.tsx still has `as any` casts that Agent C's type addition should have resolved
+- +1/+5 progress buttons in Quests.tsx are broken (client doesn't send `user_id`)
+- All addressed in Run 14
+
+**What went well:**
+- Zero code conflicts — only PARALLEL_AGENTS.md retro sections conflicted (expected)
+- Both builds passed clean on first try
+- Deploy was smooth — migrations, builds, PM2 restart all in one SSH command
+
+**What to improve:**
+- Agents wrote retros at end of file instead of in pre-allocated sections (they branched before Run 13 section was committed to main). Need to commit the Run section and create branches AFTER writing it.
+
+---
+
+## RUN 14: Parallel Agents (4 Agents + Agent 0)
+
+### Focus: Complete Target Fix Chain, API Consistency, Frontend Cleanup, Monthly Leaderboard
+
+Run 13 fixed `checkins.ts` but left `1 AS target` hardcoded in 4 other places across `users.ts` and `quests.ts`. The frontend receives `target=1` for all quest displays, making step indicators and remaining counts show wrong data. The Python `quest_manager.py` ignores the `target` column entirely. Several API endpoints return inconsistent response formats. The frontend has stale `as any` casts and broken +1/+5 buttons. This run completes the target fix end-to-end, standardizes APIs, cleans up the frontend, and adds the monthly leaderboard.
+
+### Copy-Paste Prompts
+
+**Agent 0** (open in: `c:\Users\Asus\Desktop\Wibecode`):
+```
+Read PARALLEL_AGENTS.md — you are Agent 0 for Run 14. After all agents finish, I'll tell you to merge.
+```
+
+**Agent A** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-a`):
+```
+Read PARALLEL_AGENTS.md — you are Agent A for Run 14. Your job: fix the CRITICAL remaining hardcoded `1 AS target` in 3 places in users.ts (lines 83, 225, 278) and 1 place in quests.ts (line 237), plus remove the user_id body requirement from PATCH /progress, plus create the notification_sent_at backfill migration. Do your tasks in order, commit after each, and write your retrospective when done.
+```
+
+**Agent B** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-b`):
+```
+Read PARALLEL_AGENTS.md — you are Agent B for Run 14. Your job: make the Python quest_manager.py target-aware (add target to assign_quest INSERT, get_active_quests, get_completed_quests), and fix the quests.ts GET endpoint response format from bare {quests, count} to {success, data}. Do your tasks in order, commit after each, and write your retrospective when done.
+```
+
+**Agent C** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-c`):
+```
+Read PARALLEL_AGENTS.md — you are Agent C for Run 14. Your job: clean up the frontend — remove the now-unnecessary (stats as any).perModeStreaks cast in Profile.tsx, remove the (ua.achievement as any).rarity casts, and remove the redundant/broken +1/+5 progress buttons in Quests.tsx. Do your tasks in order, commit after each, and write your retrospective when done.
+```
+
+**Agent D** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-d`):
+```
+Read PARALLEL_AGENTS.md — you are Agent D for Run 14. Your job: fix achievement API response consistency (4 endpoints returning bare format), add a GET /leaderboard/monthly endpoint, and wire the monthly leaderboard into the frontend. Do your tasks in order, commit after each, and write your retrospective when done.
+```
+
+---
+
+### Agent A — Backend Target Fix (users.ts + quests.ts)
+
+**Branch:** `feature/r14-target-fix`
+
+**CONTEXT:**
+- **CRITICAL:** `users.ts` has `1 AS target` in 3 SQL queries (lines 83, 225, 278) for the `/stats`, `/quests/active`, and `/quests/completed` endpoints. These are the primary data sources for the Dashboard and Quests page. The `qi.target` column exists (Run 13 migration) and has proper values, so these just need `qi.target` instead of `1 AS target`.
+- `quests.ts` line 237 has `1 AS target` in the PATCH `/progress` endpoint's fetch query. Same fix.
+- The PATCH `/progress` endpoint (quests.ts line 222) requires `user_id` in the body, but the mini-app client (`updateQuestProgress` in client.ts line 89) doesn't send it. The endpoint should resolve `user_id` from the quest_instance DB row instead.
+- Agent B (Run 13) recommended backfilling `notification_sent_at` for existing `user_achievements` rows to prevent a one-time notification burst.
+
+**FILES YOU OWN:**
+- `bot/src/api/routes/users.ts` — fix all 3 `1 AS target` instances
+- `bot/src/api/routes/quests.ts` — fix `1 AS target` in PATCH /progress query, remove `user_id` body requirement
+- `database/migrations/run14_notification_backfill.sql` — NEW: backfill notification_sent_at
+
+**FILES YOU MUST NOT TOUCH:**
+- `mini-app/` (all)
+- `tools/` (all Python files)
+- `bot/src/api/routes/checkins.ts` (already fixed in Run 13)
+- `bot/src/api/routes/achievements.ts`, `bot/src/api/routes/leaderboard.ts` (Agent D)
+- `bot/src/api/server.ts`, `bot/src/jobs/registerJobs.ts`
+- `.env`
+
+**RULES (NON-NEGOTIABLE):**
+- You are ALREADY on branch `feature/r14-target-fix` — do NOT run `git checkout`
+- Commit after EVERY task — atomic: `git add FILES && git commit -m "MSG"` in one Bash call
+- Do NOT push to remote or deploy to server
+- Do NOT add any new npm packages
+
+**Task 1: Fix `1 AS target` in users.ts — all 3 queries**
+- Line 83: change `1 AS target,` to `qi.target,` in the `/:telegramId/stats` active quests query
+- Line 225: change `1 AS target,` to `qi.target,` in the `/:telegramId/quests/active` query
+- Line 278: change `1 AS target,` to `qi.target,` in the `/:telegramId/quests/completed` query
+- Keep the `target: row.target || 1` fallback in the formatting code as a safety net
+- Commit: "Fix 3 hardcoded 1 AS target in users.ts to use qi.target"
+
+**Task 2: Fix `1 AS target` in quests.ts PATCH /progress**
+- Line 237: change `1 AS target` to `qi.target` in the quest fetch query
+- Commit: "Fix hardcoded target in quests.ts PATCH /progress query"
+
+**Task 3: Remove user_id body requirement from PATCH /progress**
+- The endpoint currently requires `user_id` in the body (line 222) and validates it (line 227-228, line 247)
+- The quest fetch query already returns `qi.user_id`. Remove the `user_id` body validation entirely.
+- Use `quest.user_id` for all downstream operations (the authorization check on line 247 should compare against `quest.user_id` directly, not the body value)
+- Keep `progress` as a required body parameter
+- This makes the endpoint callable from the mini-app client which doesn't send `user_id`
+- Commit: "Remove user_id body requirement from PATCH /progress (resolve from DB)"
+
+**Task 4: Create notification_sent_at backfill migration**
+- Create `database/migrations/run14_notification_backfill.sql`
+- `UPDATE user_achievements SET notification_sent_at = unlocked_at WHERE notification_sent_at IS NULL;`
+- Make it idempotent
+- Commit: "Add notification_sent_at backfill migration"
+
+**Task 5: Build verification**
+- Run `cd bot && npm run build`
+- Fix any TypeScript errors
+- Commit only if fixes needed: "Fix TypeScript errors from target fix"
+
+### RETROSPECTIVE (DO THIS LAST)
+Find your section under "Run 14 Retrospectives" below and replace the placeholder with your retrospective.
+
+---
+
+### Agent B — Python Tool Target Awareness + Quest API Format
+
+**Branch:** `feature/r14-python-quest-api`
+
+**CONTEXT:**
+- `quest_manager.py` `assign_quest()` (line 64) inserts into `quest_instances` without setting `target`. While `dailyQuestReset.ts` patches target after assignment, the Python tool should be self-sufficient.
+- `get_active_quests()` (line 242) does not SELECT `target` from the query. The `quests.ts` routes that call this function cannot include target in responses.
+- `get_completed_quests()` (line 275) same issue.
+- `quests.ts` GET endpoints `/users/:userId/active` (lines 32-35) and `/users/:userId/completed` (lines 68-70) return bare `{quests, count}` instead of `{success, data: {quests, count}}`.
+
+**FILES YOU OWN:**
+- `tools/quest_manager.py` — add target to assign, active, completed queries
+
+**GRAY AREA:**
+- `bot/src/api/routes/quests.ts` — you may ONLY modify the response format of `GET /users/:userId/active` (lines 32-35) and `GET /users/:userId/completed` (lines 68-70). Do NOT touch the PATCH `/progress` endpoint (Agent A owns that).
+
+**FILES YOU MUST NOT TOUCH:**
+- `mini-app/` (all)
+- `bot/src/api/routes/users.ts` (Agent A)
+- `bot/src/api/routes/achievements.ts`, `bot/src/api/routes/leaderboard.ts` (Agent D)
+- `bot/src/api/server.ts`, `bot/src/jobs/`
+- `.env`
+
+**RULES (NON-NEGOTIABLE):**
+- You are ALREADY on branch `feature/r14-python-quest-api` — do NOT run `git checkout`
+- Commit after EVERY task — atomic: `git add FILES && git commit -m "MSG"` in one Bash call
+- Do NOT push to remote or deploy to server
+- Do NOT add any new npm packages
+
+**Task 1: Add target to assign_quest() INSERT**
+- Read `tools/quest_manager.py`
+- In `assign_quest()` (around line 37-67), the function fetches the quest template. Extract `difficulty` from it.
+- Compute target: `{'easy': 1, 'medium': 3, 'hard': 5}.get(difficulty, 1)`
+- Modify the INSERT at line 64: add `target` column: `INSERT INTO quest_instances (user_id, quest_id, instance_date, status, target) VALUES (%s, %s, %s, 'pending', %s)`
+- Add target to the returned dict
+- Commit: "Add target to quest_manager assign_quest() based on difficulty"
+
+**Task 2: Add target to get_active_quests() SELECT**
+- In `get_active_quests()` (around line 242), add `qi.target` to the SELECT list
+- Include it in the returned quest dict
+- Commit: "Add target column to get_active_quests() query"
+
+**Task 3: Add target to get_completed_quests() SELECT**
+- In `get_completed_quests()` (around line 275), add `qi.target` to the SELECT list
+- Include it in the returned quest dict
+- Commit: "Add target column to get_completed_quests() query"
+
+**Task 4: Fix quests.ts GET endpoints response format**
+- `GET /users/:userId/active` (lines 32-35): change `res.json({ quests: ..., count: ... })` to `res.json({ success: true, data: { quests: ..., count: ... } })`
+- `GET /users/:userId/completed` (lines 68-70): same change
+- Commit: "Fix quests.ts GET endpoints to use {success, data} response format"
+
+**Task 5: Build verification**
+- Run `cd bot && npm run build`
+- Fix any TypeScript errors
+- Commit only if fixes needed: "Fix build errors from quest API changes"
+
+### RETROSPECTIVE (DO THIS LAST)
+Find your section under "Run 14 Retrospectives" below and replace the placeholder with your retrospective.
+
+---
+
+### Agent C — Frontend Cleanup (Profile + Quests)
+
+**Branch:** `feature/r14-frontend-cleanup`
+
+**CONTEXT:**
+- Profile.tsx line 189: `(stats as any).perModeStreaks` cast with TODO comment — `perModeStreaks` was added to `UserStats` in Run 13. The cast is now unnecessary.
+- Profile.tsx line 245: `(ua.achievement as any).rarity || (ua.achievement as any).category` — the `Achievement` interface in `types/index.ts` already has `rarity: string` and `category: string` fields. These casts are unnecessary.
+- Quests.tsx lines 354-376: "Update Progress" +1/+5 buttons are redundant with CheckInButton AND broken (client doesn't send `user_id`). The `handleUpdateProgress` function (around line 112-130) and `updatingProgress` state (around line 24) are dead code once buttons are removed.
+- Agent A (Run 14) is removing the `user_id` requirement from the PATCH endpoint, but the +1/+5 buttons should still be removed since CheckInButton is the canonical progress mechanism.
+
+**FILES YOU OWN:**
+- `mini-app/src/pages/Profile.tsx` — remove casts
+- `mini-app/src/pages/Quests.tsx` — remove redundant buttons and dead code
+
+**FILES YOU MUST NOT TOUCH:**
+- `bot/` (all backend files)
+- `tools/` (all Python files)
+- `mini-app/src/api/client.ts` (Agent D's gray area)
+- `mini-app/src/types/index.ts`
+- `mini-app/src/pages/Dashboard.tsx`, `mini-app/src/pages/Settings.tsx`, `mini-app/src/pages/Leaderboard.tsx` (Agent D)
+- `mini-app/src/components/` (all), `mini-app/src/App.tsx`
+- `.env`
+
+**RULES (NON-NEGOTIABLE):**
+- You are ALREADY on branch `feature/r14-frontend-cleanup` — do NOT run `git checkout`
+- Commit after EVERY task — atomic: `git add FILES && git commit -m "MSG"` in one Bash call
+- Do NOT push to remote or deploy to server
+- Do NOT add any new npm packages
+
+**Task 1: Remove perModeStreaks cast in Profile.tsx**
+- Line 189: replace `const perModeStreaks = (stats as any).perModeStreaks as Array<{...}> | undefined;` with `const perModeStreaks = stats.perModeStreaks;`
+- Remove the `// TODO: Remove cast once perModeStreaks is in UserStats type (Agent C, Run 13)` comment
+- Commit: "Remove perModeStreaks as-any cast in Profile (type now exists)"
+
+**Task 2: Remove achievement rarity/category cast in Profile.tsx**
+- Line 245: replace `(ua.achievement as any).rarity || (ua.achievement as any).category` with `ua.achievement.rarity || ua.achievement.category`
+- Commit: "Remove achievement rarity/category as-any casts in Profile"
+
+**Task 3: Remove redundant +1/+5 progress buttons in Quests.tsx**
+- Remove the "Update Progress" button block (lines 354-376)
+- Remove the `handleUpdateProgress` function (around lines 112-130)
+- Remove the `updatingProgress` state declaration (around line 24)
+- Remove any unused imports (check if `Plus`, `Loader2` are still used elsewhere in the file before removing)
+- Commit: "Remove redundant +1/+5 progress buttons (CheckInButton is canonical)"
+
+**Task 4: Build verification**
+- Run `cd mini-app && npm run build`
+- Fix any TypeScript errors
+- Commit only if fixes needed: "Fix TypeScript errors from frontend cleanup"
+
+### RETROSPECTIVE (DO THIS LAST)
+Find your section under "Run 14 Retrospectives" below and replace the placeholder with your retrospective.
+
+---
+
+### Agent D — Achievement API Consistency + Monthly Leaderboard
+
+**Branch:** `feature/r14-api-consistency`
+
+**CONTEXT:**
+- `achievements.ts` has several endpoints returning bare format instead of `{success, data}`:
+  - `/categories` (around line 50): returns `{categories}` instead of `{success, true, data: categories}`
+  - `/users/:userId/available` (around line 116): returns bare format
+  - `/users/:userId/recent` (around line 203): returns bare format
+  - `/users/:userId/:achievementId/unlock` (around line 172): returns `{message, achievement, xpEarned}`
+- Monthly leaderboard (Known Issue #10): no `GET /leaderboard/monthly` exists. Query pattern is identical to weekly but with `INTERVAL '30 days'`.
+
+**FILES YOU OWN:**
+- `bot/src/api/routes/achievements.ts` — fix response format for 4 endpoints
+- `bot/src/api/routes/leaderboard.ts` — add monthly endpoint
+
+**GRAY AREA:**
+- `mini-app/src/api/client.ts` — you may ONLY add a `getMonthlyLeaderboard(limit?)` method. Do NOT modify existing methods.
+- `mini-app/src/pages/Leaderboard.tsx` — you may ONLY add a "Monthly" tab and wire it to the new endpoint. Do NOT change existing styling or layout.
+
+**FILES YOU MUST NOT TOUCH:**
+- `bot/src/api/routes/users.ts` (Agent A), `bot/src/api/routes/quests.ts` (Agents A+B)
+- `tools/` (Agent B)
+- `mini-app/src/pages/Profile.tsx`, `mini-app/src/pages/Quests.tsx` (Agent C)
+- `mini-app/src/types/index.ts`, `mini-app/src/pages/Dashboard.tsx`, `mini-app/src/pages/Settings.tsx`
+- `mini-app/src/components/` (all), `mini-app/src/App.tsx`
+- `bot/src/api/server.ts`, `bot/src/jobs/`, `.env`
+
+**RULES (NON-NEGOTIABLE):**
+- You are ALREADY on branch `feature/r14-api-consistency` — do NOT run `git checkout`
+- Commit after EVERY task — atomic: `git add FILES && git commit -m "MSG"` in one Bash call
+- Do NOT push to remote or deploy to server
+- Do NOT add any new npm packages
+
+**Task 1: Fix achievements.ts /categories response format**
+- Find the `/categories` GET handler
+- Change response to: `res.json({ success: true, data: categories })`
+- Commit: "Fix /achievements/categories to use {success, data} format"
+
+**Task 2: Fix achievements.ts /available and /recent response format**
+- `/users/:userId/available`: wrap response in `{success: true, data: {...}}`
+- `/users/:userId/recent`: wrap response in `{success: true, data: {...}}`
+- Commit: "Fix /achievements available and recent to use {success, data} format"
+
+**Task 3: Fix achievements.ts /unlock response format**
+- Change to: `res.json({ success: true, data: { message: '...', achievement: result.achievement, xpEarned: ... } })`
+- Commit: "Fix /achievements unlock to use {success, data} format"
+
+**Task 4: Add GET /leaderboard/monthly endpoint**
+- Read `bot/src/api/routes/leaderboard.ts`
+- Add `router.get('/monthly', ...)` — same pattern as `/weekly` but:
+  - Use `INTERVAL '30 days'` instead of `INTERVAL '7 days'`
+  - Cache key: `leaderboard:monthly:${limit}`, TTL: 300
+  - Response field: `monthly_xp` instead of `weekly_xp`
+- Commit: "Add GET /leaderboard/monthly endpoint"
+
+**Task 5: Add monthly leaderboard to frontend**
+- In `client.ts`: add `getMonthlyLeaderboard(limit?)` method (copy pattern from `getWeeklyLeaderboard`)
+- In `Leaderboard.tsx`:
+  - Add `'monthly'` to the time period type/state
+  - Add a "Monthly" tab button between Weekly and All Time
+  - Update `loadLeaderboard` to call `getMonthlyLeaderboard` when `timePeriod === 'monthly'`
+  - Show "Monthly XP" for monthly entries
+- Commit: "Add Monthly tab to Leaderboard frontend"
+
+**Task 6: Build verification**
+- Run `cd bot && npm run build` and `cd mini-app && npm run build`
+- Fix any TypeScript errors
+- Commit only if fixes needed: "Fix TypeScript errors from API consistency and monthly leaderboard"
+
+### RETROSPECTIVE (DO THIS LAST)
+Find your section under "Run 14 Retrospectives" below and replace the placeholder with your retrospective.
+
+---
+
+### Run 14 File Ownership Matrix
+
+| File/Directory | Agent A | Agent B | Agent C | Agent D | Nobody |
+|---|---|---|---|---|---|
+| bot/src/api/routes/users.ts | OWNS | - | - | - | - |
+| bot/src/api/routes/quests.ts (PATCH /progress) | OWNS | - | - | - | - |
+| bot/src/api/routes/quests.ts (GET responses) | - | GRAY | - | - | - |
+| database/migrations/run14_notification_backfill.sql (NEW) | OWNS | - | - | - | - |
+| tools/quest_manager.py | - | OWNS | - | - | - |
+| bot/src/api/routes/achievements.ts | - | - | - | OWNS | - |
+| bot/src/api/routes/leaderboard.ts | - | - | - | OWNS | - |
+| mini-app/src/pages/Profile.tsx | - | - | OWNS | - | - |
+| mini-app/src/pages/Quests.tsx | - | - | OWNS | - | - |
+| mini-app/src/api/client.ts | - | - | - | GRAY (add 1) | - |
+| mini-app/src/pages/Leaderboard.tsx | - | - | - | GRAY (add tab) | - |
+| mini-app/src/types/index.ts | - | - | - | - | LOCKED |
+| mini-app/src/pages/Dashboard.tsx | - | - | - | - | LOCKED |
+| mini-app/src/pages/Settings.tsx | - | - | - | - | LOCKED |
+| bot/src/api/server.ts | - | - | - | - | LOCKED |
+| bot/src/jobs/* | - | - | - | - | LOCKED |
+| .env | - | - | - | - | LOCKED |
+
+### Run 14 Merge Order
+
+1. **Agent A first** — Critical target fix in users.ts + quests.ts PATCH
+2. **Agent B second** — Python tool + quests.ts GET format (different lines than A's PATCH)
+3. **Agent D third** — achievements.ts + leaderboard backend/frontend
+4. **Agent C last** — Frontend cleanup (no backend deps)
+
+**Conflict expectations:**
+- `quests.ts` — A touches PATCH /progress, B touches GET responses. Different parts of file → auto-merge expected.
+- `PARALLEL_AGENTS.md` — pre-allocated retro sections should auto-merge.
+- No other overlaps.
+
+---
+
+### Run 14 Retrospectives
+
+#### Agent A Retrospective
+*(To be filled by Agent A)*
+
+#### Agent B Retrospective
+*(To be filled by Agent B)*
+
+#### Agent C Retrospective
+*(To be filled by Agent C)*
+
+#### Agent D Retrospective
+*(To be filled by Agent D)*
