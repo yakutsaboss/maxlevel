@@ -2,14 +2,12 @@ import { Router, Request, Response } from 'express';
 import { authenticateTelegram } from '../middleware/auth.js';
 import { query, queryOne, execute, transaction } from '../../utils/db.js';
 import { cached, invalidatePrefix, TTL } from '../../utils/cache.js';
-import { executePythonTool } from '../../utils/pythonTools.js';
 import {
   asyncHandler,
   validateRequired,
   successResponse,
   BadRequestError,
   NotFoundError,
-  InternalServerError,
 } from '../utils/errors.js';
 
 const router = Router();

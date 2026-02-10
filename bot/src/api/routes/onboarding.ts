@@ -1,7 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { authenticateTelegram } from '../middleware/auth.js';
 import { query, queryOne, execute, transaction } from '../../utils/db.js';
-import { executePythonTool } from '../../utils/pythonTools.js';
 import {
   asyncHandler,
   validateRequired,
@@ -71,7 +70,7 @@ router.post('/:telegramId/complete', authenticateTelegram, asyncHandler(async (r
     throw new BadRequestError('Missing quiz_data or selected_modes');
   }
 
-  // 0. Look up user id first (needed for Python tool calls)
+  // 0. Look up user id first
   const userLookup = await queryOne('SELECT id FROM users WHERE telegram_id = $1', [tid]);
   if (!userLookup) {
     throw new NotFoundError('User not found');
