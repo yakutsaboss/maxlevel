@@ -2705,7 +2705,30 @@ const mockExecute = vi.mocked(execute);
 - The test `__tests__/setup.ts` still mocks all the old wrapper functions — Agent E or a future run should clean that up.
 
 #### Agent E Retrospective
-*(To be filled by Agent E)*
+**All 7 tasks completed. Build passes.**
+
+| # | Task | Status |
+|---|------|--------|
+| 1 | Update `__tests__/handlers/onboarding.test.ts` | Done |
+| 2 | Update `__tests__/handlers/start.test.ts` | Done |
+| 3 | Update `__tests__/handlers/stats.test.ts` | Done |
+| 4 | Update `__tests__/handlers/settings.test.ts` | Done |
+| 5 | Update `__tests__/jobs/dailyQuestReset.test.ts` | Done |
+| 6 | Update `__tests__/jobs/questReminders.test.ts` | Done |
+| 7 | Update `__tests__/jobs/streakCheck.test.ts` | Done |
+
+**Key changes across all files:**
+- Replaced `vi.mock('../../utils/pythonTools.js')` with `vi.mock('../../utils/db.js')` containing `query`, `queryOne`, `execute`, `getPool`
+- Old mock pattern: `mockExecutePythonTool.mockResolvedValue({ success: true, data: ... })` → New: `mockQuery.mockResolvedValue([...])` / `mockQueryOne.mockResolvedValue({...})` / `mockExecute.mockResolvedValue(1)`
+- Error handling: old pattern used `{ success: false, error: '...' }`, new pattern uses `mockQuery.mockRejectedValue(new Error('...'))`
+- start.test.ts: Removed `createUser` and `getUserByTelegramId` wrapper mocks, replaced with `queryOne` mocks
+- settings.test.ts: Assertions now verify SQL column names (`notification_enabled`, `reminder_hour`, `timezone`) and parameter values directly
+- streakCheck.test.ts: Added new test for "maintained streaks with recent activity" since native SQL logic is more granular
+- questReminders.test.ts: Added empty result test case; removed "non-array data" test (native SQL always returns arrays)
+
+**Problems:** None. All files were straightforward mock replacements.
+
+**Note for Agent 0:** These test mocks are written to match the *expected* migrated code from Agents A/B/C. If those agents changed the exact SQL patterns or error handling from what was specified in the task description, some mock sequences may need adjustment after merge. Key assumption: errors in native SQL are thrown as exceptions (caught by try/catch), not returned as `{success: false}` objects.
 
 #### Agent 0 Retrospective
 *(To be filled by Agent 0 after merge + deploy)*

@@ -3,17 +3,22 @@
  *
  * Tests: handleOnboarding, showModeSelection, handleModeSelection,
  *        handleQuickAction, handleModesCommand, handleModeSummary
- * Mocks: pythonTools (executePythonTool), Grammy context, setTimeout
+ * Mocks: db (query, queryOne, execute), Grammy context, setTimeout
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 // ─── Mocks ───────────────────────────────────────────────────────────
 
-const mockExecutePythonTool = vi.fn();
+const mockQuery = vi.fn();
+const mockQueryOne = vi.fn();
+const mockExecute = vi.fn();
 
-vi.mock('../../utils/pythonTools.js', () => ({
-  executePythonTool: (...args: any[]) => mockExecutePythonTool(...args),
+vi.mock('../../utils/db.js', () => ({
+  query: (...args: any[]) => mockQuery(...args),
+  queryOne: (...args: any[]) => mockQueryOne(...args),
+  execute: (...args: any[]) => mockExecute(...args),
+  getPool: vi.fn(),
 }));
 
 // ─── Import after mocks ─────────────────────────────────────────────
@@ -68,7 +73,8 @@ describe('handleOnboarding', () => {
   });
 
   it('should send welcome message and show mode selection', async () => {
-    mockExecutePythonTool.mockResolvedValue({ success: true, data: MODES });
+    // listAllModes → query returns mode rows directly
+    mockQuery.mockResolvedValue(MODES);
 
     const ctx = createMockCtx(123, 'Alice');
     const promise = handleOnboarding(ctx);
@@ -93,7 +99,7 @@ describe('handleOnboarding', () => {
     await handleOnboarding(ctx);
 
     expect(ctx.reply).toHaveBeenCalledWith('Error: Unable to identify user.');
-    expect(mockExecutePythonTool).not.toHaveBeenCalled();
+    expect(mockQuery).not.toHaveBeenCalled();
   });
 });
 
@@ -101,7 +107,8 @@ describe('handleOnboarding', () => {
 
 describe('showModeSelection', () => {
   it('should show available modes with buttons', async () => {
-    mockExecutePythonTool.mockResolvedValueOnce({ success: true, data: MODES });
+    // listAllModes → query returns mode rows
+    mockQuery.mockResolvedValueOnce(MODES);
 
     const ctx = createMockCtx(123);
     await showModeSelection(ctx);
@@ -115,7 +122,8 @@ describe('showModeSelection', () => {
   });
 
   it('should show error when modes fail to load', async () => {
-    mockExecutePythonTool.mockResolvedValueOnce({ success: false, error: 'DB error' });
+    // query throws an error (DB failure)
+    mockQuery.mockRejectedValueOnce(new Error('DB error'));
 
     const ctx = createMockCtx(123);
     await showModeSelection(ctx);
@@ -128,7 +136,7 @@ describe('showModeSelection', () => {
     await showModeSelection(ctx);
 
     expect(ctx.reply).not.toHaveBeenCalled();
-    expect(mockExecutePythonTool).not.toHaveBeenCalled();
+    expect(mockQuery).not.toHaveBeenCalled();
   });
 });
 
@@ -141,11 +149,12 @@ describe('handleModeSelection', () => {
 
     await handleModeSelection(ctx);
 
-    expect(mockExecutePythonTool).not.toHaveBeenCalled();
+    expect(mockQuery).not.toHaveBeenCalled();
   });
 
   it('should show mode info on mode_info callback', async () => {
-    mockExecutePythonTool.mockResolvedValueOnce({ success: true, data: MODES });
+    // listAllModes → query returns mode rows
+    mockQuery.mockResolvedValueOnce(MODES);
 
     const ctx = createCallbackCtx('mode_info');
     await handleModeSelection(ctx);
@@ -159,18 +168,14 @@ describe('handleModeSelection', () => {
   });
 
   it('should complete mode selection on mode_done with selected modes', async () => {
-    // getUserByTelegramId
-    mockExecutePythonTool.mockResolvedValueOnce({ success: true, data: { id: 1 } });
-    // getActiveModes — at least one selected
-    mockExecutePythonTool.mockResolvedValueOnce({
-      success: true,
-      data: [{ mode_id: 1, display_name: 'Fitness', icon_emoji: '💪' }],
-    });
-    // assignInitialQuests → quest_manager --assign-daily
-    mockExecutePythonTool.mockResolvedValueOnce({
-      success: true,
-      data: { count: 3 },
-    });
+    // getUserByTelegramId → queryOne returns user row
+    mockQueryOne.mockResolvedValueOnce({ id: 1 });
+    // getUserActiveModes → query returns active modes
+    mockQuery.mockResolvedValueOnce([{ mode_id: 1, display_name: 'Fitness', icon_emoji: '💪' }]);
+    // assignInitialQuests → query for active mode IDs, templates, execute for inserts
+    mockQuery.mockResolvedValueOnce([{ mode_id: 1 }]); // active modes for quest assignment
+    mockQuery.mockResolvedValueOnce([{ id: 10, difficulty: 'easy' }]); // available templates
+    mockExecute.mockResolvedValueOnce(1); // insert quest instance
 
     const ctx = createCallbackCtx('mode_done');
     await handleModeSelection(ctx);
@@ -183,10 +188,10 @@ describe('handleModeSelection', () => {
   });
 
   it('should warn when mode_done with no modes selected', async () => {
-    // getUserByTelegramId
-    mockExecutePythonTool.mockResolvedValueOnce({ success: true, data: { id: 1 } });
-    // getActiveModes — empty
-    mockExecutePythonTool.mockResolvedValueOnce({ success: true, data: [] });
+    // getUserByTelegramId → queryOne returns user row
+    mockQueryOne.mockResolvedValueOnce({ id: 1 });
+    // getUserActiveModes → empty array
+    mockQuery.mockResolvedValueOnce([]);
 
     const ctx = createCallbackCtx('mode_done');
     await handleModeSelection(ctx);
@@ -198,59 +203,45 @@ describe('handleModeSelection', () => {
   });
 
   it('should add mode when mode not currently selected', async () => {
-    // getUserByTelegramId
-    mockExecutePythonTool.mockResolvedValueOnce({ success: true, data: { id: 1 } });
-    // getActiveModes — none selected
-    mockExecutePythonTool.mockResolvedValueOnce({ success: true, data: [] });
-    // addMode
-    mockExecutePythonTool.mockResolvedValueOnce({ success: true, data: {} });
-    // updateModeSelectionMessage: listModes
-    mockExecutePythonTool.mockResolvedValueOnce({ success: true, data: MODES });
-    // updateModeSelectionMessage: getActiveModes
-    mockExecutePythonTool.mockResolvedValueOnce({
-      success: true,
-      data: [{ mode_id: 1, display_name: 'Fitness', icon_emoji: '💪' }],
-    });
+    // getUserByTelegramId → queryOne returns user
+    mockQueryOne.mockResolvedValueOnce({ id: 1 });
+    // getUserActiveModes → none selected
+    mockQuery.mockResolvedValueOnce([]);
+    // addMode: queryOne to look up mode, queryOne to check existing, execute to insert
+    mockQueryOne.mockResolvedValueOnce({ id: 1, name: 'fitness' }); // mode lookup
+    mockQueryOne.mockResolvedValueOnce(null); // no existing user_mode
+    mockExecute.mockResolvedValueOnce(1); // insert user_mode
+    mockExecute.mockResolvedValueOnce(1); // init streak
+    // updateModeSelectionMessage: listModes + getActiveModes
+    mockQuery.mockResolvedValueOnce(MODES);
+    mockQuery.mockResolvedValueOnce([{ mode_id: 1, display_name: 'Fitness', icon_emoji: '💪' }]);
 
     const ctx = createCallbackCtx('mode_select_1');
     await handleModeSelection(ctx);
 
     expect(ctx.answerCallbackQuery).toHaveBeenCalledWith({ text: '✅ Mode added!' });
-
-    // Should have called --add-modes
-    const addCall = mockExecutePythonTool.mock.calls[2];
-    expect(addCall[0]).toBe('mode_manager');
-    expect(addCall[1]).toContain('--add-modes');
   });
 
   it('should remove mode when mode is currently selected', async () => {
-    // getUserByTelegramId
-    mockExecutePythonTool.mockResolvedValueOnce({ success: true, data: { id: 1 } });
-    // getActiveModes — mode 1 already selected
-    mockExecutePythonTool.mockResolvedValueOnce({
-      success: true,
-      data: [{ mode_id: 1, display_name: 'Fitness', icon_emoji: '💪' }],
-    });
-    // removeMode
-    mockExecutePythonTool.mockResolvedValueOnce({ success: true, data: {} });
-    // updateModeSelectionMessage: listModes
-    mockExecutePythonTool.mockResolvedValueOnce({ success: true, data: MODES });
-    // updateModeSelectionMessage: getActiveModes
-    mockExecutePythonTool.mockResolvedValueOnce({ success: true, data: [] });
+    // getUserByTelegramId → queryOne returns user
+    mockQueryOne.mockResolvedValueOnce({ id: 1 });
+    // getUserActiveModes → mode 1 already selected
+    mockQuery.mockResolvedValueOnce([{ mode_id: 1, display_name: 'Fitness', icon_emoji: '💪' }]);
+    // removeMode → execute UPDATE
+    mockExecute.mockResolvedValueOnce(1);
+    // updateModeSelectionMessage: listModes + getActiveModes
+    mockQuery.mockResolvedValueOnce(MODES);
+    mockQuery.mockResolvedValueOnce([]);
 
     const ctx = createCallbackCtx('mode_select_1');
     await handleModeSelection(ctx);
 
     expect(ctx.answerCallbackQuery).toHaveBeenCalledWith({ text: '➖ Mode removed!' });
-
-    // Should have called --remove-mode
-    const removeCall = mockExecutePythonTool.mock.calls[2];
-    expect(removeCall[0]).toBe('mode_manager');
-    expect(removeCall[1]).toContain('--remove-mode');
   });
 
   it('should handle getUserByTelegramId failure on mode select', async () => {
-    mockExecutePythonTool.mockResolvedValueOnce({ success: false, error: 'DB error' });
+    // queryOne returns null (user not found)
+    mockQueryOne.mockResolvedValueOnce(null);
 
     const ctx = createCallbackCtx('mode_select_1');
     await handleModeSelection(ctx);
@@ -283,13 +274,12 @@ describe('handleQuickAction', () => {
   });
 
   it('should show quests on view_quests', async () => {
-    // getUserByTelegramId
-    mockExecutePythonTool.mockResolvedValueOnce({ success: true, data: { id: 1 } });
-    // getActiveQuests
-    mockExecutePythonTool.mockResolvedValueOnce({
-      success: true,
-      data: { quests: [{ name: 'Run 5km', status: 'pending', xp_reward: 50, mode_icon: '💪' }] },
-    });
+    // getUserByTelegramId → queryOne
+    mockQueryOne.mockResolvedValueOnce({ id: 1 });
+    // getActiveQuests → query returns quest rows directly
+    mockQuery.mockResolvedValueOnce([
+      { name: 'Run 5km', status: 'pending', xp_reward: 50, mode_icon: '💪' },
+    ]);
 
     const ctx = createCallbackCtx('view_quests');
     await handleQuickAction(ctx);
@@ -302,12 +292,14 @@ describe('handleQuickAction', () => {
   });
 
   it('should show profile on view_profile', async () => {
-    // getUserByTelegramId
-    mockExecutePythonTool.mockResolvedValueOnce({ success: true, data: { id: 1 } });
-    // getStats
-    mockExecutePythonTool.mockResolvedValueOnce({
-      success: true,
-      data: { current_level: 5, total_xp: 1200, overall_streak: 3, total_quests_completed: 10 },
+    // getUserByTelegramId → queryOne
+    mockQueryOne.mockResolvedValueOnce({ id: 1 });
+    // getStats → queryOne returns user stats directly
+    mockQueryOne.mockResolvedValueOnce({
+      current_level: 5,
+      total_xp: 1200,
+      overall_streak: 3,
+      total_quests_completed: 10,
     });
 
     const ctx = createCallbackCtx('view_profile');
@@ -330,20 +322,17 @@ describe('handleModesCommand', () => {
     await handleModesCommand(ctx);
 
     expect(ctx.reply).not.toHaveBeenCalled();
-    expect(mockExecutePythonTool).not.toHaveBeenCalled();
+    expect(mockQuery).not.toHaveBeenCalled();
   });
 
   it('should show active modes with manage options', async () => {
-    // getUserByTelegramId
-    mockExecutePythonTool.mockResolvedValueOnce({ success: true, data: { id: 1 } });
-    // getActiveModes
-    mockExecutePythonTool.mockResolvedValueOnce({
-      success: true,
-      data: [
-        { mode_id: 1, display_name: 'Fitness', icon_emoji: '💪' },
-        { mode_id: 2, display_name: 'Hydration', icon_emoji: '💧' },
-      ],
-    });
+    // getUserByTelegramId → queryOne
+    mockQueryOne.mockResolvedValueOnce({ id: 1 });
+    // getUserActiveModes → query returns active modes
+    mockQuery.mockResolvedValueOnce([
+      { mode_id: 1, display_name: 'Fitness', icon_emoji: '💪' },
+      { mode_id: 2, display_name: 'Hydration', icon_emoji: '💧' },
+    ]);
 
     const ctx = createMockCtx(123);
     await handleModesCommand(ctx);
@@ -358,8 +347,8 @@ describe('handleModesCommand', () => {
   });
 
   it('should show "no modes" message when user has no active modes', async () => {
-    mockExecutePythonTool.mockResolvedValueOnce({ success: true, data: { id: 1 } });
-    mockExecutePythonTool.mockResolvedValueOnce({ success: true, data: [] });
+    mockQueryOne.mockResolvedValueOnce({ id: 1 });
+    mockQuery.mockResolvedValueOnce([]);
 
     const ctx = createMockCtx(123);
     await handleModesCommand(ctx);
@@ -369,7 +358,8 @@ describe('handleModesCommand', () => {
   });
 
   it('should handle getUserByTelegramId failure', async () => {
-    mockExecutePythonTool.mockResolvedValueOnce({ success: false, error: 'DB error' });
+    // queryOne returns null (user not found)
+    mockQueryOne.mockResolvedValueOnce(null);
 
     const ctx = createMockCtx(123);
     await handleModesCommand(ctx);
@@ -389,20 +379,14 @@ describe('handleModeSummary', () => {
   });
 
   it('should show mode summary with active mode count', async () => {
-    // getUserByTelegramId
-    mockExecutePythonTool.mockResolvedValueOnce({ success: true, data: { id: 1 } });
-    // getModeSummary
-    mockExecutePythonTool.mockResolvedValueOnce({
-      success: true,
-      data: {
-        active_mode_count: 2,
-        available_to_add_count: 2,
-        active_modes: [
-          { display_name: 'Fitness', icon_emoji: '💪' },
-          { display_name: 'Hydration', icon_emoji: '💧' },
-        ],
-      },
-    });
+    // getUserByTelegramId → queryOne
+    mockQueryOne.mockResolvedValueOnce({ id: 1 });
+    // getModeSummary: query all modes + query user_modes to compute summary
+    mockQuery.mockResolvedValueOnce(MODES); // all modes
+    mockQuery.mockResolvedValueOnce([
+      { mode_id: 1, display_name: 'Fitness', icon_emoji: '💪', is_active: true },
+      { mode_id: 2, display_name: 'Hydration', icon_emoji: '💧', is_active: true },
+    ]); // user's active modes
 
     const ctx = createCallbackCtx('mode_summary', 123);
     await handleModeSummary(ctx);
@@ -418,7 +402,8 @@ describe('handleModeSummary', () => {
   });
 
   it('should handle getUserByTelegramId failure', async () => {
-    mockExecutePythonTool.mockResolvedValueOnce({ success: false, error: 'DB error' });
+    // queryOne returns null
+    mockQueryOne.mockResolvedValueOnce(null);
 
     const ctx = createCallbackCtx('mode_summary', 123);
     await handleModeSummary(ctx);
@@ -427,8 +412,10 @@ describe('handleModeSummary', () => {
   });
 
   it('should handle getModeSummary failure', async () => {
-    mockExecutePythonTool.mockResolvedValueOnce({ success: true, data: { id: 1 } });
-    mockExecutePythonTool.mockResolvedValueOnce({ success: false, error: 'query failed' });
+    // getUserByTelegramId → user found
+    mockQueryOne.mockResolvedValueOnce({ id: 1 });
+    // getModeSummary query throws
+    mockQuery.mockRejectedValueOnce(new Error('query failed'));
 
     const ctx = createCallbackCtx('mode_summary', 123);
     await handleModeSummary(ctx);

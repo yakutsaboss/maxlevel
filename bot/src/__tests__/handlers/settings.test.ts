@@ -3,17 +3,21 @@
  *
  * Tests: handleSettings (main menu), handleSettingsCallback (notification toggle,
  *        reminder time, timezone, back button)
- * Mocks: pythonTools (executePythonTool), Grammy context
+ * Mocks: db (queryOne, execute), Grammy context
  */
 
 import { describe, it, expect, vi } from 'vitest';
 
 // ─── Mocks ───────────────────────────────────────────────────────────
 
-const mockExecutePythonTool = vi.fn();
+const mockQueryOne = vi.fn();
+const mockExecute = vi.fn();
 
-vi.mock('../../utils/pythonTools.js', () => ({
-  executePythonTool: (...args: any[]) => mockExecutePythonTool(...args),
+vi.mock('../../utils/db.js', () => ({
+  query: vi.fn(),
+  queryOne: (...args: any[]) => mockQueryOne(...args),
+  execute: (...args: any[]) => mockExecute(...args),
+  getPool: vi.fn(),
 }));
 
 // ─── Import after mocks ─────────────────────────────────────────────
@@ -49,11 +53,13 @@ function createCallbackCtx(data: string, telegramId: number = 123456789) {
 }
 
 function mockUserFound(user: any = TEST_USER) {
-  mockExecutePythonTool.mockResolvedValueOnce({ success: true, data: user });
+  // getUserData → queryOne returns user row directly
+  mockQueryOne.mockResolvedValueOnce(user);
 }
 
 function mockUserNotFound() {
-  mockExecutePythonTool.mockResolvedValueOnce({ success: false, data: null });
+  // getUserData → queryOne returns null
+  mockQueryOne.mockResolvedValueOnce(null);
 }
 
 // ─── Tests: handleSettings ──────────────────────────────────────────
@@ -164,18 +170,18 @@ describe('handleSettingsCallback', () => {
 
   it('should enable notifications on settings:notif:on', async () => {
     mockUserFound();
-    // Second call: update user
-    mockExecutePythonTool.mockResolvedValueOnce({ success: true, data: {} });
+    // execute UPDATE returns affected row count
+    mockExecute.mockResolvedValueOnce(1);
 
     const ctx = createCallbackCtx('settings:notif:on');
     await handleSettingsCallback(ctx);
 
-    // Verify executePythonTool was called to update
-    expect(mockExecutePythonTool).toHaveBeenCalledTimes(2);
-    const updateCall = mockExecutePythonTool.mock.calls[1];
-    expect(updateCall[0]).toBe('user_manager');
-    expect(updateCall[1]).toContain('--value');
-    expect(updateCall[1]).toContain('true');
+    // Verify execute was called to update notification_enabled
+    expect(mockExecute).toHaveBeenCalledTimes(1);
+    expect(mockExecute).toHaveBeenCalledWith(
+      expect.stringContaining('notification_enabled'),
+      expect.arrayContaining([true]),
+    );
 
     expect(ctx.answerCallbackQuery).toHaveBeenCalledWith({
       text: '🔔 Notifications enabled!',
@@ -184,13 +190,15 @@ describe('handleSettingsCallback', () => {
 
   it('should disable notifications on settings:notif:off', async () => {
     mockUserFound();
-    mockExecutePythonTool.mockResolvedValueOnce({ success: true, data: {} });
+    mockExecute.mockResolvedValueOnce(1);
 
     const ctx = createCallbackCtx('settings:notif:off');
     await handleSettingsCallback(ctx);
 
-    const updateCall = mockExecutePythonTool.mock.calls[1];
-    expect(updateCall[1]).toContain('false');
+    expect(mockExecute).toHaveBeenCalledWith(
+      expect.stringContaining('notification_enabled'),
+      expect.arrayContaining([false]),
+    );
 
     expect(ctx.answerCallbackQuery).toHaveBeenCalledWith({
       text: '🔕 Notifications disabled!',
@@ -215,14 +223,16 @@ describe('handleSettingsCallback', () => {
 
   it('should set reminder time on settings:reminder:12', async () => {
     mockUserFound();
-    mockExecutePythonTool.mockResolvedValueOnce({ success: true, data: {} });
+    mockExecute.mockResolvedValueOnce(1);
 
     const ctx = createCallbackCtx('settings:reminder:12');
     await handleSettingsCallback(ctx);
 
-    const updateCall = mockExecutePythonTool.mock.calls[1];
-    expect(updateCall[0]).toBe('user_manager');
-    expect(updateCall[1]).toContain('12');
+    expect(mockExecute).toHaveBeenCalledTimes(1);
+    expect(mockExecute).toHaveBeenCalledWith(
+      expect.stringContaining('reminder_hour'),
+      expect.arrayContaining([12]),
+    );
 
     expect(ctx.answerCallbackQuery).toHaveBeenCalledWith({
       text: expect.stringContaining('12:00 PM'),
@@ -247,14 +257,16 @@ describe('handleSettingsCallback', () => {
 
   it('should set timezone on settings:tz:America/New_York', async () => {
     mockUserFound();
-    mockExecutePythonTool.mockResolvedValueOnce({ success: true, data: {} });
+    mockExecute.mockResolvedValueOnce(1);
 
     const ctx = createCallbackCtx('settings:tz:America/New_York');
     await handleSettingsCallback(ctx);
 
-    const updateCall = mockExecutePythonTool.mock.calls[1];
-    expect(updateCall[0]).toBe('user_manager');
-    expect(updateCall[1]).toContain('America/New_York');
+    expect(mockExecute).toHaveBeenCalledTimes(1);
+    expect(mockExecute).toHaveBeenCalledWith(
+      expect.stringContaining('timezone'),
+      expect.arrayContaining(['America/New_York']),
+    );
 
     expect(ctx.answerCallbackQuery).toHaveBeenCalledWith({
       text: expect.stringContaining('New York'),
