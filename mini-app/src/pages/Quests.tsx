@@ -2,7 +2,7 @@ import { useEffect, useState, useRef, useCallback } from 'react';
 import { useTelegram, useMainButton } from '@/hooks/useTelegram';
 import { apiClient } from '@/api/client';
 import { Quest } from '@/types';
-import { Target, Zap, CheckCircle, Clock, AlertCircle, RefreshCw, Loader2, Plus, Calendar } from 'lucide-react';
+import { Target, Zap, CheckCircle, Clock, AlertCircle, RefreshCw, Loader2, Calendar } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { CheckInButton } from '@/components/CheckInButton';
 
@@ -21,7 +21,7 @@ export function Quests() {
   const [error, setError] = useState(false);
   const [selectedQuest, setSelectedQuest] = useState<Quest | null>(null);
   const [completing, setCompleting] = useState(false);
-  const [updatingProgress, setUpdatingProgress] = useState(false);
+
   const [refreshing, setRefreshing] = useState(false);
   const [pullDistance, setPullDistance] = useState(0);
   const [todayCheckinCount, setTodayCheckinCount] = useState(0);
@@ -109,25 +109,6 @@ export function Quests() {
     } finally { setCompleting(false); }
   };
 
-  const handleUpdateProgress = async (amount: number) => {
-    if (!selectedQuest || updatingProgress) return;
-    const newProgress = Math.min(selectedQuest.progress + amount, selectedQuest.target);
-    if (newProgress === selectedQuest.progress) return;
-    try {
-      setUpdatingProgress(true);
-      const response = await apiClient.updateQuestProgress(selectedQuest.id, newProgress);
-      if (response.success) {
-        haptic.impact('light');
-        setSelectedQuest({ ...selectedQuest, progress: newProgress });
-        await loadQuests();
-      }
-    } catch (err) {
-      console.error('Failed to update progress:', err);
-      haptic.notification('error');
-    } finally {
-      setUpdatingProgress(false);
-    }
-  };
 
   const handleCheckinSuccess = useCallback((result: { completed: boolean; current: number; target: number }) => {
     if (selectedQuest) {
@@ -351,29 +332,6 @@ export function Quests() {
                 </div>
               )}
 
-              {selectedQuest.target > 1 && selectedQuest.progress < selectedQuest.target && selectedQuest.status === 'active' && (
-                <div className="flex items-center gap-3 mb-4">
-                  <span className="text-sm text-telegram-hint">Update Progress</span>
-                  <div className="flex gap-2 ml-auto">
-                    <button
-                      onClick={() => { haptic.impact('light'); handleUpdateProgress(1); }}
-                      disabled={updatingProgress || selectedQuest.progress >= selectedQuest.target}
-                      className="flex items-center gap-1 bg-telegram-link text-white px-3 py-2 rounded-xl text-sm font-medium disabled:opacity-50 active:scale-95 transition-transform"
-                    >
-                      {updatingProgress ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}+1
-                    </button>
-                    {selectedQuest.target >= 5 && (
-                      <button
-                        onClick={() => { haptic.impact('light'); handleUpdateProgress(5); }}
-                        disabled={updatingProgress || selectedQuest.progress >= selectedQuest.target}
-                        className="flex items-center gap-1 bg-telegram-link text-white px-3 py-2 rounded-xl text-sm font-medium disabled:opacity-50 active:scale-95 transition-transform"
-                      >
-                        {updatingProgress ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}+5
-                      </button>
-                    )}
-                  </div>
-                </div>
-              )}
 
               {selectedQuest.progress >= selectedQuest.target && (
                 <div className="bg-green-100 border border-green-300 rounded-2xl p-4 text-center">
