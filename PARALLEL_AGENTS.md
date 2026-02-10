@@ -1681,4 +1681,24 @@ Read PARALLEL_AGENTS.md — you are Agent E for Run 22. Your job: Migrate `admin
 
 **Known Issues resolved:** Items 4-9 from Run 21 list all addressed. 8 new items tracked, mostly minor (leaderboard util duplication, remaining skeletons).
 
+#### Agent D Retrospective (Run 23)
+**Completed all 3 tasks. Build passes (zero errors).**
+
+| # | Task | Status |
+|---|------|--------|
+| 1 | Migrate POST /users/:userId/modes from Python subprocess to native SQL | Done |
+| 2 | Remove executePythonTool + unused InternalServerError imports | Done |
+| 3 | Build verification | Done — zero errors |
+
+**Problems faced:** None. The migration was straightforward — `mode_manager.py` `add_mode_to_user()` and `add_multiple_modes()` had clear SQL logic that translated directly to `queryOne()` and `execute()` calls.
+
+**Changes summary:**
+- `modes.ts` POST endpoint now uses native SQL loop: lookup mode by name, check user_mode (reactivate/skip/insert), init streak ON CONFLICT DO NOTHING
+- Response now includes detailed `added`, `failed`, `already_active` arrays (richer than the old Python tool response)
+- Removed `executePythonTool` import and unused `InternalServerError` import
+- `modes.ts` now has **zero** Python subprocess calls (was 1, all other endpoints were already native SQL)
+
+**Recommendations for next run:**
+- All `executePythonTool` calls in modes.ts are now eliminated. The file is fully native SQL.
+
 <!-- Next run goes here. Agent 0 will append RUN 23 below this line. -->
