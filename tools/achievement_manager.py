@@ -304,11 +304,9 @@ class AchievementManager:
 
             cursor.execute("""
                 SELECT
-                    id, name, description, xp_reward, rarity, icon,
-                    category, criteria_type, criteria_value
+                    id, name, description, xp_bonus, rarity, badge_icon, criteria
                 FROM achievements
-                WHERE is_active = true
-                AND id NOT IN (
+                WHERE id NOT IN (
                     SELECT achievement_id FROM user_achievements
                     WHERE user_id = %s
                 )
@@ -317,17 +315,16 @@ class AchievementManager:
 
             achievements = []
             for row in cursor.fetchall():
+                criteria = row[6]
                 achievements.append({
                     "id": row[0],
                     "name": row[1],
                     "description": row[2],
-                    "xp_reward": row[3],
+                    "xp_bonus": row[3],
                     "rarity": row[4],
-                    "icon": row[5],
-                    "category": row[6],
-                    "criteria_type": row[7],
-                    "criteria_value": row[8],
-                    "criteria_text": self._format_criteria(row[7], row[8])
+                    "badge_icon": row[5],
+                    "criteria": criteria,
+                    "criteria_text": self._format_criteria(criteria)
                 })
 
             return {
