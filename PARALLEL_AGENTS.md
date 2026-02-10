@@ -229,14 +229,18 @@ Use this structure when creating a new run. Copy and adapt:
 - ~~Settings punishment auto-save~~ — debounce + haptic feedback.
 - ~~Achievement notifier dedup~~ — `notification_sent_at` column + IS NULL filter.
 
+### Verified & Resolved (Agent 0 — Run 14 post-merge)
+- ~~**Daily quest assignment UNVERIFIED**~~ — Verified: `daily-quest-reset` has 1 completed run. 10 quest instances in DB, 6 with multi-target. pg-boss schedules confirmed.
+- ~~**Notification delivery UNVERIFIED**~~ — Verified: All 10 pg-boss jobs running. `achievement-notifier` fires every 15 min (39 completed runs). `quest-reminders`, `daily-summary`, `punishment-check` all completed at least once.
+
 ### MVP-Critical (Still Open)
-1. **Daily quest assignment UNVERIFIED** — `dailyQuestReset.ts` job exists but no confirmation it fires and assigns quests on the live server.
-2. **Notification delivery UNVERIFIED** — 10 scheduled pg-boss jobs exist but no confirmation they send Telegram messages to users.
-3. **PATCH /progress missing authorization** — Agent A removed `user_id` body check (Run 14), but no replacement ownership validation exists. Any authenticated user could update any quest instance.
+1. **PATCH /progress missing authorization** — Agent A removed `user_id` body check (Run 14), but no replacement ownership validation exists. Any authenticated user could update any quest instance. **Run 15 Agent A fixes this.**
+2. **checkAchievements() double-wrapping (ACTIVE BUG)** — `client.ts` line 120 manually wraps `{success, data}` but backend already returns that format. Result: `res.data.newAchievements` is always undefined → Dashboard achievement checking is silently broken. **Run 15 Agent B fixes this.**
+3. **Remaining bare API endpoints** — `checkins.ts` (3 endpoints) and `quests.ts` POST /complete still return bare format without `{success, data}` wrapper. **Run 15 Agent A wraps these.**
 
 ### Non-Critical (Still Open)
-4. **client.ts double-wrapping** — Achievement endpoints (`checkAchievements`, etc.) and quest endpoints may double-wrap `{success, data}` now that backend returns the wrapper. Audit `client.ts`.
-5. **Dead code: `updateQuestProgress` in client.ts** — No longer called after +1/+5 button removal. Should be removed.
+4. **Dead code: `updateQuestProgress` in client.ts** — No longer called after +1/+5 button removal. **Run 15 Agent B removes this.**
+5. **client.ts manual wrapping for checkins** — `createCheckin()` and `getTodayCheckins()` manually wrap responses. After Agent A wraps the backend, these become double-wrapped. **Run 15 Agent B fixes this.**
 6. **pg-boss Node.js mismatch** — Requires 22.12+, server has 20.20. Only triggers warnings, no functional impact yet.
 7. **Mode configs unused** — `mode_configs` table stores quiz responses + personalized plans, but data is never consumed.
 
@@ -1390,3 +1394,194 @@ All 4 agents merged successfully. 19 total commits across 4 branches.
 - Remove dead `updateQuestProgress` method from `client.ts`
 - Add quest ownership check to PATCH `/progress` endpoint
 - Verify daily quest assignment + notifications actually fire on live server (Known Issues #2 and #3)
+
+---
+
+## RUN 15: Parallel Agents (2 Agents + Agent 0)
+
+### Focus: Security Fix, API Consistency, Client Cleanup
+
+Run 14 left a security gap (PATCH /progress has no ownership check), an active bug (checkAchievements double-wraps so achievement checking is silently broken), and inconsistent API response formats (checkins + quest complete still return bare responses). This run fixes all of these and removes dead code.
+
+### Copy-Paste Prompts
+
+**Agent 0** (open in: `c:\Users\Asus\Desktop\Wibecode`):
+```
+Read PARALLEL_AGENTS.md — you are Agent 0 for Run 15. After all agents finish, I'll tell you to merge.
+```
+
+**Agent A** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-a`):
+```
+Read PARALLEL_AGENTS.md — you are Agent A for Run 15. Your job: fix the PATCH /progress authorization gap (add authorizeUser middleware + quest ownership check), and wrap the remaining bare API endpoints in checkins.ts and quests.ts POST /complete with {success, data} format. Do your tasks in order, commit after each, and write your retrospective when done.
+```
+
+**Agent B** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-b`):
+```
+Read PARALLEL_AGENTS.md — you are Agent B for Run 15. Your job: fix the client.ts double-wrapping bug in checkAchievements() (ACTIVE BUG — achievement checking is silently broken), fix createCheckin() and getTodayCheckins() manual wrapping, and remove the dead updateQuestProgress method. Do your tasks in order, commit after each, and write your retrospective when done.
+```
+
+---
+
+### Agent A — Backend: Security Fix + API Consistency
+
+**Branch:** `feature/r15-backend-security`
+
+**CONTEXT:**
+- **SECURITY:** PATCH `/:questId/progress` (quests.ts line 225) has `authenticateTelegram` but NOT `authorizeUser`. The query fetches `quest.user_id` (line 239) but never checks it against the authenticated user. Any authenticated user can update any quest instance.
+- **FIX:** Add `authorizeUser` middleware (already imported in quests.ts line 2). Since the route uses `:questId` not `:userId`, `authorizeUser` will skip the param check but still set `req.dbUser`. Then add a manual check: `if (quest.user_id !== req.dbUser?.id)` → 403.
+- **API CONSISTENCY:** `checkins.ts` has 3 bare endpoints (POST create, GET today, GET history) and `quests.ts` POST `/complete` (line 129) returns bare format. All should return `{success: true, data: {...}}`.
+
+**FILES YOU OWN:**
+- `bot/src/api/routes/quests.ts` — add auth to PATCH /progress, wrap POST /complete
+- `bot/src/api/routes/checkins.ts` — wrap all 3 endpoints
+
+**FILES YOU MUST NOT TOUCH:**
+- `mini-app/` (all)
+- `tools/` (all)
+- `bot/src/api/routes/users.ts`, `bot/src/api/routes/achievements.ts`, `bot/src/api/routes/leaderboard.ts`
+- `bot/src/api/middleware/`, `bot/src/api/server.ts`, `bot/src/jobs/`
+- `.env`
+
+**RULES (NON-NEGOTIABLE):**
+- You are ALREADY on branch `feature/r15-backend-security` — do NOT run `git checkout`
+- Commit after EVERY task — atomic: `git add FILES && git commit -m "MSG"` in one Bash call
+- Do NOT push to remote or deploy to server
+- Do NOT add any new npm packages
+
+**Task 1: Add authorization to PATCH /progress**
+- Read `bot/src/api/routes/quests.ts` line 225
+- `authorizeUser` is already imported (line 2). Add it to the middleware chain:
+  ```typescript
+  router.patch('/:questId/progress', authenticateTelegram, authorizeUser, mutationLimiter, async (req: Request, res: Response) => {
+  ```
+- After the quest is fetched and the `if (!quest)` check (line 247-249), add ownership check:
+  ```typescript
+  if (quest.user_id !== req.dbUser?.id) {
+    return res.status(403).json({ error: 'Forbidden', message: 'You do not have permission to update this quest' });
+  }
+  ```
+- Commit: "Add authorization + quest ownership check to PATCH /progress"
+
+**Task 2: Wrap POST /checkins response**
+- Read `bot/src/api/routes/checkins.ts` line 92-96
+- Currently returns: `res.json({ check_in_id, quest_progress, completed })`
+- Change to: `res.json({ success: true, data: { check_in_id, quest_progress, completed } })`
+- Commit: "Wrap POST /checkins response in {success, data}"
+
+**Task 3: Wrap GET /checkins/:telegramId/today response**
+- Line 134-137: Currently returns `res.json({ check_ins, count })`
+- Change to: `res.json({ success: true, data: { check_ins, count } })`
+- Commit: "Wrap GET /checkins/today response in {success, data}"
+
+**Task 4: Wrap GET /checkins/:telegramId/history response**
+- Find the history endpoint (should be after the today endpoint)
+- Wrap its response similarly: `res.json({ success: true, data: { check_ins, page, ... } })`
+- Commit: "Wrap GET /checkins/history response in {success, data}"
+
+**Task 5: Wrap POST /quests/:questId/complete response**
+- Line 129-134: Currently returns `res.json({ message, xpEarned, newLevel, leveledUp })`
+- Change to: `res.json({ success: true, data: { message, xpEarned, newLevel, leveledUp } })`
+- Commit: "Wrap POST /quests/complete response in {success, data}"
+
+**Task 6: Build verification**
+- Run `cd bot && npm run build`
+- Fix any TypeScript errors
+- Commit only if fixes needed: "Fix TypeScript errors from backend security and API consistency"
+
+### RETROSPECTIVE (DO THIS LAST)
+Find your section under "Run 15 Retrospectives" below and replace the placeholder with your retrospective.
+
+---
+
+### Agent B — Frontend: Client Cleanup
+
+**Branch:** `feature/r15-client-cleanup`
+
+**CONTEXT:**
+- **ACTIVE BUG:** `checkAchievements()` (client.ts line 120) manually wraps `{success: true, data: response.data}` but the backend POST `/check` already returns `{success: true, data: {...}}`. Result: `res.data.newAchievements` is always `undefined` → Dashboard achievement checking is silently broken (never shows "New achievement!" toast).
+- `createCheckin()` (line 99) and `getTodayCheckins()` (line 104) also manually wrap. Backend currently returns bare format, but Agent A is wrapping them in this run. After merge, these would double-wrap. Fix: change to `return response.data` (passthrough).
+- `updateQuestProgress()` (lines 89-94) is dead code — the +1/+5 buttons were removed in Run 14.
+
+**FILES YOU OWN:**
+- `mini-app/src/api/client.ts` — fix wrapping, remove dead code
+
+**FILES YOU MUST NOT TOUCH:**
+- `bot/` (all)
+- `tools/` (all)
+- `mini-app/src/pages/` (all pages)
+- `mini-app/src/types/`, `mini-app/src/components/`, `mini-app/src/App.tsx`
+- `.env`
+
+**RULES (NON-NEGOTIABLE):**
+- You are ALREADY on branch `feature/r15-client-cleanup` — do NOT run `git checkout`
+- Commit after EVERY task — atomic: `git add FILES && git commit -m "MSG"` in one Bash call
+- Do NOT push to remote or deploy to server
+- Do NOT add any new npm packages
+
+**Task 1: Fix checkAchievements() double-wrapping (CRITICAL BUG)**
+- Read `mini-app/src/api/client.ts` line 118-121
+- Currently: `return { success: true, data: response.data };` — this double-wraps
+- Change to: `return response.data;` — passthrough the backend's existing wrapper
+- This immediately fixes the Dashboard achievement checking
+- Commit: "Fix checkAchievements() double-wrap bug (achievement checking was broken)"
+
+**Task 2: Fix createCheckin() wrapping**
+- Line 97-100: `return { success: true, data: response.data };`
+- Change to: `return response.data;`
+- Note: Agent A is wrapping the backend POST /checkins in this run. After merge, both changes will be in place and the response flows correctly.
+- Commit: "Fix createCheckin() to passthrough backend response"
+
+**Task 3: Fix getTodayCheckins() wrapping**
+- Line 102-105: `return { success: true, data: response.data };`
+- Change to: `return response.data;`
+- Same reasoning as Task 2.
+- Commit: "Fix getTodayCheckins() to passthrough backend response"
+
+**Task 4: Remove dead updateQuestProgress() method**
+- Lines 89-94: delete the entire `updateQuestProgress` method
+- Verify no imports/usages in the codebase (it was only used by the removed +1/+5 buttons)
+- Commit: "Remove dead updateQuestProgress method from client.ts"
+
+**Task 5: Build verification**
+- Run `cd mini-app && npm run build`
+- Fix any TypeScript errors
+- Commit only if fixes needed: "Fix TypeScript errors from client cleanup"
+
+### RETROSPECTIVE (DO THIS LAST)
+Find your section under "Run 15 Retrospectives" below and replace the placeholder with your retrospective.
+
+---
+
+### Run 15 File Ownership Matrix
+
+| File/Directory | Agent A | Agent B | Nobody |
+|---|---|---|---|
+| bot/src/api/routes/quests.ts | OWNS | - | - |
+| bot/src/api/routes/checkins.ts | OWNS | - | - |
+| mini-app/src/api/client.ts | - | OWNS | - |
+| bot/src/api/middleware/ | - | - | LOCKED |
+| mini-app/src/pages/ | - | - | LOCKED |
+| mini-app/src/types/ | - | - | LOCKED |
+| bot/src/api/server.ts | - | - | LOCKED |
+| bot/src/jobs/* | - | - | LOCKED |
+| .env | - | - | LOCKED |
+
+### Run 15 Merge Order
+
+1. **Agent A first** — Backend security + API wrapping
+2. **Agent B second** — Client cleanup (depends on A's wrapping changes)
+
+**Conflict expectations:** Zero — agents own completely separate files. `PARALLEL_AGENTS.md` retro sections are pre-allocated.
+
+---
+
+### Run 15 Retrospectives
+
+#### Agent A Retrospective
+*(To be filled by Agent A)*
+
+#### Agent B Retrospective
+*(To be filled by Agent B)*
+
+#### Agent 0 Retrospective
+*(To be filled by Agent 0)*
