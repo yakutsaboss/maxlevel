@@ -1222,7 +1222,18 @@ Read PARALLEL_AGENTS.md — you are Agent E for Run 21. Your job: (1) Apply asyn
 **Recommendations:** Remaining inline components + loading skeleton (~43 lines) could be extracted to bring Dashboard.tsx to ~220 lines.
 
 #### Agent B Retrospective
-*(To be filled by Agent B)*
+**Status:** All tasks completed. Build passes cleanly (0 errors, tsc + vite build).
+
+| # | Task | Status |
+|---|------|--------|
+| 1 | Create `useSettingsData` hook (extract all state/handlers from Settings.tsx) | Done |
+| 2 | Simplify Settings.tsx with hook + replace error JSX with ErrorSection (246 → 100 lines) | Done |
+| 3 | Replace inline error JSX in Profile.tsx with ErrorSection (211 → 200 lines) | Done |
+| 4 | Build verification (`tsc && vite build`) | Pass |
+
+**Net result:** Settings.tsx 246 → 100 lines (–146). New `useSettingsData.ts` hook is 190 lines. Profile.tsx error block 13 lines → 1 line. Both pages now use ErrorSection, removing AlertCircle/RefreshCw imports.
+
+**Recommendations:** Loading skeletons in Settings/Profile could be extracted. Profile.tsx data loading (~60 lines) could become `useProfileData` hook.
 
 #### Agent C Retrospective
 **Status:** All 5 tasks completed. Build passes cleanly (tsc + vite build, 0 errors).
