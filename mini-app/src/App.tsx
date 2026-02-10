@@ -65,8 +65,10 @@ function AppContent() {
         setNeedsOnboarding(true);
       }
     } catch {
-      // If API fails, assume new user needs onboarding
-      setNeedsOnboarding(true);
+      // On API error, default to NOT redirecting to onboarding.
+      // Safer: existing users won't briefly see onboarding on network hiccups.
+      // Individual pages handle their own auth failures.
+      setNeedsOnboarding(false);
     } finally {
       setCheckingOnboarding(false);
     }

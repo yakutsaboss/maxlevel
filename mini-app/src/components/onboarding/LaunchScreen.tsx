@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { Trophy, Zap, Sparkles } from 'lucide-react';
 import { useTelegram } from '@/hooks/useTelegram';
@@ -16,8 +16,11 @@ export function LaunchScreen({ data, telegramId, onLaunch }: LaunchScreenProps) 
   const [xpCount, setXpCount] = useState(0);
   const [saving, setSaving] = useState(true);
   const [error, setError] = useState('');
+  const calledRef = useRef(false);
 
   useEffect(() => {
+    if (calledRef.current) return;
+    calledRef.current = true;
     completeOnboarding();
   }, []);
 
