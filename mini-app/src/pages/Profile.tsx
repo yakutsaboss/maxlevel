@@ -185,8 +185,7 @@ export function Profile() {
         </h2>
         <div className="grid grid-cols-2 gap-3">
           {stats.modes.map((userMode, index) => {
-            // TODO: Remove cast once perModeStreaks is in UserStats type (Agent C, Run 13)
-            const perModeStreaks = (stats as any).perModeStreaks as Array<{ mode_id: number; mode_name: string; mode_icon: string; current_streak: number; longest_streak: number }> | undefined;
+            const perModeStreaks = stats.perModeStreaks;
             const modeStreak = perModeStreaks?.find((s) => s.mode_id === userMode.mode_id);
             return (
               <motion.div key={userMode.mode_id} initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: index * 0.1 }} whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} onClick={() => haptic.impact('light')} className="bg-telegram-secondaryBg rounded-2xl p-4 border border-telegram-hint/10">
