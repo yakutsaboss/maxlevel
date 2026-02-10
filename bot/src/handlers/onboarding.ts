@@ -4,7 +4,32 @@
  */
 
 import { Context, InlineKeyboard } from 'grammy';
-import { executePythonTool } from '../utils/pythonTools.js';
+import { query, queryOne, execute } from '../utils/db.js';
+
+// --- Local SQL helpers ---
+
+async function listAllModes() {
+  return query('SELECT * FROM modes ORDER BY id');
+}
+
+async function getUserByTelegramId(telegramId: number) {
+  return queryOne<Record<string, any>>(
+    'SELECT * FROM users WHERE telegram_id = $1',
+    [telegramId]
+  );
+}
+
+async function getUserActiveModes(userId: number) {
+  return query(
+    `SELECT m.id AS mode_id, m.name, m.display_name, m.description, m.icon_emoji,
+            um.id AS user_mode_id, um.enabled_at, um.is_active
+     FROM user_modes um
+     JOIN modes m ON um.mode_id = m.id
+     WHERE um.user_id = $1 AND um.is_active = true
+     ORDER BY um.enabled_at`,
+    [userId]
+  );
+}
 
 /**
  * Start onboarding process
@@ -42,14 +67,12 @@ export async function showModeSelection(ctx: Context) {
   if (!userId) return;
 
   // Get available modes from database
-  const modesResult = await executePythonTool('mode_manager', ['--list-modes']);
+  const modes = await listAllModes();
 
-  if (!modesResult.success) {
+  if (modes.length === 0) {
     await ctx.reply('❌ Error loading modes. Please try again later.');
     return;
   }
-
-  const modes = modesResult.data || [];
 
   // Create message
   const message =
@@ -109,52 +132,55 @@ export async function handleModeSelection(ctx: Context) {
   }
 
   // Extract mode ID from callback data
-  const modeId = callbackData.replace('mode_select_', '');
+  const modeId = parseInt(callbackData.replace('mode_select_', ''));
 
-  // Get current user's modes
-  const userResult = await executePythonTool('user_manager', [
-    '--get-user',
-    '--telegram-id',
-    userId.toString(),
-  ]);
+  // Get current user
+  const user = await getUserByTelegramId(userId);
 
-  if (!userResult.success) {
+  if (!user) {
     await ctx.answerCallbackQuery({ text: '❌ Error. Please try again.' });
     return;
   }
 
-  const internalUserId = userResult.data.id;
+  const internalUserId = user.id;
 
   // Get currently selected modes
-  const modesResult = await executePythonTool('mode_manager', [
-    '--get-active-modes',
-    '--user-id',
-    internalUserId.toString(),
-  ]);
-
-  const currentModes = modesResult.success ? modesResult.data : [];
-  const isSelected = currentModes.some((m: any) => (m.mode_id || m.id).toString() === modeId);
+  const currentModes = await getUserActiveModes(internalUserId);
+  const isSelected = currentModes.some((m: any) => m.mode_id === modeId);
 
   if (isSelected) {
-    // Remove mode by ID
-    await executePythonTool('mode_manager', [
-      '--remove-mode',
-      '--user-id',
-      internalUserId.toString(),
-      '--mode-id',
-      modeId,
-    ]);
+    // Remove mode (soft delete)
+    await execute(
+      'UPDATE user_modes SET is_active = false WHERE user_id = $1 AND mode_id = $2 AND is_active = true',
+      [internalUserId, modeId]
+    );
 
     await ctx.answerCallbackQuery({ text: '➖ Mode removed!' });
   } else {
-    // Add mode by ID
-    await executePythonTool('mode_manager', [
-      '--add-modes',
-      '--user-id',
-      internalUserId.toString(),
-      '--mode-id',
-      modeId,
-    ]);
+    // Add mode by ID — check if exists, reactivate or insert
+    const existing = await queryOne<Record<string, any>>(
+      'SELECT * FROM user_modes WHERE user_id = $1 AND mode_id = $2',
+      [internalUserId, modeId]
+    );
+
+    if (existing && !existing.is_active) {
+      await execute(
+        'UPDATE user_modes SET is_active = true, enabled_at = NOW() WHERE id = $1',
+        [existing.id]
+      );
+    } else if (!existing) {
+      await execute(
+        'INSERT INTO user_modes (user_id, mode_id, is_active) VALUES ($1, $2, true)',
+        [internalUserId, modeId]
+      );
+      // Initialize streak for this mode
+      await execute(
+        `INSERT INTO streaks (user_id, mode_id, current_streak, longest_streak)
+         VALUES ($1, $2, 0, 0)
+         ON CONFLICT (user_id, mode_id) DO NOTHING`,
+        [internalUserId, modeId]
+      );
+    }
 
     await ctx.answerCallbackQuery({ text: '✅ Mode added!' });
   }
@@ -167,18 +193,10 @@ export async function handleModeSelection(ctx: Context) {
  * Update mode selection message with current selections
  */
 async function updateModeSelectionMessage(ctx: Context, userId: number) {
-  // Get available modes
-  const modesResult = await executePythonTool('mode_manager', ['--list-modes']);
-  const allModes = modesResult.success ? modesResult.data : [];
-
-  // Get user's selected modes
-  const selectedResult = await executePythonTool('mode_manager', [
-    '--get-active-modes',
-    '--user-id',
-    userId.toString(),
-  ]);
-  const selectedModes = selectedResult.success ? selectedResult.data : [];
-  const selectedIds = selectedModes.map((m: any) => m.mode_id || m.id);
+  // Get available modes and user's selected modes
+  const allModes = await listAllModes();
+  const selectedModes = await getUserActiveModes(userId);
+  const selectedIds = selectedModes.map((m: any) => m.mode_id);
 
   // Build message
   let message =
@@ -232,8 +250,7 @@ async function updateModeSelectionMessage(ctx: Context, userId: number) {
  * Show detailed mode information
  */
 async function showModeInfo(ctx: Context) {
-  const modesResult = await executePythonTool('mode_manager', ['--list-modes']);
-  const modes = modesResult.success ? modesResult.data : [];
+  const modes = await listAllModes();
 
   let message = `ℹ️ *Mode Information*\n\n`;
 
@@ -259,27 +276,17 @@ async function completeModeSelection(ctx: Context) {
   if (!userId) return;
 
   // Get user's internal ID
-  const userResult = await executePythonTool('user_manager', [
-    '--get-user',
-    '--telegram-id',
-    userId.toString(),
-  ]);
+  const user = await getUserByTelegramId(userId);
 
-  if (!userResult.success) {
+  if (!user) {
     await ctx.reply('❌ Error completing setup. Please try again.');
     return;
   }
 
-  const internalUserId = userResult.data.id;
+  const internalUserId = user.id;
 
   // Check if user selected at least one mode
-  const modesResult = await executePythonTool('mode_manager', [
-    '--get-active-modes',
-    '--user-id',
-    internalUserId.toString(),
-  ]);
-
-  const selectedModes = modesResult.success ? modesResult.data : [];
+  const selectedModes = await getUserActiveModes(internalUserId);
 
   if (selectedModes.length === 0) {
     await ctx.answerCallbackQuery({
@@ -314,21 +321,56 @@ async function assignInitialQuests(ctx: Context, userId: number) {
     { parse_mode: 'Markdown' }
   );
 
-  // Assign daily quests
-  const questResult = await executePythonTool('quest_manager', [
-    '--assign-daily',
-    '--user-id',
-    userId.toString(),
-    '--count',
-    '3',
-  ]);
+  // Get user's active mode IDs
+  const modes = await query(
+    'SELECT mode_id FROM user_modes WHERE user_id = $1 AND is_active = true',
+    [userId]
+  );
 
-  if (questResult.success) {
-    const questCount = (questResult.data as any)?.count || 0;
+  if (modes.length === 0) {
+    await ctx.reply(
+      `✅ *Setup Complete!*\n\n` +
+        `Use /quests to view and manage your quests.\n` +
+        `Use /app to open the Mini App for the best experience!`,
+      { parse_mode: 'Markdown' }
+    );
+    return;
+  }
 
+  const modeIds = modes.map((m: any) => m.mode_id);
+  const today = new Date().toISOString().split('T')[0];
+
+  // Find available daily templates not assigned today
+  const templates = await query(
+    `SELECT q.* FROM quests q
+     WHERE q.mode_id = ANY($1) AND q.quest_type = 'daily'
+     AND q.id NOT IN (
+       SELECT quest_id FROM quest_instances WHERE user_id = $2 AND instance_date = $3
+     )
+     ORDER BY RANDOM() LIMIT $4`,
+    [modeIds, userId, today, 3]
+  );
+
+  // Assign each template
+  let assignedCount = 0;
+  for (const t of templates) {
+    const target = ({ easy: 1, medium: 3, hard: 5 } as Record<string, number>)[t.difficulty] || 1;
+    try {
+      await execute(
+        `INSERT INTO quest_instances (user_id, quest_id, instance_date, status, target)
+         VALUES ($1, $2, $3, 'pending', $4)`,
+        [userId, t.id, today, target]
+      );
+      assignedCount++;
+    } catch {
+      // Skip duplicates or constraint violations
+    }
+  }
+
+  if (assignedCount > 0) {
     await ctx.reply(
       `✨ *You're All Set!*\n\n` +
-        `I've assigned ${questCount} daily quests to get you started.\n\n` +
+        `I've assigned ${assignedCount} daily quests to get you started.\n\n` +
         `*What's Next:*\n` +
         `• Check your quests: /quests\n` +
         `• View your profile: /profile\n` +
@@ -394,32 +436,27 @@ async function showQuickQuests(ctx: Context) {
 
   if (!userId) return;
 
-  const userResult = await executePythonTool('user_manager', [
-    '--get-user',
-    '--telegram-id',
-    userId.toString(),
-  ]);
+  const user = await getUserByTelegramId(userId);
 
-  if (!userResult.success) {
+  if (!user) {
     await ctx.reply('❌ Error loading quests.');
     return;
   }
 
-  const internalUserId = userResult.data.id;
+  const quests = await query(
+    `SELECT qi.id, qi.quest_id, q.title AS name, q.description, q.xp_reward,
+            q.quest_type, q.difficulty, q.mode_id, m.name AS mode_name,
+            m.icon_emoji AS mode_icon, qi.status, qi.instance_date,
+            qi.check_in_count, qi.target
+     FROM quest_instances qi
+     JOIN quests q ON qi.quest_id = q.id
+     LEFT JOIN modes m ON q.mode_id = m.id
+     WHERE qi.user_id = $1 AND qi.status IN ('pending', 'ready', 'in_progress')
+     ORDER BY qi.instance_date ASC`,
+    [user.id]
+  );
 
-  const questsResult = await executePythonTool('quest_manager', [
-    '--get-active',
-    '--user-id',
-    internalUserId.toString(),
-  ]);
-
-  if (!questsResult.success || !questsResult.data) {
-    await ctx.reply('You have no active quests yet. Use /app to get started!');
-    return;
-  }
-
-  const quests = (questsResult.data as any)?.quests || questsResult.data || [];
-  if (!Array.isArray(quests) || quests.length === 0) {
+  if (quests.length === 0) {
     await ctx.reply('You have no active quests yet. Use /app to get started!');
     return;
   }
@@ -453,38 +490,38 @@ async function showQuickProfile(ctx: Context) {
 
   if (!userId) return;
 
-  const userResult = await executePythonTool('user_manager', [
-    '--get-user',
-    '--telegram-id',
-    userId.toString(),
-  ]);
+  const user = await getUserByTelegramId(userId);
 
-  if (!userResult.success) {
+  if (!user) {
     await ctx.reply('❌ Error loading profile.');
     return;
   }
 
-  const user = userResult.data;
-
-  const statsResult = await executePythonTool('user_manager', [
-    '--get-stats',
-    '--user-id',
-    user.id.toString(),
+  // Get streaks and quest count in parallel
+  const [streaks, totalCompleted] = await Promise.all([
+    query(
+      `SELECT s.current_streak FROM streaks s WHERE s.user_id = $1`,
+      [user.id]
+    ),
+    queryOne<Record<string, any>>(
+      `SELECT COUNT(*)::int AS total FROM quest_instances WHERE user_id = $1 AND status = 'completed'`,
+      [user.id]
+    ),
   ]);
 
-  const stats = statsResult.success ? statsResult.data : {};
-
-  const level = stats.current_level || 1;
-  const xp = stats.total_xp || 0;
-  const streak = stats.overall_streak || 0;
-  const quests = stats.total_quests_completed || 0;
+  const level = user.current_level || 1;
+  const xp = user.total_xp || 0;
+  const overallStreak = streaks.length > 0
+    ? Math.min(...streaks.map((s: any) => s.current_streak))
+    : 0;
+  const questsCompleted = totalCompleted?.total || 0;
 
   const message =
     `👤 *${firstName}'s Profile*\n\n` +
     `⭐ Level: ${level}\n` +
     `💎 Total XP: ${xp}\n` +
-    `🔥 Streak: ${streak} days\n` +
-    `✅ Quests Completed: ${quests}\n\n` +
+    `🔥 Streak: ${overallStreak} days\n` +
+    `✅ Quests Completed: ${questsCompleted}\n\n` +
     `Use /app to see your full profile with achievements!`;
 
   await ctx.reply(message, { parse_mode: 'Markdown' });
@@ -498,26 +535,15 @@ export async function handleModesCommand(ctx: Context) {
 
   if (!userId) return;
 
-  const userResult = await executePythonTool('user_manager', [
-    '--get-user',
-    '--telegram-id',
-    userId.toString(),
-  ]);
+  const user = await getUserByTelegramId(userId);
 
-  if (!userResult.success) {
+  if (!user) {
     await ctx.reply('❌ Error loading your modes.');
     return;
   }
 
-  const internalUserId = userResult.data.id;
-
-  const modesResult = await executePythonTool('mode_manager', [
-    '--get-active-modes',
-    '--user-id',
-    internalUserId.toString(),
-  ]);
-
-  const activeModes = modesResult.success ? modesResult.data : [];
+  const internalUserId = user.id;
+  const activeModes = await getUserActiveModes(internalUserId);
 
   if (activeModes.length === 0) {
     await ctx.reply(
@@ -556,36 +582,36 @@ export async function handleModeSummary(ctx: Context) {
 
   await ctx.answerCallbackQuery();
 
-  const userResult = await executePythonTool('user_manager', [
-    '--get-user',
-    '--telegram-id',
-    userId.toString(),
-  ]);
+  const user = await getUserByTelegramId(userId);
 
-  if (!userResult.success) {
+  if (!user) {
     await ctx.reply('❌ Error loading summary.');
     return;
   }
 
-  const internalUserId = userResult.data.id;
+  const internalUserId = user.id;
 
-  const summaryResult = await executePythonTool('mode_manager', [
-    '--get-mode-summary',
-    '--user-id',
-    internalUserId.toString(),
+  // Get all modes and user's modes to compute summary
+  const [allModes, userModes] = await Promise.all([
+    listAllModes(),
+    query(
+      `SELECT m.id AS mode_id, m.name, m.display_name, m.description, m.icon_emoji,
+              um.is_active
+       FROM user_modes um
+       JOIN modes m ON um.mode_id = m.id
+       WHERE um.user_id = $1
+       ORDER BY um.enabled_at`,
+      [internalUserId]
+    ),
   ]);
 
-  if (!summaryResult.success) {
-    await ctx.reply('❌ Error loading mode summary.');
-    return;
-  }
-
-  const summary = summaryResult.data || {};
-  const activeModes = summary.active_modes || [];
+  const activeModes = userModes.filter((um: any) => um.is_active);
+  const userModeNames = userModes.map((um: any) => um.name);
+  const availableToAdd = allModes.filter((m: any) => !userModeNames.includes(m.name));
 
   let message = `📊 *Mode Summary*\n\n`;
-  message += `Active modes: ${summary.active_mode_count || 0}\n`;
-  message += `Available to add: ${summary.available_to_add_count || 0}\n\n`;
+  message += `Active modes: ${activeModes.length}\n`;
+  message += `Available to add: ${availableToAdd.length}\n\n`;
 
   if (activeModes.length > 0) {
     message += `*Your Modes:*\n`;
