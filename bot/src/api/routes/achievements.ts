@@ -1,5 +1,5 @@
 import { Router, Request, Response } from 'express';
-import { authenticateTelegram } from '../middleware/auth.js';
+import { authenticateTelegram, authorizeUser } from '../middleware/auth.js';
 import { query, queryOne, transaction } from '../../utils/db.js';
 import { cached, TTL } from '../../utils/cache.js';
 import { checkAndUnlockAchievements } from '../../utils/achievementEngine.js';
@@ -54,7 +54,7 @@ router.get('/categories', authenticateTelegram, asyncHandler(async (req: Request
  * GET /api/users/:userId/achievements
  * Get user's unlocked achievements
  */
-router.get('/users/:userId', authenticateTelegram, asyncHandler(async (req: Request, res: Response) => {
+router.get('/users/:userId', authenticateTelegram, authorizeUser, asyncHandler(async (req: Request, res: Response) => {
   const userId = parseInt(req.params.userId);
 
   const rows = await query(
@@ -87,7 +87,7 @@ router.get('/users/:userId', authenticateTelegram, asyncHandler(async (req: Requ
  * GET /api/users/:userId/achievements/available
  * Uses LEFT JOIN instead of NOT IN for better performance.
  */
-router.get('/users/:userId/available', authenticateTelegram, asyncHandler(async (req: Request, res: Response) => {
+router.get('/users/:userId/available', authenticateTelegram, authorizeUser, asyncHandler(async (req: Request, res: Response) => {
   const userId = parseInt(req.params.userId);
 
   const rows = await query(
@@ -107,7 +107,7 @@ router.get('/users/:userId/available', authenticateTelegram, asyncHandler(async 
  * POST /api/users/:userId/:achievementId/unlock
  * Uses INSERT ON CONFLICT to avoid separate check query + race conditions.
  */
-router.post('/users/:userId/:achievementId/unlock', authenticateTelegram, asyncHandler(async (req: Request, res: Response) => {
+router.post('/users/:userId/:achievementId/unlock', authenticateTelegram, authorizeUser, asyncHandler(async (req: Request, res: Response) => {
   const userId = parseInt(req.params.userId);
   const achievementId = parseInt(req.params.achievementId);
 
@@ -158,7 +158,7 @@ router.post('/users/:userId/:achievementId/unlock', authenticateTelegram, asyncH
 /**
  * GET /api/users/:userId/achievements/recent
  */
-router.get('/users/:userId/recent', authenticateTelegram, asyncHandler(async (req: Request, res: Response) => {
+router.get('/users/:userId/recent', authenticateTelegram, authorizeUser, asyncHandler(async (req: Request, res: Response) => {
   const userId = parseInt(req.params.userId);
   const limit = Math.min(parseInt(req.query.limit as string) || 5, 50);
 
@@ -181,7 +181,7 @@ router.get('/users/:userId/recent', authenticateTelegram, asyncHandler(async (re
  * POST /api/users/:userId/achievements/check
  * Delegates to achievementEngine for criteria checking and unlocking.
  */
-router.post('/users/:userId/check', authenticateTelegram, asyncHandler(async (req: Request, res: Response) => {
+router.post('/users/:userId/check', authenticateTelegram, authorizeUser, asyncHandler(async (req: Request, res: Response) => {
   const userId = parseInt(req.params.userId);
 
   const newAchievements = await checkAndUnlockAchievements(userId);
