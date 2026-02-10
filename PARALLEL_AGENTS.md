@@ -991,4 +991,46 @@ Read PARALLEL_AGENTS.md — you are Agent E for Run 20. Your job: (1) Migrate `a
 - Agent D noted `errors.ts` `asyncHandler` typing uses `Function` (loose) — could be typed with Express `RequestHandler` for stricter safety.
 - Agent E did not apply constants to `achievements.ts` (no hardcoded rarity strings found in current code) — noted in retro.
 
-<!-- Next run goes here. Agent 0 will append RUN 21 below this line. -->
+### Run 21 Retrospectives
+
+#### Agent A Retrospective
+**Status:** All 5 tasks completed. Build passes cleanly (`tsc && vite build`, 0 errors).
+
+| # | Task | Status |
+|---|------|--------|
+| 1 | Create `DailyGoalRing.tsx` — SVG progress ring for daily quest completion | Done |
+| 2 | Create `TodaysProgress.tsx` — today's stats grid (completed/XP/remaining) | Done |
+| 3 | Create `StreakSection.tsx` — aggregate streak card + per-mode breakdown | Done |
+| 4 | Simplify `Dashboard.tsx` — replace 3 sections with sub-component imports | Done |
+| 5 | Build verification (`tsc && vite build`) | Pass |
+
+**Commits:** 4 atomic commits on `feature/r21-dashboard-refactor`:
+1. `extract DailyGoalRing component from Dashboard.tsx`
+2. `extract TodaysProgress component from Dashboard.tsx`
+3. `extract StreakSection component from Dashboard.tsx`
+4. `simplify Dashboard.tsx with DailyGoalRing/TodaysProgress/StreakSection sub-components (407→275 lines)`
+
+**Line count reduction:** 407 → 275 lines (132 lines removed, -32%). Target was ~200 — the gap is due to 4 small helper components (StatCard, ModeCard, QuestCardMini, AchievementCard) that remain in Dashboard.tsx since they're only used there and are small enough (~10 lines each) not to warrant their own files.
+
+**Problems faced:** None. The worktree's PARALLEL_AGENTS.md didn't have the Run 21 section (branched before it was added), so the retrospective was appended at the end.
+
+**Recommendations for next run:**
+- StatCard, ModeCard, QuestCardMini, AchievementCard could be extracted to `components/dashboard/` if further reduction is desired (~55 lines → separate files would bring Dashboard.tsx to ~220 lines).
+- The loading skeleton (lines 127-169) is 43 lines and could be extracted to a `DashboardSkeleton` component.
+
+#### Agent B Retrospective
+*(To be filled by Agent B)*
+
+#### Agent C Retrospective
+*(To be filled by Agent C)*
+
+#### Agent D Retrospective
+*(To be filled by Agent D)*
+
+#### Agent E Retrospective
+*(To be filled by Agent E)*
+
+#### Agent 0 Retrospective
+*(To be filled by Agent 0)*
+
+<!-- Next run goes here. Agent 0 will append RUN 22 below this line. -->
