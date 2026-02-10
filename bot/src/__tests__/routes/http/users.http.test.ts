@@ -8,6 +8,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import request from 'supertest';
 import { createTestApp } from '../../helpers/testApp.js';
+import { ApiError } from '../../../api/utils/errors.js';
 
 // ─── Mocks (hoisted before any route import) ───────────────────────
 
@@ -42,6 +43,7 @@ vi.mock('../../../utils/pythonTools.js', () => ({
 vi.mock('../../../api/middleware/auth.js', () => ({
   authenticateTelegram: (_req: any, _res: any, next: any) => next(),
   authorizeUser: (_req: any, _res: any, next: any) => next(),
+  requireOwnership: vi.fn(),
 }));
 
 vi.mock('../../../api/middleware/rateLimiter.js', () => ({
@@ -57,6 +59,14 @@ import { userRouter } from '../../../api/routes/users.js';
 function buildApp() {
   const app = createTestApp();
   app.use('/api/users', userRouter);
+  // Error handler matching server.ts behaviour
+  app.use((err: any, _req: any, res: any, _next: any) => {
+    if (err instanceof ApiError) {
+      res.status(err.statusCode).json({ success: false, error: err.message });
+      return;
+    }
+    res.status(500).json({ success: false, error: 'Internal Server Error' });
+  });
   return app;
 }
 
@@ -85,10 +95,11 @@ describe('GET /api/users/:telegramId/stats', () => {
         total_quests_completed: 42,
       });
 
-    // Promise.all: [modes, activeQuests, aggregates]
+    // Promise.all: [modes, activeQuests, aggregates, modeStreaks]
     mockQuery
       .mockResolvedValueOnce([])   // modes
-      .mockResolvedValueOnce([]);  // activeQuests
+      .mockResolvedValueOnce([])   // activeQuests
+      .mockResolvedValueOnce([]);  // modeStreaks
     mockQueryOne
       .mockResolvedValueOnce({ completed_today: 2, xp_today: 50, days_active: 30 }); // aggregates
 
@@ -141,8 +152,9 @@ describe('POST /api/users', () => {
       .send({ telegramId: 111, firstName: 'Bob', username: 'bob' })
       .expect(201);
 
-    expect(res.body.message).toBe('User created successfully');
-    expect(res.body.user.first_name).toBe('Bob');
+    expect(res.body.success).toBe(true);
+    expect(res.body.data.message).toBe('User created successfully');
+    expect(res.body.data.user.first_name).toBe('Bob');
   });
 
   it('should return 400 when telegramId is missing', async () => {
@@ -151,8 +163,8 @@ describe('POST /api/users', () => {
       .send({ firstName: 'Bob' })
       .expect(400);
 
-    expect(res.body.error).toBe('Bad Request');
-    expect(res.body.message).toContain('telegramId');
+    expect(res.body.success).toBe(false);
+    expect(res.body.error).toContain('telegramId');
   });
 
   it('should return 400 when firstName is missing', async () => {
@@ -161,7 +173,8 @@ describe('POST /api/users', () => {
       .send({ telegramId: 111 })
       .expect(400);
 
-    expect(res.body.error).toBe('Bad Request');
+    expect(res.body.success).toBe(false);
+    expect(res.body.error).toContain('firstName');
   });
 
   it('should return 500 when database throws', async () => {
@@ -172,7 +185,8 @@ describe('POST /api/users', () => {
       .send({ telegramId: 111, firstName: 'Bob' })
       .expect(500);
 
-    expect(res.body.error).toBe('Server Error');
+    expect(res.body.success).toBe(false);
+    expect(res.body.error).toBe('Internal Server Error');
   });
 });
 
