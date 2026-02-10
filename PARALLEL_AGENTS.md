@@ -1321,4 +1321,31 @@ Read PARALLEL_AGENTS.md — you are Agent E for Run 21. Your job: (1) Apply asyn
 
 **Known Issues resolved:** Items 4-10 all addressed.
 
-<!-- Next run goes here. Agent 0 will append RUN 22 below this line. -->
+### Run 22 Retrospectives
+
+#### Agent D Retrospective
+**Completed all 8 tasks. Build passes (zero errors).**
+
+| # | Task | Status |
+|---|------|--------|
+| 1 | Fix global error handler in server.ts (ApiError check) | Done |
+| 2 | Remove unused errorResponse() from errors.ts | Done |
+| 3 | Migrate GET / (list users) to native SQL | Done |
+| 4 | Migrate GET /:userId (user detail) to native SQL | Done |
+| 5 | Migrate PATCH /:userId (update user) to native SQL | Done |
+| 6 | Migrate DELETE /:userId + deactivate/reactivate to native SQL | Done |
+| 7 | Clean up imports (removed executePythonTool, getUserById, InternalServerError) | Done |
+| 8 | Build verification | Done — zero errors |
+
+**Problems faced:** None. All tasks were straightforward.
+
+**Key changes:**
+- `server.ts`: Error handler now returns proper status codes for ApiError subclasses (400, 401, 403, 404, 409) instead of always 500. Non-ApiError errors still get the generic 500 fallback.
+- `errors.ts`: Removed dead `errorResponse()` function (11 lines). `successResponse()` and `validateRequired()` remain.
+- `admin-users.ts`: All 6 endpoints now use `query`/`queryOne`/`execute` from `db.ts` instead of spawning Python subprocesses. File went from 207 lines to 181 lines, net -26 lines. Removed `InternalServerError` import (no longer needed — SQL errors bubble to the global error handler).
+
+**Recommendations for next run:**
+- Other admin route files could benefit from the same Python-to-SQL migration pattern.
+- Consider migrating remaining `executePythonTool` calls in non-admin routes if they exist.
+
+<!-- Next run goes here. Agent 0 will append RUN 23 below this line. -->
