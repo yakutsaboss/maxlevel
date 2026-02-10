@@ -1,5 +1,5 @@
 import { Router, Request, Response } from 'express';
-import { authenticateTelegram } from '../middleware/auth.js';
+import { authenticateTelegram, requireOwnership } from '../middleware/auth.js';
 import { mutationLimiter, readLimiter } from '../middleware/rateLimiter.js';
 import { query, queryOne, transaction } from '../../utils/db.js';
 import { invalidateUserCache } from '../../utils/cache.js';
@@ -9,6 +9,7 @@ import {
   successResponse,
   BadRequestError,
   NotFoundError,
+  ForbiddenError,
 } from '../utils/errors.js';
 
 const router = Router();
@@ -22,6 +23,11 @@ router.post('/', authenticateTelegram, mutationLimiter, asyncHandler(async (req:
   const { telegram_id, quest_instance_id, notes } = req.body;
 
   validateRequired(req.body, ['telegram_id', 'quest_instance_id']);
+
+  // Verify the authenticated user owns this telegram_id
+  if (parseInt(telegram_id) !== req.telegramUser?.id) {
+    throw new ForbiddenError('You do not have permission to access this resource');
+  }
 
   // Fetch quest instance with user verification
   const quest = await queryOne(
@@ -97,6 +103,7 @@ router.post('/', authenticateTelegram, mutationLimiter, asyncHandler(async (req:
  */
 router.get('/:telegramId/today', authenticateTelegram, readLimiter, asyncHandler(async (req: Request, res: Response) => {
   const telegramId = parseInt(req.params.telegramId);
+  requireOwnership(req);
 
   if (isNaN(telegramId)) {
     throw new BadRequestError('Invalid telegram ID');
@@ -127,6 +134,7 @@ router.get('/:telegramId/today', authenticateTelegram, readLimiter, asyncHandler
  */
 router.get('/:telegramId/history', authenticateTelegram, readLimiter, asyncHandler(async (req: Request, res: Response) => {
   const telegramId = parseInt(req.params.telegramId);
+  requireOwnership(req);
 
   if (isNaN(telegramId)) {
     throw new BadRequestError('Invalid telegram ID');
