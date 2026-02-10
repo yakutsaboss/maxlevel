@@ -5,6 +5,7 @@ import { executePythonTool } from '../../utils/pythonTools.js';
 import { queryOne, transaction } from '../../utils/db.js';
 import { invalidateUserCache } from '../../utils/cache.js';
 import { checkAndUnlockAchievements } from '../../utils/achievementEngine.js';
+import { QUEST_STATUS, QUEST_FREQUENCY } from '../utils/constants.js';
 
 const router = Router();
 
@@ -184,14 +185,14 @@ router.post('/users/:userId/assign', authenticateTelegram, authorizeUser, mutati
     const { userId } = req.params;
     const { frequency, count } = req.body;
 
-    if (!frequency || !['daily', 'weekly'].includes(frequency)) {
+    if (!frequency || !Object.values(QUEST_FREQUENCY).includes(frequency)) {
       return res.status(400).json({
         error: 'Bad Request',
         message: 'Invalid frequency. Must be "daily" or "weekly"',
       });
     }
 
-    const operation = frequency === 'daily' ? '--assign-daily' : '--assign-weekly';
+    const operation = frequency === QUEST_FREQUENCY.DAILY ? '--assign-daily' : '--assign-weekly';
     const args = [operation, '--user-id', userId];
     if (count) {
       args.push('--count', count.toString());
@@ -256,7 +257,7 @@ router.patch('/:questId/progress', authenticateTelegram, authorizeUser, mutation
     if (quest.user_id !== req.dbUser?.id) {
       return res.status(403).json({ error: 'Forbidden', message: 'You do not have permission to update this quest' });
     }
-    if (quest.status === 'completed') {
+    if (quest.status === QUEST_STATUS.COMPLETED) {
       return res.status(400).json({ error: 'Bad Request', message: 'Quest is already completed' });
     }
 
@@ -289,7 +290,7 @@ router.patch('/:questId/progress', authenticateTelegram, authorizeUser, mutation
         success: true,
         data: {
           id: questId,
-          status: 'completed',
+          status: QUEST_STATUS.COMPLETED,
           progress: clampedProgress,
           target,
           xpEarned: quest.xp_reward,
