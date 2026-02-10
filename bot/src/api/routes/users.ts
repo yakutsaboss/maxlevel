@@ -635,4 +635,37 @@ router.patch('/:telegramId/profile', authenticateTelegram, async (req: Request, 
   }
 });
 
+/**
+ * DELETE /api/users/:telegramId/account
+ * Soft delete: deactivate account and anonymize PII.
+ */
+router.delete('/:telegramId/account', authenticateTelegram, async (req: Request, res: Response) => {
+  try {
+    const tid = parseInt(req.params.telegramId);
+    if (isNaN(tid)) {
+      return res.status(400).json({ success: false, error: 'Invalid telegram ID' });
+    }
+
+    const user = await queryOne(
+      `UPDATE users
+       SET is_active = false, first_name = 'Deleted User', username = NULL
+       WHERE telegram_id = $1 AND is_active = true
+       RETURNING id`,
+      [tid]
+    );
+
+    if (!user) {
+      return res.status(404).json({ success: false, error: 'User not found or already deleted' });
+    }
+
+    // Invalidate cache for this user
+    invalidatePrefix(`user:${user.id}:`);
+
+    res.json({ success: true, data: { message: 'Account deleted successfully' } });
+  } catch (error) {
+    console.error('Error deleting user account:', error);
+    res.status(500).json({ success: false, error: 'Failed to delete account' });
+  }
+});
+
 export { router as userRouter };
