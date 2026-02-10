@@ -991,4 +991,46 @@ Read PARALLEL_AGENTS.md — you are Agent E for Run 20. Your job: (1) Migrate `a
 - Agent D noted `errors.ts` `asyncHandler` typing uses `Function` (loose) — could be typed with Express `RequestHandler` for stricter safety.
 - Agent E did not apply constants to `achievements.ts` (no hardcoded rarity strings found in current code) — noted in retro.
 
-<!-- Next run goes here. Agent 0 will append RUN 21 below this line. -->
+### Run 21 Retrospectives
+
+#### Agent A Retrospective
+*(To be filled by Agent A)*
+
+#### Agent B Retrospective
+*(To be filled by Agent B)*
+
+#### Agent C Retrospective
+**Status:** All 5 tasks completed. Build passes cleanly (tsc + vite build, 0 errors).
+
+| # | Task | Status |
+|---|------|--------|
+| 1 | Create `QuestCard.tsx` — extract QuestCard function (lines 316-362) | Done |
+| 2 | Create `QuestDetailModal.tsx` — extract quest detail modal (lines 195-302) | Done |
+| 3 | Create `TabButton.tsx` — extract TabButton (lines 307-314) | Done |
+| 4 | Simplify `Quests.tsx` — replace extracted sections with sub-component imports | Done |
+| 5 | Build verification (`tsc && vite build`) | Pass |
+
+**Problems faced:** None. The worktree branched before Run 21 setup was committed, so the retrospective placeholder didn't exist — appended manually following the pre-allocated section pattern.
+
+**Implementation details:**
+- `QuestCard.tsx` (60 lines): Self-contained card with quest progress bar, XP badge, difficulty badge, mode tag, completion date. Uses `formatDate` from shared `@/utils/formatDate`.
+- `QuestDetailModal.tsx` (127 lines): Bottom sheet modal with full quest details, progress dots, CheckInButton, completion state. Manages its own AnimatePresence wrapper. Props: quest, completing, userId, onClose, onCheckinSuccess.
+- `TabButton.tsx` (16 lines): Simple tab button with icon, label, count badge.
+- `Quests.tsx`: 363 → 203 lines (–160). Removed local `formatDate` duplicate, removed 4 unused icon imports (Zap, Loader2, Calendar, QuestDifficultyBadge). Keeps all state management, data loading, handlers, loading skeleton, and top-level layout.
+
+**Commits:** 4 atomic commits (one per extracted component + final simplification), all on `feature/r21-quests-refactor`.
+
+**Recommendations for next run:**
+- The loading skeleton in Quests.tsx is ~33 lines of boilerplate. Could extract a `QuestsSkeleton` component to bring Quests.tsx closer to ~170 lines.
+- `QuestDetailModal` handles both the "in progress" and "completed" quest states in one component. If modal grows more complex, could split into QuestProgressSection + QuestCompleteSection.
+
+#### Agent D Retrospective
+*(To be filled by Agent D)*
+
+#### Agent E Retrospective
+*(To be filled by Agent E)*
+
+#### Agent 0 Retrospective
+*(To be filled by Agent 0)*
+
+<!-- Next run goes here. Agent 0 will append RUN 22 below this line. -->
