@@ -78,11 +78,36 @@ router.post('/:telegramId/complete', authenticateTelegram, asyncHandler(async (r
   }
   const userId = userLookup.id;
 
-  // 1. Add selected modes (keep Python tool for complex logic)
-  const modesString = quiz_data.selected_modes.join(',');
-  await executePythonTool('mode_manager', [
-    '--add-modes', '--user-id', String(userId), '--modes', modesString,
-  ]);
+  // 1. Add selected modes (native SQL — migrated from mode_manager.py)
+  for (const modeName of quiz_data.selected_modes) {
+    const mode = await queryOne('SELECT id FROM modes WHERE name = $1', [modeName]);
+    if (!mode) continue;
+
+    const existing = await queryOne(
+      'SELECT id, is_active FROM user_modes WHERE user_id = $1 AND mode_id = $2',
+      [userId, mode.id]
+    );
+
+    if (existing) {
+      if (!existing.is_active) {
+        await execute(
+          'UPDATE user_modes SET is_active = true, enabled_at = NOW() WHERE id = $1',
+          [existing.id]
+        );
+      }
+    } else {
+      await execute(
+        'INSERT INTO user_modes (user_id, mode_id, is_active) VALUES ($1, $2, true)',
+        [userId, mode.id]
+      );
+    }
+
+    // Initialize streak for this mode
+    await execute(
+      'INSERT INTO streaks (user_id, mode_id, current_streak, longest_streak) VALUES ($1, $2, 0, 0) ON CONFLICT (user_id, mode_id) DO NOTHING',
+      [userId, mode.id]
+    );
+  }
 
   // 2-5: All remaining steps in a single transaction
   await transaction(async (client) => {
