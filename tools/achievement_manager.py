@@ -148,11 +148,9 @@ class AchievementManager:
 
             # Get all achievements not yet unlocked
             cursor.execute("""
-                SELECT id, name, description, xp_reward, rarity, icon,
-                       criteria_type, criteria_value
+                SELECT id, name, description, xp_bonus, rarity, badge_icon, criteria
                 FROM achievements
-                WHERE is_active = true
-                AND id NOT IN (
+                WHERE id NOT IN (
                     SELECT achievement_id FROM user_achievements
                     WHERE user_id = %s
                 )
@@ -163,33 +161,39 @@ class AchievementManager:
 
             # Check each achievement
             for achievement in achievements:
-                a_id, name, desc, xp, rarity, icon, criteria_type, criteria_value = achievement
+                a_id, name, desc, xp_bonus, rarity, badge_icon, criteria = achievement
+
+                # Parse JSONB criteria
+                criteria_type = criteria.get('type') if criteria else None
+                criteria_value = criteria.get('value') or criteria.get('days') or criteria.get('count')
 
                 qualifies = False
 
                 # Check criteria
-                if criteria_type == 'level' and level >= criteria_value:
+                if criteria_type == 'level' and criteria_value and level >= criteria_value:
                     qualifies = True
-                elif criteria_type == 'total_xp' and total_xp >= criteria_value:
+                elif criteria_type == 'total_xp' and criteria_value and total_xp >= criteria_value:
                     qualifies = True
-                elif criteria_type == 'quest_count' and quests_completed >= criteria_value:
+                elif criteria_type == 'quest_count' and criteria_value and quests_completed >= criteria_value:
                     qualifies = True
-                elif criteria_type == 'streak' and current_streak >= criteria_value:
+                elif criteria_type == 'quest_complete' and criteria_value and quests_completed >= criteria_value:
                     qualifies = True
-                elif criteria_type == 'longest_streak' and longest_streak >= criteria_value:
+                elif criteria_type == 'streak' and criteria_value and current_streak >= criteria_value:
                     qualifies = True
-                elif criteria_type == 'daily_quests' and daily_quests >= criteria_value:
+                elif criteria_type == 'longest_streak' and criteria_value and longest_streak >= criteria_value:
                     qualifies = True
-                elif criteria_type == 'weekly_quests' and weekly_quests >= criteria_value:
+                elif criteria_type == 'daily_quests' and criteria_value and daily_quests >= criteria_value:
+                    qualifies = True
+                elif criteria_type == 'weekly_quests' and criteria_value and weekly_quests >= criteria_value:
                     qualifies = True
 
                 # Unlock if qualifies
                 if qualifies:
                     cursor.execute("""
                         INSERT INTO user_achievements (
-                            user_id, achievement_id, unlocked_at, progress
+                            user_id, achievement_id, unlocked_at
                         )
-                        VALUES (%s, %s, NOW(), 100)
+                        VALUES (%s, %s, NOW())
                         ON CONFLICT DO NOTHING
                         RETURNING id, unlocked_at
                     """, (user_id, a_id))
@@ -200,10 +204,10 @@ class AchievementManager:
                             "id": a_id,
                             "name": name,
                             "description": desc,
-                            "xp_reward": xp,
+                            "xp_bonus": xp_bonus,
                             "rarity": rarity,
-                            "icon": icon,
-                            "criteria": f"{criteria_type}: {criteria_value}",
+                            "badge_icon": badge_icon,
+                            "criteria": criteria,
                             "unlocked_at": result[1].isoformat() if result[1] else None
                         })
 
