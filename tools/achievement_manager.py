@@ -351,8 +351,8 @@ class AchievementManager:
 
             cursor.execute("""
                 SELECT
-                    a.id, a.name, a.description, a.icon, a.rarity,
-                    a.xp_reward, ua.unlocked_at
+                    a.id, a.name, a.description, a.badge_icon, a.rarity,
+                    a.xp_bonus, ua.unlocked_at
                 FROM user_achievements ua
                 JOIN achievements a ON ua.achievement_id = a.id
                 WHERE ua.user_id = %s
@@ -366,9 +366,9 @@ class AchievementManager:
                     "id": row[0],
                     "name": row[1],
                     "description": row[2],
-                    "icon": row[3],
+                    "badge_icon": row[3],
                     "rarity": row[4],
-                    "xp_reward": row[5],
+                    "xp_bonus": row[5],
                     "unlocked_at": row[6].isoformat() if row[6] else None
                 })
 
