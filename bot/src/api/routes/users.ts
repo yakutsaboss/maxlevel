@@ -600,37 +600,40 @@ router.delete('/:telegramId/account', authenticateTelegram, asyncHandler(async (
 
   const userId = user.id;
 
-  // Wipe all user data in a single transaction
+  // Wipe all user data in a single transaction.
+  // Order matters: respect FK constraints (punishment_history → quest_instances).
   await transaction(async (client) => {
     // 1. Delete onboarding state (forces re-onboarding on next open)
     await client.query('DELETE FROM onboarding_state WHERE user_id = $1', [userId]);
 
-    // 2. Delete quest-related data
+    // 2. Delete check-ins (references quest_instances)
     await client.query(
-      `DELETE FROM checkins WHERE quest_instance_id IN
+      `DELETE FROM check_ins WHERE quest_instance_id IN
        (SELECT id FROM quest_instances WHERE user_id = $1)`,
       [userId]
     );
-    await client.query('DELETE FROM quest_instances WHERE user_id = $1', [userId]);
 
-    // 3. Delete mode-related data
-    await client.query('DELETE FROM mode_configs WHERE user_id = $1', [userId]);
-    await client.query('DELETE FROM user_modes WHERE user_id = $1', [userId]);
-
-    // 4. Delete punishment data
+    // 3. Delete punishment data (punishment_history references quest_instances via FK)
     await client.query('DELETE FROM punishment_history WHERE user_id = $1', [userId]);
     await client.query('DELETE FROM punishment_settings WHERE user_id = $1', [userId]);
 
-    // 5. Delete achievements
+    // 4. Delete quest instances (now safe — no more FK refs)
+    await client.query('DELETE FROM quest_instances WHERE user_id = $1', [userId]);
+
+    // 5. Delete mode-related data
+    await client.query('DELETE FROM mode_configs WHERE user_id = $1', [userId]);
+    await client.query('DELETE FROM user_modes WHERE user_id = $1', [userId]);
+
+    // 6. Delete achievements
     await client.query('DELETE FROM user_achievements WHERE user_id = $1', [userId]);
 
-    // 6. Delete activity log
+    // 7. Delete activity log
     await client.query('DELETE FROM user_activity_log WHERE user_id = $1', [userId]);
 
-    // 7. Delete streaks
+    // 8. Delete streaks
     await client.query('DELETE FROM streaks WHERE user_id = $1', [userId]);
 
-    // 8. Deactivate user and reset all progress
+    // 9. Deactivate user and reset all progress
     await client.query(
       `UPDATE users
        SET is_active = false,
@@ -639,8 +642,6 @@ router.delete('/:telegramId/account', authenticateTelegram, asyncHandler(async (
            timezone = 'UTC',
            total_xp = 0,
            current_level = 1,
-           current_streak = 0,
-           longest_streak = 0,
            avatar_id = NULL
        WHERE id = $1`,
       [userId]
