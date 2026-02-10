@@ -2,7 +2,7 @@ import { Router, Request, Response } from 'express';
 import { authenticateTelegram, authorizeUser } from '../middleware/auth.js';
 import { mutationLimiter, readLimiter } from '../middleware/rateLimiter.js';
 import { executePythonTool } from '../../utils/pythonTools.js';
-import { queryOne, transaction } from '../../utils/db.js';
+import { query, queryOne, execute, transaction } from '../../utils/db.js';
 import { invalidateUserCache } from '../../utils/cache.js';
 import { checkAndUnlockAchievements } from '../../utils/achievementEngine.js';
 import { QUEST_STATUS, QUEST_FREQUENCY } from '../utils/constants.js';
@@ -22,22 +22,22 @@ const router = Router();
  * Get all active quests for a user
  */
 router.get('/users/:userId/active', authenticateTelegram, authorizeUser, readLimiter, asyncHandler(async (req: Request, res: Response) => {
-  const { userId } = req.params;
+  const userId = parseInt(req.params.userId);
 
-  const result = await executePythonTool('quest_manager', [
-    '--get-active',
-    '--user-id', userId,
-  ]);
+  const quests = await query(
+    `SELECT qi.id, qi.quest_id, q.title AS name, q.description, q.xp_reward,
+            q.quest_type, q.difficulty, q.mode_id, m.name AS mode_name,
+            m.icon_emoji AS mode_icon, qi.status, qi.instance_date,
+            qi.check_in_count, qi.target
+     FROM quest_instances qi
+     JOIN quests q ON qi.quest_id = q.id
+     LEFT JOIN modes m ON q.mode_id = m.id
+     WHERE qi.user_id = $1 AND qi.status IN ('pending', 'ready', 'in_progress')
+     ORDER BY qi.instance_date ASC`,
+    [userId]
+  );
 
-  if (!result.success) {
-    throw new InternalServerError('Failed to fetch active quests');
-  }
-
-  const data = result.data as any;
-  res.json(successResponse({
-    quests: data?.quests || [],
-    count: data?.count || 0,
-  }));
+  res.json(successResponse({ quests, count: quests.length }));
 }));
 
 /**
