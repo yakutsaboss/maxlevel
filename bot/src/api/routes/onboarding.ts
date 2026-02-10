@@ -77,6 +77,16 @@ router.post('/:telegramId/complete', authenticateTelegram, asyncHandler(async (r
   }
   const userId = userLookup.id;
 
+  // Idempotency guard: if onboarding already completed, return early
+  const existingState = await queryOne(
+    'SELECT current_step FROM onboarding_state WHERE user_id = $1',
+    [userId]
+  );
+  if (existingState?.current_step === 'completed') {
+    res.json(successResponse({ xp_awarded: 0, already_completed: true }));
+    return;
+  }
+
   // 1. Add selected modes (native SQL — migrated from mode_manager.py)
   for (const modeName of quiz_data.selected_modes) {
     const mode = await queryOne('SELECT id FROM modes WHERE name = $1', [modeName]);
