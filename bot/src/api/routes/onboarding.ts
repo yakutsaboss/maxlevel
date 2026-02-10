@@ -159,7 +159,7 @@ router.post('/:telegramId/complete', authenticateTelegram, asyncHandler(async (r
        current_level = ((total_xp + 50) / 500) + 1,
        is_active = true,
        first_name = CASE WHEN first_name = 'Deleted User' THEN $2 ELSE first_name END,
-       username = CASE WHEN username IS NULL AND $3 IS NOT NULL THEN $3 ELSE username END
+       username = CASE WHEN username IS NULL AND $3::text IS NOT NULL THEN $3::text ELSE username END
        WHERE id = $1`,
       [userId, restoreName, restoreUsername]
     );
