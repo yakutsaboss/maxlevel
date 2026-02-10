@@ -135,7 +135,7 @@ export interface CheckinListResponse {
 export interface PunishmentSettings {
   consent_given: boolean;
   consent_timestamp: string | null;
-  intensity_level: number;
+  intensity_level: string;
   safe_mode: boolean;
   custom_punishments: Record<string, any> | null;
   max_xp_penalty: number;
@@ -152,6 +152,7 @@ export interface PunishmentHistoryResponse {
     xp_deducted: number;
     streak_days_lost: number;
     message_sent: string;
+    notes: string;
     applied_at: string;
     quest_title?: string;
   }>;
