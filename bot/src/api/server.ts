@@ -19,6 +19,7 @@ import { onboardingRouter } from './routes/onboarding.js';
 import { checkinRouter } from './routes/checkins.js';
 import { punishmentRouter } from './routes/punishment.js';
 import { apiLimiter } from './middleware/rateLimiter.js';
+import { ApiError } from './utils/errors.js';
 
 const app: Express = express();
 const PORT = process.env.API_PORT || 3000;
@@ -129,6 +130,11 @@ export function startApiServer(webhookHandler?: RequestHandler): Promise<http.Se
 
   // Global error handler
   app.use((err: Error, req: Request, res: Response, _next: NextFunction) => {
+    if (err instanceof ApiError) {
+      res.status(err.statusCode).json({ success: false, error: err.message });
+      return;
+    }
+
     console.error('Error:', err);
     res.status(500).json({
       error: 'Internal Server Error',
