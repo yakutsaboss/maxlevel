@@ -21,7 +21,7 @@ export function useSettingsData({
   user,
   haptic,
   showConfirm,
-  navigate,
+  navigate: _navigate,
   queryClient,
   onboardingStore,
 }: UseSettingsDataParams) {
@@ -159,7 +159,12 @@ export function useSettingsData({
         queryClient.clear();
         onboardingStore.reset();
         setToast({ message: 'Account deleted. Starting fresh...', variant: 'success' });
-        setTimeout(() => navigate('/onboarding', { replace: true }), 1200);
+        // Hard reload to force full state reset — React Router navigate
+        // doesn't re-run checkOnboardingState, so deleted users stay on
+        // protected pages with stale needsOnboarding=false.
+        setTimeout(() => {
+          window.location.href = window.location.origin + '/levelapp/onboarding';
+        }, 1200);
       } else {
         setToast({ message: 'Failed to delete account', variant: 'error' });
       }

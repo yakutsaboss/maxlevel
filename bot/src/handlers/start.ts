@@ -22,8 +22,8 @@ export async function handleStart(ctx: MyContext) {
     // Check if user exists
     const user = await queryOne('SELECT * FROM users WHERE telegram_id = $1', [telegramId]);
 
-    if (user) {
-      // User exists - welcome back with engagement
+    if (user && user.is_active) {
+      // Active user - welcome back with engagement
 
       // Store user ID in session
       ctx.session.userId = user.id;
@@ -68,6 +68,24 @@ export async function handleStart(ctx: MyContext) {
         .text('📋 Manage Modes', 'start_mode_selection');
 
       await ctx.reply('Choose an action:', { reply_markup: keyboard });
+    } else if (user && !user.is_active) {
+      // Deleted/inactive user — prompt to re-onboard via mini app
+      ctx.session.userId = user.id;
+      ctx.session.telegramId = telegramId;
+      ctx.session.username = username;
+      ctx.session.firstName = userName;
+
+      const miniAppUrl = process.env.MINI_APP_URL || 'https://yakutsa.ru/levelapp';
+      const keyboard = new InlineKeyboard()
+        .webApp('🚀 Set Up Account', miniAppUrl);
+
+      await sendMarkdownMessage(
+        ctx,
+        `👋 Hey, **${userName}**!\n\n` +
+          `Your account was previously deleted. ` +
+          `Open the Mini App to set everything up again — it only takes a minute!`
+      );
+      await ctx.reply('Tap below to start fresh:', { reply_markup: keyboard });
     } else {
       // New user - create account
       try {

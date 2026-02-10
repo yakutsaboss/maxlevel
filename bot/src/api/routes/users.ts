@@ -627,7 +627,10 @@ router.delete('/:telegramId/account', authenticateTelegram, asyncHandler(async (
     // 6. Delete activity log
     await client.query('DELETE FROM user_activity_log WHERE user_id = $1', [userId]);
 
-    // 7. Deactivate user and reset all progress
+    // 7. Delete streaks
+    await client.query('DELETE FROM streaks WHERE user_id = $1', [userId]);
+
+    // 8. Deactivate user and reset all progress
     await client.query(
       `UPDATE users
        SET is_active = false,
