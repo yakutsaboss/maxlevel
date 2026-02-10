@@ -191,21 +191,20 @@ Use this structure when creating a new run. Copy and adapt:
 
 ---
 
-## Known Issues (Updated after Run 20)
+## Known Issues (Updated after Run 21)
 
 ### Still Open
 1. **pg-boss Node.js mismatch** — Requires 22.12+, server has 20.20. Only triggers warnings, no functional impact yet.
 2. **Mode configs unused** — `mode_configs` table stores quiz responses + personalized plans, but data is never consumed.
 3. **Delete account e2e testing** — confirm soft delete flow works end-to-end in Telegram (Agent B Run 18 recommendation).
-4. **Settings error state uses inline JSX** — Could adopt the new ErrorSection component (Agent A Run 20 recommendation). **→ Run 21 Agent B**
-5. **Profile error state uses inline JSX** — Same as above, Profile.tsx still has its own error UI. **→ Run 21 Agent B**
-6. **Settings state logic could be a hook** — ~120 lines of accountability auto-save/debounce logic could be extracted to `useSettingsData` (Agent A Run 20 recommendation). **→ Run 21 Agent B**
-7. **`asyncHandler` typing is loose** — Uses `Function` type, should use Express `RequestHandler` (Agent D Run 20 recommendation). **→ Run 21 Agent D**
-8. **39 backend routes still use manual try-catch** — quests.ts (6), achievements.ts (8), modes.ts (7), punishment.ts (3), leaderboard.ts (3), admin-users.ts (7), admin-stats.ts (5). **→ Run 21 Agents D+E**
-9. **Dashboard.tsx 407 lines** — Largest mini-app page, has DailyGoalRing/StreakSection/TodaysProgress extraction targets. **→ Run 21 Agent A**
-10. **Quests.tsx 363 lines** — QuestCard/QuestDetailModal/TabButton could be extracted. **→ Run 21 Agent C**
+4. **`errorResponse()` unused** — Now unused by any route file after full asyncHandler migration. Could be removed (Agent D Run 21 recommendation).
+5. **Loading skeletons are inline** — Dashboard (~43 lines), Settings (~32 lines), Profile (~63 lines), Quests (~33 lines) all have inline loading skeletons that could be extracted (Agents A/B/C Run 21 recommendation).
+6. **Profile.tsx data loading could be a hook** — ~60 lines of data loading logic could become `useProfileData` (Agent B Run 21 recommendation).
+7. **Dashboard inline helper components** — StatCard, ModeCard, QuestCardMini, AchievementCard (~55 lines total) remain inline (Agent A Run 21 recommendation).
+8. **Admin routes use `executePythonTool`** — Could migrate to native SQL for performance (Agent E Run 21 recommendation).
+9. **Express error middleware** — All errors now go through `next()` via asyncHandler, but no middleware formats `ApiError` instances into consistent JSON (Agents D+E Run 21 recommendation).
 
-### Resolved (Runs 13–20)
+### Resolved (Runs 13–21)
 - ~~PATCH /progress authorization~~ — Fixed in Run 15
 - ~~checkAchievements() double-wrap bug~~ — Fixed in Run 15
 - ~~Bare API endpoints~~ — All endpoints now return `{success, data}` (Runs 15+16)
@@ -237,6 +236,14 @@ Use this structure when creating a new run. Copy and adapt:
 - ~~authorizeUser calls Python subprocess~~ — Migrated to native SQL in Run 20 Agent E
 - ~~Hardcoded status strings in backend routes~~ — Created typed constants in Run 20 Agent E
 - ~~Unused RefreshCw imports in 4 pages~~ — Resolved by ErrorSection consolidation in Run 20 Agent C
+- ~~Settings error state uses inline JSX~~ — Replaced with ErrorSection in Run 21 Agent B
+- ~~Profile error state uses inline JSX~~ — Replaced with ErrorSection in Run 21 Agent B
+- ~~Settings state logic not a hook~~ — Extracted `useSettingsData` hook in Run 21 Agent B (246→100 lines)
+- ~~`asyncHandler` typing is loose~~ — Fixed with proper Express types in Run 21 Agent D
+- ~~39 backend routes use manual try-catch~~ — All migrated to asyncHandler in Run 21 Agents D+E (38 handlers)
+- ~~Dashboard.tsx 407 lines~~ — Extracted DailyGoalRing/TodaysProgress/StreakSection in Run 21 Agent A (→275 lines)
+- ~~Quests.tsx 363 lines~~ — Extracted QuestCard/QuestDetailModal/TabButton in Run 21 Agent C (→203 lines)
+- ~~Hardcoded punishment validLevels~~ — Replaced with `PUNISHMENT_INTENSITY` constants in Run 21 Agent E
 
 ---
 
@@ -1297,6 +1304,21 @@ Read PARALLEL_AGENTS.md — you are Agent E for Run 21. Your job: (1) Apply asyn
 - Admin routes still use `executePythonTool` — could migrate to native SQL.
 
 #### Agent 0 Retrospective
-*(To be filled by Agent 0)*
+**Merge:** D → E → C → A → B. All 5 merges had PARALLEL_AGENTS.md conflicts (expected — worktrees branched before Run 21 setup commit). Resolved with `checkout --ours` + retro splice. Zero code file conflicts — file ownership matrix worked perfectly for the second consecutive 5-agent run.
+
+**Build:** Both `bot` and `mini-app` pass with zero errors locally and on server.
+
+**Deploy:** `8dc6e31` deployed to production. 20 files changed (7 new + 13 modified). PM2 restarted. Telegram notification sent.
+
+**Net result:**
+- **Backend:** 38 route handlers migrated to asyncHandler (20 by D + 18 by E). Combined with Run 20's 17 = **55 total handlers** now using asyncHandler. All backend routes migrated — zero manual try-catch blocks remain.
+- **asyncHandler typing:** Fixed from loose `Function` to proper `(req: Request, res: Response, next: NextFunction) => Promise<any>`.
+- **Dashboard.tsx:** 407 → 275 lines (–132). 3 new sub-components: DailyGoalRing, TodaysProgress, StreakSection.
+- **Quests.tsx:** 363 → 203 lines (–160). 3 new sub-components: QuestCard, QuestDetailModal, TabButton.
+- **Settings.tsx:** 246 → 100 lines (–146). New `useSettingsData` hook (190 lines). ErrorSection adopted.
+- **Profile.tsx:** 211 → ~200 lines. ErrorSection adopted, AlertCircle/RefreshCw removed.
+- **PUNISHMENT_INTENSITY** constants applied to punishment.ts.
+
+**Known Issues resolved:** Items 4-10 all addressed.
 
 <!-- Next run goes here. Agent 0 will append RUN 22 below this line. -->
