@@ -5,13 +5,16 @@
 
 import type { Job } from 'pg-boss';
 import { executePythonTool } from '../../utils/pythonTools.js';
+import { logger } from '../../api/utils/logger.js';
+
+const log = logger.child({ component: 'analyticsExport' });
 
 export const JOB_NAME = 'analytics-export';
 export const CRON_SCHEDULE = '0 6 * * 1';
 
 export async function handler(jobs: Job[]): Promise<void> {
   const startTime = Date.now();
-  console.log(`[JOB:${JOB_NAME}] Started`);
+  log.info('Started');
 
   const result = await executePythonTool('sheets_analytics_export', ['--export-all']);
 
@@ -24,8 +27,5 @@ export async function handler(jobs: Job[]): Promise<void> {
   const sheetsUpdated = data?.sheets_updated?.length ?? 0;
   const elapsed = Date.now() - startTime;
 
-  console.log(
-    `[JOB:${JOB_NAME}] Completed in ${elapsed}ms — ` +
-    `${totalRows} rows exported to ${sheetsUpdated} sheets`
-  );
+  log.info(`Completed in ${elapsed}ms`, { totalRows, sheetsUpdated });
 }

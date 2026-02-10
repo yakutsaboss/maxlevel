@@ -7,13 +7,16 @@
 import type { Job } from 'pg-boss';
 import { query } from '../../utils/db.js';
 import { cached, invalidatePrefix, TTL } from '../../utils/cache.js';
+import { logger } from '../../api/utils/logger.js';
+
+const log = logger.child({ component: 'leaderboardRefresh' });
 
 export const JOB_NAME = 'leaderboard-refresh';
 export const CRON_SCHEDULE = '*/30 * * * *';
 
 export async function handler(jobs: Job[]): Promise<void> {
   const startTime = Date.now();
-  console.log(`[JOB:${JOB_NAME}] Started`);
+  log.info('Started');
 
   // Invalidate stale leaderboard cache
   invalidatePrefix('leaderboard:');
@@ -45,5 +48,5 @@ export async function handler(jobs: Job[]): Promise<void> {
   );
 
   const elapsed = Date.now() - startTime;
-  console.log(`[JOB:${JOB_NAME}] Completed in ${elapsed}ms`);
+  log.info(`Completed in ${elapsed}ms`);
 }

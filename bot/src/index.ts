@@ -7,6 +7,9 @@ import 'dotenv/config';
 import { webhookCallback } from 'grammy';
 import bot from './bot.js';
 import { config } from './config.js';
+import { logger } from './api/utils/logger.js';
+
+const log = logger.child({ component: 'main' });
 import { handleStart } from './handlers/start.js';
 import { handleOpenApp, handleOpenQuests, handleOpenProfile } from './handlers/miniapp.js';
 import { handleProfile } from './handlers/profile.js';
@@ -119,48 +122,43 @@ let server: http.Server | null = null;
 
 // Start bot and API server
 async function main() {
-  console.log('='.repeat(50));
-  console.log('🤖 Telegram RPG Quest Bot v2.0');
-  console.log('='.repeat(50));
+  log.info('Telegram RPG Quest Bot v2.0 starting');
 
   // Test database connection on startup (native Node.js — no Python subprocess)
-  console.log('\n📊 Testing database connection...');
+  log.info('Testing database connection...');
   const dbOk = await testDbConnection();
 
   if (dbOk) {
-    console.log('✅ Database connection successful (native pg pool)');
+    log.info('Database connection successful (native pg pool)');
   } else {
-    console.error('❌ Database connection failed');
-    console.error('\n⚠️  Warning: Bot will start, but database operations will fail!');
-    console.error('   Please check your DATABASE_URL in .env\n');
+    log.error('Database connection failed');
+    log.error('Bot will start, but database operations will fail! Check DATABASE_URL in .env');
   }
 
   // Start API server (with or without webhook)
   if (config.useWebhook) {
     // Webhook mode — production
-    console.log('\n🌐 Starting API server with webhook...');
+    log.info('Starting API server with webhook...');
     const webhookHandler = webhookCallback(bot, 'express');
     server = await startApiServer(webhookHandler);
 
     // Register webhook URL with Telegram
     await bot.api.setWebhook(config.webhookUrl);
-    console.log(`\n📡 Webhook active: ${config.webhookUrl}`);
+    log.info(`Webhook active: ${config.webhookUrl}`);
   } else {
     // Polling mode — development
-    console.log('\n🌐 Starting API server...');
+    log.info('Starting API server...');
     server = await startApiServer();
 
     // Clear any stale webhook
     await bot.api.deleteWebhook();
 
     // Start long polling
-    console.log('\n🤖 Starting bot (polling mode)...');
+    log.info('Starting bot (polling mode)...');
     await bot.start({
       onStart: (botInfo) => {
-        console.log('✅ Bot started successfully!');
-        console.log(`   Bot username: @${botInfo.username}`);
-        console.log(`   Bot ID: ${botInfo.id}`);
-        console.log('\n📡 Listening for updates (polling)...\n');
+        log.info('Bot started successfully', { username: `@${botInfo.username}`, id: botInfo.id });
+        log.info('Listening for updates (polling)...');
       },
     });
   }
@@ -178,26 +176,25 @@ async function main() {
     { command: 'help', description: 'Get help' },
     { command: 'menu', description: 'Show all commands' },
   ]);
-  console.log('✅ Bot commands registered with BotFather');
+  log.info('Bot commands registered with BotFather');
 
   // Start background job queue
-  console.log('\n⏰ Starting background job queue...');
+  log.info('Starting background job queue...');
   try {
     const boss = await startJobQueue();
     await registerAllJobs(boss, bot);
-    console.log('✅ Background jobs registered\n');
+    log.info('Background jobs registered');
   } catch (err) {
-    console.error('⚠️  Job queue failed to start:', err);
-    console.error('   Background jobs will not run. Bot continues without them.\n');
+    log.error('Job queue failed to start — background jobs will not run', err as Error);
   }
 }
 
 // Graceful shutdown
 async function shutdown(signal: string) {
-  console.log(`\n\n🛑 Received ${signal}, shutting down...`);
+  log.info(`Received ${signal}, shutting down...`);
 
   // Stop job queue first
-  await stopJobQueue().catch(console.error);
+  await stopJobQueue().catch((err) => log.error('Error stopping job queue', err as Error));
 
   // Stop bot (polling mode) or close server (webhook mode)
   if (!config.useWebhook) {
@@ -208,7 +205,7 @@ async function shutdown(signal: string) {
   }
 
   // Close database connection pool
-  await closeDbPool().catch(console.error);
+  await closeDbPool().catch((err) => log.error('Error closing DB pool', err as Error));
 
   process.exit(0);
 }
@@ -218,6 +215,6 @@ process.once('SIGTERM', () => shutdown('SIGTERM'));
 
 // Run
 main().catch((error) => {
-  console.error('❌ Fatal error:', error);
+  log.error('Fatal error', error as Error);
   process.exit(1);
 });

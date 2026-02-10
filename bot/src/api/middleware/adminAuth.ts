@@ -5,6 +5,9 @@
 
 import { Request, Response, NextFunction } from 'express';
 import crypto from 'crypto';
+import { logger } from '../utils/logger.js';
+
+const log = logger.child({ component: 'adminAuth' });
 
 /**
  * Admin user interface
@@ -35,7 +38,7 @@ if (envUsername && envPasswordHash) {
     permissions: ['*'],
   };
 } else {
-  console.warn('[SECURITY] ADMIN_USERNAME and ADMIN_PASSWORD_HASH not set. Admin routes are disabled.');
+  log.warn('ADMIN_USERNAME and ADMIN_PASSWORD_HASH not set. Admin routes are disabled.');
 }
 
 /**
@@ -168,7 +171,7 @@ export function requirePermission(permission: string) {
 
     // Check specific permission
     if (!adminUser.permissions.includes(permission)) {
-      console.warn(`[ADMIN AUTHZ] User ${adminUser.username} denied: missing permission '${permission}'`);
+      log.warn(`User ${adminUser.username} denied: missing permission '${permission}'`);
       res.status(403).json({
         error: 'Forbidden',
         message: `You do not have permission: ${permission}`,
@@ -208,7 +211,7 @@ export function requireRole(role: 'super_admin' | 'admin' | 'moderator') {
     const requiredRoleLevel = roleHierarchy[role];
 
     if (userRoleLevel < requiredRoleLevel) {
-      console.warn(`[ADMIN AUTHZ] User ${adminUser.username} (${adminUser.role}) denied: requires ${role}`);
+      log.warn(`User ${adminUser.username} (${adminUser.role}) denied: requires ${role}`);
       res.status(403).json({
         error: 'Forbidden',
         message: `Requires ${role} role`,
@@ -239,9 +242,9 @@ function logAdminAuth(
   };
 
   if (status === 'success') {
-    console.log(`[ADMIN AUTH SUCCESS] ${JSON.stringify(logData)}`);
+    log.info('Admin auth success', logData);
   } else {
-    console.warn(`[ADMIN AUTH FAILED] ${JSON.stringify(logData)}`);
+    log.warn('Admin auth failed', logData);
   }
 }
 
@@ -264,8 +267,8 @@ export function addAdminUser(
     permissions,
   };
 
-  console.log(`[ADMIN] Created admin user: ${username} (${role})`);
-  console.log(`[ADMIN] Permissions: ${permissions.length > 0 ? permissions.join(', ') : 'inherited from role'}`);
+  log.info(`Created admin user: ${username} (${role})`);
+  log.info(`Permissions: ${permissions.length > 0 ? permissions.join(', ') : 'inherited from role'}`);
 }
 
 /**

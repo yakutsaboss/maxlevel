@@ -12,6 +12,9 @@ import type { Job } from 'pg-boss';
 import type { Bot } from 'grammy';
 import type { MyContext } from '../../bot.js';
 import { query } from '../../utils/db.js';
+import { logger } from '../../api/utils/logger.js';
+
+const log = logger.child({ component: 'questReminders' });
 
 let botRef: Bot<MyContext> | null = null;
 
@@ -32,7 +35,7 @@ export async function handler(jobs: Job[]): Promise<void> {
   if (!botRef) throw new Error('Bot instance not set for quest reminders');
 
   const startTime = Date.now();
-  console.log(`[JOB:${JOB_NAME}] Started`);
+  log.info('Started');
 
   const usersWithQuests = await query(`
     SELECT DISTINCT u.telegram_id, u.first_name, COUNT(qi.id)::int AS pending_count
@@ -46,7 +49,7 @@ export async function handler(jobs: Job[]): Promise<void> {
 
   if (usersWithQuests.length === 0) {
     const elapsed = Date.now() - startTime;
-    console.log(`[JOB:${JOB_NAME}] Completed in ${elapsed}ms — no pending quests`);
+    log.info(`Completed in ${elapsed}ms — no pending quests`);
     return;
   }
 
@@ -67,7 +70,7 @@ export async function handler(jobs: Job[]): Promise<void> {
       // Handle Telegram rate limit (HTTP 429)
       if (err?.error_code === 429 || err?.parameters?.retry_after) {
         const retryAfter = err.parameters?.retry_after ?? 5;
-        console.warn(`[JOB:${JOB_NAME}] Rate limited, waiting ${retryAfter}s before continuing`);
+        log.warn(`Rate limited, waiting ${retryAfter}s before continuing`);
         await sleep(retryAfter * 1000);
 
         // Retry this message once after waiting
@@ -85,7 +88,7 @@ export async function handler(jobs: Job[]): Promise<void> {
 
       failed++;
       failedUserIds.push(user.telegram_id);
-      console.warn(`[JOB:${JOB_NAME}] Failed to send reminder to user ${user.telegram_id}: ${err?.message || err}`);
+      log.warn(`Failed to send reminder to user ${user.telegram_id}: ${err?.message || err}`);
     }
 
     // Rate limiting: pause every BATCH_RATE messages for 1 second
@@ -97,11 +100,8 @@ export async function handler(jobs: Job[]): Promise<void> {
   const elapsed = Date.now() - startTime;
 
   if (failedUserIds.length > 0) {
-    console.warn(`[JOB:${JOB_NAME}] Failed telegram IDs: ${failedUserIds.join(', ')}`);
+    log.warn('Failed telegram IDs', { failedUserIds });
   }
 
-  console.log(
-    `[JOB:${JOB_NAME}] Completed in ${elapsed}ms — ` +
-    `sent: ${sent}, failed: ${failed}, total: ${usersWithQuests.length}`
-  );
+  log.info(`Completed in ${elapsed}ms`, { sent, failed, total: usersWithQuests.length });
 }
