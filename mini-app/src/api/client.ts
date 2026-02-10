@@ -202,6 +202,12 @@ class ApiClient {
     });
     return response.data;
   }
+
+  // Account deletion
+  async deleteAccount(telegramId: number): Promise<ApiResponse<{ message: string }>> {
+    const response = await this.client.delete(`/users/${telegramId}/account`);
+    return response.data;
+  }
 }
 
 // Export singleton instance
