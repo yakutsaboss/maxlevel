@@ -2,14 +2,12 @@ import { Router, Request, Response } from 'express';
 import { authenticateTelegram } from '../middleware/auth.js';
 import { query, queryOne, execute, transaction } from '../../utils/db.js';
 import { cached, invalidatePrefix, TTL } from '../../utils/cache.js';
-import { executePythonTool } from '../../utils/pythonTools.js';
 import {
   asyncHandler,
   validateRequired,
   successResponse,
   BadRequestError,
   NotFoundError,
-  InternalServerError,
 } from '../utils/errors.js';
 
 const router = Router();
@@ -401,17 +399,38 @@ router.patch('/:userId/xp', authenticateTelegram, asyncHandler(async (req: Reque
  * PATCH /api/users/:userId/streak
  */
 router.patch('/:userId/streak', authenticateTelegram, asyncHandler(async (req: Request, res: Response) => {
-  const { userId } = req.params;
-
-  const result = await executePythonTool('user_manager', [
-    '--update-streak', '--user-id', userId
-  ]);
-
-  if (!result.success) {
-    throw new InternalServerError('Failed to update streak');
+  const uid = parseInt(req.params.userId);
+  if (isNaN(uid)) {
+    throw new BadRequestError('Invalid user ID');
   }
 
-  res.json(successResponse({ message: 'Streak updated successfully', streak: (result.data as any)?.current_streak }));
+  const today = new Date().toISOString().split('T')[0];
+  const yesterday = new Date(Date.now() - 86400000).toISOString().split('T')[0];
+
+  const streaks = await query('SELECT * FROM streaks WHERE user_id = $1', [uid]);
+
+  let maxStreak = 0;
+  for (const streak of streaks) {
+    const lastDate = streak.last_activity_date
+      ? new Date(streak.last_activity_date).toISOString().split('T')[0]
+      : null;
+
+    if (lastDate === today) {
+      maxStreak = Math.max(maxStreak, streak.current_streak);
+      continue;
+    }
+
+    const newStreak = lastDate === yesterday ? streak.current_streak + 1 : 1;
+    const newLongest = Math.max(streak.longest_streak, newStreak);
+    maxStreak = Math.max(maxStreak, newStreak);
+
+    await execute(
+      'UPDATE streaks SET current_streak = $1, longest_streak = $2, last_activity_date = $3 WHERE id = $4',
+      [newStreak, newLongest, today, streak.id]
+    );
+  }
+
+  res.json(successResponse({ message: 'Streaks updated', current_streak: maxStreak }));
 }));
 
 /**
