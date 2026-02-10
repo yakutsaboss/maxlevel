@@ -4,11 +4,14 @@ import { useTelegram } from '@/hooks/useTelegram';
 import { usePullToRefresh, PullIndicator } from '@/hooks/usePullToRefresh';
 import { apiClient } from '@/api/client';
 import { UserStats, Quest, UserMode, UserAchievement, Achievement } from '@/types';
-import { Trophy, Zap, Target, Flame, TrendingUp, Compass, Scroll, Award, Calendar, Clock } from 'lucide-react';
+import { Trophy, Zap, Target, Flame, TrendingUp, Compass, Scroll } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { AchievementToast } from '@/components/AchievementToast';
 import { QuestDifficultyBadge } from '@/components/QuestDifficultyBadge';
 import { ErrorSection } from '@/components/ErrorSection';
+import { DailyGoalRing } from '@/components/dashboard/DailyGoalRing';
+import { TodaysProgress } from '@/components/dashboard/TodaysProgress';
+import { StreakSection } from '@/components/dashboard/StreakSection';
 
 const StatCard = memo(function StatCard({ icon, label, value, color }: { icon: React.ReactNode; label: string; value: string | number; color: string }) {
   return (
@@ -209,77 +212,9 @@ export function Dashboard() {
         <StatCard icon={<Trophy className="w-5 h-5" />} label="Achievements" value={stats.recentAchievements.length} color="bg-purple-500" />
       </div>
 
-      {/* Daily Quest Goal Ring */}
-      {(() => {
-        const dailyTotal = stats.activeQuests.length + stats.completedQuestsToday;
-        const dailyProgress = dailyTotal > 0 ? stats.completedQuestsToday / dailyTotal : 0;
-        const size = 120;
-        const strokeWidth = 8;
-        const radius = (size - strokeWidth) / 2;
-        const circumference = 2 * Math.PI * radius;
-        const offset = circumference * (1 - dailyProgress);
-        const isComplete = dailyTotal > 0 && stats.completedQuestsToday >= dailyTotal;
-        return (
-          <div className="px-4 mt-6">
-            <div className={`rounded-2xl p-5 shadow-sm flex flex-col items-center ${isComplete ? 'bg-gradient-to-br from-green-500/10 to-emerald-500/10 border border-green-500/20' : 'bg-telegram-secondaryBg border border-telegram-hint/10'}`}>
-              <div className="relative" style={{ width: size, height: size }}>
-                <svg width={size} height={size} className="transform -rotate-90">
-                  <circle cx={size / 2} cy={size / 2} r={radius} fill="none" stroke="currentColor" strokeWidth={strokeWidth} className="text-telegram-hint/20" />
-                  <motion.circle
-                    cx={size / 2} cy={size / 2} r={radius}
-                    fill="none"
-                    strokeWidth={strokeWidth}
-                    strokeLinecap="round"
-                    className={isComplete ? 'text-green-500' : 'text-telegram-link'}
-                    strokeDasharray={circumference}
-                    initial={{ strokeDashoffset: circumference }}
-                    animate={{ strokeDashoffset: offset }}
-                    transition={{ duration: 1, ease: 'easeOut' }}
-                    stroke="currentColor"
-                  />
-                </svg>
-                <div className="absolute inset-0 flex flex-col items-center justify-center">
-                  <span className="text-2xl font-bold text-telegram-text">{stats.completedQuestsToday}/{dailyTotal}</span>
-                </div>
-              </div>
-              <div className="text-sm text-telegram-hint mt-2">Daily Quests</div>
-              {isComplete && <div className="text-sm font-medium text-green-600 mt-1">All done! Great work!</div>}
-            </div>
-          </div>
-        );
-      })()}
+      <DailyGoalRing completedToday={stats.completedQuestsToday} totalDaily={stats.activeQuests.length + stats.completedQuestsToday} />
 
-      {/* Today's Progress */}
-      <div className="px-4 mt-6">
-        <h2 className="text-lg font-semibold mb-3 flex items-center gap-2">
-          <Calendar className="w-5 h-5 text-telegram-link" />Today's Progress
-        </h2>
-        <div className={`rounded-2xl p-4 shadow-sm ${stats.completedQuestsToday > 0 ? 'bg-gradient-to-r from-green-500/10 to-emerald-500/10 border border-green-500/20' : 'bg-telegram-secondaryBg border border-telegram-hint/10'}`}>
-          <div className="grid grid-cols-3 gap-3">
-            <div className="text-center">
-              <div className={`w-10 h-10 rounded-xl flex items-center justify-center mx-auto mb-2 ${stats.completedQuestsToday > 0 ? 'bg-green-500' : 'bg-telegram-hint/30'}`}>
-                <Target className={`w-5 h-5 ${stats.completedQuestsToday > 0 ? 'text-white' : 'text-telegram-hint'}`} />
-              </div>
-              <div className={`text-xl font-bold ${stats.completedQuestsToday > 0 ? 'text-green-600' : 'text-telegram-text'}`}>{stats.completedQuestsToday}</div>
-              <div className="text-xs text-telegram-hint">Completed</div>
-            </div>
-            <div className="text-center">
-              <div className="w-10 h-10 rounded-xl flex items-center justify-center mx-auto mb-2 bg-yellow-500">
-                <Zap className="w-5 h-5 text-white" />
-              </div>
-              <div className="text-xl font-bold text-yellow-600">+{stats.xpGainedToday}</div>
-              <div className="text-xs text-telegram-hint">XP Earned</div>
-            </div>
-            <div className="text-center">
-              <div className="w-10 h-10 rounded-xl flex items-center justify-center mx-auto mb-2 bg-blue-500">
-                <Clock className="w-5 h-5 text-white" />
-              </div>
-              <div className="text-xl font-bold text-telegram-text">{stats.activeQuests.length}</div>
-              <div className="text-xs text-telegram-hint">Remaining</div>
-            </div>
-          </div>
-        </div>
-      </div>
+      <TodaysProgress completedToday={stats.completedQuestsToday} xpGainedToday={stats.xpGainedToday} activeQuestsCount={stats.activeQuests.length} />
 
       <div className="px-4 mt-6">
         <h2 className="text-lg font-semibold mb-3 flex items-center gap-2"><TrendingUp className="w-5 h-5 text-telegram-link" />Active Modes</h2>
@@ -297,75 +232,7 @@ export function Dashboard() {
         )}
       </div>
 
-      {/* Streak Section */}
-      <div className="px-4 mt-6">
-        <h2 className="text-lg font-semibold mb-3 flex items-center gap-2"><Flame className="w-5 h-5 text-orange-500" />Your Streak</h2>
-
-        {/* Aggregate streak card */}
-        <div className="bg-gradient-to-r from-orange-500 to-amber-500 rounded-2xl p-4 shadow-sm">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="bg-white/20 backdrop-blur-sm rounded-xl p-3">
-                <motion.div
-                  animate={stats.streakData.current > 0 ? { scale: [1, 1.2, 1] } : {}}
-                  transition={{ duration: 1.5, repeat: Infinity, ease: 'easeInOut' }}
-                >
-                  <Flame className="w-8 h-8 text-white" />
-                </motion.div>
-              </div>
-              <div>
-                <div className="text-3xl font-bold text-white">{stats.streakData.current}</div>
-                <div className="text-orange-100 text-sm">day{stats.streakData.current !== 1 ? 's' : ''} in a row</div>
-              </div>
-            </div>
-            <div className="flex flex-col gap-2 text-right">
-              <div className="flex items-center gap-1.5 justify-end">
-                <Award className="w-4 h-4 text-orange-100" />
-                <span className="text-sm text-white font-medium">Best: {stats.streakData.longest}</span>
-              </div>
-              <div className="flex items-center gap-1.5 justify-end">
-                <Calendar className="w-4 h-4 text-orange-100" />
-                <span className="text-sm text-white font-medium">{stats.streakData.daysActive} active</span>
-              </div>
-            </div>
-          </div>
-          {stats.streakData.current > 0 && stats.streakData.longest > 0 && (
-            <div className="mt-3 bg-white/20 backdrop-blur-sm rounded-full h-2 overflow-hidden">
-              <motion.div
-                className="h-full bg-white rounded-full"
-                initial={{ width: 0 }}
-                animate={{ width: `${Math.min((stats.streakData.current / stats.streakData.longest) * 100, 100)}%` }}
-                transition={{ duration: 0.8, ease: 'easeOut' }}
-              />
-            </div>
-          )}
-        </div>
-
-        {/* Per-mode streak breakdown (from Agent D's API addition) */}
-        {(() => {
-          const perModeStreaks = stats.perModeStreaks;
-          if (!perModeStreaks || perModeStreaks.length === 0) return null;
-          const maxStreak = Math.max(...perModeStreaks.map(s => s.current_streak));
-          return (
-            <div className="flex gap-2 overflow-x-auto pb-1 mt-3">
-              {perModeStreaks.map((streak) => (
-                <motion.div
-                  key={streak.mode_id}
-                  className={`flex-shrink-0 rounded-xl px-4 py-3 border ${streak.current_streak === maxStreak && maxStreak > 0 ? 'bg-orange-500/10 border-orange-500/30' : 'bg-telegram-secondaryBg border-telegram-hint/20'}`}
-                  whileHover={{ scale: 1.05 }}
-                >
-                  <div className="text-2xl text-center mb-1">{streak.mode_icon}</div>
-                  <div className="text-center">
-                    <span className="text-lg font-bold">{streak.current_streak}</span>
-                    {streak.current_streak > 0 && <span className="ml-1">🔥</span>}
-                  </div>
-                  <div className="text-xs text-telegram-hint text-center truncate max-w-[80px]">{streak.mode_name}</div>
-                </motion.div>
-              ))}
-            </div>
-          );
-        })()}
-      </div>
+      <StreakSection streakData={stats.streakData} perModeStreaks={stats.perModeStreaks} />
 
       <div className="px-4 mt-6">
         <h2 className="text-lg font-semibold mb-3 flex items-center gap-2"><Target className="w-5 h-5 text-telegram-link" />Active Quests</h2>
