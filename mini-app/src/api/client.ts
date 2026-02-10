@@ -1,5 +1,5 @@
 import axios, { AxiosInstance } from 'axios';
-import type { ApiResponse, UserStats, Quest, Achievement, UserAchievement, QuestCompleteResponse, CheckinResponse, CheckinListResponse } from '@/types';
+import type { ApiResponse, UserStats, User, Quest, Achievement, UserAchievement, QuestCompleteResponse, CheckinResponse, CheckinListResponse } from '@/types';
 
 // API Base URL - should come from environment
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
@@ -61,7 +61,7 @@ class ApiClient {
     username?: string;
     first_name: string;
     last_name?: string;
-  }): Promise<ApiResponse<any>> {
+  }): Promise<ApiResponse<{ message: string; user: User }>> {
     const response = await this.client.post('/users', userData);
     return response.data;
   }
