@@ -197,10 +197,13 @@ Use this structure when creating a new run. Copy and adapt:
 1. **pg-boss Node.js mismatch** — Requires 22.12+, server has 20.20. Only triggers warnings, no functional impact yet.
 2. **Mode configs unused** — `mode_configs` table stores quiz responses + personalized plans, but data is never consumed.
 3. **Delete account e2e testing** — confirm soft delete flow works end-to-end in Telegram (Agent B Run 18 recommendation).
-4. **Settings error state uses inline JSX** — Could adopt the new ErrorSection component (Agent A Run 20 recommendation).
-5. **Profile error state uses inline JSX** — Same as above, Profile.tsx still has its own error UI.
-6. **Settings state logic could be a hook** — ~120 lines of accountability auto-save/debounce logic could be extracted to `useSettingsData` (Agent A Run 20 recommendation).
-7. **`asyncHandler` typing is loose** — Uses `Function` type, should use Express `RequestHandler` (Agent D Run 20 recommendation).
+4. **Settings error state uses inline JSX** — Could adopt the new ErrorSection component (Agent A Run 20 recommendation). **→ Run 21 Agent B**
+5. **Profile error state uses inline JSX** — Same as above, Profile.tsx still has its own error UI. **→ Run 21 Agent B**
+6. **Settings state logic could be a hook** — ~120 lines of accountability auto-save/debounce logic could be extracted to `useSettingsData` (Agent A Run 20 recommendation). **→ Run 21 Agent B**
+7. **`asyncHandler` typing is loose** — Uses `Function` type, should use Express `RequestHandler` (Agent D Run 20 recommendation). **→ Run 21 Agent D**
+8. **39 backend routes still use manual try-catch** — quests.ts (6), achievements.ts (8), modes.ts (7), punishment.ts (3), leaderboard.ts (3), admin-users.ts (7), admin-stats.ts (5). **→ Run 21 Agents D+E**
+9. **Dashboard.tsx 407 lines** — Largest mini-app page, has DailyGoalRing/StreakSection/TodaysProgress extraction targets. **→ Run 21 Agent A**
+10. **Quests.tsx 363 lines** — QuestCard/QuestDetailModal/TabButton could be extracted. **→ Run 21 Agent C**
 
 ### Resolved (Runs 13–20)
 - ~~PATCH /progress authorization~~ — Fixed in Run 15
@@ -991,4 +994,234 @@ Read PARALLEL_AGENTS.md — you are Agent E for Run 20. Your job: (1) Migrate `a
 - Agent D noted `errors.ts` `asyncHandler` typing uses `Function` (loose) — could be typed with Express `RequestHandler` for stricter safety.
 - Agent E did not apply constants to `achievements.ts` (no hardcoded rarity strings found in current code) — noted in retro.
 
-<!-- Next run goes here. Agent 0 will append RUN 21 below this line. -->
+## RUN 21: Complete asyncHandler Migration + Page Refactors (5 Agents + Agent 0)
+
+### Focus: Migrate all remaining 39 backend try-catch blocks to asyncHandler, fix asyncHandler typing, extract Dashboard/Quests sub-components, adopt ErrorSection in Settings/Profile, extract useSettingsData hook
+
+### Copy-Paste Prompts
+
+**Agent 0** (open in: `c:\Users\Asus\Desktop\Wibecode`):
+```
+Read PARALLEL_AGENTS.md you are Agent 0 for Run 21
+```
+
+**Agent A** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-a`):
+```
+Read PARALLEL_AGENTS.md — you are Agent A for Run 21. Your job: Refactor Dashboard.tsx (407 lines) by extracting 3 sub-components: (1) DailyGoalRing.tsx (SVG progress ring for daily quest completion, currently an IIFE at lines 213-250), (2) TodaysProgress.tsx (today's stats grid with completed/XP/remaining at lines 252-282), (3) StreakSection.tsx (aggregate streak card + per-mode streak breakdown at lines 300-368). Move each into `components/dashboard/`. Dashboard.tsx should become a thin layout that imports and renders sub-components (target ~200 lines). Follow the Safety Protocol. Commit after each task. Write your retrospective when done.
+```
+
+**Agent B** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-b`):
+```
+Read PARALLEL_AGENTS.md — you are Agent B for Run 21. Your job: (1) Create a `useSettingsData` custom hook in `hooks/useSettingsData.ts` that extracts all state management logic from Settings.tsx (lines 21-165): state variables, refs, loadPreferences, autoSaveAccountability, handleConsentToggle, handleIntensityChange, handleSafeModeToggle, handleSave, handleDeleteAccount. The hook should return all state and handlers needed by Settings.tsx's render. (2) Simplify Settings.tsx to ~80 lines using the hook. (3) Replace the inline error JSX in Settings.tsx (lines 186-199) with `<ErrorSection message="Could not load your settings" onRetry={loadPreferences} />`. Remove AlertCircle and RefreshCw imports. (4) Replace the inline error JSX in Profile.tsx (lines 107-120) with `<ErrorSection message="Could not load your profile" onRetry={loadProfileData} />`. Remove AlertCircle and RefreshCw imports. Follow the Safety Protocol. Commit after each task. Write your retrospective when done.
+```
+
+**Agent C** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-c`):
+```
+Read PARALLEL_AGENTS.md — you are Agent C for Run 21. Your job: Refactor Quests.tsx (363 lines) by extracting sub-components: (1) Create `components/quests/QuestCard.tsx` — extract the QuestCard function (lines 316-362) into its own file with proper imports (QuestDifficultyBadge, motion, Zap/CheckCircle from lucide-react, Quest type, formatDate). (2) Create `components/quests/QuestDetailModal.tsx` — extract the quest detail modal (lines 195-302) into its own component. Props: selectedQuest, completing, todayCheckinCount, onClose, onCheckinSuccess, userId, haptic. (3) Create `components/quests/TabButton.tsx` — extract TabButton (lines 307-314). Quests.tsx should become ~120 lines keeping state management and top-level layout. Follow the Safety Protocol. Commit after each task. Write your retrospective when done.
+```
+
+**Agent D** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-d`):
+```
+Read PARALLEL_AGENTS.md — you are Agent D for Run 21. Your job: (1) Fix asyncHandler typing in `api/utils/errors.ts` — replace `(fn: Function)` with proper Express types: `(fn: (req: Request, res: Response, next: NextFunction) => Promise<any>)`. Also type the returned function with `(req: Request, res: Response, next: NextFunction) => void`. Import Request, Response, NextFunction from express. (2) Apply asyncHandler + successResponse + error classes to `quests.ts` (6 try-catch blocks): wrap handlers, remove try-catch, use thrown errors. (3) Apply same to `achievements.ts` (8 try-catch blocks). (4) Apply same to `modes.ts` (7 try-catch blocks). Follow the Safety Protocol. Commit after each task. Write your retrospective when done.
+```
+
+**Agent E** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-e`):
+```
+Read PARALLEL_AGENTS.md — you are Agent E for Run 21. Your job: (1) Apply asyncHandler + successResponse + error classes from `api/utils/errors.ts` to `punishment.ts` (3 try-catch blocks): wrap handlers, remove try-catch, use thrown errors. Also replace hardcoded `const validLevels = ['low', 'medium', 'high', 'extreme']` with `Object.values(PUNISHMENT_INTENSITY)` from constants.ts. (2) Apply same pattern to `leaderboard.ts` (3 try-catch blocks). (3) Apply same to `admin-users.ts` (7 try-catch blocks). (4) Apply same to `admin-stats.ts` (5 try-catch blocks). Follow the Safety Protocol. Commit after each task. Write your retrospective when done.
+```
+
+---
+
+### Agent A — Mini-App: Dashboard.tsx Refactor
+
+**Branch:** `feature/r21-dashboard-refactor`
+**Worktree:** `../Wibecode-agent-a`
+
+**Tasks:**
+1. **Create `DailyGoalRing.tsx`** — In `mini-app/src/components/dashboard/DailyGoalRing.tsx`, extract the IIFE block (Dashboard.tsx lines 213-250) that renders the SVG progress ring. Props: `completedToday: number`, `totalDaily: number`. Move the ring size/stroke/circumference calculations inside. Include the "All done!" message when complete.
+2. **Create `TodaysProgress.tsx`** — In `mini-app/src/components/dashboard/TodaysProgress.tsx`, extract the Today's Progress section (lines 252-282). Props: `completedToday: number`, `xpGainedToday: number`, `activeQuestsCount: number`. Includes the Calendar header and 3-column stats grid.
+3. **Create `StreakSection.tsx`** — In `mini-app/src/components/dashboard/StreakSection.tsx`, extract the streak section (lines 300-368): aggregate streak card (gradient background with Flame animation) + per-mode streak breakdown cards. Props: `streakData: UserStats['streakData']`, `perModeStreaks: UserStats['perModeStreaks']`. Move the Flame/Award/Calendar icon imports into this file.
+4. **Simplify `Dashboard.tsx`** — Replace the 3 extracted sections with sub-component calls. Remove icons that are now only used in sub-components. Target ~200 lines.
+5. **Build verification**: `cd mini-app && npm run build`
+
+**OWNED files:**
+- `mini-app/src/pages/Dashboard.tsx`
+- `mini-app/src/components/dashboard/DailyGoalRing.tsx` (new)
+- `mini-app/src/components/dashboard/TodaysProgress.tsx` (new)
+- `mini-app/src/components/dashboard/StreakSection.tsx` (new)
+
+**FORBIDDEN:**
+- `bot/**`, `tools/**`, `database/**`
+- `mini-app/src/pages/Settings.tsx`, `Profile.tsx`, `Quests.tsx`, `Achievements.tsx`, `Leaderboard.tsx`
+- `mini-app/src/api/client.ts`
+- `mini-app/src/components/ErrorSection.tsx`, `Navigation.tsx`, `settings/**`, `profile/**`, `quests/**`
+- `mini-app/src/hooks/**`, `mini-app/src/types/**`
+
+---
+
+### Agent B — Mini-App: useSettingsData Hook + ErrorSection Adoption
+
+**Branch:** `feature/r21-settings-hook-error`
+**Worktree:** `../Wibecode-agent-b`
+
+**Tasks:**
+1. **Create `useSettingsData` hook** — In `mini-app/src/hooks/useSettingsData.ts`, extract all state and logic from Settings.tsx lines 21-165. The hook should accept `user`, `haptic`, `showConfirm`, `navigate`, `queryClient`, `onboardingStore` and return: `{ loading, error, saving, deleting, prefs, setPrefs, punishment, punishmentAvailable, accountabilitySaveStatus, toast, setToast, loadPreferences, handleConsentToggle, handleIntensityChange, handleSafeModeToggle, handleSave, handleDeleteAccount }`. Move the refs (intensityDebounceRef, saveStatusTimeoutRef), autoSaveAccountability, and all handler callbacks into the hook.
+2. **Simplify Settings.tsx with the hook** — Replace lines 21-165 with a single `useSettingsData(...)` call. The component should only handle rendering (~80 lines): loading skeleton, error state, and the sub-component layout.
+3. **Apply ErrorSection to Settings.tsx** — Replace the inline error JSX (lines 186-199 of current file) with `<ErrorSection message="Could not load your settings" onRetry={loadPreferences} />`. Import `ErrorSection` from `@/components/ErrorSection`. Remove `AlertCircle` and `RefreshCw` from the lucide-react import.
+4. **Apply ErrorSection to Profile.tsx** — Replace the inline error JSX (lines 107-120) with `<ErrorSection message="Could not load your profile" onRetry={loadProfileData} />`. Import `ErrorSection`. Remove `AlertCircle` and `RefreshCw` from the lucide-react import.
+5. **Build verification**: `cd mini-app && npm run build`
+
+**OWNED files:**
+- `mini-app/src/pages/Settings.tsx`
+- `mini-app/src/pages/Profile.tsx`
+- `mini-app/src/hooks/useSettingsData.ts` (new)
+
+**FORBIDDEN:**
+- `bot/**`, `tools/**`, `database/**`
+- `mini-app/src/pages/Dashboard.tsx`, `Quests.tsx`, `Achievements.tsx`, `Leaderboard.tsx`
+- `mini-app/src/api/client.ts`
+- `mini-app/src/components/ErrorSection.tsx` (read-only — import but do NOT modify)
+- `mini-app/src/components/Navigation.tsx`, `settings/**`, `profile/**`, `dashboard/**`, `quests/**`
+- `mini-app/src/types/**`
+
+---
+
+### Agent C — Mini-App: Quests.tsx Refactor
+
+**Branch:** `feature/r21-quests-refactor`
+**Worktree:** `../Wibecode-agent-c`
+
+**Tasks:**
+1. **Create `QuestCard.tsx`** — In `mini-app/src/components/quests/QuestCard.tsx`, extract the QuestCard function (Quests.tsx lines 316-362). Props: `quest: Quest`, `index: number`, `isSelected: boolean`, `onClick: () => void`. Move relevant imports (motion, Zap, CheckCircle, QuestDifficultyBadge). Import `formatDate` from `@/utils/formatDate` (already exists from Run 20).
+2. **Create `QuestDetailModal.tsx`** — In `mini-app/src/components/quests/QuestDetailModal.tsx`, extract the quest detail modal (lines 195-302). Props: `quest: Quest | null`, `completing: boolean`, `todayCheckinCount: number`, `userId: number | undefined`, `onClose: () => void`, `onCheckinSuccess: (result: { completed: boolean; current: number; target: number }) => void`. Includes the bottom sheet with quest details, progress bar, check-in dots, CheckInButton, and completion state. Move Zap, CheckCircle, Loader2, Calendar, QuestDifficultyBadge, CheckInButton imports.
+3. **Create `TabButton.tsx`** — In `mini-app/src/components/quests/TabButton.tsx`, extract TabButton (lines 307-314). Props: `active: boolean`, `onClick: () => void`, `icon: React.ReactNode`, `label: string`, `count: number`.
+4. **Simplify `Quests.tsx`** — Replace extracted sections with component imports. Keep state management, data loading, handlers. Target ~120 lines.
+5. **Build verification**: `cd mini-app && npm run build`
+
+**OWNED files:**
+- `mini-app/src/pages/Quests.tsx`
+- `mini-app/src/components/quests/QuestCard.tsx` (new)
+- `mini-app/src/components/quests/QuestDetailModal.tsx` (new)
+- `mini-app/src/components/quests/TabButton.tsx` (new)
+
+**FORBIDDEN:**
+- `bot/**`, `tools/**`, `database/**`
+- `mini-app/src/pages/Settings.tsx`, `Profile.tsx`, `Dashboard.tsx`, `Achievements.tsx`, `Leaderboard.tsx`
+- `mini-app/src/api/client.ts`
+- `mini-app/src/components/ErrorSection.tsx`, `Navigation.tsx`, `settings/**`, `profile/**`, `dashboard/**`
+- `mini-app/src/hooks/**`, `mini-app/src/types/**`
+- `mini-app/src/utils/**` (read-only — import `formatDate` from `@/utils/formatDate`)
+
+---
+
+### Agent D — Backend: asyncHandler Migration (quests + achievements + modes) + Typing Fix
+
+**Branch:** `feature/r21-async-handler-batch1`
+**Worktree:** `../Wibecode-agent-d`
+
+**Tasks:**
+1. **Fix asyncHandler typing in `errors.ts`** — Replace the loose `Function` type with proper Express types. Change line 56 from `(fn: Function)` to `(fn: (req: Request, res: Response, next: NextFunction) => Promise<any>)`. Type the returned function as `(req: Request, res: Response, next: NextFunction) => void`. Add `import { Request, Response, NextFunction } from 'express';` at top. Also fix `successResponse` parameter typing: `data: any` is fine but add proper return type `{ success: true; data: any; message?: string }`.
+2. **Apply asyncHandler to `quests.ts`** — Wrap all 6 route handlers with `asyncHandler()`. Remove manual try-catch blocks. Import `asyncHandler`, `successResponse`, `BadRequestError`, `InternalServerError` from `../utils/errors.js`. Replace `res.status(500).json(...)` with `throw new InternalServerError(...)`. Replace `res.json({ success: true, data: ... })` with `res.json(successResponse(...))`.
+3. **Apply asyncHandler to `achievements.ts`** — Same pattern for all 8 route handlers. Import error utilities.
+4. **Apply asyncHandler to `modes.ts`** — Same pattern for all 7 route handlers. Import error utilities.
+5. **Build verification**: `cd bot && npm run build`
+
+**OWNED files:**
+- `bot/src/api/utils/errors.ts`
+- `bot/src/api/routes/quests.ts`
+- `bot/src/api/routes/achievements.ts`
+- `bot/src/api/routes/modes.ts`
+
+**FORBIDDEN:**
+- `mini-app/**`, `tools/**`, `database/**`
+- `bot/src/index.ts`, `bot/src/api/server.ts`
+- `bot/src/api/routes/users.ts`, `onboarding.ts`, `checkins.ts`, `punishment.ts`, `leaderboard.ts`, `admin-users.ts`, `admin-stats.ts`
+- `bot/src/api/middleware/**`
+- `bot/src/api/utils/constants.ts`
+- `bot/src/utils/**`
+- `bot/src/jobs/**`
+
+---
+
+### Agent E — Backend: asyncHandler Migration (punishment + leaderboard + admin-*) + Constants
+
+**Branch:** `feature/r21-async-handler-batch2`
+**Worktree:** `../Wibecode-agent-e`
+
+**Tasks:**
+1. **Apply asyncHandler to `punishment.ts`** — Wrap all 3 route handlers with `asyncHandler()`. Remove manual try-catch blocks. Import `asyncHandler`, `successResponse`, `BadRequestError`, `NotFoundError` from `../utils/errors.js`. Replace hardcoded `const validLevels = ['low', 'medium', 'high', 'extreme']` with `Object.values(PUNISHMENT_INTENSITY)` — import `PUNISHMENT_INTENSITY` from `../utils/constants.js`. Replace manual error/success responses with utilities.
+2. **Apply asyncHandler to `leaderboard.ts`** — Same pattern for all 3 route handlers.
+3. **Apply asyncHandler to `admin-users.ts`** — Same pattern for all 7 route handlers.
+4. **Apply asyncHandler to `admin-stats.ts`** — Same pattern for all 5 route handlers.
+5. **Build verification**: `cd bot && npm run build`
+
+**OWNED files:**
+- `bot/src/api/routes/punishment.ts`
+- `bot/src/api/routes/leaderboard.ts`
+- `bot/src/api/routes/admin-users.ts`
+- `bot/src/api/routes/admin-stats.ts`
+
+**FORBIDDEN:**
+- `mini-app/**`, `tools/**`, `database/**`
+- `bot/src/index.ts`, `bot/src/api/server.ts`
+- `bot/src/api/routes/users.ts`, `onboarding.ts`, `checkins.ts`, `quests.ts`, `achievements.ts`, `modes.ts`
+- `bot/src/api/middleware/**`
+- `bot/src/api/utils/errors.ts` (read-only — import but do NOT modify)
+- `bot/src/api/utils/constants.ts` (read-only — import but do NOT modify)
+- `bot/src/utils/**`
+- `bot/src/jobs/**`
+
+---
+
+### Run 21 File Ownership Matrix
+
+| File | Agent A | Agent B | Agent C | Agent D | Agent E |
+|------|---------|---------|---------|---------|---------|
+| mini-app/src/pages/Dashboard.tsx | **OWN** | FORBID | FORBID | — | — |
+| mini-app/src/components/dashboard/*.tsx (new) | **OWN** | FORBID | FORBID | — | — |
+| mini-app/src/pages/Settings.tsx | FORBID | **OWN** | FORBID | — | — |
+| mini-app/src/pages/Profile.tsx | FORBID | **OWN** | FORBID | — | — |
+| mini-app/src/hooks/useSettingsData.ts (new) | FORBID | **OWN** | FORBID | — | — |
+| mini-app/src/pages/Quests.tsx | FORBID | FORBID | **OWN** | — | — |
+| mini-app/src/components/quests/*.tsx (new) | FORBID | FORBID | **OWN** | — | — |
+| mini-app/src/components/ErrorSection.tsx | FORBID | READ-ONLY | FORBID | — | — |
+| mini-app/src/utils/formatDate.ts | FORBID | FORBID | READ-ONLY | — | — |
+| bot/src/api/utils/errors.ts | — | — | — | **OWN** | READ-ONLY |
+| bot/src/api/routes/quests.ts | — | — | — | **OWN** | FORBID |
+| bot/src/api/routes/achievements.ts | — | — | — | **OWN** | FORBID |
+| bot/src/api/routes/modes.ts | — | — | — | **OWN** | FORBID |
+| bot/src/api/routes/punishment.ts | — | — | — | FORBID | **OWN** |
+| bot/src/api/routes/leaderboard.ts | — | — | — | FORBID | **OWN** |
+| bot/src/api/routes/admin-users.ts | — | — | — | FORBID | **OWN** |
+| bot/src/api/routes/admin-stats.ts | — | — | — | FORBID | **OWN** |
+| bot/src/api/utils/constants.ts | — | — | — | FORBID | READ-ONLY |
+| PARALLEL_AGENTS.md | retro only | retro only | retro only | retro only | retro only |
+
+### Run 21 Merge Order
+1. **Agent D** (backend: errors.ts typing + quests/achievements/modes asyncHandler) — must merge first since it modifies errors.ts
+2. **Agent E** (backend: punishment/leaderboard/admin asyncHandler) — after D, uses the same errors.ts imports
+3. **Agent C** (mini-app: Quests refactor) — pure frontend, independent
+4. **Agent A** (mini-app: Dashboard refactor) — pure frontend, independent
+5. **Agent B** (mini-app: Settings/Profile ErrorSection + hook) — pure frontend, independent
+
+### Run 21 Retrospectives
+
+#### Agent A Retrospective
+*(To be filled by Agent A)*
+
+#### Agent B Retrospective
+*(To be filled by Agent B)*
+
+#### Agent C Retrospective
+*(To be filled by Agent C)*
+
+#### Agent D Retrospective
+*(To be filled by Agent D)*
+
+#### Agent E Retrospective
+*(To be filled by Agent E)*
+
+#### Agent 0 Retrospective
+*(To be filled by Agent 0)*
+
+<!-- Next run goes here. Agent 0 will append RUN 22 below this line. -->
