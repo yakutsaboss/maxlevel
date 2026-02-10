@@ -18,6 +18,20 @@ vi.mock('../../utils/db.js', () => ({
   getPool: vi.fn(),
 }));
 
+const mockLogInfo = vi.fn();
+const mockLogWarn = vi.fn();
+const mockLogError = vi.fn();
+
+vi.mock('../../api/utils/logger.js', () => ({
+  logger: {
+    child: () => ({
+      info: (...args: any[]) => mockLogInfo(...args),
+      warn: (...args: any[]) => mockLogWarn(...args),
+      error: (...args: any[]) => mockLogError(...args),
+    }),
+  },
+}));
+
 beforeEach(() => {
   vi.clearAllMocks();
 });
@@ -68,8 +82,6 @@ describe('dbCleanup', () => {
   });
 
   it('should report total rows deleted', async () => {
-    const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
-
     const mockClient = {
       query: vi.fn()
         .mockResolvedValueOnce({ rowCount: 100 })
@@ -82,11 +94,10 @@ describe('dbCleanup', () => {
 
     await handler([{} as any]);
 
-    expect(consoleSpy).toHaveBeenCalledWith(
-      expect.stringContaining('185 total rows deleted')
+    expect(mockLogInfo).toHaveBeenCalledWith(
+      expect.stringContaining('Completed'),
+      expect.objectContaining({ totalRows: 185 })
     );
-
-    consoleSpy.mockRestore();
   });
 
   it('should rollback all cleanups if any fails (transaction behavior)', async () => {

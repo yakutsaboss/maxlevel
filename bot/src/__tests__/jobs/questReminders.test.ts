@@ -18,6 +18,20 @@ vi.mock('../../utils/db.js', () => ({
   getPool: vi.fn(),
 }));
 
+const mockLogInfo = vi.fn();
+const mockLogWarn = vi.fn();
+const mockLogError = vi.fn();
+
+vi.mock('../../api/utils/logger.js', () => ({
+  logger: {
+    child: () => ({
+      info: (...args: any[]) => mockLogInfo(...args),
+      warn: (...args: any[]) => mockLogWarn(...args),
+      error: (...args: any[]) => mockLogError(...args),
+    }),
+  },
+}));
+
 beforeEach(() => {
   vi.resetAllMocks();
 });
@@ -51,8 +65,6 @@ describe('questReminders', () => {
   });
 
   it('should handle empty result gracefully', async () => {
-    const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
-
     // query returns empty array (no pending quests)
     mockQuery.mockResolvedValueOnce([]);
 
@@ -62,12 +74,9 @@ describe('questReminders', () => {
     await handler([{} as any]);
 
     expect(mockBot.api.sendMessage).not.toHaveBeenCalled();
-    consoleSpy.mockRestore();
   });
 
   it('should send reminders to users with pending quests', async () => {
-    const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
-
     const users = [
       { telegram_id: 111, first_name: 'Alice', pending_count: 3 },
       { telegram_id: 222, first_name: 'Bob', pending_count: 1 },
@@ -84,14 +93,9 @@ describe('questReminders', () => {
     expect(mockBot.api.sendMessage).toHaveBeenCalledTimes(2);
     expect(mockBot.api.sendMessage).toHaveBeenCalledWith(111, expect.stringContaining('Alice'));
     expect(mockBot.api.sendMessage).toHaveBeenCalledWith(222, expect.stringContaining('1 quest'));
-
-    consoleSpy.mockRestore();
   });
 
   it('should log failed sends with user IDs', async () => {
-    const consoleSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
-    const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
-
     const users = [
       { telegram_id: 111, first_name: 'Alice', pending_count: 2 },
     ];
@@ -105,18 +109,17 @@ describe('questReminders', () => {
 
     await handler([{} as any]);
 
-    expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('Failed to send reminder to user 111'));
-    expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('Failed telegram IDs: 111'));
-
-    consoleSpy.mockRestore();
-    logSpy.mockRestore();
+    expect(mockLogWarn).toHaveBeenCalledWith(
+      expect.stringContaining('Failed to send reminder to user 111'),
+    );
+    expect(mockLogWarn).toHaveBeenCalledWith(
+      'Failed telegram IDs',
+      expect.objectContaining({ failedUserIds: [111] }),
+    );
   });
 
   it('should handle Telegram 429 rate limit and retry after waiting', async () => {
     vi.useFakeTimers();
-
-    const consoleSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
-    const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
 
     const users = [
       { telegram_id: 111, first_name: 'Alice', pending_count: 1 },
@@ -146,16 +149,12 @@ describe('questReminders', () => {
 
     // Should have called sendMessage twice (initial + retry)
     expect(mockBot.api.sendMessage).toHaveBeenCalledTimes(2);
-    expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('Rate limited, waiting'));
+    expect(mockLogWarn).toHaveBeenCalledWith(expect.stringContaining('Rate limited, waiting'));
 
-    consoleSpy.mockRestore();
-    logSpy.mockRestore();
     vi.useRealTimers();
   });
 
   it('should use default first_name when missing', async () => {
-    const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
-
     const users = [
       { telegram_id: 111, first_name: null, pending_count: 2 },
     ];
@@ -168,13 +167,9 @@ describe('questReminders', () => {
     await handler([{} as any]);
 
     expect(mockBot.api.sendMessage).toHaveBeenCalledWith(111, expect.stringContaining('there'));
-
-    logSpy.mockRestore();
   });
 
   it('should log structured counts on completion', async () => {
-    const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
-
     const users = [
       { telegram_id: 111, first_name: 'Alice', pending_count: 2 },
       { telegram_id: 222, first_name: 'Bob', pending_count: 1 },
@@ -193,10 +188,9 @@ describe('questReminders', () => {
 
     await handler([{} as any]);
 
-    expect(logSpy).toHaveBeenCalledWith(expect.stringContaining('sent: 1'));
-    expect(logSpy).toHaveBeenCalledWith(expect.stringContaining('failed: 1'));
-    expect(logSpy).toHaveBeenCalledWith(expect.stringContaining('total: 2'));
-
-    logSpy.mockRestore();
+    expect(mockLogInfo).toHaveBeenCalledWith(
+      expect.stringContaining('Completed'),
+      expect.objectContaining({ sent: 1, failed: 1, total: 2 }),
+    );
   });
 });

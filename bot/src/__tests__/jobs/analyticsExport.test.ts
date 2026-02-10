@@ -15,6 +15,20 @@ vi.mock('../../utils/pythonTools.js', () => ({
   executePythonTool: (...args: any[]) => mockExecutePythonTool(...args),
 }));
 
+const mockLogInfo = vi.fn();
+const mockLogWarn = vi.fn();
+const mockLogError = vi.fn();
+
+vi.mock('../../api/utils/logger.js', () => ({
+  logger: {
+    child: () => ({
+      info: (...args: any[]) => mockLogInfo(...args),
+      warn: (...args: any[]) => mockLogWarn(...args),
+      error: (...args: any[]) => mockLogError(...args),
+    }),
+  },
+}));
+
 beforeEach(() => {
   vi.clearAllMocks();
 });
@@ -32,8 +46,6 @@ describe('analyticsExport', () => {
   });
 
   it('should call sheets_analytics_export with --export-all', async () => {
-    const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
-
     mockExecutePythonTool.mockResolvedValueOnce({
       success: true,
       data: { total_rows: 100, sheets_updated: ['users', 'quests'] },
@@ -42,13 +54,9 @@ describe('analyticsExport', () => {
     await handler([{} as any]);
 
     expect(mockExecutePythonTool).toHaveBeenCalledWith('sheets_analytics_export', ['--export-all']);
-
-    consoleSpy.mockRestore();
   });
 
   it('should log row and sheet counts on success', async () => {
-    const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
-
     mockExecutePythonTool.mockResolvedValueOnce({
       success: true,
       data: { total_rows: 250, sheets_updated: ['users', 'quests', 'achievements'] },
@@ -56,14 +64,13 @@ describe('analyticsExport', () => {
 
     await handler([{} as any]);
 
-    expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('250 rows exported to 3 sheets'));
-
-    consoleSpy.mockRestore();
+    expect(mockLogInfo).toHaveBeenCalledWith(
+      expect.stringContaining('Completed'),
+      expect.objectContaining({ totalRows: 250, sheetsUpdated: 3 })
+    );
   });
 
   it('should handle missing data fields gracefully', async () => {
-    const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
-
     mockExecutePythonTool.mockResolvedValueOnce({
       success: true,
       data: {},
@@ -72,27 +79,22 @@ describe('analyticsExport', () => {
     await handler([{} as any]);
 
     // Should default to 0 rows, 0 sheets
-    expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('0 rows exported to 0 sheets'));
-
-    consoleSpy.mockRestore();
+    expect(mockLogInfo).toHaveBeenCalledWith(
+      expect.stringContaining('Completed'),
+      expect.objectContaining({ totalRows: 0, sheetsUpdated: 0 })
+    );
   });
 
   it('should throw when export fails', async () => {
-    const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
-
     mockExecutePythonTool.mockResolvedValueOnce({
       success: false,
       error: 'Google Sheets API quota exceeded',
     });
 
     await expect(handler([{} as any])).rejects.toThrow('Analytics export failed');
-
-    consoleSpy.mockRestore();
   });
 
   it('should log start and completion with timing', async () => {
-    const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
-
     mockExecutePythonTool.mockResolvedValueOnce({
       success: true,
       data: { total_rows: 10, sheets_updated: ['users'] },
@@ -100,9 +102,10 @@ describe('analyticsExport', () => {
 
     await handler([{} as any]);
 
-    expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining(`[JOB:${JOB_NAME}] Started`));
-    expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining(`[JOB:${JOB_NAME}] Completed in`));
-
-    consoleSpy.mockRestore();
+    expect(mockLogInfo).toHaveBeenCalledWith('Started');
+    expect(mockLogInfo).toHaveBeenCalledWith(
+      expect.stringContaining('Completed in'),
+      expect.anything()
+    );
   });
 });
