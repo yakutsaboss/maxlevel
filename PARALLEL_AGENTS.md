@@ -1326,7 +1326,31 @@ Additionally, the DELETE account transaction misses the `reminders` table.
 *(To be filled by Agent D)*
 
 #### Agent E Retrospective
-*(To be filled by Agent E)*
+**Status:** All 6 tasks completed. Build passes (`tsc` — zero errors).
+
+| # | Task | Status |
+|---|------|--------|
+| 1 | Add BUILD_VERSION + BUILD_TIMESTAMP to /health endpoint in server.ts | Done |
+| 2 | Create scripts/deploy.sh with version verification | Done |
+| 3 | Update ecosystem.config.js — add env vars + WARNING comment to telegram-rpg-api | Done |
+| 4 | Add Deploy Verification Protocol section to PARALLEL_AGENTS.md | Done |
+| 5 | Update Known Issues — mark 12 issues resolved by Run 25 | Done |
+| 6 | Build verification | Pass |
+
+**Commits:** 5 atomic commits on `feature/r25-deploy-protocol`.
+
+**Implementation details:**
+- **server.ts**: Added 2 const declarations (`BUILD_VERSION`, `BUILD_TIMESTAMP`) after PORT declaration. Modified ONLY the health endpoint response object (lines 63-69) — added `version` and `build_timestamp` fields. No other changes to server.ts.
+- **deploy.sh**: Full deploy pipeline — push, SSH build (bot + mini-app), restart ONLY `telegram-rpg-bot`, 3-second wait, curl /health, compare version to local git hash. Color-coded output. Clear failure diagnostics with manual fix command.
+- **ecosystem.config.js**: Added `BUILD_VERSION` and `BUILD_TIMESTAMP` to `env_production` (defaults to `'set-by-deploy-script'`). Added 4-line WARNING comment above `telegram-rpg-api` explaining it receives zero traffic.
+- **Deploy Verification Protocol**: New section between Safety Protocol and Lessons Learned. Covers: which process to restart, how to verify, preferred deploy method, manual fallback, Agent 0 deploy checklist.
+- **Known Issues**: Updated header to "after Run 25". Moved issue #5 to resolved. Added 12 resolved entries covering all 5 agents' work. Renumbered remaining open issues.
+
+**Problems faced:** None. All tasks were straightforward documentation + config changes with one small server.ts modification.
+
+**Recommendations for next run:**
+- The `scripts/deploy.sh` sets BUILD_VERSION via environment variable on PM2 restart. Agent 0 should verify this works on first real deploy (env var propagation through PM2 can be tricky).
+- Consider updating the Agent 0 "Deploy Command" at the top of PARALLEL_AGENTS.md to reference `scripts/deploy.sh` instead of the inline SSH command.
 
 #### Agent 0 Retrospective
 *(To be filled by Agent 0)*
