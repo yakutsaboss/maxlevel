@@ -26,6 +26,8 @@ module.exports = {
         USE_WEBHOOK: 'true',
         WEBHOOK_DOMAIN: 'https://yakutsa.ru',
         MINI_APP_URL: 'https://yakutsa.ru/levelapp',
+        BUILD_VERSION: 'set-by-deploy-script',
+        BUILD_TIMESTAMP: 'set-by-deploy-script',
       },
       env_staging: {
         NODE_ENV: 'staging',
@@ -72,7 +74,10 @@ module.exports = {
       ],
     },
 
-    // Optional: Separate API server (if you want to scale independently)
+    // WARNING: This process is NOT used in production. Nginx routes all traffic
+    // to port 3000 which is served by telegram-rpg-bot above.
+    // DO NOT restart this process — it receives ZERO traffic.
+    // If you need to restart the API, restart telegram-rpg-bot instead.
     {
       name: 'telegram-rpg-api',
       script: './bot/dist/api/server.js',
