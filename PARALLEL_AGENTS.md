@@ -1621,3 +1621,28 @@ Find your section under "Run 15 Retrospectives" below and replace the placeholde
 
 #### Agent 0 Retrospective
 *(To be filled by Agent 0)*
+
+#### Agent D Retrospective (Run 16)
+**Status:** All 7 tasks completed. Build passes clean.
+
+| # | Task | Status | Commit |
+|---|------|--------|--------|
+| 1 | Add missing type definitions to types/index.ts | Done | `34ac041` |
+| 2 | Fix completeQuest() return type (Quest → QuestCompleteResponse) | Done | `80e12f5` |
+| 3 | Replace createCheckin() inline type with CheckinResponse | Done | `ae1a046` |
+| 4 | Replace getTodayCheckins() inline type with CheckinListResponse | Done | `05426fc` |
+| 5 | Fix createUser() return type (any → {message, user: User}) | Done | `7d6bb23` |
+| 6 | Replace all remaining any return types with proper types | Done | `a8bd5cd` |
+| 7 | Build verification + fix type mismatches with pages | Done | `ba22797` |
+
+**Problems faced:**
+- Build failed after Task 6 because `PunishmentSettings.intensity_level` was defined as `number` (per task spec) but Profile.tsx and Settings.tsx expect `string`. Also, punishment history items in pages expect a `notes` field that wasn't in the task spec. Fixed by adjusting types in `types/index.ts` to match actual page usage (since pages are FORBIDDEN files).
+
+**Key changes:**
+- `types/index.ts`: Added 8 new interfaces: `QuestCompleteResponse`, `CheckinResponse`, `CheckinListResponse`, `PunishmentSettings`, `PunishmentHistoryResponse`, `UserPreferences`, `OnboardingState`.
+- `client.ts`: Replaced all `any` return types with proper types. Fixed `completeQuest()` from `Quest` to `QuestCompleteResponse`. Replaced 4 inline types with named interfaces. Added `User`, `Mode`, and all new types to imports. Leaderboard endpoints intentionally kept as `any[]` (shape varies by mode filter).
+
+**Recommendations for next run:**
+- `checkAchievements()` still has `{ newAchievements: any[]; count: number }` — the `any[]` could be typed as `Achievement[]` once verified against backend response shape.
+- Leaderboard endpoints return `any[]` — consider defining a `LeaderboardEntry` type once the shape stabilizes.
+- The `intensity_level` type mismatch (spec says number, pages use string) suggests the backend may need alignment — worth auditing.
