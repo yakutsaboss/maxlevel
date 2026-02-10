@@ -155,7 +155,7 @@ export function Achievements() {
       <div className="bg-gradient-to-br from-amber-500 to-orange-600 p-6 rounded-b-3xl shadow-lg safe-area-top">
         <div className="flex items-center gap-3 mb-3">
           <Trophy className="w-7 h-7 text-white" />
-          <h1 className="text-2xl font-bold text-white">Achievements</h1>
+          <h1 className="text-2xl font-bold text-white">Rewards</h1>
         </div>
         <div className="bg-white/20 backdrop-blur-sm rounded-2xl px-4 py-3">
           <div className="flex items-center justify-between mb-2">

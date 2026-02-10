@@ -12,7 +12,7 @@ interface NavItem {
 const navItems: NavItem[] = [
   { path: '/dashboard', icon: <Home className="w-5 h-5" />, label: 'Home' },
   { path: '/quests', icon: <Target className="w-5 h-5" />, label: 'Quests' },
-  { path: '/achievements', icon: <Award className="w-5 h-5" />, label: 'Awards' },
+  { path: '/achievements', icon: <Award className="w-5 h-5" />, label: 'Rewards' },
   { path: '/leaderboard', icon: <Trophy className="w-5 h-5" />, label: 'Ranks' },
   { path: '/profile', icon: <User className="w-5 h-5" />, label: 'Profile' },
 ];
