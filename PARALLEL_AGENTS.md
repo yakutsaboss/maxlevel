@@ -461,3 +461,24 @@ Read PARALLEL_AGENTS.md — you are Agent C for Run 17. Your job: mini-app archi
 *(To be filled by Agent 0 after merge & deploy)*
 
 <!-- Next run goes here. Agent 0 will append RUN 18 below this line. -->
+
+### Run 18 Retrospectives
+
+#### Agent A Retrospective
+
+| # | Task | Status |
+|---|------|--------|
+| 1 | Fix quest API safety in client.ts (unwrap `.quests`, fallback to `[]`) | Done |
+| 2 | Fix Quests.tsx null safety (difficulty, title, description, frequency guards) | Done |
+| 3 | Fix useMainButton empty text guard (hide + early return when text is empty) | Done |
+| 4 | Add safe-area-inset-top CSS class + apply to Dashboard/Quests/Achievements headers | Done |
+| 5 | Rename "Awards" to "Rewards" in Navigation.tsx, "Achievements" to "Rewards" in Achievements.tsx | Done |
+| 6 | Build verification (`tsc && vite build`) | Passed |
+
+**Problems faced:** None — all tasks were straightforward. The worktree's PARALLEL_AGENTS.md didn't have the Run 18 section (it was added to main after branching), so retrospective is appended at the end for Agent 0 to splice during merge.
+
+**Commits:** 5 atomic commits (one per task), all on `feature/r18-miniapp-fixes`.
+
+**Recommendations for next run:**
+- The quest detail modal has `selectedQuest.mode` rendering that could benefit from null checks on `mode.icon` / `mode.display_name`.
+- Consider extracting a shared `QuestDifficultyBadge` component — the difficulty-to-color mapping is duplicated in QuestCard, quest detail modal, and Dashboard's QuestCardMini.
