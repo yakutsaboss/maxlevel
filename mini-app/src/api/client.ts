@@ -1,5 +1,5 @@
 import axios, { AxiosInstance } from 'axios';
-import type { ApiResponse, UserStats, Quest, Achievement, UserAchievement, QuestCompleteResponse } from '@/types';
+import type { ApiResponse, UserStats, Quest, Achievement, UserAchievement, QuestCompleteResponse, CheckinResponse } from '@/types';
 
 // API Base URL - should come from environment
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
@@ -87,7 +87,7 @@ class ApiClient {
   }
 
   // Check-in endpoints
-  async createCheckin(telegramId: number, questInstanceId: number, notes?: string): Promise<ApiResponse<{ check_in_id: number; quest_progress: { current: number; target: number }; completed: boolean }>> {
+  async createCheckin(telegramId: number, questInstanceId: number, notes?: string): Promise<ApiResponse<CheckinResponse>> {
     const response = await this.client.post('/checkins', { telegram_id: telegramId, quest_instance_id: questInstanceId, notes });
     return response.data;
   }
