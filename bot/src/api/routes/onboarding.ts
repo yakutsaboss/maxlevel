@@ -181,10 +181,12 @@ router.post('/:telegramId/complete', authenticateTelegram, asyncHandler(async (r
       );
     }
 
-    // 5. Mark onboarding as completed
+    // 5. Mark onboarding as completed (UPSERT handles missing row)
     await client.query(
-      `UPDATE onboarding_state SET current_step = 'completed', last_updated = NOW()
-       WHERE user_id = $1::int`,
+      `INSERT INTO onboarding_state (user_id, current_step, last_updated)
+       VALUES ($1::int, 'completed', NOW())
+       ON CONFLICT (user_id)
+       DO UPDATE SET current_step = 'completed', last_updated = NOW()`,
       [userId]
     );
   });
