@@ -32,7 +32,7 @@ For completed run history (Runs 2–23), see `PARALLEL_AGENTS_HISTORY.md`.
 15. **Set up worktrees** for the next run: create branches, `git worktree add`, install deps.
 16. **Commit & push** the updated PARALLEL_AGENTS.md.
 17. **Tell the user**: "Ready to launch Run N. Here are your copy-paste prompts."
-18. **Archive completed runs (MANDATORY)** — move ALL completed run sections to `PARALLEL_AGENTS_HISTORY.md`, keeping ONLY the latest completed run in this file (for next-run context). Do NOT use a line-count threshold — archive every time. Update both file headers (line 5 here + line 3 in history) with the new run range. This keeps the main file lean and prevents bloat.
+18. **Archive completed runs (every 5 runs)** — after Runs 30, 35, 40, etc., move all completed runs except the latest to `PARALLEL_AGENTS_HISTORY.md`. Update both file headers (line 5 here + line 3 in history) with the new run range. Between archive points, completed runs stay in the main file.
 
 **The cycle**: Each Agent 0 merges Run N, then prepares Run N+1. The user just copies the prompts and launches.
 
@@ -146,7 +146,7 @@ git branch -d feature/BRANCH-A feature/BRANCH-B feature/BRANCH-C
 9. **Merge backend first** — frontend agents depend on API changes.
 10. **6 agents is manageable** — Run 12 proved it, but conflicts increase with GRAY AREA files.
 11. **NEVER skip the notification** — Run 15+16 were merged without notifying the user. Always send via local Python.
-12. **Archive completed runs** — after each run, move ALL completed runs except the latest to PARALLEL_AGENTS_HISTORY.md. Update both file headers with the new range. Don't wait for a line threshold — archive every time.
+12. **Archive completed runs** — every 5 runs (after Run 30, 35, 40, etc.), move all completed runs except the latest to PARALLEL_AGENTS_HISTORY.md. Update both file headers with the new range.
 
 ---
 
