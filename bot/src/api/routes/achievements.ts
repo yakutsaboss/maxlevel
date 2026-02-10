@@ -47,10 +47,10 @@ router.get('/categories', authenticateTelegram, async (req: Request, res: Respon
       return rows.map((r: any) => r.category);
     });
 
-    res.json({ categories });
+    res.json({ success: true, data: categories });
   } catch (error) {
     console.error('Error fetching achievement categories:', error);
-    res.status(500).json({ error: 'Server Error', message: 'Failed to fetch achievement categories' });
+    res.status(500).json({ success: false, error: 'Failed to fetch achievement categories' });
   }
 });
 
@@ -113,13 +113,10 @@ router.get('/users/:userId/available', authenticateTelegram, async (req: Request
       [userId]
     );
 
-    res.json({
-      achievements: rows,
-      count: rows.length,
-    });
+    res.json({ success: true, data: { achievements: rows, count: rows.length } });
   } catch (error) {
     console.error('Error fetching available achievements:', error);
-    res.status(500).json({ error: 'Server Error', message: 'Failed to fetch available achievements' });
+    res.status(500).json({ success: false, error: 'Failed to fetch available achievements' });
   }
 });
 
@@ -170,13 +167,16 @@ router.post('/users/:userId/:achievementId/unlock', authenticateTelegram, async 
     }
 
     res.json({
-      message: 'Achievement unlocked successfully',
-      achievement: result.achievement,
-      xpEarned: result.achievement.xp_bonus,
+      success: true,
+      data: {
+        message: 'Achievement unlocked successfully',
+        achievement: result.achievement,
+        xpEarned: result.achievement.xp_bonus,
+      },
     });
   } catch (error) {
     console.error('Error unlocking achievement:', error);
-    res.status(500).json({ error: 'Server Error', message: 'Failed to unlock achievement' });
+    res.status(500).json({ success: false, error: 'Failed to unlock achievement' });
   }
 });
 
@@ -200,13 +200,10 @@ router.get('/users/:userId/recent', authenticateTelegram, async (req: Request, r
       [userId, limit]
     );
 
-    res.json({
-      achievements: rows,
-      count: rows.length,
-    });
+    res.json({ success: true, data: { achievements: rows, count: rows.length } });
   } catch (error) {
     console.error('Error fetching recent achievements:', error);
-    res.status(500).json({ error: 'Server Error', message: 'Failed to fetch recent achievements' });
+    res.status(500).json({ success: false, error: 'Failed to fetch recent achievements' });
   }
 });
 

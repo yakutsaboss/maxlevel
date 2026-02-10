@@ -165,6 +165,13 @@ class ApiClient {
     return response.data;
   }
 
+  async getMonthlyLeaderboard(limit = 50): Promise<ApiResponse<any[]>> {
+    const response = await this.client.get('/leaderboard/monthly', {
+      params: { limit },
+    });
+    return response.data;
+  }
+
   // Punishment settings endpoints
   async getPunishmentSettings(telegramId: number): Promise<ApiResponse<any>> {
     const response = await this.client.get(`/punishment/${telegramId}/settings`);
