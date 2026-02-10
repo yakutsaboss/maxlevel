@@ -7,8 +7,7 @@ import { AdminUserList } from '@/components/AdminUserList';
 import { AdminBroadcast } from '@/components/AdminBroadcast';
 import { AdminJobs } from '@/components/AdminJobs';
 import { AdminLogs } from '@/components/AdminLogs';
-
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
+import { adminFetch } from '@/api/adminClient';
 
 type AdminTab = 'stats' | 'users' | 'broadcast' | 'jobs' | 'logs';
 
@@ -17,18 +16,6 @@ interface AdminStats {
   active_users_7d: number;
   total_quests_completed: number;
   total_achievements_unlocked: number;
-}
-
-async function adminFetch(path: string, credentials: string, options?: RequestInit) {
-  const res = await fetch(`${API_BASE_URL}/admin${path}`, {
-    ...options,
-    headers: {
-      'Authorization': `Basic ${credentials}`,
-      'Content-Type': 'application/json',
-      ...options?.headers,
-    },
-  });
-  return res;
 }
 
 export function Admin() {
