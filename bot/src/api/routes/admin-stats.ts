@@ -13,6 +13,9 @@ import {
   BadRequestError,
   InternalServerError,
 } from '../utils/errors.js';
+import { logger } from '../utils/logger.js';
+
+const log = logger.child({ component: 'adminStats' });
 
 const router = Router();
 
@@ -57,7 +60,7 @@ router.post('/analytics/export', requireRole('admin'), asyncHandler(async (req: 
   }
 
   const adminUser = (req as any).adminUser;
-  console.log(`[ADMIN] Analytics export triggered by ${adminUser.username}`);
+  log.info(`Analytics export triggered by ${adminUser.username}`);
 
   res.json(successResponse({
     message: 'Analytics export completed',
@@ -105,7 +108,7 @@ router.post('/broadcast', requireRole('admin'), asyncHandler(async (req: Request
   }
 
   const adminUser = (req as any).adminUser;
-  console.log(`[ADMIN] Broadcast initiated by ${adminUser.username} to ${users.length} users`);
+  log.info(`Broadcast initiated by ${adminUser.username}`, { recipientCount: users.length });
 
   let sent = 0;
   let failed = 0;
@@ -139,7 +142,7 @@ router.post('/broadcast', requireRole('admin'), asyncHandler(async (req: Request
         sent++;
       } else {
         failed++;
-        console.warn(`[ADMIN] Broadcast failed for user:`, result.reason?.message);
+        log.warn('Broadcast failed for user', { error: result.reason?.message });
       }
     }
 
@@ -149,7 +152,7 @@ router.post('/broadcast', requireRole('admin'), asyncHandler(async (req: Request
     }
   }
 
-  console.log(`[ADMIN] Broadcast complete: ${sent} sent, ${failed} failed`);
+  log.info('Broadcast complete', { sent, failed });
 
   res.json(successResponse({ sent, failed, total: sent + failed }));
 }));

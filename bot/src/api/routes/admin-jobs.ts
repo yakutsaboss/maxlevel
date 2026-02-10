@@ -7,6 +7,9 @@ import { Router, Request, Response } from 'express';
 import { requireRole } from '../middleware/adminAuth.js';
 import { getJobQueue } from '../../jobs/boss.js';
 import { getRegisteredJobs } from '../../jobs/registerJobs.js';
+import { logger } from '../utils/logger.js';
+
+const log = logger.child({ component: 'adminJobs' });
 
 const router = Router();
 
@@ -25,7 +28,7 @@ router.get('/', async (req: Request, res: Response) => {
       },
     });
   } catch (error) {
-    console.error('[ADMIN] Error listing jobs:', error);
+    log.error('Error listing jobs', error as Error);
     res.status(500).json({
       success: false,
       error: 'Failed to list jobs',
@@ -62,7 +65,7 @@ router.post('/:name/trigger', requireRole('admin'), async (req: Request, res: Re
     const jobId = await boss.send(name, {});
 
     const adminUser = (req as any).adminUser;
-    console.log(`[ADMIN] Job '${name}' triggered by ${adminUser.username} (jobId: ${jobId})`);
+    log.info(`Job '${name}' triggered by ${adminUser.username}`, { jobId });
 
     res.json({
       success: true,
@@ -73,7 +76,7 @@ router.post('/:name/trigger', requireRole('admin'), async (req: Request, res: Re
       },
     });
   } catch (error) {
-    console.error('[ADMIN] Error triggering job:', error);
+    log.error('Error triggering job', error as Error);
     res.status(500).json({
       success: false,
       error: 'Failed to trigger job',

@@ -12,6 +12,9 @@ import {
   BadRequestError,
   NotFoundError,
 } from '../utils/errors.js';
+import { logger } from '../utils/logger.js';
+
+const log = logger.child({ component: 'adminUsers' });
 
 const router = Router();
 
@@ -100,7 +103,7 @@ router.patch('/:userId', requirePermission('users:update'), asyncHandler(async (
   }
 
   const adminUser = (req as any).adminUser;
-  console.log(`[ADMIN] User ${userId} updated by ${adminUser.username}:`, fields);
+  log.info(`User ${userId} updated by ${adminUser.username}`, { fields });
 
   res.json(successResponse({
     message: 'User updated successfully',
@@ -123,7 +126,7 @@ router.delete('/:userId', requireRole('super_admin'), asyncHandler(async (req: R
   await execute('DELETE FROM users WHERE id = $1', [userId]);
 
   const adminUser = (req as any).adminUser;
-  console.warn(`[ADMIN] User ${userId} (telegram_id: ${user.telegram_id}) DELETED by ${adminUser.username}`);
+  log.warn(`User ${userId} (telegram_id: ${user.telegram_id}) DELETED by ${adminUser.username}`);
 
   res.json(successResponse({
     message: 'User deleted successfully',
@@ -148,7 +151,7 @@ router.post('/:userId/deactivate', requirePermission('users:update'), asyncHandl
   }
 
   const adminUser = (req as any).adminUser;
-  console.log(`[ADMIN] User ${userId} deactivated by ${adminUser.username}`);
+  log.info(`User ${userId} deactivated by ${adminUser.username}`);
 
   res.json(successResponse({
     message: 'User deactivated successfully',
@@ -169,7 +172,7 @@ router.post('/:userId/reactivate', requirePermission('users:update'), asyncHandl
   }
 
   const adminUser = (req as any).adminUser;
-  console.log(`[ADMIN] User ${userId} reactivated by ${adminUser.username}`);
+  log.info(`User ${userId} reactivated by ${adminUser.username}`);
 
   res.json(successResponse({
     message: 'User reactivated successfully',

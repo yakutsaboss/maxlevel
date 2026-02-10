@@ -13,6 +13,9 @@ import {
   NotFoundError,
   ForbiddenError,
 } from '../utils/errors.js';
+import { logger } from '../utils/logger.js';
+
+const log = logger.child({ component: 'quests' });
 
 const router = Router();
 
@@ -112,7 +115,7 @@ router.post('/:questId/complete', authenticateTelegram, mutationLimiter, asyncHa
   Promise.allSettled([
     updateStreak(instance.user_id, instance.mode_id),
     checkAndUnlockAchievements(instance.user_id),
-  ]).catch(console.error);
+  ]).catch((err) => log.error('Post-completion side effects failed', err as Error));
 
   res.json(successResponse({
     message: 'Quest completed successfully',
@@ -293,7 +296,7 @@ router.patch('/:questId/progress', authenticateTelegram, authorizeUser, mutation
     Promise.allSettled([
       updateStreak(quest.user_id, quest.mode_id),
       checkAndUnlockAchievements(quest.user_id),
-    ]).catch(console.error);
+    ]).catch((err) => log.error('Post-progress side effects failed', err as Error));
 
     return res.json(successResponse({
       id: questId,
