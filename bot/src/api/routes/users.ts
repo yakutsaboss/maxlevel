@@ -605,7 +605,7 @@ router.patch('/:telegramId/profile', authenticateTelegram, async (req: Request, 
 
     params.push(tid);
     const user = await queryOne(
-      `UPDATE users SET ${sets.join(', ')} WHERE telegram_id = $${idx} RETURNING id, telegram_id, username, first_name, current_level, total_xp, timezone`,
+      `UPDATE users SET ${sets.join(', ')} WHERE telegram_id = $${idx} RETURNING id, telegram_id, username, first_name, avatar_id, current_level, total_xp, timezone`,
       params
     );
 
@@ -623,6 +623,7 @@ router.patch('/:telegramId/profile', authenticateTelegram, async (req: Request, 
         telegram_id: user.telegram_id,
         username: user.username,
         first_name: user.first_name,
+        avatar_id: user.avatar_id,
         level: user.current_level,
         xp: user.total_xp,
         timezone: user.timezone,
