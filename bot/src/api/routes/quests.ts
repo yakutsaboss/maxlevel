@@ -1,8 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { authenticateTelegram, authorizeUser } from '../middleware/auth.js';
 import { mutationLimiter, readLimiter } from '../middleware/rateLimiter.js';
-import { executePythonTool } from '../../utils/pythonTools.js';
-import { queryOne, transaction } from '../../utils/db.js';
+import { query, queryOne, execute, transaction } from '../../utils/db.js';
 import { invalidateUserCache } from '../../utils/cache.js';
 import { checkAndUnlockAchievements } from '../../utils/achievementEngine.js';
 import { QUEST_STATUS, QUEST_FREQUENCY } from '../utils/constants.js';
@@ -12,32 +11,50 @@ import {
   BadRequestError,
   NotFoundError,
   ForbiddenError,
-  InternalServerError,
 } from '../utils/errors.js';
 
 const router = Router();
+
+/** Update streak for a user+mode after quest completion (fire-and-forget). */
+async function updateStreak(userId: number, modeId: number): Promise<void> {
+  const today = new Date().toISOString().split('T')[0];
+  const yesterday = new Date(Date.now() - 86400000).toISOString().split('T')[0];
+  const streak = await queryOne(
+    'SELECT id, current_streak, longest_streak, last_activity_date FROM streaks WHERE user_id = $1 AND mode_id = $2',
+    [userId, modeId]
+  );
+  if (!streak) return;
+  const lastDate = streak.last_activity_date ? new Date(streak.last_activity_date).toISOString().split('T')[0] : null;
+  if (lastDate === today) return; // already counted
+  const newStreak = lastDate === yesterday ? streak.current_streak + 1 : 1;
+  const newLongest = Math.max(streak.longest_streak, newStreak);
+  await execute(
+    'UPDATE streaks SET current_streak = $1, longest_streak = $2, last_activity_date = $3 WHERE user_id = $4 AND mode_id = $5',
+    [newStreak, newLongest, today, userId, modeId]
+  );
+}
 
 /**
  * GET /api/users/:userId/quests/active
  * Get all active quests for a user
  */
 router.get('/users/:userId/active', authenticateTelegram, authorizeUser, readLimiter, asyncHandler(async (req: Request, res: Response) => {
-  const { userId } = req.params;
+  const userId = parseInt(req.params.userId);
 
-  const result = await executePythonTool('quest_manager', [
-    '--get-active',
-    '--user-id', userId,
-  ]);
+  const quests = await query(
+    `SELECT qi.id, qi.quest_id, q.title AS name, q.description, q.xp_reward,
+            q.quest_type, q.difficulty, q.mode_id, m.name AS mode_name,
+            m.icon_emoji AS mode_icon, qi.status, qi.instance_date,
+            qi.check_in_count, qi.target
+     FROM quest_instances qi
+     JOIN quests q ON qi.quest_id = q.id
+     LEFT JOIN modes m ON q.mode_id = m.id
+     WHERE qi.user_id = $1 AND qi.status IN ('pending', 'ready', 'in_progress')
+     ORDER BY qi.instance_date ASC`,
+    [userId]
+  );
 
-  if (!result.success) {
-    throw new InternalServerError('Failed to fetch active quests');
-  }
-
-  const data = result.data as any;
-  res.json(successResponse({
-    quests: data?.quests || [],
-    count: data?.count || 0,
-  }));
+  res.json(successResponse({ quests, count: quests.length }));
 }));
 
 /**
@@ -45,24 +62,22 @@ router.get('/users/:userId/active', authenticateTelegram, authorizeUser, readLim
  * Get completed quests for a user
  */
 router.get('/users/:userId/completed', authenticateTelegram, authorizeUser, readLimiter, asyncHandler(async (req: Request, res: Response) => {
-  const { userId } = req.params;
+  const userId = parseInt(req.params.userId);
   const limit = req.query.limit ? parseInt(req.query.limit as string) : 50;
 
-  const result = await executePythonTool('quest_manager', [
-    '--get-completed',
-    '--user-id', userId,
-    '--limit', limit.toString(),
-  ]);
+  const quests = await query(
+    `SELECT qi.id, q.title AS name, q.xp_reward, q.quest_type, q.difficulty,
+            m.name AS mode_name, m.icon_emoji AS mode_icon,
+            qi.xp_awarded, qi.completed_at, qi.target
+     FROM quest_instances qi
+     JOIN quests q ON qi.quest_id = q.id
+     LEFT JOIN modes m ON q.mode_id = m.id
+     WHERE qi.user_id = $1 AND qi.status = 'completed'
+     ORDER BY qi.completed_at DESC LIMIT $2`,
+    [userId, limit]
+  );
 
-  if (!result.success) {
-    throw new InternalServerError('Failed to fetch completed quests');
-  }
-
-  const data = result.data as any;
-  res.json(successResponse({
-    quests: data?.quests || [],
-    count: data?.count || 0,
-  }));
+  res.json(successResponse({ quests, count: quests.length }));
 }));
 
 /**
@@ -70,47 +85,58 @@ router.get('/users/:userId/completed', authenticateTelegram, authorizeUser, read
  * Mark a quest as completed
  */
 router.post('/:questId/complete', authenticateTelegram, mutationLimiter, asyncHandler(async (req: Request, res: Response) => {
-  const { questId } = req.params;
+  const questId = parseInt(req.params.questId);
 
-  const result = await executePythonTool('quest_manager', [
-    '--complete-quest',
-    '--quest-id', questId,
-  ]);
+  // Fetch quest instance with template info
+  const instance = await queryOne(
+    `SELECT qi.id, qi.user_id, qi.status, q.title, q.xp_reward, q.quest_type, q.difficulty, q.mode_id
+     FROM quest_instances qi
+     JOIN quests q ON qi.quest_id = q.id
+     WHERE qi.id = $1`,
+    [questId]
+  );
 
-  if (!result.success) {
-    const data = result.data as any;
-    const errorMsg = data?.error || result.error || 'Failed to complete quest';
-
-    if (errorMsg.includes('not found')) {
-      throw new NotFoundError(errorMsg);
-    }
-    if (errorMsg.includes('already completed')) {
-      throw new BadRequestError(errorMsg);
-    }
-    throw new InternalServerError(errorMsg);
+  if (!instance) {
+    throw new NotFoundError('Quest instance not found');
+  }
+  if (instance.status === QUEST_STATUS.COMPLETED) {
+    throw new BadRequestError('Quest already completed');
   }
 
-  const data = result.data as any;
+  const xpReward = instance.xp_reward;
+
+  // Transaction: mark completed, award XP, compute level
+  const result = await transaction(async (client) => {
+    await client.query(
+      `UPDATE quest_instances SET status = 'completed', completed_at = NOW(), xp_awarded = $1 WHERE id = $2`,
+      [xpReward, questId]
+    );
+    const userRow = await client.query(
+      `UPDATE users SET total_xp = total_xp + $1 WHERE id = $2 RETURNING total_xp, current_level`,
+      [xpReward, instance.user_id]
+    );
+    const user = userRow.rows[0];
+    const newLevel = Math.floor(user.total_xp / 500) + 1;
+    const leveledUp = newLevel > user.current_level;
+    if (leveledUp) {
+      await client.query(`UPDATE users SET current_level = $1 WHERE id = $2`, [newLevel, instance.user_id]);
+    }
+    return { newLevel: leveledUp ? newLevel : null, leveledUp };
+  });
+
+  invalidateUserCache(instance.user_id);
 
   // Fire-and-forget: update streak and check achievements
-  const questInfo = await queryOne(
-    `SELECT q.mode_id, qi.user_id FROM quest_instances qi JOIN quests q ON q.id = qi.quest_id WHERE qi.id = $1`,
-    [parseInt(questId)]
-  );
-  if (questInfo) {
-    const uid = questInfo.user_id;
-    const modeId = questInfo.mode_id;
-    Promise.allSettled([
-      executePythonTool('streak_manager', ['--update-streak', '--user-id', String(uid), '--mode-id', String(modeId)]),
-      checkAndUnlockAchievements(uid),
-    ]).catch(console.error);
-  }
+  Promise.allSettled([
+    updateStreak(instance.user_id, instance.mode_id),
+    checkAndUnlockAchievements(instance.user_id),
+  ]).catch(console.error);
 
   res.json(successResponse({
     message: 'Quest completed successfully',
-    xpEarned: data?.xp_awarded || 0,
-    newLevel: data?.new_level || null,
-    leveledUp: !!data?.new_level,
+    xpEarned: xpReward,
+    newLevel: result.newLevel,
+    leveledUp: result.leveledUp,
   }));
 }));
 
@@ -119,19 +145,21 @@ router.post('/:questId/complete', authenticateTelegram, mutationLimiter, asyncHa
  * Get quest statistics for a user
  */
 router.get('/users/:userId/stats', authenticateTelegram, authorizeUser, readLimiter, asyncHandler(async (req: Request, res: Response) => {
-  const { userId } = req.params;
+  const userId = parseInt(req.params.userId);
 
-  const result = await executePythonTool('quest_manager', [
-    '--get-stats',
-    '--user-id', userId,
+  const [totalRow, activeRow, dailyRow, weeklyRow] = await Promise.all([
+    queryOne<{ total: number }>(`SELECT COUNT(*)::int AS total FROM quest_instances WHERE user_id = $1 AND status = 'completed'`, [userId]),
+    queryOne<{ total: number }>(`SELECT COUNT(*)::int AS total FROM quest_instances WHERE user_id = $1 AND status IN ('pending', 'ready', 'in_progress')`, [userId]),
+    queryOne<{ total: number }>(`SELECT COUNT(*)::int AS total FROM quest_instances qi JOIN quests q ON qi.quest_id = q.id WHERE qi.user_id = $1 AND qi.status = 'completed' AND q.quest_type = 'daily'`, [userId]),
+    queryOne<{ total: number }>(`SELECT COUNT(*)::int AS total FROM quest_instances qi JOIN quests q ON qi.quest_id = q.id WHERE qi.user_id = $1 AND qi.status = 'completed' AND q.quest_type = 'weekly'`, [userId]),
   ]);
 
-  if (!result.success) {
-    throw new InternalServerError('Failed to fetch quest stats');
-  }
-
-  const data = result.data as any;
-  res.json(successResponse(data?.stats || {}));
+  res.json(successResponse({
+    total_completed: totalRow?.total ?? 0,
+    active_quests: activeRow?.total ?? 0,
+    daily_completed: dailyRow?.total ?? 0,
+    weekly_completed: weeklyRow?.total ?? 0,
+  }));
 }));
 
 /**
@@ -139,30 +167,89 @@ router.get('/users/:userId/stats', authenticateTelegram, authorizeUser, readLimi
  * Assign new quests to user (daily/weekly)
  */
 router.post('/users/:userId/assign', authenticateTelegram, authorizeUser, mutationLimiter, asyncHandler(async (req: Request, res: Response) => {
-  const { userId } = req.params;
-  const { frequency, count } = req.body;
+  const userId = parseInt(req.params.userId);
+  const { frequency, count: requestedCount } = req.body;
+  const isDaily = frequency === QUEST_FREQUENCY.DAILY;
 
   if (!frequency || !Object.values(QUEST_FREQUENCY).includes(frequency)) {
     throw new BadRequestError('Invalid frequency. Must be "daily" or "weekly"');
   }
 
-  const operation = frequency === QUEST_FREQUENCY.DAILY ? '--assign-daily' : '--assign-weekly';
-  const args = [operation, '--user-id', userId];
-  if (count) {
-    args.push('--count', count.toString());
+  const defaultCount = isDaily ? 3 : 2;
+  const questCount = requestedCount ? parseInt(requestedCount) : defaultCount;
+
+  // Get user's active modes
+  const modeRows = await query<{ mode_id: number }>(
+    'SELECT mode_id FROM user_modes WHERE user_id = $1 AND is_active = true',
+    [userId]
+  );
+  const modeIds = modeRows.map(r => r.mode_id);
+  if (modeIds.length === 0) {
+    throw new BadRequestError('User has no active modes');
   }
 
-  const result = await executePythonTool('quest_manager', args);
+  const today = new Date().toISOString().split('T')[0];
 
-  if (!result.success) {
-    const data = result.data as any;
-    throw new BadRequestError(data?.error || 'Failed to assign quests');
+  let available: any[];
+  if (isDaily) {
+    // Daily: find templates not assigned today
+    available = await query(
+      `SELECT q.id, q.title, q.description, q.xp_reward, q.quest_type, q.difficulty, q.mode_id
+       FROM quests q
+       WHERE q.mode_id = ANY($1) AND q.quest_type = 'daily'
+       AND q.id NOT IN (SELECT quest_id FROM quest_instances WHERE user_id = $2 AND instance_date = $3)
+       ORDER BY RANDOM() LIMIT $4`,
+      [modeIds, userId, today, questCount]
+    );
+  } else {
+    // Weekly: find templates not actively assigned in past 7 days
+    const weekAgo = new Date(Date.now() - 7 * 86400000).toISOString().split('T')[0];
+    available = await query(
+      `SELECT q.id, q.title, q.description, q.xp_reward, q.quest_type, q.difficulty, q.mode_id
+       FROM quests q
+       WHERE q.mode_id = ANY($1) AND q.quest_type = 'weekly'
+       AND q.id NOT IN (
+         SELECT quest_id FROM quest_instances
+         WHERE user_id = $2 AND instance_date >= $3 AND status IN ('pending', 'ready', 'in_progress')
+       )
+       ORDER BY RANDOM() LIMIT $4`,
+      [modeIds, userId, weekAgo, questCount]
+    );
   }
 
-  const data = result.data as any;
+  if (available.length === 0) {
+    throw new BadRequestError(`No available ${frequency} quests for user modes`);
+  }
+
+  const difficultyTarget: Record<string, number> = { easy: 1, medium: 3, hard: 5 };
+  const assigned: any[] = [];
+
+  for (const quest of available) {
+    const target = difficultyTarget[quest.difficulty] ?? 1;
+    const inst = await queryOne(
+      `INSERT INTO quest_instances (user_id, quest_id, instance_date, status, target)
+       VALUES ($1, $2, $3, 'pending', $4) RETURNING id`,
+      [userId, quest.id, today, target]
+    );
+    if (inst) {
+      assigned.push({
+        id: inst.id,
+        quest_id: quest.id,
+        title: quest.title,
+        description: quest.description,
+        xp_reward: quest.xp_reward,
+        quest_type: quest.quest_type,
+        difficulty: quest.difficulty,
+        target,
+        instance_date: today,
+        status: 'pending',
+      });
+    }
+  }
+
   res.json(successResponse({
-    message: `${data?.count || 0} ${frequency} quests assigned successfully`,
-    quests: data?.quests || [],
+    message: `${assigned.length} ${frequency} quests assigned successfully`,
+    quests: assigned,
   }));
 }));
 
@@ -222,7 +309,7 @@ router.patch('/:questId/progress', authenticateTelegram, authorizeUser, mutation
 
     // Fire-and-forget: update streak and check achievements
     Promise.allSettled([
-      executePythonTool('streak_manager', ['--update-streak', '--user-id', String(quest.user_id), '--mode-id', String(quest.mode_id)]),
+      updateStreak(quest.user_id, quest.mode_id),
       checkAndUnlockAchievements(quest.user_id),
     ]).catch(console.error);
 
