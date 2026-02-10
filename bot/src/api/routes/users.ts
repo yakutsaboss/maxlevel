@@ -80,7 +80,7 @@ router.get('/:telegramId/stats', authenticateTelegram, async (req: Request, res:
       query(
         `SELECT qi.id, qi.user_id, q.mode_id, q.title, q.description, q.xp_reward,
                 q.quest_type AS frequency, q.difficulty, qi.status,
-                qi.check_in_count AS progress, 1 AS target,
+                qi.check_in_count AS progress, qi.target,
                 qi.instance_date AS due_date, qi.completed_at,
                 m.name AS mode_name, m.display_name AS mode_display_name, m.icon_emoji AS mode_icon
          FROM quest_instances qi
@@ -222,7 +222,7 @@ router.get('/:telegramId/quests/active', authenticateTelegram, async (req: Reque
     const rows = await query(
       `SELECT qi.id, qi.user_id, q.mode_id, q.title, q.description, q.xp_reward,
               q.quest_type AS frequency, q.difficulty, qi.status,
-              qi.check_in_count AS progress, 1 AS target,
+              qi.check_in_count AS progress, qi.target,
               qi.instance_date AS due_date, qi.completed_at,
               m.name AS mode_name, m.display_name AS mode_display_name, m.icon_emoji AS mode_icon
        FROM quest_instances qi
@@ -275,7 +275,7 @@ router.get('/:telegramId/quests/completed', authenticateTelegram, async (req: Re
     const rows = await query(
       `SELECT qi.id, qi.user_id, q.mode_id, q.title, q.description, q.xp_reward,
               q.quest_type AS frequency, q.difficulty, qi.status,
-              qi.check_in_count AS progress, 1 AS target,
+              qi.check_in_count AS progress, qi.target,
               qi.instance_date AS due_date, qi.completed_at,
               m.name AS mode_name, m.display_name AS mode_display_name, m.icon_emoji AS mode_icon
        FROM quest_instances qi
