@@ -311,6 +311,25 @@ export function Quests() {
                     animate={{ width: `${(selectedQuest.progress / selectedQuest.target) * 100}%` }}
                   />
                 </div>
+                {selectedQuest.target > 1 && (
+                  <div className="flex items-center justify-center gap-2 mt-3">
+                    {Array.from({ length: selectedQuest.target }, (_, i) => (
+                      <motion.div
+                        key={i}
+                        initial={{ scale: 0 }}
+                        animate={{ scale: 1 }}
+                        transition={{ delay: i * 0.1 }}
+                        className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${
+                          i < selectedQuest.progress
+                            ? 'bg-green-500 text-white'
+                            : 'bg-telegram-hint/20 text-telegram-hint'
+                        }`}
+                      >
+                        {i < selectedQuest.progress ? '✓' : i + 1}
+                      </motion.div>
+                    ))}
+                  </div>
+                )}
               </div>
 
               {selectedQuest.status === 'active' && selectedQuest.progress < selectedQuest.target && user?.id && (
