@@ -135,8 +135,11 @@ router.get('/:telegramId/today', authenticateTelegram, readLimiter, async (req: 
     );
 
     res.json({
-      check_ins: rows,
-      count: rows.length,
+      success: true,
+      data: {
+        check_ins: rows,
+        count: rows.length,
+      },
     });
   } catch (error) {
     console.error('Error fetching today check-ins:', error);
