@@ -1681,4 +1681,48 @@ Read PARALLEL_AGENTS.md — you are Agent E for Run 22. Your job: Migrate `admin
 
 **Known Issues resolved:** Items 4-9 from Run 21 list all addressed. 8 new items tracked, mostly minor (leaderboard util duplication, remaining skeletons).
 
-<!-- Next run goes here. Agent 0 will append RUN 23 below this line. -->
+### Run 23 Retrospectives
+
+#### Agent A Retrospective
+**Status:** All 5 tasks completed. Build passes cleanly (tsc + vite build, 0 errors).
+
+| # | Task | Status |
+|---|------|--------|
+| 1 | Export `getXpValue`/`getXpLabel` from TopThreeCard.tsx, deduplicate in LeaderboardRow.tsx | Done |
+| 2 | Create `QuestsSkeleton.tsx` component (extracted from Quests.tsx lines 104-137) | Done |
+| 3 | Simplify Quests.tsx to use `<QuestsSkeleton />` (–30 lines) | Done |
+| 4 | Create `SettingsSkeleton.tsx` component (extracted from Settings.tsx lines 32-49) | Done |
+| 5 | Simplify Settings.tsx to use `<SettingsSkeleton />` (–14 lines) | Done |
+| 6 | Build verification (tsc + vite build) | Passed |
+
+**Problems faced:** None. All tasks were straightforward extractions. The worktree branched before Run 23 setup was committed, so the retrospective section didn't exist — appended it manually.
+
+**Commits:** 5 atomic commits on `feature/r23-miniapp-skeletons-utils`.
+
+**Net result:**
+- Quests.tsx: –30 lines (inline skeleton → QuestsSkeleton component)
+- Settings.tsx: –14 lines (inline skeleton → SettingsSkeleton component)
+- LeaderboardRow.tsx: –12 lines (removed duplicate getXpValue/getXpLabel, now imports from TopThreeCard)
+- 2 new skeleton components, 0 new dependencies
+
+**Recommendations for next run:**
+- All loading skeletons are now extracted (Dashboard, Profile, Leaderboard, Achievements, Quests, Settings) — Known Issue #7 is resolved.
+- Known Issue #4 (leaderboard getXpValue/getXpLabel duplication) is resolved.
+- Consider a shared `SkeletonCard` primitive since all skeletons use the same `skeleton` CSS class patterns — low priority, cosmetic.
+
+#### Agent B Retrospective
+*(To be filled by Agent B)*
+
+#### Agent C Retrospective
+*(To be filled by Agent C)*
+
+#### Agent D Retrospective
+*(To be filled by Agent D)*
+
+#### Agent E Retrospective
+*(To be filled by Agent E)*
+
+#### Agent 0 Retrospective
+*(To be filled by Agent 0 after merge)*
+
+<!-- Next run goes here. Agent 0 will append RUN 24 below this line. -->
