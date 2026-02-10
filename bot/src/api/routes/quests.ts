@@ -209,8 +209,11 @@ router.post('/users/:userId/assign', authenticateTelegram, authorizeUser, mutati
 
     const data = result.data as any;
     res.json({
-      message: `${data?.count || 0} ${frequency} quests assigned successfully`,
-      quests: data?.quests || [],
+      success: true,
+      data: {
+        message: `${data?.count || 0} ${frequency} quests assigned successfully`,
+        quests: data?.quests || [],
+      },
     });
   } catch (error) {
     console.error('Error assigning quests:', error);
