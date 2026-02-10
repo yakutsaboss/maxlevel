@@ -1,7 +1,7 @@
 import { motion } from 'framer-motion';
 import type { LeaderboardEntry } from '@/types';
 import type { TimePeriod } from './TimePeriodTabs';
-import { getAvatarColor, getInitials, RankIcon } from './TopThreeCard';
+import { getAvatarColor, getInitials, RankIcon, getXpValue, getXpLabel } from './TopThreeCard';
 
 interface LeaderboardRowProps {
   entry: LeaderboardEntry;
@@ -9,18 +9,6 @@ interface LeaderboardRowProps {
   isCurrentUser: boolean;
   timePeriod: TimePeriod;
   index: number;
-}
-
-function getXpValue(entry: LeaderboardEntry, timePeriod: TimePeriod): number {
-  if (timePeriod === 'weekly' && entry.weekly_xp != null) return entry.weekly_xp;
-  if (timePeriod === 'monthly' && entry.monthly_xp != null) return entry.monthly_xp;
-  return entry.total_xp;
-}
-
-function getXpLabel(timePeriod: TimePeriod): string {
-  if (timePeriod === 'weekly') return 'Weekly XP';
-  if (timePeriod === 'monthly') return 'Monthly XP';
-  return 'XP';
 }
 
 export function LeaderboardRow({ entry, rank, isCurrentUser, timePeriod, index }: LeaderboardRowProps) {
