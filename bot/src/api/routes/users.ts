@@ -15,7 +15,7 @@ async function resolveUser(telegramId: string) {
   if (isNaN(tid)) return null;
 
   const u = await queryOne(
-    `SELECT u.id, u.telegram_id, u.username, u.first_name,
+    `SELECT u.id, u.telegram_id, u.username, u.first_name, u.avatar_id,
             u.current_level, u.total_xp, u.is_active, u.timezone, u.created_at,
             COALESCE(s.current_streak, 0)::int AS current_streak,
             COALESCE(s.longest_streak, 0)::int AS longest_streak,
@@ -41,6 +41,7 @@ async function resolveUser(telegramId: string) {
     username: u.username,
     first_name: u.first_name,
     last_name: null,
+    avatar_id: u.avatar_id ?? null,
     level: u.current_level,
     xp: u.total_xp,
     xp_to_next_level: u.current_level * 100,
