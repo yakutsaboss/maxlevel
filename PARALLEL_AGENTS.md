@@ -1273,7 +1273,27 @@ PGPASSWORD=postgres psql -h localhost -U postgres -d telegram_rpg -f /opt/wibeco
 - The `target: row.target || 1` fallback in users.ts formatting code should be safe to remove once all quest_instances have been migrated (the DEFAULT 1 on the column covers new rows, and the Run 13 migration backfilled existing rows).
 
 #### Agent B Retrospective
-*(To be filled by Agent B)*
+**All 5 tasks completed. Build passes clean.**
+
+| # | Task | Status | Commit |
+|---|------|--------|--------|
+| 1 | Add target to assign_quest() INSERT based on difficulty | Done | `3b8d4ea` |
+| 2 | Add target to get_active_quests() SELECT | Done | `0da9753` |
+| 3 | Add target to get_completed_quests() SELECT | Done | `e31c2b3` |
+| 4 | Fix quests.ts GET /active and /completed to {success, data} format | Done | `5d3956b` |
+| 5 | Build verification | Pass | No fix needed |
+
+**Problems faced:** None. All tasks were straightforward and well-scoped.
+
+**Key changes:**
+- `quest_manager.py` `assign_quest()`: Now computes target from difficulty (`easy=1, medium=3, hard=5`) and includes it in the INSERT and returned dict. The Python tool is now self-sufficient — no longer depends on `dailyQuestReset.ts` to patch target after assignment.
+- `quest_manager.py` `get_active_quests()`: Added `qi.target` to SELECT so active quest data includes target for frontend display.
+- `quest_manager.py` `get_completed_quests()`: Added `qi.target` to SELECT for completed quest history.
+- `quests.ts` GET `/users/:userId/active` and `/users/:userId/completed`: Wrapped responses in `{success: true, data: {quests, count}}` for API consistency.
+
+**Recommendations for next run:**
+- The mini-app client (`client.ts`) may need updating to unwrap the new `{success, data}` envelope from GET quest endpoints. Check how `getActiveQuests` and `getCompletedQuests` parse responses.
+- The `assign_daily_quests()` and `assign_weekly_quests()` functions call `assign_quest()` internally, so they automatically get target-aware assignments now.
 
 #### Agent C Retrospective
 **Status:** All 3 tasks completed. Build passes clean.
