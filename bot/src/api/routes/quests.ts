@@ -222,7 +222,7 @@ router.post('/users/:userId/assign', authenticateTelegram, authorizeUser, mutati
  * PATCH /api/quests/:questId/progress
  * Update quest progress. Auto-completes if progress reaches target.
  */
-router.patch('/:questId/progress', authenticateTelegram, mutationLimiter, async (req: Request, res: Response) => {
+router.patch('/:questId/progress', authenticateTelegram, authorizeUser, mutationLimiter, async (req: Request, res: Response) => {
   try {
     const questId = parseInt(req.params.questId);
     const { progress } = req.body;
@@ -246,6 +246,9 @@ router.patch('/:questId/progress', authenticateTelegram, mutationLimiter, async 
 
     if (!quest) {
       return res.status(404).json({ error: 'Not Found', message: 'Quest not found' });
+    }
+    if (quest.user_id !== req.dbUser?.id) {
+      return res.status(403).json({ error: 'Forbidden', message: 'You do not have permission to update this quest' });
     }
     if (quest.status === 'completed') {
       return res.status(400).json({ error: 'Bad Request', message: 'Quest is already completed' });
