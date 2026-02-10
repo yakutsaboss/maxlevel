@@ -1681,4 +1681,339 @@ Read PARALLEL_AGENTS.md — you are Agent E for Run 22. Your job: Migrate `admin
 
 **Known Issues resolved:** Items 4-9 from Run 21 list all addressed. 8 new items tracked, mostly minor (leaderboard util duplication, remaining skeletons).
 
-<!-- Next run goes here. Agent 0 will append RUN 23 below this line. -->
+## RUN 23: Python→SQL Migration + Final Mini-App Cleanup (5 Agents + Agent 0)
+
+### Focus: Migrate ALL remaining `executePythonTool` calls in API routes to native SQL (quests.ts, modes.ts, onboarding.ts, users.ts), extract last inline skeletons, deduplicate leaderboard utils, extract useDashboardData hook + ProfileStreak component
+
+### Copy-Paste Prompts
+
+**Agent 0** (open in: `c:\Users\Asus\Desktop\Wibecode`):
+```
+Read PARALLEL_AGENTS.md — you are Agent 0 for Run 23. Wait for agents to finish, then merge and deploy.
+```
+
+**Agent A** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-a`):
+```
+Read PARALLEL_AGENTS.md — you are Agent A for Run 23. Your job: (1) Export getXpValue() and getXpLabel() from TopThreeCard.tsx and update LeaderboardRow.tsx to import them instead of defining locally, (2) Create QuestsSkeleton.tsx component by extracting the loading skeleton from Quests.tsx lines 104-137, (3) Simplify Quests.tsx to use <QuestsSkeleton />, (4) Create SettingsSkeleton.tsx by extracting Settings.tsx lines 32-49, (5) Simplify Settings.tsx to use <SettingsSkeleton />. Follow the Safety Protocol. Commit after each task. Write your retrospective when done.
+```
+
+**Agent B** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-b`):
+```
+Read PARALLEL_AGENTS.md — you are Agent B for Run 23. Your job: (1) Create useDashboardData hook in hooks/useDashboardData.ts — extract all state management from Dashboard.tsx lines 21-73 (stats, loading, error, toastAchievement, checkForNewAchievements, loadUserStats, handleRefresh, pull-to-refresh) — hook takes userId and haptic, returns all state + handlers, (2) Simplify Dashboard.tsx to use the new hook, (3) Create ProfileStreak.tsx component in components/profile/ — extract the streak card from Profile.tsx lines 46-60, (4) Simplify Profile.tsx to use <ProfileStreak />. Follow the Safety Protocol. Commit after each task. Write your retrospective when done.
+```
+
+**Agent C** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-c`):
+```
+Read PARALLEL_AGENTS.md — you are Agent C for Run 23. Your job: Migrate ALL 6 executePythonTool calls in quests.ts to native SQL. Read the Python source code in tools/quest_manager.py and tools/streak_manager.py to understand the exact SQL queries and business logic. (1) Migrate GET /active — replace quest_manager --get-active with native SQL query(), (2) Migrate GET /completed — replace quest_manager --get-completed with native SQL query(), (3) Migrate GET /stats — replace quest_manager --get-stats with 3 COUNT queries via Promise.all, (4) Migrate POST /complete — replace quest_manager --complete-quest with native SQL transaction() (fetch quest, check status, mark completed, award XP, compute level), (5) Migrate POST /assign — replace quest_manager --assign-daily/--assign-weekly with native SQL (fetch active modes, find available templates, assign with target), (6) Migrate streak_manager fire-and-forget calls — replace with native SQL (check last_activity_date, increment/reset streak), (7) Remove executePythonTool import. Follow the Safety Protocol. Commit after each task. Write your retrospective when done.
+```
+
+**Agent D** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-d`):
+```
+Read PARALLEL_AGENTS.md — you are Agent D for Run 23. Your job: Migrate the 1 executePythonTool call in modes.ts to native SQL. Read tools/mode_manager.py add_mode_to_user() and add_multiple_modes() to understand the logic. (1) Migrate POST /users/:userId — replace mode_manager --add-modes with native SQL: for each mode name, look up mode by name, check if user_mode exists (reactivate if inactive, skip if already active, INSERT if new), also INSERT streak record ON CONFLICT DO NOTHING, (2) Remove executePythonTool import from modes.ts. Follow the Safety Protocol. Commit after each task. Write your retrospective when done.
+```
+
+**Agent E** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-e`):
+```
+Read PARALLEL_AGENTS.md — you are Agent E for Run 23. Your job: Migrate executePythonTool calls in onboarding.ts (2 calls) and fix users.ts broken streak endpoint. Read tools/mode_manager.py and tools/quest_manager.py for the SQL logic. (1) Migrate onboarding.ts mode_manager --add-modes — replace with native SQL (same logic as modes.ts: lookup mode, upsert user_mode, init streak), (2) Migrate onboarding.ts quest_manager --assign-daily — replace with native SQL (fetch active modes, find available daily templates not assigned today, assign with target based on difficulty), (3) Fix PATCH /:userId/streak in users.ts — the current code calls user_manager --update-streak which DOES NOT EXIST in user_manager.py (this endpoint is BROKEN). Rewrite using native SQL: fetch all user streaks, for each: check last_activity_date (today=no change, yesterday=increment, older=reset to 1), update longest_streak, (4) Remove executePythonTool imports from both files. Follow the Safety Protocol. Commit after each task. Write your retrospective when done.
+```
+
+---
+
+### Agent A — Mini-App: Skeleton Extractions + Leaderboard Utils Dedup
+
+**Branch:** `feature/r23-miniapp-skeletons-utils`
+**Worktree:** `../Wibecode-agent-a`
+
+**Tasks:**
+1. **Export leaderboard XP functions** — In `TopThreeCard.tsx`, change `function getXpValue(...)` (line 44) and `function getXpLabel(...)` (line 50) from local functions to `export function`. In `LeaderboardRow.tsx`, delete the duplicate `getXpValue` (lines 14-18) and `getXpLabel` (lines 20-24) functions and add them to the import from `./TopThreeCard`.
+2. **Create `QuestsSkeleton.tsx`** — Create `mini-app/src/components/quests/QuestsSkeleton.tsx`. Extract the loading skeleton JSX from `Quests.tsx` lines 104-137 into a `QuestsSkeleton` component. Export it.
+3. **Simplify `Quests.tsx`** — Replace the inline loading block (lines 104-137) with `import { QuestsSkeleton } from '@/components/quests/QuestsSkeleton'` and `return <QuestsSkeleton />`.
+4. **Create `SettingsSkeleton.tsx`** — Create `mini-app/src/components/settings/SettingsSkeleton.tsx`. Extract the loading skeleton JSX from `Settings.tsx` lines 32-49 into a `SettingsSkeleton` component. Export it.
+5. **Simplify `Settings.tsx`** — Replace the inline loading block (lines 32-49) with `import { SettingsSkeleton } from '@/components/settings/SettingsSkeleton'` and `return <SettingsSkeleton />`.
+6. **Build verification**: `cd mini-app && npm run build`
+
+**OWNED files:**
+- `mini-app/src/components/leaderboard/TopThreeCard.tsx`
+- `mini-app/src/components/leaderboard/LeaderboardRow.tsx`
+- `mini-app/src/components/quests/QuestsSkeleton.tsx` (new)
+- `mini-app/src/components/settings/SettingsSkeleton.tsx` (new)
+- `mini-app/src/pages/Quests.tsx`
+- `mini-app/src/pages/Settings.tsx`
+
+**FORBIDDEN:**
+- `bot/**`, `tools/**`, `database/**`
+- `mini-app/src/App.tsx`
+- `mini-app/src/pages/Dashboard.tsx`, `Profile.tsx`, `Leaderboard.tsx`, `Achievements.tsx`
+- `mini-app/src/api/client.ts`
+- `mini-app/src/hooks/**`
+- `mini-app/src/types/index.ts`
+
+---
+
+### Agent B — Mini-App: useDashboardData Hook + ProfileStreak Component
+
+**Branch:** `feature/r23-dashboard-hook-profile-streak`
+**Worktree:** `../Wibecode-agent-b`
+
+**Tasks:**
+1. **Create `useDashboardData` hook** — Create `mini-app/src/hooks/useDashboardData.ts`. Extract from `Dashboard.tsx` lines 21-73: the state variables (`stats`, `loading`, `error`, `toastAchievement`), the `checkForNewAchievements` function, the `loadUserStats` function, the `handleRefresh` callback, and the `usePullToRefresh` hook call. The hook should accept `{ userId: number | undefined, haptic: any }` and return `{ stats, loading, error, toastAchievement, setToastAchievement, containerRef, pullDistance, refreshing, pullThreshold, touchHandlers, handleQuestClick }`. Also include `handleQuestClick` (line 74) using `useNavigate`.
+2. **Simplify `Dashboard.tsx`** — Replace the ~55 lines of state management with `const { ... } = useDashboardData({ userId: user?.id, haptic })`. Remove the now-unnecessary imports (`useState`, `useCallback`, `useEffect`, `useNavigate`, `apiClient`, `usePullToRefresh`). Dashboard should be pure rendering.
+3. **Create `ProfileStreak.tsx`** — Create `mini-app/src/components/profile/ProfileStreak.tsx`. Extract Profile.tsx lines 46-60 into a component. Props: `currentStreak: number`, `longestStreak: number`. Renders the orange-to-red gradient card with Calendar icon, streak days, best streak, and fire emoji.
+4. **Simplify `Profile.tsx`** — Replace the inline streak card (lines 46-60) with `<ProfileStreak currentStreak={stats.user.current_streak} longestStreak={stats.user.longest_streak} />`. Add the import.
+5. **Build verification**: `cd mini-app && npm run build`
+
+**OWNED files:**
+- `mini-app/src/hooks/useDashboardData.ts` (new)
+- `mini-app/src/pages/Dashboard.tsx`
+- `mini-app/src/components/profile/ProfileStreak.tsx` (new)
+- `mini-app/src/pages/Profile.tsx`
+
+**FORBIDDEN:**
+- `bot/**`, `tools/**`, `database/**`
+- `mini-app/src/App.tsx`
+- `mini-app/src/pages/Quests.tsx`, `Settings.tsx`, `Leaderboard.tsx`, `Achievements.tsx`
+- `mini-app/src/api/client.ts`
+- `mini-app/src/hooks/useTelegram.ts`, `useOnboarding.ts`, `useSettingsData.ts`, `useProfileData.ts`, `usePullToRefresh.ts`
+- `mini-app/src/types/index.ts`
+- `mini-app/src/components/leaderboard/**`
+- `mini-app/src/components/quests/**`
+- `mini-app/src/components/settings/**`
+
+---
+
+### Agent C — Backend: Migrate quests.ts to Native SQL
+
+**Branch:** `feature/r23-quests-native-sql`
+**Worktree:** `../Wibecode-agent-c`
+
+**Context:** `quests.ts` currently has 6 `executePythonTool` calls that spawn Python subprocesses. Each must be replaced with native SQL using the project's `query()`/`queryOne()`/`execute()`/`transaction()` utilities from `../../utils/db.js`. Read the Python source files to understand the exact SQL and business logic.
+
+**Tasks:**
+1. **Migrate `GET /users/:userId/active`** — Replace `executePythonTool('quest_manager', ['--get-active', ...])` with a native `query()` call. SQL (from `quest_manager.py` lines 250-272):
+   ```sql
+   SELECT qi.id, qi.quest_id, q.title AS name, q.description, q.xp_reward,
+          q.quest_type, q.difficulty, q.mode_id, m.name AS mode_name,
+          m.icon_emoji AS mode_icon, qi.status, qi.instance_date,
+          qi.check_in_count, qi.target
+   FROM quest_instances qi
+   JOIN quests q ON qi.quest_id = q.id
+   LEFT JOIN modes m ON q.mode_id = m.id
+   WHERE qi.user_id = $1 AND qi.status IN ('pending', 'ready', 'in_progress')
+   ORDER BY qi.instance_date ASC
+   ```
+   Return `successResponse({ quests, count: quests.length })`.
+
+2. **Migrate `GET /users/:userId/completed`** — Replace with native `query()`. SQL (from `quest_manager.py` lines 284-303):
+   ```sql
+   SELECT qi.id, q.title AS name, q.xp_reward, q.quest_type, q.difficulty,
+          m.name AS mode_name, m.icon_emoji AS mode_icon,
+          qi.xp_awarded, qi.completed_at, qi.target
+   FROM quest_instances qi
+   JOIN quests q ON qi.quest_id = q.id
+   LEFT JOIN modes m ON q.mode_id = m.id
+   WHERE qi.user_id = $1 AND qi.status = 'completed'
+   ORDER BY qi.completed_at DESC LIMIT $2
+   ```
+   Return `successResponse({ quests, count: quests.length })`.
+
+3. **Migrate `GET /users/:userId/stats`** — Replace with 3 parallel `queryOne()` calls via `Promise.all` (from `quest_manager.py` lines 312-349):
+   - Total completed: `SELECT COUNT(*)::int AS total FROM quest_instances WHERE user_id = $1 AND status = 'completed'`
+   - Active: `SELECT COUNT(*)::int AS total FROM quest_instances WHERE user_id = $1 AND status IN ('pending', 'ready', 'in_progress')`
+   - Daily completed: `SELECT COUNT(*)::int AS total FROM quest_instances qi JOIN quests q ON qi.quest_id = q.id WHERE qi.user_id = $1 AND qi.status = 'completed' AND q.quest_type = 'daily'`
+   - Weekly completed: same but `q.quest_type = 'weekly'`
+   Return `successResponse({ total_completed, active_quests, daily_completed, weekly_completed })`.
+
+4. **Migrate `POST /:questId/complete`** — Replace with native SQL `transaction()`. Logic (from `quest_manager.py` lines 186-244):
+   - Fetch quest instance: `SELECT qi.*, q.title, q.xp_reward, q.quest_type, q.difficulty, q.mode_id FROM quest_instances qi JOIN quests q ON qi.quest_id = q.id WHERE qi.id = $1`
+   - Check: not found → 404, already completed → 400
+   - In transaction: mark completed (`UPDATE quest_instances SET status='completed', completed_at=NOW(), xp_awarded=$1 WHERE id=$2`), award XP (`UPDATE users SET total_xp = total_xp + $1 WHERE id = $2 RETURNING total_xp, current_level`), compute level (`new_level = Math.floor(total_xp / 500) + 1`), update if leveled up
+   - Fire-and-forget streak + achievements (see Task 6)
+   - Return `successResponse({ message, xpEarned, newLevel, leveledUp })`
+
+5. **Migrate `POST /users/:userId/assign`** — Replace with native SQL. Logic (from `quest_manager.py` lines 92-135):
+   - Fetch active modes: `SELECT mode_id FROM user_modes WHERE user_id = $1 AND is_active = true`
+   - No modes → 400 error
+   - Get today's date: `new Date().toISOString().split('T')[0]`
+   - For daily: find available templates not assigned today:
+     ```sql
+     SELECT q.* FROM quests q WHERE q.mode_id = ANY($1) AND q.quest_type = $2
+     AND q.id NOT IN (SELECT quest_id FROM quest_instances WHERE user_id = $3 AND instance_date = $4)
+     ORDER BY RANDOM() LIMIT $5
+     ```
+   - For each: compute target (`{easy:1, medium:3, hard:5}[difficulty]`), INSERT quest_instance
+   - Return `successResponse({ message, quests })`.
+
+6. **Migrate streak_manager fire-and-forget calls** — Replace both `executePythonTool('streak_manager', [...])` calls (lines 104 and 225) with an inline async function that does native SQL. Logic (from `streak_manager.py` lines 86-140):
+   ```ts
+   async function updateStreak(userId: number, modeId: number) {
+     const today = new Date().toISOString().split('T')[0];
+     const yesterday = new Date(Date.now() - 86400000).toISOString().split('T')[0];
+     const streak = await queryOne('SELECT * FROM streaks WHERE user_id = $1 AND mode_id = $2', [userId, modeId]);
+     if (!streak) return;
+     const lastDate = streak.last_activity_date ? streak.last_activity_date.toISOString().split('T')[0] : null;
+     if (lastDate === today) return; // already counted
+     const newStreak = lastDate === yesterday ? streak.current_streak + 1 : 1;
+     const newLongest = Math.max(streak.longest_streak, newStreak);
+     await execute('UPDATE streaks SET current_streak=$1, longest_streak=$2, last_activity_date=$3 WHERE user_id=$4 AND mode_id=$5',
+       [newStreak, newLongest, today, userId, modeId]);
+   }
+   ```
+   Call as fire-and-forget: `updateStreak(uid, modeId).catch(console.error)`
+
+7. **Clean up imports** — Remove `executePythonTool` import. Add `query` to the db.js import (currently only imports `queryOne` and `transaction`). Add `execute` if not already imported.
+8. **Build verification**: `cd bot && npm run build`
+
+**OWNED files:**
+- `bot/src/api/routes/quests.ts`
+
+**FORBIDDEN:**
+- `mini-app/**`, `tools/**`, `database/**`
+- `bot/src/index.ts`, `bot/src/api/server.ts`
+- `bot/src/api/routes/modes.ts`, `users.ts`, `onboarding.ts`, `admin-*.ts`, `achievements.ts`
+- `bot/src/jobs/**`
+- `bot/src/handlers/**`
+
+---
+
+### Agent D — Backend: Migrate modes.ts to Native SQL
+
+**Branch:** `feature/r23-modes-native-sql`
+**Worktree:** `../Wibecode-agent-d`
+
+**Context:** `modes.ts` has 1 `executePythonTool` call in the `POST /users/:userId` endpoint. The rest are already native SQL.
+
+**Tasks:**
+1. **Migrate `POST /users/:userId`** — Replace `executePythonTool('mode_manager', ['--add-modes', ...])` with native SQL. Logic (from `mode_manager.py` lines 190-295):
+   - Parse the `modes` array from `req.body` (already validated as array)
+   - For each mode name:
+     a. Look up mode: `SELECT id FROM modes WHERE name = $1`
+     b. If not found, skip (add to `failed` list)
+     c. Check existing: `SELECT id, is_active FROM user_modes WHERE user_id = $1 AND mode_id = $2`
+     d. If exists and active → skip (add to `already_active`)
+     e. If exists and inactive → reactivate: `UPDATE user_modes SET is_active = true, enabled_at = NOW() WHERE id = $1`
+     f. If not exists → insert: `INSERT INTO user_modes (user_id, mode_id, is_active) VALUES ($1, $2, true) RETURNING id`
+     g. Also init streak: `INSERT INTO streaks (user_id, mode_id, current_streak, longest_streak) VALUES ($1, $2, 0, 0) ON CONFLICT (user_id, mode_id) DO NOTHING`
+   - Return `successResponse({ message: 'Modes added successfully', added, failed, already_active })`
+2. **Remove `executePythonTool` import** — Delete the import line since it's no longer used.
+3. **Build verification**: `cd bot && npm run build`
+
+**OWNED files:**
+- `bot/src/api/routes/modes.ts`
+
+**FORBIDDEN:**
+- `mini-app/**`, `tools/**`, `database/**`
+- `bot/src/index.ts`, `bot/src/api/server.ts`
+- `bot/src/api/routes/quests.ts`, `users.ts`, `onboarding.ts`, `admin-*.ts`, `achievements.ts`
+- `bot/src/jobs/**`
+- `bot/src/handlers/**`
+
+---
+
+### Agent E — Backend: Migrate onboarding.ts + Fix users.ts Broken Streak
+
+**Branch:** `feature/r23-onboarding-users-native-sql`
+**Worktree:** `../Wibecode-agent-e`
+
+**Context:** `onboarding.ts` has 2 `executePythonTool` calls in the POST `/complete` endpoint. `users.ts` has 1 call in `PATCH /:userId/streak` that calls `user_manager --update-streak` which **DOES NOT EXIST** in `user_manager.py` — this endpoint is currently broken.
+
+**Tasks:**
+1. **Migrate onboarding `mode_manager --add-modes`** — In `onboarding.ts` line 83, replace with native SQL. Logic (same as Agent D's modes.ts migration):
+   - For each mode name in `quiz_data.selected_modes`:
+     a. `SELECT id FROM modes WHERE name = $1`
+     b. Check `SELECT id, is_active FROM user_modes WHERE user_id = $1 AND mode_id = $2`
+     c. Reactivate if inactive, insert if new, skip if active
+     d. Init streak: `INSERT INTO streaks ... ON CONFLICT DO NOTHING`
+   - This runs BEFORE the transaction block (matches current flow).
+
+2. **Migrate onboarding `quest_manager --assign-daily`** — In `onboarding.ts` line 149, replace with native SQL. Logic (from `quest_manager.py` lines 92-135):
+   - Get active mode IDs: `SELECT mode_id FROM user_modes WHERE user_id = $1 AND is_active = true`
+   - Today's date: `new Date().toISOString().split('T')[0]`
+   - Find available daily templates:
+     ```sql
+     SELECT id, difficulty FROM quests
+     WHERE mode_id = ANY($1) AND quest_type = 'daily'
+     AND id NOT IN (SELECT quest_id FROM quest_instances WHERE user_id = $2 AND instance_date = $3)
+     ORDER BY RANDOM() LIMIT $4
+     ```
+   - For each: target = `{easy:1, medium:3, hard:5}[difficulty] || 1`, INSERT quest_instance.
+
+3. **Fix `PATCH /:userId/streak` in users.ts** — The current code (line 406) calls `executePythonTool('user_manager', ['--update-streak', ...])` but user_manager.py has no `--update-streak` command. Rewrite the endpoint to use native SQL. Logic: fetch ALL streaks for the user, for each streak update using streak logic (today=no change, yesterday=increment, older=reset). Return the updated streak data.
+   ```ts
+   const today = new Date().toISOString().split('T')[0];
+   const yesterday = new Date(Date.now() - 86400000).toISOString().split('T')[0];
+   const streaks = await query('SELECT * FROM streaks WHERE user_id = $1', [parseInt(userId)]);
+   for (const streak of streaks) {
+     const lastDate = streak.last_activity_date?.toISOString().split('T')[0];
+     if (lastDate === today) continue;
+     const newStreak = lastDate === yesterday ? streak.current_streak + 1 : 1;
+     const newLongest = Math.max(streak.longest_streak, newStreak);
+     await execute('UPDATE streaks SET current_streak=$1, longest_streak=$2, last_activity_date=$3 WHERE id=$4',
+       [newStreak, newLongest, today, streak.id]);
+   }
+   ```
+   Return `successResponse({ message: 'Streaks updated', ... })`.
+
+4. **Remove `executePythonTool` imports** — Remove from both `onboarding.ts` and `users.ts`. Add `query` and `execute` imports to onboarding.ts if not present. Verify users.ts has what it needs.
+5. **Build verification**: `cd bot && npm run build`
+
+**OWNED files:**
+- `bot/src/api/routes/onboarding.ts`
+- `bot/src/api/routes/users.ts` (ONLY the streak endpoint + import cleanup)
+
+**FORBIDDEN:**
+- `mini-app/**`, `tools/**`, `database/**`
+- `bot/src/index.ts`, `bot/src/api/server.ts`
+- `bot/src/api/routes/quests.ts`, `modes.ts`, `admin-*.ts`, `achievements.ts`
+- `bot/src/jobs/**`
+- `bot/src/handlers/**`
+
+---
+
+### Run 23 File Ownership Matrix
+
+| File | Agent A | Agent B | Agent C | Agent D | Agent E |
+|------|---------|---------|---------|---------|---------|
+| mini-app/src/components/leaderboard/TopThreeCard.tsx | **OWN** | — | — | — | — |
+| mini-app/src/components/leaderboard/LeaderboardRow.tsx | **OWN** | — | — | — | — |
+| mini-app/src/components/quests/QuestsSkeleton.tsx (new) | **OWN** | — | — | — | — |
+| mini-app/src/components/settings/SettingsSkeleton.tsx (new) | **OWN** | — | — | — | — |
+| mini-app/src/pages/Quests.tsx | **OWN** | FORBID | — | — | — |
+| mini-app/src/pages/Settings.tsx | **OWN** | FORBID | — | — | — |
+| mini-app/src/hooks/useDashboardData.ts (new) | FORBID | **OWN** | — | — | — |
+| mini-app/src/components/profile/ProfileStreak.tsx (new) | FORBID | **OWN** | — | — | — |
+| mini-app/src/pages/Dashboard.tsx | FORBID | **OWN** | — | — | — |
+| mini-app/src/pages/Profile.tsx | FORBID | **OWN** | — | — | — |
+| bot/src/api/routes/quests.ts | — | — | **OWN** | FORBID | FORBID |
+| bot/src/api/routes/modes.ts | — | — | FORBID | **OWN** | FORBID |
+| bot/src/api/routes/onboarding.ts | — | — | FORBID | FORBID | **OWN** |
+| bot/src/api/routes/users.ts | — | — | FORBID | FORBID | **OWN** (streak only) |
+| PARALLEL_AGENTS.md | retro only | retro only | retro only | retro only | retro only |
+
+### Run 23 Merge Order
+1. **Agent C** (backend: quests.ts) — largest migration, merge first
+2. **Agent D** (backend: modes.ts) — independent from C
+3. **Agent E** (backend: onboarding.ts + users.ts) — independent from C/D
+4. **Agent A** (mini-app: skeletons + utils) — pure frontend, independent
+5. **Agent B** (mini-app: dashboard hook + profile streak) — pure frontend, independent
+
+### Run 23 Retrospectives
+
+#### Agent A Retrospective
+*(To be filled by Agent A)*
+
+#### Agent B Retrospective
+*(To be filled by Agent B)*
+
+#### Agent C Retrospective
+*(To be filled by Agent C)*
+
+#### Agent D Retrospective
+*(To be filled by Agent D)*
+
+#### Agent E Retrospective
+*(To be filled by Agent E)*
+
+#### Agent 0 Retrospective
+*(To be filled by Agent 0 after merge)*
+
+<!-- Next run goes here. Agent 0 will append RUN 24 below this line. -->
