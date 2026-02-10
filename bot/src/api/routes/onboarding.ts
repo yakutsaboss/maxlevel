@@ -1,5 +1,5 @@
 import { Router, Request, Response } from 'express';
-import { authenticateTelegram } from '../middleware/auth.js';
+import { authenticateTelegram, requireOwnership } from '../middleware/auth.js';
 import { query, queryOne, execute, transaction } from '../../utils/db.js';
 import {
   asyncHandler,
@@ -17,6 +17,7 @@ const router = Router();
  */
 router.get('/:telegramId', authenticateTelegram, asyncHandler(async (req: Request, res: Response) => {
   const telegramId = parseInt(req.params.telegramId);
+  requireOwnership(req);
 
   const state = await queryOne(
     `SELECT os.current_step, os.quiz_data, os.last_updated
@@ -36,6 +37,7 @@ router.get('/:telegramId', authenticateTelegram, asyncHandler(async (req: Reques
  */
 router.put('/:telegramId', authenticateTelegram, asyncHandler(async (req: Request, res: Response) => {
   const telegramId = parseInt(req.params.telegramId);
+  requireOwnership(req);
 
   validateRequired(req.body, ['current_step']);
 
@@ -64,6 +66,7 @@ router.put('/:telegramId', authenticateTelegram, asyncHandler(async (req: Reques
  */
 router.post('/:telegramId/complete', authenticateTelegram, asyncHandler(async (req: Request, res: Response) => {
   const tid = parseInt(req.params.telegramId);
+  requireOwnership(req);
   const { quiz_data } = req.body;
 
   if (!quiz_data || !quiz_data.selected_modes) {
