@@ -5,6 +5,9 @@
  */
 
 import pg from 'pg';
+import { logger } from '../api/utils/logger.js';
+
+const dbLog = logger.child({ component: 'db' });
 
 const { Pool } = pg;
 
@@ -35,10 +38,10 @@ export function getPool(): pg.Pool {
     });
 
     pool.on('error', (err) => {
-      console.error('[DB POOL] Unexpected error on idle client:', err);
+      dbLog.error('Unexpected error on idle client', err);
     });
 
-    console.log('[DB] Connection pool created (max=20)');
+    dbLog.info('Connection pool created', { maxConnections: 20 });
   }
 
   return pool;
@@ -109,7 +112,7 @@ export async function testConnection(): Promise<boolean> {
     const rows = await query('SELECT 1 as ok');
     return rows[0]?.ok === 1;
   } catch (err) {
-    console.error('[DB] Connection test failed:', err);
+    dbLog.error('Connection test failed', err);
     return false;
   }
 }
@@ -121,6 +124,6 @@ export async function closePool(): Promise<void> {
   if (pool) {
     await pool.end();
     pool = null;
-    console.log('[DB] Connection pool closed');
+    dbLog.info('Connection pool closed');
   }
 }

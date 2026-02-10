@@ -4,6 +4,9 @@
  */
 
 import rateLimit from 'express-rate-limit';
+import { logger } from '../utils/logger.js';
+
+const rlLog = logger.child({ component: 'rateLimiter' });
 
 /**
  * General API rate limiter
@@ -25,7 +28,7 @@ export const apiLimiter = rateLimit({
   },
   // Log when rate limit is hit
   handler: (req, res) => {
-    console.warn(`[RATE LIMIT] IP ${req.ip} exceeded rate limit on ${req.path}`);
+    rlLog.warn('Rate limit exceeded', { ip: req.ip, path: req.path, requestId: req.requestId });
 
     res.status(429).json({
       error: 'Too Many Requests',
@@ -54,7 +57,7 @@ export const authLimiter = rateLimit({
     return process.env.NODE_ENV === 'development' && process.env.SKIP_RATE_LIMIT === 'true';
   },
   handler: (req, res) => {
-    console.error(`[RATE LIMIT - AUTH] IP ${req.ip} exceeded auth rate limit`);
+    rlLog.warn('Auth rate limit exceeded', { ip: req.ip, requestId: req.requestId });
 
     res.status(429).json({
       error: 'Too Many Requests',
@@ -86,7 +89,7 @@ export const mutationLimiter = rateLimit({
     return process.env.NODE_ENV === 'development' && process.env.SKIP_RATE_LIMIT === 'true';
   },
   handler: (req, res) => {
-    console.warn(`[RATE LIMIT - MUTATION] ${req.method} ${req.path} - IP: ${req.ip}`);
+    rlLog.warn('Mutation rate limit exceeded', { method: req.method, path: req.path, ip: req.ip, requestId: req.requestId });
 
     res.status(429).json({
       error: 'Too Many Requests',
@@ -118,7 +121,7 @@ export const readLimiter = rateLimit({
     return process.env.NODE_ENV === 'development' && process.env.SKIP_RATE_LIMIT === 'true';
   },
   handler: (req, res) => {
-    console.warn(`[RATE LIMIT - READ] GET ${req.path} - IP: ${req.ip}`);
+    rlLog.warn('Read rate limit exceeded', { path: req.path, ip: req.ip, requestId: req.requestId });
 
     res.status(429).json({
       error: 'Too Many Requests',
