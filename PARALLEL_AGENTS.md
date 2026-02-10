@@ -1551,7 +1551,23 @@ Read PARALLEL_AGENTS.md — you are Agent E for Run 22. Your job: Migrate `admin
 ### Run 22 Retrospectives
 
 #### Agent A Retrospective
-*(To be filled by Agent A)*
+**Status:** All 6 tasks completed. Build passes cleanly (0 errors).
+
+| # | Task | Status |
+|---|------|--------|
+| 1 | Create `TimePeriodTabs.tsx` | Done |
+| 2 | Create `TopThreeCard.tsx` + shared utils | Done |
+| 3 | Create `LeaderboardRow.tsx` | Done |
+| 4 | Create `LeaderboardSkeleton.tsx` | Done |
+| 5 | Simplify `Leaderboard.tsx` (277 → 117 lines) | Done |
+| 6 | Build verification | Passed |
+
+**Problems faced:** None. The worktree was clean, file boundaries were clear, and all extractions were straightforward.
+
+**Line count:** Leaderboard.tsx went from 277 → 117 lines (–160 lines, –58%). Created 4 new sub-components totaling ~230 lines.
+
+**Recommendations for next run:**
+- `getXpValue` and `getXpLabel` helpers are duplicated in TopThreeCard.tsx and LeaderboardRow.tsx. Could extract to a shared `leaderboard/utils.ts`.
 
 #### Agent B Retrospective
 *(To be filled by Agent B)*
