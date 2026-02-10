@@ -2,22 +2,20 @@
  * Tests for /stats bot command handler (bot/src/handlers/stats.ts)
  *
  * Tests: handleStats (weekly view by default), handleStatsCallback (week/all toggle)
- * Mocks: pythonTools (executePythonTool), db (query), Grammy context
+ * Mocks: db (query, queryOne), Grammy context
  */
 
 import { describe, it, expect, vi } from 'vitest';
 
 // ─── Mocks ───────────────────────────────────────────────────────────
 
-const mockExecutePythonTool = vi.fn();
 const mockQuery = vi.fn();
-
-vi.mock('../../utils/pythonTools.js', () => ({
-  executePythonTool: (...args: any[]) => mockExecutePythonTool(...args),
-}));
+const mockQueryOne = vi.fn();
 
 vi.mock('../../utils/db.js', () => ({
   query: (...args: any[]) => mockQuery(...args),
+  queryOne: (...args: any[]) => mockQueryOne(...args),
+  execute: vi.fn(),
   getPool: vi.fn(),
 }));
 
@@ -49,15 +47,13 @@ function createCallbackCtx(data: string, telegramId: number = 123, firstName: st
 }
 
 function mockUserLookup(userId: number | null) {
-  if (userId) {
-    mockExecutePythonTool.mockResolvedValueOnce({ success: true, data: { id: userId } });
-  } else {
-    mockExecutePythonTool.mockResolvedValueOnce({ success: false, data: null });
-  }
+  // getInternalUserId → queryOne returns user row or null
+  mockQueryOne.mockResolvedValueOnce(userId ? { id: userId } : null);
 }
 
 function mockStreaks(streaks: any[] = []) {
-  mockExecutePythonTool.mockResolvedValueOnce({ success: true, data: streaks });
+  // getStreaks → query returns streak rows directly
+  mockQuery.mockResolvedValueOnce(streaks);
 }
 
 // ─── Tests: handleStats ─────────────────────────────────────────────
@@ -108,7 +104,7 @@ describe('handleStats', () => {
     await handleStats(ctx);
 
     expect(ctx.reply).toHaveBeenCalledWith('❌ Could not identify your account.');
-    expect(mockExecutePythonTool).not.toHaveBeenCalled();
+    expect(mockQueryOne).not.toHaveBeenCalled();
   });
 
   it('should reply with error when user not found', async () => {
