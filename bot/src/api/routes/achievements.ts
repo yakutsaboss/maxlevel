@@ -113,13 +113,10 @@ router.get('/users/:userId/available', authenticateTelegram, async (req: Request
       [userId]
     );
 
-    res.json({
-      achievements: rows,
-      count: rows.length,
-    });
+    res.json({ success: true, data: { achievements: rows, count: rows.length } });
   } catch (error) {
     console.error('Error fetching available achievements:', error);
-    res.status(500).json({ error: 'Server Error', message: 'Failed to fetch available achievements' });
+    res.status(500).json({ success: false, error: 'Failed to fetch available achievements' });
   }
 });
 
@@ -200,13 +197,10 @@ router.get('/users/:userId/recent', authenticateTelegram, async (req: Request, r
       [userId, limit]
     );
 
-    res.json({
-      achievements: rows,
-      count: rows.length,
-    });
+    res.json({ success: true, data: { achievements: rows, count: rows.length } });
   } catch (error) {
     console.error('Error fetching recent achievements:', error);
-    res.status(500).json({ error: 'Server Error', message: 'Failed to fetch recent achievements' });
+    res.status(500).json({ success: false, error: 'Failed to fetch recent achievements' });
   }
 });
 
