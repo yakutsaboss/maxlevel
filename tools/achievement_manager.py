@@ -396,7 +396,7 @@ class AchievementManager:
 
             # Total achievements
             cursor.execute("""
-                SELECT COUNT(*) FROM achievements WHERE is_active = true
+                SELECT COUNT(*) FROM achievements
             """)
             total = cursor.fetchone()[0]
 
@@ -419,19 +419,6 @@ class AchievementManager:
             for row in cursor.fetchall():
                 by_rarity[row[0]] = row[1]
 
-            # By category
-            cursor.execute("""
-                SELECT a.category, COUNT(*) as count
-                FROM user_achievements ua
-                JOIN achievements a ON ua.achievement_id = a.id
-                WHERE ua.user_id = %s
-                GROUP BY a.category
-            """, (user_id,))
-
-            by_category = {}
-            for row in cursor.fetchall():
-                by_category[row[0]] = row[1]
-
             return {
                 "success": True,
                 "stats": {
@@ -439,8 +426,7 @@ class AchievementManager:
                     "unlocked": unlocked,
                     "locked": total - unlocked,
                     "percentage": round((unlocked / total) * 100, 2) if total > 0 else 0,
-                    "by_rarity": by_rarity,
-                    "by_category": by_category
+                    "by_rarity": by_rarity
                 }
             }
 
