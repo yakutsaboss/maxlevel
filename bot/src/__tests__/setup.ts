@@ -88,28 +88,12 @@ export function createDbMock() {
 
 /**
  * Creates a mock for the pythonTools module.
+ * Only executePythonTool remains — all wrapper functions were removed in Run 24
+ * (migrated to native SQL in handlers/jobs).
  */
 export function createPythonToolsMock() {
   return {
     executePythonTool: vi.fn().mockResolvedValue({ success: true, data: {} }),
-    executeSafeQuery: vi.fn().mockResolvedValue({ success: true, data: {} }),
-    executeSafeStatement: vi.fn().mockResolvedValue({ success: true, data: {} }),
-    createUser: vi.fn().mockResolvedValue({ success: true, data: {} }),
-    getUserByTelegramId: vi.fn().mockResolvedValue({ success: true, data: {} }),
-    getUserById: vi.fn().mockResolvedValue({ success: true, data: {} }),
-    getUserStats: vi.fn().mockResolvedValue({ success: true, data: {} }),
-    updateUserTimezone: vi.fn().mockResolvedValue({ success: true, data: {} }),
-    listAllModes: vi.fn().mockResolvedValue({ success: true, data: {} }),
-    getUserActiveModes: vi.fn().mockResolvedValue({ success: true, data: {} }),
-    addModesToUser: vi.fn().mockResolvedValue({ success: true, data: {} }),
-    removeMode: vi.fn().mockResolvedValue({ success: true, data: {} }),
-    getModeSummary: vi.fn().mockResolvedValue({ success: true, data: {} }),
-    checkAllStreaks: vi.fn().mockResolvedValue({ success: true, data: {} }),
-    updateStreak: vi.fn().mockResolvedValue({ success: true, data: {} }),
-    getUserStreaks: vi.fn().mockResolvedValue({ success: true, data: {} }),
-    exportAnalyticsToSheets: vi.fn().mockResolvedValue({ success: true, data: {} }),
-    testDatabaseConnection: vi.fn().mockResolvedValue({ success: true, data: {} }),
-    executeStatement: vi.fn().mockResolvedValue({ success: true, data: {} }),
   };
 }
 
