@@ -69,14 +69,30 @@ class ApiClient {
   // Quest endpoints
   async getActiveQuests(userId: number): Promise<ApiResponse<Quest[]>> {
     const response = await this.client.get(`/users/${userId}/quests/active`);
-    return response.data;
+    const result = response.data;
+    // Defensive: unwrap if data is not an array but has .quests
+    if (result.data && !Array.isArray(result.data) && Array.isArray((result.data as any).quests)) {
+      result.data = (result.data as any).quests;
+    }
+    if (result.data && !Array.isArray(result.data)) {
+      result.data = [];
+    }
+    return result;
   }
 
   async getCompletedQuests(userId: number, limit = 20): Promise<ApiResponse<Quest[]>> {
     const response = await this.client.get(`/users/${userId}/quests/completed`, {
       params: { limit },
     });
-    return response.data;
+    const result = response.data;
+    // Defensive: unwrap if data is not an array but has .quests
+    if (result.data && !Array.isArray(result.data) && Array.isArray((result.data as any).quests)) {
+      result.data = (result.data as any).quests;
+    }
+    if (result.data && !Array.isArray(result.data)) {
+      result.data = [];
+    }
+    return result;
   }
 
   async completeQuest(questId: number, progress: number): Promise<ApiResponse<QuestCompleteResponse>> {
