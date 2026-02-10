@@ -240,16 +240,29 @@ Use this structure when creating a new run. Copy and adapt:
 
 ---
 
-## Known Issues (Updated after Run 24)
+## Known Issues (Updated after Run 25)
 
 ### Still Open
 1. **pg-boss Node.js mismatch** — Requires 22.12+, server has 20.20. Only triggers warnings, no functional impact yet.
 2. **Mode configs unused** — `mode_configs` table stores quiz responses + personalized plans, but data is never consumed.
 3. **Delete account e2e testing** — confirm soft delete flow works end-to-end in Telegram (Agent B Run 18 recommendation).
 4. **POST /analytics/export still uses executePythonTool** — Justified (Google Sheets OAuth integration), only remaining Python subprocess in ALL routes + jobs.
-5. **Onboarding mode-add outside transaction** — Step 1 in onboarding.ts runs mode adds outside the transaction block. Could move inside for atomicity (Agent E Run 23 recommendation).
-6. **Local SQL helpers duplicated** — `getUserByTelegramId`, `listAllModes`, `getUserActiveModes` now exist locally in `handlers/onboarding.ts`. Could extract to shared `utils/queries.ts` (Agent A Run 24 recommendation).
-7. **Test setup.ts still mocks old wrapper functions** — `__tests__/setup.ts` mocks removed pythonTools wrappers (Agent D Run 24 recommendation).
+5. **Local SQL helpers duplicated** — `getUserByTelegramId`, `listAllModes`, `getUserActiveModes` now exist locally in `handlers/onboarding.ts`. Could extract to shared `utils/queries.ts` (Agent A Run 24 recommendation).
+6. **Test setup.ts still mocks old wrapper functions** — `__tests__/setup.ts` mocks removed pythonTools wrappers (Agent D Run 24 recommendation).
+
+### Resolved (Run 25)
+- ~~Authorization gap — cross-user access~~ — `requireOwnership(req)` added to all routes using `:telegramId`/`:userId` params; previously only quests.ts enforced ownership (Run 25 Agent A)
+- ~~Non-idempotent XP award in onboarding~~ — Idempotency guard checks `onboarding_state.current_step = 'completed'` before processing (Run 25 Agent C)
+- ~~Onboarding mode-add outside transaction~~ — Mode creation + quest assignment moved inside transaction block for atomicity (Run 25 Agent C)
+- ~~Onboarding state UPSERT missing~~ — UPDATE replaced with INSERT...ON CONFLICT for robustness (Run 25 Agent C)
+- ~~Missing reminders table in DELETE account~~ — Added `DELETE FROM reminders` to soft-delete transaction (Run 25 Agent C)
+- ~~Dead structured logger~~ — Rewrote `logger.ts` with JSON output, request tracing via `requestId`, replaced raw console.* in middleware (Run 25 Agent B)
+- ~~No request tracing~~ — Request context middleware generates `requestId` per request, logs start/finish with duration (Run 25 Agent B)
+- ~~No deploy version verification~~ — `/health` now returns `version` + `build_timestamp`; `scripts/deploy.sh` auto-verifies (Run 25 Agent E)
+- ~~PM2 process confusion (telegram-rpg-api vs telegram-rpg-bot)~~ — Added WARNING comment to ecosystem.config.js, documented Deploy Verification Protocol (Run 25 Agent E)
+- ~~telegramId=0 silent failure in Onboarding.tsx~~ — Changed from `user?.id || 0` to `user?.id` with proper null handling (Run 25 Agent D)
+- ~~Double-fire completeOnboarding stacking XP~~ — Added `useRef(false)` guard in LaunchScreen.tsx (Run 25 Agent D)
+- ~~API error sends users to onboarding~~ — Changed catch default to `setNeedsOnboarding(false)` in App.tsx (Run 25 Agent D)
 
 ### Resolved (Run 24)
 - ~~`updateStreak()` duplicated~~ — Extracted to shared `utils/streak.ts`, used by quests.ts + users.ts (Run 24 Agent D)
