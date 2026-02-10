@@ -1466,4 +1466,32 @@ Additionally, the DELETE account transaction misses the `reminders` table.
 - Local SQL helpers duplicated across handlers (could extract to shared utils/queries.ts)
 - `__tests__/setup.ts` still mocks old wrapper functions
 
+### Run 26 Retrospectives
+
+#### Agent B Retrospective
+**Status:** All 5 tasks completed. All 52 tests pass (20 modes + 10 achievements + 22 quests). Build passes (tsc — zero errors).
+
+| # | Task | Status |
+|---|------|--------|
+| 1 | Read helpers + understand test infrastructure | Done |
+| 2 | Fix `modes.http.test.ts` (18→0 failures) | Done |
+| 3 | Fix `achievements.http.test.ts` (10→0 failures) | Done |
+| 4 | Fix `quests.http.test.ts` (21→0 failures) | Done |
+| 5 | Build verification | Done |
+
+**Problems faced:**
+- The task plan assumed the main issue was response shape (`res.body.X` → `res.body.data.X`). In reality, the issues were much deeper:
+  1. **No error handler** in `buildApp()` — routes throw `ApiError` via `asyncHandler`, but `testApp` has no error handler middleware. Every error test was getting Express default HTML responses, not JSON.
+  2. **Routes completely rewritten from pythonTool to direct SQL** — `modes.ts POST`, `quests.ts` (all routes) no longer use `executePythonTool`. Tests mocked `mockExecutePythonTool` but routes call `query()/queryOne()/transaction()`. Had to rewrite all mock patterns.
+  3. **Missing module mocks** — `quests.ts` imports `achievementEngine.js` and `streak.js` (fire-and-forget calls). Without mocks, module resolution could fail.
+  4. **Error message format mismatch** — Tests expected generic status text (`'Bad Request'`, `'Server Error'`) but `server.ts` error handler returns `err.message` for ApiError (`'Invalid modes array'`) and `'Internal Server Error'` for non-ApiError.
+  5. **PATCH /progress ownership check** — Route uses `req.dbUser?.id` (set by `authorizeUser`), but mock just called `next()`. Had to update mock to set `req.dbUser = { id: 10 }`.
+  6. **`GET /achievements` returns bare array** — `successResponse(achievements)` wraps the array directly as `data`, not as `{ achievements: [...] }`.
+  7. **POST modes body changed** — Route now expects mode names (strings), not IDs. Iterates through names with `queryOne` lookups.
+
+**Recommendations for next run:**
+- Consider extracting the error handler into `testApp.ts` so all HTTP tests automatically get it. Currently each test file duplicates the error handler in `buildApp()`.
+- The `pythonTools.js` mock can be removed from `modes.http.test.ts` and `quests.http.test.ts` — those routes no longer use it.
+- The `user_id` field in PATCH /progress request body is ignored by the route (it uses `req.dbUser.id`). Future tests should reflect this.
+
 <!-- Next run goes here. Agent 0 will append RUN 26 below this line. -->
