@@ -3,7 +3,7 @@ import { RefreshCw } from 'lucide-react';
 
 const PULL_THRESHOLD = 60;
 
-export function usePullToRefresh(onRefresh: () => Promise<void>, haptic?: { impact: (style: string) => void }) {
+export function usePullToRefresh(onRefresh: () => Promise<void>, haptic?: { impact: (...args: any[]) => void }) {
   const [pullDistance, setPullDistance] = useState(0);
   const [refreshing, setRefreshing] = useState(false);
   const touchStartY = useRef(0);
