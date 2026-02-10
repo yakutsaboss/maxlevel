@@ -633,6 +633,9 @@ router.delete('/:telegramId/account', authenticateTelegram, asyncHandler(async (
     // 8. Delete streaks
     await client.query('DELETE FROM streaks WHERE user_id = $1', [userId]);
 
+    // 8b. Delete reminders
+    await client.query('DELETE FROM reminders WHERE user_id = $1', [userId]);
+
     // 9. Deactivate user and reset all progress
     await client.query(
       `UPDATE users
