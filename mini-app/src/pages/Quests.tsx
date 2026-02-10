@@ -226,7 +226,7 @@ export function Quests() {
                 </span>
                 {selectedQuest.mode && (
                   <span className="bg-blue-100 text-blue-700 px-3 py-1.5 rounded-xl text-sm">
-                    {selectedQuest.mode.icon} {selectedQuest.mode.display_name}
+                    {selectedQuest.mode.icon ?? '📋'} {selectedQuest.mode.display_name ?? 'Unknown'}
                   </span>
                 )}
               </div>
@@ -354,7 +354,7 @@ function QuestCard({ quest, index, isSelected, onClick }: { quest: Quest; index:
         <span className="text-xs px-2 py-1 rounded-full bg-telegram-hint/20 text-telegram-hint">{quest.frequency}</span>
         )}
         {quest.mode && (
-          <span className="text-xs px-2 py-1 rounded-full bg-blue-100 text-blue-700">{quest.mode.icon} {quest.mode.display_name}</span>
+          <span className="text-xs px-2 py-1 rounded-full bg-blue-100 text-blue-700">{quest.mode.icon ?? '📋'} {quest.mode.display_name ?? 'Unknown'}</span>
         )}
       </div>
     </motion.div>
