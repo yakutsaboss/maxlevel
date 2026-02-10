@@ -243,8 +243,8 @@ export function Dashboard() {
 
       <div className="grid grid-cols-2 gap-3 px-4 -mt-8">
         <StatCard icon={<Target className="w-5 h-5" />} label="Quests Done" value={stats.user.total_quests_completed} color="bg-blue-500" />
-        <StatCard icon={<Flame className="w-5 h-5" />} label="Current Streak" value={`${stats.user.current_streak} days`} color="bg-orange-500" />
-        <StatCard icon={<Zap className="w-5 h-5" />} label="XP Today" value={`+${stats.xpGainedToday}`} color="bg-yellow-500" />
+        <StatCard icon={<Flame className="w-5 h-5" />} label="Longest Streak" value={`${stats.streakData.longest} days`} color="bg-orange-500" />
+        <StatCard icon={<Zap className="w-5 h-5" />} label="Total XP" value={stats.user.xp} color="bg-yellow-500" />
         <StatCard icon={<Trophy className="w-5 h-5" />} label="Achievements" value={stats.recentAchievements.length} color="bg-purple-500" />
       </div>
 
