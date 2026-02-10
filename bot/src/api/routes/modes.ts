@@ -1,5 +1,5 @@
 import { Router, Request, Response } from 'express';
-import { authenticateTelegram } from '../middleware/auth.js';
+import { authenticateTelegram, authorizeUser } from '../middleware/auth.js';
 import { query, queryOne, execute } from '../../utils/db.js';
 import { cached, TTL } from '../../utils/cache.js';
 import {
@@ -27,7 +27,7 @@ router.get('/', authenticateTelegram, asyncHandler(async (req: Request, res: Res
  * GET /api/users/:userId/modes
  * Get user's active modes
  */
-router.get('/users/:userId', authenticateTelegram, asyncHandler(async (req: Request, res: Response) => {
+router.get('/users/:userId', authenticateTelegram, authorizeUser, asyncHandler(async (req: Request, res: Response) => {
   const userId = parseInt(req.params.userId);
 
   const rows = await query(
@@ -46,7 +46,7 @@ router.get('/users/:userId', authenticateTelegram, asyncHandler(async (req: Requ
  * GET /api/users/:userId/modes/summary
  * Get mode summary with quest counts
  */
-router.get('/users/:userId/summary', authenticateTelegram, asyncHandler(async (req: Request, res: Response) => {
+router.get('/users/:userId/summary', authenticateTelegram, authorizeUser, asyncHandler(async (req: Request, res: Response) => {
   const userId = parseInt(req.params.userId);
 
   const rows = await query(
@@ -77,7 +77,7 @@ router.get('/users/:userId/summary', authenticateTelegram, asyncHandler(async (r
  * POST /api/users/:userId/modes
  * Add modes to user
  */
-router.post('/users/:userId', authenticateTelegram, asyncHandler(async (req: Request, res: Response) => {
+router.post('/users/:userId', authenticateTelegram, authorizeUser, asyncHandler(async (req: Request, res: Response) => {
   const userId = parseInt(req.params.userId);
   const { modes } = req.body;
 
@@ -138,7 +138,7 @@ router.post('/users/:userId', authenticateTelegram, asyncHandler(async (req: Req
 /**
  * DELETE /api/users/:userId/modes/:modeId
  */
-router.delete('/users/:userId/:modeId', authenticateTelegram, asyncHandler(async (req: Request, res: Response) => {
+router.delete('/users/:userId/:modeId', authenticateTelegram, authorizeUser, asyncHandler(async (req: Request, res: Response) => {
   const userId = parseInt(req.params.userId);
   const modeId = parseInt(req.params.modeId);
 
@@ -157,7 +157,7 @@ router.delete('/users/:userId/:modeId', authenticateTelegram, asyncHandler(async
 /**
  * PATCH /api/users/:userId/modes/:modeId
  */
-router.patch('/users/:userId/:modeId', authenticateTelegram, asyncHandler(async (req: Request, res: Response) => {
+router.patch('/users/:userId/:modeId', authenticateTelegram, authorizeUser, asyncHandler(async (req: Request, res: Response) => {
   const userId = parseInt(req.params.userId);
   const modeId = parseInt(req.params.modeId);
   const { settings } = req.body;
