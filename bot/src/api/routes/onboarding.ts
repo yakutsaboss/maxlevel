@@ -116,10 +116,11 @@ router.post('/:telegramId/complete', authenticateTelegram, asyncHandler(async (r
       const modeQuizData = quiz_data[modeName] || {};
       const painPoints = quiz_data.pain_points?.[modeName] || {};
 
+      console.log(`[ONBOARD] step 2: mode_configs for ${modeName}`);
       await client.query(
         `INSERT INTO mode_configs (user_id, mode_id, quiz_responses, pain_points, created_at, updated_at)
-         SELECT $1, m.id, $2::jsonb, $3::jsonb, NOW(), NOW()
-         FROM modes m WHERE m.name = $4
+         SELECT $1::int, m.id, $2::jsonb, $3::jsonb, NOW(), NOW()
+         FROM modes m WHERE m.name = $4::text
          ON CONFLICT (user_id, mode_id)
          DO UPDATE SET
            quiz_responses = EXCLUDED.quiz_responses,
@@ -130,6 +131,7 @@ router.post('/:telegramId/complete', authenticateTelegram, asyncHandler(async (r
     }
 
     // 3. Save punishment settings
+    console.log(`[ONBOARD] step 3: punishment_settings`);
     if (quiz_data.punishments) {
       const p = quiz_data.punishments;
       // Frontend uses easy/hard, DB constraint expects low/high
@@ -151,7 +153,7 @@ router.post('/:telegramId/complete', authenticateTelegram, asyncHandler(async (r
     }
 
     // 4. Award 50 XP, reactivate user, and restore name from Telegram
-    //    (handles re-onboarding after account deletion where first_name was set to 'Deleted User')
+    console.log(`[ONBOARD] step 4: update users`);
     const tgUser = (req as any).telegramUser;
     const restoreName = tgUser?.first_name || quiz_data.nickname || 'Player';
     const restoreUsername = tgUser?.username || null;
@@ -159,22 +161,22 @@ router.post('/:telegramId/complete', authenticateTelegram, asyncHandler(async (r
       `UPDATE users SET total_xp = total_xp + 50,
        current_level = ((total_xp + 50) / 500) + 1,
        is_active = true,
-       first_name = CASE WHEN first_name = 'Deleted User' THEN $2 ELSE first_name END
-       WHERE id = $1`,
+       first_name = CASE WHEN first_name = 'Deleted User' THEN $2::text ELSE first_name END
+       WHERE id = $1::int`,
       [userId, restoreName]
     );
-    // Restore username separately (only if Telegram provides one)
     if (restoreUsername) {
       await client.query(
-        `UPDATE users SET username = $2 WHERE id = $1 AND username IS NULL`,
+        `UPDATE users SET username = $2::text WHERE id = $1::int AND username IS NULL`,
         [userId, restoreUsername]
       );
     }
 
     // 5. Mark onboarding as completed
+    console.log(`[ONBOARD] step 5: mark completed`);
     await client.query(
       `UPDATE onboarding_state SET current_step = 'completed', last_updated = NOW()
-       WHERE user_id = $1`,
+       WHERE user_id = $1::int`,
       [userId]
     );
   });
