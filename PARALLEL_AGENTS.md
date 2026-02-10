@@ -1321,4 +1321,251 @@ Read PARALLEL_AGENTS.md — you are Agent E for Run 21. Your job: (1) Apply asyn
 
 **Known Issues resolved:** Items 4-10 all addressed.
 
-<!-- Next run goes here. Agent 0 will append RUN 22 below this line. -->
+## RUN 22: Page Refactors + Admin Native SQL + Error Middleware (5 Agents + Agent 0)
+
+### Focus: Refactor Leaderboard + Achievements pages into sub-components, extract Dashboard helpers + Profile hook + loading skeletons, fix Express error middleware for ApiError, migrate admin routes from Python subprocess to native SQL
+
+### Copy-Paste Prompts
+
+**Agent 0** (open in: `c:\Users\Asus\Desktop\Wibecode`):
+```
+Read PARALLEL_AGENTS.md you are Agent 0 for Run 22
+```
+
+**Agent A** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-a`):
+```
+Read PARALLEL_AGENTS.md — you are Agent A for Run 22. Your job: Refactor Leaderboard.tsx (277 lines) by extracting sub-components: (1) Create `components/leaderboard/TimePeriodTabs.tsx` — extract the 3 time period buttons (Weekly/Monthly/All Time) from lines 127-152. Props: `timePeriod: TimePeriod`, `onSelect: (period: TimePeriod) => void`, `haptic`. (2) Create `components/leaderboard/TopThreeCard.tsx` — extract the top-3 special card rendering from lines 165-212. Props: `entry: LeaderboardEntry`, `rank: number`, `isCurrentUser: boolean`, `timePeriod: TimePeriod`, `index: number`. Move TOP_RANK_STYLES, getAvatarColor, getInitials, RankIcon into this file. (3) Create `components/leaderboard/LeaderboardRow.tsx` — extract the regular entry row from lines 226-270. Props: same as TopThreeCard. (4) Create `components/leaderboard/LeaderboardSkeleton.tsx` — extract the loading skeleton from lines 74-101. (5) Simplify Leaderboard.tsx to ~100 lines. (6) Build verification. Follow the Safety Protocol. Commit after each task. Write your retrospective when done.
+```
+
+**Agent B** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-b`):
+```
+Read PARALLEL_AGENTS.md — you are Agent B for Run 22. Your job: Refactor Achievements.tsx (221 lines) by extracting sub-components: (1) Create `components/achievements/AchievementCard.tsx` — extract the individual achievement card (lines 148-205) with unlocked/locked states, NEW badge, CheckCircle/Lock icons, XP reward, date. Props: `achievement: Achievement`, `userAchievement?: UserAchievement`, `isUnlocked: boolean`, `rarityStyle`, `index: number`, `haptic`. (2) Create `components/achievements/RarityGroup.tsx` — extract the rarity group rendering (lines 132-209) with header + grid of AchievementCards. Props: `rarity: string`, `achievements: Achievement[]`, `unlockedIds: Set<number>`, `userAchievements: UserAchievement[]`, `haptic`. (3) Create `components/achievements/AchievementsSkeleton.tsx` — extract the loading skeleton (lines 68-89). (4) Simplify Achievements.tsx to ~80 lines. (5) Build verification. Follow the Safety Protocol. Commit after each task. Write your retrospective when done.
+```
+
+**Agent C** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-c`):
+```
+Read PARALLEL_AGENTS.md — you are Agent C for Run 22. Your job: (1) Extract Dashboard.tsx inline helpers (StatCard lines 16-24, ModeCard lines 26-33, QuestCardMini lines 35-60, AchievementCard lines 62-69) into separate files in `components/dashboard/` — each as its own file. (2) Create `components/dashboard/DashboardSkeleton.tsx` — extract the loading skeleton (lines 127-169). (3) Create `hooks/useProfileData.ts` — extract Profile.tsx data loading logic (state variables lines 20-28, loadProfileData function lines 32-61) into a custom hook that returns { stats, achievements, allAchievements, loading, error, punishmentSettings, punishmentHistory, loadProfileData, editModalOpen, setEditModalOpen, toast, setToast }. (4) Simplify Profile.tsx with the hook (target ~110 lines). (5) Create `components/profile/ProfileSkeleton.tsx` — extract Profile.tsx loading skeleton (lines 63-105). (6) Build verification. Follow the Safety Protocol. Commit after each task. Write your retrospective when done.
+```
+
+**Agent D** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-d`):
+```
+Read PARALLEL_AGENTS.md — you are Agent D for Run 22. Your job: (1) Fix the global error handler in `server.ts` (lines 131-137) to check `if (err instanceof ApiError)` and return `res.status(err.statusCode).json({ success: false, error: err.message })` instead of always returning 500. Import `ApiError` from `../utils/errors.js`. Keep the generic 500 fallback for non-ApiError errors. (2) Remove the unused `errorResponse()` function from `errors.ts` (lines 78-85). (3) Migrate all 6 `executePythonTool` calls in `admin-users.ts` to native SQL using `query`, `queryOne`, `execute` from `../../utils/db.js`. Replace: GET / (list users) with SELECT+LIMIT+OFFSET+optional WHERE is_active, GET /:userId with SELECT from users + user_stats view, PATCH /:userId with dynamic UPDATE, DELETE /:userId with DELETE FROM users WHERE id=$1, POST deactivate with UPDATE is_active=false, POST reactivate with UPDATE is_active=true. Remove `executePythonTool` and `getUserById` imports. (4) Build verification. Follow the Safety Protocol. Commit after each task. Write your retrospective when done.
+```
+
+**Agent E** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-e`):
+```
+Read PARALLEL_AGENTS.md — you are Agent E for Run 22. Your job: Migrate `admin-stats.ts` from `executePythonTool` to native SQL where possible: (1) Replace GET /stats — the 3 executePythonTool('db_operations', ['--query', SQL]) calls (lines 24-41) with direct `query()` calls from `../../utils/db.js`. The SQL is already in the args, just use it directly. (2) Replace GET /modes — the executePythonTool('mode_manager', ['--list-modes']) call (line 76) with `query('SELECT * FROM modes ORDER BY id')`. (3) Keep POST /analytics/export as-is — it calls sheets_analytics_export which is a complex Google Sheets integration, not a simple DB query. (4) Update imports: add `query` from `../../utils/db.js`, keep `executePythonTool` import ONLY if the export endpoint still needs it, remove if not. (5) Build verification. Follow the Safety Protocol. Commit after each task. Write your retrospective when done.
+```
+
+---
+
+### Agent A — Mini-App: Leaderboard.tsx Refactor
+
+**Branch:** `feature/r22-leaderboard-refactor`
+**Worktree:** `../Wibecode-agent-a`
+
+**Tasks:**
+1. **Create `TimePeriodTabs.tsx`** — In `mini-app/src/components/leaderboard/TimePeriodTabs.tsx`, extract the 3 tab buttons (Leaderboard.tsx lines 127-152). Props: `timePeriod: TimePeriod`, `onSelect: (period: TimePeriod) => void`, `haptic`. Export the `TimePeriod` type from this file or keep in Leaderboard.
+2. **Create `TopThreeCard.tsx`** — In `mini-app/src/components/leaderboard/TopThreeCard.tsx`, extract the top-3 rendering (lines 165-212). Props: `entry: LeaderboardEntry`, `rank: number`, `isCurrentUser: boolean`, `timePeriod: TimePeriod`, `index: number`. Move `TOP_RANK_STYLES`, `getAvatarColor`, `getInitials`, `RankIcon` into this file (shared with LeaderboardRow).
+3. **Create `LeaderboardRow.tsx`** — In `mini-app/src/components/leaderboard/LeaderboardRow.tsx`, extract the regular row (lines 226-270). Props: `entry: LeaderboardEntry`, `rank: number`, `isCurrentUser: boolean`, `timePeriod: TimePeriod`, `index: number`. Import `getAvatarColor`, `getInitials`, `RankIcon` from TopThreeCard (or extract shared utils).
+4. **Create `LeaderboardSkeleton.tsx`** — In `mini-app/src/components/leaderboard/LeaderboardSkeleton.tsx`, extract the loading skeleton (lines 74-101).
+5. **Simplify `Leaderboard.tsx`** — Replace extracted code with sub-component imports. Target ~100 lines. Keep state management, data loading, error handling.
+6. **Build verification**: `cd mini-app && npm run build`
+
+**OWNED files:**
+- `mini-app/src/pages/Leaderboard.tsx`
+- `mini-app/src/components/leaderboard/TimePeriodTabs.tsx` (new)
+- `mini-app/src/components/leaderboard/TopThreeCard.tsx` (new)
+- `mini-app/src/components/leaderboard/LeaderboardRow.tsx` (new)
+- `mini-app/src/components/leaderboard/LeaderboardSkeleton.tsx` (new)
+
+**FORBIDDEN:**
+- `bot/**`, `tools/**`, `database/**`
+- `mini-app/src/pages/Dashboard.tsx`, `Quests.tsx`, `Settings.tsx`, `Profile.tsx`, `Achievements.tsx`
+- `mini-app/src/api/client.ts`
+- `mini-app/src/components/ErrorSection.tsx`, `Navigation.tsx`, `settings/**`, `profile/**`, `dashboard/**`, `quests/**`, `achievements/**`
+- `mini-app/src/hooks/**`, `mini-app/src/types/**`
+
+---
+
+### Agent B — Mini-App: Achievements.tsx Refactor
+
+**Branch:** `feature/r22-achievements-refactor`
+**Worktree:** `../Wibecode-agent-b`
+
+**Tasks:**
+1. **Create `AchievementCard.tsx`** — In `mini-app/src/components/achievements/AchievementCard.tsx`, extract the individual achievement card (lines 148-205). Props: `achievement: Achievement`, `userAchievement?: UserAchievement`, `isUnlocked: boolean`, `rarityStyle: { border: string; bg: string; text: string; label: string }`, `index: number`, `haptic: { impact: (...args: any[]) => void }`. Includes locked/unlocked states, NEW badge, CheckCircle/Lock icons, XP reward, unlock date. Move `isRecentlyUnlocked` and `formatDate` helpers into this file (Achievements has its own formatDate, not the shared one).
+2. **Create `RarityGroup.tsx`** — In `mini-app/src/components/achievements/RarityGroup.tsx`, extract the rarity group (lines 132-209): header with rarity label + count, grid of AchievementCards. Props: `rarity: string`, `achievements: Achievement[]`, `unlockedIds: Set<number>`, `userAchievements: UserAchievement[]`, `haptic`. Import `RARITY_COLORS` (move it here or keep in a shared location). Import `AchievementCard`.
+3. **Create `AchievementsSkeleton.tsx`** — In `mini-app/src/components/achievements/AchievementsSkeleton.tsx`, extract loading skeleton (lines 68-89).
+4. **Simplify `Achievements.tsx`** — Replace with sub-component imports. Target ~80 lines: state management + data loading + header with progress bar + grouped rendering via RarityGroup + empty state.
+5. **Build verification**: `cd mini-app && npm run build`
+
+**OWNED files:**
+- `mini-app/src/pages/Achievements.tsx`
+- `mini-app/src/components/achievements/AchievementCard.tsx` (new)
+- `mini-app/src/components/achievements/RarityGroup.tsx` (new)
+- `mini-app/src/components/achievements/AchievementsSkeleton.tsx` (new)
+
+**FORBIDDEN:**
+- `bot/**`, `tools/**`, `database/**`
+- `mini-app/src/pages/Dashboard.tsx`, `Quests.tsx`, `Settings.tsx`, `Profile.tsx`, `Leaderboard.tsx`
+- `mini-app/src/api/client.ts`
+- `mini-app/src/components/ErrorSection.tsx`, `Navigation.tsx`, `settings/**`, `profile/**`, `dashboard/**`, `quests/**`, `leaderboard/**`
+- `mini-app/src/hooks/**`, `mini-app/src/types/**`, `mini-app/src/utils/**`
+
+---
+
+### Agent C — Mini-App: Dashboard Helpers + Profile Hook + Skeletons
+
+**Branch:** `feature/r22-dashboard-profile-cleanup`
+**Worktree:** `../Wibecode-agent-c`
+
+**Tasks:**
+1. **Extract Dashboard inline helpers** — Move `StatCard` (lines 16-24), `ModeCard` (lines 26-33), `QuestCardMini` (lines 35-60), `AchievementCard` (lines 62-69) from Dashboard.tsx into separate files in `mini-app/src/components/dashboard/`. Create: `StatCard.tsx`, `ModeCard.tsx`, `QuestCardMini.tsx`, `DashboardAchievementCard.tsx` (name it differently from the achievements component). Each file exports one memo'd component. Move relevant imports (Zap, QuestDifficultyBadge, motion, etc.) into each file.
+2. **Create `DashboardSkeleton.tsx`** — In `mini-app/src/components/dashboard/DashboardSkeleton.tsx`, extract the loading skeleton block (Dashboard.tsx lines 127-169, ~42 lines).
+3. **Simplify `Dashboard.tsx`** — Replace inline helpers with imports. Replace loading skeleton with `<DashboardSkeleton />`. Target ~200 lines.
+4. **Create `useProfileData` hook** — In `mini-app/src/hooks/useProfileData.ts`, extract all state and data loading from Profile.tsx: state variables (lines 20-28: stats, achievements, allAchievements, loading, error, editModalOpen, toast, punishmentSettings, punishmentHistory), `loadProfileData` function (lines 32-61), and the `useEffect` trigger. Hook accepts `userId: number | undefined`. Returns: `{ stats, achievements, allAchievements, loading, error, punishmentSettings, punishmentHistory, loadProfileData, editModalOpen, setEditModalOpen, toast, setToast }`.
+5. **Create `ProfileSkeleton.tsx`** — In `mini-app/src/components/profile/ProfileSkeleton.tsx`, extract the loading skeleton (Profile.tsx lines 63-105, ~42 lines).
+6. **Simplify `Profile.tsx`** — Replace state/loading logic with `useProfileData(user?.id)` call. Replace loading skeleton with `<ProfileSkeleton />`. Target ~110 lines.
+7. **Build verification**: `cd mini-app && npm run build`
+
+**OWNED files:**
+- `mini-app/src/pages/Dashboard.tsx`
+- `mini-app/src/pages/Profile.tsx`
+- `mini-app/src/components/dashboard/StatCard.tsx` (new)
+- `mini-app/src/components/dashboard/ModeCard.tsx` (new)
+- `mini-app/src/components/dashboard/QuestCardMini.tsx` (new)
+- `mini-app/src/components/dashboard/DashboardAchievementCard.tsx` (new)
+- `mini-app/src/components/dashboard/DashboardSkeleton.tsx` (new)
+- `mini-app/src/components/profile/ProfileSkeleton.tsx` (new)
+- `mini-app/src/hooks/useProfileData.ts` (new)
+
+**FORBIDDEN:**
+- `bot/**`, `tools/**`, `database/**`
+- `mini-app/src/pages/Settings.tsx`, `Quests.tsx`, `Achievements.tsx`, `Leaderboard.tsx`
+- `mini-app/src/api/client.ts`
+- `mini-app/src/components/ErrorSection.tsx`, `Navigation.tsx`, `settings/**`, `quests/**`, `leaderboard/**`, `achievements/**`
+- `mini-app/src/types/**`, `mini-app/src/utils/**`
+- `mini-app/src/hooks/useTelegram.ts`, `usePullToRefresh.ts`, `useSettingsData.ts` (read-only)
+- `mini-app/src/components/profile/ProfileHeader.tsx`, `ProfileModes.tsx`, `ProfileAchievements.tsx`, `ProfileAccountability.tsx` (read-only — import but do NOT modify)
+- `mini-app/src/components/dashboard/DailyGoalRing.tsx`, `TodaysProgress.tsx`, `StreakSection.tsx` (read-only — import but do NOT modify)
+
+---
+
+### Agent D — Backend: Error Middleware Fix + Admin Users Native SQL
+
+**Branch:** `feature/r22-error-middleware-admin-users`
+**Worktree:** `../Wibecode-agent-d`
+
+**Tasks:**
+1. **Fix global error handler in `server.ts`** — Replace lines 131-137 with a handler that checks `if (err instanceof ApiError)`: return `res.status(err.statusCode).json({ success: false, error: err.message })`. For non-ApiError errors, keep the existing generic 500 behavior. Add `import { ApiError } from './utils/errors.js';` at the top.
+2. **Remove unused `errorResponse()`** — In `bot/src/api/utils/errors.ts`, delete the `errorResponse` function (lines 75-85) and its JSDoc comment. No other file imports it.
+3. **Migrate `admin-users.ts` GET /` (list users)** — Replace `executePythonTool('user_manager', ['--list-users', ...])` with native SQL: `SELECT * FROM users ${activeOnly ? 'WHERE is_active = true' : ''} ORDER BY id LIMIT $1 OFFSET $2`. Use `query()` from `../../utils/db.js`.
+4. **Migrate GET `/:userId` (user detail)** — Replace `getUserById(userId)` with `queryOne('SELECT * FROM users WHERE id = $1', [userId])`. Replace `executePythonTool('user_manager', ['--get-stats', ...])` with `queryOne('SELECT * FROM user_stats WHERE user_id = $1', [userId])`.
+5. **Migrate PATCH `/:userId` (update user)** — Replace `executePythonTool('user_manager', ['--update-profile', ...])` with a dynamic UPDATE query: build SET clause from allowed fields, e.g. `UPDATE users SET ${setClauses.join(', ')} WHERE id = $N RETURNING *`.
+6. **Migrate DELETE `/:userId` + POST deactivate/reactivate** — Replace with native SQL: DELETE → `execute('DELETE FROM users WHERE id = $1', [userId])` (after getting user info for logging), deactivate → `queryOne('UPDATE users SET is_active = false WHERE id = $1 RETURNING *', [userId])`, reactivate → `queryOne('UPDATE users SET is_active = true WHERE id = $1 RETURNING *', [userId])`.
+7. **Clean up imports** — Remove `executePythonTool` and `getUserById` from pythonTools import. Add `query, queryOne, execute` from `../../utils/db.js`.
+8. **Build verification**: `cd bot && npm run build`
+
+**OWNED files:**
+- `bot/src/api/server.ts` (lines 131-137 only — error handler)
+- `bot/src/api/utils/errors.ts`
+- `bot/src/api/routes/admin-users.ts`
+
+**FORBIDDEN:**
+- `mini-app/**`, `tools/**`, `database/**`
+- `bot/src/index.ts`
+- `bot/src/api/routes/users.ts`, `onboarding.ts`, `checkins.ts`, `quests.ts`, `achievements.ts`, `modes.ts`, `punishment.ts`, `leaderboard.ts`, `admin-stats.ts`
+- `bot/src/api/middleware/**`
+- `bot/src/api/utils/constants.ts`
+- `bot/src/utils/db.ts` (read-only — import from it)
+- `bot/src/utils/pythonTools.ts` (read-only — stop importing from it in admin-users.ts)
+- `bot/src/jobs/**`
+
+**GRAY AREA:**
+- `bot/src/api/server.ts` — may ONLY modify the error handler block (lines 131-137) and add the ApiError import. Do NOT change routes, middleware, cors, or any other server config.
+
+---
+
+### Agent E — Backend: Admin Stats Native SQL Migration
+
+**Branch:** `feature/r22-admin-stats-sql`
+**Worktree:** `../Wibecode-agent-e`
+
+**Tasks:**
+1. **Migrate GET `/stats`** — Replace the 3 `executePythonTool('db_operations', ['--query', SQL])` calls (lines 24-41) with direct `query()` calls from `../../utils/db.js`. The SQL strings are already specified in the Python tool args — use them directly:
+   - `query('SELECT COUNT(*) as total, COUNT(*) FILTER (WHERE is_active = true) as active FROM users')`
+   - `query("SELECT COUNT(*) as total, COUNT(*) FILTER (WHERE status = 'active') as active, COUNT(*) FILTER (WHERE status = 'completed') as completed FROM quest_instances")`
+   - `query('SELECT COUNT(DISTINCT user_id) as users_with_achievements FROM user_achievements')`
+   Access results as `rows[0]` instead of `result.data?.[0]`.
+2. **Migrate GET `/modes`** — Replace `executePythonTool('mode_manager', ['--list-modes'])` with `query('SELECT * FROM modes ORDER BY id')`. Return the rows directly instead of `result.data`.
+3. **Keep POST `/analytics/export`** — Do NOT modify this endpoint. It calls `sheets_analytics_export` which is a complex Google Sheets integration that must remain as a Python tool call.
+4. **Update imports** — Add `import { query } from '../../utils/db.js';`. Keep `executePythonTool` import ONLY because the export endpoint still uses it. If removing is clean, do it; if not, keep it.
+5. **Build verification**: `cd bot && npm run build`
+
+**OWNED files:**
+- `bot/src/api/routes/admin-stats.ts`
+
+**FORBIDDEN:**
+- `mini-app/**`, `tools/**`, `database/**`
+- `bot/src/index.ts`, `bot/src/api/server.ts`
+- `bot/src/api/routes/users.ts`, `onboarding.ts`, `checkins.ts`, `quests.ts`, `achievements.ts`, `modes.ts`, `punishment.ts`, `leaderboard.ts`, `admin-users.ts`
+- `bot/src/api/middleware/**`
+- `bot/src/api/utils/errors.ts`, `bot/src/api/utils/constants.ts`
+- `bot/src/utils/db.ts` (read-only — import from it)
+- `bot/src/utils/pythonTools.ts` (read-only)
+- `bot/src/jobs/**`
+
+---
+
+### Run 22 File Ownership Matrix
+
+| File | Agent A | Agent B | Agent C | Agent D | Agent E |
+|------|---------|---------|---------|---------|---------|
+| mini-app/src/pages/Leaderboard.tsx | **OWN** | FORBID | FORBID | — | — |
+| mini-app/src/components/leaderboard/*.tsx (new) | **OWN** | FORBID | FORBID | — | — |
+| mini-app/src/pages/Achievements.tsx | FORBID | **OWN** | FORBID | — | — |
+| mini-app/src/components/achievements/*.tsx (new) | FORBID | **OWN** | FORBID | — | — |
+| mini-app/src/pages/Dashboard.tsx | FORBID | FORBID | **OWN** | — | — |
+| mini-app/src/pages/Profile.tsx | FORBID | FORBID | **OWN** | — | — |
+| mini-app/src/components/dashboard/StatCard.tsx (new) | FORBID | FORBID | **OWN** | — | — |
+| mini-app/src/components/dashboard/ModeCard.tsx (new) | FORBID | FORBID | **OWN** | — | — |
+| mini-app/src/components/dashboard/QuestCardMini.tsx (new) | FORBID | FORBID | **OWN** | — | — |
+| mini-app/src/components/dashboard/DashboardAchievementCard.tsx (new) | FORBID | FORBID | **OWN** | — | — |
+| mini-app/src/components/dashboard/DashboardSkeleton.tsx (new) | FORBID | FORBID | **OWN** | — | — |
+| mini-app/src/components/profile/ProfileSkeleton.tsx (new) | FORBID | FORBID | **OWN** | — | — |
+| mini-app/src/hooks/useProfileData.ts (new) | FORBID | FORBID | **OWN** | — | — |
+| bot/src/api/server.ts | — | — | — | GRAY (error handler only) | FORBID |
+| bot/src/api/utils/errors.ts | — | — | — | **OWN** | FORBID |
+| bot/src/api/routes/admin-users.ts | — | — | — | **OWN** | FORBID |
+| bot/src/api/routes/admin-stats.ts | — | — | — | FORBID | **OWN** |
+| PARALLEL_AGENTS.md | retro only | retro only | retro only | retro only | retro only |
+
+### Run 22 Merge Order
+1. **Agent D** (backend: error middleware + errors.ts cleanup + admin-users SQL) — must merge first since it modifies errors.ts and server.ts
+2. **Agent E** (backend: admin-stats SQL) — after D, no dependency but backend first
+3. **Agent A** (mini-app: Leaderboard refactor) — pure frontend, independent
+4. **Agent B** (mini-app: Achievements refactor) — pure frontend, independent
+5. **Agent C** (mini-app: Dashboard + Profile cleanup) — pure frontend, independent
+
+### Run 22 Retrospectives
+
+#### Agent A Retrospective
+*(To be filled by Agent A)*
+
+#### Agent B Retrospective
+*(To be filled by Agent B)*
+
+#### Agent C Retrospective
+*(To be filled by Agent C)*
+
+#### Agent D Retrospective
+*(To be filled by Agent D)*
+
+#### Agent E Retrospective
+*(To be filled by Agent E)*
+
+#### Agent 0 Retrospective
+*(To be filled by Agent 0 after merge)*
+
+<!-- Next run goes here. Agent 0 will append RUN 23 below this line. -->
