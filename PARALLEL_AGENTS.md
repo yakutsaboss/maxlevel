@@ -32,7 +32,7 @@ For completed run history (Runs 2–16), see `PARALLEL_AGENTS_HISTORY.md`.
 15. **Set up worktrees** for the next run: create branches, `git worktree add`, install deps.
 16. **Commit & push** the updated PARALLEL_AGENTS.md.
 17. **Tell the user**: "Ready to launch Run N. Here are your copy-paste prompts."
-18. **Archive completed runs** — after the next run is set up, move the completed run section to `PARALLEL_AGENTS_HISTORY.md` to keep this file lean. Update the history file header range.
+18. **Archive completed runs (conditional)** — check `wc -l PARALLEL_AGENTS.md`. If the file exceeds **2500 lines**, move older completed run sections to `PARALLEL_AGENTS_HISTORY.md` until it's under 2500. If under 2500 lines, **skip archiving** — it wastes time and the file is still manageable. Update the history file header range when archiving.
 
 **The cycle**: Each Agent 0 merges Run N, then prepares Run N+1. The user just copies the prompts and launches.
 
@@ -208,14 +208,32 @@ Use this structure when creating a new run. Copy and adapt:
 - ~~6 stale `REGISTER_THESE_*.md` files~~ — Deleted in Run 17 Agent B
 
 ### Still Open
-1. **Quests page crash** — ErrorBoundary triggers when opening Quests tab. Likely `useMainButton` empty text or null quest fields. **→ Fix in Run 18 Agent A**
-2. **Status bar collision on Dashboard** — Safe area inset top missing on all page headers. **→ Fix in Run 18 Agent A + B**
-3. **"Awards" / "Achievements" naming inconsistency** — Nav says "Awards", page says "Achievements". **→ Rename to "Rewards" in Run 18 Agent A**
-4. **Profile avatar_id not returned by stats API** — `resolveUser()` omits `avatar_id` from SELECT. **→ Fix in Run 18 Agent C**
-5. **No delete account feature** — Settings has no way to deactivate account. **→ Add in Run 18 Agent B + C**
-6. **Verify `user_stats` view in achievement_manager.py** — `check_and_unlock_achievements()` queries columns that may not exist as a view.
-7. **pg-boss Node.js mismatch** — Requires 22.12+, server has 20.20. Only triggers warnings, no functional impact yet.
-8. **Mode configs unused** — `mode_configs` table stores quiz responses + personalized plans, but data is never consumed.
+1. **Verify `user_stats` view in achievement_manager.py** — `check_and_unlock_achievements()` queries columns that may not exist as a view.
+2. **pg-boss Node.js mismatch** — Requires 22.12+, server has 20.20. Only triggers warnings, no functional impact yet.
+3. **Mode configs unused** — `mode_configs` table stores quiz responses + personalized plans, but data is never consumed.
+4. **Quest detail modal `mode` null safety** — `selectedQuest.mode.icon` / `mode.display_name` could be null (Agent A recommendation).
+5. **Shared QuestDifficultyBadge component** — difficulty-to-color mapping duplicated in 3 places (Agent A recommendation).
+6. **Stricter delete anonymization** — consider nullifying `timezone` on account delete for GDPR (Agent C recommendation).
+7. **Delete account e2e testing** — confirm soft delete flow works end-to-end in Telegram (Agent B recommendation).
+
+### Resolved (Runs 13–18)
+- ~~PATCH /progress authorization~~ — Fixed in Run 15
+- ~~checkAchievements() double-wrap bug~~ — Fixed in Run 15
+- ~~Bare API endpoints~~ — All endpoints now return `{success, data}` (Runs 15+16)
+- ~~achievement_manager.py broken columns~~ — Fixed in Run 16
+- ~~client.ts `any` return types~~ — Replaced with proper types in Run 16
+- ~~Dead updateQuestProgress code~~ — Removed in Run 15
+- ~~`checkAchievements()` uses `any[]`~~ — Fixed in Run 17 Agent A (now `Achievement[]`)
+- ~~Leaderboard endpoints return `any[]`~~ — Fixed in Run 17 Agent A (now `LeaderboardEntry[]`)
+- ~~Admin API responses lack `{success, data}` wrapper~~ — Fixed in Run 17 Agent B
+- ~~`API_BASE_URL` duplicated in 6 files~~ — Fixed in Run 17 Agent C (shared adminClient.ts)
+- ~~App.tsx repeats onboarding check~~ — Fixed in Run 17 Agent C (ProtectedRoute component)
+- ~~6 stale `REGISTER_THESE_*.md` files~~ — Deleted in Run 17 Agent B
+- ~~Quests page crash~~ — Fixed in Run 18 Agent A (null safety + useMainButton guard)
+- ~~Status bar collision on Dashboard~~ — Fixed in Run 18 Agent A + B (safe-area-inset-top)
+- ~~"Awards"/"Achievements" naming~~ — Renamed to "Rewards" in Run 18 Agent A
+- ~~Profile avatar_id not returned~~ — Fixed in Run 18 Agent C (resolveUser + PATCH RETURNING)
+- ~~No delete account feature~~ — Added in Run 18 Agent B + C (soft delete + UI)
 
 ---
 
@@ -416,6 +434,14 @@ Read PARALLEL_AGENTS.md — you are Agent C for Run 18. Your job: fix resolveUse
 - The POST `/users` creation endpoint returns `RETURNING *` so `avatar_id` is already present, but the response isn't explicitly shaped like `resolveUser()` — low priority to align.
 
 #### Agent 0 Retrospective
-*(To be filled by Agent 0 after merge & deploy)*
+**Merge:** C → A → B. All 3 had retro conflicts in PARALLEL_AGENTS.md (expected — agents wrote retros to end of file since worktrees branched before Run 18 setup commit). All resolved cleanly. `client.ts` auto-merged (Agent A modified quest methods, Agent B appended `deleteAccount()`). No code conflicts.
+
+**Build:** Both `bot` and `mini-app` pass with zero errors locally and on server.
+
+**Deploy:** `cf69a09` deployed to production. 12 files changed across bot + mini-app. PM2 restarted.
+
+**Protocol improvement:** Added conditional archiving rule — only archive to PARALLEL_AGENTS_HISTORY.md when this file exceeds 2500 lines. Saves time on smaller runs.
+
+**Known Issues resolved:** 5 of 5 user-reported bugs addressed (quest crash, status bar, naming, avatar, delete account). Items 6-8 in Known Issues remain open from prior runs.
 
 <!-- Next run goes here. Agent 0 will append RUN 19 below this line. -->
