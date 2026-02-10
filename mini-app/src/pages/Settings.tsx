@@ -1,7 +1,9 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useQueryClient } from '@tanstack/react-query';
 import { useTelegram } from '@/hooks/useTelegram';
 import { useBackButton } from '@/hooks/useTelegram';
+import { useOnboarding } from '@/hooks/useOnboarding';
 import { apiClient } from '@/api/client';
 import { Bell, Clock, Globe, AlertCircle, RefreshCw, Loader2, Shield, Check, Trash2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -49,8 +51,10 @@ function detectTimezone(): string {
 }
 
 export function Settings() {
-  const { user, haptic, showConfirm, tg } = useTelegram();
+  const { user, haptic, showConfirm } = useTelegram();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const onboardingStore = useOnboarding();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -185,8 +189,12 @@ export function Settings() {
     try {
       const res = await apiClient.deleteAccount(user.id);
       if (res.success) {
-        setToast({ message: 'Account deleted. Goodbye!', variant: 'success' });
-        setTimeout(() => tg.close(), 1500);
+        // Clear all client-side state so the app starts fresh
+        queryClient.clear();
+        onboardingStore.reset();
+
+        setToast({ message: 'Account deleted. Starting fresh...', variant: 'success' });
+        setTimeout(() => navigate('/onboarding', { replace: true }), 1200);
       } else {
         setToast({ message: 'Failed to delete account', variant: 'error' });
       }

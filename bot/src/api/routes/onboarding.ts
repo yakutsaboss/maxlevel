@@ -131,12 +131,19 @@ router.post('/:telegramId/complete', authenticateTelegram, async (req: Request, 
         );
       }
 
-      // 4. Award 50 XP for completing onboarding
+      // 4. Award 50 XP, reactivate user, and restore name from Telegram
+      //    (handles re-onboarding after account deletion where first_name was set to 'Deleted User')
+      const tgUser = (req as any).telegramUser;
+      const restoreName = tgUser?.first_name || quiz_data.nickname || 'Player';
+      const restoreUsername = tgUser?.username || null;
       await client.query(
         `UPDATE users SET total_xp = total_xp + 50,
-         current_level = ((total_xp + 50) / 500) + 1
+         current_level = ((total_xp + 50) / 500) + 1,
+         is_active = true,
+         first_name = CASE WHEN first_name = 'Deleted User' THEN $2 ELSE first_name END,
+         username = CASE WHEN username IS NULL AND $3 IS NOT NULL THEN $3 ELSE username END
          WHERE id = $1`,
-        [userId]
+        [userId, restoreName, restoreUsername]
       );
 
       // 5. Mark onboarding as completed

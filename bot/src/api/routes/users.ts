@@ -637,7 +637,8 @@ router.patch('/:telegramId/profile', authenticateTelegram, async (req: Request, 
 
 /**
  * DELETE /api/users/:telegramId/account
- * Soft delete: deactivate account and anonymize PII.
+ * Soft delete: deactivate account, anonymize PII, and wipe all progress data
+ * so re-opening the mini app starts fresh onboarding.
  */
 router.delete('/:telegramId/account', authenticateTelegram, async (req: Request, res: Response) => {
   try {
@@ -646,17 +647,61 @@ router.delete('/:telegramId/account', authenticateTelegram, async (req: Request,
       return res.status(400).json({ success: false, error: 'Invalid telegram ID' });
     }
 
+    // Look up user first
     const user = await queryOne(
-      `UPDATE users
-       SET is_active = false, first_name = 'Deleted User', username = NULL, timezone = 'UTC'
-       WHERE telegram_id = $1 AND is_active = true
-       RETURNING id`,
+      `SELECT id FROM users WHERE telegram_id = $1 AND is_active = true`,
       [tid]
     );
 
     if (!user) {
       return res.status(404).json({ success: false, error: 'User not found or already deleted' });
     }
+
+    const userId = user.id;
+
+    // Wipe all user data in a single transaction
+    await transaction(async (client) => {
+      // 1. Delete onboarding state (forces re-onboarding on next open)
+      await client.query('DELETE FROM onboarding_state WHERE user_id = $1', [userId]);
+
+      // 2. Delete quest-related data
+      await client.query(
+        `DELETE FROM checkins WHERE quest_instance_id IN
+         (SELECT id FROM quest_instances WHERE user_id = $1)`,
+        [userId]
+      );
+      await client.query('DELETE FROM quest_instances WHERE user_id = $1', [userId]);
+
+      // 3. Delete mode-related data
+      await client.query('DELETE FROM mode_configs WHERE user_id = $1', [userId]);
+      await client.query('DELETE FROM user_modes WHERE user_id = $1', [userId]);
+
+      // 4. Delete punishment data
+      await client.query('DELETE FROM punishment_history WHERE user_id = $1', [userId]);
+      await client.query('DELETE FROM punishment_settings WHERE user_id = $1', [userId]);
+
+      // 5. Delete achievements
+      await client.query('DELETE FROM user_achievements WHERE user_id = $1', [userId]);
+
+      // 6. Delete activity log
+      await client.query('DELETE FROM user_activity_log WHERE user_id = $1', [userId]);
+
+      // 7. Deactivate user and reset all progress
+      await client.query(
+        `UPDATE users
+         SET is_active = false,
+             first_name = 'Deleted User',
+             username = NULL,
+             timezone = 'UTC',
+             total_xp = 0,
+             current_level = 1,
+             current_streak = 0,
+             longest_streak = 0,
+             avatar_id = NULL
+         WHERE id = $1`,
+        [userId]
+      );
+    });
 
     // Invalidate cache for this user
     invalidatePrefix(`user:${user.id}:`);
