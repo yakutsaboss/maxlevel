@@ -3,21 +3,7 @@ import { useTelegram } from '@/hooks/useTelegram';
 import { apiClient } from '@/api/client';
 import { Trophy, Medal, Award, AlertCircle, RefreshCw } from 'lucide-react';
 import { motion } from 'framer-motion';
-
-interface LeaderboardEntry {
-  user_id: number;
-  telegram_id: number;
-  username: string;
-  first_name: string;
-  level: number;
-  total_xp: number;
-  weekly_xp?: number;
-  monthly_xp?: number;
-  current_streak: number;
-  total_quests_completed: number;
-  xp_rank: number;
-  level_rank: number;
-}
+import type { LeaderboardEntry } from '@/types';
 
 type TimePeriod = 'weekly' | 'monthly' | 'all_time';
 
@@ -104,7 +90,7 @@ export function Leaderboard() {
           ? await apiClient.getMonthlyLeaderboard(50)
           : await apiClient.getLeaderboard(50);
       if (response.success && response.data) {
-        setEntries(response.data as LeaderboardEntry[]);
+        setEntries(response.data);
       }
     } catch (err) {
       console.error('Failed to load leaderboard:', err);

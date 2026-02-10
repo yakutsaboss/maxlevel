@@ -183,28 +183,7 @@ Use this structure when creating a new run. Copy and adapt:
 *(To be filled by Agent A)*
 
 #### Agent B Retrospective
-
-**Status:** All 6 tasks completed. Build passes.
-
-| # | Task | Status |
-|---|------|--------|
-| 1 | Wrap admin-jobs.ts success responses in `{success, data}` | Done |
-| 2 | Wrap admin-stats.ts success responses (5 endpoints) | Done |
-| 3 | Wrap admin-users.ts success responses (6 endpoints) | Done |
-| 4 | Standardize all error responses to `{success: false, error}` | Done |
-| 5 | Delete 6 stale REGISTER_THESE_RUN*.md files | Done |
-| 6 | Build verification (`tsc` clean) | Done |
-
-**Commits:** 4 total (1 per admin route file + 1 for file cleanup)
-
-**Problems faced:** None. Straightforward mechanical refactoring. The broadcast endpoint already had a partial `success: true` pattern — wrapped its data in `data: {...}` for consistency.
-
-**Notes for Agent 0:**
-- Agent C's `adminClient.ts` auto-unwrap logic (`response.data || response`) should work cleanly with the new format — all admin responses now consistently have `success` + `data` at the top level.
-- The broadcast endpoint had a special case: when `users.length === 0`, it returned `{success: true, sent: 0, ...}` — now wrapped as `{success: true, data: {sent: 0, ...}}`.
-- No changes to non-admin routes (users.ts, quests.ts, etc.) — those were already consistent.
-
-**Recommendations:** None — the admin API response format is now fully consistent across all 3 route files.
+*(To be filled by Agent B)*
 
 #### Agent C Retrospective
 *(To be filled by Agent C)*
@@ -411,10 +390,47 @@ Read PARALLEL_AGENTS.md — you are Agent C for Run 17. Your job: mini-app archi
 ### Run 17 Retrospectives
 
 #### Agent A Retrospective
-*(To be filled by Agent A)*
+
+**Completed Tasks:**
+| # | Task | Status |
+|---|------|--------|
+| 1 | Move LeaderboardEntry to types/index.ts | Done |
+| 2 | Type leaderboard methods with LeaderboardEntry[] | Done |
+| 3 | Type checkAchievements with Achievement[] | Done |
+| 4 | Replace Record<string, any> with Record<string, unknown> | Done |
+| 5 | Build verification | Pass |
+
+**Problems faced:**
+- `Record<string, unknown>` caused a build error in LaunchScreen.tsx because `OnboardingData` (an interface without an index signature) is not assignable to `Record<string, unknown>`. Fixed with a minimal `as Record<string, unknown>` assertion at the call site.
+- Dashboard.tsx accesses `ach.badge_icon` and `ach.xp_bonus` on achievement objects — these fields weren't in the `Achievement` interface. Added them as optional fields to prevent type errors when `any[]` was replaced with `Achievement[]`.
+
+**Commits:** 5 (1 per task + 1 for LaunchScreen fix)
+
+**Recommendations for next run:**
+- Consider adding `[key: string]: unknown` index signature to `OnboardingData` interface instead of casting at call sites — more scalable if more call sites appear.
+- Verify `badge_icon` / `xp_bonus` field names against the actual DB schema to ensure the Achievement type matches the server response.
 
 #### Agent B Retrospective
-*(To be filled by Agent B)*
+
+**Status:** All 6 tasks completed. Build passes.
+
+| # | Task | Status |
+|---|------|--------|
+| 1 | Wrap admin-jobs.ts success responses in `{success, data}` | Done |
+| 2 | Wrap admin-stats.ts success responses (5 endpoints) | Done |
+| 3 | Wrap admin-users.ts success responses (6 endpoints) | Done |
+| 4 | Standardize all error responses to `{success: false, error}` | Done |
+| 5 | Delete 6 stale REGISTER_THESE_RUN*.md files | Done |
+| 6 | Build verification (`tsc` clean) | Done |
+
+**Commits:** 4 total (1 per admin route file + 1 for file cleanup)
+
+**Problems faced:** None. Straightforward mechanical refactoring. The broadcast endpoint already had a partial `success: true` pattern — wrapped its data in `data: {...}` for consistency.
+
+**Notes for Agent 0:**
+- Agent C's `adminClient.ts` auto-unwrap logic (`response.data || response`) should work cleanly with the new format — all admin responses now consistently have `success` + `data` at the top level.
+- The broadcast endpoint had a special case: when `users.length === 0`, it returned `{success: true, sent: 0, ...}` — now wrapped as `{success: true, data: {sent: 0, ...}}`.
+- No changes to non-admin routes (users.ts, quests.ts, etc.) — those were already consistent.
 
 #### Agent C Retrospective
 *(To be filled by Agent C)*

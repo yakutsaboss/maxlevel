@@ -61,10 +61,12 @@ export interface Achievement {
   name: string;
   description: string;
   icon: string;
+  badge_icon?: string;
   xp_reward: number;
+  xp_bonus?: number;
   rarity: string;
   category: string;
-  criteria?: Record<string, any>;
+  criteria?: Record<string, unknown>;
 }
 
 export interface UserAchievement {
@@ -72,6 +74,22 @@ export interface UserAchievement {
   achievement_id: number;
   unlocked_at: string;
   achievement: Achievement;
+}
+
+// Leaderboard types
+export interface LeaderboardEntry {
+  user_id: number;
+  telegram_id: number;
+  username: string;
+  first_name: string;
+  level: number;
+  total_xp: number;
+  weekly_xp?: number;
+  monthly_xp?: number;
+  current_streak: number;
+  total_quests_completed: number;
+  xp_rank: number;
+  level_rank: number;
 }
 
 // Stats types
@@ -137,7 +155,7 @@ export interface PunishmentSettings {
   consent_timestamp: string | null;
   intensity_level: string;
   safe_mode: boolean;
-  custom_punishments: Record<string, any> | null;
+  custom_punishments: Record<string, unknown> | null;
   max_xp_penalty: number;
   max_streak_reset: number;
 }
@@ -170,7 +188,7 @@ export interface UserPreferences {
 // Onboarding state
 export interface OnboardingState {
   current_step: string | null;
-  quiz_data: Record<string, any> | null;
+  quiz_data: Record<string, unknown> | null;
 }
 
 // Telegram WebApp types

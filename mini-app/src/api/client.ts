@@ -1,5 +1,5 @@
 import axios, { AxiosInstance } from 'axios';
-import type { ApiResponse, UserStats, User, Mode, Quest, Achievement, UserAchievement, QuestCompleteResponse, CheckinResponse, CheckinListResponse, UserPreferences, PunishmentSettings, PunishmentHistoryResponse, OnboardingState } from '@/types';
+import type { ApiResponse, UserStats, User, Mode, Quest, Achievement, UserAchievement, QuestCompleteResponse, CheckinResponse, CheckinListResponse, UserPreferences, PunishmentSettings, PunishmentHistoryResponse, OnboardingState, LeaderboardEntry } from '@/types';
 
 // API Base URL - should come from environment
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
@@ -108,7 +108,7 @@ class ApiClient {
     return response.data;
   }
 
-  async checkAchievements(userId: number): Promise<ApiResponse<{ newAchievements: any[]; count: number }>> {
+  async checkAchievements(userId: number): Promise<ApiResponse<{ newAchievements: Achievement[]; count: number }>> {
     const response = await this.client.post(`/users/${userId}/achievements/check`);
     return response.data;
   }
@@ -144,21 +144,21 @@ class ApiClient {
   }
 
   // Leaderboard endpoints
-  async getLeaderboard(limit = 50): Promise<ApiResponse<any[]>> {
+  async getLeaderboard(limit = 50): Promise<ApiResponse<LeaderboardEntry[]>> {
     const response = await this.client.get('/leaderboard', {
       params: { limit },
     });
     return response.data;
   }
 
-  async getWeeklyLeaderboard(limit = 50): Promise<ApiResponse<any[]>> {
+  async getWeeklyLeaderboard(limit = 50): Promise<ApiResponse<LeaderboardEntry[]>> {
     const response = await this.client.get('/leaderboard/weekly', {
       params: { limit },
     });
     return response.data;
   }
 
-  async getMonthlyLeaderboard(limit = 50): Promise<ApiResponse<any[]>> {
+  async getMonthlyLeaderboard(limit = 50): Promise<ApiResponse<LeaderboardEntry[]>> {
     const response = await this.client.get('/leaderboard/monthly', {
       params: { limit },
     });
@@ -188,7 +188,7 @@ class ApiClient {
     return response.data;
   }
 
-  async saveOnboardingState(telegramId: number, currentStep: string, quizData: Record<string, any>): Promise<ApiResponse<OnboardingState>> {
+  async saveOnboardingState(telegramId: number, currentStep: string, quizData: Record<string, unknown>): Promise<ApiResponse<OnboardingState>> {
     const response = await this.client.put(`/onboarding/${telegramId}`, {
       current_step: currentStep,
       quiz_data: quizData,
@@ -196,7 +196,7 @@ class ApiClient {
     return response.data;
   }
 
-  async completeOnboarding(telegramId: number, quizData: Record<string, any>): Promise<ApiResponse<{ xp_awarded: number }>> {
+  async completeOnboarding(telegramId: number, quizData: Record<string, unknown>): Promise<ApiResponse<{ xp_awarded: number }>> {
     const response = await this.client.post(`/onboarding/${telegramId}/complete`, {
       quiz_data: quizData,
     });

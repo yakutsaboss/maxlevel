@@ -44,7 +44,7 @@ export function LaunchScreen({ data, telegramId, onLaunch }: LaunchScreenProps) 
   const completeOnboarding = async () => {
     try {
       setSaving(true);
-      await apiClient.completeOnboarding(telegramId, data);
+      await apiClient.completeOnboarding(telegramId, data as Record<string, unknown>);
       setSaving(false);
       haptic.notification('success');
     } catch (err) {
