@@ -246,6 +246,10 @@ export function Onboarding() {
           />
         );
 
+      case 'completed':
+        navigate('/dashboard', { replace: true });
+        return null;
+
       default: {
         // Quiz screens (fitness_*, hydration_*)
         const questionConfig = getQuestionForStep(step);
