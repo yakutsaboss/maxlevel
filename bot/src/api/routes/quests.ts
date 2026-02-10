@@ -117,19 +117,21 @@ router.post('/:questId/complete', authenticateTelegram, mutationLimiter, asyncHa
  * Get quest statistics for a user
  */
 router.get('/users/:userId/stats', authenticateTelegram, authorizeUser, readLimiter, asyncHandler(async (req: Request, res: Response) => {
-  const { userId } = req.params;
+  const userId = parseInt(req.params.userId);
 
-  const result = await executePythonTool('quest_manager', [
-    '--get-stats',
-    '--user-id', userId,
+  const [totalRow, activeRow, dailyRow, weeklyRow] = await Promise.all([
+    queryOne<{ total: number }>(`SELECT COUNT(*)::int AS total FROM quest_instances WHERE user_id = $1 AND status = 'completed'`, [userId]),
+    queryOne<{ total: number }>(`SELECT COUNT(*)::int AS total FROM quest_instances WHERE user_id = $1 AND status IN ('pending', 'ready', 'in_progress')`, [userId]),
+    queryOne<{ total: number }>(`SELECT COUNT(*)::int AS total FROM quest_instances qi JOIN quests q ON qi.quest_id = q.id WHERE qi.user_id = $1 AND qi.status = 'completed' AND q.quest_type = 'daily'`, [userId]),
+    queryOne<{ total: number }>(`SELECT COUNT(*)::int AS total FROM quest_instances qi JOIN quests q ON qi.quest_id = q.id WHERE qi.user_id = $1 AND qi.status = 'completed' AND q.quest_type = 'weekly'`, [userId]),
   ]);
 
-  if (!result.success) {
-    throw new InternalServerError('Failed to fetch quest stats');
-  }
-
-  const data = result.data as any;
-  res.json(successResponse(data?.stats || {}));
+  res.json(successResponse({
+    total_completed: totalRow?.total ?? 0,
+    active_quests: activeRow?.total ?? 0,
+    daily_completed: dailyRow?.total ?? 0,
+    weekly_completed: weeklyRow?.total ?? 0,
+  }));
 }));
 
 /**
