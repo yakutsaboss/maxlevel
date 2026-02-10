@@ -119,6 +119,55 @@ git branch -d feature/BRANCH-A feature/BRANCH-B feature/BRANCH-C
 
 ---
 
+## Deploy Verification Protocol
+
+### The Problem
+During a multi-hour debugging session (pre-Run 25), the developer repeatedly restarted `telegram-rpg-api` (PM2 ids 1,2) instead of `telegram-rpg-bot` (PM2 id 0). Nginx routes **all traffic** to port 3000, which is served exclusively by `telegram-rpg-bot`. The `telegram-rpg-api` cluster process exists in `ecosystem.config.js` but receives **zero traffic**. There was also no way to verify which code version was running on the server.
+
+### Which PM2 Process to Restart
+- **ALWAYS restart:** `telegram-rpg-bot` (PM2 id 0, fork mode, port 3000)
+- **NEVER restart:** `telegram-rpg-api` (PM2 ids 1-2, cluster mode — NOT used by nginx)
+- **NEVER restart:** `telegram-rpg-scheduler` (PM2 id 3 — disabled)
+
+### How to Verify a Deploy
+After restarting, curl the health endpoint and check the `version` field:
+```bash
+curl -s https://yakutsa.ru/health | python3 -m json.tool
+```
+The response includes:
+- `version` — should match the latest git commit hash (set by deploy script)
+- `build_timestamp` — when the build was deployed
+- `uptime` — should be low (seconds) after a fresh restart
+
+### Preferred Deploy Method
+Use the deploy script from the project root:
+```bash
+./scripts/deploy.sh
+```
+This script: pushes to GitHub, SSHs to server, builds bot + mini-app, restarts ONLY `telegram-rpg-bot`, waits 3 seconds, then verifies the version matches.
+
+### Manual Fallback
+If the deploy script fails or is unavailable:
+```bash
+git push origin main
+ssh root@85.239.58.205 "cd /opt/wibecode-bot && git pull && cd bot && npm install && npm run build && cd ../mini-app && npm run build && BUILD_VERSION=$(git rev-parse --short HEAD) BUILD_TIMESTAMP=$(date -u +%Y-%m-%dT%H:%M:%SZ) pm2 restart telegram-rpg-bot --update-env"
+# Then verify:
+curl -s https://yakutsa.ru/health | python3 -m json.tool
+```
+
+### Agent 0 Deploy Checklist
+When deploying after a merge:
+1. Push to `origin/main`
+2. SSH and pull
+3. Build bot: `cd bot && npm install && npm run build`
+4. Build mini-app: `cd mini-app && npm run build`
+5. Set version env vars and restart: `BUILD_VERSION=<hash> BUILD_TIMESTAMP=<iso> pm2 restart telegram-rpg-bot --update-env`
+6. Wait 3 seconds
+7. Verify: `curl -s https://yakutsa.ru/health` — check `version` matches the commit hash
+8. Send Telegram notification
+
+---
+
 ## Lessons Learned
 
 ### Run 1 (shared directory — DISASTER)
