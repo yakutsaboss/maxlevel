@@ -1620,4 +1620,677 @@ Find your section under "Run 15 Retrospectives" below and replace the placeholde
 - The `Quest` type in `completeQuest()` return type may not match the actual backend response shape (which returns `{message, xpEarned, newLevel, leveledUp}`, not a Quest object).
 
 #### Agent 0 Retrospective
+
+**Merge completed cleanly. Both builds pass. Worktrees removed.**
+
+| # | Step | Status | Notes |
+|---|------|--------|-------|
+| 1 | Merge Agent A (backend-security) | Done | Fast-forward, 0 conflicts |
+| 2 | Verify bot build | Done | `tsc` clean |
+| 3 | Merge Agent B (client-cleanup) | Done | Auto-merge on PARALLEL_AGENTS.md retro sections |
+| 4 | Verify both builds | Done | Bot `tsc` clean, mini-app Vite build clean |
+| 5 | Remove worktrees + branches | Done | Clean state |
+
+**Merge stats:** 2 branches, 12 commits total (6 Agent A + 4 Agent B + 2 retrospectives), 0 manual conflict resolution needed.
+
+**Post-merge audit findings (for Run 16):**
+1. **CRITICAL: achievement_manager.py broken** — Python tool uses `xp_reward`, `icon`, `criteria_type`, `criteria_value`, `is_active` columns but DB schema has `xp_bonus`, `badge_icon`, JSONB `criteria`, no `is_active`. All ~10 functions affected. Background jobs (`achievementBatchCheck`, `achievementNotifier`) likely failing silently.
+2. **HIGH: modes.ts bare responses** — All 7 endpoints return bare `{modes, count}` etc. instead of `{success, data}`. Client expects `ApiResponse<T>` with `{success, data}` wrapper.
+3. **HIGH: quests.ts 2 bare endpoints** — `/stats` returns raw object, `/assign` returns `{message, quests}` without wrapper.
+4. **HIGH: users.ts 3 bare endpoints** — POST /users, PATCH /xp, PATCH /streak return without `{success, data}` wrapper.
+5. **MEDIUM: client.ts type issues** — 7 methods use `any` return type, `completeQuest()` typed as `ApiResponse<Quest>` but backend returns `{message, xpEarned, newLevel, leveledUp}`.
+6. **MEDIUM: No punishment_manager.py** — DB tables exist, API routes exist, but no Python tool for background jobs.
+7. **LOW: user_achievements.notification_sent_at** missing from schema.sql (exists from run13 migration).
+
+---
+
+## RUN 16: Parallel Agents (5 Agents + Agent 0)
+
+### Focus: Achievement Fix, API Consistency, Type Safety, Punishment Tool
+
+Run 15 closed all security gaps and fixed the achievement double-wrap bug. Post-merge audit revealed that `achievement_manager.py` has been broken since the schema was created (wrong column names throughout), modes/quests/users still have bare API responses, and the punishment system has no Python tool. This run fixes all of these across 5 parallel agents.
+
+### Copy-Paste Prompts
+
+**Agent 0** (open in: `c:\Users\Asus\Desktop\Wibecode`):
+```
+Read PARALLEL_AGENTS.md — you are Agent 0 for Run 16. After all agents finish, I'll tell you to merge.
+```
+
+**Agent A** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-a`):
+```
+Read PARALLEL_AGENTS.md — you are Agent A for Run 16. Your job: fix ALL column name mismatches in achievement_manager.py so it works against the actual DB schema (achievements table uses xp_bonus not xp_reward, badge_icon not icon, JSONB criteria not criteria_type/criteria_value, no is_active column). Every function is broken. Fix them all, verify tests pass, commit after each task, and write your retrospective when done.
+```
+
+**Agent B** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-b`):
+```
+Read PARALLEL_AGENTS.md — you are Agent B for Run 16. Your job: wrap ALL bare API responses in modes.ts with {success: true, data: {...}} format, matching the pattern used in achievements.ts and checkins.ts. All 7 endpoints need wrapping. Do your tasks in order, commit after each, and write your retrospective when done.
+```
+
+**Agent C** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-c`):
+```
+Read PARALLEL_AGENTS.md — you are Agent C for Run 16. Your job: wrap the remaining bare API responses in quests.ts (GET /stats, POST /assign) and users.ts (POST /users, PATCH /xp, PATCH /streak) with {success: true, data: {...}} format. Do your tasks in order, commit after each, and write your retrospective when done.
+```
+
+**Agent D** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-d`):
+```
+Read PARALLEL_AGENTS.md — you are Agent D for Run 16. Your job: fix client.ts type safety — replace 7 'any' return types with proper types, fix completeQuest() return type (it's typed as Quest but backend returns {message, xpEarned, newLevel, leveledUp}), and add missing types to types/index.ts. Do your tasks in order, commit after each, and write your retrospective when done.
+```
+
+**Agent E** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-e`):
+```
+Read PARALLEL_AGENTS.md — you are Agent E for Run 16. Your job: create punishment_manager.py Python tool (the DB tables and API routes exist but there's no Python tool), sync database/schema.sql with actual state, and create a migration for missing indexes. Do your tasks in order, commit after each, and write your retrospective when done.
+```
+
+---
+
+### Agent 0 — Orchestrator (Run 16)
+
+**You are Agent 0.** Set up the environment, WAIT for agents, then merge and deploy.
+
+**Working directory:** `c:\Users\Asus\Desktop\Wibecode` (main repo, `main` branch)
+
+#### Phase 1: Pre-Run Setup
+
+**Step 1: Verify clean state**
+```bash
+git checkout main
+git status  # should be clean
+```
+
+**Step 2: Create branches and worktrees**
+```bash
+git branch feature/r16-achievement-fix 2>/dev/null
+git branch feature/r16-modes-api 2>/dev/null
+git branch feature/r16-remaining-api 2>/dev/null
+git branch feature/r16-client-types 2>/dev/null
+git branch feature/r16-punishment-db 2>/dev/null
+git worktree add ../Wibecode-agent-a feature/r16-achievement-fix
+git worktree add ../Wibecode-agent-b feature/r16-modes-api
+git worktree add ../Wibecode-agent-c feature/r16-remaining-api
+git worktree add ../Wibecode-agent-d feature/r16-client-types
+git worktree add ../Wibecode-agent-e feature/r16-punishment-db
+```
+
+**Step 3: Install dependencies**
+```bash
+cd ../Wibecode-agent-b/bot && npm install
+cd ../../Wibecode-agent-c/bot && npm install
+cd ../../Wibecode-agent-d/mini-app && npm install
+```
+
+**Step 4: Verify worktrees**
+```bash
+cd c:\Users\Asus\Desktop\Wibecode
+git worktree list
+```
+
+**Step 5:** Tell the user "Ready to launch Agents A, B, C, D, E."
+
+#### Phase 2: WAIT for all 5 agents to finish
+
+#### Phase 3: Post-Run Merge
+
+```bash
+# Check each branch
+git log main..feature/r16-achievement-fix --oneline
+git log main..feature/r16-modes-api --oneline
+git log main..feature/r16-remaining-api --oneline
+git log main..feature/r16-client-types --oneline
+git log main..feature/r16-punishment-db --oneline
+```
+
+**Merge order:**
+1. `git merge feature/r16-achievement-fix --no-edit` → Python only, no build needed
+2. `git merge feature/r16-modes-api --no-edit` → verify `cd bot && npm run build`
+3. `git merge feature/r16-remaining-api --no-edit` → verify `cd bot && npm run build`
+4. `git merge feature/r16-client-types --no-edit` → verify `cd mini-app && npm run build`
+5. `git merge feature/r16-punishment-db --no-edit` → Python + SQL, no build needed
+
+**Deploy + Clean up worktrees + branches.**
+
+#### Phase 4: Prepare Run 17
+
+After deploying Run 16:
+1. Write Run 16 retrospective
+2. Design Run 17 agent tasks
+3. Write copy-paste prompts
+4. Set up worktrees
+5. Commit & push updated PARALLEL_AGENTS.md
+
+---
+
+### Agent A — Python: Fix achievement_manager.py (CRITICAL)
+
+**Branch:** `feature/r16-achievement-fix`
+
+**CONTEXT:**
+The `achievement_manager.py` Python tool is **completely broken** — every SQL query references columns that don't exist in the actual database schema. The tool has been silently failing since creation.
+
+**Schema reality (from `database/schema.sql`):**
+```sql
+CREATE TABLE achievements (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(255) UNIQUE NOT NULL,
+    description TEXT,
+    badge_icon VARCHAR(50),      -- NOT "icon"
+    criteria JSONB,              -- NOT "criteria_type"/"criteria_value"
+    xp_bonus INTEGER DEFAULT 0,  -- NOT "xp_reward"
+    rarity VARCHAR(20)
+    -- NO "is_active" column
+    -- NO "category" column
+);
+
+CREATE TABLE user_achievements (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER REFERENCES users(id),
+    achievement_id INTEGER REFERENCES achievements(id),
+    unlocked_at TIMESTAMP DEFAULT NOW()
+    -- NO "progress" column
+);
+```
+
+**Column mapping (old → correct):**
+| Wrong (current code) | Correct (DB schema) |
+|---|---|
+| `xp_reward` | `xp_bonus` |
+| `icon` | `badge_icon` |
+| `criteria_type` | `criteria->>'type'` (JSONB) |
+| `criteria_value` | `(criteria->>'value')::int` or criteria-specific keys |
+| `is_active = true` | Remove this filter (column doesn't exist) |
+| `category` | Remove (column doesn't exist) |
+| `progress` (in user_achievements INSERT) | Remove (column doesn't exist) |
+
+**Criteria JSONB format** (from seed data):
+```json
+{"type": "streak", "mode": "fitness", "days": 7}
+{"type": "quest_complete", "mode": "finance", "count": 1}
+{"type": "quest_complete_consecutive", "mode": "learning", "days": 14}
+{"type": "level", "value": 5}
+{"type": "total_xp", "value": 1000}
+```
+
+**FILES YOU OWN:**
+- `tools/achievement_manager.py` — fix ALL functions
+
+**FILES YOU MUST NOT TOUCH:**
+- `bot/` (all)
+- `mini-app/` (all)
+- `database/` (all)
+- `tools/tests/` — do NOT modify tests yet (Agent 0 will verify after merge)
+- `.env`
+
+**RULES (NON-NEGOTIABLE):**
+- You are ALREADY on branch `feature/r16-achievement-fix` — do NOT run `git checkout`
+- Commit after EVERY task — atomic: `git add FILES && git commit -m "MSG"` in one Bash call
+- Do NOT push to remote or deploy to server
+- Do NOT add any new pip packages
+
+**Task 1: Fix `unlock_achievement()` (line 44)**
+- Line 67: Change `SELECT id, name, description, xp_reward, rarity, icon` → `SELECT id, name, description, xp_bonus, rarity, badge_icon`
+- Line 69: Remove `AND is_active = true`
+- Line 79: Change `a_id, name, description, xp_reward, rarity, icon = achievement` → `a_id, name, description, xp_bonus, rarity, badge_icon = achievement`
+- Line 84: Remove `progress` from the INSERT into user_achievements (column doesn't exist)
+- Line 96-97: Update the XP update to use `xp_bonus` not `xp_reward`
+- Update the return dict to use `xp_bonus` key (or map it to `xp_earned` for the API)
+- Commit: "Fix unlock_achievement() column names to match DB schema"
+
+**Task 2: Fix `check_and_unlock_achievements()` (line 123)**
+- Line 151-152: Change SELECT to use `id, name, description, xp_bonus, rarity, badge_icon, criteria`
+- Line 154: Remove `WHERE is_active = true`
+- Line 166: Change unpacking to handle JSONB `criteria` (a dict) instead of `criteria_type, criteria_value`
+- Lines 171-182: Rewrite criteria checking to use JSONB fields:
+  ```python
+  criteria_type = criteria.get('type') if criteria else None
+  criteria_value = criteria.get('value') or criteria.get('days') or criteria.get('count')
+  ```
+  Then use `criteria_type` and `criteria_value` as before for the if/elif chain
+- Update the return dict for newly unlocked achievements to use correct column names
+- Commit: "Fix check_and_unlock_achievements() to use JSONB criteria and correct columns"
+
+**Task 3: Fix `get_user_achievements()` (line 234)**
+- Update the SELECT to use `a.xp_bonus` instead of `a.xp_reward`, `a.badge_icon` instead of `a.icon`
+- Remove any `a.category` or `a.is_active` references
+- Update result formatting to use correct column names
+- Commit: "Fix get_user_achievements() column names"
+
+**Task 4: Fix `get_available_achievements()` (line 297)**
+- Same pattern: fix column names in SELECT
+- Remove `is_active` filter
+- Fix result formatting
+- Commit: "Fix get_available_achievements() column names"
+
+**Task 5: Fix `get_recent_achievements()` (line 347)**
+- Same pattern
+- Commit: "Fix get_recent_achievements() column names"
+
+**Task 6: Fix `get_achievement_stats()` (line 392)**
+- Same pattern
+- Commit: "Fix get_achievement_stats() column names"
+
+**Task 7: Fix `list_all_achievements()` (line 458)**
+- Same pattern
+- Commit: "Fix list_all_achievements() column names"
+
+**Task 8: Fix `_format_criteria()` (line 504)**
+- This helper takes `criteria_type` and `criteria_value` — update it to accept a JSONB dict instead
+- Commit: "Fix _format_criteria() to accept JSONB criteria dict"
+
+**Task 9: Verify all changes**
+- Read through the entire file to ensure no remaining references to `xp_reward`, `icon` (as column), `criteria_type`, `criteria_value`, `is_active`, `category`, or `progress` (in user_achievements)
+- Commit only if fixes needed
+
+### RETROSPECTIVE (DO THIS LAST)
+Find your section under "Run 16 Retrospectives" below and replace the placeholder with your retrospective.
+
+---
+
+### Agent B — Backend: modes.ts API Response Consistency
+
+**Branch:** `feature/r16-modes-api`
+
+**CONTEXT:**
+All 7 endpoints in `modes.ts` return bare responses without the `{success: true, data: {...}}` wrapper that the rest of the API uses. The mini-app client expects `ApiResponse<T>` which has `{success, data}` shape. Without wrapping, `result.data` is `undefined` on the frontend.
+
+**FILES YOU OWN:**
+- `bot/src/api/routes/modes.ts` — wrap all 7 endpoints
+
+**FILES YOU MUST NOT TOUCH:**
+- `mini-app/` (all)
+- `tools/` (all)
+- `bot/src/api/routes/users.ts`, `bot/src/api/routes/quests.ts`, `bot/src/api/routes/achievements.ts`, `bot/src/api/routes/checkins.ts`, `bot/src/api/routes/leaderboard.ts`
+- `bot/src/api/middleware/`, `bot/src/api/server.ts`, `bot/src/jobs/`
+- `.env`
+
+**RULES (NON-NEGOTIABLE):**
+- You are ALREADY on branch `feature/r16-modes-api` — do NOT run `git checkout`
+- Commit after EVERY task — atomic: `git add FILES && git commit -m "MSG"` in one Bash call
+- Do NOT push to remote or deploy to server
+- Do NOT add any new npm packages
+
+**Task 1: Wrap GET /api/modes (line 19)**
+- Currently: `res.json({ modes, count: modes.length })`
+- Change to: `res.json({ success: true, data: { modes, count: modes.length } })`
+- Commit: "Wrap GET /modes response in {success, data}"
+
+**Task 2: Wrap GET /api/users/:userId/modes (line 43)**
+- Currently: `res.json({ modes: rows, count: rows.length })`
+- Change to: `res.json({ success: true, data: { modes: rows, count: rows.length } })`
+- Commit: "Wrap GET /users/:userId/modes response in {success, data}"
+
+**Task 3: Wrap GET /api/users/:userId/modes/summary (line 79)**
+- Currently: `res.json({ summary: rows })`
+- Change to: `res.json({ success: true, data: { summary: rows } })`
+- Commit: "Wrap GET /modes/summary response in {success, data}"
+
+**Task 4: Wrap POST /api/users/:userId/modes (line 108)**
+- Currently: `res.json({ message: 'Modes added successfully', modes: result.data || [] })`
+- Change to: `res.json({ success: true, data: { message: 'Modes added successfully', modes: result.data || [] } })`
+- Commit: "Wrap POST /users/:userId/modes response in {success, data}"
+
+**Task 5: Wrap DELETE /api/users/:userId/modes/:modeId (line 132)**
+- Currently: `res.json({ message: 'Mode removed successfully' })`
+- Change to: `res.json({ success: true, data: { message: 'Mode removed successfully' } })`
+- Commit: "Wrap DELETE /modes/:modeId response in {success, data}"
+
+**Task 6: Wrap PATCH /api/users/:userId/modes/:modeId (line 164)**
+- Currently: `res.json({ message: 'Mode settings updated successfully', settings: row.settings || settings })`
+- Change to: `res.json({ success: true, data: { message: 'Mode settings updated successfully', settings: row.settings || settings } })`
+- Commit: "Wrap PATCH /modes/:modeId response in {success, data}"
+
+**Task 7: Wrap GET /api/modes/:modeId/quests (line 190)**
+- Currently: `res.json({ quests, count: quests.length })`
+- Change to: `res.json({ success: true, data: { quests, count: quests.length } })`
+- Commit: "Wrap GET /modes/:modeId/quests response in {success, data}"
+
+**Task 8: Build verification**
+- Run `cd bot && npm run build`
+- Fix any TypeScript errors
+- Commit only if fixes needed
+
+### RETROSPECTIVE (DO THIS LAST)
+Find your section under "Run 16 Retrospectives" below and replace the placeholder with your retrospective.
+
+---
+
+### Agent C — Backend: Remaining Bare Endpoints (quests.ts + users.ts)
+
+**Branch:** `feature/r16-remaining-api`
+
+**CONTEXT:**
+After Run 15 wrapped checkins + quest complete, and Agent B (this run) wraps modes, there are still 5 bare endpoints across quests.ts and users.ts that need `{success, data}` wrapping.
+
+**FILES YOU OWN:**
+- `bot/src/api/routes/quests.ts` — wrap `/stats` (line 168) and `/assign` (line 211) only
+- `bot/src/api/routes/users.ts` — wrap POST `/users` (line ~417), PATCH `/xp` (line ~417), PATCH `/streak` (line ~444) only
+
+**FILES YOU MUST NOT TOUCH:**
+- `mini-app/` (all)
+- `tools/` (all)
+- `bot/src/api/routes/modes.ts` (Agent B owns this)
+- `bot/src/api/routes/achievements.ts`, `bot/src/api/routes/checkins.ts`, `bot/src/api/routes/leaderboard.ts`
+- `bot/src/api/middleware/`, `bot/src/api/server.ts`, `bot/src/jobs/`
+- `.env`
+
+**RULES (NON-NEGOTIABLE):**
+- You are ALREADY on branch `feature/r16-remaining-api` — do NOT run `git checkout`
+- Commit after EVERY task — atomic: `git add FILES && git commit -m "MSG"` in one Bash call
+- Do NOT push to remote or deploy to server
+- Do NOT add any new npm packages
+
+**Task 1: Wrap GET /quests/stats (quests.ts line 168)**
+- Currently: `res.json(data?.stats || {})`
+- Change to: `res.json({ success: true, data: data?.stats || {} })`
+- Commit: "Wrap GET /quests/stats response in {success, data}"
+
+**Task 2: Wrap POST /quests/assign (quests.ts line 211)**
+- Currently: `res.json({ message: '...', quests: data?.quests || [] })`
+- Change to: `res.json({ success: true, data: { message: '...', quests: data?.quests || [] } })`
+- Keep the message template unchanged
+- Commit: "Wrap POST /quests/assign response in {success, data}"
+
+**Task 3: Wrap POST /users (users.ts)**
+- Read `bot/src/api/routes/users.ts` and find the POST endpoint that creates a user
+- Currently returns something like: `res.json({ message: '...', user: ... })`
+- Change to: `res.json({ success: true, data: { message: '...', user: ... } })`
+- Commit: "Wrap POST /users response in {success, data}"
+
+**Task 4: Wrap PATCH /users/:userId/xp (users.ts line ~417)**
+- Currently: `res.json({ message: 'XP added successfully', newTotal: user.total_xp, newLevel: user.current_level, leveledUp: ... })`
+- Change to: `res.json({ success: true, data: { message: '...', newTotal: ..., newLevel: ..., leveledUp: ... } })`
+- Commit: "Wrap PATCH /users/xp response in {success, data}"
+
+**Task 5: Wrap PATCH /users/:userId/streak (users.ts line ~444)**
+- Currently: `res.json({ message: 'Streak updated successfully', streak: (result.data as any)?.current_streak })`
+- Change to: `res.json({ success: true, data: { message: '...', streak: ... } })`
+- Commit: "Wrap PATCH /users/streak response in {success, data}"
+
+**Task 6: Build verification**
+- Run `cd bot && npm run build`
+- Fix any TypeScript errors
+- Commit only if fixes needed
+
+### RETROSPECTIVE (DO THIS LAST)
+Find your section under "Run 16 Retrospectives" below and replace the placeholder with your retrospective.
+
+---
+
+### Agent D — Frontend: Client Type Safety
+
+**Branch:** `feature/r16-client-types`
+
+**CONTEXT:**
+The mini-app's API client has 7 methods returning `ApiResponse<any>` instead of proper types, and `completeQuest()` is typed as `ApiResponse<Quest>` but the backend returns `{message, xpEarned, newLevel, leveledUp}`. Several inline types should also be extracted to `types/index.ts`.
+
+**FILES YOU OWN:**
+- `mini-app/src/api/client.ts` — fix return types
+- `mini-app/src/types/index.ts` — add new type definitions
+
+**FILES YOU MUST NOT TOUCH:**
+- `bot/` (all)
+- `tools/` (all)
+- `mini-app/src/pages/` (all pages)
+- `mini-app/src/components/` (all components)
+- `mini-app/src/hooks/` (all hooks)
+- `mini-app/src/App.tsx`
+- `.env`
+
+**RULES (NON-NEGOTIABLE):**
+- You are ALREADY on branch `feature/r16-client-types` — do NOT run `git checkout`
+- Commit after EVERY task — atomic: `git add FILES && git commit -m "MSG"` in one Bash call
+- Do NOT push to remote or deploy to server
+- Do NOT add any new npm packages
+- Do NOT change any runtime behavior — these are TYPE-ONLY changes
+
+**Task 1: Add missing types to types/index.ts**
+- Read `mini-app/src/types/index.ts` first
+- Add these new types at the end (before the `declare global` block):
+  ```typescript
+  // Quest completion response
+  export interface QuestCompleteResponse {
+    message: string;
+    xpEarned: number;
+    newLevel: number;
+    leveledUp: boolean;
+  }
+
+  // Check-in response
+  export interface CheckinResponse {
+    check_in_id: number;
+    quest_progress: { current: number; target: number };
+    completed: boolean;
+  }
+
+  // Check-in list response
+  export interface CheckinListResponse {
+    check_ins: Array<{
+      id: number;
+      check_in_time: string;
+      notes: string | null;
+      is_valid: boolean;
+      quest_title?: string;
+      quest_status?: string;
+    }>;
+    count: number;
+  }
+
+  // Punishment settings
+  export interface PunishmentSettings {
+    consent_given: boolean;
+    consent_timestamp: string | null;
+    intensity_level: number;
+    safe_mode: boolean;
+    custom_punishments: Record<string, any> | null;
+    max_xp_penalty: number;
+    max_streak_reset: number;
+  }
+
+  // Punishment history entry
+  export interface PunishmentHistoryResponse {
+    punishments: Array<{
+      id: number;
+      quest_instance_id: number | null;
+      punishment_type: string;
+      severity: string;
+      xp_deducted: number;
+      streak_days_lost: number;
+      message_sent: string;
+      applied_at: string;
+      quest_title?: string;
+    }>;
+    page: number;
+    total: number;
+  }
+
+  // User preferences
+  export interface UserPreferences {
+    notification_enabled: boolean;
+    reminder_time: number;
+    timezone: string;
+  }
+
+  // Onboarding state
+  export interface OnboardingState {
+    current_step: string | null;
+    quiz_data: Record<string, any> | null;
+  }
+  ```
+- Commit: "Add missing type definitions to types/index.ts"
+
+**Task 2: Fix completeQuest() return type in client.ts**
+- Read `mini-app/src/api/client.ts` first
+- Find `completeQuest()` method — currently typed as `Promise<ApiResponse<Quest>>`
+- Change to `Promise<ApiResponse<QuestCompleteResponse>>`
+- Add import of `QuestCompleteResponse` if not auto-imported
+- Commit: "Fix completeQuest() return type to match actual backend response"
+
+**Task 3: Fix createCheckin() return type**
+- Currently has inline type `{check_in_id: number; quest_progress: {...}; completed: boolean}`
+- Change to `Promise<ApiResponse<CheckinResponse>>`
+- Commit: "Replace createCheckin() inline type with CheckinResponse"
+
+**Task 4: Fix getTodayCheckins() return type**
+- Currently has inline type `{check_ins: any[]; count: number}`
+- Change to `Promise<ApiResponse<CheckinListResponse>>`
+- Commit: "Replace getTodayCheckins() inline type with CheckinListResponse"
+
+**Task 5: Fix createUser() return type**
+- Currently `Promise<ApiResponse<any>>`
+- Change to `Promise<ApiResponse<{ message: string; user: User }>>`
+- Commit: "Fix createUser() return type"
+
+**Task 6: Fix remaining `any` return types**
+- `addUserMode()` → `Promise<ApiResponse<{ message: string; modes: Mode[] }>>`
+- `removeUserMode()` → `Promise<ApiResponse<{ message: string }>>`
+- `updateUserPreferences()` → `Promise<ApiResponse<UserPreferences>>`
+- `updateUserProfile()` → `Promise<ApiResponse<User>>`
+- `getPunishmentSettings()` → `Promise<ApiResponse<PunishmentSettings>>`
+- `updatePunishmentSettings()` → `Promise<ApiResponse<PunishmentSettings>>`
+- `getUserPreferences()` inline → `Promise<ApiResponse<UserPreferences>>`
+- `getPunishmentHistory()` inline → `Promise<ApiResponse<PunishmentHistoryResponse>>`
+- `getOnboardingState()` inline → `Promise<ApiResponse<OnboardingState>>`
+- `completeOnboarding()` inline → `Promise<ApiResponse<{ xp_awarded: number }>>`
+- `saveOnboardingState()` → `Promise<ApiResponse<OnboardingState>>`
+- `getLeaderboard()`, `getWeeklyLeaderboard()`, `getMonthlyLeaderboard()` → keep as `any[]` for now (leaderboard shape varies by mode filter)
+- Add imports at top of client.ts for all new types
+- Commit: "Replace all remaining any return types with proper types"
+
+**Task 7: Build verification**
+- Run `cd mini-app && npm run build`
+- Fix any TypeScript errors (pages may not match new stricter types — only fix type errors, do NOT change page logic)
+- Commit only if fixes needed
+
+### RETROSPECTIVE (DO THIS LAST)
+Find your section under "Run 16 Retrospectives" below and replace the placeholder with your retrospective.
+
+---
+
+### Agent E — Python: Punishment Manager + Database Sync
+
+**Branch:** `feature/r16-punishment-db`
+
+**CONTEXT:**
+The database has `punishment_settings` and `punishment_history` tables, and the Express API has punishment routes at `/api/punishment/`, but there is no `punishment_manager.py` Python tool. Background jobs like `punishmentCheck` need this tool. Also, `database/schema.sql` is out of sync with the actual DB (missing columns added by migrations).
+
+**FILES YOU OWN:**
+- `tools/punishment_manager.py` — NEW file
+- `database/schema.sql` — sync with actual state
+- `database/migrations/run16_indexes.sql` — NEW file
+
+**FILES YOU MUST NOT TOUCH:**
+- `bot/` (all)
+- `mini-app/` (all)
+- `tools/achievement_manager.py` (Agent A owns this)
+- `tools/quest_manager.py`, `tools/user_manager.py`, `tools/streak_manager.py`, `tools/mode_manager.py`
+- `.env`
+
+**RULES (NON-NEGOTIABLE):**
+- You are ALREADY on branch `feature/r16-punishment-db` — do NOT run `git checkout`
+- Commit after EVERY task — atomic: `git add FILES && git commit -m "MSG"` in one Bash call
+- Do NOT push to remote or deploy to server
+- Do NOT add any new pip packages (use only psycopg2, which is already used by other tools)
+
+**Task 1: Create punishment_manager.py**
+- Follow the pattern from `tools/streak_manager.py` and `tools/quest_manager.py` (same class structure, DB connection, argparse CLI)
+- Database tables to work with:
+  ```sql
+  punishment_settings (user_id, consent_given, consent_timestamp, intensity_level, safe_mode,
+                       max_xp_penalty, max_streak_reset, custom_punishments JSONB)
+  punishment_history (id, user_id, quest_instance_id, punishment_type, severity,
+                      xp_deducted, streak_days_lost, message_sent, applied_at)
+  ```
+- Implement these functions:
+  - `get_settings(user_id)` — Get or create default punishment settings for a user
+  - `update_consent(user_id, consent_given)` — Update opt-in status with timestamp
+  - `update_settings(user_id, settings_dict)` — Update intensity, safe_mode, caps
+  - `apply_punishment(user_id, quest_instance_id, punishment_type, severity)` — Apply a punishment (deduct XP, reset streak, etc.) and log to history. MUST check consent first. MUST respect max caps.
+  - `get_history(user_id, page, limit)` — Get paginated punishment history
+  - `check_failed_quests(user_id)` — Find failed quests that need punishment (status='failed', no punishment yet)
+- CLI interface with argparse (same pattern as other tools):
+  - `--get-settings --user-id N`
+  - `--update-consent --user-id N --consent true/false`
+  - `--update-settings --user-id N --settings '{json}'`
+  - `--apply --user-id N --quest-instance-id N --type TYPE --severity LEVEL`
+  - `--get-history --user-id N [--page N] [--limit N]`
+  - `--check-failed --user-id N`
+- Use `tools/validators.py` for input validation
+- Print JSON to stdout (same pattern as other tools)
+- Commit: "Create punishment_manager.py with full CRUD + apply logic"
+
+**Task 2: Sync database/schema.sql**
+- Read `database/schema.sql` and all files in `database/migrations/`
+- Add missing columns to schema.sql that were added by migrations:
+  - `user_achievements.notification_sent_at TIMESTAMPTZ` (from run13_achievement_dedup.sql)
+  - `quest_instances.target INTEGER DEFAULT 1` (from run13_quest_target.sql)
+  - Any other columns added by migrations but missing from schema.sql
+- Do NOT remove or rename existing columns — only ADD what's missing
+- Commit: "Sync schema.sql with actual DB state (add migration columns)"
+
+**Task 3: Create migration for missing indexes**
+- Create `database/migrations/run16_indexes.sql`
+- Add these performance indexes (all idempotent with `IF NOT EXISTS`):
+  ```sql
+  CREATE INDEX IF NOT EXISTS idx_qi_user_status ON quest_instances(user_id, status);
+  CREATE INDEX IF NOT EXISTS idx_checkins_quest_valid ON check_ins(quest_instance_id, is_valid);
+  CREATE INDEX IF NOT EXISTS idx_ua_unlocked_at ON user_achievements(user_id, unlocked_at DESC);
+  CREATE INDEX IF NOT EXISTS idx_punishment_history_user ON punishment_history(user_id, applied_at DESC);
+  CREATE INDEX IF NOT EXISTS idx_punishment_settings_user ON punishment_settings(user_id);
+  ```
+- Commit: "Add Run 16 performance indexes migration"
+
+### RETROSPECTIVE (DO THIS LAST)
+Find your section under "Run 16 Retrospectives" below and replace the placeholder with your retrospective.
+
+---
+
+### Run 16 File Ownership Matrix
+
+| File/Directory | Agent A | Agent B | Agent C | Agent D | Agent E | Nobody |
+|---|---|---|---|---|---|---|
+| tools/achievement_manager.py | OWNS | - | - | - | - | - |
+| bot/src/api/routes/modes.ts | - | OWNS | - | - | - | - |
+| bot/src/api/routes/quests.ts | - | - | OWNS | - | - | - |
+| bot/src/api/routes/users.ts | - | - | OWNS | - | - | - |
+| mini-app/src/api/client.ts | - | - | - | OWNS | - | - |
+| mini-app/src/types/index.ts | - | - | - | OWNS | - | - |
+| tools/punishment_manager.py | - | - | - | - | OWNS | - |
+| database/schema.sql | - | - | - | - | OWNS | - |
+| database/migrations/run16_*.sql | - | - | - | - | OWNS | - |
+| bot/src/api/middleware/ | - | - | - | - | - | LOCKED |
+| bot/src/api/server.ts | - | - | - | - | - | LOCKED |
+| bot/src/jobs/* | - | - | - | - | - | LOCKED |
+| mini-app/src/pages/ | - | - | - | - | - | LOCKED |
+| mini-app/src/components/ | - | - | - | - | - | LOCKED |
+| .env | - | - | - | - | - | LOCKED |
+
+### Run 16 Merge Order
+
+1. **Agent A first** — Python-only (no build needed), fixes critical achievement tool
+2. **Agent B second** — modes.ts wrapping (independent of A)
+3. **Agent C third** — quests.ts + users.ts wrapping (independent of A and B)
+4. **Agent D fourth** — Client types (should merge after B/C since types match new response shapes)
+5. **Agent E fifth** — Python + DB (independent of all)
+
+**Conflict expectations:** Zero — all agents own completely separate files. `PARALLEL_AGENTS.md` retro sections are pre-allocated.
+
+---
+
+### Run 16 Retrospectives
+
+#### Agent A Retrospective
+*(To be filled by Agent A)*
+
+#### Agent B Retrospective
+*(To be filled by Agent B)*
+
+#### Agent C Retrospective
+*(To be filled by Agent C)*
+
+#### Agent D Retrospective
+*(To be filled by Agent D)*
+
+#### Agent E Retrospective
+*(To be filled by Agent E)*
+
+#### Agent 0 Retrospective
 *(To be filled by Agent 0)*
