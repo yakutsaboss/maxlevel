@@ -862,7 +862,38 @@ Read PARALLEL_AGENTS.md — you are Agent E for Run 20. Your job: (1) Migrate `a
 - The error state in Settings uses inline JSX — if Agent C's `ErrorSection` component gets merged, Settings could adopt it too.
 
 #### Agent B Retrospective
-*(To be filled by Agent B)*
+**Status:** All 7 tasks completed. Build passes cleanly (0 errors, tsc + vite build).
+
+| # | Task | Status |
+|---|------|--------|
+| 1 | Create `utils/formatDate.ts` (extracted from Profile.tsx) | Done |
+| 2 | Create `ProfileHeader.tsx` (gradient header + avatar + StatBadge) | Done |
+| 3 | Create `ProfileModes.tsx` (modes grid with per-mode streaks) | Done |
+| 4 | Create `ProfileAchievements.tsx` (progress bar + 2x2 grid + view all) | Done |
+| 5 | Create `ProfileAccountability.tsx` (accountability status + penalty history) | Done |
+| 6 | Simplify `Profile.tsx` to thin orchestrator (408 → 211 lines) | Done |
+| 7 | Build verification (`tsc && vite build`) | Pass |
+
+**Commits:** 6 atomic commits on `feature/r20-profile-refactor`:
+1. `feat: extract formatDate utility from Profile.tsx`
+2. `feat: extract ProfileHeader component with StatBadge`
+3. `feat: extract ProfileModes component with per-mode streaks`
+4. `feat: extract ProfileAchievements component with progress bar + grid`
+5. `feat: extract ProfileAccountability component with penalty history`
+6. `refactor: simplify Profile.tsx to use extracted sub-components (408 → 211 lines)`
+
+**Problems faced:** None. All tasks were straightforward extractions with no logic changes.
+
+**Net lines:** Profile.tsx reduced from 408 to 211 lines (-197). New files add ~285 lines across 5 files (4 components + 1 utility). Net increase of ~88 lines, but each file now has a single responsibility and is independently testable.
+
+**Implementation details:**
+- Used `(...args: any[]) => void` for haptic.impact prop type to avoid coupling to the exact Telegram SDK union type (same pattern as Run 19 Agent A).
+- Kept streak card and account info inline in Profile.tsx — too small to warrant their own components.
+- `formatDate` in `utils/formatDate.ts` can be reused by other pages (currently only Profile uses it, but Settings or other pages may need it).
+
+**Recommendations for next run:**
+- The loading skeleton and error state in Profile.tsx could be extracted (Agent C's ErrorSection could replace the error block once merged).
+- Consider extracting the streak card if it's reused elsewhere (Dashboard has a similar streak display).
 
 #### Agent C Retrospective
 **Status:** All 7 tasks completed. Build passes cleanly (0 errors, 0 warnings).
