@@ -2,6 +2,9 @@ import { Request, Response, NextFunction } from 'express';
 import crypto from 'crypto';
 import { TelegramUser, TelegramInitData } from '../../types/telegram.js';
 import { queryOne } from '../../utils/db.js';
+import { logger } from '../utils/logger.js';
+
+const authLog = logger.child({ component: 'auth' });
 
 /**
  * Validates Telegram WebApp initData
@@ -40,7 +43,7 @@ export function validateTelegramWebAppData(initData: string, botToken: string): 
     // Compare hashes
     return calculatedHash === hash;
   } catch (error) {
-    console.error('Error validating Telegram data:', error);
+    authLog.error('Error validating Telegram data', error as Error);
     return false;
   }
 }
@@ -60,7 +63,7 @@ export function parseTelegramInitData(initData: string): TelegramInitData | null
       hash: urlParams.get('hash') || '',
     };
   } catch (error) {
-    console.error('Error parsing Telegram data:', error);
+    authLog.error('Error parsing Telegram data', error as Error);
     return null;
   }
 }
@@ -74,14 +77,14 @@ export function authenticateTelegram(req: Request, res: Response, next: NextFunc
 
   // Skip authentication in development if specified
   if (process.env.NODE_ENV === 'development' && process.env.SKIP_AUTH === 'true') {
-    console.warn(`⚠️  [AUTH] Authentication skipped (development mode) - IP: ${ip}`);
+    authLog.warn('Authentication skipped (development mode)', { ip, requestId: req.requestId });
     return next();
   }
 
   const initData = req.headers['x-telegram-init-data'] as string;
 
   if (!initData) {
-    logAuthAttempt('failed', 'missing_init_data', ip);
+    authLog.warn('Auth failed: missing init data', { ip, requestId: req.requestId });
     res.status(401).json({
       error: 'Unauthorized',
       message: 'Missing Telegram authentication data',
@@ -92,7 +95,7 @@ export function authenticateTelegram(req: Request, res: Response, next: NextFunc
   const botToken = process.env.TELEGRAM_BOT_TOKEN;
 
   if (!botToken) {
-    console.error('[AUTH] TELEGRAM_BOT_TOKEN not configured');
+    authLog.error('TELEGRAM_BOT_TOKEN not configured', undefined, { requestId: req.requestId });
     res.status(500).json({
       error: 'Server Error',
       message: 'Bot token not configured',
@@ -104,7 +107,7 @@ export function authenticateTelegram(req: Request, res: Response, next: NextFunc
   const isValid = validateTelegramWebAppData(initData, botToken);
 
   if (!isValid) {
-    logAuthAttempt('failed', 'invalid_signature', ip);
+    authLog.warn('Auth failed: invalid signature', { ip, requestId: req.requestId });
     res.status(401).json({
       error: 'Unauthorized',
       message: 'Invalid Telegram authentication data',
@@ -116,7 +119,7 @@ export function authenticateTelegram(req: Request, res: Response, next: NextFunc
   const parsedData = parseTelegramInitData(initData);
 
   if (!parsedData || !parsedData.user) {
-    logAuthAttempt('failed', 'invalid_user_data', ip);
+    authLog.warn('Auth failed: invalid user data', { ip, requestId: req.requestId });
     res.status(401).json({
       error: 'Unauthorized',
       message: 'Invalid user data',
@@ -127,7 +130,7 @@ export function authenticateTelegram(req: Request, res: Response, next: NextFunc
   // Check auth_date (data should not be older than 1 hour)
   const authAge = Date.now() / 1000 - parsedData.auth_date;
   if (authAge > 3600) { // 1 hour
-    logAuthAttempt('failed', 'expired', ip, parsedData.user.id);
+    authLog.warn('Auth failed: expired', { ip, telegramUserId: parsedData.user.id, requestId: req.requestId });
     res.status(401).json({
       error: 'Unauthorized',
       message: 'Authentication data expired',
@@ -139,36 +142,9 @@ export function authenticateTelegram(req: Request, res: Response, next: NextFunc
   req.telegramUser = parsedData.user;
 
   const duration = Date.now() - startTime;
-  logAuthAttempt('success', undefined, ip, parsedData.user.id, duration);
+  authLog.info('Auth success', { ip, telegramUserId: parsedData.user.id, durationMs: duration, requestId: req.requestId });
 
   next();
-}
-
-/**
- * Log authentication attempt
- */
-function logAuthAttempt(
-  status: 'success' | 'failed',
-  reason?: string,
-  ip?: string,
-  telegramUserId?: number,
-  duration?: number
-): void {
-  const timestamp = new Date().toISOString();
-  const logData = {
-    timestamp,
-    status,
-    ip,
-    telegram_user_id: telegramUserId,
-    reason,
-    duration_ms: duration,
-  };
-
-  if (status === 'success') {
-    console.log(`[AUTH SUCCESS] ${JSON.stringify(logData)}`);
-  } else {
-    console.warn(`[AUTH FAILED] ${JSON.stringify(logData)}`);
-  }
 }
 
 /**
@@ -209,7 +185,7 @@ export async function authorizeUser(req: Request, res: Response, next: NextFunct
     );
 
     if (!dbUser) {
-      console.warn(`[AUTHZ] User not found in database: telegram_id=${telegramUser.id}`);
+      authLog.warn('User not found in database', { telegramUserId: telegramUser.id, requestId: req.requestId });
       res.status(404).json({
         error: 'Not Found',
         message: 'User not found in database',
@@ -219,7 +195,7 @@ export async function authorizeUser(req: Request, res: Response, next: NextFunct
 
     // Check if user is active
     if (!dbUser.is_active) {
-      console.warn(`[AUTHZ] Inactive user access attempt: user_id=${dbUser.id}`);
+      authLog.warn('Inactive user access attempt', { userId: dbUser.id, requestId: req.requestId });
       res.status(403).json({
         error: 'Forbidden',
         message: 'User account is inactive',
@@ -233,10 +209,9 @@ export async function authorizeUser(req: Request, res: Response, next: NextFunct
 
     // If route has userId parameter, verify it matches
     if (userId && parseInt(userId) !== dbUser.id) {
-      console.warn(
-        `[AUTHZ] Resource ownership mismatch: telegram_user=${telegramUser.id}, ` +
-        `requested_user=${userId}, actual_user=${dbUser.id}`
-      );
+      authLog.warn('Resource ownership mismatch', {
+        telegramUserId: telegramUser.id, requestedUser: userId, actualUser: dbUser.id, requestId: req.requestId,
+      });
       res.status(403).json({
         error: 'Forbidden',
         message: 'You do not have permission to access this resource',
@@ -246,9 +221,9 @@ export async function authorizeUser(req: Request, res: Response, next: NextFunct
 
     // If route has telegramId parameter, verify it matches
     if (telegramId && parseInt(telegramId) !== telegramUser.id) {
-      console.warn(
-        `[AUTHZ] Telegram ID mismatch: authenticated=${telegramUser.id}, requested=${telegramId}`
-      );
+      authLog.warn('Telegram ID mismatch', {
+        authenticatedId: telegramUser.id, requestedId: telegramId, requestId: req.requestId,
+      });
       res.status(403).json({
         error: 'Forbidden',
         message: 'You do not have permission to access this resource',
@@ -259,10 +234,10 @@ export async function authorizeUser(req: Request, res: Response, next: NextFunct
     // Attach database user to request for use in route handlers
     req.dbUser = dbUser;
 
-    console.log(`[AUTHZ SUCCESS] User authorized: user_id=${dbUser.id}, telegram_id=${telegramUser.id}`);
+    authLog.info('User authorized', { userId: dbUser.id, telegramUserId: telegramUser.id, requestId: req.requestId });
     next();
   } catch (error) {
-    console.error('[AUTHZ ERROR]', error);
+    authLog.error('Authorization error', error as Error, { requestId: req.requestId });
     res.status(500).json({
       error: 'Server Error',
       message: 'Failed to authorize user',
