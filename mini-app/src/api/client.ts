@@ -1,5 +1,5 @@
 import axios, { AxiosInstance } from 'axios';
-import type { ApiResponse, UserStats, User, Mode, Quest, Achievement, UserAchievement, QuestCompleteResponse, CheckinResponse, CheckinListResponse, UserPreferences, PunishmentSettings, PunishmentHistoryResponse, OnboardingState } from '@/types';
+import type { ApiResponse, UserStats, User, Mode, Quest, Achievement, UserAchievement, QuestCompleteResponse, CheckinResponse, CheckinListResponse, UserPreferences, PunishmentSettings, PunishmentHistoryResponse, OnboardingState, LeaderboardEntry } from '@/types';
 
 // API Base URL - should come from environment
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
@@ -144,21 +144,21 @@ class ApiClient {
   }
 
   // Leaderboard endpoints
-  async getLeaderboard(limit = 50): Promise<ApiResponse<any[]>> {
+  async getLeaderboard(limit = 50): Promise<ApiResponse<LeaderboardEntry[]>> {
     const response = await this.client.get('/leaderboard', {
       params: { limit },
     });
     return response.data;
   }
 
-  async getWeeklyLeaderboard(limit = 50): Promise<ApiResponse<any[]>> {
+  async getWeeklyLeaderboard(limit = 50): Promise<ApiResponse<LeaderboardEntry[]>> {
     const response = await this.client.get('/leaderboard/weekly', {
       params: { limit },
     });
     return response.data;
   }
 
-  async getMonthlyLeaderboard(limit = 50): Promise<ApiResponse<any[]>> {
+  async getMonthlyLeaderboard(limit = 50): Promise<ApiResponse<LeaderboardEntry[]>> {
     const response = await this.client.get('/leaderboard/monthly', {
       params: { limit },
     });
