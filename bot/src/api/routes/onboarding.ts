@@ -116,7 +116,6 @@ router.post('/:telegramId/complete', authenticateTelegram, asyncHandler(async (r
       const modeQuizData = quiz_data[modeName] || {};
       const painPoints = quiz_data.pain_points?.[modeName] || {};
 
-      console.log(`[ONBOARD] step 2: mode_configs for ${modeName}`);
       await client.query(
         `INSERT INTO mode_configs (user_id, mode_id, quiz_responses, pain_points, created_at, updated_at)
          SELECT $1::int, m.id, $2::jsonb, $3::jsonb, NOW(), NOW()
@@ -131,7 +130,6 @@ router.post('/:telegramId/complete', authenticateTelegram, asyncHandler(async (r
     }
 
     // 3. Save punishment settings
-    console.log(`[ONBOARD] step 3: punishment_settings`);
     if (quiz_data.punishments) {
       const p = quiz_data.punishments;
       // Frontend uses easy/hard, DB constraint expects low/high
@@ -153,7 +151,6 @@ router.post('/:telegramId/complete', authenticateTelegram, asyncHandler(async (r
     }
 
     // 4. Award 50 XP, reactivate user, and restore name from Telegram
-    console.log(`[ONBOARD] step 4: update users`);
     const tgUser = (req as any).telegramUser;
     const restoreName = tgUser?.first_name || quiz_data.nickname || 'Player';
     const restoreUsername = tgUser?.username || null;
@@ -173,7 +170,6 @@ router.post('/:telegramId/complete', authenticateTelegram, asyncHandler(async (r
     }
 
     // 5. Mark onboarding as completed
-    console.log(`[ONBOARD] step 5: mark completed`);
     await client.query(
       `UPDATE onboarding_state SET current_step = 'completed', last_updated = NOW()
        WHERE user_id = $1::int`,
