@@ -208,13 +208,15 @@ Use this structure when creating a new run. Copy and adapt:
 - ~~6 stale `REGISTER_THESE_*.md` files~~ — Deleted in Run 17 Agent B
 
 ### Still Open
-1. **Verify `user_stats` view in achievement_manager.py** — `check_and_unlock_achievements()` queries columns that may not exist as a view.
-2. **pg-boss Node.js mismatch** — Requires 22.12+, server has 20.20. Only triggers warnings, no functional impact yet.
-3. **Mode configs unused** — `mode_configs` table stores quiz responses + personalized plans, but data is never consumed.
-4. **Quest detail modal `mode` null safety** — `selectedQuest.mode.icon` / `mode.display_name` could be null (Agent A recommendation).
-5. **Shared QuestDifficultyBadge component** — difficulty-to-color mapping duplicated in 3 places (Agent A recommendation).
-6. **Stricter delete anonymization** — consider nullifying `timezone` on account delete for GDPR (Agent C recommendation).
-7. **Delete account e2e testing** — confirm soft delete flow works end-to-end in Telegram (Agent B recommendation).
+1. **pg-boss Node.js mismatch** — Requires 22.12+, server has 20.20. Only triggers warnings, no functional impact yet.
+2. **Mode configs unused** — `mode_configs` table stores quiz responses + personalized plans, but data is never consumed.
+3. **Delete account e2e testing** — confirm soft delete flow works end-to-end in Telegram (Agent B recommendation).
+4. **Pull-to-refresh duplicated across 4 pages** — ~30 identical lines in Dashboard, Quests, Achievements, Leaderboard → extract `usePullToRefresh` hook (Run 19 Agent A).
+5. **QuestDifficultyBadge duplicated in 3 places** — difficulty-to-color mapping in Dashboard QuestCardMini, Quests QuestCard, Quests detail modal → extract shared component (Run 19 Agent A).
+6. **Leaderboard.tsx missing `safe-area-top`** — Run 18 added it to 5 pages but missed Leaderboard (Run 19 Agent A).
+7. **Dashboard quest click does nothing** — `handleQuestClick` only triggers haptic, doesn't navigate (Run 19 Agent A).
+8. **`user_stats` SQL view doesn't exist** — `achievement_manager.py` `check_and_unlock_achievements()` queries `FROM user_stats` which is NOT in the schema. Confirmed bug (Run 19 Agent B).
+9. **DELETE endpoint doesn't nullify timezone** — GDPR improvement, consider nullifying `timezone` on account delete (Run 19 Agent B).
 
 ### Resolved (Runs 13–18)
 - ~~PATCH /progress authorization~~ — Fixed in Run 15
@@ -444,4 +446,124 @@ Read PARALLEL_AGENTS.md — you are Agent C for Run 18. Your job: fix resolveUse
 
 **Known Issues resolved:** 5 of 5 user-reported bugs addressed (quest crash, status bar, naming, avatar, delete account). Items 6-8 in Known Issues remain open from prior runs.
 
-<!-- Next run goes here. Agent 0 will append RUN 19 below this line. -->
+## RUN 19: Code Quality Refactoring (2 Agents + Agent 0)
+
+### Focus: Extract duplicated pull-to-refresh + difficulty badge code into shared hooks/components, fix Leaderboard safe area, fix Dashboard quest click, create `user_stats` SQL view, GDPR timezone cleanup
+
+### Copy-Paste Prompts
+
+**Agent 0** (open in: `c:\Users\Asus\Desktop\Wibecode`):
+```
+Read PARALLEL_AGENTS.md you are Agent 0 for Run 19
+```
+
+**Agent A** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-a`):
+```
+Read PARALLEL_AGENTS.md — you are Agent A for Run 19. Your job: (1) Create a `usePullToRefresh` custom hook in `hooks/usePullToRefresh.ts` that extracts the duplicated pull-to-refresh pattern from Dashboard/Quests/Achievements/Leaderboard, (2) Refactor all 4 pages to use the new hook, (3) Create a shared `QuestDifficultyBadge` component in `components/QuestDifficultyBadge.tsx`, (4) Apply it to Dashboard QuestCardMini + Quests QuestCard + quest detail modal, (5) Add `safe-area-top` class to Leaderboard header, (6) Fix Dashboard `handleQuestClick` to navigate to `/quests`. Follow the Safety Protocol. Commit after each task. Write your retrospective when done.
+```
+
+**Agent B** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-b`):
+```
+Read PARALLEL_AGENTS.md — you are Agent B for Run 19. Your job: (1) Create a `user_stats` SQL view in `database/schema.sql` that provides user_id, level, total_xp, current_streak, longest_streak, quests_completed, daily_quests_completed, weekly_quests_completed columns (matching what `tools/achievement_manager.py` `check_and_unlock_achievements()` expects), (2) Verify achievement_manager.py query is compatible with the new view, (3) Add `timezone = NULL` to the DELETE account soft-delete UPDATE in `bot/src/api/routes/users.ts`, (4) Build verification. Follow the Safety Protocol. Commit after each task. Write your retrospective when done.
+```
+
+---
+
+### Agent A — Mini-App: Extract Shared Hooks + Components
+
+**Branch:** `feature/r19-miniapp-refactor`
+**Worktree:** `../Wibecode-agent-a`
+
+**Tasks:**
+1. **Create `usePullToRefresh` hook** — In `mini-app/src/hooks/usePullToRefresh.ts`, extract the repeated pattern: `touchStartY` ref, `isPulling` ref, `pullDistance` state, `refreshing` state, `containerRef`, `PULL_THRESHOLD = 60`, `handleTouchStart`, `handleTouchMove`, `handleTouchEnd`. The hook should accept `onRefresh: () => Promise<void>` and return `{ containerRef, pullDistance, refreshing, touchHandlers: { onTouchStart, onTouchMove, onTouchEnd } }`. Also export a `PullIndicator` component that renders the refresh indicator div.
+2. **Apply `usePullToRefresh` to Dashboard.tsx** — Replace the ~30 lines of duplicated pull-to-refresh state/handlers (lines 70-103) with the new hook. Replace the pull-indicator div with `PullIndicator`. Keep the `loadUserStats(true)` as the onRefresh callback.
+3. **Apply `usePullToRefresh` to Quests.tsx** — Replace duplicated code (lines 25-58). Keep `loadQuests` as the onRefresh callback.
+4. **Apply `usePullToRefresh` to Achievements.tsx** — Replace duplicated code (lines 33-66). Keep `loadData` as the onRefresh callback.
+5. **Apply `usePullToRefresh` to Leaderboard.tsx** — Replace duplicated code (lines 46-79). Keep `loadLeaderboard` as the onRefresh callback. Also add `safe-area-top` class to the header div (line 160).
+6. **Create `QuestDifficultyBadge` component** — In `mini-app/src/components/QuestDifficultyBadge.tsx`, create a shared component that renders the difficulty badge with the correct color mapping: easy=green, medium=yellow, hard=red. Props: `difficulty: string`, `size?: 'sm' | 'md'` (sm for list cards, md for detail modal).
+7. **Apply `QuestDifficultyBadge`** — In `Quests.tsx` QuestCard (line 401), quest detail modal (lines 266-273), and `Dashboard.tsx` QuestCardMini (line 48), replace inline difficulty rendering with the shared component.
+8. **Fix Dashboard quest click** — In `Dashboard.tsx`, change `handleQuestClick` (line 146) to navigate to `/quests` using `useNavigate()` from react-router-dom. Import `useNavigate` at the top.
+9. **Build verification**: `cd mini-app && npm run build`
+
+**OWNED files:**
+- `mini-app/src/hooks/usePullToRefresh.ts` (new)
+- `mini-app/src/components/QuestDifficultyBadge.tsx` (new)
+- `mini-app/src/pages/Dashboard.tsx`
+- `mini-app/src/pages/Quests.tsx`
+- `mini-app/src/pages/Achievements.tsx`
+- `mini-app/src/pages/Leaderboard.tsx`
+
+**FORBIDDEN:**
+- `bot/**`, `tools/**`, `database/**`
+- `mini-app/src/App.tsx`
+- `mini-app/src/pages/Profile.tsx`, `Settings.tsx`, `Onboarding.tsx`
+- `mini-app/src/api/client.ts`
+- `mini-app/src/components/Navigation.tsx`
+- `mini-app/src/types/index.ts`
+
+---
+
+### Agent B — Backend + Tools: `user_stats` View + GDPR Cleanup
+
+**Branch:** `feature/r19-backend-fixes`
+**Worktree:** `../Wibecode-agent-b`
+
+**Tasks:**
+1. **Create `user_stats` SQL view** — In `database/schema.sql`, add a `CREATE VIEW user_stats AS ...` before the leaderboard materialized view. The view must provide these columns (matching `achievement_manager.py` lines 132-137):
+   - `user_id` (from users.id)
+   - `level` (from users.current_level)
+   - `total_xp` (from users.total_xp)
+   - `current_streak` (COALESCE MAX from streaks.current_streak, 0)
+   - `longest_streak` (COALESCE MAX from streaks.longest_streak, 0)
+   - `quests_completed` (COUNT DISTINCT quest_instances WHERE status='completed')
+   - `daily_quests_completed` (COUNT DISTINCT quest_instances JOIN quests WHERE quest_type='daily' AND status='completed')
+   - `weekly_quests_completed` (COUNT DISTINCT quest_instances JOIN quests WHERE quest_type='weekly' AND status='completed')
+   Add `DROP VIEW IF EXISTS user_stats CASCADE;` in the DROP section at the top.
+2. **Verify `achievement_manager.py` compatibility** — Read `tools/achievement_manager.py` `check_and_unlock_achievements()` (lines 123-236) and confirm the column names match the new view. If any mismatch, fix the Python code. Document findings in your retrospective.
+3. **Add timezone nullification to DELETE account** — In `bot/src/api/routes/users.ts`, find the DELETE `/users/:telegramId/account` endpoint's UPDATE query. Add `timezone = 'UTC'` to the SET clause (alongside `is_active = false, first_name = 'Deleted User', username = NULL`).
+4. **Build verification**: `cd bot && npm run build`
+
+**OWNED files:**
+- `database/schema.sql`
+- `tools/achievement_manager.py`
+- `bot/src/api/routes/users.ts`
+
+**FORBIDDEN:**
+- `mini-app/**`
+- `bot/src/index.ts`, `bot/src/api/server.ts`
+- `bot/src/api/routes/quests.ts`, `achievements.ts`, `admin-*.ts`
+- `bot/src/jobs/**`
+
+---
+
+### Run 19 File Ownership Matrix
+
+| File | Agent A | Agent B |
+|------|---------|---------|
+| mini-app/src/hooks/usePullToRefresh.ts (new) | **OWN** | — |
+| mini-app/src/components/QuestDifficultyBadge.tsx (new) | **OWN** | — |
+| mini-app/src/pages/Dashboard.tsx | **OWN** | — |
+| mini-app/src/pages/Quests.tsx | **OWN** | — |
+| mini-app/src/pages/Achievements.tsx | **OWN** | — |
+| mini-app/src/pages/Leaderboard.tsx | **OWN** | — |
+| database/schema.sql | — | **OWN** |
+| tools/achievement_manager.py | — | **OWN** |
+| bot/src/api/routes/users.ts | — | **OWN** |
+| PARALLEL_AGENTS.md | retro only | retro only |
+
+### Run 19 Merge Order
+1. **Agent B** (backend) — schema + API change, no frontend dependencies
+2. **Agent A** (mini-app refactor) — pure frontend, no backend dependencies
+
+### Run 19 Retrospectives
+
+#### Agent A Retrospective
+*(To be filled by Agent A)*
+
+#### Agent B Retrospective
+*(To be filled by Agent B)*
+
+#### Agent 0 Retrospective
+*(To be filled by Agent 0 after merge and deploy)*
+
+<!-- Next run goes here. Agent 0 will append RUN 20 below this line. -->
