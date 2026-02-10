@@ -64,26 +64,26 @@ class AchievementManager:
 
             # Get achievement details
             cursor.execute("""
-                SELECT id, name, description, xp_reward, rarity, icon
+                SELECT id, name, description, xp_bonus, rarity, badge_icon
                 FROM achievements
-                WHERE id = %s AND is_active = true
+                WHERE id = %s
             """, (achievement_id,))
 
             achievement = cursor.fetchone()
             if not achievement:
                 return {
                     "success": False,
-                    "error": "Achievement not found or inactive"
+                    "error": "Achievement not found"
                 }
 
-            a_id, name, description, xp_reward, rarity, icon = achievement
+            a_id, name, description, xp_bonus, rarity, badge_icon = achievement
 
             # Unlock achievement
             cursor.execute("""
                 INSERT INTO user_achievements (
-                    user_id, achievement_id, unlocked_at, progress
+                    user_id, achievement_id, unlocked_at
                 )
-                VALUES (%s, %s, NOW(), 100)
+                VALUES (%s, %s, NOW())
                 RETURNING id, unlocked_at
             """, (user_id, achievement_id))
 
@@ -96,9 +96,9 @@ class AchievementManager:
                     "id": a_id,
                     "name": name,
                     "description": description,
-                    "xp_reward": xp_reward,
+                    "xp_bonus": xp_bonus,
                     "rarity": rarity,
-                    "icon": icon,
+                    "badge_icon": badge_icon,
                     "unlocked_at": result[1].isoformat() if result[1] else None
                 },
                 "user_id": user_id
@@ -148,11 +148,9 @@ class AchievementManager:
 
             # Get all achievements not yet unlocked
             cursor.execute("""
-                SELECT id, name, description, xp_reward, rarity, icon,
-                       criteria_type, criteria_value
+                SELECT id, name, description, xp_bonus, rarity, badge_icon, criteria
                 FROM achievements
-                WHERE is_active = true
-                AND id NOT IN (
+                WHERE id NOT IN (
                     SELECT achievement_id FROM user_achievements
                     WHERE user_id = %s
                 )
@@ -163,33 +161,39 @@ class AchievementManager:
 
             # Check each achievement
             for achievement in achievements:
-                a_id, name, desc, xp, rarity, icon, criteria_type, criteria_value = achievement
+                a_id, name, desc, xp_bonus, rarity, badge_icon, criteria = achievement
+
+                # Parse JSONB criteria
+                criteria_type = criteria.get('type') if criteria else None
+                criteria_value = criteria.get('value') or criteria.get('days') or criteria.get('count')
 
                 qualifies = False
 
                 # Check criteria
-                if criteria_type == 'level' and level >= criteria_value:
+                if criteria_type == 'level' and criteria_value and level >= criteria_value:
                     qualifies = True
-                elif criteria_type == 'total_xp' and total_xp >= criteria_value:
+                elif criteria_type == 'total_xp' and criteria_value and total_xp >= criteria_value:
                     qualifies = True
-                elif criteria_type == 'quest_count' and quests_completed >= criteria_value:
+                elif criteria_type == 'quest_count' and criteria_value and quests_completed >= criteria_value:
                     qualifies = True
-                elif criteria_type == 'streak' and current_streak >= criteria_value:
+                elif criteria_type == 'quest_complete' and criteria_value and quests_completed >= criteria_value:
                     qualifies = True
-                elif criteria_type == 'longest_streak' and longest_streak >= criteria_value:
+                elif criteria_type == 'streak' and criteria_value and current_streak >= criteria_value:
                     qualifies = True
-                elif criteria_type == 'daily_quests' and daily_quests >= criteria_value:
+                elif criteria_type == 'longest_streak' and criteria_value and longest_streak >= criteria_value:
                     qualifies = True
-                elif criteria_type == 'weekly_quests' and weekly_quests >= criteria_value:
+                elif criteria_type == 'daily_quests' and criteria_value and daily_quests >= criteria_value:
+                    qualifies = True
+                elif criteria_type == 'weekly_quests' and criteria_value and weekly_quests >= criteria_value:
                     qualifies = True
 
                 # Unlock if qualifies
                 if qualifies:
                     cursor.execute("""
                         INSERT INTO user_achievements (
-                            user_id, achievement_id, unlocked_at, progress
+                            user_id, achievement_id, unlocked_at
                         )
-                        VALUES (%s, %s, NOW(), 100)
+                        VALUES (%s, %s, NOW())
                         ON CONFLICT DO NOTHING
                         RETURNING id, unlocked_at
                     """, (user_id, a_id))
@@ -200,10 +204,10 @@ class AchievementManager:
                             "id": a_id,
                             "name": name,
                             "description": desc,
-                            "xp_reward": xp,
+                            "xp_bonus": xp_bonus,
                             "rarity": rarity,
-                            "icon": icon,
-                            "criteria": f"{criteria_type}: {criteria_value}",
+                            "badge_icon": badge_icon,
+                            "criteria": criteria,
                             "unlocked_at": result[1].isoformat() if result[1] else None
                         })
 
@@ -245,12 +249,10 @@ class AchievementManager:
                     ua.achievement_id,
                     a.name,
                     a.description,
-                    a.xp_reward,
+                    a.xp_bonus,
                     a.rarity,
-                    a.icon,
-                    a.category,
-                    ua.unlocked_at,
-                    ua.progress
+                    a.badge_icon,
+                    ua.unlocked_at
                 FROM user_achievements ua
                 JOIN achievements a ON ua.achievement_id = a.id
                 WHERE ua.user_id = %s
@@ -264,17 +266,15 @@ class AchievementManager:
                     "achievement_id": row[1],
                     "name": row[2],
                     "description": row[3],
-                    "xp_reward": row[4],
+                    "xp_bonus": row[4],
                     "rarity": row[5],
-                    "icon": row[6],
-                    "category": row[7],
-                    "unlocked_at": row[8].isoformat() if row[8] else None,
-                    "progress": row[9]
+                    "badge_icon": row[6],
+                    "unlocked_at": row[7].isoformat() if row[7] else None
                 })
 
             # Get total count
             cursor.execute("""
-                SELECT COUNT(*) FROM achievements WHERE is_active = true
+                SELECT COUNT(*) FROM achievements
             """)
             total = cursor.fetchone()[0]
 
@@ -304,11 +304,9 @@ class AchievementManager:
 
             cursor.execute("""
                 SELECT
-                    id, name, description, xp_reward, rarity, icon,
-                    category, criteria_type, criteria_value
+                    id, name, description, xp_bonus, rarity, badge_icon, criteria
                 FROM achievements
-                WHERE is_active = true
-                AND id NOT IN (
+                WHERE id NOT IN (
                     SELECT achievement_id FROM user_achievements
                     WHERE user_id = %s
                 )
@@ -317,17 +315,16 @@ class AchievementManager:
 
             achievements = []
             for row in cursor.fetchall():
+                criteria = row[6]
                 achievements.append({
                     "id": row[0],
                     "name": row[1],
                     "description": row[2],
-                    "xp_reward": row[3],
+                    "xp_bonus": row[3],
                     "rarity": row[4],
-                    "icon": row[5],
-                    "category": row[6],
-                    "criteria_type": row[7],
-                    "criteria_value": row[8],
-                    "criteria_text": self._format_criteria(row[7], row[8])
+                    "badge_icon": row[5],
+                    "criteria": criteria,
+                    "criteria_text": self._format_criteria(criteria)
                 })
 
             return {
@@ -354,8 +351,8 @@ class AchievementManager:
 
             cursor.execute("""
                 SELECT
-                    a.id, a.name, a.description, a.icon, a.rarity,
-                    a.xp_reward, ua.unlocked_at
+                    a.id, a.name, a.description, a.badge_icon, a.rarity,
+                    a.xp_bonus, ua.unlocked_at
                 FROM user_achievements ua
                 JOIN achievements a ON ua.achievement_id = a.id
                 WHERE ua.user_id = %s
@@ -369,9 +366,9 @@ class AchievementManager:
                     "id": row[0],
                     "name": row[1],
                     "description": row[2],
-                    "icon": row[3],
+                    "badge_icon": row[3],
                     "rarity": row[4],
-                    "xp_reward": row[5],
+                    "xp_bonus": row[5],
                     "unlocked_at": row[6].isoformat() if row[6] else None
                 })
 
@@ -399,7 +396,7 @@ class AchievementManager:
 
             # Total achievements
             cursor.execute("""
-                SELECT COUNT(*) FROM achievements WHERE is_active = true
+                SELECT COUNT(*) FROM achievements
             """)
             total = cursor.fetchone()[0]
 
@@ -422,19 +419,6 @@ class AchievementManager:
             for row in cursor.fetchall():
                 by_rarity[row[0]] = row[1]
 
-            # By category
-            cursor.execute("""
-                SELECT a.category, COUNT(*) as count
-                FROM user_achievements ua
-                JOIN achievements a ON ua.achievement_id = a.id
-                WHERE ua.user_id = %s
-                GROUP BY a.category
-            """, (user_id,))
-
-            by_category = {}
-            for row in cursor.fetchall():
-                by_category[row[0]] = row[1]
-
             return {
                 "success": True,
                 "stats": {
@@ -442,8 +426,7 @@ class AchievementManager:
                     "unlocked": unlocked,
                     "locked": total - unlocked,
                     "percentage": round((unlocked / total) * 100, 2) if total > 0 else 0,
-                    "by_rarity": by_rarity,
-                    "by_category": by_category
+                    "by_rarity": by_rarity
                 }
             }
 
@@ -464,26 +447,23 @@ class AchievementManager:
 
             cursor.execute("""
                 SELECT
-                    id, name, description, icon, xp_reward, rarity, category,
-                    criteria_type, criteria_value, is_active
+                    id, name, description, badge_icon, xp_bonus, rarity, criteria
                 FROM achievements
-                ORDER BY rarity DESC, category, name
+                ORDER BY rarity DESC, name
             """)
 
             achievements = []
             for row in cursor.fetchall():
+                criteria = row[6]
                 achievements.append({
                     "id": row[0],
                     "name": row[1],
                     "description": row[2],
-                    "icon": row[3],
-                    "xp_reward": row[4],
+                    "badge_icon": row[3],
+                    "xp_bonus": row[4],
                     "rarity": row[5],
-                    "category": row[6],
-                    "criteria_type": row[7],
-                    "criteria_value": row[8],
-                    "criteria_text": self._format_criteria(row[7], row[8]),
-                    "is_active": row[9]
+                    "criteria": criteria,
+                    "criteria_text": self._format_criteria(criteria)
                 })
 
             return {
@@ -501,12 +481,18 @@ class AchievementManager:
                 cursor.close()
 
     @staticmethod
-    def _format_criteria(criteria_type: str, criteria_value: int) -> str:
-        """Format criteria for display"""
+    def _format_criteria(criteria: Optional[Dict]) -> str:
+        """Format JSONB criteria dict for display"""
+        if not criteria:
+            return "Unknown criteria"
+        criteria_type = criteria.get('type', '')
+        criteria_value = criteria.get('value') or criteria.get('days') or criteria.get('count')
         formats = {
             'level': f"Reach level {criteria_value}",
             'total_xp': f"Earn {criteria_value} total XP",
             'quest_count': f"Complete {criteria_value} quests",
+            'quest_complete': f"Complete {criteria_value} quests",
+            'quest_complete_consecutive': f"Complete quests {criteria_value} days in a row",
             'streak': f"Maintain a {criteria_value}-day streak",
             'longest_streak': f"Achieve a {criteria_value}-day streak",
             'daily_quests': f"Complete {criteria_value} daily quests",
