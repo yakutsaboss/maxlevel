@@ -9,7 +9,7 @@
  */
 
 import { Router, Request, Response } from 'express';
-import { authenticateTelegram } from '../middleware/auth.js';
+import { authenticateTelegram, requireOwnership } from '../middleware/auth.js';
 import { query, queryOne } from '../../utils/db.js';
 import {
   asyncHandler,
@@ -27,6 +27,7 @@ const router = Router();
  */
 router.get('/:telegramId/settings', authenticateTelegram, asyncHandler(async (req: Request, res: Response) => {
   const telegramId = parseInt(req.params.telegramId);
+  requireOwnership(req);
   if (isNaN(telegramId)) {
     throw new BadRequestError('Invalid telegram ID');
   }
@@ -53,6 +54,7 @@ router.get('/:telegramId/settings', authenticateTelegram, asyncHandler(async (re
  */
 router.patch('/:telegramId/settings', authenticateTelegram, asyncHandler(async (req: Request, res: Response) => {
   const telegramId = parseInt(req.params.telegramId);
+  requireOwnership(req);
   if (isNaN(telegramId)) {
     throw new BadRequestError('Invalid telegram ID');
   }
@@ -152,6 +154,7 @@ router.patch('/:telegramId/settings', authenticateTelegram, asyncHandler(async (
  */
 router.get('/:telegramId/history', authenticateTelegram, asyncHandler(async (req: Request, res: Response) => {
   const telegramId = parseInt(req.params.telegramId);
+  requireOwnership(req);
   if (isNaN(telegramId)) {
     throw new BadRequestError('Invalid telegram ID');
   }
