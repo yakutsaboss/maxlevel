@@ -6,7 +6,7 @@
 
 import { InlineKeyboard } from 'grammy';
 import type { MyContext } from '../bot.js';
-import { executePythonTool } from '../utils/pythonTools.js';
+import { queryOne, execute } from '../utils/db.js';
 
 // Callback data prefixes
 const CB = {
@@ -37,12 +37,7 @@ const TIMEZONES = [
 async function getUserData(ctx: MyContext) {
   const telegramId = ctx.from?.id;
   if (!telegramId) return null;
-
-  const result = await executePythonTool('user_manager', [
-    '--get-user', '--telegram-id', telegramId.toString(),
-  ]);
-
-  return result.success ? result.data : null;
+  return queryOne('SELECT * FROM users WHERE telegram_id = $1', [telegramId]);
 }
 
 /**
@@ -103,10 +98,7 @@ export async function handleSettingsCallback(ctx: MyContext) {
   // Toggle notification on/off
   if (data === CB.NOTIF_ON || data === CB.NOTIF_OFF) {
     const enabled = data === CB.NOTIF_ON;
-    await executePythonTool('user_manager', [
-      '--update-user', '--user-id', user.id.toString(),
-      '--field', 'notification_enabled', '--value', enabled ? 'true' : 'false',
-    ]);
+    await execute('UPDATE users SET notification_enabled = $1 WHERE id = $2', [enabled, user.id]);
 
     await ctx.answerCallbackQuery({ text: enabled ? '🔔 Notifications enabled!' : '🔕 Notifications disabled!' });
     await showMainSettings(ctx, { ...user, notification_enabled: enabled });
@@ -132,10 +124,7 @@ export async function handleSettingsCallback(ctx: MyContext) {
   // Set reminder time
   if (data.startsWith(CB.REMINDER_SET)) {
     const hour = data.replace(CB.REMINDER_SET, '');
-    await executePythonTool('user_manager', [
-      '--update-user', '--user-id', user.id.toString(),
-      '--field', 'reminder_hour', '--value', hour,
-    ]);
+    await execute('UPDATE users SET reminder_hour = $1 WHERE id = $2', [parseInt(hour), user.id]);
 
     const label = REMINDER_HOURS.find(h => h.hour.toString() === hour)?.label || hour;
     await ctx.answerCallbackQuery({ text: `⏰ Reminder set to ${label}` });
@@ -162,9 +151,7 @@ export async function handleSettingsCallback(ctx: MyContext) {
   // Set timezone
   if (data.startsWith(CB.TZ_SET)) {
     const tz = data.replace(CB.TZ_SET, '');
-    await executePythonTool('user_manager', [
-      '--update-timezone', '--user-id', user.id.toString(), '--timezone', tz,
-    ]);
+    await execute('UPDATE users SET timezone = $1 WHERE id = $2', [tz, user.id]);
 
     const label = TIMEZONES.find(t => t.tz === tz)?.label || tz;
     await ctx.answerCallbackQuery({ text: `🌍 Timezone set to ${label}` });
