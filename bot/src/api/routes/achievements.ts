@@ -167,13 +167,16 @@ router.post('/users/:userId/:achievementId/unlock', authenticateTelegram, async 
     }
 
     res.json({
-      message: 'Achievement unlocked successfully',
-      achievement: result.achievement,
-      xpEarned: result.achievement.xp_bonus,
+      success: true,
+      data: {
+        message: 'Achievement unlocked successfully',
+        achievement: result.achievement,
+        xpEarned: result.achievement.xp_bonus,
+      },
     });
   } catch (error) {
     console.error('Error unlocking achievement:', error);
-    res.status(500).json({ error: 'Server Error', message: 'Failed to unlock achievement' });
+    res.status(500).json({ success: false, error: 'Failed to unlock achievement' });
   }
 });
 
