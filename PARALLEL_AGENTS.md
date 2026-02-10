@@ -2617,7 +2617,22 @@ const mockExecute = vi.mocked(execute);
 *(To be filled by Agent C)*
 
 #### Agent D Retrospective
-*(To be filled by Agent D)*
+
+| # | Task | Status |
+|---|------|--------|
+| 1 | Create `bot/src/utils/streak.ts` with shared `updateStreak()` | Done |
+| 2 | Update `routes/quests.ts` — import from shared streak.ts | Done |
+| 3 | Update `routes/users.ts` PATCH streak — use shared `updateStreak()` | Done |
+| 4 | Clean up `pythonTools.ts` — remove 178 lines of unused wrappers | Done |
+| 5 | Verify imports + build | Done (see note) |
+
+**Build note:** After cleanup, `handlers/start.ts` fails to compile because it imports `createUser` and `getUserByTelegramId` (removed wrappers). This is expected — `start.ts` is Agent B's FORBIDDEN file. Once Agent B merges their native SQL migration of `start.ts`, the error resolves. No other files are broken.
+
+**Stats:** `pythonTools.ts` reduced from 261 → 83 lines. `quests.ts` lost 19 lines (local function). `users.ts` lost 15 lines (inline logic replaced by shared call + re-fetch).
+
+**Recommendations for next run:**
+- After all Run 24 agents merge, `pythonTools.ts` should only be imported by `admin-stats.ts` and `analyticsExport.ts`. Could consider moving the Google Sheets export to a different pattern (e.g., direct API call) to eventually remove Python subprocess entirely.
+- The test `__tests__/setup.ts` still mocks all the old wrapper functions — Agent E or a future run should clean that up.
 
 #### Agent E Retrospective
 *(To be filled by Agent E)*
