@@ -433,7 +433,29 @@ Read PARALLEL_AGENTS.md — you are Agent C for Run 17. Your job: mini-app archi
 - No changes to non-admin routes (users.ts, quests.ts, etc.) — those were already consistent.
 
 #### Agent C Retrospective
-*(To be filled by Agent C)*
+
+**All 7 tasks completed. Build passes with zero errors.**
+
+| # | Task | Status |
+|---|------|--------|
+| 1 | Create `api/adminClient.ts` (shared API_BASE_URL + adminFetch) | Done |
+| 2 | Refactor `Admin.tsx` — import from adminClient | Done |
+| 3 | Refactor 4 admin components — replace local API_BASE_URL | Done |
+| 4 | Create `ProtectedRoute.tsx` component | Done |
+| 5 | Refactor `App.tsx` — use ProtectedRoute, remove PageWrapper | Done |
+| 6 | Fix `useTelegram.ts` — replace `(tg as any)` with `in` type guards | Done |
+| 7 | Build verification | Done (0 errors) |
+
+**Problems faced:** None. The worktree was clean, all file boundaries were respected, and the build passed on the first try.
+
+**Key decisions:**
+- `adminClient.ts` exports both `API_BASE_URL` (for components using raw `fetch()`) and `adminFetch()` (for Admin.tsx). Kept it simple — no auto-unwrap logic since the components already handle `data.data || data` patterns themselves.
+- `ProtectedRoute` accepts `needsOnboarding` as a prop (not context) since it's local state in AppContent. Also accepts `lazy` boolean for lazy-loaded pages.
+- App.tsx shrank by 30 lines — from repeated ternary patterns to clean `<ProtectedRoute>` wrappers.
+
+**Recommendations for next run:**
+- The 4 admin components (AdminBroadcast, AdminJobs, AdminLogs, AdminUserList) still use raw `fetch()` with `API_BASE_URL` — they could be further refactored to use `adminFetch()` to reduce boilerplate (auth headers). Not done here because the task spec only asked to deduplicate `API_BASE_URL`.
+- Consider adding an `AdminContext` or `useAdmin()` hook to avoid prop-drilling `credentials` through every admin component.
 
 #### Agent 0 Retrospective
 *(To be filled by Agent 0 after merge & deploy)*

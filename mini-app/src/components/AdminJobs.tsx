@@ -1,8 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Play, RefreshCw, Clock } from 'lucide-react';
 import { Toast } from '@/components/Toast';
-
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
+import { API_BASE_URL } from '@/api/adminClient';
 
 interface Job {
   name: string;

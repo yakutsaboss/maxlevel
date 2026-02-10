@@ -1,8 +1,7 @@
 import { useState, useCallback } from 'react';
 import { Send, AlertTriangle } from 'lucide-react';
 import { Toast } from '@/components/Toast';
-
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
+import { API_BASE_URL } from '@/api/adminClient';
 
 interface AdminBroadcastProps {
   credentials: string;

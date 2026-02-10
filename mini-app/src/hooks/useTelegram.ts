@@ -17,14 +17,14 @@ export function useTelegram() {
 
     // Disable vertical swipes so barrel wheels / scrollable elements
     // don't trigger Telegram's swipe-to-close gesture
-    if (typeof (tg as any).disableVerticalSwipes === 'function') {
-      (tg as any).disableVerticalSwipes();
+    if ('disableVerticalSwipes' in tg && typeof tg.disableVerticalSwipes === 'function') {
+      tg.disableVerticalSwipes();
     }
 
     return () => {
       tg.disableClosingConfirmation();
-      if (typeof (tg as any).enableVerticalSwipes === 'function') {
-        (tg as any).enableVerticalSwipes();
+      if ('enableVerticalSwipes' in tg && typeof tg.enableVerticalSwipes === 'function') {
+        tg.enableVerticalSwipes();
       }
     };
   }, [tg]);

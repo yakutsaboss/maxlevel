@@ -1,8 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { ChevronLeft, ChevronRight, User, ArrowLeft, Search } from 'lucide-react';
 import { motion } from 'framer-motion';
-
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
+import { API_BASE_URL } from '@/api/adminClient';
 
 interface UserSummary {
   id: number;
