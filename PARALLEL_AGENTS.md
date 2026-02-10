@@ -826,4 +826,24 @@ Find your section under "Run 13 Retrospectives" below and replace the placeholde
 - XP badge gradient (yellow-to-orange) may clash with certain Telegram themes — test in dark mode.
 
 #### Agent F Retrospective
-*(To be filled by Agent F)*
+
+**Status:** All tasks completed, build passes.
+
+| # | Task | Status |
+|---|------|--------|
+| 1 | Auto-save for accountability toggles (consent, intensity, safe mode) | Done |
+| 2 | Save indicator feedback (Saved/Saving/Error with animation) | Done (merged with Task 1) |
+| 3 | Leaderboard top 3 styling + separator + improved layout | Done |
+| 4 | Build verification | Pass — zero errors |
+
+**What was done:**
+- **Settings auto-save**: Accountability toggles (consent, safe mode) now auto-save immediately on change. Intensity level debounces 500ms before saving. Global "Save Settings" button now only handles notification preferences. Haptic feedback on successful save.
+- **Save indicator**: AnimatePresence-based fade indicator shows "Saving...", "Saved", or "Failed to save" below the accountability section. Auto-dismisses after 2 seconds.
+- **Leaderboard polish**: Top 3 entries get larger avatars (48px vs 40px), medal-colored borders and gradient backgrounds (gold/silver/bronze), subtle glow shadows. A labeled separator divides top 3 from the rest. Current user highlight remains the same blue border treatment.
+
+**Problems faced:** None. Both files were self-contained with no cross-dependencies. Build passed on first try.
+
+**Recommendations for next run:**
+- Known Issue #10 (monthly leaderboard) is still open — needs a backend endpoint before frontend can add the tab.
+- Consider adding a "Your Rank" sticky footer on the leaderboard when the current user is scrolled out of view.
+- The notification preferences could benefit from auto-save too (currently still uses the global button), but that's a minor UX improvement.

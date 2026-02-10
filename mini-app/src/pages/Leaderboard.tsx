@@ -37,12 +37,18 @@ function getInitials(firstName: string, username?: string): string {
   return '?';
 }
 
-function RankIcon({ rank }: { rank: number }) {
-  if (rank === 1) return <Trophy className="w-6 h-6 text-yellow-500" />;
-  if (rank === 2) return <Medal className="w-6 h-6 text-gray-400" />;
-  if (rank === 3) return <Award className="w-6 h-6 text-amber-600" />;
+function RankIcon({ rank, isTop }: { rank: number; isTop?: boolean }) {
+  if (rank === 1) return <Trophy className={`${isTop ? 'w-7 h-7' : 'w-6 h-6'} text-yellow-500`} />;
+  if (rank === 2) return <Medal className={`${isTop ? 'w-7 h-7' : 'w-6 h-6'} text-gray-400`} />;
+  if (rank === 3) return <Award className={`${isTop ? 'w-7 h-7' : 'w-6 h-6'} text-amber-600`} />;
   return <span className="text-sm font-bold text-telegram-hint w-6 text-center">{rank}</span>;
 }
+
+const TOP_RANK_STYLES: Record<number, { border: string; bg: string; glow: string }> = {
+  1: { border: 'border-yellow-400', bg: 'bg-yellow-500/10', glow: 'shadow-yellow-500/20 shadow-md' },
+  2: { border: 'border-gray-400', bg: 'bg-gray-400/10', glow: 'shadow-gray-400/20 shadow-md' },
+  3: { border: 'border-amber-600', bg: 'bg-amber-600/10', glow: 'shadow-amber-600/20 shadow-md' },
+};
 
 export function Leaderboard() {
   const { user, haptic } = useTelegram();
@@ -193,57 +199,124 @@ export function Leaderboard() {
         </div>
       </div>
 
-      <div className="px-4 mt-6 space-y-2">
+      <div className="px-4 mt-6">
         {entries.length === 0 ? (
           <div className="text-center py-12">
             <Trophy className="w-12 h-12 text-telegram-hint mx-auto mb-3" />
             <p className="text-telegram-hint">No rankings yet. Be the first!</p>
           </div>
         ) : (
-          entries.map((entry, index) => {
-            const isCurrentUser = currentUserId === entry.telegram_id;
-            const rank = entry.xp_rank || index + 1;
-            return (
-              <motion.div
-                key={entry.user_id}
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: index * 0.03 }}
-                className={`rounded-2xl p-3 flex items-center gap-3 border-2 transition-colors ${
-                  isCurrentUser
-                    ? 'bg-telegram-link/10 border-telegram-link'
-                    : 'bg-telegram-secondaryBg border-transparent'
-                }`}
-              >
-                <div className="w-8 flex-shrink-0 flex justify-center">
-                  <RankIcon rank={rank} />
-                </div>
-                <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white font-bold text-sm flex-shrink-0 ${getAvatarColor(entry.first_name || entry.username || '')}`}>
-                  {getInitials(entry.first_name, entry.username)}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-1.5">
-                    <span className={`font-semibold text-sm truncate ${isCurrentUser ? 'text-telegram-link' : ''}`}>
-                      {entry.first_name || entry.username || 'Adventurer'}
-                    </span>
-                    {isCurrentUser && (
-                      <span className="text-xs bg-telegram-link text-white px-1.5 py-0.5 rounded-full flex-shrink-0">You</span>
-                    )}
-                  </div>
-                  <div className="flex items-center gap-2 text-xs text-telegram-hint">
-                    <span>Lv {entry.level}</span>
-                    <span>·</span>
-                    <span>{entry.total_quests_completed} quests</span>
-                    {entry.current_streak > 0 && <span>🔥 {entry.current_streak}d</span>}
-                  </div>
-                </div>
-                <div className="text-right flex-shrink-0">
-                  <div className="text-sm font-bold">{(timePeriod === 'weekly' && entry.weekly_xp != null ? entry.weekly_xp : entry.total_xp).toLocaleString()}</div>
-                  <div className="text-xs text-telegram-hint">{timePeriod === 'weekly' ? 'Weekly XP' : 'XP'}</div>
-                </div>
-              </motion.div>
-            );
-          })
+          <>
+            {/* Top 3 with special styling */}
+            <div className="space-y-2.5">
+              {entries.slice(0, 3).map((entry, index) => {
+                const isCurrentUser = currentUserId === entry.telegram_id;
+                const rank = entry.xp_rank || index + 1;
+                const rankStyle = TOP_RANK_STYLES[rank];
+                const xpValue = timePeriod === 'weekly' && entry.weekly_xp != null ? entry.weekly_xp : entry.total_xp;
+                return (
+                  <motion.div
+                    key={entry.user_id}
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: index * 0.05 }}
+                    className={`rounded-2xl p-4 flex items-center gap-3 border-2 ${
+                      isCurrentUser
+                        ? 'bg-telegram-link/10 border-telegram-link'
+                        : rankStyle
+                          ? `${rankStyle.bg} ${rankStyle.border} ${rankStyle.glow}`
+                          : 'bg-telegram-secondaryBg border-transparent'
+                    }`}
+                  >
+                    <div className="w-9 flex-shrink-0 flex justify-center">
+                      <RankIcon rank={rank} isTop />
+                    </div>
+                    <div className={`w-12 h-12 rounded-full flex items-center justify-center text-white font-bold text-base flex-shrink-0 ${getAvatarColor(entry.first_name || entry.username || '')}`}>
+                      {getInitials(entry.first_name, entry.username)}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-1.5">
+                        <span className={`font-bold text-sm truncate ${isCurrentUser ? 'text-telegram-link' : ''}`}>
+                          {entry.first_name || entry.username || 'Adventurer'}
+                        </span>
+                        {isCurrentUser && (
+                          <span className="text-xs bg-telegram-link text-white px-1.5 py-0.5 rounded-full flex-shrink-0">You</span>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2 text-xs text-telegram-hint mt-0.5">
+                        <span>Lv {entry.level}</span>
+                        <span>·</span>
+                        <span>{entry.total_quests_completed} quests</span>
+                        {entry.current_streak > 0 && <span>🔥 {entry.current_streak}d</span>}
+                      </div>
+                    </div>
+                    <div className="text-right flex-shrink-0">
+                      <div className="text-base font-bold">{xpValue.toLocaleString()}</div>
+                      <div className="text-xs text-telegram-hint">{timePeriod === 'weekly' ? 'Weekly XP' : 'XP'}</div>
+                    </div>
+                  </motion.div>
+                );
+              })}
+            </div>
+
+            {/* Separator between top 3 and rest */}
+            {entries.length > 3 && (
+              <div className="flex items-center gap-3 my-4 px-2">
+                <div className="flex-1 h-px bg-telegram-hint/20" />
+                <span className="text-xs text-telegram-hint">#{4} and below</span>
+                <div className="flex-1 h-px bg-telegram-hint/20" />
+              </div>
+            )}
+
+            {/* Rest of the list */}
+            <div className="space-y-1.5">
+              {entries.slice(3).map((entry, index) => {
+                const isCurrentUser = currentUserId === entry.telegram_id;
+                const rank = entry.xp_rank || index + 4;
+                const xpValue = timePeriod === 'weekly' && entry.weekly_xp != null ? entry.weekly_xp : entry.total_xp;
+                return (
+                  <motion.div
+                    key={entry.user_id}
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: (index + 3) * 0.03 }}
+                    className={`rounded-2xl p-3 flex items-center gap-3 border-2 transition-colors ${
+                      isCurrentUser
+                        ? 'bg-telegram-link/10 border-telegram-link'
+                        : 'bg-telegram-secondaryBg border-transparent'
+                    }`}
+                  >
+                    <div className="w-8 flex-shrink-0 flex justify-center">
+                      <RankIcon rank={rank} />
+                    </div>
+                    <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white font-bold text-sm flex-shrink-0 ${getAvatarColor(entry.first_name || entry.username || '')}`}>
+                      {getInitials(entry.first_name, entry.username)}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-1.5">
+                        <span className={`font-semibold text-sm truncate ${isCurrentUser ? 'text-telegram-link' : ''}`}>
+                          {entry.first_name || entry.username || 'Adventurer'}
+                        </span>
+                        {isCurrentUser && (
+                          <span className="text-xs bg-telegram-link text-white px-1.5 py-0.5 rounded-full flex-shrink-0">You</span>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2 text-xs text-telegram-hint">
+                        <span>Lv {entry.level}</span>
+                        <span>·</span>
+                        <span>{entry.total_quests_completed} quests</span>
+                        {entry.current_streak > 0 && <span>🔥 {entry.current_streak}d</span>}
+                      </div>
+                    </div>
+                    <div className="text-right flex-shrink-0">
+                      <div className="text-sm font-bold">{xpValue.toLocaleString()}</div>
+                      <div className="text-xs text-telegram-hint">{timePeriod === 'weekly' ? 'Weekly XP' : 'XP'}</div>
+                    </div>
+                  </motion.div>
+                );
+              })}
+            </div>
+          </>
         )}
       </div>
     </div>
