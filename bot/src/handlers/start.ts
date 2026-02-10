@@ -6,6 +6,7 @@
 import { InlineKeyboard } from 'grammy';
 import { MyContext, getUserName, getTelegramId, sendMarkdownMessage } from '../bot.js';
 import { query, queryOne, execute } from '../utils/db.js';
+import { getUserByTelegramId } from '../utils/queries.js';
 import { handleOnboarding } from './onboarding.js';
 import { logger } from '../api/utils/logger.js';
 
@@ -23,7 +24,7 @@ export async function handleStart(ctx: MyContext) {
 
   try {
     // Check if user exists
-    const user = await queryOne('SELECT * FROM users WHERE telegram_id = $1', [telegramId]);
+    const user = await getUserByTelegramId(telegramId);
 
     if (user && user.is_active) {
       // Active user - welcome back with engagement

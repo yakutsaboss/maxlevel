@@ -7,6 +7,7 @@ import { Router, Request, Response } from 'express';
 import { requireRole } from '../middleware/adminAuth.js';
 import { executePythonTool } from '../../utils/pythonTools.js';
 import { query } from '../../utils/db.js';
+import { listAllModes } from '../../utils/queries.js';
 import {
   asyncHandler,
   successResponse,
@@ -73,7 +74,7 @@ router.post('/analytics/export', requireRole('admin'), asyncHandler(async (req: 
  * List all modes
  */
 router.get('/modes', asyncHandler(async (req: Request, res: Response) => {
-  const modes = await query('SELECT * FROM modes ORDER BY id');
+  const modes = await listAllModes();
 
   res.json(successResponse({
     modes,

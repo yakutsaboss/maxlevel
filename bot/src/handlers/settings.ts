@@ -7,6 +7,7 @@
 import { InlineKeyboard } from 'grammy';
 import type { MyContext } from '../bot.js';
 import { queryOne, execute } from '../utils/db.js';
+import { getUserByTelegramId } from '../utils/queries.js';
 
 // Callback data prefixes
 const CB = {
@@ -37,7 +38,7 @@ const TIMEZONES = [
 async function getUserData(ctx: MyContext) {
   const telegramId = ctx.from?.id;
   if (!telegramId) return null;
-  return queryOne('SELECT * FROM users WHERE telegram_id = $1', [telegramId]);
+  return getUserByTelegramId(telegramId);
 }
 
 /**
