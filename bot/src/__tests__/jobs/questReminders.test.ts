@@ -9,10 +9,13 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 // ─── Mocks ───────────────────────────────────────────────────────────
 
-const mockExecutePythonTool = vi.fn();
+const mockQuery = vi.fn();
 
-vi.mock('../../utils/pythonTools.js', () => ({
-  executePythonTool: (...args: any[]) => mockExecutePythonTool(...args),
+vi.mock('../../utils/db.js', () => ({
+  query: (...args: any[]) => mockQuery(...args),
+  queryOne: vi.fn(),
+  execute: vi.fn(),
+  getPool: vi.fn(),
 }));
 
 beforeEach(() => {
@@ -39,7 +42,8 @@ describe('questReminders', () => {
   it('should handle query failure gracefully', async () => {
     const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
 
-    mockExecutePythonTool.mockResolvedValueOnce({ success: false, data: null });
+    // query throws (DB error) — handler should catch and log
+    mockQuery.mockRejectedValueOnce(new Error('DB error'));
 
     const mockBot = { api: { sendMessage: vi.fn() } } as any;
     setBotInstance(mockBot);
@@ -52,10 +56,11 @@ describe('questReminders', () => {
     consoleSpy.mockRestore();
   });
 
-  it('should handle non-array data gracefully', async () => {
+  it('should handle empty result gracefully', async () => {
     const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
 
-    mockExecutePythonTool.mockResolvedValueOnce({ success: true, data: 'not-array' });
+    // query returns empty array (no pending quests)
+    mockQuery.mockResolvedValueOnce([]);
 
     const mockBot = { api: { sendMessage: vi.fn() } } as any;
     setBotInstance(mockBot);
@@ -74,7 +79,8 @@ describe('questReminders', () => {
       { telegram_id: 222, first_name: 'Bob', pending_count: 1 },
     ];
 
-    mockExecutePythonTool.mockResolvedValueOnce({ success: true, data: users });
+    // query returns users with pending quests directly
+    mockQuery.mockResolvedValueOnce(users);
 
     const mockBot = { api: { sendMessage: vi.fn().mockResolvedValue({}) } } as any;
     setBotInstance(mockBot);
@@ -96,7 +102,7 @@ describe('questReminders', () => {
       { telegram_id: 111, first_name: 'Alice', pending_count: 2 },
     ];
 
-    mockExecutePythonTool.mockResolvedValueOnce({ success: true, data: users });
+    mockQuery.mockResolvedValueOnce(users);
 
     const mockBot = {
       api: { sendMessage: vi.fn().mockRejectedValue(new Error('User blocked bot')) },
@@ -122,7 +128,7 @@ describe('questReminders', () => {
       { telegram_id: 111, first_name: 'Alice', pending_count: 1 },
     ];
 
-    mockExecutePythonTool.mockResolvedValueOnce({ success: true, data: users });
+    mockQuery.mockResolvedValueOnce(users);
 
     // Note: retry_after=0 is falsy so handler's `|| 5` defaults to 5.
     // Use fake timers to avoid the real 5s delay.
@@ -160,7 +166,7 @@ describe('questReminders', () => {
       { telegram_id: 111, first_name: null, pending_count: 2 },
     ];
 
-    mockExecutePythonTool.mockResolvedValueOnce({ success: true, data: users });
+    mockQuery.mockResolvedValueOnce(users);
 
     const mockBot = { api: { sendMessage: vi.fn().mockResolvedValue({}) } } as any;
     setBotInstance(mockBot);
@@ -180,7 +186,7 @@ describe('questReminders', () => {
       { telegram_id: 222, first_name: 'Bob', pending_count: 1 },
     ];
 
-    mockExecutePythonTool.mockResolvedValueOnce({ success: true, data: users });
+    mockQuery.mockResolvedValueOnce(users);
 
     const mockBot = {
       api: {
