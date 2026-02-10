@@ -5,8 +5,7 @@
 
 import { InlineKeyboard } from 'grammy';
 import { MyContext, getUserName, getTelegramId, sendMarkdownMessage } from '../bot.js';
-import { createUser, getUserByTelegramId } from '../utils/pythonTools.js';
-import { query } from '../utils/db.js';
+import { query, queryOne, execute } from '../utils/db.js';
 import { handleOnboarding } from './onboarding.js';
 
 export async function handleStart(ctx: MyContext) {
@@ -21,11 +20,10 @@ export async function handleStart(ctx: MyContext) {
 
   try {
     // Check if user exists
-    const existingUserResult = await getUserByTelegramId(telegramId);
+    const user = await queryOne('SELECT * FROM users WHERE telegram_id = $1', [telegramId]);
 
-    if (existingUserResult.success && existingUserResult.data) {
+    if (user) {
       // User exists - welcome back with engagement
-      const user = existingUserResult.data;
 
       // Store user ID in session
       ctx.session.userId = user.id;
@@ -72,28 +70,31 @@ export async function handleStart(ctx: MyContext) {
       await ctx.reply('Choose an action:', { reply_markup: keyboard });
     } else {
       // New user - create account
-      const createUserResult = await createUser(
-        telegramId,
-        username,
-        userName,
-        'UTC' // Default timezone, can be updated later
-      );
+      try {
+        const newUser = await queryOne(
+          `INSERT INTO users (telegram_id, username, first_name, timezone)
+           VALUES ($1, $2, $3, 'UTC')
+           RETURNING *`,
+          [telegramId, username || null, userName]
+        );
 
-      if (createUserResult.success && createUserResult.data) {
-        // Store user ID in session
-        ctx.session.userId = createUserResult.data.id;
-        ctx.session.telegramId = telegramId;
-        ctx.session.username = username;
-        ctx.session.firstName = userName;
+        if (newUser) {
+          // Store user ID in session
+          ctx.session.userId = newUser.id;
+          ctx.session.telegramId = telegramId;
+          ctx.session.username = username;
+          ctx.session.firstName = userName;
 
-        // Start onboarding flow for new user
-        await handleOnboarding(ctx);
-      } else {
-        // Specific error for account creation failure
-        const reason = createUserResult.error || 'Unknown error';
+          // Start onboarding flow for new user
+          await handleOnboarding(ctx);
+        } else {
+          await ctx.reply(`❌ Couldn't create your account. Please try again.`);
+        }
+      } catch (createErr: any) {
+        const reason = createErr.message || 'Unknown error';
         console.error(`[/start] Failed to create user ${telegramId}: ${reason}`);
 
-        if (reason.includes('duplicate') || reason.includes('already exists')) {
+        if (reason.includes('duplicate') || reason.includes('already exists') || reason.includes('unique')) {
           await ctx.reply(
             `⚠️ Your account already exists but couldn't be loaded.\n\n` +
             `Please try /start again. If this keeps happening, contact support.`
@@ -124,10 +125,6 @@ export async function handleStart(ctx: MyContext) {
     } else if (msg.includes('timeout') || msg.includes('ETIMEDOUT')) {
       await ctx.reply(
         `⏳ The request timed out. The server might be under heavy load.\n\nPlease try again.`
-      );
-    } else if (msg.includes('Python') || msg.includes('spawn')) {
-      await ctx.reply(
-        `⚠️ A backend service is currently unavailable.\n\nPlease try again shortly.`
       );
     } else {
       await ctx.reply(
