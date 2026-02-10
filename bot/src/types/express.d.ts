@@ -8,6 +8,11 @@ declare global {
   namespace Express {
     interface Request {
       /**
+       * Unique request ID for tracing, set by request context middleware
+       */
+      requestId?: string;
+
+      /**
        * Telegram user data attached by authenticateTelegram middleware
        */
       telegramUser?: TelegramUser;
