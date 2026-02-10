@@ -3,17 +3,14 @@ import { useTelegram, useMainButton } from '@/hooks/useTelegram';
 import { usePullToRefresh, PullIndicator } from '@/hooks/usePullToRefresh';
 import { apiClient } from '@/api/client';
 import { Quest } from '@/types';
-import { Target, Zap, CheckCircle, Clock, Loader2, Calendar } from 'lucide-react';
+import { Target, CheckCircle, Clock } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { CheckInButton } from '@/components/CheckInButton';
-import { QuestDifficultyBadge } from '@/components/QuestDifficultyBadge';
 import { ErrorSection } from '@/components/ErrorSection';
+import { QuestCard } from '@/components/quests/QuestCard';
+import { QuestDetailModal } from '@/components/quests/QuestDetailModal';
+import { TabButton } from '@/components/quests/TabButton';
 
 type QuestTab = 'active' | 'completed';
-
-function formatDate(dateStr: string): string {
-  return new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric', year: 'numeric' }).format(new Date(dateStr));
-}
 
 export function Quests() {
   const { user, haptic } = useTelegram();
@@ -79,7 +76,6 @@ export function Quests() {
       haptic.notification('error');
     } finally { setCompleting(false); }
   };
-
 
   const handleCheckinSuccess = useCallback((result: { completed: boolean; current: number; target: number }) => {
     if (selectedQuest) {
@@ -192,172 +188,15 @@ export function Quests() {
         </AnimatePresence>
       </div>
 
-      <AnimatePresence>
-        {selectedQuest && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-end" onClick={() => { haptic.impact('light'); setSelectedQuest(null); }}>
-            <motion.div
-              layoutId={`quest-${selectedQuest.id}`}
-              initial={{ y: '100%' }}
-              animate={{ y: 0 }}
-              exit={{ y: '100%' }}
-              transition={{ type: 'spring', damping: 30, stiffness: 300 }}
-              className="bg-telegram-secondaryBg rounded-t-3xl w-full p-6 max-h-[80vh] overflow-y-auto"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div className="w-12 h-1 bg-telegram-hint/30 rounded-full mx-auto mb-4" />
-              <h2 className="text-xl font-bold mb-1">{selectedQuest.title || 'Untitled Quest'}</h2>
-              <p className="text-telegram-hint text-sm mb-2">{selectedQuest.description || 'No description'}</p>
-              {selectedQuest.target > 1 && (
-                <p className="text-sm text-telegram-link font-medium mb-4">
-                  Check in {selectedQuest.target} time{selectedQuest.target !== 1 ? 's' : ''} to complete
-                </p>
-              )}
-              {selectedQuest.target <= 1 && <div className="mb-2" />}
-
-              <div className="flex flex-wrap gap-2 mb-4">
-                <span className="inline-flex items-center gap-1 bg-gradient-to-r from-yellow-400 to-orange-400 text-white px-4 py-2 rounded-xl text-sm font-bold shadow-sm">
-                  <Zap className="w-4 h-4" />{selectedQuest.xp_reward} XP
-                </span>
-                {selectedQuest.difficulty && (
-                  <QuestDifficultyBadge difficulty={selectedQuest.difficulty} size="md" />
-                )}
-                <span className="bg-telegram-hint/20 text-telegram-hint px-3 py-1.5 rounded-xl text-sm">
-                  {selectedQuest.frequency}
-                </span>
-                {selectedQuest.mode && (
-                  <span className="bg-blue-100 text-blue-700 px-3 py-1.5 rounded-xl text-sm">
-                    {selectedQuest.mode.icon ?? '📋'} {selectedQuest.mode.display_name ?? 'Unknown'}
-                  </span>
-                )}
-              </div>
-
-              {selectedQuest.due_date && (
-                <div className="flex items-center gap-2 text-sm text-telegram-hint mb-4">
-                  <Calendar className="w-4 h-4" />
-                  <span>Due {formatDate(selectedQuest.due_date)}</span>
-                </div>
-              )}
-
-              <div className="mb-4">
-                <div className="flex justify-between text-sm mb-2">
-                  <span className="text-telegram-hint">Progress</span>
-                  <span className="font-semibold">{selectedQuest.progress} / {selectedQuest.target}</span>
-                </div>
-                <div className="bg-telegram-hint/20 rounded-full h-3 overflow-hidden">
-                  <motion.div
-                    className={`h-full ${selectedQuest.progress >= selectedQuest.target ? 'bg-green-500' : 'bg-gradient-to-r from-blue-500 to-purple-500'}`}
-                    initial={{ width: 0 }}
-                    animate={{ width: `${(selectedQuest.progress / selectedQuest.target) * 100}%` }}
-                  />
-                </div>
-                {selectedQuest.target > 1 && (
-                  <div className="flex items-center justify-center gap-2 mt-3">
-                    {Array.from({ length: selectedQuest.target }, (_, i) => (
-                      <motion.div
-                        key={i}
-                        initial={{ scale: 0 }}
-                        animate={{ scale: 1 }}
-                        transition={{ delay: i * 0.1 }}
-                        className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${
-                          i < selectedQuest.progress
-                            ? 'bg-green-500 text-white'
-                            : 'bg-telegram-hint/20 text-telegram-hint'
-                        }`}
-                      >
-                        {i < selectedQuest.progress ? '✓' : i + 1}
-                      </motion.div>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              {selectedQuest.status === 'active' && selectedQuest.progress < selectedQuest.target && user?.id && (
-                <div className="mb-4">
-                  <CheckInButton
-                    questInstanceId={selectedQuest.id}
-                    telegramId={user.id}
-                    onSuccess={handleCheckinSuccess}
-                    disabled={completing}
-                    currentProgress={selectedQuest.progress}
-                    target={selectedQuest.target}
-                  />
-                </div>
-              )}
-
-
-              {selectedQuest.progress >= selectedQuest.target && (
-                <div className="bg-green-100 border border-green-300 rounded-2xl p-4 text-center">
-                  {completing ? (
-                    <Loader2 className="w-8 h-8 text-green-600 mx-auto mb-2 animate-spin" />
-                  ) : (
-                    <CheckCircle className="w-8 h-8 text-green-600 mx-auto mb-2" />
-                  )}
-                  <p className="text-green-800 font-semibold">{completing ? 'Completing...' : 'Quest Complete!'}</p>
-                  <p className="text-green-600 text-sm">{completing ? 'Please wait' : 'Tap the button below to claim your reward'}</p>
-                </div>
-              )}
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      {selectedQuest && (
+        <QuestDetailModal
+          quest={selectedQuest}
+          completing={completing}
+          userId={user?.id}
+          onClose={() => { haptic.impact('light'); setSelectedQuest(null); }}
+          onCheckinSuccess={handleCheckinSuccess}
+        />
+      )}
     </div>
   );
 }
-
-function TabButton({ active, onClick, icon, label, count }: { active: boolean; onClick: () => void; icon: React.ReactNode; label: string; count: number }) {
-  return (
-    <button onClick={onClick} className={`flex-1 flex items-center justify-center gap-2 py-2 px-4 rounded-xl font-medium transition-all ${active ? 'bg-white text-blue-600 shadow-lg' : 'text-white/70 hover:text-white'}`}>
-      {icon}<span>{label}</span>
-      <span className={`text-xs px-2 py-0.5 rounded-full ${active ? 'bg-blue-100' : 'bg-white/20'}`}>{count}</span>
-    </button>
-  );
-}
-
-function QuestCard({ quest, index, isSelected, onClick }: { quest: Quest; index: number; isSelected: boolean; onClick: () => void }) {
-  const progress = (quest.progress / quest.target) * 100;
-  const isComplete = quest.status === 'completed';
-
-  return (
-    <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: index * 0.05 }} whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} onClick={onClick}
-      className={`bg-telegram-secondaryBg rounded-2xl p-4 border-2 transition-all ${isSelected ? 'border-telegram-link shadow-lg' : 'border-transparent'}`}>
-      <div className="flex items-start justify-between mb-3">
-        <div className="flex-1 min-w-0">
-          <h3 className="font-semibold text-telegram-text mb-1 truncate">{quest.title || 'Untitled Quest'}</h3>
-          <p className="text-sm text-telegram-hint line-clamp-2">{quest.description || 'No description'}</p>
-        </div>
-        <div className="ml-3 flex flex-col items-end gap-1 flex-shrink-0">
-          <div className="flex items-center gap-1 bg-yellow-100 px-2 py-1 rounded-lg">
-            <Zap className="w-4 h-4 text-yellow-600" />
-            <span className="text-sm font-bold text-yellow-700">{quest.xp_reward}</span>
-          </div>
-          {isComplete && <CheckCircle className="w-5 h-5 text-green-500" />}
-        </div>
-      </div>
-      {!isComplete && (
-        <div className="mb-3">
-          <div className="flex justify-between text-xs text-telegram-hint mb-1">
-            <span>Progress</span><span>{quest.progress} / {quest.target}</span>
-          </div>
-          <div className="bg-telegram-hint/20 rounded-full h-2 overflow-hidden">
-            <motion.div className={`h-full ${progress === 100 ? 'bg-green-500' : 'bg-gradient-to-r from-blue-500 to-purple-500'}`} initial={{ width: 0 }} animate={{ width: `${progress}%` }} transition={{ duration: 0.5, delay: index * 0.05 }} />
-          </div>
-        </div>
-      )}
-      {isComplete && quest.completed_at && (
-        <div className="text-xs text-telegram-hint mb-3">Completed {formatDate(quest.completed_at)}</div>
-      )}
-      <div className="flex items-center gap-2 flex-wrap">
-        {quest.difficulty && (
-          <QuestDifficultyBadge difficulty={quest.difficulty} />
-        )}
-        {quest.frequency && (
-        <span className="text-xs px-2 py-1 rounded-full bg-telegram-hint/20 text-telegram-hint">{quest.frequency}</span>
-        )}
-        {quest.mode && (
-          <span className="text-xs px-2 py-1 rounded-full bg-blue-100 text-blue-700">{quest.mode.icon ?? '📋'} {quest.mode.display_name ?? 'Unknown'}</span>
-        )}
-      </div>
-    </motion.div>
-  );
-}
-
