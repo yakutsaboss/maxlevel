@@ -189,36 +189,36 @@ router.post('/:telegramId/complete', authenticateTelegram, asyncHandler(async (r
        DO UPDATE SET current_step = 'completed', last_updated = NOW()`,
       [userId]
     );
-  });
 
-  // 6. Assign initial daily quests (native SQL — migrated from quest_manager.py)
-  const modeRows = await query(
-    'SELECT mode_id FROM user_modes WHERE user_id = $1 AND is_active = true',
-    [userId]
-  );
-  const modeIds = modeRows.map((r: any) => r.mode_id);
-
-  if (modeIds.length > 0) {
-    const today = new Date().toISOString().split('T')[0];
-    const available = await query(
-      `SELECT id, difficulty FROM quests
-       WHERE mode_id = ANY($1) AND quest_type = 'daily'
-       AND id NOT IN (SELECT quest_id FROM quest_instances WHERE user_id = $2 AND instance_date = $3)
-       ORDER BY RANDOM() LIMIT $4`,
-      [modeIds, userId, today, 3]
+    // 6. Assign initial daily quests (native SQL — migrated from quest_manager.py)
+    const modeRowsResult = await client.query(
+      'SELECT mode_id FROM user_modes WHERE user_id = $1 AND is_active = true',
+      [userId]
     );
+    const modeIds = modeRowsResult.rows.map((r: any) => r.mode_id);
 
-    const targetMap: Record<string, number> = { easy: 1, medium: 3, hard: 5 };
-    for (const quest of available) {
-      const target = targetMap[quest.difficulty] || 1;
-      await execute(
-        `INSERT INTO quest_instances (user_id, quest_id, instance_date, status, target)
-         VALUES ($1, $2, $3, 'pending', $4)
-         ON CONFLICT (user_id, quest_id, instance_date) DO NOTHING`,
-        [userId, quest.id, today, target]
+    if (modeIds.length > 0) {
+      const today = new Date().toISOString().split('T')[0];
+      const availableResult = await client.query(
+        `SELECT id, difficulty FROM quests
+         WHERE mode_id = ANY($1) AND quest_type = 'daily'
+         AND id NOT IN (SELECT quest_id FROM quest_instances WHERE user_id = $2 AND instance_date = $3)
+         ORDER BY RANDOM() LIMIT $4`,
+        [modeIds, userId, today, 3]
       );
+
+      const targetMap: Record<string, number> = { easy: 1, medium: 3, hard: 5 };
+      for (const quest of availableResult.rows) {
+        const target = targetMap[quest.difficulty] || 1;
+        await client.query(
+          `INSERT INTO quest_instances (user_id, quest_id, instance_date, status, target)
+           VALUES ($1, $2, $3, 'pending', $4)
+           ON CONFLICT (user_id, quest_id, instance_date) DO NOTHING`,
+          [userId, quest.id, today, target]
+        );
+      }
     }
-  }
+  });
 
   res.json(successResponse({ xp_awarded: 50 }, 'Onboarding completed successfully'));
 }));
