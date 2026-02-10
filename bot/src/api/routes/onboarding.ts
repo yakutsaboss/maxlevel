@@ -132,6 +132,9 @@ router.post('/:telegramId/complete', authenticateTelegram, asyncHandler(async (r
     // 3. Save punishment settings
     if (quiz_data.punishments) {
       const p = quiz_data.punishments;
+      // Frontend uses easy/hard, DB constraint expects low/high
+      const intensityMap: Record<string, string> = { easy: 'low', hard: 'high' };
+      const intensity = intensityMap[p.intensity_level] || p.intensity_level || 'low';
       await client.query(
         `INSERT INTO punishment_settings (user_id, consent_given, consent_timestamp, intensity_level, safe_mode, custom_punishments)
          VALUES ($1, $2, ${p.consent_given ? 'NOW()' : 'NULL'}, $3, $4, $5::jsonb)
@@ -142,7 +145,7 @@ router.post('/:telegramId/complete', authenticateTelegram, asyncHandler(async (r
            intensity_level = EXCLUDED.intensity_level,
            safe_mode = EXCLUDED.safe_mode,
            custom_punishments = EXCLUDED.custom_punishments`,
-        [userId, p.consent_given || false, p.intensity_level || 'low', p.safe_mode !== false, JSON.stringify(p.custom_punishments || {})]
+        [userId, p.consent_given || false, intensity, p.safe_mode !== false, JSON.stringify(p.custom_punishments || {})]
       );
     }
 
