@@ -209,7 +209,7 @@ export function Settings() {
 
   return (
     <div className="min-h-screen bg-telegram-bg text-telegram-text pb-20">
-      <div className="bg-gradient-to-r from-gray-600 to-gray-700 p-6 rounded-b-3xl shadow-lg">
+      <div className="bg-gradient-to-r from-gray-600 to-gray-700 p-6 rounded-b-3xl shadow-lg" style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 1.5rem)' }}>
         <h1 className="text-2xl font-bold text-white">Settings</h1>
         <p className="text-gray-200 text-sm mt-1">Configure your preferences</p>
       </div>

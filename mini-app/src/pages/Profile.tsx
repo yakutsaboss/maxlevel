@@ -123,7 +123,7 @@ export function Profile() {
 
   return (
     <div className="min-h-screen bg-telegram-bg text-telegram-text pb-20">
-      <div className="bg-gradient-to-br from-purple-600 via-pink-600 to-orange-500 p-6 rounded-b-3xl shadow-lg relative">
+      <div className="bg-gradient-to-br from-purple-600 via-pink-600 to-orange-500 p-6 rounded-b-3xl shadow-lg relative" style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 1.5rem)' }}>
         <button
           onClick={() => { haptic.impact('light'); navigate('/settings'); }}
           className="absolute top-4 right-4 bg-white/20 backdrop-blur-sm rounded-full p-2 active:scale-90 transition-transform z-10"
