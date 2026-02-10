@@ -2,6 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import crypto from 'crypto';
 import { TelegramUser, TelegramInitData } from '../../types/telegram.js';
 import { queryOne } from '../../utils/db.js';
+import { ForbiddenError } from '../utils/errors.js';
 
 /**
  * Validates Telegram WebApp initData
@@ -267,5 +268,18 @@ export async function authorizeUser(req: Request, res: Response, next: NextFunct
       error: 'Server Error',
       message: 'Failed to authorize user',
     });
+  }
+}
+
+/**
+ * Lightweight ownership check for :telegramId routes.
+ * Compares the URL param to the authenticated Telegram user's ID.
+ * Call as the FIRST line inside a handler after parsing the param.
+ */
+export function requireOwnership(req: Request): void {
+  const paramId = parseInt(req.params.telegramId);
+  const authId = req.telegramUser?.id;
+  if (!authId || paramId !== authId) {
+    throw new ForbiddenError('You do not have permission to access this resource');
   }
 }
