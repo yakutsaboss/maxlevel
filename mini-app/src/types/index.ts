@@ -74,6 +74,22 @@ export interface UserAchievement {
   achievement: Achievement;
 }
 
+// Leaderboard types
+export interface LeaderboardEntry {
+  user_id: number;
+  telegram_id: number;
+  username: string;
+  first_name: string;
+  level: number;
+  total_xp: number;
+  weekly_xp?: number;
+  monthly_xp?: number;
+  current_streak: number;
+  total_quests_completed: number;
+  xp_rank: number;
+  level_rank: number;
+}
+
 // Stats types
 export interface UserStats {
   user: User;
