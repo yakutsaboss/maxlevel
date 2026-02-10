@@ -648,7 +648,7 @@ router.delete('/:telegramId/account', authenticateTelegram, async (req: Request,
 
     const user = await queryOne(
       `UPDATE users
-       SET is_active = false, first_name = 'Deleted User', username = NULL
+       SET is_active = false, first_name = 'Deleted User', username = NULL, timezone = 'UTC'
        WHERE telegram_id = $1 AND is_active = true
        RETURNING id`,
       [tid]

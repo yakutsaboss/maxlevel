@@ -2,6 +2,7 @@
 -- PostgreSQL 12+
 
 -- Drop existing tables and views (for fresh install)
+DROP VIEW IF EXISTS user_stats CASCADE;
 DROP MATERIALIZED VIEW IF EXISTS leaderboard_mv CASCADE;
 DROP TABLE IF EXISTS user_activity_log CASCADE;
 DROP TABLE IF EXISTS punishment_history CASCADE;
@@ -226,6 +227,24 @@ CREATE TABLE user_activity_log (
 CREATE INDEX idx_activity_log_user_date ON user_activity_log(user_id, created_at);
 CREATE INDEX idx_activity_log_type ON user_activity_log(activity_type);
 
+-- User stats view (used by achievement_manager.py check_and_unlock_achievements, added in Run 19)
+CREATE VIEW user_stats AS
+SELECT
+    u.id AS user_id,
+    u.current_level AS level,
+    u.total_xp,
+    COALESCE(MAX(s.current_streak), 0) AS current_streak,
+    COALESCE(MAX(s.longest_streak), 0) AS longest_streak,
+    COALESCE(COUNT(DISTINCT qi.id) FILTER (WHERE qi.status = 'completed'), 0) AS quests_completed,
+    COALESCE(COUNT(DISTINCT qi.id) FILTER (WHERE qi.status = 'completed' AND q.quest_type = 'daily'), 0) AS daily_quests_completed,
+    COALESCE(COUNT(DISTINCT qi.id) FILTER (WHERE qi.status = 'completed' AND q.quest_type = 'weekly'), 0) AS weekly_quests_completed
+FROM users u
+LEFT JOIN streaks s ON s.user_id = u.id
+LEFT JOIN quest_instances qi ON qi.user_id = u.id
+LEFT JOIN quests q ON qi.quest_id = q.id
+WHERE u.is_active = true
+GROUP BY u.id, u.current_level, u.total_xp;
+
 -- Leaderboard materialized view (cached rankings, refreshed every 30 min by pg-boss, added in Run 3)
 CREATE MATERIALIZED VIEW leaderboard_mv AS
 SELECT
@@ -266,4 +285,5 @@ COMMENT ON TABLE punishment_settings IS 'User consent and punishment preferences
 COMMENT ON TABLE punishment_history IS 'Audit log of applied punishments';
 COMMENT ON TABLE onboarding_state IS 'State for resuming interrupted onboarding';
 COMMENT ON TABLE user_activity_log IS 'Tracks all user interactions for engagement analytics';
+COMMENT ON VIEW user_stats IS 'Aggregated user stats for achievement checking (level, XP, streaks, quest counts)';
 COMMENT ON MATERIALIZED VIEW leaderboard_mv IS 'Cached leaderboard rankings, refreshed every 30 minutes by pg-boss job';

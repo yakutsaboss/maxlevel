@@ -561,7 +561,29 @@ Read PARALLEL_AGENTS.md — you are Agent B for Run 19. Your job: (1) Create a `
 *(To be filled by Agent A)*
 
 #### Agent B Retrospective
-*(To be filled by Agent B)*
+**Status:** All 4 tasks completed. Bot build passes with zero errors.
+
+| # | Task | Status |
+|---|------|--------|
+| 1 | Create `user_stats` SQL view in `database/schema.sql` | Done |
+| 2 | Verify `achievement_manager.py` compatibility with new view | Done — all 7 column names match exactly |
+| 3 | Add `timezone = 'UTC'` to DELETE account soft-delete UPDATE | Done |
+| 4 | Build verification (`tsc`) | Pass — zero errors |
+
+**Problems faced:** None. Worktree was branched before Run 19 setup, so no pre-allocated retrospective section existed — added it manually (expect merge conflict for Agent 0).
+
+**Implementation details:**
+- `user_stats` view uses LEFT JOINs to `streaks`, `quest_instances`, and `quests` tables. Uses PostgreSQL FILTER clause for daily/weekly quest counting. Only includes active users (`WHERE is_active = true`).
+- `achievement_manager.py` query (`SELECT level, total_xp, current_streak, longest_streak, quests_completed, daily_quests_completed, weekly_quests_completed FROM user_stats WHERE user_id = %s`) is fully compatible — no Python changes needed.
+- DELETE endpoint now resets timezone to `'UTC'` instead of leaving the user's personal timezone on soft-deleted records.
+
+**Commits:** 2 atomic commits on `feature/r19-backend-fixes`:
+1. `feat: add user_stats SQL view for achievement_manager.py`
+2. `fix: reset timezone to UTC on account soft-delete (GDPR cleanup)`
+
+**Recommendations for next run:**
+- The `user_stats` view needs to be deployed to the production database via `psql` (it's not auto-migrated). Agent 0 should run the CREATE VIEW statement on the server after deploy.
+- Consider adding an index hint or materializing `user_stats` if achievement checking becomes slow with many users.
 
 #### Agent 0 Retrospective
 *(To be filled by Agent 0 after merge and deploy)*
