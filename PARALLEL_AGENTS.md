@@ -211,14 +211,9 @@ Use this structure when creating a new run. Copy and adapt:
 1. **pg-boss Node.js mismatch** — Requires 22.12+, server has 20.20. Only triggers warnings, no functional impact yet.
 2. **Mode configs unused** — `mode_configs` table stores quiz responses + personalized plans, but data is never consumed.
 3. **Delete account e2e testing** — confirm soft delete flow works end-to-end in Telegram (Agent B recommendation).
-4. **Pull-to-refresh duplicated across 4 pages** — ~30 identical lines in Dashboard, Quests, Achievements, Leaderboard → extract `usePullToRefresh` hook (Run 19 Agent A).
-5. **QuestDifficultyBadge duplicated in 3 places** — difficulty-to-color mapping in Dashboard QuestCardMini, Quests QuestCard, Quests detail modal → extract shared component (Run 19 Agent A).
-6. **Leaderboard.tsx missing `safe-area-top`** — Run 18 added it to 5 pages but missed Leaderboard (Run 19 Agent A).
-7. **Dashboard quest click does nothing** — `handleQuestClick` only triggers haptic, doesn't navigate (Run 19 Agent A).
-8. **`user_stats` SQL view doesn't exist** — `achievement_manager.py` `check_and_unlock_achievements()` queries `FROM user_stats` which is NOT in the schema. Confirmed bug (Run 19 Agent B).
-9. **DELETE endpoint doesn't nullify timezone** — GDPR improvement, consider nullifying `timezone` on account delete (Run 19 Agent B).
+4. **Unused `RefreshCw` imports** — After usePullToRefresh extraction, 4 pages still import RefreshCw even though PullIndicator handles it (Agent A Run 19 recommendation). Low priority.
 
-### Resolved (Runs 13–18)
+### Resolved (Runs 13–19)
 - ~~PATCH /progress authorization~~ — Fixed in Run 15
 - ~~checkAchievements() double-wrap bug~~ — Fixed in Run 15
 - ~~Bare API endpoints~~ — All endpoints now return `{success, data}` (Runs 15+16)
@@ -236,6 +231,12 @@ Use this structure when creating a new run. Copy and adapt:
 - ~~"Awards"/"Achievements" naming~~ — Renamed to "Rewards" in Run 18 Agent A
 - ~~Profile avatar_id not returned~~ — Fixed in Run 18 Agent C (resolveUser + PATCH RETURNING)
 - ~~No delete account feature~~ — Added in Run 18 Agent B + C (soft delete + UI)
+- ~~Pull-to-refresh duplicated across 4 pages~~ — Extracted to `usePullToRefresh` hook in Run 19 Agent A
+- ~~QuestDifficultyBadge duplicated in 3 places~~ — Extracted to shared component in Run 19 Agent A
+- ~~Leaderboard missing safe-area-top~~ — Fixed in Run 19 Agent A
+- ~~Dashboard quest click does nothing~~ — Now navigates to `/quests`, Run 19 Agent A
+- ~~`user_stats` SQL view doesn't exist~~ — Created in Run 19 Agent B + deployed to production DB
+- ~~DELETE endpoint doesn't nullify timezone~~ — GDPR fix in Run 19 Agent B
 
 ---
 
@@ -609,6 +610,14 @@ Read PARALLEL_AGENTS.md — you are Agent B for Run 19. Your job: (1) Create a `
 - Consider adding an index hint or materializing `user_stats` if achievement checking becomes slow with many users.
 
 #### Agent 0 Retrospective
-*(To be filled by Agent 0 after merge and deploy)*
+**Merge:** B → A. Both had retro conflicts in PARALLEL_AGENTS.md (expected — worktrees branched before Run 19 setup commit). Code files auto-merged cleanly with zero conflicts. No overlapping code changes between agents.
+
+**Build:** Both `bot` and `mini-app` pass with zero errors locally and on server.
+
+**Deploy:** `f8d48de` deployed to production. 9 files changed (2 new + 7 modified). PM2 restarted. `user_stats` SQL view manually applied to production DB via `psql`.
+
+**Net result:** Agent A removed ~120 lines of duplicated pull-to-refresh code across 4 pages, replaced with shared `usePullToRefresh` hook. Created `QuestDifficultyBadge` shared component. Fixed Leaderboard safe-area-top and Dashboard quest navigation. Agent B created the missing `user_stats` view and added GDPR timezone cleanup.
+
+**Known Issues resolved:** Items 4-9 from the "Still Open" list all addressed in this run.
 
 <!-- Next run goes here. Agent 0 will append RUN 20 below this line. -->
