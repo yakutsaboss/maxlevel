@@ -80,39 +80,51 @@ router.post('/:telegramId/complete', authenticateTelegram, asyncHandler(async (r
   }
   const userId = userLookup.id;
 
-  // 1. Add selected modes (native SQL — migrated from mode_manager.py)
-  for (const modeName of quiz_data.selected_modes) {
-    const mode = await queryOne('SELECT id FROM modes WHERE name = $1', [modeName]);
-    if (!mode) continue;
+  // Idempotency guard: if onboarding already completed, return early
+  const existingState = await queryOne(
+    'SELECT current_step FROM onboarding_state WHERE user_id = $1',
+    [userId]
+  );
+  if (existingState?.current_step === 'completed') {
+    res.json(successResponse({ xp_awarded: 0, already_completed: true }));
+    return;
+  }
 
-    const existing = await queryOne(
-      'SELECT id, is_active FROM user_modes WHERE user_id = $1 AND mode_id = $2',
-      [userId, mode.id]
-    );
+  // All steps in a single transaction for atomicity
+  await transaction(async (client) => {
 
-    if (existing) {
-      if (!existing.is_active) {
-        await execute(
-          'UPDATE user_modes SET is_active = true, enabled_at = NOW() WHERE id = $1',
-          [existing.id]
+    // 1. Add selected modes (native SQL — migrated from mode_manager.py)
+    for (const modeName of quiz_data.selected_modes) {
+      const modeResult = await client.query('SELECT id FROM modes WHERE name = $1', [modeName]);
+      const mode = modeResult.rows[0];
+      if (!mode) continue;
+
+      const existingResult = await client.query(
+        'SELECT id, is_active FROM user_modes WHERE user_id = $1 AND mode_id = $2',
+        [userId, mode.id]
+      );
+      const existing = existingResult.rows[0];
+
+      if (existing) {
+        if (!existing.is_active) {
+          await client.query(
+            'UPDATE user_modes SET is_active = true, enabled_at = NOW() WHERE id = $1',
+            [existing.id]
+          );
+        }
+      } else {
+        await client.query(
+          'INSERT INTO user_modes (user_id, mode_id, is_active) VALUES ($1, $2, true)',
+          [userId, mode.id]
         );
       }
-    } else {
-      await execute(
-        'INSERT INTO user_modes (user_id, mode_id, is_active) VALUES ($1, $2, true)',
+
+      // Initialize streak for this mode
+      await client.query(
+        'INSERT INTO streaks (user_id, mode_id, current_streak, longest_streak) VALUES ($1, $2, 0, 0) ON CONFLICT (user_id, mode_id) DO NOTHING',
         [userId, mode.id]
       );
     }
-
-    // Initialize streak for this mode
-    await execute(
-      'INSERT INTO streaks (user_id, mode_id, current_streak, longest_streak) VALUES ($1, $2, 0, 0) ON CONFLICT (user_id, mode_id) DO NOTHING',
-      [userId, mode.id]
-    );
-  }
-
-  // 2-5: All remaining steps in a single transaction
-  await transaction(async (client) => {
 
     // 2. Save mode configs
     for (const modeName of quiz_data.selected_modes) {
@@ -172,42 +184,44 @@ router.post('/:telegramId/complete', authenticateTelegram, asyncHandler(async (r
       );
     }
 
-    // 5. Mark onboarding as completed
+    // 5. Mark onboarding as completed (UPSERT handles missing row)
     await client.query(
-      `UPDATE onboarding_state SET current_step = 'completed', last_updated = NOW()
-       WHERE user_id = $1::int`,
+      `INSERT INTO onboarding_state (user_id, current_step, last_updated)
+       VALUES ($1::int, 'completed', NOW())
+       ON CONFLICT (user_id)
+       DO UPDATE SET current_step = 'completed', last_updated = NOW()`,
       [userId]
     );
-  });
 
-  // 6. Assign initial daily quests (native SQL — migrated from quest_manager.py)
-  const modeRows = await query(
-    'SELECT mode_id FROM user_modes WHERE user_id = $1 AND is_active = true',
-    [userId]
-  );
-  const modeIds = modeRows.map((r: any) => r.mode_id);
-
-  if (modeIds.length > 0) {
-    const today = new Date().toISOString().split('T')[0];
-    const available = await query(
-      `SELECT id, difficulty FROM quests
-       WHERE mode_id = ANY($1) AND quest_type = 'daily'
-       AND id NOT IN (SELECT quest_id FROM quest_instances WHERE user_id = $2 AND instance_date = $3)
-       ORDER BY RANDOM() LIMIT $4`,
-      [modeIds, userId, today, 3]
+    // 6. Assign initial daily quests (native SQL — migrated from quest_manager.py)
+    const modeRowsResult = await client.query(
+      'SELECT mode_id FROM user_modes WHERE user_id = $1 AND is_active = true',
+      [userId]
     );
+    const modeIds = modeRowsResult.rows.map((r: any) => r.mode_id);
 
-    const targetMap: Record<string, number> = { easy: 1, medium: 3, hard: 5 };
-    for (const quest of available) {
-      const target = targetMap[quest.difficulty] || 1;
-      await execute(
-        `INSERT INTO quest_instances (user_id, quest_id, instance_date, status, target)
-         VALUES ($1, $2, $3, 'pending', $4)
-         ON CONFLICT (user_id, quest_id, instance_date) DO NOTHING`,
-        [userId, quest.id, today, target]
+    if (modeIds.length > 0) {
+      const today = new Date().toISOString().split('T')[0];
+      const availableResult = await client.query(
+        `SELECT id, difficulty FROM quests
+         WHERE mode_id = ANY($1) AND quest_type = 'daily'
+         AND id NOT IN (SELECT quest_id FROM quest_instances WHERE user_id = $2 AND instance_date = $3)
+         ORDER BY RANDOM() LIMIT $4`,
+        [modeIds, userId, today, 3]
       );
+
+      const targetMap: Record<string, number> = { easy: 1, medium: 3, hard: 5 };
+      for (const quest of availableResult.rows) {
+        const target = targetMap[quest.difficulty] || 1;
+        await client.query(
+          `INSERT INTO quest_instances (user_id, quest_id, instance_date, status, target)
+           VALUES ($1, $2, $3, 'pending', $4)
+           ON CONFLICT (user_id, quest_id, instance_date) DO NOTHING`,
+          [userId, quest.id, today, target]
+        );
+      }
     }
-  }
+  });
 
   res.json(successResponse({ xp_awarded: 50 }, 'Onboarding completed successfully'));
 }));
