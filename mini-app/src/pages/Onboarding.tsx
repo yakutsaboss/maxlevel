@@ -3,7 +3,7 @@
  * All questions & answer options are defined in: data/onboardingQuestions.ts
  */
 
-import { useEffect, useCallback, useRef } from 'react';
+import { useEffect, useCallback, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useTelegram, useBackButton } from '@/hooks/useTelegram';
@@ -34,8 +34,21 @@ export function Onboarding() {
   const { user } = useTelegram();
   const store = useOnboarding();
   const saveTimeout = useRef<ReturnType<typeof setTimeout>>();
+  const [mounted, setMounted] = useState(false);
 
-  const telegramId = user?.id || 0;
+  const telegramId = user?.id;
+
+  useEffect(() => { setMounted(true); }, []);
+
+  // Show error screen if Telegram user is not available after mount
+  if (mounted && !telegramId) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center px-6 bg-telegram-bg">
+        <p className="text-xl font-semibold text-telegram-text mb-2">Not Available</p>
+        <p className="text-telegram-hint text-center">Please open this app from Telegram.</p>
+      </div>
+    );
+  }
 
   // Save state to backend (debounced)
   const saveState = useCallback(
@@ -228,7 +241,7 @@ export function Onboarding() {
         return (
           <LaunchScreen
             data={store.data}
-            telegramId={telegramId}
+            telegramId={telegramId!}
             onLaunch={handleLaunch}
           />
         );
