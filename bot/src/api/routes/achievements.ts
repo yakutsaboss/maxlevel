@@ -1,6 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { authenticateTelegram } from '../middleware/auth.js';
-import { query, queryOne } from '../../utils/db.js';
+import { query, queryOne, transaction } from '../../utils/db.js';
 import { cached, TTL } from '../../utils/cache.js';
 import { checkAndUnlockAchievements } from '../../utils/achievementEngine.js';
 
