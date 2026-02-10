@@ -4,6 +4,7 @@ import { mutationLimiter, readLimiter } from '../middleware/rateLimiter.js';
 import { query, queryOne, execute, transaction } from '../../utils/db.js';
 import { invalidateUserCache } from '../../utils/cache.js';
 import { checkAndUnlockAchievements } from '../../utils/achievementEngine.js';
+import { updateStreak } from '../../utils/streak.js';
 import { QUEST_STATUS, QUEST_FREQUENCY } from '../utils/constants.js';
 import {
   asyncHandler,
@@ -14,25 +15,6 @@ import {
 } from '../utils/errors.js';
 
 const router = Router();
-
-/** Update streak for a user+mode after quest completion (fire-and-forget). */
-async function updateStreak(userId: number, modeId: number): Promise<void> {
-  const today = new Date().toISOString().split('T')[0];
-  const yesterday = new Date(Date.now() - 86400000).toISOString().split('T')[0];
-  const streak = await queryOne(
-    'SELECT id, current_streak, longest_streak, last_activity_date FROM streaks WHERE user_id = $1 AND mode_id = $2',
-    [userId, modeId]
-  );
-  if (!streak) return;
-  const lastDate = streak.last_activity_date ? new Date(streak.last_activity_date).toISOString().split('T')[0] : null;
-  if (lastDate === today) return; // already counted
-  const newStreak = lastDate === yesterday ? streak.current_streak + 1 : 1;
-  const newLongest = Math.max(streak.longest_streak, newStreak);
-  await execute(
-    'UPDATE streaks SET current_streak = $1, longest_streak = $2, last_activity_date = $3 WHERE user_id = $4 AND mode_id = $5',
-    [newStreak, newLongest, today, userId, modeId]
-  );
-}
 
 /**
  * GET /api/users/:userId/quests/active
