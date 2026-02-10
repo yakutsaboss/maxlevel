@@ -47,10 +47,10 @@ router.get('/categories', authenticateTelegram, async (req: Request, res: Respon
       return rows.map((r: any) => r.category);
     });
 
-    res.json({ categories });
+    res.json({ success: true, data: categories });
   } catch (error) {
     console.error('Error fetching achievement categories:', error);
-    res.status(500).json({ error: 'Server Error', message: 'Failed to fetch achievement categories' });
+    res.status(500).json({ success: false, error: 'Failed to fetch achievement categories' });
   }
 });
 
