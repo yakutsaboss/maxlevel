@@ -152,7 +152,7 @@ export function Achievements() {
       </div>
 
       {/* Header */}
-      <div className="bg-gradient-to-br from-amber-500 to-orange-600 p-6 rounded-b-3xl shadow-lg">
+      <div className="bg-gradient-to-br from-amber-500 to-orange-600 p-6 rounded-b-3xl shadow-lg safe-area-top">
         <div className="flex items-center gap-3 mb-3">
           <Trophy className="w-7 h-7 text-white" />
           <h1 className="text-2xl font-bold text-white">Achievements</h1>

@@ -218,7 +218,7 @@ export function Dashboard() {
       <div className={`pull-indicator ${refreshing ? 'active refreshing' : ''}`} style={{ height: refreshing ? 48 : pullDistance > 10 ? pullDistance : 0 }}>
         <RefreshCw className={`w-5 h-5 text-telegram-hint ${pullDistance >= PULL_THRESHOLD ? 'text-telegram-link' : ''}`} />
       </div>
-      <div className="bg-gradient-to-br from-purple-600 to-blue-600 p-6 rounded-b-3xl shadow-lg">
+      <div className="bg-gradient-to-br from-purple-600 to-blue-600 p-6 rounded-b-3xl shadow-lg safe-area-top">
         <div className="flex items-center justify-between mb-4">
           <div className="min-w-0 flex-1 mr-3">
             <h1 className="text-2xl font-bold text-white truncate">{stats.user.first_name}</h1>

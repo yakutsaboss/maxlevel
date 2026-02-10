@@ -195,7 +195,7 @@ export function Quests() {
       <div className={`pull-indicator ${refreshing ? 'active refreshing' : ''}`} style={{ height: refreshing ? 48 : pullDistance > 10 ? pullDistance : 0 }}>
         <RefreshCw className={`w-5 h-5 text-telegram-hint ${pullDistance >= PULL_THRESHOLD ? 'text-telegram-link' : ''}`} />
       </div>
-      <div className="bg-gradient-to-r from-blue-600 to-purple-600 p-6 rounded-b-3xl shadow-lg">
+      <div className="bg-gradient-to-r from-blue-600 to-purple-600 p-6 rounded-b-3xl shadow-lg safe-area-top">
         <div className="flex items-center gap-3 mb-4">
           <div className="bg-white/20 backdrop-blur-sm rounded-2xl p-3">
             <Target className="w-8 h-8 text-white" />
