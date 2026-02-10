@@ -12,13 +12,14 @@ interface LeaderboardEntry {
   level: number;
   total_xp: number;
   weekly_xp?: number;
+  monthly_xp?: number;
   current_streak: number;
   total_quests_completed: number;
   xp_rank: number;
   level_rank: number;
 }
 
-type TimePeriod = 'weekly' | 'all_time';
+type TimePeriod = 'weekly' | 'monthly' | 'all_time';
 
 const AVATAR_COLORS = [
   'bg-purple-500', 'bg-blue-500', 'bg-green-500', 'bg-orange-500',
@@ -99,7 +100,9 @@ export function Leaderboard() {
       setError(false);
       const response = timePeriod === 'weekly'
         ? await apiClient.getWeeklyLeaderboard(50)
-        : await apiClient.getLeaderboard(50);
+        : timePeriod === 'monthly'
+          ? await apiClient.getMonthlyLeaderboard(50)
+          : await apiClient.getLeaderboard(50);
       if (response.success && response.data) {
         setEntries(response.data as LeaderboardEntry[]);
       }
@@ -182,15 +185,23 @@ export function Leaderboard() {
         <div className="flex gap-2 bg-white/20 backdrop-blur-sm rounded-2xl p-1">
           <button
             onClick={() => { haptic.selection(); setTimePeriod('weekly'); }}
-            className={`flex-1 py-2 px-4 rounded-xl font-medium text-sm transition-all ${
+            className={`flex-1 py-2 px-3 rounded-xl font-medium text-sm transition-all ${
               timePeriod === 'weekly' ? 'bg-white text-orange-600 shadow-lg' : 'text-white/70'
             }`}
           >
             Weekly
           </button>
           <button
+            onClick={() => { haptic.selection(); setTimePeriod('monthly'); }}
+            className={`flex-1 py-2 px-3 rounded-xl font-medium text-sm transition-all ${
+              timePeriod === 'monthly' ? 'bg-white text-orange-600 shadow-lg' : 'text-white/70'
+            }`}
+          >
+            Monthly
+          </button>
+          <button
             onClick={() => { haptic.selection(); setTimePeriod('all_time'); }}
-            className={`flex-1 py-2 px-4 rounded-xl font-medium text-sm transition-all ${
+            className={`flex-1 py-2 px-3 rounded-xl font-medium text-sm transition-all ${
               timePeriod === 'all_time' ? 'bg-white text-orange-600 shadow-lg' : 'text-white/70'
             }`}
           >
@@ -213,7 +224,7 @@ export function Leaderboard() {
                 const isCurrentUser = currentUserId === entry.telegram_id;
                 const rank = entry.xp_rank || index + 1;
                 const rankStyle = TOP_RANK_STYLES[rank];
-                const xpValue = timePeriod === 'weekly' && entry.weekly_xp != null ? entry.weekly_xp : entry.total_xp;
+                const xpValue = timePeriod === 'weekly' && entry.weekly_xp != null ? entry.weekly_xp : timePeriod === 'monthly' && entry.monthly_xp != null ? entry.monthly_xp : entry.total_xp;
                 return (
                   <motion.div
                     key={entry.user_id}
@@ -252,7 +263,7 @@ export function Leaderboard() {
                     </div>
                     <div className="text-right flex-shrink-0">
                       <div className="text-base font-bold">{xpValue.toLocaleString()}</div>
-                      <div className="text-xs text-telegram-hint">{timePeriod === 'weekly' ? 'Weekly XP' : 'XP'}</div>
+                      <div className="text-xs text-telegram-hint">{timePeriod === 'weekly' ? 'Weekly XP' : timePeriod === 'monthly' ? 'Monthly XP' : 'XP'}</div>
                     </div>
                   </motion.div>
                 );
@@ -273,7 +284,7 @@ export function Leaderboard() {
               {entries.slice(3).map((entry, index) => {
                 const isCurrentUser = currentUserId === entry.telegram_id;
                 const rank = entry.xp_rank || index + 4;
-                const xpValue = timePeriod === 'weekly' && entry.weekly_xp != null ? entry.weekly_xp : entry.total_xp;
+                const xpValue = timePeriod === 'weekly' && entry.weekly_xp != null ? entry.weekly_xp : timePeriod === 'monthly' && entry.monthly_xp != null ? entry.monthly_xp : entry.total_xp;
                 return (
                   <motion.div
                     key={entry.user_id}
@@ -310,7 +321,7 @@ export function Leaderboard() {
                     </div>
                     <div className="text-right flex-shrink-0">
                       <div className="text-sm font-bold">{xpValue.toLocaleString()}</div>
-                      <div className="text-xs text-telegram-hint">{timePeriod === 'weekly' ? 'Weekly XP' : 'XP'}</div>
+                      <div className="text-xs text-telegram-hint">{timePeriod === 'weekly' ? 'Weekly XP' : timePeriod === 'monthly' ? 'Monthly XP' : 'XP'}</div>
                     </div>
                   </motion.div>
                 );
