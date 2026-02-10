@@ -106,6 +106,14 @@ export function useMainButton(
   const { MainButton, haptic } = useTelegram();
 
   useEffect(() => {
+    // When text is empty, hide the button and skip setup
+    if (!text) {
+      MainButton.hide();
+      return () => {
+        MainButton.hide();
+      };
+    }
+
     // Set button text
     MainButton.setText(text);
 

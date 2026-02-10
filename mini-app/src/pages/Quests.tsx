@@ -195,7 +195,7 @@ export function Quests() {
       <div className={`pull-indicator ${refreshing ? 'active refreshing' : ''}`} style={{ height: refreshing ? 48 : pullDistance > 10 ? pullDistance : 0 }}>
         <RefreshCw className={`w-5 h-5 text-telegram-hint ${pullDistance >= PULL_THRESHOLD ? 'text-telegram-link' : ''}`} />
       </div>
-      <div className="bg-gradient-to-r from-blue-600 to-purple-600 p-6 rounded-b-3xl shadow-lg">
+      <div className="bg-gradient-to-r from-blue-600 to-purple-600 p-6 rounded-b-3xl shadow-lg safe-area-top">
         <div className="flex items-center gap-3 mb-4">
           <div className="bg-white/20 backdrop-blur-sm rounded-2xl p-3">
             <Target className="w-8 h-8 text-white" />
@@ -249,8 +249,8 @@ export function Quests() {
               onClick={(e) => e.stopPropagation()}
             >
               <div className="w-12 h-1 bg-telegram-hint/30 rounded-full mx-auto mb-4" />
-              <h2 className="text-xl font-bold mb-1">{selectedQuest.title}</h2>
-              <p className="text-telegram-hint text-sm mb-2">{selectedQuest.description}</p>
+              <h2 className="text-xl font-bold mb-1">{selectedQuest.title || 'Untitled Quest'}</h2>
+              <p className="text-telegram-hint text-sm mb-2">{selectedQuest.description || 'No description'}</p>
               {selectedQuest.target > 1 && (
                 <p className="text-sm text-telegram-link font-medium mb-4">
                   Check in {selectedQuest.target} time{selectedQuest.target !== 1 ? 's' : ''} to complete
@@ -262,6 +262,7 @@ export function Quests() {
                 <span className="inline-flex items-center gap-1 bg-gradient-to-r from-yellow-400 to-orange-400 text-white px-4 py-2 rounded-xl text-sm font-bold shadow-sm">
                   <Zap className="w-4 h-4" />{selectedQuest.xp_reward} XP
                 </span>
+                {selectedQuest.difficulty && (
                 <span className={`px-3 py-1.5 rounded-xl text-sm font-semibold ${
                   selectedQuest.difficulty === 'easy' ? 'bg-green-100 text-green-700' :
                   selectedQuest.difficulty === 'medium' ? 'bg-yellow-100 text-yellow-700' :
@@ -269,6 +270,7 @@ export function Quests() {
                 }`}>
                   {selectedQuest.difficulty.charAt(0).toUpperCase() + selectedQuest.difficulty.slice(1)}
                 </span>
+                )}
                 <span className="bg-telegram-hint/20 text-telegram-hint px-3 py-1.5 rounded-xl text-sm">
                   {selectedQuest.frequency}
                 </span>
@@ -370,8 +372,8 @@ function QuestCard({ quest, index, isSelected, onClick }: { quest: Quest; index:
       className={`bg-telegram-secondaryBg rounded-2xl p-4 border-2 transition-all ${isSelected ? 'border-telegram-link shadow-lg' : 'border-transparent'}`}>
       <div className="flex items-start justify-between mb-3">
         <div className="flex-1 min-w-0">
-          <h3 className="font-semibold text-telegram-text mb-1 truncate">{quest.title}</h3>
-          <p className="text-sm text-telegram-hint line-clamp-2">{quest.description}</p>
+          <h3 className="font-semibold text-telegram-text mb-1 truncate">{quest.title || 'Untitled Quest'}</h3>
+          <p className="text-sm text-telegram-hint line-clamp-2">{quest.description || 'No description'}</p>
         </div>
         <div className="ml-3 flex flex-col items-end gap-1 flex-shrink-0">
           <div className="flex items-center gap-1 bg-yellow-100 px-2 py-1 rounded-lg">
@@ -395,8 +397,12 @@ function QuestCard({ quest, index, isSelected, onClick }: { quest: Quest; index:
         <div className="text-xs text-telegram-hint mb-3">Completed {formatDate(quest.completed_at)}</div>
       )}
       <div className="flex items-center gap-2 flex-wrap">
+        {quest.difficulty && (
         <span className={`text-xs px-2 py-1 rounded-full ${quest.difficulty === 'easy' ? 'bg-green-100 text-green-700' : quest.difficulty === 'medium' ? 'bg-yellow-100 text-yellow-700' : 'bg-red-100 text-red-700'}`}>{quest.difficulty}</span>
+        )}
+        {quest.frequency && (
         <span className="text-xs px-2 py-1 rounded-full bg-telegram-hint/20 text-telegram-hint">{quest.frequency}</span>
+        )}
         {quest.mode && (
           <span className="text-xs px-2 py-1 rounded-full bg-blue-100 text-blue-700">{quest.mode.icon} {quest.mode.display_name}</span>
         )}
