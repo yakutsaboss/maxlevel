@@ -21,29 +21,26 @@ const router = Router();
  * Get overall system statistics
  */
 router.get('/stats', asyncHandler(async (req: Request, res: Response) => {
-  const usersResult = await executePythonTool('db_operations', [
-    '--query',
-    'SELECT COUNT(*) as total, COUNT(*) FILTER (WHERE is_active = true) as active FROM users',
-  ]);
-
-  const questsResult = await executePythonTool('db_operations', [
-    '--query',
-    `SELECT
-      COUNT(*) as total,
-      COUNT(*) FILTER (WHERE status = 'active') as active,
-      COUNT(*) FILTER (WHERE status = 'completed') as completed
-     FROM quest_instances`,
-  ]);
-
-  const achievementsResult = await executePythonTool('db_operations', [
-    '--query',
-    'SELECT COUNT(DISTINCT user_id) as users_with_achievements FROM user_achievements',
+  const [usersRows, questsRows, achievementsRows] = await Promise.all([
+    query<{ total: string; active: string }>(
+      'SELECT COUNT(*) as total, COUNT(*) FILTER (WHERE is_active = true) as active FROM users'
+    ),
+    query<{ total: string; active: string; completed: string }>(
+      `SELECT
+        COUNT(*) as total,
+        COUNT(*) FILTER (WHERE status = 'active') as active,
+        COUNT(*) FILTER (WHERE status = 'completed') as completed
+       FROM quest_instances`
+    ),
+    query<{ users_with_achievements: string }>(
+      'SELECT COUNT(DISTINCT user_id) as users_with_achievements FROM user_achievements'
+    ),
   ]);
 
   res.json(successResponse({
-    users: usersResult.data?.[0] || { total: 0, active: 0 },
-    quests: questsResult.data?.[0] || { total: 0, active: 0, completed: 0 },
-    achievements: achievementsResult.data?.[0] || { users_with_achievements: 0 },
+    users: usersRows[0] || { total: 0, active: 0 },
+    quests: questsRows[0] || { total: 0, active: 0, completed: 0 },
+    achievements: achievementsRows[0] || { users_with_achievements: 0 },
     timestamp: new Date().toISOString(),
   }));
 }));
