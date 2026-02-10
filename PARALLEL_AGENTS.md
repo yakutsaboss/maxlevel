@@ -373,7 +373,27 @@ Read PARALLEL_AGENTS.md — you are Agent C for Run 18. Your job: fix resolveUse
 - Consider extracting a shared `QuestDifficultyBadge` component — the difficulty-to-color mapping is duplicated in QuestCard, quest detail modal, and Dashboard's QuestCardMini.
 
 #### Agent B Retrospective
-*(To be filled by Agent B)*
+**Status:** All 6 tasks completed. Build passes cleanly.
+
+| # | Task | Status |
+|---|------|--------|
+| 1 | Add safe-area-inset-top to Profile.tsx header | Done |
+| 2 | Add safe-area-inset-top to Settings.tsx header | Done |
+| 3 | Add Delete Account danger zone to Settings.tsx | Done |
+| 4 | Add deleteAccount() to client.ts (append only) | Done |
+| 5 | Wire up showConfirm() + API + tg.close() flow | Done |
+| 6 | Build verification (tsc + vite build) | Pass |
+
+**Problems faced:** None significant.
+
+**Implementation details:**
+- Safe area: Used `calc(env(safe-area-inset-top, 0px) + 1.5rem)` inline style.
+- Delete Account: `Trash2` icon, `deleting` state, `handleDeleteAccount` with `showConfirm()` → API → toast → `tg.close()`.
+- client.ts: Appended single `deleteAccount()` method at end of class per GRAY AREA rules.
+
+**Recommendations for next run:**
+- Test `deleteAccount` end-to-end.
+- Consider a re-authentication step before account deletion for extra safety.
 
 #### Agent C Retrospective
 **Completed Tasks:**

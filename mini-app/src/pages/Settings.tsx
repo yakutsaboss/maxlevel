@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useTelegram } from '@/hooks/useTelegram';
 import { useBackButton } from '@/hooks/useTelegram';
 import { apiClient } from '@/api/client';
-import { Bell, Clock, Globe, AlertCircle, RefreshCw, Loader2, Shield, Check } from 'lucide-react';
+import { Bell, Clock, Globe, AlertCircle, RefreshCw, Loader2, Shield, Check, Trash2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Toast } from '@/components/Toast';
 
@@ -49,7 +49,7 @@ function detectTimezone(): string {
 }
 
 export function Settings() {
-  const { user, haptic } = useTelegram();
+  const { user, haptic, showConfirm, tg } = useTelegram();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
@@ -67,6 +67,7 @@ export function Settings() {
   });
   const [punishmentAvailable, setPunishmentAvailable] = useState(true);
   const [accountabilitySaveStatus, setAccountabilitySaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
+  const [deleting, setDeleting] = useState(false);
   const intensityDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const saveStatusTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -173,6 +174,27 @@ export function Settings() {
     } finally { setSaving(false); }
   };
 
+  const handleDeleteAccount = async () => {
+    if (!user?.id || deleting) return;
+    const confirmed = await showConfirm(
+      'Are you sure? This will permanently delete your account, progress, and all data. This cannot be undone.'
+    );
+    if (!confirmed) return;
+    haptic.impact('heavy');
+    setDeleting(true);
+    try {
+      const res = await apiClient.deleteAccount(user.id);
+      if (res.success) {
+        setToast({ message: 'Account deleted. Goodbye!', variant: 'success' });
+        setTimeout(() => tg.close(), 1500);
+      } else {
+        setToast({ message: 'Failed to delete account', variant: 'error' });
+      }
+    } catch {
+      setToast({ message: 'Failed to delete account', variant: 'error' });
+    } finally { setDeleting(false); }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-telegram-bg pb-20">
@@ -209,7 +231,7 @@ export function Settings() {
 
   return (
     <div className="min-h-screen bg-telegram-bg text-telegram-text pb-20">
-      <div className="bg-gradient-to-r from-gray-600 to-gray-700 p-6 rounded-b-3xl shadow-lg">
+      <div className="bg-gradient-to-r from-gray-600 to-gray-700 p-6 rounded-b-3xl shadow-lg" style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 1.5rem)' }}>
         <h1 className="text-2xl font-bold text-white">Settings</h1>
         <p className="text-gray-200 text-sm mt-1">Configure your preferences</p>
       </div>
@@ -442,6 +464,37 @@ export function Settings() {
             'Save Settings'
           )}
         </button>
+      </div>
+
+      {/* Danger Zone — Delete Account */}
+      <div className="px-4 mt-10 mb-6">
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.2 }}
+          className="bg-telegram-secondaryBg rounded-2xl p-4 border border-red-500/20"
+        >
+          <div className="flex items-center gap-3 mb-3">
+            <div className="bg-red-500 w-10 h-10 rounded-xl flex items-center justify-center text-white">
+              <Trash2 className="w-5 h-5" />
+            </div>
+            <div>
+              <h3 className="font-semibold text-sm text-red-500">Delete Account</h3>
+              <p className="text-xs text-telegram-hint">Permanently remove your account and all data</p>
+            </div>
+          </div>
+          <button
+            onClick={handleDeleteAccount}
+            disabled={deleting}
+            className="w-full py-3 rounded-xl border-2 border-red-500 text-red-500 font-semibold flex items-center justify-center gap-2 active:scale-[0.98] transition-transform disabled:opacity-60"
+          >
+            {deleting ? (
+              <><Loader2 className="w-4 h-4 animate-spin" />Deleting...</>
+            ) : (
+              <><Trash2 className="w-4 h-4" />Delete Account</>
+            )}
+          </button>
+        </motion.div>
       </div>
 
       {toast && (
