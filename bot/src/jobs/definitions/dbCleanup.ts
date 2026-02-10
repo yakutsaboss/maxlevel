@@ -9,6 +9,9 @@
 
 import type { Job } from 'pg-boss';
 import { transaction } from '../../utils/db.js';
+import { logger } from '../../api/utils/logger.js';
+
+const log = logger.child({ component: 'dbCleanup' });
 
 export const JOB_NAME = 'db-cleanup';
 export const CRON_SCHEDULE = '0 3 * * 0';
@@ -34,7 +37,7 @@ const CLEANUPS = [
 
 export async function handler(jobs: Job[]): Promise<void> {
   const startTime = Date.now();
-  console.log(`[JOB:${JOB_NAME}] Started`);
+  log.info('Started');
 
   const results = await transaction(async (client) => {
     const cleanupResults: Array<{ label: string; rows: number }> = [];
@@ -43,7 +46,7 @@ export async function handler(jobs: Job[]): Promise<void> {
       const result = await client.query(cleanup.stmt);
       const rows = result.rowCount ?? 0;
       cleanupResults.push({ label: cleanup.label, rows });
-      console.log(`[JOB:${JOB_NAME}] Cleaned ${cleanup.label}: ${rows} rows`);
+      log.info(`Cleaned ${cleanup.label}: ${rows} rows`);
     }
 
     return cleanupResults;
@@ -52,8 +55,5 @@ export async function handler(jobs: Job[]): Promise<void> {
   const totalRows = results.reduce((sum, r) => sum + r.rows, 0);
   const elapsed = Date.now() - startTime;
 
-  console.log(
-    `[JOB:${JOB_NAME}] Completed in ${elapsed}ms — ` +
-    `${results.length} cleanups, ${totalRows} total rows deleted`
-  );
+  log.info(`Completed in ${elapsed}ms`, { cleanups: results.length, totalRows });
 }

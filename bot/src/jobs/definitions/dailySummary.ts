@@ -13,6 +13,9 @@ import type { Bot } from 'grammy';
 import type { MyContext } from '../../bot.js';
 import { query } from '../../utils/db.js';
 import { sendDailySummary } from '../../handlers/dailySummary.js';
+import { logger } from '../../api/utils/logger.js';
+
+const log = logger.child({ component: 'dailySummaryJob' });
 
 let botRef: Bot<MyContext> | null = null;
 
@@ -34,7 +37,7 @@ export async function handler(jobs: Job[]): Promise<void> {
   if (!botRef) throw new Error('Bot instance not set for daily summary');
 
   const startTime = Date.now();
-  console.log(`[JOB:${JOB_NAME}] Started`);
+  log.info('Started');
 
   // Fetch active users whose reminder_time matches the current UTC hour
   const users = await query(
@@ -48,7 +51,7 @@ export async function handler(jobs: Job[]): Promise<void> {
 
   if (!users || users.length === 0) {
     const elapsed = Date.now() - startTime;
-    console.log(`[JOB:${JOB_NAME}] Completed in ${elapsed}ms — no users with notifications enabled`);
+    log.info(`Completed in ${elapsed}ms — no users with notifications enabled`);
     return;
   }
 
@@ -72,13 +75,10 @@ export async function handler(jobs: Job[]): Promise<void> {
 
     // Log progress every batch
     if ((i + 1) % BATCH_SIZE === 0) {
-      console.log(`[JOB:${JOB_NAME}] Progress: ${i + 1}/${users.length} (sent: ${sent}, failed: ${failed})`);
+      log.info(`Progress: ${i + 1}/${users.length}`, { sent, failed });
     }
   }
 
   const elapsed = Date.now() - startTime;
-  console.log(
-    `[JOB:${JOB_NAME}] Completed in ${elapsed}ms — ` +
-    `sent: ${sent}, failed: ${failed}, total: ${users.length}`
-  );
+  log.info(`Completed in ${elapsed}ms`, { sent, failed, total: users.length });
 }

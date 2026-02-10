@@ -8,6 +8,9 @@
 import type { Job } from 'pg-boss';
 import { query } from '../../utils/db.js';
 import { checkAndUnlockAchievements } from '../../utils/achievementEngine.js';
+import { logger } from '../../api/utils/logger.js';
+
+const log = logger.child({ component: 'achievementBatchCheck' });
 
 export const JOB_NAME = 'achievement-batch-check';
 export const CRON_SCHEDULE = '0 */6 * * *';
@@ -21,7 +24,7 @@ function sleep(ms: number): Promise<void> {
 
 export async function handler(jobs: Job[]): Promise<void> {
   const startTime = Date.now();
-  console.log(`[JOB:${JOB_NAME}] Started`);
+  log.info('Started');
 
   const users = await query<{ id: number }>(
     `SELECT DISTINCT u.id
@@ -53,8 +56,5 @@ export async function handler(jobs: Job[]): Promise<void> {
   }
 
   const elapsed = Date.now() - startTime;
-  console.log(
-    `[JOB:${JOB_NAME}] Completed in ${elapsed}ms — ` +
-    `users checked: ${totalChecked}, new achievements unlocked: ${totalUnlocked}`
-  );
+  log.info(`Completed in ${elapsed}ms`, { totalChecked, totalUnlocked });
 }

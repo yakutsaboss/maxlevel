@@ -11,6 +11,9 @@ import type { Bot } from 'grammy';
 import type { MyContext } from '../../bot.js';
 import { query, queryOne, execute } from '../../utils/db.js';
 import { invalidateUserCache } from '../../utils/cache.js';
+import { logger } from '../../api/utils/logger.js';
+
+const log = logger.child({ component: 'punishmentCheck' });
 
 let botRef: Bot<MyContext> | null = null;
 
@@ -38,7 +41,7 @@ async function sleep(ms: number): Promise<void> {
 
 export async function handler(jobs: Job[]): Promise<void> {
   const startTime = Date.now();
-  console.log(`[JOB:${JOB_NAME}] Started`);
+  log.info('Started');
 
   // Step 1: Find quests that expired yesterday and were not completed
   const failedQuests = await query(
@@ -56,7 +59,7 @@ export async function handler(jobs: Job[]): Promise<void> {
 
   if (!failedQuests || failedQuests.length === 0) {
     const elapsed = Date.now() - startTime;
-    console.log(`[JOB:${JOB_NAME}] Completed in ${elapsed}ms — no expired quests found`);
+    log.info(`Completed in ${elapsed}ms — no expired quests found`);
     return;
   }
 
@@ -66,7 +69,7 @@ export async function handler(jobs: Job[]): Promise<void> {
     `UPDATE quest_instances SET status = 'failed' WHERE id = ANY($1)`,
     [failedIds]
   );
-  console.log(`[JOB:${JOB_NAME}] Marked ${failedIds.length} quests as failed`);
+  log.info(`Marked ${failedIds.length} quests as failed`);
 
   // Step 3: Group by user for punishment processing
   const userQuests = new Map<number, Array<{ quest_instance_id: number; telegram_id: string; title: string; xp_reward: number }>>();
@@ -190,7 +193,7 @@ export async function handler(jobs: Job[]): Promise<void> {
           notificationsSent++;
         } catch (err: any) {
           notificationsFailed++;
-          console.warn(`[JOB:${JOB_NAME}] Failed to notify user ${telegramId}: ${err?.message || err}`);
+          log.warn(`Failed to notify user ${telegramId}: ${err?.message || err}`);
         }
         await sleep(DELAY_BETWEEN_SENDS_MS);
       }
@@ -203,10 +206,8 @@ export async function handler(jobs: Job[]): Promise<void> {
   }
 
   const elapsed = Date.now() - startTime;
-  console.log(
-    `[JOB:${JOB_NAME}] Completed in ${elapsed}ms — ` +
-    `quests failed: ${failedIds.length}, punishments applied: ${punishmentsApplied}, ` +
-    `total XP deducted: ${totalXpDeducted}, ` +
-    `notifications sent: ${notificationsSent}, notifications failed: ${notificationsFailed}`
-  );
+  log.info(`Completed in ${elapsed}ms`, {
+    questsFailed: failedIds.length, punishmentsApplied,
+    totalXpDeducted, notificationsSent, notificationsFailed,
+  });
 }

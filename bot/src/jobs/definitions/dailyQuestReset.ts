@@ -12,6 +12,9 @@
 
 import type { Job } from 'pg-boss';
 import { query, execute } from '../../utils/db.js';
+import { logger } from '../../api/utils/logger.js';
+
+const log = logger.child({ component: 'dailyQuestReset' });
 
 export const JOB_NAME = 'daily-quest-reset';
 export const CRON_SCHEDULE = '0 0 * * *';
@@ -55,7 +58,7 @@ async function assignDailyQuestsWithRetry(userId: number): Promise<boolean> {
     } catch (err: any) {
       if (attempt < MAX_RETRIES) {
         const delay = Math.pow(2, attempt - 1) * 1000; // 1s, 2s, 4s
-        console.warn(`[JOB:${JOB_NAME}] Retry ${attempt}/${MAX_RETRIES} for user ${userId} in ${delay}ms: ${err?.message || err}`);
+        log.warn(`Retry ${attempt}/${MAX_RETRIES} for user ${userId} in ${delay}ms: ${err?.message || err}`);
         await sleep(delay);
       }
     }
@@ -103,7 +106,7 @@ async function assignWeeklyQuests(userId: number): Promise<boolean> {
 
 export async function handler(jobs: Job[]): Promise<void> {
   const startTime = Date.now();
-  console.log(`[JOB:${JOB_NAME}] Started`);
+  log.info('Started');
 
   let offset = 0;
   let assigned = 0;
@@ -141,7 +144,7 @@ export async function handler(jobs: Job[]): Promise<void> {
   const isMonday = new Date().getUTCDay() === 1;
 
   if (isMonday) {
-    console.log(`[JOB:${JOB_NAME}] Monday detected — assigning weekly quests`);
+    log.info('Monday detected — assigning weekly quests');
 
     let weeklyOffset = 0;
     while (true) {
@@ -158,7 +161,7 @@ export async function handler(jobs: Job[]): Promise<void> {
           weeklyAssigned++;
         } else {
           weeklyFailed++;
-          console.warn(`[JOB:${JOB_NAME}] Weekly quest assignment failed for user ${user.id}`);
+          log.warn(`Weekly quest assignment failed for user ${user.id}`);
         }
       }
 
@@ -166,20 +169,19 @@ export async function handler(jobs: Job[]): Promise<void> {
       if (users.length < BATCH_SIZE) break;
     }
 
-    console.log(`[JOB:${JOB_NAME}] Weekly quests — assigned: ${weeklyAssigned}, failed: ${weeklyFailed}`);
+    log.info('Weekly quests complete', { weeklyAssigned, weeklyFailed });
   }
 
   const elapsed = Date.now() - startTime;
 
   if (failedUserIds.length > 0) {
-    console.warn(`[JOB:${JOB_NAME}] Failed user IDs: ${failedUserIds.join(', ')}`);
+    log.warn('Failed user IDs', { failedUserIds });
   }
 
-  console.log(
-    `[JOB:${JOB_NAME}] Completed in ${elapsed}ms — ` +
-    `daily assigned: ${assigned}, daily failed: ${failed}, skipped: ${skipped}` +
-    (isMonday ? `, weekly assigned: ${weeklyAssigned}, weekly failed: ${weeklyFailed}` : '')
-  );
+  log.info(`Completed in ${elapsed}ms`, {
+    dailyAssigned: assigned, dailyFailed: failed, skipped,
+    ...(isMonday ? { weeklyAssigned, weeklyFailed } : {}),
+  });
 
   // Set target for newly assigned quests that still have the default target=1
   const updatedTargets = await execute(`
@@ -193,5 +195,5 @@ export async function handler(jobs: Job[]): Promise<void> {
     FROM quests q
     WHERE qi.quest_id = q.id AND qi.instance_date = CURRENT_DATE AND qi.target = 1
   `);
-  console.log(`[JOB:${JOB_NAME}] Updated targets for ${updatedTargets} quest instances`);
+  log.info(`Updated targets for ${updatedTargets} quest instances`);
 }

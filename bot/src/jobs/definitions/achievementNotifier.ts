@@ -9,6 +9,9 @@ import type { Job } from 'pg-boss';
 import type { Bot } from 'grammy';
 import type { MyContext } from '../../bot.js';
 import { query } from '../../utils/db.js';
+import { logger } from '../../api/utils/logger.js';
+
+const log = logger.child({ component: 'achievementNotifier' });
 
 let botRef: Bot<MyContext> | null = null;
 
@@ -29,7 +32,7 @@ export async function handler(jobs: Job[]): Promise<void> {
   if (!botRef) throw new Error('Bot instance not set for achievement notifier');
 
   const startTime = Date.now();
-  console.log(`[JOB:${JOB_NAME}] Started`);
+  log.info('Started');
 
   const recentUnlocks = await query(
     `SELECT ua.user_id, u.telegram_id, a.id AS achievement_id, a.name, a.badge_icon, a.xp_bonus
@@ -44,7 +47,7 @@ export async function handler(jobs: Job[]): Promise<void> {
 
   if (!recentUnlocks || recentUnlocks.length === 0) {
     const elapsed = Date.now() - startTime;
-    console.log(`[JOB:${JOB_NAME}] Completed in ${elapsed}ms — no recent achievement unlocks`);
+    log.info(`Completed in ${elapsed}ms — no recent achievement unlocks`);
     return;
   }
 
@@ -65,7 +68,7 @@ export async function handler(jobs: Job[]): Promise<void> {
     } catch (err: any) {
       if (err?.error_code === 429 || err?.parameters?.retry_after) {
         const retryAfter = err.parameters?.retry_after ?? 5;
-        console.warn(`[JOB:${JOB_NAME}] Rate limited, waiting ${retryAfter}s`);
+        log.warn(`Rate limited, waiting ${retryAfter}s`);
         await sleep(retryAfter * 1000);
 
         try {
@@ -82,7 +85,7 @@ export async function handler(jobs: Job[]): Promise<void> {
       }
 
       failed++;
-      console.warn(`[JOB:${JOB_NAME}] Failed to notify user ${unlock.telegram_id}: ${err?.message || err}`);
+      log.warn(`Failed to notify user ${unlock.telegram_id}: ${err?.message || err}`);
     }
 
     // Rate limiting: 200ms delay between sends
@@ -92,8 +95,5 @@ export async function handler(jobs: Job[]): Promise<void> {
   }
 
   const elapsed = Date.now() - startTime;
-  console.log(
-    `[JOB:${JOB_NAME}] Completed in ${elapsed}ms — ` +
-    `sent: ${sent}, failed: ${failed}, total: ${recentUnlocks.length}`
-  );
+  log.info(`Completed in ${elapsed}ms`, { sent, failed, total: recentUnlocks.length });
 }

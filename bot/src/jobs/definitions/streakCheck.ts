@@ -8,13 +8,16 @@
 
 import type { Job } from 'pg-boss';
 import { query, execute } from '../../utils/db.js';
+import { logger } from '../../api/utils/logger.js';
+
+const log = logger.child({ component: 'streakCheck' });
 
 export const JOB_NAME = 'streak-check';
 export const CRON_SCHEDULE = '0 1 * * *';
 
 export async function handler(jobs: Job[]): Promise<void> {
   const startTime = Date.now();
-  console.log(`[JOB:${JOB_NAME}] Started`);
+  log.info('Started');
 
   const yesterday = new Date(Date.now() - 86400000).toISOString().split('T')[0];
 
@@ -51,18 +54,9 @@ export async function handler(jobs: Job[]): Promise<void> {
 
   // Log details of broken streaks
   if (brokenDetails.length > 0) {
-    console.log(`[JOB:${JOB_NAME}] Broken streak details:`);
-    for (const s of brokenDetails) {
-      console.log(
-        `[JOB:${JOB_NAME}]   user_id=${s.user_id}, mode_id=${s.mode_id}, ` +
-        `previous_streak=${s.was_streak}`
-      );
-    }
+    log.info('Broken streak details', { brokenDetails });
   }
 
   const elapsed = Date.now() - startTime;
-  console.log(
-    `[JOB:${JOB_NAME}] Completed in ${elapsed}ms — ` +
-    `broken: ${broken}, maintained: ${maintained}`
-  );
+  log.info(`Completed in ${elapsed}ms`, { broken, maintained });
 }

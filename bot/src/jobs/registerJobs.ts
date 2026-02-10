@@ -6,6 +6,9 @@
 import { PgBoss, type Job, type WorkHandler } from 'pg-boss';
 import type { Bot } from 'grammy';
 import type { MyContext } from '../bot.js';
+import { logger } from '../api/utils/logger.js';
+
+const log = logger.child({ component: 'registerJobs' });
 
 import * as dailyQuestReset from './definitions/dailyQuestReset.js';
 import * as streakCheck from './definitions/streakCheck.js';
@@ -48,7 +51,7 @@ export async function registerAllJobs(boss: PgBoss, bot: Bot<MyContext>): Promis
     await boss.createQueue(job.name);
     await boss.schedule(job.name, job.cron);
     await boss.work(job.name, job.handler);
-    console.log(`   [PG-BOSS] Registered: ${job.name} (${job.cron})`);
+    log.info(`Registered: ${job.name} (${job.cron})`);
   }
 }
 

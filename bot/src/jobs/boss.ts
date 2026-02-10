@@ -4,6 +4,9 @@
  */
 
 import { PgBoss } from 'pg-boss';
+import { logger } from '../api/utils/logger.js';
+
+const log = logger.child({ component: 'pgBoss' });
 
 let boss: PgBoss | null = null;
 
@@ -18,11 +21,11 @@ export async function startJobQueue(): Promise<PgBoss> {
   boss = new PgBoss(databaseUrl);
 
   boss.on('error', ((error: Error) => {
-    console.error('[PG-BOSS] Error:', error);
+    log.error('Error', error);
   }) as any);
 
   await boss.start();
-  console.log('[PG-BOSS] Job queue started');
+  log.info('Job queue started');
   return boss;
 }
 
@@ -34,6 +37,6 @@ export async function stopJobQueue(): Promise<void> {
   if (boss) {
     await boss.stop();
     boss = null;
-    console.log('[PG-BOSS] Job queue stopped');
+    log.info('Job queue stopped');
   }
 }
