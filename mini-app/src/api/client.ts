@@ -1,5 +1,5 @@
 import axios, { AxiosInstance } from 'axios';
-import type { ApiResponse, UserStats, Quest, Achievement, UserAchievement } from '@/types';
+import type { ApiResponse, UserStats, Quest, Achievement, UserAchievement, QuestCompleteResponse } from '@/types';
 
 // API Base URL - should come from environment
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
@@ -79,7 +79,7 @@ class ApiClient {
     return response.data;
   }
 
-  async completeQuest(questId: number, progress: number): Promise<ApiResponse<Quest>> {
+  async completeQuest(questId: number, progress: number): Promise<ApiResponse<QuestCompleteResponse>> {
     const response = await this.client.post(`/quests/${questId}/complete`, {
       progress,
     });
