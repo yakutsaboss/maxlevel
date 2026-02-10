@@ -1,5 +1,5 @@
 import axios, { AxiosInstance } from 'axios';
-import type { ApiResponse, UserStats, User, Quest, Achievement, UserAchievement, QuestCompleteResponse, CheckinResponse, CheckinListResponse } from '@/types';
+import type { ApiResponse, UserStats, User, Mode, Quest, Achievement, UserAchievement, QuestCompleteResponse, CheckinResponse, CheckinListResponse, UserPreferences, PunishmentSettings, PunishmentHistoryResponse, OnboardingState } from '@/types';
 
 // API Base URL - should come from environment
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
@@ -114,31 +114,31 @@ class ApiClient {
   }
 
   // Mode endpoints
-  async addUserMode(userId: number, modeId: number): Promise<ApiResponse<any>> {
+  async addUserMode(userId: number, modeId: number): Promise<ApiResponse<{ message: string; modes: Mode[] }>> {
     const response = await this.client.post(`/users/${userId}/modes`, {
       mode_id: modeId,
     });
     return response.data;
   }
 
-  async removeUserMode(userId: number, modeId: number): Promise<ApiResponse<any>> {
+  async removeUserMode(userId: number, modeId: number): Promise<ApiResponse<{ message: string }>> {
     const response = await this.client.delete(`/users/${userId}/modes/${modeId}`);
     return response.data;
   }
 
   // User preferences endpoints
-  async getUserPreferences(telegramId: number): Promise<ApiResponse<{ notification_enabled: boolean; reminder_time: number; timezone: string }>> {
+  async getUserPreferences(telegramId: number): Promise<ApiResponse<UserPreferences>> {
     const response = await this.client.get(`/users/${telegramId}/preferences`);
     return response.data;
   }
 
-  async updateUserPreferences(telegramId: number, data: { notification_enabled?: boolean; reminder_time?: number; timezone?: string }): Promise<ApiResponse<any>> {
+  async updateUserPreferences(telegramId: number, data: { notification_enabled?: boolean; reminder_time?: number; timezone?: string }): Promise<ApiResponse<UserPreferences>> {
     const response = await this.client.patch(`/users/${telegramId}/preferences`, data);
     return response.data;
   }
 
   // User profile update
-  async updateUserProfile(telegramId: number, data: { first_name?: string; avatar_id?: number }): Promise<ApiResponse<any>> {
+  async updateUserProfile(telegramId: number, data: { first_name?: string; avatar_id?: number }): Promise<ApiResponse<User>> {
     const response = await this.client.patch(`/users/${telegramId}/profile`, data);
     return response.data;
   }
@@ -166,29 +166,29 @@ class ApiClient {
   }
 
   // Punishment settings endpoints
-  async getPunishmentSettings(telegramId: number): Promise<ApiResponse<any>> {
+  async getPunishmentSettings(telegramId: number): Promise<ApiResponse<PunishmentSettings>> {
     const response = await this.client.get(`/punishment/${telegramId}/settings`);
     return response.data;
   }
 
-  async updatePunishmentSettings(telegramId: number, data: { consent_given?: boolean; intensity_level?: string; safe_mode?: boolean }): Promise<ApiResponse<any>> {
+  async updatePunishmentSettings(telegramId: number, data: { consent_given?: boolean; intensity_level?: string; safe_mode?: boolean }): Promise<ApiResponse<PunishmentSettings>> {
     const response = await this.client.patch(`/punishment/${telegramId}/settings`, data);
     return response.data;
   }
 
   // Punishment history endpoint
-  async getPunishmentHistory(telegramId: number, page = 1, limit = 5): Promise<ApiResponse<{ punishments: any[]; page: number; total: number }>> {
+  async getPunishmentHistory(telegramId: number, page = 1, limit = 5): Promise<ApiResponse<PunishmentHistoryResponse>> {
     const response = await this.client.get(`/punishment/${telegramId}/history?page=${page}&limit=${limit}`);
     return response.data;
   }
 
   // Onboarding endpoints
-  async getOnboardingState(telegramId: number): Promise<ApiResponse<{ current_step: string | null; quiz_data: Record<string, any> | null }>> {
+  async getOnboardingState(telegramId: number): Promise<ApiResponse<OnboardingState>> {
     const response = await this.client.get(`/onboarding/${telegramId}`);
     return response.data;
   }
 
-  async saveOnboardingState(telegramId: number, currentStep: string, quizData: Record<string, any>): Promise<ApiResponse<any>> {
+  async saveOnboardingState(telegramId: number, currentStep: string, quizData: Record<string, any>): Promise<ApiResponse<OnboardingState>> {
     const response = await this.client.put(`/onboarding/${telegramId}`, {
       current_step: currentStep,
       quiz_data: quizData,
