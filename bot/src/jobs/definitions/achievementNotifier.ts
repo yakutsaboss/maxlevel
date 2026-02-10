@@ -32,11 +32,12 @@ export async function handler(jobs: Job[]): Promise<void> {
   console.log(`[JOB:${JOB_NAME}] Started`);
 
   const recentUnlocks = await query(
-    `SELECT ua.user_id, u.telegram_id, a.name, a.badge_icon, a.xp_bonus
+    `SELECT ua.user_id, u.telegram_id, a.id AS achievement_id, a.name, a.badge_icon, a.xp_bonus
      FROM user_achievements ua
      JOIN users u ON u.id = ua.user_id
      JOIN achievements a ON a.id = ua.achievement_id
      WHERE ua.unlocked_at > NOW() - INTERVAL '20 minutes'
+       AND ua.notification_sent_at IS NULL
        AND u.is_active = true`,
     []
   );
@@ -56,6 +57,10 @@ export async function handler(jobs: Job[]): Promise<void> {
 
     try {
       await botRef.api.sendMessage(unlock.telegram_id, message);
+      await query(
+        `UPDATE user_achievements SET notification_sent_at = NOW() WHERE user_id = $1 AND achievement_id = $2`,
+        [unlock.user_id, unlock.achievement_id]
+      );
       sent++;
     } catch (err: any) {
       if (err?.error_code === 429 || err?.parameters?.retry_after) {
@@ -65,6 +70,10 @@ export async function handler(jobs: Job[]): Promise<void> {
 
         try {
           await botRef.api.sendMessage(unlock.telegram_id, message);
+          await query(
+            `UPDATE user_achievements SET notification_sent_at = NOW() WHERE user_id = $1 AND achievement_id = $2`,
+            [unlock.user_id, unlock.achievement_id]
+          );
           sent++;
           continue;
         } catch {
