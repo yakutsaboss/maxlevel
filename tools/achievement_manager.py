@@ -249,12 +249,10 @@ class AchievementManager:
                     ua.achievement_id,
                     a.name,
                     a.description,
-                    a.xp_reward,
+                    a.xp_bonus,
                     a.rarity,
-                    a.icon,
-                    a.category,
-                    ua.unlocked_at,
-                    ua.progress
+                    a.badge_icon,
+                    ua.unlocked_at
                 FROM user_achievements ua
                 JOIN achievements a ON ua.achievement_id = a.id
                 WHERE ua.user_id = %s
@@ -268,17 +266,15 @@ class AchievementManager:
                     "achievement_id": row[1],
                     "name": row[2],
                     "description": row[3],
-                    "xp_reward": row[4],
+                    "xp_bonus": row[4],
                     "rarity": row[5],
-                    "icon": row[6],
-                    "category": row[7],
-                    "unlocked_at": row[8].isoformat() if row[8] else None,
-                    "progress": row[9]
+                    "badge_icon": row[6],
+                    "unlocked_at": row[7].isoformat() if row[7] else None
                 })
 
             # Get total count
             cursor.execute("""
-                SELECT COUNT(*) FROM achievements WHERE is_active = true
+                SELECT COUNT(*) FROM achievements
             """)
             total = cursor.fetchone()[0]
 
