@@ -191,29 +191,18 @@ Use this structure when creating a new run. Copy and adapt:
 
 ---
 
-## Known Issues (Updated after Run 17)
-
-### Resolved (Runs 13–17)
-- ~~PATCH /progress authorization~~ — Fixed in Run 15
-- ~~checkAchievements() double-wrap bug~~ — Fixed in Run 15
-- ~~Bare API endpoints~~ — All endpoints now return `{success, data}` (Runs 15+16)
-- ~~achievement_manager.py broken columns~~ — Fixed in Run 16
-- ~~client.ts `any` return types~~ — Replaced with proper types in Run 16
-- ~~Dead updateQuestProgress code~~ — Removed in Run 15
-- ~~`checkAchievements()` uses `any[]`~~ — Fixed in Run 17 Agent A (now `Achievement[]`)
-- ~~Leaderboard endpoints return `any[]`~~ — Fixed in Run 17 Agent A (now `LeaderboardEntry[]`)
-- ~~Admin API responses lack `{success, data}` wrapper~~ — Fixed in Run 17 Agent B
-- ~~`API_BASE_URL` duplicated in 6 files~~ — Fixed in Run 17 Agent C (shared adminClient.ts)
-- ~~App.tsx repeats onboarding check~~ — Fixed in Run 17 Agent C (ProtectedRoute component)
-- ~~6 stale `REGISTER_THESE_*.md` files~~ — Deleted in Run 17 Agent B
+## Known Issues (Updated after Run 20)
 
 ### Still Open
 1. **pg-boss Node.js mismatch** — Requires 22.12+, server has 20.20. Only triggers warnings, no functional impact yet.
 2. **Mode configs unused** — `mode_configs` table stores quiz responses + personalized plans, but data is never consumed.
-3. **Delete account e2e testing** — confirm soft delete flow works end-to-end in Telegram (Agent B recommendation).
-4. **Unused `RefreshCw` imports** — After usePullToRefresh extraction, 4 pages still import RefreshCw even though PullIndicator handles it (Agent A Run 19 recommendation). Low priority.
+3. **Delete account e2e testing** — confirm soft delete flow works end-to-end in Telegram (Agent B Run 18 recommendation).
+4. **Settings error state uses inline JSX** — Could adopt the new ErrorSection component (Agent A Run 20 recommendation).
+5. **Profile error state uses inline JSX** — Same as above, Profile.tsx still has its own error UI.
+6. **Settings state logic could be a hook** — ~120 lines of accountability auto-save/debounce logic could be extracted to `useSettingsData` (Agent A Run 20 recommendation).
+7. **`asyncHandler` typing is loose** — Uses `Function` type, should use Express `RequestHandler` (Agent D Run 20 recommendation).
 
-### Resolved (Runs 13–19)
+### Resolved (Runs 13–20)
 - ~~PATCH /progress authorization~~ — Fixed in Run 15
 - ~~checkAchievements() double-wrap bug~~ — Fixed in Run 15
 - ~~Bare API endpoints~~ — All endpoints now return `{success, data}` (Runs 15+16)
@@ -237,6 +226,14 @@ Use this structure when creating a new run. Copy and adapt:
 - ~~Dashboard quest click does nothing~~ — Now navigates to `/quests`, Run 19 Agent A
 - ~~`user_stats` SQL view doesn't exist~~ — Created in Run 19 Agent B + deployed to production DB
 - ~~DELETE endpoint doesn't nullify timezone~~ — GDPR fix in Run 19 Agent B
+- ~~Settings.tsx 517 lines monolith~~ — Extracted 3 sub-components in Run 20 Agent A (→246 lines)
+- ~~Profile.tsx 408 lines monolith~~ — Extracted 4 sub-components in Run 20 Agent B (→~210 lines)
+- ~~Error UI duplicated across 6 pages~~ — Created shared ErrorSection component in Run 20 Agent C
+- ~~Quest modal mode null safety~~ — Added fallbacks in Run 20 Agent C
+- ~~Manual try-catch in users/onboarding/checkins routes~~ — Replaced with asyncHandler in Run 20 Agent D
+- ~~authorizeUser calls Python subprocess~~ — Migrated to native SQL in Run 20 Agent E
+- ~~Hardcoded status strings in backend routes~~ — Created typed constants in Run 20 Agent E
+- ~~Unused RefreshCw imports in 4 pages~~ — Resolved by ErrorSection consolidation in Run 20 Agent C
 
 ---
 
@@ -973,6 +970,25 @@ Read PARALLEL_AGENTS.md — you are Agent E for Run 20. Your job: (1) Migrate `a
 - Consider adding `QUEST_DIFFICULTY` constants to places where difficulty is validated or compared.
 
 #### Agent 0 Retrospective
-*(To be filled by Agent 0 after merge)*
+**Merge:** E → D → C → A → B. All 5 merges completed with **zero conflicts**. PARALLEL_AGENTS.md retros auto-merged cleanly thanks to pre-allocated sections. No code file conflicts — file ownership matrix worked perfectly with 5 agents.
+
+**Build:** Both `bot` and `mini-app` pass with zero errors locally and on server.
+
+**Deploy:** `dd84c61` deployed to production. 20 files changed (11 new + 9 modified). PM2 restarted.
+
+**Net result:**
+- Settings.tsx: 517 → 246 lines (–271), 3 new sub-components in `components/settings/`
+- Profile.tsx: 408 → ~210 lines (–198), 4 new sub-components in `components/profile/` + shared `formatDate` util
+- ErrorSection: new reusable component, applied to 4 pages (–58 lines of duplicated error UI)
+- Backend routes: asyncHandler eliminated 11+ try-catch blocks across users/onboarding/checkins (–105 lines)
+- Auth middleware: Python subprocess replaced with native SQL query (performance improvement on every request)
+- Constants: new `constants.ts` with typed status/rarity enums, applied to quests.ts
+
+**Observations:**
+- This was the largest parallel run yet (5 agents) with zero merge conflicts — a first. Pre-allocated retro sections + strict file ownership matrix are proven at this scale.
+- Agent A noted Settings.tsx still has ~120 lines of state logic that could become a `useSettingsData` hook.
+- Agent A also noted Settings error state could use the new ErrorSection component (created by Agent C in a different branch).
+- Agent D noted `errors.ts` `asyncHandler` typing uses `Function` (loose) — could be typed with Express `RequestHandler` for stricter safety.
+- Agent E did not apply constants to `achievements.ts` (no hardcoded rarity strings found in current code) — noted in retro.
 
 <!-- Next run goes here. Agent 0 will append RUN 21 below this line. -->
