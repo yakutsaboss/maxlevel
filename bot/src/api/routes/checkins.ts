@@ -90,9 +90,12 @@ router.post('/', authenticateTelegram, mutationLimiter, async (req: Request, res
     invalidateUserCache(quest.user_id);
 
     res.json({
-      check_in_id: result.check_in_id,
-      quest_progress: { current: newCount, target },
-      completed,
+      success: true,
+      data: {
+        check_in_id: result.check_in_id,
+        quest_progress: { current: newCount, target },
+        completed,
+      },
     });
   } catch (error) {
     console.error('Error creating check-in:', error);
