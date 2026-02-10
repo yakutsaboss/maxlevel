@@ -80,23 +80,61 @@ router.get('/users/:userId/summary', authenticateTelegram, asyncHandler(async (r
  * Add modes to user
  */
 router.post('/users/:userId', authenticateTelegram, asyncHandler(async (req: Request, res: Response) => {
-  const { userId } = req.params;
+  const userId = parseInt(req.params.userId);
   const { modes } = req.body;
 
   if (!modes || !Array.isArray(modes) || modes.length === 0) {
     throw new BadRequestError('Invalid modes array');
   }
 
-  const modesString = modes.join(',');
-  const result = await executePythonTool('mode_manager', [
-    '--add-modes', '--user-id', userId, '--modes', modesString
-  ]);
+  const added: { mode: string; user_mode_id: number }[] = [];
+  const failed: { mode: string; reason: string }[] = [];
+  const already_active: string[] = [];
 
-  if (!result.success) {
-    throw new InternalServerError('Failed to add modes');
+  for (const modeName of modes) {
+    const mode = await queryOne(
+      `SELECT id FROM modes WHERE name = $1`,
+      [String(modeName).trim()]
+    );
+
+    if (!mode) {
+      failed.push({ mode: modeName, reason: 'Mode not found' });
+      continue;
+    }
+
+    const existing = await queryOne(
+      `SELECT id, is_active FROM user_modes WHERE user_id = $1 AND mode_id = $2`,
+      [userId, mode.id]
+    );
+
+    if (existing && existing.is_active) {
+      already_active.push(modeName);
+      continue;
+    }
+
+    if (existing && !existing.is_active) {
+      await execute(
+        `UPDATE user_modes SET is_active = true, enabled_at = NOW() WHERE id = $1`,
+        [existing.id]
+      );
+      added.push({ mode: modeName, user_mode_id: existing.id });
+    } else {
+      const newUserMode = await queryOne(
+        `INSERT INTO user_modes (user_id, mode_id, is_active) VALUES ($1, $2, true) RETURNING id`,
+        [userId, mode.id]
+      );
+      added.push({ mode: modeName, user_mode_id: newUserMode!.id });
+    }
+
+    await execute(
+      `INSERT INTO streaks (user_id, mode_id, current_streak, longest_streak)
+       VALUES ($1, $2, 0, 0)
+       ON CONFLICT (user_id, mode_id) DO NOTHING`,
+      [userId, mode.id]
+    );
   }
 
-  res.json(successResponse({ message: 'Modes added successfully', modes: result.data || [] }));
+  res.json(successResponse({ message: 'Modes added successfully', added, failed, already_active }));
 }));
 
 /**
