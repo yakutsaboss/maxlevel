@@ -191,7 +191,7 @@ Use this structure when creating a new run. Copy and adapt:
 
 ---
 
-## Known Issues (Updated after Run 16)
+## Known Issues (Updated after Run 16, verified for Run 17)
 
 ### Resolved (Runs 13–16)
 - ~~PATCH /progress authorization~~ — Fixed in Run 15 (authorizeUser + ownership check)
@@ -201,16 +201,204 @@ Use this structure when creating a new run. Copy and adapt:
 - ~~client.ts `any` return types~~ — Replaced with proper types in Run 16
 - ~~Dead updateQuestProgress code~~ — Removed in Run 15
 - ~~client.ts manual checkin wrapping~~ — Fixed in Run 15
+- ~~`intensity_level` type mismatch~~ — Verified in Run 17 prep: no mismatch, all layers use string literal union
+- ~~Wire `punishment_manager.py` into punishmentCheck job~~ — Verified in Run 17 prep: job is self-contained with inline logic, Python tool is CLI-only
 
 ### Still Open
-1. **`checkAchievements()` uses `any[]`** — `newAchievements` is typed as `any[]`. Should be `Achievement[]` once verified against backend response shape.
-2. **Leaderboard endpoints return `any[]`** — Define a `LeaderboardEntry` type once the shape stabilizes across all-time/weekly/monthly/mode views.
-3. **`intensity_level` type mismatch** — Backend likely returns number, but pages use string. Audit and align.
-4. **Wire `punishment_manager.py` into punishmentCheck job** — The Python tool exists but the pg-boss `punishmentCheck` job doesn't call it yet.
-5. **Verify `user_stats` view in achievement_manager.py** — `check_and_unlock_achievements()` queries columns that may not exist as a view. Verify on production DB.
-6. **pg-boss Node.js mismatch** — Requires 22.12+, server has 20.20. Only triggers warnings, no functional impact yet.
-7. **Mode configs unused** — `mode_configs` table stores quiz responses + personalized plans, but data is never consumed.
+1. **`checkAchievements()` uses `any[]`** — `newAchievements` is typed as `any[]`. Should be `Achievement[]`. **→ Fix in Run 17 Agent A**
+2. **Leaderboard endpoints return `any[]`** — `LeaderboardEntry` interface exists locally in Leaderboard.tsx but not in shared types. **→ Fix in Run 17 Agent A**
+3. **Admin API responses lack `{success, data}` wrapper** — admin-jobs, admin-stats, admin-users routes return bare objects. **→ Fix in Run 17 Agent B**
+4. **`API_BASE_URL` duplicated in 6 files** — Admin.tsx, AdminBroadcast.tsx, AdminJobs.tsx, AdminLogs.tsx, AdminUserList.tsx all define it independently. **→ Fix in Run 17 Agent C**
+5. **App.tsx repeats onboarding check** — Every route duplicates `needsOnboarding ? <Navigate to="/onboarding" /> : ...`. **→ Fix in Run 17 Agent C**
+6. **6 stale `REGISTER_THESE_*.md` files** in handlers/ from Runs 2–7. **→ Cleanup in Run 17 Agent B**
+7. **Verify `user_stats` view in achievement_manager.py** — `check_and_unlock_achievements()` queries columns that may not exist as a view. Verify on production DB.
+8. **pg-boss Node.js mismatch** — Requires 22.12+, server has 20.20. Only triggers warnings, no functional impact yet.
+9. **Mode configs unused** — `mode_configs` table stores quiz responses + personalized plans, but data is never consumed.
 
 ---
 
-<!-- Next run goes here. Agent 0 will append RUN 17 below this line. -->
+## RUN 17: Parallel Agents (3 Agents + Agent 0)
+
+### Focus: Type Safety Completion, Admin API Consistency, Mini-App Architecture Cleanup
+
+### Copy-Paste Prompts
+
+**Agent 0** (open in: `c:\Users\Asus\Desktop\Wibecode`):
+```
+Read PARALLEL_AGENTS.md you are Agent o for Run 17
+```
+
+**Agent A** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-a`):
+```
+Read PARALLEL_AGENTS.md — you are Agent A for Run 17. Your job: type safety completion in the mini-app. Move LeaderboardEntry to shared types, replace all any[] in client.ts, clean up Record<string, any> in types. Follow the Safety Protocol. Commit after each task. Write your retrospective when done.
+```
+
+**Agent B** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-b`):
+```
+Read PARALLEL_AGENTS.md — you are Agent B for Run 17. Your job: admin API response format consistency and cleanup. Wrap all admin route success responses in {success: true, data: ...} format, standardize error responses, delete stale REGISTER_THESE_*.md files. Follow the Safety Protocol. Commit after each task. Write your retrospective when done.
+```
+
+**Agent C** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-c`):
+```
+Read PARALLEL_AGENTS.md — you are Agent C for Run 17. Your job: mini-app architecture cleanup. Create shared adminClient utility, extract ProtectedRoute component, fix useTelegram type guards. Follow the Safety Protocol. Commit after each task. Write your retrospective when done.
+```
+
+---
+
+### Agent A — Mini-App Type Safety
+
+**Branch:** `feature/r17-types`
+**Worktree:** `../Wibecode-agent-a`
+
+**Tasks:**
+1. Move `LeaderboardEntry` interface from `pages/Leaderboard.tsx` (lines 7–20) to `types/index.ts`. Update Leaderboard.tsx to import from `@/types`.
+2. In `api/client.ts`: replace `any[]` on lines 147, 154, 161 (leaderboard methods) with `LeaderboardEntry[]`. Add the import.
+3. In `api/client.ts`: replace `any[]` on line 111 (`checkAchievements`) with `Achievement[]`. The `Achievement` type is already imported.
+4. In `types/index.ts`: replace `Record<string, any>` with `Record<string, unknown>` in:
+   - `criteria` field (line 67)
+   - `custom_punishments` field (line 140)
+   - `quiz_data` field (line 173)
+5. Build verification: `cd mini-app && npm run build`
+
+**OWNED files:**
+- `mini-app/src/types/index.ts`
+- `mini-app/src/api/client.ts`
+- `mini-app/src/pages/Leaderboard.tsx` (only to remove local interface and add import)
+
+**FORBIDDEN files:**
+- `bot/**`
+- `tools/**`
+- `database/**`
+- `mini-app/src/App.tsx`
+- `mini-app/src/pages/Admin.tsx`
+- `mini-app/src/components/Admin*.tsx`
+- `mini-app/src/hooks/useTelegram.ts`
+
+**GRAY AREA:**
+- `mini-app/src/pages/Dashboard.tsx` — may read to verify `checkAchievements` usage, but do NOT edit unless a type error requires it after fixing client.ts.
+- `mini-app/src/pages/Onboarding.tsx` — if `Record<string, unknown>` in `quiz_data` causes type errors in `saveOnboardingState` calls, you may add a minimal type assertion at the call site only.
+
+---
+
+### Agent B — Admin API Response Format & Cleanup
+
+**Branch:** `feature/r17-admin-api`
+**Worktree:** `../Wibecode-agent-b`
+
+**Tasks:**
+1. In `admin-jobs.ts`: wrap GET /jobs success response (line 20) in `{ success: true, data: { jobs, timestamp } }`. Wrap POST trigger response (line 64) in `{ success: true, data: { message, jobId, timestamp } }`.
+2. In `admin-stats.ts`: wrap GET /stats response (line 38) in `{ success: true, data: { users, quests, achievements, timestamp } }`. Wrap POST /analytics/export response (line 71) in `{ success: true, data: ... }`. Wrap GET /modes response (line 99) in `{ success: true, data: { modes, timestamp } }`. Wrap POST /broadcast response — already has `success: true`, just ensure consistency. Wrap GET /logs response (line 234) in `{ success: true, data: { logs } }`.
+3. In `admin-users.ts`: wrap ALL success responses in `{ success: true, data: ... }`. This affects: GET /users (line 38), GET /users/:id (line 75), PATCH /users/:id (line 132), DELETE /users/:id (line 178), POST deactivate (line 219), POST reactivate (line 258).
+4. Standardize ALL error responses across these 3 files to use `{ success: false, error: '...' }` format (currently they use `{ error: '...', message: '...' }`).
+5. Delete stale files: `handlers/REGISTER_THESE_RUN2.md` through `REGISTER_THESE_RUN7.md` (6 files total).
+6. Build verification: `cd bot && npm run build`
+
+**OWNED files:**
+- `bot/src/api/routes/admin-jobs.ts`
+- `bot/src/api/routes/admin-stats.ts`
+- `bot/src/api/routes/admin-users.ts`
+- `bot/src/handlers/REGISTER_THESE_RUN2.md` (delete)
+- `bot/src/handlers/REGISTER_THESE_RUN3.md` (delete)
+- `bot/src/handlers/REGISTER_THESE_RUN4.md` (delete)
+- `bot/src/handlers/REGISTER_THESE_RUN5.md` (delete)
+- `bot/src/handlers/REGISTER_THESE_RUN6.md` (delete)
+- `bot/src/handlers/REGISTER_THESE_RUN7.md` (delete)
+
+**FORBIDDEN files:**
+- `mini-app/**`
+- `tools/**`
+- `database/**`
+- `bot/src/index.ts`
+- `bot/src/api/server.ts`
+- `bot/src/api/routes/users.ts`
+- `bot/src/api/routes/quests.ts`
+- `bot/src/api/routes/achievements.ts`
+- `bot/src/api/routes/modes.ts`
+- `bot/src/api/routes/leaderboard.ts`
+- `bot/src/api/routes/checkins.ts`
+- `bot/src/api/routes/punishment.ts`
+- `bot/src/api/routes/onboarding.ts`
+- `bot/src/jobs/**`
+
+---
+
+### Agent C — Mini-App Architecture Cleanup
+
+**Branch:** `feature/r17-miniapp-arch`
+**Worktree:** `../Wibecode-agent-c`
+
+**Tasks:**
+1. Create `api/adminClient.ts` — export shared `API_BASE_URL` and `adminFetch(path, credentials, options?)` function. The function should auto-unwrap `{ success, data }` responses (handle both old format `data.field` and new format `data.data.field` with `response.data || response` pattern for backwards compat during transition).
+2. Refactor `pages/Admin.tsx` — remove local `API_BASE_URL` and `adminFetch()`, import from `api/adminClient.ts`.
+3. Refactor `components/AdminBroadcast.tsx`, `components/AdminJobs.tsx`, `components/AdminLogs.tsx`, `components/AdminUserList.tsx` — remove local `API_BASE_URL`, import from `api/adminClient.ts`.
+4. Create `components/ProtectedRoute.tsx` — a wrapper component that checks `needsOnboarding` and redirects to `/onboarding` if true, otherwise renders children inside `<PageWrapper>`. Accept a `lazy` boolean prop for pages that need `<LazyPageWrapper>`.
+5. Refactor `App.tsx` — use `<ProtectedRoute>` for dashboard, quests, profile, leaderboard, achievements, settings routes. Remove the repeated ternary pattern. Keep the admin route unprotected (it has its own auth).
+6. Fix `hooks/useTelegram.ts` — replace `(tg as any).disableVerticalSwipes` with a proper type guard: `if ('disableVerticalSwipes' in tg && typeof tg.disableVerticalSwipes === 'function')`. Same for `enableVerticalSwipes`.
+7. Build verification: `cd mini-app && npm run build`
+
+**OWNED files:**
+- `mini-app/src/App.tsx`
+- `mini-app/src/pages/Admin.tsx`
+- `mini-app/src/components/AdminBroadcast.tsx`
+- `mini-app/src/components/AdminJobs.tsx`
+- `mini-app/src/components/AdminLogs.tsx`
+- `mini-app/src/components/AdminUserList.tsx`
+- `mini-app/src/hooks/useTelegram.ts`
+- NEW: `mini-app/src/api/adminClient.ts`
+- NEW: `mini-app/src/components/ProtectedRoute.tsx`
+
+**FORBIDDEN files:**
+- `bot/**`
+- `tools/**`
+- `database/**`
+- `mini-app/src/types/index.ts`
+- `mini-app/src/api/client.ts`
+- `mini-app/src/pages/Leaderboard.tsx`
+- `mini-app/src/pages/Dashboard.tsx`
+- `mini-app/src/pages/Quests.tsx`
+- `mini-app/src/pages/Profile.tsx`
+
+**GRAY AREA:**
+- `mini-app/src/components/AdminStatsCard.tsx` — may need to update if it references `API_BASE_URL`. Only edit to fix imports.
+
+---
+
+### Run 17 File Ownership Matrix
+
+| File | Agent A | Agent B | Agent C |
+|------|---------|---------|---------|
+| mini-app/src/types/index.ts | **OWN** | — | FORBID |
+| mini-app/src/api/client.ts | **OWN** | — | FORBID |
+| mini-app/src/pages/Leaderboard.tsx | **OWN** | — | FORBID |
+| bot/src/api/routes/admin-jobs.ts | — | **OWN** | — |
+| bot/src/api/routes/admin-stats.ts | — | **OWN** | — |
+| bot/src/api/routes/admin-users.ts | — | **OWN** | — |
+| bot/src/handlers/REGISTER_THESE_*.md | — | **OWN** | — |
+| mini-app/src/App.tsx | FORBID | — | **OWN** |
+| mini-app/src/pages/Admin.tsx | FORBID | — | **OWN** |
+| mini-app/src/components/Admin*.tsx | FORBID | — | **OWN** |
+| mini-app/src/hooks/useTelegram.ts | FORBID | — | **OWN** |
+| mini-app/src/api/adminClient.ts (NEW) | — | — | **OWN** |
+| mini-app/src/components/ProtectedRoute.tsx (NEW) | — | — | **OWN** |
+| PARALLEL_AGENTS.md | retro only | retro only | retro only |
+
+### Run 17 Merge Order
+1. **Agent B** (bot admin routes) — backend first, no frontend deps
+2. **Agent A** (mini-app types) — shared types before structure changes
+3. **Agent C** (mini-app architecture) — depends on nothing, but touches most files
+
+### Run 17 Retrospectives
+
+#### Agent A Retrospective
+*(To be filled by Agent A)*
+
+#### Agent B Retrospective
+*(To be filled by Agent B)*
+
+#### Agent C Retrospective
+*(To be filled by Agent C)*
+
+#### Agent 0 Retrospective
+*(To be filled by Agent 0 after merge & deploy)*
+
+<!-- Next run goes here. Agent 0 will append RUN 18 below this line. -->
