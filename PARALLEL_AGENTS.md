@@ -1253,7 +1253,24 @@ PGPASSWORD=postgres psql -h localhost -U postgres -d telegram_rpg -f /opt/wibeco
 *(To be filled by Agent B)*
 
 #### Agent C Retrospective
-*(To be filled by Agent C)*
+**Status:** All 3 tasks completed. Build passes clean.
+
+| # | Task | Status | Commit |
+|---|------|--------|--------|
+| 1 | Remove `perModeStreaks` `as any` cast in Profile.tsx | Done | `aa3c28d` |
+| 2 | Remove `achievement.rarity/category` `as any` casts in Profile.tsx | Done | `cfcb302` |
+| 3 | Remove redundant +1/+5 progress buttons + dead code in Quests.tsx | Done | `63a28fc` |
+| 4 | Build verification | Pass | No fix needed |
+
+**Problems faced:** None. All tasks were straightforward cleanup edits.
+
+**What was done:**
+- **Profile.tsx**: Replaced `(stats as any).perModeStreaks as Array<...>` with `stats.perModeStreaks` — the type was added to `UserStats` in Run 13 by Agent C. Also removed the TODO comment. Replaced `(ua.achievement as any).rarity || (ua.achievement as any).category` with `ua.achievement.rarity || ua.achievement.category` — the `Achievement` interface already has both fields typed as `string`.
+- **Quests.tsx**: Removed the "Update Progress" +1/+5 button block (22 lines of JSX), the `handleUpdateProgress` async function (19 lines), the `updatingProgress` state declaration, and the unused `Plus` import. Total: 44 lines removed, 2 lines changed. `Loader2` was kept since it's still used in the quest-complete section.
+
+**Recommendations for next run:**
+- The `updateQuestProgress` method in `client.ts` is now unused by the frontend (Quests.tsx was the only consumer). Consider removing it from the API client if no other page uses it.
+- Profile.tsx still imports `Achievement` type but it's used indirectly via `UserAchievement.achievement`. The import is fine but could be cleaned up if the team prefers minimal imports.
 
 #### Agent D Retrospective
 *(To be filled by Agent D)*
