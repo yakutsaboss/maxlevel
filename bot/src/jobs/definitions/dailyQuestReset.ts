@@ -11,8 +11,7 @@
  */
 
 import type { Job } from 'pg-boss';
-import { executePythonTool } from '../../utils/pythonTools.js';
-import { execute } from '../../utils/db.js';
+import { query, execute } from '../../utils/db.js';
 
 export const JOB_NAME = 'daily-quest-reset';
 export const CRON_SCHEDULE = '0 0 * * *';
@@ -24,21 +23,82 @@ async function sleep(ms: number): Promise<void> {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
 
-async function assignQuestsWithRetry(userId: number): Promise<boolean> {
+async function assignDailyQuestsWithRetry(userId: number): Promise<boolean> {
   for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
-    const result = await executePythonTool('quest_manager', [
-      '--assign-daily', '--user-id', userId.toString(), '--count', '3',
-    ]);
+    try {
+      // 1. Get user's active modes
+      const modes = await query('SELECT mode_id FROM user_modes WHERE user_id = $1 AND is_active = true', [userId]);
+      if (modes.length === 0) return true; // no modes — not a failure
+      const modeIds = modes.map((m: any) => m.mode_id);
+      const today = new Date().toISOString().split('T')[0];
 
-    if (result.success) return true;
+      // 2. Find available daily templates not assigned today
+      const templates = await query(
+        `SELECT q.* FROM quests q
+         WHERE q.mode_id = ANY($1) AND q.quest_type = 'daily'
+         AND q.id NOT IN (SELECT quest_id FROM quest_instances WHERE user_id = $2 AND instance_date = $3)
+         ORDER BY RANDOM() LIMIT $4`,
+        [modeIds, userId, today, 3]
+      );
 
-    if (attempt < MAX_RETRIES) {
-      const delay = Math.pow(2, attempt - 1) * 1000; // 1s, 2s, 4s
-      console.warn(`[JOB:${JOB_NAME}] Retry ${attempt}/${MAX_RETRIES} for user ${userId} in ${delay}ms: ${result.error}`);
-      await sleep(delay);
+      // 3. Assign each
+      for (const t of templates) {
+        const target = { easy: 1, medium: 3, hard: 5 }[t.difficulty as string] || 1;
+        await execute(
+          `INSERT INTO quest_instances (user_id, quest_id, instance_date, status, target)
+           VALUES ($1, $2, $3, 'pending', $4)`,
+          [userId, t.id, today, target]
+        );
+      }
+
+      return true;
+    } catch (err: any) {
+      if (attempt < MAX_RETRIES) {
+        const delay = Math.pow(2, attempt - 1) * 1000; // 1s, 2s, 4s
+        console.warn(`[JOB:${JOB_NAME}] Retry ${attempt}/${MAX_RETRIES} for user ${userId} in ${delay}ms: ${err?.message || err}`);
+        await sleep(delay);
+      }
     }
   }
   return false;
+}
+
+async function assignWeeklyQuests(userId: number): Promise<boolean> {
+  try {
+    // 1. Get user's active modes
+    const modes = await query('SELECT mode_id FROM user_modes WHERE user_id = $1 AND is_active = true', [userId]);
+    if (modes.length === 0) return true; // no modes — not a failure
+    const modeIds = modes.map((m: any) => m.mode_id);
+    const weekAgo = new Date(Date.now() - 7 * 86400000).toISOString().split('T')[0];
+
+    // 2. Find available weekly templates not assigned in the last 7 days
+    const templates = await query(
+      `SELECT q.* FROM quests q
+       WHERE q.mode_id = ANY($1) AND q.quest_type = 'weekly'
+       AND q.id NOT IN (
+         SELECT quest_id FROM quest_instances
+         WHERE user_id = $2 AND instance_date >= $3
+         AND status IN ('pending', 'ready', 'in_progress')
+       )
+       ORDER BY RANDOM() LIMIT $4`,
+      [modeIds, userId, weekAgo, 2]
+    );
+
+    // 3. Assign each
+    const today = new Date().toISOString().split('T')[0];
+    for (const t of templates) {
+      const target = { easy: 1, medium: 3, hard: 5 }[t.difficulty as string] || 1;
+      await execute(
+        `INSERT INTO quest_instances (user_id, quest_id, instance_date, status, target)
+         VALUES ($1, $2, $3, 'pending', $4)`,
+        [userId, t.id, today, target]
+      );
+    }
+
+    return true;
+  } catch (err: any) {
+    return false;
+  }
 }
 
 export async function handler(jobs: Job[]): Promise<void> {
@@ -52,22 +112,15 @@ export async function handler(jobs: Job[]): Promise<void> {
   const failedUserIds: number[] = [];
 
   while (true) {
-    const usersResult = await executePythonTool('user_manager', [
-      '--list-users', '--limit', BATCH_SIZE.toString(), '--offset', offset.toString(),
-    ]);
+    const users = await query(
+      'SELECT * FROM users WHERE is_active = true ORDER BY created_at DESC LIMIT $1 OFFSET $2',
+      [BATCH_SIZE, offset]
+    );
 
-    if (!usersResult.success || !Array.isArray(usersResult.data)) {
-      if (offset === 0) {
-        throw new Error(`Failed to list users: ${usersResult.error}`);
-      }
-      break; // No more users or error on subsequent batch
-    }
-
-    const users = usersResult.data;
     if (users.length === 0) break;
 
     for (const user of users) {
-      const success = await assignQuestsWithRetry(user.id);
+      const success = await assignDailyQuestsWithRetry(user.id);
       if (success) {
         assigned++;
       } else {
@@ -92,23 +145,20 @@ export async function handler(jobs: Job[]): Promise<void> {
 
     let weeklyOffset = 0;
     while (true) {
-      const usersResult = await executePythonTool('user_manager', [
-        '--list-users', '--limit', BATCH_SIZE.toString(), '--offset', weeklyOffset.toString(),
-      ]);
+      const users = await query(
+        'SELECT * FROM users WHERE is_active = true ORDER BY created_at DESC LIMIT $1 OFFSET $2',
+        [BATCH_SIZE, weeklyOffset]
+      );
 
-      if (!usersResult.success || !Array.isArray(usersResult.data)) break;
-      const users = usersResult.data;
       if (users.length === 0) break;
 
       for (const user of users) {
-        const result = await executePythonTool('quest_manager', [
-          '--assign-weekly', '--user-id', String(user.id), '--count', '2',
-        ]);
-        if (result.success) {
+        const success = await assignWeeklyQuests(user.id);
+        if (success) {
           weeklyAssigned++;
         } else {
           weeklyFailed++;
-          console.warn(`[JOB:${JOB_NAME}] Weekly quest assignment failed for user ${user.id}: ${result.error}`);
+          console.warn(`[JOB:${JOB_NAME}] Weekly quest assignment failed for user ${user.id}`);
         }
       }
 
