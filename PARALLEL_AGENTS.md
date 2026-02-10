@@ -1578,7 +1578,24 @@ Find your section under "Run 15 Retrospectives" below and replace the placeholde
 ### Run 15 Retrospectives
 
 #### Agent A Retrospective
-*(To be filled by Agent A)*
+**All 6 tasks completed. Build passes clean.**
+
+| # | Task | Status | Commit |
+|---|------|--------|--------|
+| 1 | Add authorizeUser middleware + ownership check to PATCH /progress | Done | `41d62e1` |
+| 2 | Wrap POST /checkins response in {success, data} | Done | `7f9a35a` |
+| 3 | Wrap GET /checkins/today response in {success, data} | Done | `b8c63c4` |
+| 4 | Wrap GET /checkins/history response in {success, data} | Done | `122c44f` |
+| 5 | Wrap POST /quests/complete response in {success, data} | Done | `c4e4b67` |
+| 6 | Build verification (no errors) | Done | N/A (no fix needed) |
+
+**Problems faced:** None. All tasks were straightforward edits with clear instructions.
+
+**Key changes:**
+- **Security fix:** PATCH `/:questId/progress` now has `authorizeUser` middleware in the chain AND an explicit `quest.user_id !== req.dbUser?.id` ownership check. Previously any authenticated user could update any quest.
+- **API consistency:** All 4 bare endpoints (POST /checkins, GET /checkins/today, GET /checkins/history, POST /quests/complete) now return `{success: true, data: {...}}` format matching the rest of the API.
+
+**Recommendations for next run:** None — these were clean, isolated changes.
 
 #### Agent B Retrospective
 *(To be filled by Agent B)*
