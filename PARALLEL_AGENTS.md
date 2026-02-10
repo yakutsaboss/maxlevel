@@ -2608,7 +2608,35 @@ const mockExecute = vi.mocked(execute);
 ### Run 24 Retrospectives
 
 #### Agent A Retrospective
-*(To be filled by Agent A)*
+**Status:** All 8 tasks completed. Build passes cleanly (`tsc --noEmit` — zero errors).
+
+| # | Task | Status |
+|---|------|--------|
+| 1 | Create local SQL helpers (listAllModes, getUserByTelegramId, getUserActiveModes) | Done |
+| 2 | Migrate showModeSelection() — 1 call (mode_manager --list-modes) | Done |
+| 3 | Migrate handleModeSelection() — 4 calls (get-user, get-active-modes, remove-mode, add-modes) | Done |
+| 4 | Migrate updateModeSelectionMessage() + showModeInfo() — 3 calls | Done |
+| 5 | Migrate completeModeSelection() + assignInitialQuests() — 3 calls (incl. quest assignment) | Done |
+| 6 | Migrate showQuickQuests() + showQuickProfile() — 5 calls (incl. get-stats) | Done |
+| 7 | Migrate handleModesCommand() + handleModeSummary() — 4 calls (incl. mode summary) | Done |
+| 8 | Clean up imports + Build verification | Done |
+
+**Total calls migrated:** 19 (matches spec exactly — 8x mode_manager, 6x user_manager, 5x quest_manager equivalents).
+
+**Commits:** 1 atomic commit on `feature/r24-onboarding-handler-sql`.
+
+**Implementation highlights:**
+- Created 3 local SQL helpers to DRY the 6x getUserByTelegramId, 5x getUserActiveModes, and 4x listAllModes patterns.
+- `handleModeSelection()` add-mode logic faithfully replicates `mode_manager.py` `add_mode_by_id()`: check existing -> reactivate if inactive -> insert if new -> init streak with ON CONFLICT DO NOTHING.
+- `assignInitialQuests()` replicates `quest_manager.py` `assign_daily_quests()`: get active mode IDs -> find unassigned daily templates via `ANY($1)` + subquery exclusion -> INSERT with difficulty-based target (`{easy:1, medium:3, hard:5}`).
+- `showQuickProfile()` uses `Promise.all()` for parallel streaks + quest-count queries, matching the `user_manager.py` `get_user_stats()` overall_streak = min(all current_streaks) logic.
+- `handleModeSummary()` uses `Promise.all()` for parallel allModes + userModes queries, then computes active/inactive/available counts in JS (matching `mode_manager.py` `get_mode_summary()`).
+- Changed `modeId` from string to `parseInt()` for proper numeric comparison with DB mode_id values.
+
+**Problems faced:** None — all Python->SQL translations were straightforward since the Python source files had clear SQL queries.
+
+**Recommendations for next run:**
+- The 3 local helpers (listAllModes, getUserByTelegramId, getUserActiveModes) are now duplicated across multiple handlers (profile.ts, onboarding.ts). Consider extracting to a shared `utils/queries.ts` if more handlers need them.
 
 #### Agent B Retrospective
 *(To be filled by Agent B)*
