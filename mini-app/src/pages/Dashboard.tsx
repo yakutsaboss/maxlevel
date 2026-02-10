@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback, memo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useTelegram } from '@/hooks/useTelegram';
 import { usePullToRefresh, PullIndicator } from '@/hooks/usePullToRefresh';
 import { apiClient } from '@/api/client';
@@ -65,6 +66,7 @@ const AchievementCard = memo(function AchievementCard({ userAch }: { userAch: Us
 
 export function Dashboard() {
   const { user, haptic } = useTelegram();
+  const navigate = useNavigate();
   const [stats, setStats] = useState<UserStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
@@ -116,7 +118,7 @@ export function Dashboard() {
 
   useEffect(() => { loadUserStats(false); }, [user]);
 
-  const handleQuestClick = useCallback((_questId: number) => { haptic.impact('light'); }, [haptic]);
+  const handleQuestClick = useCallback((_questId: number) => { haptic.impact('light'); navigate('/quests'); }, [haptic, navigate]);
 
   if (loading) {
     return (
