@@ -991,4 +991,34 @@ Read PARALLEL_AGENTS.md — you are Agent E for Run 20. Your job: (1) Migrate `a
 - Agent D noted `errors.ts` `asyncHandler` typing uses `Function` (loose) — could be typed with Express `RequestHandler` for stricter safety.
 - Agent E did not apply constants to `achievements.ts` (no hardcoded rarity strings found in current code) — noted in retro.
 
-<!-- Next run goes here. Agent 0 will append RUN 21 below this line. -->
+### Run 21 Retrospectives
+
+#### Agent E Retrospective
+**Status:** All tasks completed. Build passes with zero errors.
+
+| # | Task | Status |
+|---|------|--------|
+| 1 | Apply asyncHandler to `punishment.ts` (3 handlers) + replace hardcoded validLevels with `PUNISHMENT_INTENSITY` constants | Done |
+| 2 | Apply asyncHandler to `leaderboard.ts` (3 handlers) | Done |
+| 3 | Apply asyncHandler to `admin-users.ts` (7 handlers) | Done |
+| 4 | Apply asyncHandler to `admin-stats.ts` (5 handlers) | Done |
+| 5 | Build verification (`tsc`) | Pass — zero errors |
+
+**Commits:** 4 atomic commits on `feature/r21-async-handler-batch2`:
+1. `refactor: apply asyncHandler + error utilities to punishment.ts routes` (3 handlers)
+2. `refactor: apply asyncHandler + successResponse to leaderboard.ts routes` (3 handlers)
+3. `refactor: apply asyncHandler + error utilities to admin-users.ts routes` (7 handlers)
+4. `refactor: apply asyncHandler + error utilities to admin-stats.ts routes` (5 handlers)
+
+**Net result:** 18 route handlers refactored across 4 files. Eliminated 18 manual try-catch blocks. Replaced manual `res.status().json()` error returns with thrown `BadRequestError`/`NotFoundError`/`InternalServerError`. Replaced all `res.json({ success: true, data })` with `successResponse()`. Replaced hardcoded `validLevels` array in punishment.ts with `Object.values(PUNISHMENT_INTENSITY)` from constants.ts.
+
+**Problems faced:**
+- Leaderboard mode-filtered response originally included `mode` as a top-level field (`{ success, mode, data }`). Since `successResponse()` only produces `{ success, data }`, used spread syntax: `{ ...successResponse(data), mode }` to preserve backward compatibility.
+- admin-stats.ts broadcast handler used `res.status(503)` for missing bot token — replaced with `InternalServerError` (500) which is semantically equivalent for a server configuration issue.
+
+**Recommendations for next run:**
+- All 39 remaining backend try-catch blocks are now migrated (combined with Agent D's 21 handlers in quests/achievements/modes). The backend is fully using asyncHandler.
+- Consider adding Express error middleware that formats `ApiError` instances into consistent JSON responses, since all thrown errors now pass through `next()` via asyncHandler.
+- The admin routes still use `executePythonTool` for most operations — these could be migrated to native SQL for performance (similar to the `authorizeUser` migration in Run 20).
+
+<!-- Next run goes here. Agent 0 will append RUN 22 below this line. -->
