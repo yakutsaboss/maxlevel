@@ -1,168 +1,33 @@
-import { useEffect, useState, useCallback, useRef } from 'react';
+import { useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { useTelegram } from '@/hooks/useTelegram';
 import { useBackButton } from '@/hooks/useTelegram';
 import { useOnboarding } from '@/hooks/useOnboarding';
-import { apiClient } from '@/api/client';
-import { AlertCircle, RefreshCw, Loader2 } from 'lucide-react';
+import { useSettingsData } from '@/hooks/useSettingsData';
+import { Loader2 } from 'lucide-react';
 import { Toast } from '@/components/Toast';
-import { NotificationSettings, detectTimezone } from '@/components/settings/NotificationSettings';
+import { ErrorSection } from '@/components/ErrorSection';
+import { NotificationSettings } from '@/components/settings/NotificationSettings';
 import { AccountabilitySettings } from '@/components/settings/AccountabilitySettings';
 import { DangerZone } from '@/components/settings/DangerZone';
-import type { UserPreferences } from '@/components/settings/NotificationSettings';
-import type { PunishmentSettings } from '@/components/settings/AccountabilitySettings';
 
 export function Settings() {
   const { user, haptic, showConfirm } = useTelegram();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const onboardingStore = useOnboarding();
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(false);
-  const [saving, setSaving] = useState(false);
-  const [toast, setToast] = useState<{ message: string; variant: 'success' | 'error' | 'info' } | null>(null);
-  const [prefs, setPrefs] = useState<UserPreferences>({
-    notifications_enabled: true,
-    reminder_time: 18,
-    timezone: detectTimezone(),
-  });
-  const [punishment, setPunishment] = useState<PunishmentSettings>({
-    consent_given: false,
-    intensity_level: 'medium',
-    safe_mode: true,
-  });
-  const [punishmentAvailable, setPunishmentAvailable] = useState(true);
-  const [accountabilitySaveStatus, setAccountabilitySaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
-  const [deleting, setDeleting] = useState(false);
-  const intensityDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const saveStatusTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const handleBack = useCallback(() => navigate('/profile'), [navigate]);
   useBackButton(handleBack);
 
-  useEffect(() => { loadPreferences(); }, [user]);
-
-  const loadPreferences = async () => {
-    if (!user?.id) { setLoading(false); return; }
-    try {
-      setLoading(true);
-      setError(false);
-      const [res, punishRes] = await Promise.all([
-        apiClient.getUserPreferences(user.id),
-        apiClient.getPunishmentSettings(user.id).catch(() => null),
-      ]);
-      if (res.success && res.data) {
-        setPrefs({
-          notifications_enabled: res.data.notification_enabled ?? true,
-          reminder_time: res.data.reminder_time ?? 18,
-          timezone: res.data.timezone || detectTimezone(),
-        });
-      }
-      if (punishRes && punishRes.success && punishRes.data) {
-        setPunishment({
-          consent_given: punishRes.data.consent_given ?? false,
-          intensity_level: punishRes.data.intensity_level || 'medium',
-          safe_mode: punishRes.data.safe_mode ?? true,
-        });
-      } else {
-        setPunishmentAvailable(false);
-      }
-    } catch (err) {
-      console.error('Failed to load preferences:', err);
-      setError(true);
-    } finally { setLoading(false); }
-  };
-
-  const autoSaveAccountability = useCallback(async (settings: PunishmentSettings) => {
-    if (!user?.id || !punishmentAvailable) return;
-    setAccountabilitySaveStatus('saving');
-    try {
-      await apiClient.updatePunishmentSettings(user.id, {
-        consent_given: settings.consent_given,
-        intensity_level: settings.intensity_level,
-        safe_mode: settings.safe_mode,
-      });
-      haptic.notification('success');
-      setAccountabilitySaveStatus('saved');
-      if (saveStatusTimeoutRef.current) clearTimeout(saveStatusTimeoutRef.current);
-      saveStatusTimeoutRef.current = setTimeout(() => setAccountabilitySaveStatus('idle'), 2000);
-    } catch {
-      setAccountabilitySaveStatus('error');
-      if (saveStatusTimeoutRef.current) clearTimeout(saveStatusTimeoutRef.current);
-      saveStatusTimeoutRef.current = setTimeout(() => setAccountabilitySaveStatus('idle'), 2000);
-    }
-  }, [user?.id, punishmentAvailable, haptic]);
-
-  const handleConsentToggle = useCallback(() => {
-    haptic.selection();
-    if (!punishmentAvailable) return;
-    setPunishment(prev => {
-      const updated = { ...prev, consent_given: !prev.consent_given };
-      autoSaveAccountability(updated);
-      return updated;
-    });
-  }, [haptic, punishmentAvailable, autoSaveAccountability]);
-
-  const handleIntensityChange = useCallback((value: string) => {
-    haptic.selection();
-    setPunishment(prev => {
-      const updated = { ...prev, intensity_level: value };
-      if (intensityDebounceRef.current) clearTimeout(intensityDebounceRef.current);
-      intensityDebounceRef.current = setTimeout(() => autoSaveAccountability(updated), 500);
-      return updated;
-    });
-  }, [haptic, autoSaveAccountability]);
-
-  const handleSafeModeToggle = useCallback(() => {
-    haptic.selection();
-    setPunishment(prev => {
-      const updated = { ...prev, safe_mode: !prev.safe_mode };
-      autoSaveAccountability(updated);
-      return updated;
-    });
-  }, [haptic, autoSaveAccountability]);
-
-  const handleSave = async () => {
-    if (!user?.id || saving) return;
-    haptic.impact('medium');
-    setSaving(true);
-    try {
-      await apiClient.updateUserPreferences(user.id, {
-        notification_enabled: prefs.notifications_enabled,
-        reminder_time: prefs.reminder_time,
-        timezone: prefs.timezone,
-      });
-      haptic.notification('success');
-      setToast({ message: 'Settings saved!', variant: 'success' });
-    } catch {
-      haptic.notification('warning');
-      setToast({ message: 'Failed to save settings', variant: 'error' });
-    } finally { setSaving(false); }
-  };
-
-  const handleDeleteAccount = async () => {
-    if (!user?.id || deleting) return;
-    const confirmed = await showConfirm(
-      'Are you sure? This will permanently delete your account, progress, and all data. This cannot be undone.'
-    );
-    if (!confirmed) return;
-    haptic.impact('heavy');
-    setDeleting(true);
-    try {
-      const res = await apiClient.deleteAccount(user.id);
-      if (res.success) {
-        queryClient.clear();
-        onboardingStore.reset();
-        setToast({ message: 'Account deleted. Starting fresh...', variant: 'success' });
-        setTimeout(() => navigate('/onboarding', { replace: true }), 1200);
-      } else {
-        setToast({ message: 'Failed to delete account', variant: 'error' });
-      }
-    } catch {
-      setToast({ message: 'Failed to delete account', variant: 'error' });
-    } finally { setDeleting(false); }
-  };
+  const {
+    loading, error, saving, deleting,
+    prefs, setPrefs, punishment, punishmentAvailable,
+    accountabilitySaveStatus, toast, setToast,
+    loadPreferences, handleConsentToggle, handleIntensityChange,
+    handleSafeModeToggle, handleSave, handleDeleteAccount,
+  } = useSettingsData({ user, haptic, showConfirm, navigate, queryClient, onboardingStore });
 
   if (loading) {
     return (
@@ -184,18 +49,7 @@ export function Settings() {
   }
 
   if (error) {
-    return (
-      <div className="flex items-center justify-center min-h-screen bg-telegram-bg px-4">
-        <div className="bg-red-50 border border-red-200 rounded-2xl p-6 text-center max-w-sm w-full">
-          <AlertCircle className="w-12 h-12 text-red-400 mx-auto mb-3" />
-          <h3 className="text-lg font-semibold text-red-700 mb-1">Something went wrong</h3>
-          <p className="text-sm text-red-500 mb-4">Could not load your settings</p>
-          <button onClick={() => { haptic.impact('light'); loadPreferences(); }} className="inline-flex items-center gap-2 bg-red-500 text-white px-5 py-2.5 rounded-xl font-medium active:scale-95 transition-transform">
-            <RefreshCw className="w-4 h-4" />Retry
-          </button>
-        </div>
-      </div>
-    );
+    return <ErrorSection message="Could not load your settings" onRetry={loadPreferences} />;
   }
 
   return (
