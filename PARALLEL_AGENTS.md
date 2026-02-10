@@ -183,24 +183,7 @@ Use this structure when creating a new run. Copy and adapt:
 *(To be filled by Agent A)*
 
 #### Agent B Retrospective
-**Status:** All 4 tasks completed. Build passes cleanly (0 errors, tsc + vite build).
-
-| # | Task | Status |
-|---|------|--------|
-| 1 | Create `useDashboardData` hook in `hooks/useDashboardData.ts` | Done |
-| 2 | Simplify `Dashboard.tsx` to use hook (183→134 lines, -49 lines) | Done |
-| 3 | Create `ProfileStreak.tsx` in `components/profile/` | Done |
-| 4 | Simplify `Profile.tsx` to use `<ProfileStreak />` (125→110 lines, -15 lines) | Done |
-
-**Problems:** None. Straightforward extraction — no surprises.
-
-**Changes summary:**
-- `useDashboardData.ts` (new, 81 lines): Encapsulates all Dashboard state — stats, loading, error, toastAchievement, achievement checking, data fetching, pull-to-refresh, quest click navigation.
-- `Dashboard.tsx`: Removed `useState`, `useCallback`, `useEffect`, `useNavigate`, `apiClient`, type imports. Component is now pure rendering.
-- `ProfileStreak.tsx` (new, 27 lines): Self-contained streak card with Calendar icon, gradient, fire emoji. Props: `currentStreak`, `longestStreak`.
-- `Profile.tsx`: Removed `Calendar` (lucide-react) and `motion` (framer-motion) imports, replaced 15-line inline block with single component.
-
-**Recommendations for next run:** None — mini-app component extraction is largely complete.
+*(To be filled by Agent B)*
 
 #### Agent C Retrospective
 *(To be filled by Agent C)*
@@ -208,19 +191,26 @@ Use this structure when creating a new run. Copy and adapt:
 
 ---
 
-## Known Issues (Updated after Run 22)
+## Known Issues (Updated after Run 23)
 
 ### Still Open
 1. **pg-boss Node.js mismatch** — Requires 22.12+, server has 20.20. Only triggers warnings, no functional impact yet.
 2. **Mode configs unused** — `mode_configs` table stores quiz responses + personalized plans, but data is never consumed.
 3. **Delete account e2e testing** — confirm soft delete flow works end-to-end in Telegram (Agent B Run 18 recommendation).
-4. **Leaderboard getXpValue/getXpLabel duplication** — Duplicated in TopThreeCard.tsx and LeaderboardRow.tsx. Could extract to `leaderboard/utils.ts` (Agent A Run 22 recommendation).
-5. **Dashboard state management inline** — ~45 lines of state logic could become `useDashboardData` hook (Agent C Run 22 recommendation).
-6. **Profile streak section inline** — Could be a `ProfileStreak` sub-component (Agent C Run 22 recommendation).
-7. **Settings/Quests loading skeletons still inline** — Settings (~32 lines) and Quests (~33 lines) skeletons not yet extracted (Dashboard/Profile/Leaderboard/Achievements all done in Run 22).
-8. **POST /analytics/export still uses executePythonTool** — Justified (Google Sheets OAuth integration), but only remaining Python subprocess in admin routes.
+4. **POST /analytics/export still uses executePythonTool** — Justified (Google Sheets OAuth integration), only remaining Python subprocess in ALL routes.
+5. **`updateStreak()` duplicated** — Same logic exists in quests.ts (Agent C) and users.ts (Agent E). Could extract to shared `utils/streak.ts` (Agent C Run 23 recommendation).
+6. **Onboarding mode-add outside transaction** — Step 1 in onboarding.ts runs mode adds outside the transaction block. Could move inside for atomicity (Agent E Run 23 recommendation).
+7. **Python tools still called by jobs/handlers** — `executePythonTool` eliminated from all API routes, but still used by: `dailyQuestReset.ts`, `questReminders.ts`, `streakCheck.ts`, `analyticsExport.ts` jobs + `stats.ts`, `settings.ts`, `start.ts`, `onboarding.ts` handlers.
 
-### Resolved (Runs 13–22)
+### Resolved (Runs 13–23)
+- ~~Leaderboard getXpValue/getXpLabel duplication~~ — Exported from TopThreeCard, imported in LeaderboardRow (Run 23 Agent A)
+- ~~Dashboard state management inline~~ — Extracted to `useDashboardData` hook (Run 23 Agent B)
+- ~~Profile streak section inline~~ — Extracted to `ProfileStreak` component (Run 23 Agent B)
+- ~~Settings/Quests loading skeletons inline~~ — Extracted to QuestsSkeleton + SettingsSkeleton (Run 23 Agent A)
+- ~~quests.ts uses executePythonTool (6 calls)~~ — All migrated to native SQL (Run 23 Agent C)
+- ~~modes.ts uses executePythonTool (1 call)~~ — Migrated to native SQL (Run 23 Agent D)
+- ~~onboarding.ts uses executePythonTool (2 calls)~~ — Migrated to native SQL (Run 23 Agent E)
+- ~~users.ts PATCH /streak broken~~ — Fixed with native SQL, was calling nonexistent Python command (Run 23 Agent E)
 - ~~`errorResponse()` unused~~ — Removed in Run 22 Agent D
 - ~~Loading skeletons inline (Dashboard/Profile/Leaderboard/Achievements)~~ — Extracted in Run 22 Agents A/B/C
 - ~~Profile.tsx data loading not a hook~~ — Created `useProfileData` in Run 22 Agent C
@@ -2016,21 +2006,91 @@ Read PARALLEL_AGENTS.md — you are Agent E for Run 23. Your job: Migrate execut
 ### Run 23 Retrospectives
 
 #### Agent A Retrospective
-*(To be filled by Agent A)*
+**Status:** All 5 tasks completed. Build passes cleanly (tsc + vite build, 0 errors).
+
+| # | Task | Status |
+|---|------|--------|
+| 1 | Export `getXpValue`/`getXpLabel` from TopThreeCard.tsx, deduplicate in LeaderboardRow.tsx | Done |
+| 2 | Create `QuestsSkeleton.tsx` component (extracted from Quests.tsx lines 104-137) | Done |
+| 3 | Simplify Quests.tsx to use `<QuestsSkeleton />` (–30 lines) | Done |
+| 4 | Create `SettingsSkeleton.tsx` component (extracted from Settings.tsx lines 32-49) | Done |
+| 5 | Simplify Settings.tsx to use `<SettingsSkeleton />` (–14 lines) | Done |
+
+**Net result:** Quests.tsx –30 lines, Settings.tsx –14 lines, LeaderboardRow.tsx –12 lines. 2 new skeleton components. Known Issues #4 and #7 resolved.
+
+**Recommendations:** Consider a shared `SkeletonCard` primitive since all skeletons use the same CSS patterns — low priority, cosmetic.
 
 #### Agent B Retrospective
-*(To be filled by Agent B)*
+**Status:** All 4 tasks completed. Build passes cleanly (0 errors, tsc + vite build).
+
+| # | Task | Status |
+|---|------|--------|
+| 1 | Create `useDashboardData` hook in `hooks/useDashboardData.ts` | Done |
+| 2 | Simplify `Dashboard.tsx` to use hook (183→134 lines, -49 lines) | Done |
+| 3 | Create `ProfileStreak.tsx` in `components/profile/` | Done |
+| 4 | Simplify `Profile.tsx` to use `<ProfileStreak />` (125→110 lines, -15 lines) | Done |
+
+**Changes:** `useDashboardData.ts` (81 lines) encapsulates all Dashboard state. `ProfileStreak.tsx` (27 lines) self-contained streak card. Dashboard is now pure rendering. Known Issues #5 and #6 resolved.
+
+**Recommendations:** Mini-app component extraction is largely complete.
 
 #### Agent C Retrospective
-*(To be filled by Agent C)*
+**Status:** All 7 tasks completed. Build passes cleanly (tsc, 0 errors).
+
+| # | Task | Status |
+|---|------|--------|
+| 1 | Migrate GET /active to native SQL | Done |
+| 2 | Migrate GET /completed to native SQL | Done |
+| 3 | Migrate GET /stats to native SQL with Promise.all | Done |
+| 4 | Migrate POST /complete to native SQL transaction | Done |
+| 5 | Migrate POST /assign to native SQL (daily + weekly) | Done |
+| 6 | Migrate streak_manager fire-and-forget to native updateStreak() | Done |
+| 7 | Clean up imports (remove executePythonTool) | Done |
+
+**Changes:** quests.ts 260→347 lines (net +87, but zero Python calls). Added `updateStreak()` helper. POST /assign uses `ANY($1)` for mode IDs. GET /stats uses Promise.all for 4 parallel queries.
+
+**Recommendations:** `updateStreak()` duplicated with Agent E's users.ts. Could extract to shared `utils/streak.ts`.
 
 #### Agent D Retrospective
-*(To be filled by Agent D)*
+**Completed all 3 tasks. Build passes (zero errors).**
+
+| # | Task | Status |
+|---|------|--------|
+| 1 | Migrate POST /users/:userId/modes from Python to native SQL | Done |
+| 2 | Remove executePythonTool + unused InternalServerError imports | Done |
+| 3 | Build verification | Done |
+
+**Changes:** modes.ts POST endpoint now uses native SQL loop (lookup mode, check user_mode, reactivate/skip/insert, init streak). Response includes detailed `added`, `failed`, `already_active` arrays. modes.ts now has zero Python calls.
 
 #### Agent E Retrospective
-*(To be filled by Agent E)*
+
+| # | Task | Status |
+|---|------|--------|
+| 1 | Migrate onboarding.ts `mode_manager --add-modes` to native SQL | Done |
+| 2 | Migrate onboarding.ts `quest_manager --assign-daily` to native SQL | Done |
+| 3 | Fix broken `PATCH /:userId/streak` in users.ts with native SQL | Done |
+| 4 | Remove `executePythonTool` imports from both files | Done |
+| 5 | Build verification | Done |
+
+**Key decisions:** Used `ON CONFLICT DO NOTHING` for quest instance inserts. For streak endpoint, returns max `current_streak` across all mode-streaks. Removed `InternalServerError` from users.ts.
+
+**Recommendations:** `executePythonTool` may now be unused across all API routes except admin-stats.ts export. Onboarding step 1 (add modes) runs outside transaction — could move inside for atomicity.
 
 #### Agent 0 Retrospective
-*(To be filled by Agent 0 after merge)*
+**Merge:** C → D → E → A → B. First 4 merges had PARALLEL_AGENTS.md conflicts (expected — worktrees branched before Run 23 setup commit). Resolved with `checkout --ours` + retro splice. Agent B auto-merged cleanly. **Zero code file conflicts** — file ownership matrix worked perfectly.
+
+**Build:** Both `bot` and `mini-app` pass with zero errors locally and on server.
+
+**Deploy:** `cdf2d15` deployed to production. 15 files changed (4 new + 11 modified, +870/-267 lines). PM2 restarted. Telegram notification sent.
+
+**Net result:**
+- **quests.ts:** 6 Python subprocess calls → 0. All endpoints now native SQL with `updateStreak()` helper.
+- **modes.ts:** 1 Python call → 0. POST endpoint uses native SQL with detailed response.
+- **onboarding.ts:** 2 Python calls → 0. Mode add + quest assign both native SQL.
+- **users.ts:** Fixed BROKEN `PATCH /streak` endpoint (was calling nonexistent `user_manager --update-streak`). Now native SQL.
+- **Mini-app:** QuestsSkeleton + SettingsSkeleton extracted. Leaderboard XP utils deduplicated. Dashboard state → `useDashboardData` hook (183→134 lines). Profile streak → `ProfileStreak` component (125→110 lines).
+- **Performance:** All user-facing API routes now use native SQL. Only remaining `executePythonTool` in routes: `admin-stats.ts POST /analytics/export` (justified — Google Sheets OAuth).
+
+**Known Issues resolved:** #4 (leaderboard utils dedup), #5 (useDashboardData hook), #6 (ProfileStreak component), #7 (Settings/Quests skeletons). #8 unchanged (justified).
 
 <!-- Next run goes here. Agent 0 will append RUN 24 below this line. -->
