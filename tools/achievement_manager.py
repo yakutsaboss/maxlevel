@@ -447,26 +447,23 @@ class AchievementManager:
 
             cursor.execute("""
                 SELECT
-                    id, name, description, icon, xp_reward, rarity, category,
-                    criteria_type, criteria_value, is_active
+                    id, name, description, badge_icon, xp_bonus, rarity, criteria
                 FROM achievements
-                ORDER BY rarity DESC, category, name
+                ORDER BY rarity DESC, name
             """)
 
             achievements = []
             for row in cursor.fetchall():
+                criteria = row[6]
                 achievements.append({
                     "id": row[0],
                     "name": row[1],
                     "description": row[2],
-                    "icon": row[3],
-                    "xp_reward": row[4],
+                    "badge_icon": row[3],
+                    "xp_bonus": row[4],
                     "rarity": row[5],
-                    "category": row[6],
-                    "criteria_type": row[7],
-                    "criteria_value": row[8],
-                    "criteria_text": self._format_criteria(row[7], row[8]),
-                    "is_active": row[9]
+                    "criteria": criteria,
+                    "criteria_text": self._format_criteria(criteria)
                 })
 
             return {
