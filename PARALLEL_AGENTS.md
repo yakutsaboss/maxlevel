@@ -1252,7 +1252,34 @@ Additionally, the DELETE account transaction misses the `reminders` table.
 ### Run 25 Retrospectives
 
 #### Agent A Retrospective
-*(To be filled by Agent A)*
+**Status:** All 6 tasks completed. Build passes (`tsc --noEmit` — zero errors).
+
+| # | Task | Status |
+|---|------|--------|
+| 1 | Create `requireOwnership()` helper in auth.ts | Done |
+| 2 | Add authorization to users.ts (8 `:telegramId` endpoints) | Done |
+| 3 | Add authorization to onboarding.ts (3 endpoints) | Done |
+| 4 | Add `authorizeUser` middleware to modes.ts (5 `:userId` endpoints) | Done |
+| 5 | Add auth to checkins.ts (3) + achievements.ts (5) + punishment.ts (3) | Done |
+| 6 | Build verification | Pass — zero errors |
+
+**Commits:** 7 atomic commits (one per file: auth.ts, users.ts, onboarding.ts, modes.ts, checkins.ts, achievements.ts, punishment.ts).
+
+**Total endpoints hardened:** 27 endpoints across 7 route files now enforce resource ownership:
+- **requireOwnership(req)** added to 16 `:telegramId` handlers (users: 8, onboarding: 3, punishment: 3, checkins: 2)
+- **authorizeUser** middleware added to 10 `:userId` routes (modes: 5, achievements: 5)
+- **Body telegram_id check** added to checkins POST (compares `req.body.telegram_id` to `req.telegramUser?.id`)
+
+**Implementation approach:**
+- `requireOwnership(req)` is a lightweight synchronous function (no DB query) — compares `parseInt(req.params.telegramId)` to `req.telegramUser?.id`. Throws `ForbiddenError` on mismatch.
+- For `:userId` routes, reused the existing `authorizeUser` middleware (DB lookup + comparison) — same pattern as quests.ts.
+- For checkins POST, `telegram_id` is in body (not URL params), so added explicit comparison before the SQL query.
+
+**Problems faced:** None.
+
+**Merge notes for Agent 0:**
+- Agent C modifies body of onboarding.ts and users.ts DELETE. My changes are at the TOP of handlers (`requireOwnership(req)` line). Different lines — should auto-merge.
+- Agent B modifies auth.ts to replace `console.*`. My change adds `requireOwnership` at BOTTOM + new import at top. Should auto-merge.
 
 #### Agent B Retrospective
 *(To be filled by Agent B)*
