@@ -129,7 +129,7 @@ router.delete('/users/:userId/:modeId', authenticateTelegram, async (req: Reques
       return res.status(404).json({ error: 'Not Found', message: 'Mode not found for user' });
     }
 
-    res.json({ message: 'Mode removed successfully' });
+    res.json({ success: true, data: { message: 'Mode removed successfully' } });
   } catch (error) {
     console.error('Error removing mode:', error);
     res.status(500).json({ error: 'Server Error', message: 'Failed to remove mode' });
