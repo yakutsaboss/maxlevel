@@ -1322,3 +1322,25 @@ Read PARALLEL_AGENTS.md — you are Agent E for Run 21. Your job: (1) Apply asyn
 **Known Issues resolved:** Items 4-10 all addressed.
 
 <!-- Next run goes here. Agent 0 will append RUN 22 below this line. -->
+
+#### Agent E Retrospective (Run 22)
+
+**Status: ALL TASKS COMPLETE — Build passes with zero errors.**
+
+| # | Task | Status |
+|---|------|--------|
+| 1 | Migrate GET /stats — 3 executePythonTool → query() with Promise.all | Done |
+| 2 | Migrate GET /modes — executePythonTool('mode_manager') → query() | Done |
+| 3 | Keep POST /analytics/export as-is (Python tool) | Done (no change needed) |
+| 4 | Verify imports — executePythonTool kept for export endpoint | Done (no change needed) |
+| 5 | Build verification — tsc clean | Done |
+
+**Commits:** 2 (one per migration task)
+
+**Problems faced:** None. The SQL was already written inline in the executePythonTool args — direct lift-and-shift to native query() calls.
+
+**Improvement:** GET /stats now runs all 3 queries in parallel via Promise.all instead of sequentially, reducing response time.
+
+**Recommendations for next run:**
+- The remaining `executePythonTool` usage in admin-stats.ts (POST /analytics/export) is justified — it calls `sheets_analytics_export` which involves Google Sheets OAuth, not a DB query.
+- Other admin routes (admin-users.ts) may have similar migration opportunities — Agent D in this run may already be handling those.
