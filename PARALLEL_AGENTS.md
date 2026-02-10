@@ -2353,14 +2353,6 @@ Find your section under "Run 16 Retrospectives" below and replace the placeholde
 - The `intensity_level` type mismatch (spec says number, pages use string) suggests the backend may need alignment — worth auditing.
 
 #### Agent E Retrospective
-*(To be filled by Agent E)*
-
-#### Agent 0 Retrospective
-*(To be filled by Agent 0)*
-
-### Run 16 Retrospectives
-
-#### Agent E Retrospective
 **All 3 tasks completed. No build needed (Python + SQL only).**
 
 | # | Task | Status | Commit |
@@ -2372,11 +2364,33 @@ Find your section under "Run 16 Retrospectives" below and replace the placeholde
 **Problems faced:** None. All tasks were new file creation or additive edits to schema.sql. No overlap with other agents.
 
 **Key changes:**
-- `tools/punishment_manager.py`: New tool with 6 functions: `get_settings()`, `update_consent()`, `update_settings()`, `apply_punishment()`, `get_history()`, `check_failed_quests()`. Follows streak_manager.py pattern (same imports, CLI structure, error handling). Apply logic checks consent, respects max caps, halves penalties in safe mode, and uses transactions for XP/streak deductions + history logging.
-- `database/schema.sql`: Added `quest_instances.target` (Run 13), `user_achievements.notification_sent_at` (Run 13), `user_activity_log` table (Run 3), and `leaderboard_mv` materialized view (Run 3). Schema now reflects actual DB state.
-- `database/migrations/run16_indexes.sql`: 5 performance indexes on quest_instances, check_ins, user_achievements, punishment_history, and punishment_settings.
+- `tools/punishment_manager.py`: New tool with 6 functions: `get_settings()`, `update_consent()`, `update_settings()`, `apply_punishment()`, `get_history()`, `check_failed_quests()`. Follows streak_manager.py pattern. Apply logic checks consent, respects max caps, halves penalties in safe mode.
+- `database/schema.sql`: Added `quest_instances.target` (Run 13), `user_achievements.notification_sent_at` (Run 13), `user_activity_log` table (Run 3), and `leaderboard_mv` materialized view (Run 3).
+- `database/migrations/run16_indexes.sql`: 5 performance indexes.
 
 **Recommendations for next run:**
 - Run `run16_indexes.sql` on production after deploy.
-- Consider adding `punishment_manager.py` to the punishmentCheck pg-boss job so it auto-applies punishments for failed quests.
-- The `_difficulty_to_severity()` mapping is simplistic — may want to make this configurable per user via `custom_punishments` JSONB.
+- Wire `punishment_manager.py` into the `punishmentCheck` pg-boss job.
+
+#### Agent 0 Retrospective
+
+**All 5 branches merged. Both builds pass. Worktrees cleaned.**
+
+| # | Branch | Merge | Conflicts | Resolution |
+|---|--------|-------|-----------|------------|
+| 1 | `feature/r16-achievement-fix` → main | Merge commit | 1 (PARALLEL_AGENTS.md) | Auto-merge |
+| 2 | `feature/r16-modes-api` → main | Merge commit | 1 (PARALLEL_AGENTS.md) | Manual — combined retro sections |
+| 3 | `feature/r16-remaining-api` → main | Merge commit | 0 | Clean auto-merge |
+| 4 | `feature/r16-client-types` → main | Merge commit | 1 (PARALLEL_AGENTS.md) | Manual — combined retro sections |
+| 5 | `feature/r16-punishment-db` → main | Merge commit | 0 | Clean auto-merge |
+
+**Merge stats:** 5 branches, 33 commits total, 3 conflicts (all in PARALLEL_AGENTS.md retro sections, expected).
+
+**What was delivered:**
+- **Agent A**: Fixed ALL 10 functions in achievement_manager.py — correct column names (`xp_bonus`, `badge_icon`, JSONB `criteria`), removed phantom columns (`is_active`, `category`, `progress`). Achievement system now actually works.
+- **Agent B**: Wrapped all 7 modes.ts endpoints in `{success, data}` format.
+- **Agent C**: Wrapped 5 remaining bare endpoints in quests.ts + users.ts. API is now 100% consistent.
+- **Agent D**: Added 8 new TypeScript interfaces, replaced all `any` return types in client.ts, fixed `completeQuest()` type mismatch.
+- **Agent E**: Created `punishment_manager.py` (484 lines, 6 functions), synced schema.sql, added 5 performance indexes migration.
+
+**Post-deploy TODO:** Run `run16_indexes.sql` on production database.
