@@ -165,7 +165,7 @@ router.get('/users/:userId/stats', authenticateTelegram, authorizeUser, readLimi
     }
 
     const data = result.data as any;
-    res.json(data?.stats || {});
+    res.json({ success: true, data: data?.stats || {} });
   } catch (error) {
     console.error('Error fetching quest stats:', error);
     res.status(500).json({
