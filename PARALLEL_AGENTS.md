@@ -845,7 +845,29 @@ Read PARALLEL_AGENTS.md — you are Agent E for Run 20. Your job: (1) Migrate `a
 *(To be filled by Agent C)*
 
 #### Agent D Retrospective
-*(To be filled by Agent D)*
+**Status:** All tasks completed. Build passes with zero errors.
+
+| # | Task | Status |
+|---|------|--------|
+| 1 | Wrap all 11 `users.ts` handlers with `asyncHandler()`, remove try-catch | Done |
+| 2 | Add `validateRequired()` to POST create user in `users.ts` | Done |
+| 3 | Replace manual responses with `successResponse()` + thrown errors in `users.ts` | Done |
+| 4 | Apply same pattern to `onboarding.ts` (3 handlers) | Done |
+| 5 | Apply same pattern to `checkins.ts` (3 handlers) | Done |
+| 6 | Build verification (`tsc`) | Pass — zero errors |
+
+**Commits:** 3 atomic commits on `feature/r20-route-error-handling`:
+1. `refactor: apply asyncHandler + error utilities to users.ts routes` (11 handlers)
+2. `refactor: apply asyncHandler + error utilities to onboarding.ts routes` (3 handlers)
+3. `refactor: apply asyncHandler + error utilities to checkins.ts routes` (3 handlers)
+
+**Net result:** 17 route handlers refactored. Eliminated 17 manual try-catch blocks. Replaced ~34 manual `res.status().json()` error returns with thrown `BadRequestError`/`NotFoundError`/`InternalServerError`. Replaced all `res.json({ success: true, data })` with `successResponse()`. Added `validateRequired()` on 3 POST/PUT endpoints (create user, save onboarding, create check-in). Total: -127 lines net (871 deleted, 744 added across 3 files).
+
+**Problems faced:** None. All changes were mechanical: wrap handler → remove try-catch → replace error returns with throws → replace success returns with successResponse(). The existing `errors.ts` utilities mapped cleanly onto all handler patterns.
+
+**Recommendations for next run:**
+- The remaining route files (`quests.ts`, `achievements.ts`, `modes.ts`, `punishment.ts`, `leaderboard.ts`, `admin*.ts`) still use manual try-catch — could apply the same pattern in a future run.
+- Consider adding Express error middleware (if not already present) that formats `ApiError` instances into consistent JSON responses, since thrown errors now go through `next()` via `asyncHandler`.
 
 #### Agent E Retrospective
 *(To be filled by Agent E)*
