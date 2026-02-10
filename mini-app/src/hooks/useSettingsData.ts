@@ -162,9 +162,10 @@ export function useSettingsData({
         // Hard reload to force full state reset — React Router navigate
         // doesn't re-run checkOnboardingState, so deleted users stay on
         // protected pages with stale needsOnboarding=false.
+        // Use replace() to prevent back-button returning to deleted state.
         setTimeout(() => {
-          window.location.href = window.location.origin + '/levelapp/onboarding';
-        }, 1200);
+          window.location.replace(window.location.origin + '/levelapp/onboarding');
+        }, 500);
       } else {
         setToast({ message: 'Failed to delete account', variant: 'error' });
       }
