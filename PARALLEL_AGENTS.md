@@ -842,7 +842,27 @@ Read PARALLEL_AGENTS.md — you are Agent E for Run 20. Your job: (1) Migrate `a
 *(To be filled by Agent B)*
 
 #### Agent C Retrospective
-*(To be filled by Agent C)*
+**Status:** All 7 tasks completed. Build passes cleanly (0 errors, 0 warnings).
+
+| # | Task | Status |
+|---|------|--------|
+| 1 | Create `ErrorSection.tsx` component (AlertCircle + RefreshCw + haptic) | Done |
+| 2 | Apply ErrorSection to Dashboard.tsx, remove unused icon imports | Done |
+| 3 | Apply ErrorSection to Quests.tsx, remove unused icon imports | Done |
+| 4 | Apply ErrorSection to Achievements.tsx, remove unused icon imports | Done |
+| 5 | Apply ErrorSection to Leaderboard.tsx, remove unused icon imports | Done |
+| 6 | Add null safety for `mode.icon` / `mode.display_name` in Quests.tsx (modal + QuestCard) | Done |
+| 7 | Build verification (`tsc && vite build`) | Pass |
+
+**Commits:** 6 atomic commits on `feature/r20-error-section`.
+
+**Problems faced:** None. All tasks were straightforward — the error pattern was identical across all 4 pages, making extraction clean.
+
+**Net lines:** ~55 lines of duplicated error JSX removed across 4 pages, replaced with 27-line shared component + 4 single-line usages. Also removed `AlertCircle` and `RefreshCw` imports from all 4 pages (consolidated into ErrorSection).
+
+**Recommendations for next run:**
+- Profile.tsx and Settings.tsx also have similar error blocks that could use ErrorSection (owned by Agents A/B this run, so left untouched).
+- The ErrorSection component could be extended with an optional `title` prop if different headings are needed in the future.
 
 #### Agent D Retrospective
 *(To be filled by Agent D)*
