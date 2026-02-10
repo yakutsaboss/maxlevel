@@ -105,7 +105,7 @@ router.post('/users/:userId', authenticateTelegram, async (req: Request, res: Re
       return res.status(500).json({ error: 'Server Error', message: 'Failed to add modes' });
     }
 
-    res.json({ message: 'Modes added successfully', modes: result.data || [] });
+    res.json({ success: true, data: { message: 'Modes added successfully', modes: result.data || [] } });
   } catch (error) {
     console.error('Error adding modes:', error);
     res.status(500).json({ error: 'Server Error', message: 'Failed to add modes' });
