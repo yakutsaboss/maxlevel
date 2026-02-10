@@ -45,24 +45,22 @@ router.get('/users/:userId/active', authenticateTelegram, authorizeUser, readLim
  * Get completed quests for a user
  */
 router.get('/users/:userId/completed', authenticateTelegram, authorizeUser, readLimiter, asyncHandler(async (req: Request, res: Response) => {
-  const { userId } = req.params;
+  const userId = parseInt(req.params.userId);
   const limit = req.query.limit ? parseInt(req.query.limit as string) : 50;
 
-  const result = await executePythonTool('quest_manager', [
-    '--get-completed',
-    '--user-id', userId,
-    '--limit', limit.toString(),
-  ]);
+  const quests = await query(
+    `SELECT qi.id, q.title AS name, q.xp_reward, q.quest_type, q.difficulty,
+            m.name AS mode_name, m.icon_emoji AS mode_icon,
+            qi.xp_awarded, qi.completed_at, qi.target
+     FROM quest_instances qi
+     JOIN quests q ON qi.quest_id = q.id
+     LEFT JOIN modes m ON q.mode_id = m.id
+     WHERE qi.user_id = $1 AND qi.status = 'completed'
+     ORDER BY qi.completed_at DESC LIMIT $2`,
+    [userId, limit]
+  );
 
-  if (!result.success) {
-    throw new InternalServerError('Failed to fetch completed quests');
-  }
-
-  const data = result.data as any;
-  res.json(successResponse({
-    quests: data?.quests || [],
-    count: data?.count || 0,
-  }));
+  res.json(successResponse({ quests, count: quests.length }));
 }));
 
 /**
