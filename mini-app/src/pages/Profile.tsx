@@ -175,6 +175,7 @@ export function Profile() {
         </h2>
         <div className="grid grid-cols-2 gap-3">
           {stats.modes.map((userMode, index) => {
+            // TODO: Remove cast once perModeStreaks is in UserStats type (Agent C, Run 13)
             const perModeStreaks = (stats as any).perModeStreaks as Array<{ mode_id: number; mode_name: string; mode_icon: string; current_streak: number; longest_streak: number }> | undefined;
             const modeStreak = perModeStreaks?.find((s) => s.mode_id === userMode.mode_id);
             return (
