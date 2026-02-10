@@ -836,7 +836,30 @@ Read PARALLEL_AGENTS.md — you are Agent E for Run 20. Your job: (1) Migrate `a
 ### Run 20 Retrospectives
 
 #### Agent A Retrospective
-*(To be filled by Agent A)*
+**Status:** All 5 tasks completed. Build passes cleanly (0 errors, 0 warnings).
+
+| # | Task | Status |
+|---|------|--------|
+| 1 | Create `NotificationSettings.tsx` (notifications toggle + reminder time + timezone) | Done |
+| 2 | Create `AccountabilitySettings.tsx` (consent/intensity/safe-mode + auto-save indicator) | Done |
+| 3 | Create `DangerZone.tsx` (delete account section) | Done |
+| 4 | Simplify `Settings.tsx` to thin orchestrator (517 → 246 lines) | Done |
+| 5 | Build verification (`tsc && vite build`) | Pass |
+
+**Commits:** 5 atomic commits on `feature/r20-settings-refactor`:
+1. `refactor: extract NotificationSettings component from Settings.tsx`
+2. `refactor: extract AccountabilitySettings component from Settings.tsx`
+3. `refactor: extract DangerZone component from Settings.tsx`
+4. `refactor: simplify Settings.tsx to thin orchestrator using sub-components`
+5. `fix: use flexible haptic type to match Telegram SDK union types`
+
+**Problems faced:** TypeScript type mismatch — the Telegram SDK's `haptic.impact` uses a union type (`"light" | "medium" | "heavy" | "rigid" | "soft"`) which is incompatible with a plain `string` parameter type. Fixed by using `(...args: any[]) => void` for the haptic prop interface, matching the pattern established in Run 19's `usePullToRefresh` hook.
+
+**Net result:** Settings.tsx reduced from 517 to 246 lines (–271 lines). Render JSX went from ~275 lines to ~45 lines. 3 new sub-components created in `components/settings/`: `NotificationSettings.tsx` (147 lines), `AccountabilitySettings.tsx` (143 lines), `DangerZone.tsx` (41 lines). Interfaces (`UserPreferences`, `PunishmentSettings`) and helpers (`formatUTCHour`, `getLocalHour`, `detectTimezone`, `INTENSITY_LEVELS`) are co-located with their consuming components.
+
+**Recommendations for next run:**
+- Settings.tsx still has ~120 lines of state management logic (accountability auto-save, debounce refs, etc.) that could be further extracted into a `useSettingsData` custom hook, reducing it to a pure layout orchestrator.
+- The error state in Settings uses inline JSX — if Agent C's `ErrorSection` component gets merged, Settings could adopt it too.
 
 #### Agent B Retrospective
 *(To be filled by Agent B)*
