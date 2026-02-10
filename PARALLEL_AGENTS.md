@@ -179,6 +179,27 @@ Use this structure when creating a new run. Copy and adapt:
 
 ---
 
-## Current Run
+## Run 13 Retrospectives
 
-*(No active run. Ready for Run 13 design.)*
+#### Agent E Retrospective
+
+**Completed Tasks:**
+
+| # | Task | Commit | Issues |
+|---|------|--------|--------|
+| 1 | Improve CheckInButton to show remaining count | `3e18303` | None |
+| 2 | Add step indicator to quest detail modal | `61fcea6` | None |
+| 3 | Improve quest detail modal with target info and XP badge | `0d723d1` | None |
+| 4 | Build verification | N/A (passed clean) | None |
+
+**What went well:**
+- All 3 code tasks completed cleanly, build passed on first try with zero errors
+- No file conflicts — owned files (Quests.tsx, CheckInButton.tsx) were untouched by other agents
+- Changes are backwards-compatible: new CheckInButton props are optional, step indicator only shows for target > 1
+
+**Problems faced:**
+- Worktree's PARALLEL_AGENTS.md didn't have the Run 13 retrospective sections (branched before Run 13 was written). Had to add retrospective at end of file for Agent 0 to splice.
+
+**Recommendations for next run:**
+- The "Update Progress" manual +1/+5 buttons in the quest modal may be redundant now that CheckInButton shows remaining count. Consider removing them if check-ins are the intended progress mechanism.
+- XP badge gradient (yellow-to-orange) may clash with certain Telegram themes — test in dark mode.
