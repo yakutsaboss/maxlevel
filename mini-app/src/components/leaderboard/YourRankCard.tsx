@@ -17,10 +17,11 @@ export function YourRankCard({ entry, rank, timePeriod }: YourRankCardProps) {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         className="fixed bottom-[72px] left-3 right-3 z-30"
+        aria-label="Your rank: unranked"
       >
         <div className="rounded-2xl p-3 border border-yellow-500/30 bg-telegram-secondaryBg/80 backdrop-blur-xl shadow-lg shadow-yellow-500/10">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full bg-telegram-hint/20 flex items-center justify-center text-telegram-hint font-bold text-sm flex-shrink-0">
+            <div className="w-10 h-10 rounded-full bg-telegram-hint/20 flex items-center justify-center text-telegram-hint font-bold text-sm flex-shrink-0" aria-hidden="true">
               ?
             </div>
             <div className="flex-1 min-w-0">
@@ -42,6 +43,7 @@ export function YourRankCard({ entry, rank, timePeriod }: YourRankCardProps) {
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       className="fixed bottom-[72px] left-3 right-3 z-30"
+      aria-label={`Your rank: #${displayRank}, ${entry.first_name || entry.username || 'You'}, Level ${entry.level}, ${xpValue.toLocaleString()} ${getXpLabel(timePeriod)}`}
     >
       <div className="rounded-2xl p-3 border border-yellow-500/30 bg-telegram-secondaryBg/80 backdrop-blur-xl shadow-lg shadow-yellow-500/10">
         <div className="flex items-center gap-3">

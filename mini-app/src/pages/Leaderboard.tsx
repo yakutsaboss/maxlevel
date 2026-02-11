@@ -89,7 +89,7 @@ export function Leaderboard() {
           </div>
         ) : (
           <>
-            <div className="space-y-2.5">
+            <div className="space-y-2.5" role="table" aria-label="Top 3 players">
               {entries.slice(0, 3).map((entry, index) => (
                 <TopThreeCard
                   key={entry.user_id}
@@ -110,7 +110,7 @@ export function Leaderboard() {
               </div>
             )}
 
-            <div className="space-y-1.5 pb-16">
+            <div className="space-y-1.5 pb-16" role="table" aria-label="Leaderboard rankings">
               {entries.slice(3).map((entry, index) => (
                 <LeaderboardRow
                   key={entry.user_id}

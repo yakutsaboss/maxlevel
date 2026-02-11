@@ -57,6 +57,8 @@ export function TopThreeCard({ entry, rank, isCurrentUser, timePeriod, index, tr
       initial={{ opacity: 0, x: -20 }}
       animate={{ opacity: 1, x: 0 }}
       transition={{ delay: index * 0.05 }}
+      role="row"
+      aria-label={`Rank ${rank}: ${entry.first_name || entry.username || 'Adventurer'}, Level ${entry.level}, ${xpValue.toLocaleString()} ${getXpLabel(timePeriod)}${isCurrentUser ? ' (You)' : ''}`}
       className={`rounded-2xl p-4 flex items-center gap-3 border-2 ${
         isCurrentUser
           ? 'bg-telegram-link/10 border-telegram-link'
@@ -65,7 +67,7 @@ export function TopThreeCard({ entry, rank, isCurrentUser, timePeriod, index, tr
             : 'bg-telegram-secondaryBg border-transparent'
       }`}
     >
-      <div className="w-9 flex-shrink-0 flex flex-col items-center gap-0.5">
+      <div className="w-9 flex-shrink-0 flex flex-col items-center gap-0.5" aria-hidden="true">
         <RankIcon rank={rank} isTop />
         <TrendArrow trend={trend} />
       </div>
