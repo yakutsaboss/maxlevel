@@ -7,6 +7,36 @@ import { query, queryOne, execute } from '../../utils/db.js';
 import { getUserByTelegramId, listAllModes, getUserActiveModes } from '../../utils/queries.js';
 import { completeModeSelection } from './completion.js';
 
+/** Row shape from `SELECT * FROM modes` */
+interface Mode {
+  id: number;
+  name: string;
+  display_name: string | null;
+  description: string | null;
+  icon_emoji: string | null;
+}
+
+/** Row shape from user_modes JOIN modes (getUserActiveModes / summary query) */
+interface UserMode {
+  mode_id: number;
+  name: string;
+  display_name: string | null;
+  description: string | null;
+  icon_emoji: string | null;
+  user_mode_id?: number;
+  enabled_at?: string;
+  is_active: boolean;
+}
+
+/** Raw user_modes table row */
+interface UserModeRow {
+  id: number;
+  user_id: number;
+  mode_id: number;
+  enabled_at: string;
+  is_active: boolean;
+}
+
 /**
  * Show mode selection screen
  */
@@ -33,7 +63,7 @@ export async function showModeSelection(ctx: Context) {
   // Build inline keyboard
   const keyboard = new InlineKeyboard();
 
-  modes.forEach((mode: any, index: number) => {
+  modes.forEach((mode: Mode, index: number) => {
     const emoji = mode.icon_emoji || '📌';
     const name = mode.display_name || mode.name;
 
@@ -95,7 +125,7 @@ export async function handleModeSelection(ctx: Context) {
 
   // Get currently selected modes
   const currentModes = await getUserActiveModes(internalUserId);
-  const isSelected = currentModes.some((m: any) => m.mode_id === modeId);
+  const isSelected = currentModes.some((m: UserMode) => m.mode_id === modeId);
 
   if (isSelected) {
     // Remove mode (soft delete)
@@ -107,7 +137,7 @@ export async function handleModeSelection(ctx: Context) {
     await ctx.answerCallbackQuery({ text: '➖ Mode removed!' });
   } else {
     // Add mode by ID — check if exists, reactivate or insert
-    const existing = await queryOne<Record<string, any>>(
+    const existing = await queryOne<UserModeRow>(
       'SELECT * FROM user_modes WHERE user_id = $1 AND mode_id = $2',
       [internalUserId, modeId]
     );
@@ -145,7 +175,7 @@ async function updateModeSelectionMessage(ctx: Context, userId: number) {
   // Get available modes and user's selected modes
   const allModes = await listAllModes();
   const selectedModes = await getUserActiveModes(userId);
-  const selectedIds = selectedModes.map((m: any) => m.mode_id);
+  const selectedIds = selectedModes.map((m: UserMode) => m.mode_id);
 
   // Build message
   let message =
@@ -154,7 +184,7 @@ async function updateModeSelectionMessage(ctx: Context, userId: number) {
 
   if (selectedModes.length > 0) {
     message += `*Selected (${selectedModes.length}):*\n`;
-    selectedModes.forEach((mode: any) => {
+    selectedModes.forEach((mode: UserMode) => {
       message += `${mode.icon_emoji} ${mode.display_name}\n`;
     });
     message += `\n`;
@@ -165,7 +195,7 @@ async function updateModeSelectionMessage(ctx: Context, userId: number) {
   // Build keyboard
   const keyboard = new InlineKeyboard();
 
-  allModes.forEach((mode: any, index: number) => {
+  allModes.forEach((mode: Mode, index: number) => {
     const emoji = mode.icon_emoji || '📌';
     const name = mode.display_name || mode.name;
     const isSelected = selectedIds.includes(mode.id);
@@ -203,7 +233,7 @@ async function showModeInfo(ctx: Context) {
 
   let message = `ℹ️ *Mode Information*\n\n`;
 
-  modes.forEach((mode: any) => {
+  modes.forEach((mode: Mode) => {
     const emoji = mode.icon_emoji || '📌';
     const name = mode.display_name || mode.name;
     const desc = mode.description || 'No description';
@@ -247,7 +277,7 @@ export async function handleModesCommand(ctx: Context) {
 
   let message =
     `📋 *Your Active Modes*\n\n` +
-    activeModes.map((m: any) => `${m.icon_emoji} ${m.display_name}`).join('\n') +
+    activeModes.map((m: UserMode) => `${m.icon_emoji} ${m.display_name}`).join('\n') +
     `\n\nWant to change your modes?`;
 
   const keyboard = new InlineKeyboard()
@@ -283,7 +313,7 @@ export async function handleModeSummary(ctx: Context) {
   // Get all modes and user's modes to compute summary
   const [allModes, userModes] = await Promise.all([
     listAllModes(),
-    query(
+    query<UserMode>(
       `SELECT m.id AS mode_id, m.name, m.display_name, m.description, m.icon_emoji,
               um.is_active
        FROM user_modes um
@@ -294,9 +324,9 @@ export async function handleModeSummary(ctx: Context) {
     ),
   ]);
 
-  const activeModes = userModes.filter((um: any) => um.is_active);
-  const userModeNames = userModes.map((um: any) => um.name);
-  const availableToAdd = allModes.filter((m: any) => !userModeNames.includes(m.name));
+  const activeModes = userModes.filter((um: UserMode) => um.is_active);
+  const userModeNames = userModes.map((um: UserMode) => um.name);
+  const availableToAdd = allModes.filter((m: Mode) => !userModeNames.includes(m.name));
 
   let message = `📊 *Mode Summary*\n\n`;
   message += `Active modes: ${activeModes.length}\n`;
@@ -304,7 +334,7 @@ export async function handleModeSummary(ctx: Context) {
 
   if (activeModes.length > 0) {
     message += `*Your Modes:*\n`;
-    activeModes.forEach((mode: any) => {
+    activeModes.forEach((mode: UserMode) => {
       message += `${mode.icon_emoji || '📌'} ${mode.display_name || mode.name}\n`;
     });
   } else {
