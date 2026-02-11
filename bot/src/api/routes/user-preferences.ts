@@ -7,6 +7,7 @@ import {
   BadRequestError,
   NotFoundError,
 } from '../utils/errors.js';
+import { buildDynamicUpdate } from '../../utils/sqlBuilder.js';
 
 const router = Router();
 
@@ -65,31 +66,25 @@ router.patch('/:telegramId/preferences', authenticateTelegram, asyncHandler(asyn
   }
 
   // Build SET clause dynamically from provided fields
-  const sets: string[] = [];
-  const params: any[] = [];
-  let idx = 1;
-
+  const fields: Record<string, unknown> = {};
   if (notification_enabled !== undefined) {
-    sets.push(`notification_enabled = $${idx++}`);
-    params.push(notification_enabled);
+    fields.notification_enabled = notification_enabled;
   }
   if (reminder_time !== undefined) {
-    sets.push(`reminder_time = $${idx++}`);
-    params.push(parseInt(reminder_time));
+    fields.reminder_time = parseInt(reminder_time);
   }
   if (timezone !== undefined) {
-    sets.push(`timezone = $${idx++}`);
-    params.push(timezone);
+    fields.timezone = timezone;
   }
 
-  if (sets.length === 0) {
+  if (Object.keys(fields).length === 0) {
     throw new BadRequestError('No valid fields to update');
   }
 
-  params.push(tid);
+  const { text, values } = buildDynamicUpdate('users', fields, 'telegram_id = $N', [tid]);
   const user = await queryOne(
-    `UPDATE users SET ${sets.join(', ')} WHERE telegram_id = $${idx} RETURNING notification_enabled, reminder_time, timezone`,
-    params
+    `${text} RETURNING notification_enabled, reminder_time, timezone`,
+    values
   );
 
   if (!user) {

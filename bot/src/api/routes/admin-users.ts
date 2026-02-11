@@ -13,6 +13,7 @@ import {
   NotFoundError,
 } from '../utils/errors.js';
 import { logger } from '../../utils/logger.js';
+import { buildDynamicUpdate } from '../../utils/sqlBuilder.js';
 
 const log = logger.child({ component: 'adminUsers' });
 
@@ -82,19 +83,10 @@ router.patch('/:userId', requirePermission('users:update'), asyncHandler(async (
     throw new BadRequestError('No valid fields to update');
   }
 
-  const setClauses: string[] = [];
-  const values: any[] = [];
-  let paramIndex = 1;
-
-  for (const [key, value] of Object.entries(fields)) {
-    setClauses.push(`${key} = $${paramIndex}`);
-    values.push(value);
-    paramIndex++;
-  }
-  values.push(userId);
+  const { text, values } = buildDynamicUpdate('users', fields, 'id = $N', [userId]);
 
   const updatedUser = await queryOne(
-    `UPDATE users SET ${setClauses.join(', ')} WHERE id = $${paramIndex} RETURNING *`,
+    `${text} RETURNING *`,
     values
   );
 
