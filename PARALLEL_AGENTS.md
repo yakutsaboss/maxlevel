@@ -2440,7 +2440,29 @@ Read PARALLEL_AGENTS.md — you are Agent C for Run 28. Your job: Write HTTP int
 **No issues encountered.** Clean extraction — no logic changes, just reorganization. Both builds passed on first attempt.
 
 #### Agent B Retrospective
-*(To be filled by Agent B)*
+
+**Tasks completed:**
+
+| # | Task | Status |
+|---|------|--------|
+| 1 | Move `api/utils/logger.ts` → `utils/logger.ts` | Done |
+| 2 | Export `LEVEL_ORDER`, `minLevel`, `LogLevel` type | Done |
+| 3 | Add `setLogLevel()` function | Done |
+| 4 | Update imports in 8 api/ files | Done |
+| 5 | Update imports in 21 files outside api/ | Done |
+| 6 | Build verification (`tsc` — zero errors) | Done |
+
+**Summary:** Moved the structured logger from `api/utils/logger.ts` to `utils/logger.ts` and updated all 29 import sites across the codebase. Added 3 new exports: `LEVEL_ORDER` (level→number map), `minLevel` (current threshold as `let`), `setLogLevel()` (runtime level switching), and `LogLevel` type. Git detected the file move as a rename (91% similarity). Build passes cleanly.
+
+**Problems faced:**
+- `sed` on Windows Git Bash converted CRLF→LF on all touched files, causing spurious diffs. Solved by using PowerShell's `[IO.File]::ReadAllText/WriteAllText` which preserves original line endings.
+- PowerShell `$` variables in inline Bash commands get swallowed by Bash interpolation. Solved by writing a `.ps1` script file and invoking with `powershell -File`.
+
+**Agent 0 action needed:**
+- 5 test files under `__tests__/jobs/` still mock the old path `../../api/utils/logger.js`. These need updating to `../../utils/logger.js` post-merge: `analyticsExport.test.ts`, `dbCleanup.test.ts`, `leaderboardRefresh.test.ts`, `questReminders.test.ts`, `streakCheck.test.ts`.
+
+**Recommendations for next run:**
+- Known Issue #5 (logger.ts in wrong location) can be marked as resolved.
 
 #### Agent C Retrospective
 **Status:** Task completed. 24 new tests, all 436 suite-wide tests pass.

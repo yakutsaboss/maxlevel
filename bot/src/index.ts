@@ -7,7 +7,7 @@ import 'dotenv/config';
 import { webhookCallback } from 'grammy';
 import bot from './bot.js';
 import { config } from './config.js';
-import { logger } from './api/utils/logger.js';
+import { logger } from './utils/logger.js';
 
 const log = logger.child({ component: 'main' });
 import { handleStart } from './handlers/start.js';

@@ -7,7 +7,7 @@
 import type { Job } from 'pg-boss';
 import { query } from '../../utils/db.js';
 import { cached, invalidatePrefix, TTL } from '../../utils/cache.js';
-import { logger } from '../../api/utils/logger.js';
+import { logger } from '../../utils/logger.js';
 
 const log = logger.child({ component: 'leaderboardRefresh' });
 

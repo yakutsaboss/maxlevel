@@ -16,7 +16,7 @@
 
 import crypto from 'crypto';
 
-type LogLevel = 'debug' | 'info' | 'warn' | 'error';
+export type LogLevel = 'debug' | 'info' | 'warn' | 'error';
 
 interface LogContext {
   requestId?: string;
@@ -35,16 +35,23 @@ interface LogEntry {
 
 const isProduction = process.env.NODE_ENV === 'production';
 
-const LEVEL_ORDER: Record<LogLevel, number> = {
+export const LEVEL_ORDER: Record<LogLevel, number> = {
   debug: 0,
   info: 1,
   warn: 2,
   error: 3,
 };
 
-const minLevel: number = LEVEL_ORDER[
+export let minLevel: number = LEVEL_ORDER[
   (process.env.LOG_LEVEL as LogLevel) || (isProduction ? 'info' : 'debug')
 ] ?? LEVEL_ORDER.debug;
+
+/**
+ * Update the minimum log level at runtime.
+ */
+export function setLogLevel(level: LogLevel): void {
+  minLevel = LEVEL_ORDER[level] ?? LEVEL_ORDER.debug;
+}
 
 class Logger {
   private context: LogContext;

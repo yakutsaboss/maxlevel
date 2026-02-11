@@ -7,7 +7,7 @@ import { execFile } from 'child_process';
 import { promisify } from 'util';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { logger } from '../api/utils/logger.js';
+import { logger } from './logger.js';
 
 const log = logger.child({ component: 'pythonTools' });
 

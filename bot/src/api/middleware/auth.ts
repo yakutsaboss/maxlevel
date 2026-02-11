@@ -3,7 +3,7 @@ import crypto from 'crypto';
 import { TelegramUser, TelegramInitData } from '../../types/telegram.js';
 import { queryOne } from '../../utils/db.js';
 import { ForbiddenError } from '../utils/errors.js';
-import { logger } from '../utils/logger.js';
+import { logger } from '../../utils/logger.js';
 
 const authLog = logger.child({ component: 'auth' });
 

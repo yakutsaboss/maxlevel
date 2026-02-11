@@ -13,7 +13,7 @@ import {
   NotFoundError,
   ForbiddenError,
 } from '../utils/errors.js';
-import { logger } from '../utils/logger.js';
+import { logger } from '../../utils/logger.js';
 
 const log = logger.child({ component: 'quests' });
 
