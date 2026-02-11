@@ -2220,6 +2220,222 @@ Read PARALLEL_AGENTS.md — you are Agent C for Run 27. Your job: Add LOG_LEVEL 
 - Could add a `logger.setLevel(level)` method for runtime level changes (useful for debugging in production without restart)
 
 #### Agent 0 Retrospective
+**Merge:** Agent A and B were already merged to main (from a previous Agent 0 session). Only Agent C remained (2 commits: logger feature + retrospective). Merged C with `--ours` for PARALLEL_AGENTS.md conflict (Agent C's branch had destructive diffs — deleted MANDATORY OUTPUT RULES, Lessons Learned 13-15, Known Issues 6-8, Resolved (Run 26) section, and Agent A/B retros). Manually spliced in Agent C's retrospective. Logger.ts auto-merged cleanly.
+
+**Post-merge:** 412/412 tests pass. Zero failures. Both bot (tsc) and mini-app (tsc + vite) build clean.
+
+**Deploy:** `7300a28` deployed to production. 16 files changed (+409/-123 lines). PM2 restarted. Health endpoint confirmed version match. Telegram notification sent.
+
+**Known Issues updated:** Marked issues #5 (SQL helpers), #6 (testApp error handler), #7 (LOG_LEVEL) as resolved. Renumbered remaining open issues. Added "Resolved (Run 27)" section.
+
+**Net result — Run 27 milestone:**
+- **Test infra:** `addTestErrorHandler()` in testApp.ts — 8 test files consolidated from ~8 duplicate lines each to 1-line call
+- **Shared queries:** `utils/queries.ts` with 3 reusable SQL helpers — 4 handler files updated to import instead of inline
+- **Logger:** `LOG_LEVEL` env var with level-based filtering — production defaults to `info`, dev to `debug`
+- **Open issues:** Down to 5 (from 8)
+
+## RUN 28: Logger Relocation + Component Splits + Punishment Tests (3 Agents + Agent 0)
+
+### Focus: Move the shared logger from `api/utils/` to `utils/` (where it logically belongs), split two 350-line mini-app components into sub-components, and fill the test coverage gap for the punishment route. After Run 28: logger lives in `utils/logger.ts` with cleaner imports, QuizScreen and PunishmentConfig are split into focused sub-components, and punishment.ts has full HTTP test coverage.
+
+### Copy-Paste Prompts
+
+**Agent 0** (open in: `c:\Users\Asus\Desktop\Wibecode`):
+```
+Read PARALLEL_AGENTS.md — you are Agent 0 for Run 28. Wait for agents to finish, then merge and deploy.
+```
+
+**Agent A** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-a`):
+```
+Read PARALLEL_AGENTS.md — you are Agent A for Run 28. Your job: Split two large onboarding components into smaller sub-components. (1) QuizScreen.tsx (357 lines) — extract answer-rendering logic into sub-components by question type (single-select, multi-select, slider, time-picker, day-selector, drum-roller). Create a new file `components/onboarding/quiz/AnswerInput.tsx` that takes question type + props and renders the appropriate input. QuizScreen.tsx should become an orchestrator that handles navigation, validation, and state, delegating rendering to AnswerInput. (2) PunishmentConfig.tsx (342 lines) — extract SafeModeToggle, IntensitySlider, and ConsentCheckbox into `components/onboarding/punishment/` sub-components. PunishmentConfig.tsx becomes the layout orchestrator. Target: each file under 200 lines. Run `cd mini-app && npm run build` to verify. Follow the Safety Protocol. Commit after each task. Write your retrospective when done.
+```
+
+**Agent B** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-b`):
+```
+Read PARALLEL_AGENTS.md — you are Agent B for Run 28. Your job: Move logger.ts from bot/src/api/utils/logger.ts to bot/src/utils/logger.ts and update ALL imports across the codebase. There are 29 import sites total: 21 files outside api/ import via '../api/utils/logger.js' (or deeper paths), and 8 files inside api/ import via '../utils/logger.js' or './utils/logger.js'. After the move, files in api/ will import from '../../utils/logger.js', and files in bot/src/ root will import from './utils/logger.js'. Also: (1) Export LEVEL_ORDER and minLevel from logger.ts so tests can verify level filtering. (2) Add a setLevel(level: LogLevel) method to the Logger class that updates minLevel at runtime. Run `cd bot && npm run build` to verify zero errors. Follow the Safety Protocol. Commit after each task. Write your retrospective when done.
+```
+
+**Agent C** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-c`):
+```
+Read PARALLEL_AGENTS.md — you are Agent C for Run 28. Your job: Write HTTP integration tests for the punishment route (bot/src/api/routes/punishment.ts). Create bot/src/__tests__/routes/http/punishment.http.test.ts following the same pattern as leaderboard.http.test.ts. The punishment route has 3 endpoints: (1) GET /:telegramId/settings — returns punishment settings (consent, intensity, safe_mode, custom_punishments). Test: success, not-found, invalid telegramId. (2) PATCH /:telegramId/settings — updates settings with dynamic SET clause. Test: update existing, insert when no row exists, validate intensity_level enum (low/medium/high/extreme), no fields = 400, consent_timestamp auto-set. (3) GET /:telegramId/history — paginated punishment history. Test: success with pagination, empty history, invalid page/limit params. Mock db.js (query, queryOne), auth.js (authenticateTelegram, requireOwnership), cache.js, pythonTools.js. Use createTestApp + addTestErrorHandler from helpers/testApp.ts. Import punishmentRouter from the route file. Mount on /api/punishment. Run `npx vitest --run` to verify all tests pass. Follow the Safety Protocol. Commit after each task. Write your retrospective when done.
+```
+
+---
+
+### Agent A — Split QuizScreen.tsx and PunishmentConfig.tsx
+
+**Branch:** `feature/r28-component-splits`
+**Worktree:** `../Wibecode-agent-a`
+
+**Context:** Two onboarding components are over 340 lines each. QuizScreen.tsx renders 6+ question types inline with large switch/conditional blocks. PunishmentConfig.tsx has SafeMode, Intensity, and Consent sections all in one file.
+
+**Tasks:**
+
+1. **Read QuizScreen.tsx** — Understand the component structure: which question types exist, how answers are rendered, what state is managed.
+
+2. **Create quiz sub-components** — Create `mini-app/src/components/onboarding/quiz/` directory. Extract answer-rendering logic into `AnswerInput.tsx` (or multiple files like `SelectOption.tsx`, `SliderInput.tsx`, `TimePickerInput.tsx` etc.) based on what makes sense after reading the code.
+
+3. **Refactor QuizScreen.tsx** — Replace inline rendering with imported sub-components. QuizScreen should handle navigation (next/prev), validation, and state management. Sub-components handle rendering.
+
+4. **Read PunishmentConfig.tsx** — Understand the SafeMode toggle, intensity slider, and consent checkbox sections.
+
+5. **Create punishment sub-components** — Create `mini-app/src/components/onboarding/punishment/` directory. Extract logical sections into focused sub-components.
+
+6. **Refactor PunishmentConfig.tsx** — Replace inline sections with imported sub-components.
+
+7. **Build verification** — `cd mini-app && npm run build` to verify zero errors.
+
+**OWNED files:**
+- `mini-app/src/components/onboarding/QuizScreen.tsx`
+- `mini-app/src/components/onboarding/PunishmentConfig.tsx`
+- `mini-app/src/components/onboarding/quiz/*` (NEW)
+- `mini-app/src/components/onboarding/punishment/*` (NEW)
+
+**FORBIDDEN:**
+- `bot/**`, `tools/**`, `database/**`
+- `mini-app/src/pages/**`
+- `mini-app/src/hooks/**`
+- `mini-app/src/types/**`
+- `mini-app/src/components/onboarding/Summary.tsx`
+- `mini-app/src/components/onboarding/LaunchScreen.tsx`
+
+---
+
+### Agent B — Relocate Logger to utils/ + Add setLevel()
+
+**Branch:** `feature/r28-logger-relocation`
+**Worktree:** `../Wibecode-agent-b`
+
+**Context:** The structured logger lives at `api/utils/logger.ts` but is imported by 29 files across all layers (bot core, handlers, jobs, middleware, routes, utils). It should live in `utils/logger.ts` alongside other shared utilities like `db.ts`, `cache.ts`, `streak.ts`, and the new `queries.ts`.
+
+**Tasks:**
+
+1. **Read current logger.ts** — Understand all exports: `logger`, `generateRequestId`, `LEVEL_ORDER`, `minLevel`.
+
+2. **Move logger.ts** — Copy `api/utils/logger.ts` to `utils/logger.ts`. Delete the original. Also move `generateRequestId` with it.
+
+3. **Update imports in api/ files (8 files)** — These currently import from `../utils/logger.js` or `./utils/logger.js`. After the move, they import from `../../utils/logger.js`:
+   - `api/server.ts` — `./utils/logger.js` → `../utils/logger.js`
+   - `api/middleware/auth.ts` — `../utils/logger.js` → `../../utils/logger.js`
+   - `api/middleware/rateLimiter.ts` — `../utils/logger.js` → `../../utils/logger.js`
+   - `api/middleware/adminAuth.ts` — `../utils/logger.js` → `../../utils/logger.js`
+   - `api/routes/quests.ts` — `../utils/logger.js` → `../../utils/logger.js`
+   - `api/routes/admin-jobs.ts` — `../utils/logger.js` → `../../utils/logger.js`
+   - `api/routes/admin-stats.ts` — `../utils/logger.js` → `../../utils/logger.js`
+   - `api/routes/admin-users.ts` — `../utils/logger.js` → `../../utils/logger.js`
+
+4. **Update imports outside api/ (21 files)** — These currently import from `./api/utils/logger.js` or `../api/utils/logger.js` etc. After the move:
+   - Root-level (`bot.ts`, `index.ts`, `config.ts`) — `./api/utils/logger.js` → `./utils/logger.js`
+   - `handlers/*.ts` (4 files) — `../api/utils/logger.js` → `../utils/logger.js`
+   - `jobs/registerJobs.ts`, `jobs/boss.ts` — `../api/utils/logger.js` → `../utils/logger.js`
+   - `jobs/definitions/*.ts` (9 files) — `../../api/utils/logger.js` → `../../utils/logger.js`
+   - `utils/db.ts`, `utils/pythonTools.ts` — `../api/utils/logger.js` → `./logger.js`
+
+5. **Export LEVEL_ORDER and minLevel** — Add `export` keyword to the existing `const LEVEL_ORDER` and `let minLevel` declarations.
+
+6. **Add setLevel() method** — Add a public static-like method or module-level function:
+   ```ts
+   export function setLogLevel(level: LogLevel): void {
+     minLevel = LEVEL_ORDER[level] ?? LEVEL_ORDER.debug;
+   }
+   ```
+
+7. **Build verification** — `cd bot && npm run build` to verify zero errors.
+
+**OWNED files:**
+- `bot/src/api/utils/logger.ts` (DELETE after move)
+- `bot/src/utils/logger.ts` (NEW — the moved file)
+- ALL files that import logger (29 files — import path change only)
+
+**FORBIDDEN:**
+- `mini-app/**`, `tools/**`, `database/**`
+- `bot/src/__tests__/**` (test files)
+- Content changes to any file other than logger.ts (only import paths may change)
+
+---
+
+### Agent C — Write Punishment Route HTTP Tests
+
+**Branch:** `feature/r28-punishment-tests`
+**Worktree:** `../Wibecode-agent-c`
+
+**Context:** `punishment.ts` has 3 endpoints (GET settings, PATCH settings, GET history) with 200 lines of production code but zero test coverage. All other route files have HTTP tests.
+
+**Tasks:**
+
+1. **Read punishment.ts** — Understand the 3 endpoints, their query patterns, validation rules, and response shapes.
+
+2. **Read leaderboard.http.test.ts as a template** — Understand the test structure: mocks, buildApp pattern, createTestApp + addTestErrorHandler usage.
+
+3. **Create punishment.http.test.ts** — Write comprehensive HTTP tests:
+
+   **GET /api/punishment/:telegramId/settings:**
+   - Should return 200 with punishment settings when found
+   - Should return 404 when no settings exist
+   - Should return 400 for invalid (non-numeric) telegramId
+
+   **PATCH /api/punishment/:telegramId/settings:**
+   - Should return 200 when updating existing settings (consent_given, intensity_level, etc.)
+   - Should return 200 when inserting new settings (no existing row — triggers INSERT fallback)
+   - Should return 400 for invalid intensity_level
+   - Should return 400 when no fields provided (empty body)
+   - Should return 404 when user not found
+   - Should validate that consent_timestamp is set when consent_given=true
+
+   **GET /api/punishment/:telegramId/history:**
+   - Should return 200 with paginated history and total count
+   - Should return 200 with empty array when no history
+   - Should respect page and limit query params
+   - Should return 404 when user not found
+
+4. **Run tests** — `npx vitest --run` to verify all tests pass (existing 412 + new punishment tests).
+
+5. **Build verification** — `cd bot && npm run build`.
+
+**OWNED files:**
+- `bot/src/__tests__/routes/http/punishment.http.test.ts` (NEW)
+
+**FORBIDDEN:**
+- `mini-app/**`, `tools/**`, `database/**`
+- `bot/src/api/**` (production code)
+- `bot/src/handlers/**`, `bot/src/jobs/**`, `bot/src/utils/**`
+- All other existing test files
+
+---
+
+### Run 28 File Ownership Matrix
+
+| File / Directory | Agent A | Agent B | Agent C |
+|---|---|---|---|
+| `mini-app/src/components/onboarding/QuizScreen.tsx` | **OWNED** | — | — |
+| `mini-app/src/components/onboarding/PunishmentConfig.tsx` | **OWNED** | — | — |
+| `mini-app/src/components/onboarding/quiz/*` (NEW) | **OWNED** | — | — |
+| `mini-app/src/components/onboarding/punishment/*` (NEW) | **OWNED** | — | — |
+| `bot/src/utils/logger.ts` (NEW) | — | **OWNED** | — |
+| `bot/src/api/utils/logger.ts` (DELETE) | — | **OWNED** | — |
+| All 29 files importing logger (import path only) | — | **OWNED** | — |
+| `__tests__/routes/http/punishment.http.test.ts` (NEW) | — | — | **OWNED** |
+| `__tests__/setup.ts` | FORBIDDEN | FORBIDDEN | FORBIDDEN |
+| `mini-app/**` | **OWNED** | FORBIDDEN | FORBIDDEN |
+| `bot/src/api/routes/**` | FORBIDDEN | GRAY (imports) | FORBIDDEN |
+
+### Run 28 Merge Order
+1. **Agent B** (logger relocation — touches 30 files, merge first to establish new paths)
+2. **Agent C** (punishment tests — new file, no conflicts expected; if test imports reference old logger path via mocked modules, fix after B's merge)
+3. **Agent A** (mini-app — completely independent, merge last)
+
+### Run 28 Retrospectives
+
+#### Agent A Retrospective
+*(To be filled by Agent A)*
+
+#### Agent B Retrospective
+*(To be filled by Agent B)*
+
+#### Agent C Retrospective
+*(To be filled by Agent C)*
+
+#### Agent 0 Retrospective
 *(To be filled by Agent 0 after merge)*
 
-<!-- Next run goes here. Agent 0 will append RUN 28 below this line. -->
+<!-- Next run goes here. Agent 0 will append RUN 29 below this line. -->
