@@ -7,7 +7,7 @@ import { useEffect, useCallback, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useTelegram, useBackButton } from '@/hooks/useTelegram';
-import { useOnboarding, getStepLabel, type OnboardingStep } from '@/hooks/useOnboarding';
+import { useOnboarding, getStepLabel, type OnboardingStep, type OnboardingData } from '@/hooks/useOnboarding';
 import { apiClient } from '@/api/client';
 import { getQuestionForStep } from '@/data/onboardingQuestions';
 import { MODE_BADGES } from '@/data/modeBadges';
@@ -48,7 +48,7 @@ export function Onboarding() {
 
   // Save state to backend (debounced)
   const saveState = useCallback(
-    (step: OnboardingStep, data: Record<string, any>) => {
+    (step: OnboardingStep, data: Record<string, unknown>) => {
       if (!telegramId) return;
       clearTimeout(saveTimeout.current);
       saveTimeout.current = setTimeout(() => {
@@ -130,7 +130,7 @@ export function Onboarding() {
   const handleAnswer = useCallback(
     (dataKey: string, nestedKey: string | undefined, value: any) => {
       if (nestedKey) {
-        store.updateNestedData(dataKey as any, { [nestedKey]: value });
+        store.updateNestedData(dataKey as keyof OnboardingData, { [nestedKey]: value });
       } else {
         store.updateData({ [dataKey]: value });
       }
