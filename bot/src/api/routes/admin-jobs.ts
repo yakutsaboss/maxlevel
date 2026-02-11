@@ -7,7 +7,7 @@ import { Router, Request, Response } from 'express';
 import { requireRole } from '../middleware/adminAuth.js';
 import { getJobQueue } from '../../jobs/boss.js';
 import { getRegisteredJobs } from '../../jobs/registerJobs.js';
-import { logger } from '../utils/logger.js';
+import { logger } from '../../utils/logger.js';
 
 const log = logger.child({ component: 'adminJobs' });
 

@@ -20,7 +20,7 @@ import { checkinRouter } from './routes/checkins.js';
 import { punishmentRouter } from './routes/punishment.js';
 import { apiLimiter } from './middleware/rateLimiter.js';
 import { ApiError } from './utils/errors.js';
-import { logger, generateRequestId } from './utils/logger.js';
+import { logger, generateRequestId } from '../utils/logger.js';
 
 const app: Express = express();
 const PORT = process.env.API_PORT || 3000;
