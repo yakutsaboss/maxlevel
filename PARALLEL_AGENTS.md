@@ -1799,7 +1799,21 @@ Read PARALLEL_AGENTS.md — you are Agent F for Run 33. Your job: Write componen
 *(To be filled by Agent B)*
 
 #### Agent C Retrospective
-*(To be filled by Agent C)*
+**All 5 tasks completed. Build passes (tsc). 8/8 new xpAward tests pass. 527/528 total tests pass.**
+
+| # | Task | Status |
+|---|------|--------|
+| 1 | Create `bot/src/utils/xpAward.ts` (shared utility + LEVEL_XP_DIVISOR) | Done |
+| 2 | Update `quest-completion.ts` to use `awardXp()` | Done (−11 lines inline logic) |
+| 3 | Update `quest-progress.ts` to use `awardXp()` — **BUG FIX** | Done (fixed hardcoded `leveledUp: true` + unconditional level overwrite) |
+| 4 | Add `requireRole('admin')` to GET `/stats` in `admin-stats.ts` | Done |
+| 5 | Write `xpAward.test.ts` (8 tests) | Done |
+
+**Bug details fixed:** quest-progress.ts had two bugs beyond the formula inconsistency: (a) it always returned `leveledUp: true` in the auto-complete response even when the user didn't actually level up, and (b) it unconditionally overwrote `current_level` via inline SQL, which could set the level *lower* if the stored `current_level` was already higher than the XP-derived level. Both are now fixed by `awardXp()`.
+
+**Known test regression (1 test):** `quests.http.test.ts:307` ("should auto-complete when progress reaches target") asserts `leveledUp: true`, which matched the old buggy behavior. The mock data has `total_xp: 500, current_level: 3` — level 2 from XP formula, so `leveledUp` is correctly `false` now. **Agent 0 must update this test during merge** — either change mock to `current_level: 1` (so level-up occurs) or change assertion to `leveledUp: false`.
+
+**Recommendation for next run:** Audit other XP-awarding code paths (e.g., onboarding completion) to use `awardXp()` as well.
 
 #### Agent D Retrospective
 *(To be filled by Agent D)*
