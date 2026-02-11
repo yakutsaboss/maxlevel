@@ -19,12 +19,17 @@ interface AchievementCardProps {
   haptic: HapticImpactOnly;
 }
 
-function formatDate(dateStr: string): string {
-  return new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric' }).format(new Date(dateStr));
+function formatDate(dateStr: string | undefined | null): string {
+  if (!dateStr) return '';
+  const d = new Date(dateStr);
+  if (isNaN(d.getTime())) return '';
+  return new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric' }).format(d);
 }
 
-function isRecentlyUnlocked(unlockedAt: string): boolean {
+function isRecentlyUnlocked(unlockedAt: string | undefined | null): boolean {
+  if (!unlockedAt) return false;
   const unlockTime = new Date(unlockedAt).getTime();
+  if (isNaN(unlockTime)) return false;
   const oneDayAgo = Date.now() - 24 * 60 * 60 * 1000;
   return unlockTime > oneDayAgo;
 }
@@ -65,8 +70,8 @@ export function AchievementCard({ achievement: ach, userAchievement: userAch, is
       transition={{ delay: index * 0.03, type: 'spring', stiffness: 200 }}
       whileTap={{ scale: 0.95 }}
       onClick={() => haptic.impact('light')}
-      aria-label={`Achievement: ${isUnlocked ? ach.name : 'Locked'} — ${isUnlocked ? 'Unlocked' : 'Locked'}, ${ach.xp_reward} XP reward`}
-      className={`rounded-2xl p-4 border relative text-left ${
+      aria-label={`Achievement: ${isUnlocked ? (ach.name || 'Unknown') : 'Locked'} — ${isUnlocked ? 'Unlocked' : 'Locked'}, ${ach.xp_reward ?? 0} XP reward`}
+      className={`rounded-2xl p-4 border relative text-left overflow-hidden ${
         isUnlocked
           ? `bg-telegram-secondaryBg ${rarityStyle.border}`
           : 'bg-telegram-secondaryBg/60 border-telegram-hint/10 opacity-60'
@@ -89,7 +94,7 @@ export function AchievementCard({ achievement: ach, userAchievement: userAch, is
       )}
 
       <div className={`text-4xl text-center mb-2 ${!isUnlocked ? 'grayscale opacity-40' : ''}`}>
-        {ach.icon}
+        {ach.icon || '🏆'}
       </div>
       <h3 className="text-sm font-semibold text-center line-clamp-2 mb-1">
         {isUnlocked ? ach.name : '???'}
@@ -99,9 +104,9 @@ export function AchievementCard({ achievement: ach, userAchievement: userAch, is
           <p className="text-xs text-telegram-hint text-center line-clamp-2 mb-2">
             {ach.description}
           </p>
-          <div className="flex items-center justify-center gap-1 bg-green-100 rounded-full px-2 py-0.5" aria-label={`Earned ${ach.xp_reward} XP`}>
+          <div className="flex items-center justify-center gap-1 bg-green-100 rounded-full px-2 py-0.5" aria-label={`Earned ${ach.xp_reward ?? 0} XP`}>
             <Zap className="w-3.5 h-3.5 text-green-600" aria-hidden="true" />
-            <span className="text-xs font-semibold text-green-700">Earned: +{ach.xp_reward} XP</span>
+            <span className="text-xs font-semibold text-green-700">Earned: +{ach.xp_reward ?? 0} XP</span>
           </div>
           {userAch && (
             <p className="text-[10px] text-telegram-hint text-center mt-1">
@@ -114,9 +119,9 @@ export function AchievementCard({ achievement: ach, userAchievement: userAch, is
           <p className="text-[11px] text-telegram-hint text-center italic line-clamp-2 mb-2">
             {getCriteriaHint(ach.criteria)}
           </p>
-          <div className="flex items-center justify-center gap-1 bg-telegram-hint/10 rounded-full px-2 py-0.5" aria-label={`Reward: ${ach.xp_reward} XP`}>
+          <div className="flex items-center justify-center gap-1 bg-telegram-hint/10 rounded-full px-2 py-0.5" aria-label={`Reward: ${ach.xp_reward ?? 0} XP`}>
             <Star className="w-3 h-3 text-telegram-hint" aria-hidden="true" />
-            <span className="text-xs text-telegram-hint font-medium">Reward: +{ach.xp_reward} XP</span>
+            <span className="text-xs text-telegram-hint font-medium">Reward: +{ach.xp_reward ?? 0} XP</span>
           </div>
         </>
       )}
