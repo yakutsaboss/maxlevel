@@ -1,6 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { lazy, useEffect, useState } from 'react';
+import { lazy, useCallback, useEffect, useState } from 'react';
 import { Dashboard } from '@/pages/Dashboard';
 import { Quests } from '@/pages/Quests';
 import { Profile } from '@/pages/Profile';
@@ -37,6 +37,7 @@ function AppContent() {
   const store = useOnboarding();
   const [checkingOnboarding, setCheckingOnboarding] = useState(true);
   const [needsOnboarding, setNeedsOnboarding] = useState(false);
+  const [questBadgeCount, setQuestBadgeCount] = useState(0);
 
   useEffect(() => {
     checkOnboardingState();
@@ -74,6 +75,23 @@ function AppContent() {
     }
   };
 
+  // Fetch active quest count for navigation badge
+  const fetchQuestBadge = useCallback(async () => {
+    if (!user?.id || needsOnboarding) return;
+    try {
+      const res = await apiClient.getUserStats(user.id);
+      if (res.success && res.data) {
+        setQuestBadgeCount(res.data.activeQuests.length);
+      }
+    } catch { /* badge is non-critical */ }
+  }, [user?.id, needsOnboarding]);
+
+  useEffect(() => {
+    if (!checkingOnboarding && !needsOnboarding) {
+      fetchQuestBadge();
+    }
+  }, [checkingOnboarding, needsOnboarding, fetchQuestBadge]);
+
   // Derive synchronously: if store says completed, override needsOnboarding immediately
   // This prevents the race where useEffect fires too late and ProtectedRoute redirects back
   const effectiveNeedsOnboarding = needsOnboarding && !store.isCompleted;
@@ -109,7 +127,7 @@ function AppContent() {
         <Route path="/settings" element={<ProtectedRoute needsOnboarding={effectiveNeedsOnboarding} lazy><Settings /></ProtectedRoute>} />
         <Route path="/admin" element={<LazyPageWrapper><Admin /></LazyPageWrapper>} />
       </Routes>
-      {showNavigation && <Navigation />}
+      {showNavigation && <Navigation questBadgeCount={questBadgeCount} />}
     </div>
   );
 }

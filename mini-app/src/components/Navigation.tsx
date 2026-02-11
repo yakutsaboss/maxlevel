@@ -17,7 +17,11 @@ const navItems: NavItem[] = [
   { path: '/profile', icon: <User className="w-5 h-5" />, label: 'Profile' },
 ];
 
-export function Navigation() {
+interface NavigationProps {
+  questBadgeCount?: number;
+}
+
+export function Navigation({ questBadgeCount = 0 }: NavigationProps) {
   const location = useLocation();
   const navigate = useNavigate();
   const { haptic } = useTelegram();
@@ -53,15 +57,22 @@ export function Navigation() {
               )}
               <div className={`relative z-10 transition-colors ${isActive ? 'text-telegram-link' : 'text-telegram-hint'}`}>
                 {item.icon}
+                {item.path === '/quests' && questBadgeCount > 0 && (
+                  <span className="absolute -top-1.5 -right-2.5 bg-red-500 text-white text-[10px] font-bold min-w-[16px] h-4 flex items-center justify-center rounded-full px-1 leading-none shadow-sm">
+                    {questBadgeCount > 9 ? '9+' : questBadgeCount}
+                  </span>
+                )}
               </div>
               <span className={`relative z-10 text-xs mt-1 transition-colors ${isActive ? 'text-telegram-link font-semibold' : 'text-telegram-hint'}`}>
                 {item.label}
               </span>
               {isActive && (
                 <motion.div
-                  initial={{ scale: 0 }}
-                  animate={{ scale: 1 }}
-                  className="absolute -top-1 w-1 h-1 bg-telegram-link rounded-full"
+                  layoutId="activeIndicator"
+                  initial={{ scaleX: 0 }}
+                  animate={{ scaleX: 1 }}
+                  className="absolute -bottom-0.5 w-5 h-0.5 bg-telegram-link rounded-full"
+                  transition={{ type: 'spring', stiffness: 300, damping: 30 }}
                 />
               )}
             </button>
