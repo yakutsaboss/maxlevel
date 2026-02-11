@@ -1265,7 +1265,14 @@ Read PARALLEL_AGENTS.md — you are Agent T for Run 35. Fix `mini-app/src/pages/
 *(To be filled by Agent E)*
 
 #### Agent F Retrospective
-*(To be filled by Agent F)*
+**Task**: Fix `bot/src/utils/streak.ts` — two bugs: non-atomic read-then-write and UTC timezone.
+
+**Changes made (1 file)**:
+1. `bot/src/utils/streak.ts` — Replaced two-step SELECT+UPDATE with a single atomic `UPDATE ... FROM users u ... RETURNING` query. Uses `CASE WHEN last_activity_date = today-1 THEN current_streak+1 ELSE 1 END` with `GREATEST` for longest_streak. Computes "today" via `(CURRENT_TIMESTAMP AT TIME ZONE u.timezone)::date` so day boundaries respect each user's timezone. Added `IS DISTINCT FROM` in WHERE clause to skip no-op updates when already logged today.
+
+**Build & test**: `npm run build` clean. 546/546 tests pass (48 files). 3 pre-existing failures in `quests.http.test.ts` from another agent's uncommitted test refactor (tests expect transaction-based quest completion, but `quest-completion.ts` route not yet updated) — not related to this change.
+
+**Commit**: `0dd3056 fix(bot): make streak update atomic and timezone-aware`
 
 #### Agent G Retrospective
 **Task**: Fix achievement job schedules — speed up batch check and widen notification window.
