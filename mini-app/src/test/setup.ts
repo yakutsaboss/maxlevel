@@ -1,58 +1,8 @@
 import '@testing-library/jest-dom';
+import { setupTWAMock } from './mocks/twa-sdk';
 
-// Mock window.Telegram.WebApp
-Object.defineProperty(window, 'Telegram', {
-  value: {
-    WebApp: {
-      initData: 'test',
-      initDataUnsafe: {
-        user: { id: 123, first_name: 'Test' },
-      },
-      ready: vi.fn(),
-      expand: vi.fn(),
-      close: vi.fn(),
-      enableClosingConfirmation: vi.fn(),
-      disableClosingConfirmation: vi.fn(),
-      disableVerticalSwipes: vi.fn(),
-      enableVerticalSwipes: vi.fn(),
-      colorScheme: 'dark',
-      themeParams: {},
-      platform: 'tdesktop',
-      version: '7.0',
-      HapticFeedback: {
-        impactOccurred: vi.fn(),
-        notificationOccurred: vi.fn(),
-        selectionChanged: vi.fn(),
-      },
-      BackButton: {
-        show: vi.fn(),
-        hide: vi.fn(),
-        onClick: vi.fn(),
-        offClick: vi.fn(),
-      },
-      MainButton: {
-        show: vi.fn(),
-        hide: vi.fn(),
-        enable: vi.fn(),
-        disable: vi.fn(),
-        setText: vi.fn(),
-        onClick: vi.fn(),
-        offClick: vi.fn(),
-        showProgress: vi.fn(),
-        hideProgress: vi.fn(),
-        color: '',
-        textColor: '',
-      },
-      showAlert: vi.fn(),
-      showConfirm: vi.fn(),
-      showPopup: vi.fn(),
-      openLink: vi.fn(),
-      openTelegramLink: vi.fn(),
-      sendData: vi.fn(),
-    },
-  },
-  writable: true,
-});
+// Mock window.Telegram.WebApp using the shared TWA SDK mock
+setupTWAMock();
 
 // Mock IntersectionObserver
 class MockIntersectionObserver {
