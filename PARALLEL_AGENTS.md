@@ -1403,7 +1403,20 @@ Read PARALLEL_AGENTS.md — you are Agent F for Run 36. Refactor `mini-app/src/p
 *(To be filled by Agent C)*
 
 #### Agent D Retrospective
-*(To be filled by Agent D)*
+**Status:** COMPLETE — 2 tasks done, 12 new tests pass, 580/580 total tests pass.
+
+| # | Task | Status |
+|---|------|--------|
+| 1 | Create `QuestTemplate` + `AssignedQuest` interfaces, replace both `any[]` | Done |
+| 2 | Create `quest-assignment.http.test.ts` with 12 HTTP integration tests | Done |
+
+**Changes (1 commit `1caa5ca`):**
+- `bot/src/api/routes/quest-assignment.ts` — Added `QuestTemplate` interface (7 fields matching SELECT from `quests` table) and `AssignedQuest` interface (10 fields matching response shape). Replaced `let available: any[]` → `QuestTemplate[]`, `const assigned: any[]` → `AssignedQuest[]`. Added explicit generics: `query<QuestTemplate>(...)`, `queryOne<{ id: number }>(...)`.
+- `bot/src/__tests__/routes/http/quest-assignment.http.test.ts` (NEW) — 12 tests across 6 describe blocks: daily assignment (3 default, custom count, difficulty targets), weekly assignment (2 default, SQL filter verification), no-available-quests error, mode filtering (no active modes, multi-mode passthrough), validation (missing/invalid frequency), error handling (DB errors on mode query + quest query).
+
+**Build:** `tsc` has pre-existing errors from Agent A (modeSelection.ts) and Agent C (completion.ts, quickActions.ts, dailyQuestReset.ts) — all `Record<string, any>` vs specific interface mismatches in their files. My file compiles cleanly (no errors in quest-assignment.ts).
+
+**Tests:** 50 files, 580/580 pass (12 new from this agent).
 
 #### Agent E Retrospective
 *(To be filled by Agent E)*
