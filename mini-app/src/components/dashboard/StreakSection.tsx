@@ -28,8 +28,8 @@ export const StreakSection = memo(function StreakSection({ streakData, perModeSt
   const milestone = getActiveMilestone(streakData.current);
 
   return (
-    <div className="px-4 mt-6">
-      <h2 className="text-lg font-semibold mb-3 flex items-center gap-2"><Flame className="w-5 h-5 text-orange-500" />Your Streak</h2>
+    <div className="px-4 mt-6" role="region" aria-label="Your streak">
+      <h2 className="text-lg font-semibold mb-3 flex items-center gap-2"><Flame className="w-5 h-5 text-orange-500" aria-hidden="true" />Your Streak</h2>
 
       {/* Milestone celebration banner */}
       {milestone && (
@@ -61,10 +61,10 @@ export const StreakSection = memo(function StreakSection({ streakData, perModeSt
       )}
 
       {/* Aggregate streak card */}
-      <div className="bg-gradient-to-r from-orange-500 to-amber-500 rounded-2xl p-4 shadow-sm">
+      <div className="bg-gradient-to-r from-orange-500 to-amber-500 rounded-2xl p-4 shadow-sm" aria-label={`Current streak: ${streakData.current} days, Best: ${streakData.longest} days, ${streakData.daysActive} days active`}>
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="bg-white/20 backdrop-blur-sm rounded-xl p-3">
+            <div className="bg-white/20 backdrop-blur-sm rounded-xl p-3" aria-hidden="true">
               <motion.div
                 animate={streakData.current > 0 ? { scale: [1, 1.2, 1] } : {}}
                 transition={{ duration: 1.5, repeat: Infinity, ease: 'easeInOut' }}
@@ -110,8 +110,9 @@ export const StreakSection = memo(function StreakSection({ streakData, perModeSt
                 key={streak.mode_id}
                 className={`flex-shrink-0 rounded-xl px-4 py-3 border ${streak.current_streak === maxStreak && maxStreak > 0 ? 'bg-orange-500/10 border-orange-500/30' : 'bg-telegram-secondaryBg border-telegram-hint/20'}`}
                 whileHover={{ scale: 1.05 }}
+                aria-label={`${streak.mode_name}: ${streak.current_streak} day streak`}
               >
-                <div className="text-2xl text-center mb-1">{streak.mode_icon}</div>
+                <div className="text-2xl text-center mb-1" role="img" aria-label={streak.mode_name}>{streak.mode_icon}</div>
                 <div className="text-center">
                   <span className="text-lg font-bold">{streak.current_streak}</span>
                   {streak.current_streak > 0 && <span className="ml-1">🔥</span>}

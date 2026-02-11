@@ -9,9 +9,9 @@ interface TodaysProgressProps {
 
 export const TodaysProgress = memo(function TodaysProgress({ completedToday, xpGainedToday, activeQuestsCount }: TodaysProgressProps) {
   return (
-    <div className="px-4 mt-6">
+    <div className="px-4 mt-6" role="region" aria-label="Today's progress">
       <h2 className="text-lg font-semibold mb-3 flex items-center gap-2">
-        <Calendar className="w-5 h-5 text-telegram-link" />Today's Progress
+        <Calendar className="w-5 h-5 text-telegram-link" aria-hidden="true" />Today's Progress
       </h2>
       <div className={`rounded-2xl p-4 shadow-sm ${completedToday > 0 ? 'bg-gradient-to-r from-green-500/10 to-emerald-500/10 border border-green-500/20' : 'bg-telegram-secondaryBg border border-telegram-hint/10'}`}>
         <div className="grid grid-cols-3 gap-3">

@@ -69,7 +69,7 @@ export function Dashboard() {
             </div>
           </motion.div>
         </div>
-        <div className="bg-white/20 backdrop-blur-sm rounded-full h-8 overflow-hidden">
+        <div className="bg-white/20 backdrop-blur-sm rounded-full h-8 overflow-hidden" role="progressbar" aria-valuenow={stats.user.xp} aria-valuemin={0} aria-valuemax={stats.user.xp_to_next_level} aria-label={`XP progress: ${stats.user.xp} of ${stats.user.xp_to_next_level}`}>
           <div className="relative h-full">
             <motion.div className="absolute top-0 left-0 h-full bg-gradient-to-r from-yellow-400 to-orange-500" initial={{ width: 0 }} animate={{ width: `${xpPercentage}%` }} transition={{ duration: 1, ease: 'easeOut' }} />
             <div className="absolute inset-0 flex items-center justify-center min-w-0 px-2">
@@ -84,10 +84,10 @@ export function Dashboard() {
       </div>
 
       {/* Motivational Quote */}
-      <div className="mx-4 -mt-4 relative z-10">
+      <div className="mx-4 -mt-4 relative z-10" role="complementary" aria-label="Daily motivational quote">
         <div className="bg-telegram-secondaryBg/80 backdrop-blur-sm rounded-2xl px-4 py-3 border border-telegram-hint/10">
           <div className="flex items-start gap-2">
-            <Quote className="w-4 h-4 text-purple-400 flex-shrink-0 mt-0.5" />
+            <Quote className="w-4 h-4 text-purple-400 flex-shrink-0 mt-0.5" aria-hidden="true" />
             <div className="min-w-0">
               <p className="text-sm text-telegram-text italic leading-snug">{dailyQuote.text}</p>
               <p className="text-xs text-telegram-hint mt-1">— {dailyQuote.author}</p>
@@ -107,8 +107,8 @@ export function Dashboard() {
 
       <TodaysProgress completedToday={stats.completedQuestsToday} xpGainedToday={stats.xpGainedToday} activeQuestsCount={stats.activeQuests.length} />
 
-      <div className="px-4 mt-6">
-        <h2 className="text-lg font-semibold mb-3 flex items-center gap-2"><TrendingUp className="w-5 h-5 text-telegram-link" />Active Modes</h2>
+      <div className="px-4 mt-6" role="region" aria-label="Active modes">
+        <h2 className="text-lg font-semibold mb-3 flex items-center gap-2"><TrendingUp className="w-5 h-5 text-telegram-link" aria-hidden="true" />Active Modes</h2>
         {stats.modes.length === 0 ? (
           <div className="text-center py-8 bg-telegram-secondaryBg rounded-2xl border border-telegram-hint/10">
             <Compass className="w-12 h-12 text-telegram-hint mx-auto mb-3" />
@@ -132,8 +132,8 @@ export function Dashboard() {
 
       <StreakSection streakData={stats.streakData} perModeStreaks={stats.perModeStreaks} />
 
-      <div className="px-4 mt-6">
-        <h2 className="text-lg font-semibold mb-3 flex items-center gap-2"><Target className="w-5 h-5 text-telegram-link" />Active Quests</h2>
+      <div className="px-4 mt-6" role="region" aria-label="Active quests">
+        <h2 className="text-lg font-semibold mb-3 flex items-center gap-2"><Target className="w-5 h-5 text-telegram-link" aria-hidden="true" />Active Quests</h2>
         <div className="space-y-3">
           {stats.activeQuests.length === 0 ? (
             <div className="text-center py-8 bg-telegram-secondaryBg rounded-2xl border border-telegram-hint/10">
@@ -156,8 +156,8 @@ export function Dashboard() {
       </div>
 
       {stats.recentAchievements.length > 0 && (
-        <div className="px-4 mt-6 mb-6">
-          <h2 className="text-lg font-semibold mb-3 flex items-center gap-2"><Trophy className="w-5 h-5 text-telegram-link" />Recent Achievements</h2>
+        <div className="px-4 mt-6 mb-6" role="region" aria-label="Recent achievements">
+          <h2 className="text-lg font-semibold mb-3 flex items-center gap-2"><Trophy className="w-5 h-5 text-telegram-link" aria-hidden="true" />Recent Achievements</h2>
           <div className="grid grid-cols-2 gap-3">
             {stats.recentAchievements.slice(0, 4).map((userAch) => (
               <DashboardAchievementCard key={userAch.achievement_id} userAch={userAch} />
