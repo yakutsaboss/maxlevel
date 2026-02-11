@@ -81,7 +81,7 @@ describe('useDashboardData', () => {
 
     expect(result.current.stats).toEqual(mockStatsResponse.data);
     expect(result.current.error).toBe(false);
-    expect(mockGetUserStats).toHaveBeenCalledWith(123);
+    expect(mockGetUserStats).toHaveBeenCalledWith(123, expect.objectContaining({ signal: expect.any(AbortSignal) }));
   });
 
   it('sets error state on fetch failure', async () => {

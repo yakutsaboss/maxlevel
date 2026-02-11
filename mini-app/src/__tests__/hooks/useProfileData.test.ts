@@ -68,10 +68,11 @@ describe('useProfileData', () => {
       expect(result.current.loading).toBe(false);
     });
 
-    // All three parallel calls were made
-    expect(mockGetUserStats).toHaveBeenCalledWith(123);
-    expect(mockGetUserAchievements).toHaveBeenCalledWith(123);
-    expect(mockGetAchievements).toHaveBeenCalled();
+    // All three parallel calls were made (with AbortSignal)
+    const signalMatcher = expect.objectContaining({ signal: expect.any(AbortSignal) });
+    expect(mockGetUserStats).toHaveBeenCalledWith(123, signalMatcher);
+    expect(mockGetUserAchievements).toHaveBeenCalledWith(123, signalMatcher);
+    expect(mockGetAchievements).toHaveBeenCalledWith(signalMatcher);
 
     // Data is populated
     expect(result.current.stats).toEqual(mockStatsData);
@@ -144,7 +145,7 @@ describe('useProfileData', () => {
     });
 
     await waitFor(() => {
-      expect(mockGetPunishmentHistory).toHaveBeenCalledWith(123);
+      expect(mockGetPunishmentHistory).toHaveBeenCalledWith(123, 1, 5, expect.objectContaining({ signal: expect.any(AbortSignal) }));
     });
 
     await waitFor(() => {
