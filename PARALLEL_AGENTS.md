@@ -697,4 +697,25 @@ Tasks: Dashboard a11y (8 files), Leaderboard a11y (5 files), Achievements a11y (
 
 **Issues:** Agent E committed to main instead of worktree branch — harmless but violates protocol. All PARALLEL_AGENTS.md conflicts were structural (branches predated Run 30 section), not content conflicts.
 
-<!-- Next run goes here. Agent 0 will append RUN 31 below this line. -->
+#### Agent F Retrospective
+**All 5 tasks completed. Build passes cleanly (`tsc && vite build` — zero errors). 5 commits.**
+
+| # | Task | Status |
+|---|------|--------|
+| 1 | Extract MODE_BADGES to `data/modeBadges.ts`, update Onboarding.tsx import | Done |
+| 2 | Remove all `as any` from `api/client.ts` (inflightGets Map, retry config, quest unwrap) | Done |
+| 3 | Remove `as any` from `pages/Onboarding.tsx` (dataKey cast, saveState param type) | Done |
+| 4 | Audit `types/index.ts` — removed 4 unused exports (QuestFilter, ApiErrorResponse, PaginatedResponse, OnboardingProgress) | Done |
+| 5 | Scan all mini-app src for `as any` — zero remaining. Remaining `any` annotations are callback param types in forbidden files | Done |
+
+**Files changed:** `data/modeBadges.ts` (NEW), `pages/Onboarding.tsx`, `api/client.ts`, `types/index.ts`.
+
+**Issues:**
+- `Record<string, unknown>` is not assignable from interface types without index signatures. Fixed by using `OnboardingData` param type + `as Record<string, unknown>` assertion at the API boundary (more specific than the original `Record<string, any>`).
+- Remaining `any` annotations (11 occurrences) are in forbidden files: haptic `...args: any[]` pattern in 8 component files + `value: any` callback types in QuizScreen/useQuizState.
+
+**Recommendations for next run:**
+- Define a shared `HapticApi` interface in types/index.ts to replace the `{ impact: (...args: any[]) => void }` pattern repeated in 8+ components.
+- QuizScreen's `onAnswer` callback and `useQuizState` have 5+ `as any`/`: any` — these are in the onboarding component directory and could be typed with a `QuizValue = string | string[] | number | boolean | Record<string, unknown>` union.
+
+<!-- Next run goes here. Agent 0 will append RUN 32 below this line. -->
