@@ -1394,7 +1394,18 @@ Read PARALLEL_AGENTS.md — you are Agent J for Run 32. Your job: Write componen
 *(To be filled by Agent A)*
 
 #### Agent B Retrospective
-*(To be filled by Agent B)*
+**Status:** COMPLETE — 4 test files, 21 new tests, all 93 tests pass, build clean.
+
+| # | File | Tests | What's covered |
+|---|------|-------|----------------|
+| 1 | `useOnboarding.test.ts` | 6 | Initial state, setStep, updateData, reset, mode selection, goBack |
+| 2 | `useOnboardingNavigation.test.ts` | 5 | Base steps (no modes), fitness steps, multi-mode, progress calc, step label |
+| 3 | `useTelegram.test.ts` | 6 | WebApp object, haptic impact on/off, localStorage read/write, notification |
+| 4 | `useApiError.test.ts` | 4 | Code 0→no internet, 401→session expired, 500→server error, non-ApiError→generic |
+
+**Approach:** Used Zustand's `getState().reset()` pattern for store tests, `vi.mock('@twa-dev/sdk')` + dynamic import for useTelegram, and pure function tests for navigation/error utils. All tests are fast (<100ms per file).
+
+**Commit:** `ec6739a` — `test(hooks): add tests for useOnboarding, useOnboardingNavigation, useTelegram, useApiError`
 
 #### Agent C Retrospective
 *(To be filled by Agent C)*
