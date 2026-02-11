@@ -1311,7 +1311,16 @@ Read PARALLEL_AGENTS.md — you are Agent T for Run 35. Fix `mini-app/src/pages/
 **Pre-existing failures (not from Agent H):** 3 tests in `quests.http.test.ts` — quest completion endpoint returns 404 instead of expected 400/500. Confirmed by Agents A, B, G as pre-existing.
 
 #### Agent I Retrospective
-*(To be filled by Agent I)*
+**Status**: DONE
+**Changes committed in**: `565c90a` (co-committed with Agent G's cache invalidation fix)
+**Files changed** (4):
+- `mini-app/src/index.css` — Added z-index scale comment block after `:root` documenting the 5-tier system (z-10 badges, z-30 fixed overlays, z-40 nav, z-50 modals, z-60 toasts). Added `body.scroll-locked { overflow: hidden; }` utility class.
+- `mini-app/src/components/Toast.tsx` — Changed `z-[100]` to `z-60` (line 41). The arbitrary `z-[100]` was overkill; `z-60` follows the new scale.
+- `mini-app/src/components/AchievementToast.tsx` — Changed `z-50` to `z-60` (line 23) so achievement toasts sit at the same layer as regular toasts, not behind modals. Added `safe-area-bottom` class for device safe area inset.
+- `mini-app/tailwind.config.js` — Added `zIndex: { '60': '60' }` to theme.extend since Tailwind only ships z-index up to 50 by default.
+**Build**: `tsc && vite build` passed. **Tests**: 73 files, 319 tests all passed.
+**Notes**: Concurrent agent race — my first set of edits were picked up by Agent G's commit (`565c90a`) before I could commit them separately. Second edit attempt showed no diff since changes were already in HEAD. No code conflicts.
+**Recommendations**: Other agents should reference the z-index scale comment in `index.css` when choosing z-index values for new components.
 
 #### Agent J Retrospective
 *(To be filled by Agent J)*
