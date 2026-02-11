@@ -1,6 +1,8 @@
+import { useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTelegram } from '@/hooks/useTelegram';
 import { useProfileData } from '@/hooks/useProfileData';
+import { usePullToRefresh, PullIndicator } from '@/hooks/usePullToRefresh';
 import { ProfileEditModal } from '@/components/ProfileEditModal';
 import { Toast } from '@/components/Toast';
 import { ProfileHeader } from '@/components/profile/ProfileHeader';
@@ -24,6 +26,9 @@ export function Profile() {
     toast, setToast,
   } = useProfileData(user?.id);
 
+  const handleRefresh = useCallback(async () => { await loadProfileData(); }, [loadProfileData]);
+  const { containerRef, pullDistance, refreshing, pullThreshold, touchHandlers } = usePullToRefresh(handleRefresh, haptic);
+
   if (loading) {
     return <ProfileSkeleton />;
   }
@@ -33,7 +38,12 @@ export function Profile() {
   }
 
   return (
-    <div className="min-h-screen bg-telegram-bg text-telegram-text pb-20">
+    <div
+      ref={containerRef}
+      className="min-h-screen bg-telegram-bg text-telegram-text pb-20 overflow-y-auto"
+      {...touchHandlers}
+    >
+      <PullIndicator pullDistance={pullDistance} refreshing={refreshing} pullThreshold={pullThreshold} />
       <ProfileHeader
         stats={stats}
         achievementCount={achievements.length}
