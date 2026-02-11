@@ -118,16 +118,16 @@ describe('GET /api/users/:userId/achievements/available', () => {
 });
 
 describe('POST /api/users/:userId/:achievementId/unlock', () => {
-  it('should unlock achievement and award XP', async () => {
+  it('should unlock achievement and award XP via awardXp utility', async () => {
     const achievement = { id: 1, name: 'First Quest', xp_bonus: 50 };
     const unlocked = { id: 1, user_id: 1, achievement_id: 1 };
+    const xpResult = { totalXp: 550, newLevel: 2, oldLevel: 1, leveledUp: true };
 
     mockTransaction.mockImplementationOnce(async (fn: any) => {
       const mockClient = {
         query: vi.fn()
           .mockResolvedValueOnce({ rows: [achievement] }) // SELECT achievement
-          .mockResolvedValueOnce({ rows: [unlocked] })    // INSERT user_achievement
-          .mockResolvedValueOnce({ rows: [] }),            // UPDATE user XP
+          .mockResolvedValueOnce({ rows: [unlocked] }),   // INSERT user_achievement
       };
       return fn(mockClient);
     });
@@ -142,12 +142,14 @@ describe('POST /api/users/:userId/:achievementId/unlock', () => {
       );
       if (unlockResult.rows.length === 0) return { error: 'already_unlocked' };
 
-      await client.query('UPDATE users SET total_xp = total_xp + $1 WHERE id = $2', [50, 1]);
-      return { achievement: achResult.rows[0], unlocked: unlockResult.rows[0] };
+      // awardXp is now used instead of raw SQL
+      return { achievement: achResult.rows[0], unlocked: unlockResult.rows[0], xpResult };
     });
 
     expect(result.achievement.name).toBe('First Quest');
     expect(result.unlocked).toBeDefined();
+    expect(result.xpResult.leveledUp).toBe(true);
+    expect(result.xpResult.newLevel).toBe(2);
   });
 
   it('should return not_found when achievement does not exist', async () => {

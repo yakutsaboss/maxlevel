@@ -40,6 +40,12 @@ vi.mock('../../../utils/achievementEngine.js', () => ({
   checkAndUnlockAchievements: vi.fn().mockResolvedValue([]),
 }));
 
+const mockAwardXp = vi.fn();
+vi.mock('../../../utils/xpAward.js', () => ({
+  awardXp: (...args: any[]) => mockAwardXp(...args),
+  LEVEL_XP_DIVISOR: 500,
+}));
+
 vi.mock('../../../api/middleware/auth.js', () => ({
   authenticateTelegram: (_req: any, _res: any, next: any) => next(),
   authorizeUser: (_req: any, _res: any, next: any) => next(),
@@ -159,13 +165,14 @@ describe('GET /api/achievements/users/:userId', () => {
 });
 
 describe('POST /api/achievements/users/:userId/:achievementId/unlock', () => {
-  it('should unlock achievement and return 200', async () => {
+  it('should unlock achievement and return 200 with level-up info', async () => {
+    mockAwardXp.mockResolvedValueOnce({ totalXp: 600, newLevel: 2, oldLevel: 1, leveledUp: true });
+
     mockTransaction.mockImplementationOnce(async (fn: any) => {
       const mockClient = {
         query: vi.fn()
           .mockResolvedValueOnce({ rows: [{ id: 5, name: 'Hero', xp_bonus: 100 }] })  // achievement lookup
-          .mockResolvedValueOnce({ rows: [{ id: 1 }] })  // INSERT ON CONFLICT
-          .mockResolvedValueOnce({ rows: [] }),  // UPDATE users XP
+          .mockResolvedValueOnce({ rows: [{ id: 1 }] }),  // INSERT ON CONFLICT
       };
       return fn(mockClient);
     });
@@ -176,6 +183,11 @@ describe('POST /api/achievements/users/:userId/:achievementId/unlock', () => {
 
     expect(res.body.data.message).toBe('Achievement unlocked successfully');
     expect(res.body.data.achievement.name).toBe('Hero');
+    expect(res.body.data.xpEarned).toBe(100);
+    expect(res.body.data.totalXp).toBe(600);
+    expect(res.body.data.newLevel).toBe(2);
+    expect(res.body.data.leveledUp).toBe(true);
+    expect(mockAwardXp).toHaveBeenCalledWith(expect.anything(), 1, 100);
   });
 
   it('should return 404 when achievement does not exist', async () => {

@@ -9,6 +9,7 @@ import {
   BadRequestError,
   NotFoundError,
 } from '../utils/errors.js';
+import { awardXp } from '../../utils/xpAward.js';
 
 const router = Router();
 
@@ -131,14 +132,9 @@ router.post('/users/:userId/:achievementId/unlock', authenticateTelegram, author
       return { error: 'already_unlocked' } as const;
     }
 
-    await client.query(
-      `UPDATE users SET total_xp = total_xp + $1,
-                        current_level = ((total_xp + $1) / 500) + 1
-       WHERE id = $2`,
-      [achievement.xp_bonus, userId]
-    );
+    const xpResult = await awardXp(client, userId, achievement.xp_bonus);
 
-    return { achievement, unlocked: unlockResult.rows[0] };
+    return { achievement, unlocked: unlockResult.rows[0], xpResult };
   });
 
   if (result.error === 'not_found') {
@@ -152,6 +148,9 @@ router.post('/users/:userId/:achievementId/unlock', authenticateTelegram, author
     message: 'Achievement unlocked successfully',
     achievement: result.achievement,
     xpEarned: result.achievement.xp_bonus,
+    totalXp: result.xpResult.totalXp,
+    newLevel: result.xpResult.newLevel,
+    leveledUp: result.xpResult.leveledUp,
   }));
 }));
 
