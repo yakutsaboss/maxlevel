@@ -1816,7 +1816,15 @@ Read PARALLEL_AGENTS.md — you are Agent F for Run 33. Your job: Write componen
 *(To be filled by Agent C)*
 
 #### Agent D Retrospective
-*(To be filled by Agent D)*
+**Status:** Complete (1 commit)
+**Commit:** `53d806d` — test: add tests for modeSelection, completion, and punishmentCheck
+**Tests added:** 22 new tests across 3 files:
+- `modeSelection.test.ts` (10 tests): showModeSelection keyboard display, error on empty modes, missing userId guard; handleModeSelection toggle ON (insert + streak), toggle OFF (deactivate), reactivate inactive mode, user not found guard, mode_info delegation, mode_done delegation, missing callback/userId guard.
+- `completion.test.ts` (6 tests): full onboarding completion with quest assignment, no-modes-selected alert, user not found, no quest templates fallback, duplicate insert skip (idempotency), missing userId guard.
+- `punishmentCheck.test.ts` (6 tests): job name/cron, no expired quests, XP penalty with consent + intensity multiplier, no-consent notify-only path, safe mode daily XP cap, notification failure handling.
+**Build:** Clean. Full suite: 542/542 tests pass.
+**Issues:** Initial toggle-ON test had wrong execute-call count (expected 3, actual 2 — INSERT user_mode + INSERT streak, no third call from updateModeSelectionMessage). Fixed in same commit.
+**Recommendations:** The `punishmentCheck` handler uses `sleep()` delays between notifications which make tests slow (~1s). Consider injecting a delay function for testability.
 
 #### Agent E Retrospective
 *(To be filled by Agent E)*
