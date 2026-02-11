@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useMemo } from 'react';
 import { useTelegram } from '@/hooks/useTelegram';
 import { usePullToRefresh, PullIndicator } from '@/hooks/usePullToRefresh';
 import { apiClient } from '@/api/client';
@@ -9,6 +9,7 @@ import { TimePeriodTabs, type TimePeriod } from '@/components/leaderboard/TimePe
 import { TopThreeCard } from '@/components/leaderboard/TopThreeCard';
 import { LeaderboardRow } from '@/components/leaderboard/LeaderboardRow';
 import { LeaderboardSkeleton } from '@/components/leaderboard/LeaderboardSkeleton';
+import { YourRankCard } from '@/components/leaderboard/YourRankCard';
 
 export function Leaderboard() {
   const { user, haptic } = useTelegram();
@@ -40,12 +41,25 @@ export function Leaderboard() {
   const handleRefresh = useCallback(async () => { await loadLeaderboard(); }, []);
   const { containerRef, pullDistance, refreshing, pullThreshold, touchHandlers } = usePullToRefresh(handleRefresh, haptic);
 
+  const currentUserId = user?.id;
+
+  const currentUserEntry = useMemo(() => {
+    if (!currentUserId) return null;
+    return entries.find(e => e.telegram_id === currentUserId) ?? null;
+  }, [entries, currentUserId]);
+
+  const currentUserRank = useMemo(() => {
+    if (!currentUserEntry) return null;
+    const idx = entries.indexOf(currentUserEntry);
+    return currentUserEntry.xp_rank || idx + 1;
+  }, [entries, currentUserEntry]);
+
   useEffect(() => { loadLeaderboard(); }, [timePeriod]);
 
   if (loading && !refreshing) return <LeaderboardSkeleton />;
   if (error) return <ErrorSection message="Could not load the leaderboard" onRetry={loadLeaderboard} />;
 
-  const currentUserId = user?.id;
+  const isUserInList = currentUserEntry !== null;
 
   return (
     <div
@@ -96,7 +110,7 @@ export function Leaderboard() {
               </div>
             )}
 
-            <div className="space-y-1.5">
+            <div className="space-y-1.5 pb-16">
               {entries.slice(3).map((entry, index) => (
                 <LeaderboardRow
                   key={entry.user_id}
@@ -111,6 +125,14 @@ export function Leaderboard() {
           </>
         )}
       </div>
+
+      {currentUserId && (
+        <YourRankCard
+          entry={isUserInList ? currentUserEntry : null}
+          rank={currentUserRank}
+          timePeriod={timePeriod}
+        />
+      )}
     </div>
   );
 }
