@@ -2817,4 +2817,29 @@ Read PARALLEL_AGENTS.md — you are Agent E for Run 29. Your job: Enhance the Pr
 #### Agent 0 Retrospective
 *(To be filled by Agent 0 after merge)*
 
+### Run 30 Retrospectives (partial — Agent C)
+
+#### Agent C Retrospective
+**All 5 tasks completed. Build passes cleanly.**
+
+| # | Task | Status |
+|---|------|--------|
+| 1 | Create `types/errors.ts` with `ApiError` class + `fromAxios` factory | Done |
+| 2 | Update `api/client.ts` response interceptor to reject `ApiError` instances | Done |
+| 3 | Add GET request deduplication via in-flight map | Done |
+| 4 | Add timeout presets (`TIMEOUT_FAST`/`NORMAL`/`SLOW`) + apply to `getUserStats`/`getActiveQuests` | Done |
+| 5 | Add 4 missing types: `QuestFilter`, `ApiErrorResponse`, `PaginatedResponse<T>`, `OnboardingProgress` | Done |
+
+**Files changed (3 files, 2 new + 1 modified):**
+- `mini-app/src/types/errors.ts` (NEW) — `ApiError` class extending `Error` with `code`, `retryable`, `originalError` fields. Static `fromAxios()` maps network→code 0 retryable, 4xx→not retryable, 5xx→retryable.
+- `mini-app/src/api/client.ts` — Response interceptor now rejects `ApiError` instead of raw Axios errors. Added `deduplicatedGet()` private method with in-flight `Map<string, Promise>` to coalesce concurrent identical GET requests. Added `TIMEOUT_FAST` (5s), `TIMEOUT_NORMAL` (10s), `TIMEOUT_SLOW` (20s) exports + `withTimeout()` helper. All GET endpoints now go through deduplication.
+- `mini-app/src/types/index.ts` — Added `QuestFilter`, `ApiErrorResponse`, `PaginatedResponse<T>`, `OnboardingProgress` interfaces.
+
+**Problems:** None. The worktree didn't have the Run 30 section pre-allocated (branched before Agent 0 wrote it), so this retro is appended at the end. Agent 0 should reconcile during merge.
+
+**Recommendations for next run:**
+- Consumers (hooks, pages) could be updated to catch `ApiError` and show user-friendly messages based on `error.code`.
+- The new `PaginatedResponse<T>` type can be wired into `getPunishmentHistory` once the backend returns that shape.
+- Consider adding request cancellation (AbortController) for page navigation to avoid stale responses.
+
 <!-- Next run goes here. Agent 0 will append RUN 30 below this line. -->
