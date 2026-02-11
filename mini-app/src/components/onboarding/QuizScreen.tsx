@@ -6,6 +6,7 @@
 import { motion } from 'framer-motion';
 import { useTelegram } from '@/hooks/useTelegram';
 import { ProgressBar } from './ui/ProgressBar';
+import { ContinueButton } from './ui/ContinueButton';
 import { AnswerInput } from './quiz/AnswerInput';
 import { useQuizState } from './quiz/useQuizState';
 import type { QuestionConfig } from '@/data/onboardingQuestions';
@@ -78,18 +79,7 @@ export function QuizScreen({ config, progress, stepLabel, data, modeBadge, onAns
       </div>
 
       <div className="px-6 pb-8">
-        <button
-          onClick={handleNext}
-          disabled={!state.isValid}
-          className={`
-            w-full py-4 rounded-2xl text-lg font-bold transition-all
-            ${state.isValid
-              ? 'bg-gradient-to-r from-purple-600 to-blue-600 text-white shadow-lg'
-              : 'bg-telegram-hint/20 text-telegram-hint'}
-          `}
-        >
-          Continue
-        </button>
+        <ContinueButton onClick={handleNext} disabled={!state.isValid} />
       </div>
     </div>
   );

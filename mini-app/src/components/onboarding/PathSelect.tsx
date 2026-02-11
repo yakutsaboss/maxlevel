@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { Lock } from 'lucide-react';
 import { useTelegram } from '@/hooks/useTelegram';
 import { ProgressBar } from './ui/ProgressBar';
+import { ContinueButton } from './ui/ContinueButton';
 
 const MODES = [
   {
@@ -115,20 +116,11 @@ export function PathSelect({ progress, stepLabel, value, onSelect, onNext }: Pat
       </div>
 
       <div className="px-6 pb-8">
-        <button
+        <ContinueButton
           onClick={onNext}
           disabled={selected.length === 0}
-          className={`
-            w-full py-4 rounded-2xl text-lg font-bold transition-all
-            ${
-              selected.length > 0
-                ? 'bg-gradient-to-r from-purple-600 to-blue-600 text-white shadow-lg'
-                : 'bg-telegram-hint/20 text-telegram-hint'
-            }
-          `}
-        >
-          {selected.length > 0 ? `Continue (${selected.length} selected)` : 'Select at least 1'}
-        </button>
+          label={selected.length > 0 ? `Continue (${selected.length} selected)` : 'Select at least 1'}
+        />
       </div>
     </div>
   );

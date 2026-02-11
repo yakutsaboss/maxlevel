@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { useTelegram } from '@/hooks/useTelegram';
 import { ProgressBar } from './ui/ProgressBar';
+import { ContinueButton } from './ui/ContinueButton';
 import { REFERRAL_OPTIONS } from '@/data/onboardingQuestions';
 
 interface ReferralSourceProps {
@@ -93,20 +94,7 @@ export function ReferralSource({ progress, stepLabel, value, otherValue, onSelec
       </div>
 
       <div className="px-6 pb-8">
-        <button
-          onClick={onNext}
-          disabled={!isValid}
-          className={`
-            w-full py-4 rounded-2xl text-lg font-bold transition-all
-            ${
-              isValid
-                ? 'bg-gradient-to-r from-purple-600 to-blue-600 text-white shadow-lg'
-                : 'bg-telegram-hint/20 text-telegram-hint'
-            }
-          `}
-        >
-          Continue
-        </button>
+        <ContinueButton onClick={onNext} disabled={!isValid} />
       </div>
     </div>
   );
