@@ -26,7 +26,7 @@ export const QuestCardMini = memo(function QuestCardMini({ quest, onClick }: { q
       <div className="mt-3">
         <div className="flex justify-between text-xs text-telegram-hint mb-1"><span>Progress</span><span>{quest.progress} / {quest.target}</span></div>
         <div className="bg-telegram-hint/20 rounded-full h-2 overflow-hidden" role="progressbar" aria-valuenow={quest.progress} aria-valuemin={0} aria-valuemax={quest.target} aria-label={`Quest progress: ${quest.progress} of ${quest.target}`}>
-          <motion.div className="h-full bg-telegram-link" initial={{ width: 0 }} animate={{ width: `${(quest.progress / quest.target) * 100}%` }} transition={{ duration: 0.5 }} />
+          <motion.div className="h-full bg-telegram-link" initial={{ width: 0 }} animate={{ width: `${quest.target > 0 ? (quest.progress / quest.target) * 100 : 0}%` }} transition={{ duration: 0.5 }} />
         </div>
       </div>
       <div className="mt-2 flex items-center gap-2">

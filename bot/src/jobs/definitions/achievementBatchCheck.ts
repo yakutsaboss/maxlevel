@@ -1,7 +1,7 @@
 /**
  * Achievement Batch Check Job
  * Safety net that periodically checks all active users for any missed achievements.
- * Runs every 6 hours. The primary trigger is quest completion (real-time),
+ * Runs every 1 hour. The primary trigger is quest completion (real-time),
  * but this ensures no achievement is left behind.
  */
 
@@ -13,7 +13,7 @@ import { logger } from '../../utils/logger.js';
 const log = logger.child({ component: 'achievementBatchCheck' });
 
 export const JOB_NAME = 'achievement-batch-check';
-export const CRON_SCHEDULE = '0 */6 * * *';
+export const CRON_SCHEDULE = '0 */1 * * *';
 
 const BATCH_SIZE = 50;
 const BATCH_DELAY_MS = 500;

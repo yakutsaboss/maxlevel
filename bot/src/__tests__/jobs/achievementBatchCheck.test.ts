@@ -51,7 +51,7 @@ import { handler, JOB_NAME, CRON_SCHEDULE } from '../../jobs/definitions/achieve
 describe('achievementBatchCheck', () => {
   it('should have correct job name and cron schedule', () => {
     expect(JOB_NAME).toBe('achievement-batch-check');
-    expect(CRON_SCHEDULE).toBe('0 */6 * * *');
+    expect(CRON_SCHEDULE).toBe('0 */1 * * *');
   });
 
   it('should identify active users and check achievements for each', async () => {

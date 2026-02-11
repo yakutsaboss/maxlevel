@@ -1,8 +1,8 @@
 /**
  * Achievement Notifier Job
  * Checks for recently unlocked achievements and sends Telegram notifications.
- * Runs every 15 minutes; queries achievements unlocked in the last 20 minutes
- * (overlapping window to avoid missed notifications).
+ * Runs every 15 minutes; queries achievements unlocked in the last 2 hours
+ * (overlapping window to avoid missed notifications between batch check runs).
  */
 
 import type { Job } from 'pg-boss';
@@ -39,7 +39,7 @@ export async function handler(jobs: Job[]): Promise<void> {
      FROM user_achievements ua
      JOIN users u ON u.id = ua.user_id
      JOIN achievements a ON a.id = ua.achievement_id
-     WHERE ua.unlocked_at > NOW() - INTERVAL '20 minutes'
+     WHERE ua.unlocked_at > NOW() - INTERVAL '2 hours'
        AND ua.notification_sent_at IS NULL
        AND u.is_active = true`,
     []
