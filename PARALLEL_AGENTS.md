@@ -2748,7 +2748,23 @@ Read PARALLEL_AGENTS.md — you are Agent E for Run 29. Your job: Enhance the Pr
 *(To be filled by Agent C)*
 
 #### Agent D Retrospective
-*(To be filled by Agent D)*
+**Status:** All 4 tasks completed. Build passes (`tsc --noEmit` — zero errors in my files; pre-existing errors in Settings.tsx from other agents' in-progress work).
+
+| # | Task | Files Changed | Status |
+|---|------|---------------|--------|
+| 1 | Unlock hints for locked achievements | `AchievementCard.tsx` | Done |
+| 2 | XP reward preview badges (Earned/Reward) | `AchievementCard.tsx` | Done |
+| 3 | Category filtering with scrollable bar | `Achievements.tsx` | Done |
+| 4 | Rarity statistics in group headers | `RarityGroup.tsx` | Done |
+
+**Changes summary:**
+- **AchievementCard.tsx**: Added `getCriteriaHint()` function that converts JSONB criteria to human-readable hints (e.g., "Maintain a 7-day fitness streak"). Locked cards now show italic hint text. XP badges: unlocked shows green "Earned: +X XP" pill, locked shows gray "Reward: +X XP" pill.
+- **Achievements.tsx**: Added `selectedCategory` state + `useMemo` for unique categories from data. Horizontal scrollable filter bar in header (styled like TimePeriodTabs). Filters achievements before rarity grouping. Empty state adapts to selected filter.
+- **RarityGroup.tsx**: Enhanced header badge to show "X / Y unlocked" with green highlight when all achievements in a rarity tier are complete.
+
+**Merge notes:** Changes are in 3 files all within Agent D's ownership (Achievements page + components). No conflicts expected with other agents.
+
+**Known issue:** `Settings.tsx` has pre-existing TS errors (unused imports from other agents' work-in-progress). Not related to Agent D changes.
 
 #### Agent E Retrospective
 
