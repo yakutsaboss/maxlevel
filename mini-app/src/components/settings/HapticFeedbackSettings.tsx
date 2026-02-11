@@ -31,6 +31,9 @@ export function HapticFeedbackSettings({ enabled, onChange }: HapticFeedbackSett
             setHapticEnabled(next);
             onChange(next);
           }}
+          role="switch"
+          aria-checked={enabled}
+          aria-label={`Haptic feedback: ${enabled ? 'on' : 'off'}`}
           className={`w-12 h-7 rounded-full transition-colors relative ${enabled ? 'bg-telegram-link' : 'bg-telegram-hint/30'}`}
         >
           <motion.div

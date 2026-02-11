@@ -72,10 +72,11 @@ export function Settings() {
         <button
           onClick={handleSave}
           disabled={saving}
+          aria-label={saving ? 'Saving settings...' : 'Save settings'}
           className="w-full py-3.5 rounded-2xl bg-telegram-link text-white font-semibold flex items-center justify-center gap-2 active:scale-[0.98] transition-transform disabled:opacity-60"
         >
           {saving ? (
-            <><Loader2 className="w-5 h-5 animate-spin" />Saving...</>
+            <><Loader2 className="w-5 h-5 animate-spin" aria-hidden="true" />Saving...</>
           ) : (
             'Save Settings'
           )}

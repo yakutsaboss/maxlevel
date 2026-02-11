@@ -50,6 +50,10 @@ export function AccountabilitySettings({
         </div>
         <button
           onClick={onConsentToggle}
+          role="switch"
+          aria-checked={punishment.consent_given}
+          aria-label={`Accountability: ${punishment.consent_given ? 'on' : 'off'}`}
+          disabled={!punishmentAvailable}
           className={`w-12 h-7 rounded-full transition-colors relative ${
             !punishmentAvailable ? 'bg-telegram-hint/20 opacity-50' :
             punishment.consent_given ? 'bg-red-500' : 'bg-telegram-hint/30'
@@ -100,6 +104,9 @@ export function AccountabilitySettings({
             </div>
             <button
               onClick={onSafeModeToggle}
+              role="switch"
+              aria-checked={punishment.safe_mode}
+              aria-label={`Safe mode: ${punishment.safe_mode ? 'on' : 'off'}`}
               className={`w-12 h-7 rounded-full transition-colors relative ${punishment.safe_mode ? 'bg-telegram-link' : 'bg-telegram-hint/30'}`}
             >
               <motion.div
@@ -121,6 +128,8 @@ export function AccountabilitySettings({
             exit={{ opacity: 0, y: -4 }}
             transition={{ duration: 0.2 }}
             className="mt-2 flex items-center gap-1.5"
+            role="status"
+            aria-live="polite"
           >
             {saveStatus === 'saving' && (
               <span className="text-xs text-telegram-hint flex items-center gap-1">

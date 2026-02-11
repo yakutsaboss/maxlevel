@@ -62,6 +62,9 @@ export function NotificationSettings({ prefs, onPrefsChange, haptic }: Notificat
               haptic.selection();
               onPrefsChange({ ...prefs, notifications_enabled: !prefs.notifications_enabled });
             }}
+            role="switch"
+            aria-checked={prefs.notifications_enabled}
+            aria-label={`Notifications: ${prefs.notifications_enabled ? 'on' : 'off'}`}
             className={`w-12 h-7 rounded-full transition-colors relative ${prefs.notifications_enabled ? 'bg-telegram-link' : 'bg-telegram-hint/30'}`}
           >
             <motion.div
@@ -134,6 +137,7 @@ export function NotificationSettings({ prefs, onPrefsChange, haptic }: Notificat
           onChange={(e) => onPrefsChange({ ...prefs, timezone: e.target.value })}
           className="w-full bg-telegram-bg border border-telegram-hint/20 rounded-xl px-4 py-2.5 text-sm text-telegram-text focus:outline-none focus:border-telegram-link transition-colors"
           placeholder="e.g. Europe/Moscow"
+          aria-label="Timezone"
         />
         <button
           onClick={() => {
