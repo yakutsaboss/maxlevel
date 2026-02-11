@@ -12,11 +12,12 @@ interface YourRankCardProps {
 
 export function YourRankCard({ entry, rank, timePeriod }: YourRankCardProps) {
   if (!entry) {
+    // bottom offset = nav bar height (72px) + safe area for notched devices
     return (
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="fixed bottom-[72px] left-3 right-3 z-30"
+        className="fixed bottom-[calc(72px+env(safe-area-inset-bottom,0px))] left-3 right-3 z-30"
         aria-label="Your rank: unranked"
       >
         <div className="rounded-2xl p-3 border border-yellow-500/30 bg-telegram-secondaryBg/80 backdrop-blur-xl shadow-lg shadow-yellow-500/10">
@@ -38,18 +39,19 @@ export function YourRankCard({ entry, rank, timePeriod }: YourRankCardProps) {
   const xpValue = getXpValue(entry, timePeriod);
   const displayRank = rank ?? entry.xp_rank;
 
+  // bottom offset = nav bar height (72px) + safe area for notched devices
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      className="fixed bottom-[72px] left-3 right-3 z-30"
-      aria-label={`Your rank: #${displayRank}, ${entry.first_name || entry.username || 'You'}, Level ${entry.level}, ${xpValue.toLocaleString()} ${getXpLabel(timePeriod)}`}
+      className="fixed bottom-[calc(72px+env(safe-area-inset-bottom,0px))] left-3 right-3 z-30"
+      aria-label={`Your rank: ${displayRank ? `#${displayRank}` : 'unranked'}, ${entry.first_name || entry.username || 'You'}, Level ${entry.level}, ${xpValue.toLocaleString()} ${getXpLabel(timePeriod)}`}
     >
       <div className="rounded-2xl p-3 border border-yellow-500/30 bg-telegram-secondaryBg/80 backdrop-blur-xl shadow-lg shadow-yellow-500/10">
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-2 flex-shrink-0">
             <span className="text-xs font-bold text-yellow-500 bg-yellow-500/10 rounded-lg px-2 py-1">
-              #{displayRank}
+              {displayRank ? `#${displayRank}` : '#?'}
             </span>
           </div>
           <UserAvatar userId={entry.user_id} firstName={entry.first_name} username={entry.username} size="sm" />

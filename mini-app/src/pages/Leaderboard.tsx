@@ -51,8 +51,9 @@ export function Leaderboard() {
 
   const currentUserRank = useMemo(() => {
     if (!currentUserEntry) return null;
+    if (currentUserEntry.xp_rank) return currentUserEntry.xp_rank;
     const idx = entries.indexOf(currentUserEntry);
-    return currentUserEntry.xp_rank || idx + 1;
+    return idx >= 0 ? idx + 1 : null;
   }, [entries, currentUserEntry]);
 
   useEffect(() => { loadLeaderboard(); }, [timePeriod]);
