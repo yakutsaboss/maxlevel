@@ -28,6 +28,30 @@ function isRecentlyUnlocked(unlockedAt: string): boolean {
   return unlockTime > oneDayAgo;
 }
 
+function getCriteriaHint(criteria?: Record<string, unknown>): string {
+  if (!criteria || !criteria.type) return 'Keep playing to discover how to unlock this!';
+  const mode = criteria.mode as string | undefined;
+  const modeLabel = mode ? ` ${mode}` : '';
+  switch (criteria.type) {
+    case 'quest_complete':
+      return `Complete ${criteria.count}${modeLabel} quest${(criteria.count as number) > 1 ? 's' : ''}`;
+    case 'streak':
+      return `Maintain a ${criteria.days}-day${modeLabel} streak`;
+    case 'quest_complete_consecutive':
+      return `Complete${modeLabel} quests ${criteria.days} days in a row`;
+    case 'multi_mode_active':
+      return `Activate ${criteria.count} modes at once`;
+    case 'streak_rebuild':
+      return `Rebuild a ${criteria.days}-day streak`;
+    case 'level_reached':
+      return `Reach level ${criteria.level}`;
+    case 'total_xp':
+      return `Earn ${Number(criteria.amount).toLocaleString()} total XP`;
+    default:
+      return 'Keep playing to discover how to unlock this!';
+  }
+}
+
 export function AchievementCard({ achievement: ach, userAchievement: userAch, isUnlocked, rarityStyle, index, haptic }: AchievementCardProps) {
   const isNew = isUnlocked && userAch && isRecentlyUnlocked(userAch.unlocked_at);
 
@@ -72,9 +96,9 @@ export function AchievementCard({ achievement: ach, userAchievement: userAch, is
           <p className="text-xs text-telegram-hint text-center line-clamp-2 mb-2">
             {ach.description}
           </p>
-          <div className="flex items-center justify-center gap-1">
-            <Zap className="w-3.5 h-3.5 text-yellow-500" />
-            <span className="text-xs font-semibold text-yellow-600">+{ach.xp_reward} XP</span>
+          <div className="flex items-center justify-center gap-1 bg-green-100 rounded-full px-2 py-0.5">
+            <Zap className="w-3.5 h-3.5 text-green-600" />
+            <span className="text-xs font-semibold text-green-700">Earned: +{ach.xp_reward} XP</span>
           </div>
           {userAch && (
             <p className="text-[10px] text-telegram-hint text-center mt-1">
@@ -83,10 +107,15 @@ export function AchievementCard({ achievement: ach, userAchievement: userAch, is
           )}
         </>
       ) : (
-        <div className="flex items-center justify-center gap-1 mt-1">
-          <Star className="w-3 h-3 text-telegram-hint" />
-          <span className="text-xs text-telegram-hint">{ach.xp_reward} XP</span>
-        </div>
+        <>
+          <p className="text-[11px] text-telegram-hint text-center italic line-clamp-2 mb-2">
+            {getCriteriaHint(ach.criteria)}
+          </p>
+          <div className="flex items-center justify-center gap-1 bg-telegram-hint/10 rounded-full px-2 py-0.5">
+            <Star className="w-3 h-3 text-telegram-hint" />
+            <span className="text-xs text-telegram-hint font-medium">Reward: +{ach.xp_reward} XP</span>
+          </div>
+        </>
       )}
     </motion.div>
   );
