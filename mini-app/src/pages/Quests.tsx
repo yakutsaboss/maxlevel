@@ -12,6 +12,7 @@ import { QuestDetailModal } from '@/components/quests/QuestDetailModal';
 import { TabButton } from '@/components/quests/TabButton';
 import { QuestsSkeleton } from '@/components/quests/QuestsSkeleton';
 import { QuestFilters, SortOption } from '@/components/quests/QuestFilters';
+import { logger } from '@/utils/logger';
 
 type QuestTab = 'active' | 'completed';
 
@@ -35,7 +36,7 @@ export function Quests() {
       const res = await apiClient.getTodayCheckins(user.id);
       if (res.success && res.data) { setTodayCheckinCount(res.data.count); }
     } catch (err) {
-      console.error('Failed to load today check-ins:', err);
+      logger.error('Failed to load today check-ins', { error: err });
     }
   };
 
@@ -52,7 +53,7 @@ export function Quests() {
       if (completedRes.success && completedRes.data) { setCompletedQuests(completedRes.data); }
       loadTodayCheckins();
     } catch (error) {
-      console.error('Failed to load quests:', error);
+      logger.error('Failed to load quests', { error });
       setError(true);
     } finally { setLoading(false); }
   };
@@ -78,7 +79,7 @@ export function Quests() {
         setSelectedQuest(null);
       }
     } catch (error) {
-      console.error('Failed to complete quest:', error);
+      logger.error('Failed to complete quest', { error });
       haptic.notification('error');
     } finally { setCompleting(false); }
   };

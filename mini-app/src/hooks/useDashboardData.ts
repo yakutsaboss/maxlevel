@@ -5,6 +5,7 @@ import { apiClient } from '@/api/client';
 import { UserStats, Achievement } from '@/types';
 import { getErrorMessage } from '@/hooks/useApiError';
 import type { HapticWithNotification } from '@/types/telegram';
+import { logger } from '@/utils/logger';
 
 interface UseDashboardDataParams {
   userId: number | undefined;
@@ -37,7 +38,7 @@ export function useDashboardData({ userId, haptic }: UseDashboardDataParams) {
         haptic.notification('success');
       }
     } catch (err) {
-      console.error('Achievement check failed:', err);
+      logger.error('Achievement check failed', { error: err });
     }
   };
 
@@ -56,12 +57,12 @@ export function useDashboardData({ userId, haptic }: UseDashboardDataParams) {
       if (response.success && response.data) {
         setStats(response.data);
         if (checkAchievements && response.data.user.id) {
-          checkForNewAchievements(response.data.user.id).catch(console.error);
+          checkForNewAchievements(response.data.user.id).catch((err) => logger.error('Achievement check failed', { error: err }));
         }
       }
     } catch (err) {
       if (controller.signal.aborted) return;
-      console.error('Failed to load user stats:', err);
+      logger.error('Failed to load user stats', { error: err });
       setError(true);
       setErrorMessage(getErrorMessage(err));
     } finally {

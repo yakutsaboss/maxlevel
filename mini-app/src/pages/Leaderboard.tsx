@@ -10,6 +10,7 @@ import { TopThreeCard } from '@/components/leaderboard/TopThreeCard';
 import { LeaderboardRow } from '@/components/leaderboard/LeaderboardRow';
 import { LeaderboardSkeleton } from '@/components/leaderboard/LeaderboardSkeleton';
 import { YourRankCard } from '@/components/leaderboard/YourRankCard';
+import { logger } from '@/utils/logger';
 
 export function Leaderboard() {
   const { user, haptic } = useTelegram();
@@ -31,7 +32,7 @@ export function Leaderboard() {
         setEntries(response.data);
       }
     } catch (err) {
-      console.error('Failed to load leaderboard:', err);
+      logger.error('Failed to load leaderboard', { error: err });
       setError(true);
     } finally {
       setLoading(false);

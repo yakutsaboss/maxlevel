@@ -8,6 +8,7 @@ import { motion } from 'framer-motion';
 import { ErrorSection } from '@/components/ErrorSection';
 import { RarityGroup } from '@/components/achievements/RarityGroup';
 import { AchievementsSkeleton } from '@/components/achievements/AchievementsSkeleton';
+import { logger } from '@/utils/logger';
 
 const RARITY_ORDER = ['common', 'rare', 'epic', 'legendary'] as const;
 
@@ -40,7 +41,7 @@ export function Achievements() {
       if (allRes.success && allRes.data) setAllAchievements(allRes.data);
       if (userRes.success && userRes.data) setUserAchievements(userRes.data);
     } catch (err) {
-      console.error('Failed to load achievements:', err);
+      logger.error('Failed to load achievements', { error: err });
       setError(true);
     } finally { setLoading(false); }
   };
