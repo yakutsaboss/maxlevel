@@ -17,7 +17,7 @@ const router = Router();
  * GET /api/admin/jobs
  * List registered background jobs and their schedules
  */
-router.get('/', async (req: Request, res: Response) => {
+router.get('/', requireRole('admin'), async (req: Request, res: Response) => {
   try {
     const jobs = getRegisteredJobs();
     res.json({
