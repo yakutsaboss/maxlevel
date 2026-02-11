@@ -15,6 +15,7 @@ import {
   InternalServerError,
 } from '../utils/errors.js';
 import { logger } from '../../utils/logger.js';
+import { broadcastMessage } from '../../utils/broadcast.js';
 
 const log = logger.child({ component: 'adminStats' });
 
@@ -111,47 +112,8 @@ router.post('/broadcast', requireRole('admin'), asyncHandler(async (req: Request
   const adminUser = (req as any).adminUser;
   log.info(`Broadcast initiated by ${adminUser.username}`, { recipientCount: users.length });
 
-  let sent = 0;
-  let failed = 0;
-  const BATCH_SIZE = 20;
-
-  // Send in batches of 20 with 1-second delay between batches
-  for (let i = 0; i < users.length; i += BATCH_SIZE) {
-    const batch = users.slice(i, i + BATCH_SIZE);
-
-    const results = await Promise.allSettled(
-      batch.map(async (user) => {
-        const url = `https://api.telegram.org/bot${botToken}/sendMessage`;
-        const response = await fetch(url, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            chat_id: user.telegram_id,
-            text: message.trim(),
-            parse_mode: 'HTML',
-          }),
-        });
-        if (!response.ok) {
-          const err = await response.text();
-          throw new Error(`Telegram API ${response.status}: ${err}`);
-        }
-      })
-    );
-
-    for (const result of results) {
-      if (result.status === 'fulfilled') {
-        sent++;
-      } else {
-        failed++;
-        log.warn('Broadcast failed for user', { error: result.reason?.message });
-      }
-    }
-
-    // Rate limit delay between batches (skip after last batch)
-    if (i + BATCH_SIZE < users.length) {
-      await new Promise(resolve => setTimeout(resolve, 1000));
-    }
-  }
+  const chatIds = users.map(u => u.telegram_id);
+  const { sent, failed } = await broadcastMessage(botToken, chatIds, message.trim());
 
   log.info('Broadcast complete', { sent, failed });
 
