@@ -45,8 +45,8 @@ export function Dashboard() {
     return <ErrorSection message="Could not load your dashboard data" onRetry={() => loadUserStats()} />;
   }
 
-  const xpPercentage = (stats.user.xp / stats.user.xp_to_next_level) * 100;
-  const xpNeeded = stats.user.xp_to_next_level - stats.user.xp;
+  const xpPercentage = stats.user.xp_to_next_level > 0 ? Math.min((stats.user.xp / stats.user.xp_to_next_level) * 100, 100) : 0;
+  const xpNeeded = Math.max(0, stats.user.xp_to_next_level - stats.user.xp);
   const nextLevel = stats.user.level + 1;
 
   return (
