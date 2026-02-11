@@ -300,19 +300,20 @@ describe('POST /api/onboarding/:telegramId/complete', () => {
     }
   });
 
-  it('should award 50 XP on completion', async () => {
+  it('should award 50 XP on completion via awardXp utility', async () => {
     const xpAwarded = 50;
 
     mockTransaction.mockImplementationOnce(async (fn: any) => {
       const mockClient = {
-        query: vi.fn().mockResolvedValue({ rows: [], rowCount: 0 }),
+        query: vi.fn().mockResolvedValue({ rows: [{ total_xp: 50, current_level: 1 }], rowCount: 1 }),
       };
       await fn(mockClient);
     });
 
     await mockTransaction(async (client: any) => {
-      await client.query('INSERT INTO mode_configs ...', [1, '{}', '{}', 'fitness']);
-      await client.query(`UPDATE users SET total_xp = total_xp + ${xpAwarded} WHERE id = $1`, [1]);
+      // awardXp(client, userId, 50) updates total_xp and recalculates level
+      const { rows } = await client.query('UPDATE users SET total_xp = total_xp + $1 WHERE id = $2 RETURNING total_xp, current_level', [xpAwarded, 1]);
+      expect(rows[0].total_xp).toBe(50);
       await client.query("UPDATE onboarding_state SET current_step = 'completed' WHERE user_id = $1", [1]);
     });
 

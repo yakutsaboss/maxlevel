@@ -32,6 +32,13 @@ vi.mock('../../../utils/pythonTools.js', () => ({
   getUserById: vi.fn(),
 }));
 
+const mockAwardXp = vi.fn();
+
+vi.mock('../../../utils/xpAward.js', () => ({
+  awardXp: (...args: any[]) => mockAwardXp(...args),
+  LEVEL_XP_DIVISOR: 500,
+}));
+
 vi.mock('../../../api/middleware/auth.js', () => ({
   authenticateTelegram: (_req: any, _res: any, next: any) => next(),
   authorizeUser: (_req: any, _res: any, next: any) => next(),
@@ -138,17 +145,17 @@ describe('POST /api/onboarding/:telegramId/complete', () => {
   it('should return 200 when completing onboarding', async () => {
     // userLookup
     mockQueryOne.mockResolvedValueOnce({ id: 42 });
-    // executePythonTool for mode_manager --add-modes
-    mockExecutePythonTool.mockResolvedValueOnce({ success: true, data: {} });
-    // transaction
+    // idempotency guard — no existing completed state
+    mockQueryOne.mockResolvedValueOnce(null);
+    // awardXp mock (called inside transaction)
+    mockAwardXp.mockResolvedValueOnce({ totalXp: 50, newLevel: 1, oldLevel: 1, leveledUp: false });
+    // transaction — runs all native SQL inside
     mockTransaction.mockImplementationOnce(async (fn: any) => {
       const mockClient = {
         query: vi.fn().mockResolvedValue({ rows: [], rowCount: 1 }),
       };
       return fn(mockClient);
     });
-    // executePythonTool for quest_manager --assign-daily
-    mockExecutePythonTool.mockResolvedValueOnce({ success: true, data: {} });
 
     const res = await request(buildApp())
       .post('/api/onboarding/123456/complete')
@@ -199,7 +206,8 @@ describe('POST /api/onboarding/:telegramId/complete', () => {
 
   it('should return 500 when transaction fails', async () => {
     mockQueryOne.mockResolvedValueOnce({ id: 42 });
-    mockExecutePythonTool.mockResolvedValueOnce({ success: true, data: {} });
+    // idempotency guard — no existing completed state
+    mockQueryOne.mockResolvedValueOnce(null);
     mockTransaction.mockRejectedValueOnce(new Error('transaction rollback'));
 
     const res = await request(buildApp())
