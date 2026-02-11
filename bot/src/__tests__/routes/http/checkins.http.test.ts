@@ -38,6 +38,15 @@ vi.mock('../../../utils/pythonTools.js', () => ({
   getUserById: vi.fn(),
 }));
 
+vi.mock('../../../utils/xpAward.js', () => ({
+  awardXp: vi.fn().mockResolvedValue({ totalXp: 550, newLevel: 2, oldLevel: 1, leveledUp: true }),
+  LEVEL_XP_DIVISOR: 500,
+}));
+
+vi.mock('../../../utils/achievementEngine.js', () => ({
+  checkAndUnlockAchievements: vi.fn().mockResolvedValue([]),
+}));
+
 vi.mock('../../../api/middleware/auth.js', () => ({
   authenticateTelegram: (req: any, _res: any, next: any) => {
     req.telegramUser = { id: 111 };
@@ -53,9 +62,11 @@ vi.mock('../../../api/middleware/rateLimiter.js', () => ({
   readLimiter: (_req: any, _res: any, next: any) => next(),
 }));
 
-// ─── Import router after mocks ─────────────────────────────────────
+// ─── Import router + mocked modules after mocks ──────────────────
 
 import { checkinRouter } from '../../../api/routes/checkins.js';
+import { awardXp } from '../../../utils/xpAward.js';
+import { checkAndUnlockAchievements } from '../../../utils/achievementEngine.js';
 
 // ─── Build test app ────────────────────────────────────────────────
 
@@ -88,8 +99,7 @@ describe('POST /api/checkins', () => {
       const mockClient = {
         query: vi.fn()
           .mockResolvedValueOnce({ rows: [{ id: 1, check_in_time: '2026-02-10T08:00:00Z' }] }) // INSERT check_in
-          .mockResolvedValueOnce({ rows: [] }) // UPDATE quest_instances (completed)
-          .mockResolvedValueOnce({ rows: [{ total_xp: 550, current_level: 2 }] }), // UPDATE users
+          .mockResolvedValueOnce({ rows: [] }), // UPDATE quest_instances (completed)
       };
       return fn(mockClient);
     });
@@ -104,6 +114,8 @@ describe('POST /api/checkins', () => {
     expect(res.body.data.quest_progress.current).toBe(1);
     expect(res.body.data.quest_progress.target).toBe(1);
     expect(res.body.data.completed).toBe(true);
+    expect(awardXp).toHaveBeenCalledWith(expect.anything(), 1, 50);
+    expect(checkAndUnlockAchievements).toHaveBeenCalledWith(1);
   });
 
   it('should increment progress without completing when target not reached', async () => {
@@ -136,6 +148,8 @@ describe('POST /api/checkins', () => {
     expect(res.body.data.quest_progress.current).toBe(2);
     expect(res.body.data.quest_progress.target).toBe(5);
     expect(res.body.data.completed).toBe(false);
+    expect(awardXp).not.toHaveBeenCalled();
+    expect(checkAndUnlockAchievements).not.toHaveBeenCalled();
   });
 
   it('should return 400 for already completed quest', async () => {
