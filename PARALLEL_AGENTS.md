@@ -1391,7 +1391,17 @@ Read PARALLEL_AGENTS.md — you are Agent J for Run 32. Your job: Write componen
 ### Run 32 Retrospectives
 
 #### Agent A Retrospective
-*(To be filled by Agent A)*
+**Status:** COMPLETE — 3 test files, 18 new tests, all 105 tests pass, build clean.
+
+| # | File | Tests | What's covered |
+|---|------|-------|----------------|
+| 1 | `Quests.test.tsx` | 6 | Loading skeleton, active quest list rendering, progress bar X/Y count, empty state with "Explore Modes" CTA, active/completed tab switching, error section on load failure |
+| 2 | `Onboarding.test.tsx` | 6 | Splash screen initial render, step advancement via Get Started, progress bar with step data, avatar step rendering, launch step with setCompleted + navigate, no-user error guard |
+| 3 | `Admin.test.tsx` | 6 | Login form rendering, invalid credentials toast, authenticated dashboard with all 5 tabs, tab switching (Users/Jobs/Logs), sessionStorage credential restore, logout returns to login |
+
+**Approach:** Followed existing Dashboard/Settings test patterns. Mocked `apiClient` methods for Quests, mocked Zustand `useOnboarding` store for Onboarding, mocked `adminFetch` + all child components for Admin. Used `waitFor` for async state transitions. All sub-components mocked to isolate page-level logic.
+
+**Commit:** `8d361f7` — `test(mini-app): add page tests for Quests, Onboarding, and Admin`
 
 #### Agent B Retrospective
 **Status:** COMPLETE — 4 test files, 21 new tests, all 93 tests pass, build clean.
