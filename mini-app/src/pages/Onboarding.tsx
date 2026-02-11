@@ -23,6 +23,7 @@ import { NotificationPrefs } from '@/components/onboarding/NotificationPrefs';
 import { Summary } from '@/components/onboarding/Summary';
 import { LaunchScreen } from '@/components/onboarding/LaunchScreen';
 import { logger } from '@/utils/logger';
+import type { QuizAnswerValue } from '@/types/telegram';
 
 export function Onboarding() {
   const navigate = useNavigate();
@@ -129,7 +130,7 @@ export function Onboarding() {
 
   // Handle quiz answer
   const handleAnswer = useCallback(
-    (dataKey: string, nestedKey: string | undefined, value: any) => {
+    (dataKey: string, nestedKey: string | undefined, value: QuizAnswerValue) => {
       if (nestedKey) {
         store.updateNestedData(dataKey as keyof OnboardingData, { [nestedKey]: value });
       } else {

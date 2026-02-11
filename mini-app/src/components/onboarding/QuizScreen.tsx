@@ -11,6 +11,7 @@ import { AnswerInput } from './quiz/AnswerInput';
 import { useQuizState } from './quiz/useQuizState';
 import type { QuestionConfig } from '@/data/onboardingQuestions';
 import type { OnboardingData } from '@/hooks/useOnboarding';
+import type { QuizAnswerValue } from '@/types/telegram';
 
 interface QuizScreenProps {
   config: QuestionConfig;
@@ -18,7 +19,7 @@ interface QuizScreenProps {
   stepLabel?: string;
   data: OnboardingData;
   modeBadge?: { icon: string; name: string; color: string };
-  onAnswer: (key: string, nestedKey: string | undefined, value: any) => void;
+  onAnswer: (key: string, nestedKey: string | undefined, value: QuizAnswerValue) => void;
   onNext: () => void;
 }
 
