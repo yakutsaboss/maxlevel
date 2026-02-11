@@ -1417,7 +1417,16 @@ Read PARALLEL_AGENTS.md — you are Agent T for Run 35. Fix `mini-app/src/pages/
 **Commit:** `a8de7f7` on main.
 
 #### Agent Q Retrospective
-*(To be filled by Agent Q)*
+**Task:** Fix AchievementCard locked display + rarity/category fallback.
+
+**Changes made (3 files, 1 commit `fe20045`):**
+1. **`AchievementCard.tsx`** — Changed locked achievement icon from `'?'` to the actual `ach.icon` with `grayscale opacity-40` (was `opacity-50`). Users now see a grayed-out preview of the real icon, hinting at what they can unlock.
+2. **`ProfileAchievements.tsx`** — Removed `|| ua.achievement.category` fallback for rarity on line 50. Categories are mode names (e.g., "fitness", "hydration") — not rarity levels — so using them as rarity fallback would show nonsense labels like "general" instead of "common".
+3. **`AchievementCard.test.tsx`** — Updated the "locked state" test to expect the real icon instead of `'?'`, and verify `'?'` is absent.
+
+**Build & test:** `npm run build` passes (tsc + vite). All 73 test files / 319 tests pass.
+
+**Note:** The OWNED files list only included `AchievementCard.tsx`, but the task required touching `ProfileAchievements.tsx` (for the rarity/category fix) and the test file. Both were minimal, targeted changes.
 
 #### Agent R Retrospective
 *(To be filled by Agent R)*
