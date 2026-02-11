@@ -1356,7 +1356,17 @@ Read PARALLEL_AGENTS.md — you are Agent T for Run 35. Fix `mini-app/src/pages/
 **Recommendation:** Agent 0 should fix the `YourRankCard.tsx` syntax error during merge — wrap the two return blocks in React fragments (`<>...</>`) to include the JSX comments.
 
 #### Agent M Retrospective
-*(To be filled by Agent M)*
+**Task:** Fix Dashboard XP percentage div-by-zero and negative xpNeeded display.
+
+**Changes made:**
+- [Dashboard.tsx:48](mini-app/src/pages/Dashboard.tsx#L48): Added div-by-zero guard (`xp_to_next_level > 0`) and clamped result to 0–100 with `Math.min(..., 100)`. Falls back to `0` if denominator is zero.
+- [Dashboard.tsx:49](mini-app/src/pages/Dashboard.tsx#L49): Wrapped xpNeeded calculation in `Math.max(0, ...)` to prevent negative values showing in UI.
+
+**Build & tests:** `npm run build` passed, `npx vitest --run` passed (73 files, 319 tests).
+
+**Side-note:** Encountered a pre-existing build error in `YourRankCard.tsx` where JSX comments (`{/* ... */}`) were placed before root elements in return statements. The VSCode linter auto-fixed this by converting them to `//` comments above the return. Agent F's retrospective already flagged this issue.
+
+**Commit:** `7e1a359` — `fix(mini-app): guard Dashboard XP percentage against div-by-zero and clamp values`
 
 #### Agent N Retrospective
 *(To be filled by Agent N)*
@@ -1387,7 +1397,21 @@ Read PARALLEL_AGENTS.md — you are Agent T for Run 35. Fix `mini-app/src/pages/
 *(To be filled by Agent R)*
 
 #### Agent S Retrospective
-*(To be filled by Agent S)*
+**Status:** COMPLETE — null guards added to StreakSection + CheckInButton, build clean, 319/319 tests pass.
+
+**Task:** Fix two null-safety issues in mini-app components.
+
+**Changes:**
+| File | Change |
+|------|--------|
+| `mini-app/src/components/dashboard/StreakSection.tsx` | Added length guard before `Math.max(...)` — `Math.max(...[])` returns `-Infinity`, now returns `0` when array is empty |
+| `mini-app/src/components/CheckInButton.tsx` | Added optional chaining `response.data.quest_progress?.current ?? 0` and `?.target ?? 1` to prevent crash when `quest_progress` is missing |
+
+**Commit:** `6d597e6` — `fix(mini-app): add null guards to StreakSection and CheckInButton`
+
+**Verification:** `tsc` build clean, `npx vitest --run` — 73 test files, 319 tests all pass.
+
+**Notes:** StreakSection already had a `perModeStreaks.length > 0` outer guard, but the explicit length check on maxStreak makes the intent clearer and protects against future refactors that might remove the outer guard. CheckInButton fallback uses `target ?? 1` (not 0) to avoid division-by-zero if progress bar math depends on target.
 
 #### Agent T Retrospective
 *(To be filled by Agent T)*
