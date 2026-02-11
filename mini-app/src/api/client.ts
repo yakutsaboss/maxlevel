@@ -1,6 +1,10 @@
-import axios, { AxiosError, AxiosInstance } from 'axios';
+import axios, { AxiosError, AxiosInstance, InternalAxiosRequestConfig } from 'axios';
 import type { ApiResponse, UserStats, User, Mode, Quest, Achievement, UserAchievement, QuestCompleteResponse, CheckinResponse, CheckinListResponse, UserPreferences, PunishmentSettings, PunishmentHistoryResponse, OnboardingState, LeaderboardEntry } from '@/types';
 import { ApiError } from '@/types/errors';
+
+interface RetryableAxiosConfig extends InternalAxiosRequestConfig {
+  _retried?: boolean;
+}
 
 // API Base URL - should come from environment
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
@@ -16,12 +20,12 @@ export function withTimeout(ms: number) {
 
 class ApiClient {
   private client: AxiosInstance;
-  private inflightGets = new Map<string, Promise<any>>();
+  private inflightGets = new Map<string, Promise<unknown>>();
 
   private deduplicatedGet<T>(url: string, params?: Record<string, unknown>, config?: { timeout?: number }): Promise<T> {
     const key = params ? `${url}?${JSON.stringify(params)}` : url;
     const existing = this.inflightGets.get(key);
-    if (existing) return existing;
+    if (existing) return existing as Promise<T>;
 
     const promise = this.client.get(url, { params, ...config })
       .then((res) => res.data)
@@ -57,14 +61,14 @@ class ApiClient {
       (response) => response,
       async (error: AxiosError) => {
         const apiError = ApiError.fromAxios(error);
-        const config = error.config;
+        const config = error.config as RetryableAxiosConfig | undefined;
         // Retry once on retryable errors (network errors or 5xx)
         if (
           config &&
-          !(config as any)._retried &&
+          !config._retried &&
           apiError.retryable
         ) {
-          (config as any)._retried = true;
+          config._retried = true;
           // Wait 1 second before retry
           await new Promise((r) => setTimeout(r, 1000));
           return this.client(config);
@@ -93,11 +97,9 @@ class ApiClient {
   async getActiveQuests(userId: number): Promise<ApiResponse<Quest[]>> {
     const result = await this.deduplicatedGet<ApiResponse<Quest[]>>(`/users/${userId}/quests/active`, undefined, withTimeout(TIMEOUT_FAST));
     // Defensive: unwrap if data is not an array but has .quests
-    if (result.data && !Array.isArray(result.data) && Array.isArray((result.data as any).quests)) {
-      result.data = (result.data as any).quests;
-    }
     if (result.data && !Array.isArray(result.data)) {
-      result.data = [];
+      const wrapped = result.data as unknown as { quests?: Quest[] };
+      result.data = Array.isArray(wrapped.quests) ? wrapped.quests : [];
     }
     return result;
   }
@@ -105,11 +107,9 @@ class ApiClient {
   async getCompletedQuests(userId: number, limit = 20): Promise<ApiResponse<Quest[]>> {
     const result = await this.deduplicatedGet<ApiResponse<Quest[]>>(`/users/${userId}/quests/completed`, { limit });
     // Defensive: unwrap if data is not an array but has .quests
-    if (result.data && !Array.isArray(result.data) && Array.isArray((result.data as any).quests)) {
-      result.data = (result.data as any).quests;
-    }
     if (result.data && !Array.isArray(result.data)) {
-      result.data = [];
+      const wrapped = result.data as unknown as { quests?: Quest[] };
+      result.data = Array.isArray(wrapped.quests) ? wrapped.quests : [];
     }
     return result;
   }
