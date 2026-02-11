@@ -4,10 +4,11 @@ import { usePullToRefresh } from '@/hooks/usePullToRefresh';
 import { apiClient } from '@/api/client';
 import { UserStats, Achievement } from '@/types';
 import { getErrorMessage } from '@/hooks/useApiError';
+import type { HapticWithNotification } from '@/types/telegram';
 
 interface UseDashboardDataParams {
   userId: number | undefined;
-  haptic: { impact: (...args: any[]) => void; notification: (...args: any[]) => void };
+  haptic: HapticWithNotification;
 }
 
 export function useDashboardData({ userId, haptic }: UseDashboardDataParams) {
