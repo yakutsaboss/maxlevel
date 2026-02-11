@@ -1044,3 +1044,31 @@ Read PARALLEL_AGENTS.md — you are Agent F for Run 31. Your job: Slim down Onbo
 **Test count progression:** Run 29: 0 mini-app tests → Run 30: 13 → Run 31: 66 (5x growth)
 
 <!-- Next run goes here. Agent 0 will append RUN 32 below this line. -->
+
+#### Agent H Retrospective
+**Status:** COMPLETE — 5 commits, 14 console.error calls replaced, all 66 tests pass, build clean.
+
+| # | Task | Files changed | Status |
+|---|------|---------------|--------|
+| 1 | Create `utils/logger.ts` | 1 new file (18 lines) | Done |
+| 2 | Update pages (Achievements, Leaderboard, Quests, Onboarding) | 4 files, 6 replacements | Done |
+| 3 | Update hooks (useDashboardData, useProfileData, useSettingsData) | 3 files, 5 replacements | Done |
+| 4 | Update components (CheckInButton, LaunchScreen) | 2 files, 2 replacements | Done |
+| 5 | Build + test verification | 0 files | Done |
+
+**Logger design:** Lightweight 18-line module with `error`/`warn`/`info` methods. In dev (`import.meta.env.DEV`), logs to console with `[LEVEL]` prefix and optional context object. In production, suppressed — ready for future Sentry integration. No dependencies.
+
+**Issue encountered:** Initial logger had an unused `formatLog` helper that caused TS6133 build error. Removed in follow-up commit.
+
+**Note on tests:** Error-path tests (e.g., `useDashboardData > sets error state on fetch failure`) now produce `[ERROR]` lines in stderr because the logger calls `console.error` when `import.meta.env.DEV` is true (which it is in vitest). This is correct behavior — the tests still pass. If Agent 0 or future runs want to silence these in tests, the existing `vi.spyOn(console, 'error')` pattern would need to be applied in those tests.
+
+**Remaining `console.error` calls (intentional):**
+1. `logger.ts:4` — the logger itself
+2. `ErrorBoundary.tsx:23` — React error boundary (per instructions)
+
+**Commits:**
+- `b9b4242` feat(mini-app): add lightweight frontend logger utility
+- `ef1c7e3` refactor(mini-app): replace console.error with logger in pages
+- `727ae93` refactor(mini-app): replace console.error with logger in hooks
+- `a6b615b` refactor(mini-app): replace console.error with logger in components
+- `c1b9183` fix(mini-app): remove unused formatLog function from logger
