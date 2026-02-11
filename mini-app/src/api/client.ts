@@ -18,7 +18,7 @@ class ApiClient {
   private client: AxiosInstance;
   private inflightGets = new Map<string, Promise<any>>();
 
-  private deduplicatedGet<T>(url: string, params?: Record<string, unknown>, config?: { timeout?: number }): Promise<T> {
+  private deduplicatedGet<T>(url: string, params?: Record<string, unknown>, config?: { timeout?: number; signal?: AbortSignal }): Promise<T> {
     const key = params ? `${url}?${JSON.stringify(params)}` : url;
     const existing = this.inflightGets.get(key);
     if (existing) return existing;
@@ -75,8 +75,8 @@ class ApiClient {
   }
 
   // User endpoints
-  async getUserStats(telegramId: number): Promise<ApiResponse<UserStats>> {
-    return this.deduplicatedGet(`/users/${telegramId}/stats`, undefined, withTimeout(TIMEOUT_FAST));
+  async getUserStats(telegramId: number, config?: { signal?: AbortSignal }): Promise<ApiResponse<UserStats>> {
+    return this.deduplicatedGet(`/users/${telegramId}/stats`, undefined, { ...withTimeout(TIMEOUT_FAST), ...config });
   }
 
   async createUser(userData: {
@@ -90,8 +90,8 @@ class ApiClient {
   }
 
   // Quest endpoints
-  async getActiveQuests(userId: number): Promise<ApiResponse<Quest[]>> {
-    const result = await this.deduplicatedGet<ApiResponse<Quest[]>>(`/users/${userId}/quests/active`, undefined, withTimeout(TIMEOUT_FAST));
+  async getActiveQuests(userId: number, config?: { signal?: AbortSignal }): Promise<ApiResponse<Quest[]>> {
+    const result = await this.deduplicatedGet<ApiResponse<Quest[]>>(`/users/${userId}/quests/active`, undefined, { ...withTimeout(TIMEOUT_FAST), ...config });
     // Defensive: unwrap if data is not an array but has .quests
     if (result.data && !Array.isArray(result.data) && Array.isArray((result.data as any).quests)) {
       result.data = (result.data as any).quests;
@@ -102,8 +102,8 @@ class ApiClient {
     return result;
   }
 
-  async getCompletedQuests(userId: number, limit = 20): Promise<ApiResponse<Quest[]>> {
-    const result = await this.deduplicatedGet<ApiResponse<Quest[]>>(`/users/${userId}/quests/completed`, { limit });
+  async getCompletedQuests(userId: number, limit = 20, config?: { signal?: AbortSignal }): Promise<ApiResponse<Quest[]>> {
+    const result = await this.deduplicatedGet<ApiResponse<Quest[]>>(`/users/${userId}/quests/completed`, { limit }, config);
     // Defensive: unwrap if data is not an array but has .quests
     if (result.data && !Array.isArray(result.data) && Array.isArray((result.data as any).quests)) {
       result.data = (result.data as any).quests;
@@ -127,17 +127,17 @@ class ApiClient {
     return response.data;
   }
 
-  async getTodayCheckins(telegramId: number): Promise<ApiResponse<CheckinListResponse>> {
-    return this.deduplicatedGet(`/checkins/${telegramId}/today`);
+  async getTodayCheckins(telegramId: number, config?: { signal?: AbortSignal }): Promise<ApiResponse<CheckinListResponse>> {
+    return this.deduplicatedGet(`/checkins/${telegramId}/today`, undefined, config);
   }
 
   // Achievement endpoints
-  async getAchievements(): Promise<ApiResponse<Achievement[]>> {
-    return this.deduplicatedGet('/achievements');
+  async getAchievements(config?: { signal?: AbortSignal }): Promise<ApiResponse<Achievement[]>> {
+    return this.deduplicatedGet('/achievements', undefined, config);
   }
 
-  async getUserAchievements(userId: number): Promise<ApiResponse<UserAchievement[]>> {
-    return this.deduplicatedGet(`/users/${userId}/achievements`);
+  async getUserAchievements(userId: number, config?: { signal?: AbortSignal }): Promise<ApiResponse<UserAchievement[]>> {
+    return this.deduplicatedGet(`/users/${userId}/achievements`, undefined, config);
   }
 
   async checkAchievements(userId: number): Promise<ApiResponse<{ newAchievements: Achievement[]; count: number }>> {
@@ -159,8 +159,8 @@ class ApiClient {
   }
 
   // User preferences endpoints
-  async getUserPreferences(telegramId: number): Promise<ApiResponse<UserPreferences>> {
-    return this.deduplicatedGet(`/users/${telegramId}/preferences`);
+  async getUserPreferences(telegramId: number, config?: { signal?: AbortSignal }): Promise<ApiResponse<UserPreferences>> {
+    return this.deduplicatedGet(`/users/${telegramId}/preferences`, undefined, config);
   }
 
   async updateUserPreferences(telegramId: number, data: { notification_enabled?: boolean; reminder_time?: number; timezone?: string; dnd_enabled?: boolean; dnd_start?: number; dnd_end?: number }): Promise<ApiResponse<UserPreferences>> {
@@ -175,21 +175,21 @@ class ApiClient {
   }
 
   // Leaderboard endpoints
-  async getLeaderboard(limit = 50): Promise<ApiResponse<LeaderboardEntry[]>> {
-    return this.deduplicatedGet('/leaderboard', { limit });
+  async getLeaderboard(limit = 50, config?: { signal?: AbortSignal }): Promise<ApiResponse<LeaderboardEntry[]>> {
+    return this.deduplicatedGet('/leaderboard', { limit }, config);
   }
 
-  async getWeeklyLeaderboard(limit = 50): Promise<ApiResponse<LeaderboardEntry[]>> {
-    return this.deduplicatedGet('/leaderboard/weekly', { limit });
+  async getWeeklyLeaderboard(limit = 50, config?: { signal?: AbortSignal }): Promise<ApiResponse<LeaderboardEntry[]>> {
+    return this.deduplicatedGet('/leaderboard/weekly', { limit }, config);
   }
 
-  async getMonthlyLeaderboard(limit = 50): Promise<ApiResponse<LeaderboardEntry[]>> {
-    return this.deduplicatedGet('/leaderboard/monthly', { limit });
+  async getMonthlyLeaderboard(limit = 50, config?: { signal?: AbortSignal }): Promise<ApiResponse<LeaderboardEntry[]>> {
+    return this.deduplicatedGet('/leaderboard/monthly', { limit }, config);
   }
 
   // Punishment settings endpoints
-  async getPunishmentSettings(telegramId: number): Promise<ApiResponse<PunishmentSettings>> {
-    return this.deduplicatedGet(`/punishment/${telegramId}/settings`);
+  async getPunishmentSettings(telegramId: number, config?: { signal?: AbortSignal }): Promise<ApiResponse<PunishmentSettings>> {
+    return this.deduplicatedGet(`/punishment/${telegramId}/settings`, undefined, config);
   }
 
   async updatePunishmentSettings(telegramId: number, data: { consent_given?: boolean; intensity_level?: string; safe_mode?: boolean }): Promise<ApiResponse<PunishmentSettings>> {
@@ -198,13 +198,13 @@ class ApiClient {
   }
 
   // Punishment history endpoint
-  async getPunishmentHistory(telegramId: number, page = 1, limit = 5): Promise<ApiResponse<PunishmentHistoryResponse>> {
-    return this.deduplicatedGet(`/punishment/${telegramId}/history`, { page, limit });
+  async getPunishmentHistory(telegramId: number, page = 1, limit = 5, config?: { signal?: AbortSignal }): Promise<ApiResponse<PunishmentHistoryResponse>> {
+    return this.deduplicatedGet(`/punishment/${telegramId}/history`, { page, limit }, config);
   }
 
   // Onboarding endpoints
-  async getOnboardingState(telegramId: number): Promise<ApiResponse<OnboardingState>> {
-    return this.deduplicatedGet(`/onboarding/${telegramId}`);
+  async getOnboardingState(telegramId: number, config?: { signal?: AbortSignal }): Promise<ApiResponse<OnboardingState>> {
+    return this.deduplicatedGet(`/onboarding/${telegramId}`, undefined, config);
   }
 
   async saveOnboardingState(telegramId: number, currentStep: string, quizData: Record<string, unknown>): Promise<ApiResponse<OnboardingState>> {

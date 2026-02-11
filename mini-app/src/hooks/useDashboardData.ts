@@ -1,8 +1,9 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { usePullToRefresh } from '@/hooks/usePullToRefresh';
 import { apiClient } from '@/api/client';
 import { UserStats, Achievement } from '@/types';
+import { getErrorMessage } from '@/hooks/useApiError';
 
 interface UseDashboardDataParams {
   userId: number | undefined;
@@ -14,7 +15,9 @@ export function useDashboardData({ userId, haptic }: UseDashboardDataParams) {
   const [stats, setStats] = useState<UserStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
   const [toastAchievement, setToastAchievement] = useState<Achievement | null>(null);
+  const abortRef = useRef<AbortController | null>(null);
 
   const checkForNewAchievements = async (dbUserId: number) => {
     try {
@@ -39,20 +42,30 @@ export function useDashboardData({ userId, haptic }: UseDashboardDataParams) {
 
   const loadUserStats = async (checkAchievements = false) => {
     if (!userId) { setLoading(false); return; }
+
+    abortRef.current?.abort();
+    const controller = new AbortController();
+    abortRef.current = controller;
+
     try {
       setLoading(true);
       setError(false);
-      const response = await apiClient.getUserStats(userId);
+      setErrorMessage('');
+      const response = await apiClient.getUserStats(userId, { signal: controller.signal });
       if (response.success && response.data) {
         setStats(response.data);
         if (checkAchievements && response.data.user.id) {
           checkForNewAchievements(response.data.user.id).catch(console.error);
         }
       }
-    } catch (error) {
-      console.error('Failed to load user stats:', error);
+    } catch (err) {
+      if (controller.signal.aborted) return;
+      console.error('Failed to load user stats:', err);
       setError(true);
-    } finally { setLoading(false); }
+      setErrorMessage(getErrorMessage(err));
+    } finally {
+      if (!controller.signal.aborted) setLoading(false);
+    }
   };
 
   const handleRefresh = useCallback(async () => {
@@ -60,7 +73,10 @@ export function useDashboardData({ userId, haptic }: UseDashboardDataParams) {
   }, []);
   const { containerRef, pullDistance, refreshing, pullThreshold, touchHandlers } = usePullToRefresh(handleRefresh, haptic);
 
-  useEffect(() => { loadUserStats(false); }, [userId]);
+  useEffect(() => {
+    loadUserStats(false);
+    return () => { abortRef.current?.abort(); };
+  }, [userId]);
 
   const handleQuestClick = useCallback((_questId: number) => { haptic.impact('light'); navigate('/quests'); }, [haptic, navigate]);
 
@@ -68,6 +84,7 @@ export function useDashboardData({ userId, haptic }: UseDashboardDataParams) {
     stats,
     loading,
     error,
+    errorMessage,
     toastAchievement,
     setToastAchievement,
     loadUserStats,

@@ -3,6 +3,7 @@ import { apiClient } from '@/api/client';
 import { detectTimezone } from '@/components/settings/NotificationSettings';
 import type { UserPreferences } from '@/components/settings/NotificationSettings';
 import type { PunishmentSettings } from '@/components/settings/AccountabilitySettings';
+import { getErrorMessage } from '@/hooks/useApiError';
 
 interface UseSettingsDataParams {
   user: { id: number } | undefined;
@@ -27,6 +28,7 @@ export function useSettingsData({
 }: UseSettingsDataParams) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
   const [saving, setSaving] = useState(false);
   const [toast, setToast] = useState<{ message: string; variant: 'success' | 'error' | 'info' } | null>(null);
   const [prefs, setPrefs] = useState<UserPreferences>({
@@ -47,17 +49,28 @@ export function useSettingsData({
   const [deleting, setDeleting] = useState(false);
   const intensityDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const saveStatusTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const abortRef = useRef<AbortController | null>(null);
 
-  useEffect(() => { loadPreferences(); }, [user]);
+  useEffect(() => {
+    loadPreferences();
+    return () => { abortRef.current?.abort(); };
+  }, [user]);
 
   const loadPreferences = async () => {
     if (!user?.id) { setLoading(false); return; }
+
+    abortRef.current?.abort();
+    const controller = new AbortController();
+    abortRef.current = controller;
+    const signal = controller.signal;
+
     try {
       setLoading(true);
       setError(false);
+      setErrorMessage('');
       const [res, punishRes] = await Promise.all([
-        apiClient.getUserPreferences(user.id),
-        apiClient.getPunishmentSettings(user.id).catch(() => null),
+        apiClient.getUserPreferences(user.id, { signal }),
+        apiClient.getPunishmentSettings(user.id, { signal }).catch(() => null),
       ]);
       if (res.success && res.data) {
         setPrefs({
@@ -79,9 +92,13 @@ export function useSettingsData({
         setPunishmentAvailable(false);
       }
     } catch (err) {
+      if (signal.aborted) return;
       console.error('Failed to load preferences:', err);
       setError(true);
-    } finally { setLoading(false); }
+      setErrorMessage(getErrorMessage(err));
+    } finally {
+      if (!signal.aborted) setLoading(false);
+    }
   };
 
   const autoSaveAccountability = useCallback(async (settings: PunishmentSettings) => {
@@ -186,6 +203,7 @@ export function useSettingsData({
   return {
     loading,
     error,
+    errorMessage,
     saving,
     deleting,
     prefs,
