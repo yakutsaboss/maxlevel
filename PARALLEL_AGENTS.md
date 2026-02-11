@@ -249,17 +249,19 @@ Use this structure when creating a new run. Copy and adapt:
 
 ---
 
-## Known Issues (Updated after Run 26)
+## Known Issues (Updated after Run 27)
 
 ### Still Open
 1. **pg-boss Node.js mismatch** — Requires 22.12+, server has 20.20. Only triggers warnings, no functional impact yet.
 2. **Mode configs unused** — `mode_configs` table stores quiz responses + personalized plans, but data is never consumed.
 3. **Delete account e2e testing** — confirm soft delete flow works end-to-end in Telegram (Agent B Run 18 recommendation).
 4. **POST /analytics/export still uses executePythonTool** — Justified (Google Sheets OAuth integration), only remaining Python subprocess in ALL routes + jobs.
-5. **Local SQL helpers duplicated** — `getUserByTelegramId`, `listAllModes`, `getUserActiveModes` are local to `handlers/onboarding.ts`. Should extract to shared `utils/queries.ts` (Agent A Run 24 recommendation).
-6. **testApp.ts has no error handler** — All 8 HTTP test files duplicate the same ApiError-aware error handler in their `buildApp()` functions. Should be added to `createTestApp()` once (recommended by 3 agents across Runs 25-26).
-7. **Logger has no LOG_LEVEL env var support** — Cannot filter log verbosity in prod vs dev vs test (Agent D Run 26 recommendation).
-8. **logger.ts in wrong location** — `api/utils/logger.ts` is used by everything (bot, jobs, handlers, utils), not just the API layer. Consider moving to `utils/logger.ts` (Agent D Run 26 recommendation).
+5. **logger.ts in wrong location** — `api/utils/logger.ts` is used by everything (bot, jobs, handlers, utils), not just the API layer. Consider moving to `utils/logger.ts` (Agent D Run 26 recommendation).
+
+### Resolved (Run 27)
+- ~~Local SQL helpers duplicated~~ — Extracted `getUserByTelegramId`, `listAllModes`, `getUserActiveModes` to shared `utils/queries.ts`. Also updated `start.ts`, `settings.ts`, `admin-stats.ts` (Run 27 Agent B).
+- ~~testApp.ts has no error handler~~ — Consolidated into `addTestErrorHandler()` in `testApp.ts`, removed from all 8 HTTP test files (Run 27 Agent A).
+- ~~Logger has no LOG_LEVEL env var support~~ — Added `LOG_LEVEL` env var with `LEVEL_ORDER` map and `minLevel` filtering in `write()`. Defaults: `debug` in dev, `info` in production (Run 27 Agent C).
 
 ### Resolved (Run 26)
 - ~~114 test failures~~ — ALL 412 tests now pass. Fixed by Agents A (37 tests), B (52 tests), C (25 tests), Agent 0 (9 post-merge fixes).
@@ -2194,7 +2196,28 @@ Read PARALLEL_AGENTS.md — you are Agent C for Run 27. Your job: Add LOG_LEVEL 
 - **Note**: `settings.ts` keeps its local `getUserData(ctx)` wrapper (which extracts `ctx.from?.id` then calls `getUserByTelegramId`) — didn't remove it because it serves a different purpose (context unwrapping)
 
 #### Agent C Retrospective
-*(To be filled by Agent C)*
+
+**Tasks completed:**
+| # | Task | Status |
+|---|------|--------|
+| 1 | Read current logger.ts | Done |
+| 2 | Add LOG_LEVEL env var support (LEVEL_ORDER map, minLevel, write() filter) | Done |
+| 3 | Remove old hardcoded `if (isProduction) return` from debug() | Done |
+| 4 | Build verification (`npm run build`) | Done — zero errors |
+
+**What changed:**
+- Added `LEVEL_ORDER` map: `{debug:0, info:1, warn:2, error:3}`
+- Added `minLevel` computed from `process.env.LOG_LEVEL` with smart defaults: `debug` in dev, `info` in production
+- Added early return `if (LEVEL_ORDER[level] < minLevel) return` at top of `write()` method
+- Removed the old `if (isProduction) return` from `debug()` — now handled generically by the level filter
+- Net change: +13 lines, -1 line in `logger.ts`
+
+**Problems:** None. Surgical change, clean build, no conflicts possible (sole owner of logger.ts).
+
+**Recommendations for next run:**
+- Consider exporting `LEVEL_ORDER` and `minLevel` for use in tests that want to verify log suppression
+- The logger is still in `api/utils/` but used globally — moving to `utils/logger.ts` would be more logical (carried forward from Run 26 Agent D recommendation)
+- Could add a `logger.setLevel(level)` method for runtime level changes (useful for debugging in production without restart)
 
 #### Agent 0 Retrospective
 *(To be filled by Agent 0 after merge)*
