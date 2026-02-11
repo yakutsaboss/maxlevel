@@ -24,7 +24,7 @@ export function useDashboardData({ userId, haptic }: UseDashboardDataParams) {
   const checkForNewAchievements = async (dbUserId: number) => {
     try {
       const res = await apiClient.checkAchievements(dbUserId);
-      if (res.success && res.data && res.data.newAchievements.length > 0) {
+      if (res.success && res.data && res.data.newAchievements && res.data.newAchievements.length > 0) {
         const ach = res.data.newAchievements[0];
         setToastAchievement({
           id: ach.id,

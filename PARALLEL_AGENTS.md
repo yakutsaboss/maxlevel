@@ -1238,7 +1238,25 @@ Read PARALLEL_AGENTS.md — you are Agent T for Run 35. Fix `mini-app/src/pages/
 **Commits:** `a2a9e36` (route fix), `bd4de20` (test update)
 
 #### Agent C Retrospective
-*(To be filled by Agent C)*
+**Both tasks completed. Build clean (tsc), 565/568 vitest pass (3 pre-existing failures in quests.http.test.ts — Agent E's domain).**
+
+| # | Task | Status |
+|---|------|--------|
+| 1 | Replace raw SQL XP update with `awardXp(client, userId, totalXp)` | Done |
+| 2 | Replace `any` types with proper interfaces (`UserRow`, `AchievementCriteria`, `AchievementRow`) | Done |
+
+**What changed:**
+- `achievementEngine.ts` lines 179-185: removed inline SQL `current_level = ((total_xp + $1) / 500) + 1` (integer division bug) and replaced with shared `awardXp()` that uses `Math.floor(totalXp / 500) + 1`.
+- Added 3 interfaces: `UserRow` (query shape), `AchievementCriteria` (JSON criteria column), `AchievementRow` (full table row).
+- Replaced all 8 occurrences of `any` in `checkCriteriaMet`, `filterQualifyingAchievements`, and `checkAndUnlockAchievements` with proper types.
+- Used `query<T>` / `queryOne<T>` generics and typed the `unlocked` array.
+- Fixed `filter(Boolean)` type narrowing with `(a): a is AchievementRow => a !== null`.
+
+**Commit:** `d5d3f0d` — `fix(achievementEngine): replace raw SQL XP update with awardXp(), add proper types`
+
+**Note:** File was reverted by an auto-formatter after first edit pass — had to use Write tool to overwrite the full file instead of incremental Edit. No data loss.
+
+**Pre-existing failures (NOT caused by this change):** 3 tests in `quests.http.test.ts` fail with 404 — likely caused by Agent E's quest-completion.ts route changes.
 
 #### Agent D Retrospective
 *(To be filled by Agent D)*
@@ -1307,7 +1325,20 @@ Read PARALLEL_AGENTS.md — you are Agent T for Run 35. Fix `mini-app/src/pages/
 *(To be filled by Agent O)*
 
 #### Agent P Retrospective
-*(To be filled by Agent P)*
+**Status:** COMPLETE — 2 tasks (1 verification, 1 fix), tests pass (319/319), build blocked by pre-existing Agent O error in YourRankCard.tsx.
+
+| # | Task | Status |
+|---|------|--------|
+| 1 | Verify Navigation.tsx safe-area-bottom approach on notched devices | Verified correct — no changes needed |
+| 2 | Fix AdminUserList.tsx loading overlay z-index z-40 → z-50 | Done |
+
+**Navigation.tsx analysis:** The `fixed bottom-0` + `safe-area-bottom` (padding-bottom) approach is the correct pattern for bottom navigation on notched devices. The background color fills the home indicator area while `padding-bottom: env(safe-area-inset-bottom)` pushes interactive content above it. No changes needed.
+
+**AdminUserList.tsx fix:** Loading overlay `z-40` tied with Navigation's `z-40`, meaning the overlay could render at the same layer or behind the nav depending on DOM order. Changed to `z-50` (modal layer per the z-index scale).
+
+**Build note:** `tsc` fails on `YourRankCard.tsx` (Agent O's file, not mine). All 319 mini-app tests pass.
+
+**Commit:** `a8de7f7` on main.
 
 #### Agent Q Retrospective
 *(To be filled by Agent Q)*
