@@ -7,7 +7,7 @@ import { useEffect, useCallback, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useTelegram, useBackButton } from '@/hooks/useTelegram';
-import { useOnboarding, type OnboardingStep } from '@/hooks/useOnboarding';
+import { useOnboarding, getStepLabel, type OnboardingStep } from '@/hooks/useOnboarding';
 import { apiClient } from '@/api/client';
 import { getQuestionForStep } from '@/data/onboardingQuestions';
 
@@ -149,6 +149,7 @@ export function Onboarding() {
 
   // Progress calculation
   const progress = store.getProgress();
+  const stepLabel = getStepLabel(store.currentStep, store.data);
 
   // Handle launch completion
   const handleLaunch = useCallback(() => {
@@ -168,6 +169,7 @@ export function Onboarding() {
         return (
           <HeroIntro
             progress={progress}
+            stepLabel={stepLabel}
             nickname={store.data.nickname}
             onNicknameChange={(name) => store.updateData({ nickname: name })}
             onNext={() => goToStep('avatar')}
@@ -178,6 +180,7 @@ export function Onboarding() {
         return (
           <AvatarSelect
             progress={progress}
+            stepLabel={stepLabel}
             value={store.data.gender}
             onSelect={(g) => store.updateData({ gender: g })}
             onNext={() => goToStep('paths')}
@@ -188,6 +191,7 @@ export function Onboarding() {
         return (
           <PathSelect
             progress={progress}
+            stepLabel={stepLabel}
             value={store.data.selected_modes}
             onSelect={(modes) => store.updateData({ selected_modes: modes })}
             onNext={() => goToStep('referral')}
@@ -198,6 +202,7 @@ export function Onboarding() {
         return (
           <ReferralSource
             progress={progress}
+            stepLabel={stepLabel}
             value={store.data.referral_source}
             otherValue={store.data.referral_source_other}
             onSelect={(src, other) =>
@@ -211,6 +216,7 @@ export function Onboarding() {
         return (
           <PunishmentConfig
             progress={progress}
+            stepLabel={stepLabel}
             data={store.data}
             onUpdate={(p) => store.updateData({ punishments: p })}
             onNext={() => goToStep('notifications')}
@@ -221,6 +227,7 @@ export function Onboarding() {
         return (
           <NotificationPrefs
             progress={progress}
+            stepLabel={stepLabel}
             data={store.data}
             onUpdate={(n) => store.updateData({ notification_preferences: n })}
             onNext={() => goToStep('summary')}
@@ -231,6 +238,7 @@ export function Onboarding() {
         return (
           <Summary
             progress={progress}
+            stepLabel={stepLabel}
             data={store.data}
             onEdit={(editStep) => goToStep(editStep as OnboardingStep)}
             onNext={() => goToStep('launch')}
@@ -259,6 +267,7 @@ export function Onboarding() {
               key={step}
               config={questionConfig}
               progress={progress}
+              stepLabel={stepLabel}
               data={store.data}
               modeBadge={getModeBadge(step)}
               onAnswer={handleAnswer}

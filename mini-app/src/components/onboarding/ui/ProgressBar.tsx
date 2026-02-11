@@ -2,9 +2,10 @@ import { motion } from 'framer-motion';
 
 interface ProgressBarProps {
   progress: number;
+  stepLabel?: string;
 }
 
-export function ProgressBar({ progress }: ProgressBarProps) {
+export function ProgressBar({ progress, stepLabel }: ProgressBarProps) {
   return (
     <div className="w-full px-4 pt-3 pb-1">
       <div className="bg-telegram-hint/20 rounded-full h-2 overflow-hidden">
@@ -15,7 +16,12 @@ export function ProgressBar({ progress }: ProgressBarProps) {
           transition={{ duration: 0.4, ease: 'easeOut' }}
         />
       </div>
-      <div className="text-right mt-1">
+      <div className="flex justify-between items-center mt-1">
+        {stepLabel ? (
+          <span className="text-xs text-telegram-hint">{stepLabel}</span>
+        ) : (
+          <span />
+        )}
         <span className="text-xs text-telegram-hint">{Math.round(progress)}%</span>
       </div>
     </div>

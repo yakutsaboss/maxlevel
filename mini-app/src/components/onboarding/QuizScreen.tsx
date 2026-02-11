@@ -14,13 +14,14 @@ import type { OnboardingData } from '@/hooks/useOnboarding';
 interface QuizScreenProps {
   config: QuestionConfig;
   progress: number;
+  stepLabel?: string;
   data: OnboardingData;
   modeBadge?: { icon: string; name: string; color: string };
   onAnswer: (key: string, nestedKey: string | undefined, value: any) => void;
   onNext: () => void;
 }
 
-export function QuizScreen({ config, progress, data, modeBadge, onAnswer, onNext }: QuizScreenProps) {
+export function QuizScreen({ config, progress, stepLabel, data, modeBadge, onAnswer, onNext }: QuizScreenProps) {
   const { haptic } = useTelegram();
   const state = useQuizState(config, data, onAnswer, haptic);
 
@@ -31,7 +32,7 @@ export function QuizScreen({ config, progress, data, modeBadge, onAnswer, onNext
 
   return (
     <div className="min-h-screen flex flex-col bg-telegram-bg">
-      <ProgressBar progress={progress} />
+      <ProgressBar progress={progress} stepLabel={stepLabel} />
 
       {modeBadge && (
         <div className="flex justify-center pt-1 pb-2">

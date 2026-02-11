@@ -41,12 +41,13 @@ const MODES = [
 
 interface PathSelectProps {
   progress: number;
+  stepLabel?: string;
   value?: string[];
   onSelect: (modes: string[]) => void;
   onNext: () => void;
 }
 
-export function PathSelect({ progress, value, onSelect, onNext }: PathSelectProps) {
+export function PathSelect({ progress, stepLabel, value, onSelect, onNext }: PathSelectProps) {
   const { haptic } = useTelegram();
   const [selected, setSelected] = useState<string[]>(value || []);
 
@@ -61,7 +62,7 @@ export function PathSelect({ progress, value, onSelect, onNext }: PathSelectProp
 
   return (
     <div className="min-h-screen flex flex-col bg-telegram-bg">
-      <ProgressBar progress={progress} />
+      <ProgressBar progress={progress} stepLabel={stepLabel} />
 
       <div className="flex-1 flex flex-col px-6 pt-6">
         <motion.div

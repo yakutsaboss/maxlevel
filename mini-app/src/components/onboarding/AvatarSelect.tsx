@@ -13,12 +13,13 @@ const AVATARS = [
 
 interface AvatarSelectProps {
   progress: number;
+  stepLabel?: string;
   value?: string;
   onSelect: (avatar: string) => void;
   onNext: () => void;
 }
 
-export function AvatarSelect({ progress, value, onSelect, onNext }: AvatarSelectProps) {
+export function AvatarSelect({ progress, stepLabel, value, onSelect, onNext }: AvatarSelectProps) {
   const { haptic } = useTelegram();
   const [selected, setSelected] = useState(value || '');
 
@@ -30,7 +31,7 @@ export function AvatarSelect({ progress, value, onSelect, onNext }: AvatarSelect
 
   return (
     <div className="min-h-screen flex flex-col bg-telegram-bg">
-      <ProgressBar progress={progress} />
+      <ProgressBar progress={progress} stepLabel={stepLabel} />
 
       <div className="flex-1 flex flex-col px-6 pt-6">
         <motion.div

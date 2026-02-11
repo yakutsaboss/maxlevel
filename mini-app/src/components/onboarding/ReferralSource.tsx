@@ -6,13 +6,14 @@ import { REFERRAL_OPTIONS } from '@/data/onboardingQuestions';
 
 interface ReferralSourceProps {
   progress: number;
+  stepLabel?: string;
   value?: string;
   otherValue?: string;
   onSelect: (source: string, otherText?: string) => void;
   onNext: () => void;
 }
 
-export function ReferralSource({ progress, value, otherValue, onSelect, onNext }: ReferralSourceProps) {
+export function ReferralSource({ progress, stepLabel, value, otherValue, onSelect, onNext }: ReferralSourceProps) {
   const { haptic } = useTelegram();
   const [selected, setSelected] = useState(value || '');
   const [otherText, setOtherText] = useState(otherValue || '');
@@ -32,7 +33,7 @@ export function ReferralSource({ progress, value, otherValue, onSelect, onNext }
 
   return (
     <div className="min-h-screen flex flex-col bg-telegram-bg">
-      <ProgressBar progress={progress} />
+      <ProgressBar progress={progress} stepLabel={stepLabel} />
 
       <div className="flex-1 flex flex-col px-6 pt-6">
         <motion.div
