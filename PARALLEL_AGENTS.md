@@ -1203,7 +1203,21 @@ Read PARALLEL_AGENTS.md — you are Agent T for Run 35. Fix `mini-app/src/pages/
 ### Run 35 Retrospectives
 
 #### Agent A Retrospective
-*(To be filled by Agent A)*
+**Status:** COMPLETE — XP formula fix, test updates, build clean.
+
+**Task:** Fix `xp_to_next_level` formula in `user-helpers.ts` — root cause of XP bars showing >100%.
+
+**Changes:**
+| File | Change |
+|------|--------|
+| `bot/src/api/routes/user-helpers.ts` | Imported `LEVEL_XP_DIVISOR` from `xpAward.js`, changed `u.current_level * 100` → `u.current_level * LEVEL_XP_DIVISOR` |
+| `bot/src/__tests__/routes/http/user-helpers.test.ts` | Updated 2 assertions: `500` → `2500` (level 5), `1000` → `5000` (level 10); renamed test description |
+
+**Commit:** `8f7a71b` — `fix(api): use LEVEL_XP_DIVISOR for xp_to_next_level formula`
+
+**Verification:** Build clean (`tsc`), all 5 user-helpers tests pass.
+
+**Notes:** The old formula (`level * 100`) meant a level 5 user needed only 500 XP to "fill" the bar, but they already had 2000+ XP (since level = floor(totalXp / 500) + 1). With the fix, level 5 → 2500 XP threshold, so the bar correctly shows progress within the level.
 
 #### Agent B Retrospective
 *(To be filled by Agent B)*
