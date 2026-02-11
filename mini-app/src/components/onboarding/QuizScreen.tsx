@@ -6,6 +6,7 @@
 import { motion } from 'framer-motion';
 import { useTelegram } from '@/hooks/useTelegram';
 import { ProgressBar } from './ui/ProgressBar';
+import { ContinueButton } from './ui/ContinueButton';
 import { AnswerInput } from './quiz/AnswerInput';
 import { useQuizState } from './quiz/useQuizState';
 import type { QuestionConfig } from '@/data/onboardingQuestions';
@@ -14,13 +15,14 @@ import type { OnboardingData } from '@/hooks/useOnboarding';
 interface QuizScreenProps {
   config: QuestionConfig;
   progress: number;
+  stepLabel?: string;
   data: OnboardingData;
   modeBadge?: { icon: string; name: string; color: string };
   onAnswer: (key: string, nestedKey: string | undefined, value: any) => void;
   onNext: () => void;
 }
 
-export function QuizScreen({ config, progress, data, modeBadge, onAnswer, onNext }: QuizScreenProps) {
+export function QuizScreen({ config, progress, stepLabel, data, modeBadge, onAnswer, onNext }: QuizScreenProps) {
   const { haptic } = useTelegram();
   const state = useQuizState(config, data, onAnswer, haptic);
 
@@ -31,7 +33,7 @@ export function QuizScreen({ config, progress, data, modeBadge, onAnswer, onNext
 
   return (
     <div className="min-h-screen flex flex-col bg-telegram-bg">
-      <ProgressBar progress={progress} />
+      <ProgressBar progress={progress} stepLabel={stepLabel} />
 
       {modeBadge && (
         <div className="flex justify-center pt-1 pb-2">
@@ -77,18 +79,7 @@ export function QuizScreen({ config, progress, data, modeBadge, onAnswer, onNext
       </div>
 
       <div className="px-6 pb-8">
-        <button
-          onClick={handleNext}
-          disabled={!state.isValid}
-          className={`
-            w-full py-4 rounded-2xl text-lg font-bold transition-all
-            ${state.isValid
-              ? 'bg-gradient-to-r from-purple-600 to-blue-600 text-white shadow-lg'
-              : 'bg-telegram-hint/20 text-telegram-hint'}
-          `}
-        >
-          Continue
-        </button>
+        <ContinueButton onClick={handleNext} disabled={!state.isValid} />
       </div>
     </div>
   );

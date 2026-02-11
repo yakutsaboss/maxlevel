@@ -5,6 +5,7 @@ import type { OnboardingData } from '@/hooks/useOnboarding';
 
 interface SummaryProps {
   progress: number;
+  stepLabel?: string;
   data: OnboardingData;
   onEdit: (step: string) => void;
   onNext: () => void;
@@ -51,7 +52,7 @@ function punishmentSummary(p: NonNullable<OnboardingData['punishments']>): strin
   return `${t.emoji} ${t.name} \u2014 ${diff.charAt(0).toUpperCase() + diff.slice(1)} (${label})${safe}`;
 }
 
-export function Summary({ progress, data, onEdit, onNext }: SummaryProps) {
+export function Summary({ progress, stepLabel, data, onEdit, onNext }: SummaryProps) {
   const { user, haptic } = useTelegram();
   const name = data.nickname || user?.first_name || 'Friend';
   const avatarLabel = AVATAR_LABELS[data.gender || ''] || data.gender || 'Unknown';
@@ -96,7 +97,7 @@ export function Summary({ progress, data, onEdit, onNext }: SummaryProps) {
 
   return (
     <div className="min-h-screen flex flex-col bg-telegram-bg">
-      <ProgressBar progress={progress} />
+      <ProgressBar progress={progress} stepLabel={stepLabel} />
 
       <div className="flex-1 flex flex-col px-6 pt-6 pb-4 overflow-y-auto">
         <motion.div

@@ -11,12 +11,13 @@ import type { OnboardingData } from '@/hooks/useOnboarding';
 
 interface PunishmentConfigProps {
   progress: number;
+  stepLabel?: string;
   data: OnboardingData;
   onUpdate: (punishments: OnboardingData['punishments']) => void;
   onNext: () => void;
 }
 
-export function PunishmentConfig({ progress, data, onUpdate, onNext }: PunishmentConfigProps) {
+export function PunishmentConfig({ progress, stepLabel, data, onUpdate, onNext }: PunishmentConfigProps) {
   const { haptic } = useTelegram();
   const existing = data.punishments || {};
 
@@ -51,7 +52,7 @@ export function PunishmentConfig({ progress, data, onUpdate, onNext }: Punishmen
 
   return (
     <div className="min-h-screen flex flex-col bg-telegram-bg">
-      <ProgressBar progress={progress} />
+      <ProgressBar progress={progress} stepLabel={stepLabel} />
 
       <div
         className="absolute inset-0 bg-gradient-to-b from-red-900/20 to-transparent pointer-events-none"

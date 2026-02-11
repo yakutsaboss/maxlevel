@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { useTelegram } from '@/hooks/useTelegram';
 import { ProgressBar } from './ui/ProgressBar';
+import { ContinueButton } from './ui/ContinueButton';
 
 const AVATARS = [
   { value: 'gym_warrior', label: 'Gym Warrior', icon: '💪', desc: 'Lives for the grind' },
@@ -13,12 +14,13 @@ const AVATARS = [
 
 interface AvatarSelectProps {
   progress: number;
+  stepLabel?: string;
   value?: string;
   onSelect: (avatar: string) => void;
   onNext: () => void;
 }
 
-export function AvatarSelect({ progress, value, onSelect, onNext }: AvatarSelectProps) {
+export function AvatarSelect({ progress, stepLabel, value, onSelect, onNext }: AvatarSelectProps) {
   const { haptic } = useTelegram();
   const [selected, setSelected] = useState(value || '');
 
@@ -30,7 +32,7 @@ export function AvatarSelect({ progress, value, onSelect, onNext }: AvatarSelect
 
   return (
     <div className="min-h-screen flex flex-col bg-telegram-bg">
-      <ProgressBar progress={progress} />
+      <ProgressBar progress={progress} stepLabel={stepLabel} />
 
       <div className="flex-1 flex flex-col px-6 pt-6">
         <motion.div
@@ -78,20 +80,7 @@ export function AvatarSelect({ progress, value, onSelect, onNext }: AvatarSelect
       </div>
 
       <div className="px-6 pb-8">
-        <button
-          onClick={onNext}
-          disabled={!selected}
-          className={`
-            w-full py-4 rounded-2xl text-lg font-bold transition-all
-            ${
-              selected
-                ? 'bg-gradient-to-r from-purple-600 to-blue-600 text-white shadow-lg'
-                : 'bg-telegram-hint/20 text-telegram-hint'
-            }
-          `}
-        >
-          Continue
-        </button>
+        <ContinueButton onClick={onNext} disabled={!selected} />
       </div>
     </div>
   );

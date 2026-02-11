@@ -6,12 +6,13 @@ import { ProgressBar } from './ui/ProgressBar';
 
 interface HeroIntroProps {
   progress: number;
+  stepLabel?: string;
   nickname?: string;
   onNicknameChange: (name: string) => void;
   onNext: () => void;
 }
 
-export function HeroIntro({ progress, nickname, onNicknameChange, onNext }: HeroIntroProps) {
+export function HeroIntro({ progress, stepLabel, nickname, onNicknameChange, onNext }: HeroIntroProps) {
   const { user, haptic } = useTelegram();
   const displayName = nickname || user?.first_name || 'Friend';
   const [isEditing, setIsEditing] = useState(false);
@@ -39,7 +40,7 @@ export function HeroIntro({ progress, nickname, onNicknameChange, onNext }: Hero
 
   return (
     <div className="min-h-screen flex flex-col bg-telegram-bg">
-      <ProgressBar progress={progress} />
+      <ProgressBar progress={progress} stepLabel={stepLabel} />
 
       <div className="flex-1 flex flex-col items-center justify-center px-6">
         <motion.div

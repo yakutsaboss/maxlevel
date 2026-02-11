@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { Lock } from 'lucide-react';
 import { useTelegram } from '@/hooks/useTelegram';
 import { ProgressBar } from './ui/ProgressBar';
+import { ContinueButton } from './ui/ContinueButton';
 
 const MODES = [
   {
@@ -41,12 +42,13 @@ const MODES = [
 
 interface PathSelectProps {
   progress: number;
+  stepLabel?: string;
   value?: string[];
   onSelect: (modes: string[]) => void;
   onNext: () => void;
 }
 
-export function PathSelect({ progress, value, onSelect, onNext }: PathSelectProps) {
+export function PathSelect({ progress, stepLabel, value, onSelect, onNext }: PathSelectProps) {
   const { haptic } = useTelegram();
   const [selected, setSelected] = useState<string[]>(value || []);
 
@@ -61,7 +63,7 @@ export function PathSelect({ progress, value, onSelect, onNext }: PathSelectProp
 
   return (
     <div className="min-h-screen flex flex-col bg-telegram-bg">
-      <ProgressBar progress={progress} />
+      <ProgressBar progress={progress} stepLabel={stepLabel} />
 
       <div className="flex-1 flex flex-col px-6 pt-6">
         <motion.div
@@ -114,20 +116,11 @@ export function PathSelect({ progress, value, onSelect, onNext }: PathSelectProp
       </div>
 
       <div className="px-6 pb-8">
-        <button
+        <ContinueButton
           onClick={onNext}
           disabled={selected.length === 0}
-          className={`
-            w-full py-4 rounded-2xl text-lg font-bold transition-all
-            ${
-              selected.length > 0
-                ? 'bg-gradient-to-r from-purple-600 to-blue-600 text-white shadow-lg'
-                : 'bg-telegram-hint/20 text-telegram-hint'
-            }
-          `}
-        >
-          {selected.length > 0 ? `Continue (${selected.length} selected)` : 'Select at least 1'}
-        </button>
+          label={selected.length > 0 ? `Continue (${selected.length} selected)` : 'Select at least 1'}
+        />
       </div>
     </div>
   );

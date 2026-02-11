@@ -3088,7 +3088,16 @@ Read PARALLEL_AGENTS.md — you are Agent F for Run 30. Your job: Add accessibil
 **No conflicts expected:** Only touched owned files (Quests page + quests components). No hooks/api/types changes.
 
 #### Agent B Retrospective
-*(To be filled by Agent B)*
+**All 4 tasks completed. Build passes (`tsc && vite build` — zero errors).**
+
+| # | Task | Status |
+|---|------|--------|
+| 1 | Split useOnboarding.ts (311→262 lines) | Done |
+| 2 | Progress bar with Step X of Y | Done |
+| 3 | Save status indicator (toast) | Done |
+| 4 | Step validation with shake animation | Done |
+
+**Files:** `useOnboardingNavigation.ts` (NEW, 89 lines), `useOnboarding.ts` (slimmed), `ui/ProgressBar.tsx`, `ui/ContinueButton.tsx` (NEW), `Onboarding.tsx`, 8 screen components (stepLabel prop). 4 atomic commits.
 
 #### Agent C Retrospective
 **All 5 tasks completed. Build passes cleanly.**

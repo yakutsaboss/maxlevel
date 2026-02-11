@@ -37,12 +37,13 @@ function ToggleRow({ label, description, value, onChange }: ToggleRowProps) {
 
 interface NotificationPrefsProps {
   progress: number;
+  stepLabel?: string;
   data: OnboardingData;
   onUpdate: (prefs: OnboardingData['notification_preferences']) => void;
   onNext: () => void;
 }
 
-export function NotificationPrefs({ progress, data, onUpdate, onNext }: NotificationPrefsProps) {
+export function NotificationPrefs({ progress, stepLabel, data, onUpdate, onNext }: NotificationPrefsProps) {
   const { haptic } = useTelegram();
   const existing = data.notification_preferences || {};
 
@@ -62,7 +63,7 @@ export function NotificationPrefs({ progress, data, onUpdate, onNext }: Notifica
 
   return (
     <div className="min-h-screen flex flex-col bg-telegram-bg">
-      <ProgressBar progress={progress} />
+      <ProgressBar progress={progress} stepLabel={stepLabel} />
 
       <div className="flex-1 flex flex-col px-6 pt-6">
         <motion.div
