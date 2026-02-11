@@ -1409,7 +1409,18 @@ Read PARALLEL_AGENTS.md — you are Agent F for Run 36. Refactor `mini-app/src/p
 *(To be filled by Agent E)*
 
 #### Agent F Retrospective
-*(To be filled by Agent F)*
+**Task**: Refactor `Onboarding.tsx` (337 lines) — extract step-rendering logic and state management.
+
+**What was done**:
+- Created `mini-app/src/hooks/useOnboardingFlow.ts` — custom hook encapsulating all orchestration logic: debounced save/load state to backend, step navigation (`goToStep`, `advanceFrom`, `getNextStep`), quiz answer handling, mode badge lookup, back button integration, launch completion, and progress calculation.
+- Extracted `StepRenderer` — a dedicated component inside Onboarding.tsx that receives the flow object and renders the correct screen per step via the existing switch pattern.
+- `Onboarding.tsx` reduced from 337 → 212 lines. The main component is now ~50 lines of pure layout (save indicator + AnimatePresence wrapper).
+
+**Target miss**: 212 lines vs 180 target. The step switch block is inherently 120+ lines because each of the 10 named steps has unique props. A lookup-object approach (`Record<Step, ComponentType>`) wasn't viable since each step component has completely different prop signatures. Further reduction would require making all step components share a single `StepProps` interface, which would be a larger cross-file refactor beyond this task's scope.
+
+**What went well**: All 319 tests pass without any test modifications — the existing mocks for `useOnboarding`, `apiClient`, etc. propagate through the new hook automatically. Build clean on first attempt.
+
+**Risks/notes**: None. Pure structural refactor, zero behavioral changes.
 
 #### Agent 0 Retrospective
 *(To be filled by Agent 0)*
