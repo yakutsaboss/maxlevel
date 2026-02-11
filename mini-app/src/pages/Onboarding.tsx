@@ -34,7 +34,9 @@ export function Onboarding() {
   const { user } = useTelegram();
   const store = useOnboarding();
   const saveTimeout = useRef<ReturnType<typeof setTimeout>>();
+  const saveStatusTimeout = useRef<ReturnType<typeof setTimeout>>();
   const [mounted, setMounted] = useState(false);
+  const [saveStatus, setSaveStatus] = useState<'idle' | 'saved' | 'failed'>('idle');
 
   const telegramId = user?.id;
 
@@ -56,7 +58,19 @@ export function Onboarding() {
       if (!telegramId) return;
       clearTimeout(saveTimeout.current);
       saveTimeout.current = setTimeout(() => {
-        apiClient.saveOnboardingState(telegramId, step, data).catch(console.error);
+        apiClient
+          .saveOnboardingState(telegramId, step, data)
+          .then(() => {
+            setSaveStatus('saved');
+            clearTimeout(saveStatusTimeout.current);
+            saveStatusTimeout.current = setTimeout(() => setSaveStatus('idle'), 2000);
+          })
+          .catch((err) => {
+            console.error(err);
+            setSaveStatus('failed');
+            clearTimeout(saveStatusTimeout.current);
+            saveStatusTimeout.current = setTimeout(() => setSaveStatus('idle'), 3000);
+          });
       }, 1000);
     },
     [telegramId]
@@ -287,16 +301,41 @@ export function Onboarding() {
   };
 
   return (
-    <AnimatePresence mode="wait">
-      <motion.div
-        key={store.currentStep}
-        initial={{ opacity: 0, x: 20 }}
-        animate={{ opacity: 1, x: 0 }}
-        exit={{ opacity: 0, x: -20 }}
-        transition={{ duration: 0.2 }}
-      >
-        {renderStep()}
-      </motion.div>
-    </AnimatePresence>
+    <>
+      {/* Save status indicator */}
+      <AnimatePresence>
+        {saveStatus !== 'idle' && (
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            transition={{ duration: 0.2 }}
+            className="fixed top-1 left-1/2 -translate-x-1/2 z-50"
+          >
+            <span
+              className={`text-xs font-medium px-3 py-1 rounded-full backdrop-blur-sm ${
+                saveStatus === 'saved'
+                  ? 'bg-green-500/15 text-green-400'
+                  : 'bg-amber-500/15 text-amber-400'
+              }`}
+            >
+              {saveStatus === 'saved' ? 'Saved \u2713' : 'Save failed \u2014 will retry'}
+            </span>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence mode="wait">
+        <motion.div
+          key={store.currentStep}
+          initial={{ opacity: 0, x: 20 }}
+          animate={{ opacity: 1, x: 0 }}
+          exit={{ opacity: 0, x: -20 }}
+          transition={{ duration: 0.2 }}
+        >
+          {renderStep()}
+        </motion.div>
+      </AnimatePresence>
+    </>
   );
 }
