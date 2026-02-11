@@ -1883,6 +1883,33 @@ Read PARALLEL_AGENTS.md — you are Agent F for Run 33. Your job: Write componen
 **Recommendations:** The `TopThreeCard.test.tsx` failures are locale-dependent (expects `1,200` but CI/locale renders `1 200`). Should be fixed with `toLocaleString('en-US')` or regex matcher.
 
 #### Agent 0 Retrospective
-*(To be filled by Agent 0)*
+
+**Merge summary:** 4 agents (B, D, E, F) committed directly to main (recurring — 5th consecutive run). 2 remaining branches merged: C (6 commits) → A (2 commits). Both merged cleanly — no conflicts in source files. PARALLEL_AGENTS.md auto-merged successfully on both merges.
+
+| Step | Result |
+|------|--------|
+| Agents B, D, E, F | Already on main (committed directly) |
+| Agent C (XP utility + security) | 6 commits merged cleanly |
+| Agent A (test mocks) | 2 commits merged cleanly |
+| Agent 0 fix | 1 test assertion updated for awardXp refactor (quests.http.test.ts:307 mock data) |
+| Bot build | Pass — zero errors |
+| Mini-app build | Pass — zero errors |
+| Bot tests | 550/550 passing (46 files, +30 from Run 32) |
+| Mini-app tests | 206/206 passing (45 files, +54 from Run 32) |
+| Deploy | Awaiting manual SSH (key not available in Claude Code session) |
+| Notification | Sent via local Python |
+
+**Issues:**
+- 4/6 agents committed to main instead of worktree branches — 5th consecutive run. Lock main branch during agent work or add pre-commit hooks.
+- Agent C correctly flagged 1 test regression from XP refactor. Agent 0 fixed by changing mock `current_level: 3` → `1` (so `Math.floor(500/500)+1 = 2 > 1` = true).
+- SSH key not loaded in Claude Code session — deploy requires manual SSH. Pushed to GitHub.
+
+**Key achievements this run:**
+- **XP bug fixed**: quest-progress.ts had 2 bugs — always returning `leveledUp: true` and unconditionally overwriting level. Now uses shared `awardXp()`.
+- **Zero `any`**: Production mini-app source has no remaining `any` types.
+- **Shared test mocks**: TWA SDK and framer-motion mocks extracted to `test/mocks/` — future tests can import instead of duplicating.
+- **Types organized**: `types/index.ts` split into 5 domain modules with barrel re-export.
+
+**Test count progression:** Bot: 456 → 520 → 550 (+6%). Mini-app: 0 → 13 → 66 → 152 → 206 (36% growth).
 
 <!-- Next run goes here. Agent 0 will append RUN 34 below this line. -->
