@@ -8,7 +8,7 @@
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import request from 'supertest';
-import { createTestApp } from '../../helpers/testApp.js';
+import { createTestApp, addTestErrorHandler } from '../../helpers/testApp.js';
 
 // ─── Mocks (hoisted before any route import) ───────────────────────
 
@@ -62,14 +62,7 @@ import { adminRouter } from '../../../api/routes/admin.js';
 function buildApp() {
   const app = createTestApp();
   app.use('/api/admin', adminRouter);
-  // Error handler for asyncHandler errors (ApiError and generic)
-  app.use((err: any, _req: any, res: any, _next: any) => {
-    const status = err.statusCode || 500;
-    res.status(status).json({
-      success: false,
-      error: err.message || 'Internal Server Error',
-    });
-  });
+  addTestErrorHandler(app);
   return app;
 }
 
@@ -107,7 +100,7 @@ describe('GET /api/admin/stats', () => {
       .expect(500);
 
     expect(res.body.success).toBe(false);
-    expect(res.body.error).toBe('DB down');
+    expect(res.body.error).toBe('Internal Server Error');
   });
 });
 
@@ -138,7 +131,7 @@ describe('GET /api/admin/users', () => {
       .expect(500);
 
     expect(res.body.success).toBe(false);
-    expect(res.body.error).toBe('DB query failed');
+    expect(res.body.error).toBe('Internal Server Error');
   });
 });
 

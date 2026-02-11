@@ -7,7 +7,7 @@
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import request from 'supertest';
-import { createTestApp } from '../../helpers/testApp.js';
+import { createTestApp, addTestErrorHandler } from '../../helpers/testApp.js';
 
 // ─── Mocks (hoisted before any route import) ───────────────────────
 
@@ -66,24 +66,13 @@ vi.mock('../../../api/middleware/rateLimiter.js', () => ({
 // ─── Import router after mocks ─────────────────────────────────────
 
 import { questRouter } from '../../../api/routes/quests.js';
-import { ApiError } from '../../../api/utils/errors.js';
 
 // ─── Build test app ────────────────────────────────────────────────
 
 function buildApp() {
   const app = createTestApp();
   app.use('/api/quests', questRouter);
-  // Replicate global error handler from server.ts
-  app.use((err: any, _req: any, res: any, _next: any) => {
-    if (err instanceof ApiError) {
-      res.status(err.statusCode).json({ success: false, error: err.message });
-      return;
-    }
-    res.status(500).json({
-      error: 'Internal Server Error',
-      message: 'Something went wrong',
-    });
-  });
+  addTestErrorHandler(app);
   return app;
 }
 

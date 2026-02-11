@@ -6,8 +6,7 @@
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import request from 'supertest';
-import { createTestApp } from '../../helpers/testApp.js';
-import { ApiError } from '../../../api/utils/errors.js';
+import { createTestApp, addTestErrorHandler } from '../../helpers/testApp.js';
 
 // ─── Mocks (hoisted before any route import) ───────────────────────
 
@@ -63,13 +62,7 @@ import { checkinRouter } from '../../../api/routes/checkins.js';
 function buildApp() {
   const app = createTestApp();
   app.use('/api/checkins', checkinRouter);
-  app.use((err: any, _req: any, res: any, _next: any) => {
-    if (err instanceof ApiError) {
-      res.status(err.statusCode).json({ success: false, error: err.message });
-      return;
-    }
-    res.status(500).json({ success: false, error: 'Internal Server Error' });
-  });
+  addTestErrorHandler(app);
   return app;
 }
 

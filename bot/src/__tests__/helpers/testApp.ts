@@ -10,6 +10,7 @@
  */
 
 import express, { Express } from 'express';
+import { ApiError } from '../../api/utils/errors.js';
 
 /**
  * Creates a minimal Express app suitable for HTTP integration tests.
@@ -20,6 +21,20 @@ export function createTestApp(): Express {
   const app = express();
   app.use(express.json());
   return app;
+}
+
+/**
+ * Adds the standard ApiError-aware error handler to a test app.
+ * Must be called AFTER mounting the router so Express registers it last.
+ */
+export function addTestErrorHandler(app: Express): void {
+  app.use((err: any, _req: any, res: any, _next: any) => {
+    if (err instanceof ApiError) {
+      res.status(err.statusCode).json({ success: false, error: err.message });
+      return;
+    }
+    res.status(500).json({ success: false, error: 'Internal Server Error' });
+  });
 }
 
 /** Standard mock references re-exported for convenience. */
