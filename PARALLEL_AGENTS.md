@@ -992,7 +992,19 @@ Read PARALLEL_AGENTS.md — you are Agent F for Run 31. Your job: Slim down Onbo
 **No conflicts expected:** Only touched owned files (Profile.tsx, Settings.tsx). No hooks/api/types changes.
 
 #### Agent F Retrospective
-*(To be filled by Agent F)*
+**All 5 tasks completed. Build passes cleanly. 5 commits.**
+
+| # | Task | Status |
+|---|------|--------|
+| 1 | Extract MODE_BADGES to `data/modeBadges.ts`, update Onboarding.tsx import | Done |
+| 2 | Remove all `as any` from `api/client.ts` (inflightGets Map, retry config, quest unwrap) | Done |
+| 3 | Remove `as any` from `pages/Onboarding.tsx` (dataKey cast, saveState param type) | Done |
+| 4 | Audit `types/index.ts` — removed 4 unused exports (QuestFilter, ApiErrorResponse, PaginatedResponse, OnboardingProgress) | Done |
+| 5 | Scan all mini-app src for `as any` — zero remaining in owned files | Done |
+
+**Files:** `data/modeBadges.ts` (NEW), `pages/Onboarding.tsx`, `api/client.ts`, `types/index.ts`. Remaining `any` (11 occurrences) in forbidden component files.
+
+**Recommendations:** Define shared `HapticApi` interface, type QuizScreen callbacks with a `QuizValue` union.
 
 #### Agent 0 Retrospective
 *(To be filled by Agent 0)*
