@@ -7,6 +7,31 @@ import { InlineKeyboard } from 'grammy';
 import type { MyContext } from '../bot.js';
 import { query, queryOne } from '../utils/db.js';
 
+/** Weekly XP and quest counts (last 7 days). */
+interface WeeklyStats {
+  weekly_xp: number;
+  quests_completed: number;
+}
+
+/** All-time user stats joined from users + quest_instances. */
+interface AllTimeStats {
+  total_xp: number;
+  current_level: number;
+  total_quests_completed: number;
+  created_at?: string;
+}
+
+/** A streak row joined with its mode metadata. */
+interface StreakRecord {
+  current_streak: number;
+  best_streak?: number;
+  longest_streak?: number;
+  mode_name: string;
+  display_name: string;
+  icon_emoji: string;
+  mode_icon?: string;
+}
+
 const CB = {
   WEEK: 'stats:week',
   ALL: 'stats:all',
@@ -17,8 +42,8 @@ async function getInternalUserId(telegramId: number): Promise<number | null> {
   return user?.id ?? null;
 }
 
-async function getWeeklyStats(userId: number) {
-  const rows = await query(
+async function getWeeklyStats(userId: number): Promise<WeeklyStats> {
+  const rows = await query<WeeklyStats>(
     `SELECT
        COALESCE(SUM(qi.xp_earned), 0) AS weekly_xp,
        COUNT(CASE WHEN qi.status = 'completed' THEN 1 END) AS quests_completed
@@ -30,8 +55,8 @@ async function getWeeklyStats(userId: number) {
   return rows[0] || { weekly_xp: 0, quests_completed: 0 };
 }
 
-async function getAllTimeStats(userId: number) {
-  const rows = await query(
+async function getAllTimeStats(userId: number): Promise<AllTimeStats> {
+  const rows = await query<AllTimeStats>(
     `SELECT
        u.total_xp,
        u.current_level,
@@ -46,8 +71,8 @@ async function getAllTimeStats(userId: number) {
   return rows[0] || { total_xp: 0, current_level: 1, total_quests_completed: 0 };
 }
 
-async function getStreaks(userId: number) {
-  return query(
+async function getStreaks(userId: number): Promise<StreakRecord[]> {
+  return query<StreakRecord>(
     `SELECT s.*, m.name AS mode_name, m.display_name, m.icon_emoji
      FROM streaks s
      JOIN modes m ON m.id = s.mode_id
@@ -59,8 +84,8 @@ async function getStreaks(userId: number) {
 
 function formatWeeklyMessage(
   firstName: string,
-  weeklyStats: any,
-  streaks: any[]
+  weeklyStats: WeeklyStats,
+  streaks: StreakRecord[]
 ): string {
   let msg = `📊 *${firstName}'s Weekly Stats*\n\n`;
   msg += `⚡ XP Earned: ${weeklyStats.weekly_xp || 0}\n`;
@@ -83,8 +108,8 @@ function formatWeeklyMessage(
 
 function formatAllTimeMessage(
   firstName: string,
-  allTimeStats: any,
-  streaks: any[]
+  allTimeStats: AllTimeStats,
+  streaks: StreakRecord[]
 ): string {
   let msg = `📊 *${firstName}'s All-Time Stats*\n\n`;
   msg += `⭐ Level: ${allTimeStats.current_level || 1}\n`;

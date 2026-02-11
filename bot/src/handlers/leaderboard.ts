@@ -7,6 +7,16 @@ import { Context } from 'grammy';
 import { query, queryOne } from '../utils/db.js';
 import { logger } from '../utils/logger.js';
 
+/** A row from leaderboard_mv materialized view. */
+interface LeaderboardRow {
+  telegram_id?: number;
+  username: string | null;
+  first_name: string | null;
+  current_level: number;
+  total_xp: number;
+  xp_rank: string;
+}
+
 const log = logger.child({ component: 'leaderboard' });
 
 export async function handleLeaderboard(ctx: Context) {
@@ -18,7 +28,7 @@ export async function handleLeaderboard(ctx: Context) {
     }
 
     // Fetch top 10 from materialized view
-    const top10 = await query(
+    const top10 = await query<LeaderboardRow>(
       `SELECT username, first_name, current_level, total_xp, xp_rank
        FROM leaderboard_mv
        ORDER BY xp_rank ASC
@@ -42,13 +52,13 @@ export async function handleLeaderboard(ctx: Context) {
     }
 
     // Check if current user is in top 10
-    const userInTop = top10.find((r: any) => {
+    const userInTop = top10.find((r: LeaderboardRow) => {
       // We need telegram_id — fetch it separately since leaderboard_mv has it
       return false; // Will check below
     });
 
     // Fetch current user's rank
-    const myRank = await queryOne(
+    const myRank = await queryOne<LeaderboardRow>(
       `SELECT username, first_name, current_level, total_xp, xp_rank
        FROM leaderboard_mv
        WHERE telegram_id = $1`,
