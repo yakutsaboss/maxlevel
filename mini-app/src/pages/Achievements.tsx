@@ -90,7 +90,7 @@ export function Achievements() {
             <span className="text-white/90 text-sm font-medium">Progress</span>
             <span className="text-white font-bold">{unlockedCount} / {totalCount}</span>
           </div>
-          <div className="bg-white/30 rounded-full h-2.5 overflow-hidden">
+          <div className="bg-white/30 rounded-full h-2.5 overflow-hidden" role="progressbar" aria-valuenow={unlockedCount} aria-valuemin={0} aria-valuemax={totalCount} aria-label={`Achievement progress: ${unlockedCount} of ${totalCount} unlocked`}>
             <motion.div
               className="h-full bg-white rounded-full"
               initial={{ width: 0 }}
@@ -102,10 +102,13 @@ export function Achievements() {
 
         {/* Category filter */}
         {categories.length > 2 && (
-          <div className="flex gap-2 overflow-x-auto hide-scrollbar mt-3 -mx-1 px-1">
+          <div className="flex gap-2 overflow-x-auto hide-scrollbar mt-3 -mx-1 px-1" role="tablist" aria-label="Achievement category filter">
             {categories.map(cat => (
               <button
                 key={cat}
+                role="tab"
+                aria-selected={selectedCategory === cat}
+                aria-label={`Filter by ${CATEGORY_LABELS[cat] || cat}`}
                 onClick={() => { haptic.impact('light'); setSelectedCategory(cat); }}
                 className={`shrink-0 py-1.5 px-3 rounded-xl font-medium text-sm transition-all ${
                   selectedCategory === cat
