@@ -1434,7 +1434,16 @@ Read PARALLEL_AGENTS.md — you are Agent J for Run 32. Your job: Write componen
 **Recommendations:** The quest-helpers.ts barrel-export pattern works well for splitting routes — could be replicated for other large route files. Consider extracting the XP-award + level-check transaction into a shared utility since both completion and progress use nearly identical logic.
 
 #### Agent E Retrospective
-*(To be filled by Agent E)*
+**All 3 tasks completed. 25 new tests across 3 files, all 514 suite tests pass. 1 commit.**
+
+| # | Task | Tests | Status |
+|---|------|-------|--------|
+| 1 | `user-account.http.test.ts` | 10 tests (PATCH profile: update first_name/avatar_id/both, empty name 400, invalid avatar 400, no fields 400, user not found 404; DELETE account: success 200, not found 404, ownership 403) | Done |
+| 2 | `user-stats.http.test.ts` | 10 tests (GET stats: all fields 200, not found 404, XP/level/streak data, quest+achievement counts, DB error 500; GET quests/active: with data, empty; GET quests/completed: with data; GET achievements: with data, empty) | Done |
+| 3 | `user-helpers.test.ts` | 5 tests (resolveUser: valid user, non-existent returns null, NaN skips DB, all fields mapped correctly, xp_to_next_level computed as level*100) | Done |
+
+**Approach:** Mounted sub-routers (`accountRouter`, `statsRouter`) directly in test apps rather than through the parent `userRouter`, giving targeted coverage of each split module. Used the same mock pattern (db, cache, auth, pythonTools, rateLimiter) as existing HTTP tests. For the ownership test, leveraged `vi.mocked(requireOwnership).mockImplementationOnce()` to throw `ForbiddenError`.
+**No issues encountered.** Build clean, all tests green on first run.
 
 #### Agent F Retrospective
 **All 3 tasks completed. 33 new tests, all 489 suite tests pass. 1 commit.**
