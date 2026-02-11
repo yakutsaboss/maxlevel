@@ -1,5 +1,6 @@
 import { Bell, Clock, Globe } from 'lucide-react';
 import { motion } from 'framer-motion';
+import type { HapticWithSelection } from '@/types/telegram';
 
 export interface UserPreferences {
   notifications_enabled: boolean;
@@ -35,7 +36,7 @@ export function detectTimezone(): string {
 interface NotificationSettingsProps {
   prefs: UserPreferences;
   onPrefsChange: (prefs: UserPreferences) => void;
-  haptic: { selection: () => void; impact: (...args: any[]) => void };
+  haptic: HapticWithSelection;
 }
 
 export function NotificationSettings({ prefs, onPrefsChange, haptic }: NotificationSettingsProps) {

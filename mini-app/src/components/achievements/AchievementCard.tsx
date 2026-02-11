@@ -1,6 +1,7 @@
 import { Achievement, UserAchievement } from '@/types';
 import { Star, Lock, CheckCircle, Zap } from 'lucide-react';
 import { motion } from 'framer-motion';
+import type { HapticImpactOnly } from '@/types/telegram';
 
 interface RarityStyle {
   border: string;
@@ -15,7 +16,7 @@ interface AchievementCardProps {
   isUnlocked: boolean;
   rarityStyle: RarityStyle;
   index: number;
-  haptic: { impact: (...args: any[]) => void };
+  haptic: HapticImpactOnly;
 }
 
 function formatDate(dateStr: string): string {

@@ -1,11 +1,12 @@
 import { Trophy } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { UserAchievement, Achievement } from '@/types';
+import type { HapticImpactOnly } from '@/types/telegram';
 
 interface ProfileAchievementsProps {
   achievements: UserAchievement[];
   allAchievements: Achievement[];
-  haptic: { impact: (...args: any[]) => void };
+  haptic: HapticImpactOnly;
   onViewAll: () => void;
 }
 

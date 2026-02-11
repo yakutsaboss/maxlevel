@@ -1,6 +1,7 @@
 import { Shield } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { formatDate } from '@/utils/formatDate';
+import type { HapticImpactOnly } from '@/types/telegram';
 
 interface PunishmentSettings {
   consent_given: boolean;
@@ -18,7 +19,7 @@ interface PunishmentEntry {
 interface ProfileAccountabilityProps {
   punishmentSettings: PunishmentSettings | null;
   punishmentHistory: PunishmentEntry[];
-  haptic: { impact: (...args: any[]) => void };
+  haptic: HapticImpactOnly;
   onNavigateSettings: () => void;
 }
 

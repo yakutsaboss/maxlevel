@@ -1,5 +1,6 @@
 import { MoonStar } from 'lucide-react';
 import { motion } from 'framer-motion';
+import type { HapticWithSelection } from '@/types/telegram';
 
 export interface DndPreferences {
   dnd_enabled: boolean;
@@ -18,7 +19,7 @@ function formatHour(hour: number): string {
 interface DoNotDisturbSettingsProps {
   dnd: DndPreferences;
   onDndChange: (dnd: DndPreferences) => void;
-  haptic: { selection: () => void; impact: (...args: any[]) => void };
+  haptic: HapticWithSelection;
 }
 
 export function DoNotDisturbSettings({ dnd, onDndChange, haptic }: DoNotDisturbSettingsProps) {

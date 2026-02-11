@@ -2,13 +2,14 @@ import { Trophy, Award, Zap, Pencil, Settings } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { AVATAR_OPTIONS } from '@/components/ProfileEditModal';
 import { UserStats } from '@/types';
+import type { HapticImpactOnly } from '@/types/telegram';
 
 interface ProfileHeaderProps {
   stats: UserStats;
   achievementCount: number;
   onEdit: () => void;
   onSettingsClick: () => void;
-  haptic: { impact: (...args: any[]) => void };
+  haptic: HapticImpactOnly;
 }
 
 function StatBadge({ icon, value, label }: { icon: React.ReactNode; value: number; label: string }) {
