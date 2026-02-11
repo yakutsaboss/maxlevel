@@ -1,6 +1,23 @@
 import { useEffect, useMemo } from 'react';
 import WebApp from '@twa-dev/sdk';
 
+const HAPTIC_KEY = 'haptic_enabled';
+
+export function isHapticEnabled(): boolean {
+  try {
+    const v = localStorage.getItem(HAPTIC_KEY);
+    return v === null ? true : v === '1';
+  } catch {
+    return true;
+  }
+}
+
+export function setHapticEnabled(enabled: boolean): void {
+  try {
+    localStorage.setItem(HAPTIC_KEY, enabled ? '1' : '0');
+  } catch { /* noop */ }
+}
+
 /**
  * Hook for accessing Telegram WebApp SDK
  */
@@ -51,13 +68,17 @@ export function useTelegram() {
     expand: () => tg.expand(),
     close: () => tg.close(),
 
-    // Haptic feedback
+    // Haptic feedback (gated by localStorage preference)
     haptic: {
-      impact: (style: 'light' | 'medium' | 'heavy' | 'rigid' | 'soft' = 'medium') =>
-        tg.HapticFeedback.impactOccurred(style),
-      notification: (type: 'error' | 'success' | 'warning') =>
-        tg.HapticFeedback.notificationOccurred(type),
-      selection: () => tg.HapticFeedback.selectionChanged(),
+      impact: (style: 'light' | 'medium' | 'heavy' | 'rigid' | 'soft' = 'medium') => {
+        if (isHapticEnabled()) tg.HapticFeedback.impactOccurred(style);
+      },
+      notification: (type: 'error' | 'success' | 'warning') => {
+        if (isHapticEnabled()) tg.HapticFeedback.notificationOccurred(type);
+      },
+      selection: () => {
+        if (isHapticEnabled()) tg.HapticFeedback.selectionChanged();
+      },
     },
 
     // Popups

@@ -1,23 +1,27 @@
-import { useCallback } from 'react';
+import { useCallback, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { useTelegram } from '@/hooks/useTelegram';
-import { useBackButton } from '@/hooks/useTelegram';
+import { useBackButton, isHapticEnabled } from '@/hooks/useTelegram';
 import { useOnboarding } from '@/hooks/useOnboarding';
 import { useSettingsData } from '@/hooks/useSettingsData';
 import { Loader2 } from 'lucide-react';
 import { Toast } from '@/components/Toast';
 import { ErrorSection } from '@/components/ErrorSection';
 import { NotificationSettings } from '@/components/settings/NotificationSettings';
+import { DoNotDisturbSettings } from '@/components/settings/DoNotDisturbSettings';
+import { HapticFeedbackSettings } from '@/components/settings/HapticFeedbackSettings';
 import { AccountabilitySettings } from '@/components/settings/AccountabilitySettings';
+import { AboutSection } from '@/components/settings/AboutSection';
 import { DangerZone } from '@/components/settings/DangerZone';
 import { SettingsSkeleton } from '@/components/settings/SettingsSkeleton';
 
 export function Settings() {
-  const { user, haptic, showConfirm } = useTelegram();
+  const { user, haptic, showConfirm, openTelegramLink } = useTelegram();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const onboardingStore = useOnboarding();
+  const [hapticEnabled, setHapticEnabled] = useState(isHapticEnabled);
 
   const handleBack = useCallback(() => navigate('/profile'), [navigate]);
   useBackButton(handleBack);
@@ -47,6 +51,12 @@ export function Settings() {
 
       <div className="px-4 mt-6 space-y-4">
         <NotificationSettings prefs={prefs} onPrefsChange={setPrefs} haptic={haptic} />
+        <DoNotDisturbSettings
+          dnd={{ dnd_enabled: prefs.dnd_enabled, dnd_start: prefs.dnd_start, dnd_end: prefs.dnd_end }}
+          onDndChange={(dnd) => setPrefs((p) => ({ ...p, ...dnd }))}
+          haptic={haptic}
+        />
+        <HapticFeedbackSettings enabled={hapticEnabled} onChange={setHapticEnabled} />
         <AccountabilitySettings
           punishment={punishment}
           punishmentAvailable={punishmentAvailable}
@@ -73,6 +83,8 @@ export function Settings() {
       </div>
 
       <DangerZone deleting={deleting} onDelete={handleDeleteAccount} />
+
+      <AboutSection onOpenTelegramLink={openTelegramLink} />
 
       {toast && (
         <Toast

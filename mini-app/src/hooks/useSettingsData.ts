@@ -33,6 +33,9 @@ export function useSettingsData({
     notifications_enabled: true,
     reminder_time: 18,
     timezone: detectTimezone(),
+    dnd_enabled: false,
+    dnd_start: 22,
+    dnd_end: 8,
   });
   const [punishment, setPunishment] = useState<PunishmentSettings>({
     consent_given: false,
@@ -61,6 +64,9 @@ export function useSettingsData({
           notifications_enabled: res.data.notification_enabled ?? true,
           reminder_time: res.data.reminder_time ?? 18,
           timezone: res.data.timezone || detectTimezone(),
+          dnd_enabled: res.data.dnd_enabled ?? false,
+          dnd_start: res.data.dnd_start ?? 22,
+          dnd_end: res.data.dnd_end ?? 8,
         });
       }
       if (punishRes && punishRes.success && punishRes.data) {
@@ -136,6 +142,9 @@ export function useSettingsData({
         notification_enabled: prefs.notifications_enabled,
         reminder_time: prefs.reminder_time,
         timezone: prefs.timezone,
+        dnd_enabled: prefs.dnd_enabled,
+        dnd_start: prefs.dnd_start,
+        dnd_end: prefs.dnd_end,
       });
       haptic.notification('success');
       setToast({ message: 'Settings saved!', variant: 'success' });

@@ -5,6 +5,9 @@ export interface UserPreferences {
   notifications_enabled: boolean;
   reminder_time: number;
   timezone: string;
+  dnd_enabled: boolean;
+  dnd_start: number;
+  dnd_end: number;
 }
 
 const ALL_HOURS = Array.from({ length: 24 }, (_, i) => i);

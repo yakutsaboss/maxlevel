@@ -183,6 +183,9 @@ export interface UserPreferences {
   notification_enabled: boolean;
   reminder_time: number;
   timezone: string;
+  dnd_enabled?: boolean;
+  dnd_start?: number;
+  dnd_end?: number;
 }
 
 // Onboarding state

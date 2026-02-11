@@ -148,7 +148,7 @@ class ApiClient {
     return response.data;
   }
 
-  async updateUserPreferences(telegramId: number, data: { notification_enabled?: boolean; reminder_time?: number; timezone?: string }): Promise<ApiResponse<UserPreferences>> {
+  async updateUserPreferences(telegramId: number, data: { notification_enabled?: boolean; reminder_time?: number; timezone?: string; dnd_enabled?: boolean; dnd_start?: number; dnd_end?: number }): Promise<ApiResponse<UserPreferences>> {
     const response = await this.client.patch(`/users/${telegramId}/preferences`, data);
     return response.data;
   }
