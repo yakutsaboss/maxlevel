@@ -1796,7 +1796,21 @@ Read PARALLEL_AGENTS.md — you are Agent F for Run 33. Your job: Write componen
 *(To be filled by Agent A)*
 
 #### Agent B Retrospective
-*(To be filled by Agent B)*
+**Status:** COMPLETE — zero `any` in production source, types split into 5 domain modules, build + 196 tests pass.
+
+| # | Task | Status |
+|---|------|--------|
+| 1 | Fix `QuizScreen.tsx` `value: any` → `QuizAnswerValue` | Done |
+| 2 | Fix `Onboarding.tsx` `value: any` → `QuizAnswerValue` | Done |
+| 3 | Split `types/index.ts` into domain modules | Done — 5 new files: `user.ts`, `quest.ts`, `achievement.ts`, `mode.ts`, `api.ts` |
+| 4 | Move Telegram types to `telegram.ts` | Done — `TelegramUser`, `TelegramWebApp`, global `Window` declaration |
+| 5 | Barrel re-export in `types/index.ts` | Done — all `@/types` imports work unchanged |
+| 6 | Audit `any` in production source | Done — zero remaining (all hits are in `__tests__/` or comments) |
+| 7 | Build + test verify | Done — `tsc && vite build` clean, 42 test files / 196 tests pass |
+
+**Files changed:** `components/onboarding/QuizScreen.tsx`, `pages/Onboarding.tsx`, `types/index.ts` (barrel), `types/telegram.ts` (expanded with WebApp types), + 5 NEW: `types/user.ts`, `types/quest.ts`, `types/achievement.ts`, `types/mode.ts`, `types/api.ts`.
+**No conflicts expected:** Only touched types files (no test files, no hooks, no components beyond the 2 `any` fixes). Barrel re-exports ensure all existing imports continue working.
+**Commit:** `bafd3c1`
 
 #### Agent C Retrospective
 *(To be filled by Agent C)*
