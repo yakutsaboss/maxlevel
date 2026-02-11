@@ -5,6 +5,7 @@ import { useTelegram } from '@/hooks/useTelegram';
 import { useBackButton, isHapticEnabled } from '@/hooks/useTelegram';
 import { useOnboarding } from '@/hooks/useOnboarding';
 import { useSettingsData } from '@/hooks/useSettingsData';
+import { usePullToRefresh, PullIndicator } from '@/hooks/usePullToRefresh';
 import { Loader2 } from 'lucide-react';
 import { Toast } from '@/components/Toast';
 import { ErrorSection } from '@/components/ErrorSection';
@@ -34,6 +35,9 @@ export function Settings() {
     handleSafeModeToggle, handleSave, handleDeleteAccount,
   } = useSettingsData({ user, haptic, showConfirm, navigate, queryClient, onboardingStore });
 
+  const handleRefresh = useCallback(async () => { await loadPreferences(); }, [loadPreferences]);
+  const { containerRef, pullDistance, refreshing, pullThreshold, touchHandlers } = usePullToRefresh(handleRefresh, haptic);
+
   if (loading) {
     return <SettingsSkeleton />;
   }
@@ -43,7 +47,12 @@ export function Settings() {
   }
 
   return (
-    <div className="min-h-screen bg-telegram-bg text-telegram-text pb-20">
+    <div
+      ref={containerRef}
+      className="min-h-screen bg-telegram-bg text-telegram-text pb-20 overflow-y-auto"
+      {...touchHandlers}
+    >
+      <PullIndicator pullDistance={pullDistance} refreshing={refreshing} pullThreshold={pullThreshold} />
       <div className="bg-gradient-to-r from-gray-600 to-gray-700 p-6 rounded-b-3xl shadow-lg" style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 1.5rem)' }}>
         <h1 className="text-2xl font-bold text-white">Settings</h1>
         <p className="text-gray-200 text-sm mt-1">Configure your preferences</p>
