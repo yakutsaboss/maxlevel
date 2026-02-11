@@ -292,7 +292,7 @@ describe('PATCH /api/quests/:questId/progress', () => {
       const mockClient = {
         query: vi.fn()
           .mockResolvedValueOnce({}) // UPDATE quest_instances
-          .mockResolvedValueOnce({ rows: [{ total_xp: 500, current_level: 3 }] }), // UPDATE users
+          .mockResolvedValueOnce({ rows: [{ total_xp: 500, current_level: 1 }] }), // UPDATE users (awardXp: total_xp=500 → level 2, was 1 → leveledUp)
       };
       return fn(mockClient);
     });
