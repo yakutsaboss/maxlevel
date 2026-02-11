@@ -1561,6 +1561,27 @@ Read PARALLEL_AGENTS.md — you are Agent J for Run 32. Your job: Write componen
 **Recommendations**: Consider fixing the onboarding test failures by adding `disableClosingConfirmation` to the TWA SDK mock in `test/setup.ts`.
 
 #### Agent 0 Retrospective
-*(To be filled by Agent 0 after merge)*
+
+**Merge summary:** 7 agents (A, B, D, E, F, I, J) committed directly to main (recurring issue — 4th consecutive run). 3 remaining branches merged: C → H → G. useDashboardData.ts and useSettingsData.ts conflicted between C (types) and H (logger) — resolved by keeping both imports. PARALLEL_AGENTS.md conflicted on H and G merges (branches predated Run 32 section) — resolved with `--ours` + manual retro splicing.
+
+| Step | Result |
+|------|--------|
+| Agents A, B, D, E, F, I, J | Already on main (committed directly) |
+| Agent C (type safety) | 5 commits merged cleanly |
+| Agent H (frontend logger) | 6 commits merged, 2 hook conflicts resolved (import lines) |
+| Agent G (bot utilities) | 6 commits merged, PARALLEL_AGENTS.md conflict resolved |
+| Bot build | Pass — zero errors |
+| Mini-app build | Pass — zero errors |
+| Bot tests | 520/520 passing (42 files, +64 from Run 31) |
+| Mini-app tests | 152/152 passing (31 files, +86 from Run 31) |
+| Deploy | Version ad60000 verified via /health |
+| Notification | Sent via local Python |
+
+**Issues:**
+- 7/10 agents committed to main instead of worktree branches — needs structural fix (perhaps lock main branch before agents start).
+- Agent G was never launched by user (missed 1 of 10 agents). Merged late after user noticed.
+- Agent C + Agent H hook file overlap worked as designed — different lines, easy merge.
+
+**Test count progression:** Run 29: 0 mini-app → Run 30: 13 → Run 31: 66 → Run 32: 152 (2.3x). Bot: Run 31: 456 → Run 32: 520 (+14%).
 
 <!-- Next run goes here. Agent 0 will append RUN 33 below this line. -->
