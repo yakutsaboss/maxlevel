@@ -25,9 +25,9 @@ interface ProfileAccountabilityProps {
 export function ProfileAccountability({ punishmentSettings, punishmentHistory, haptic, onNavigateSettings }: ProfileAccountabilityProps) {
   return (
     <>
-      <div className="px-4 mt-6">
+      <div className="px-4 mt-6" role="region" aria-label="Accountability settings">
         <h2 className="text-lg font-semibold mb-3 flex items-center gap-2">
-          <Shield className="w-5 h-5 text-telegram-link" />Accountability
+          <Shield className="w-5 h-5 text-telegram-link" aria-hidden="true" />Accountability
         </h2>
         <motion.div
           initial={{ opacity: 0, y: 10 }}
@@ -60,18 +60,20 @@ export function ProfileAccountability({ punishmentSettings, punishmentHistory, h
               </button>
             </div>
           ) : (
-            <div
-              className="flex items-center gap-3 cursor-pointer active:opacity-70 transition-opacity"
+            <button
+              type="button"
+              className="flex items-center gap-3 cursor-pointer active:opacity-70 transition-opacity w-full text-left"
               onClick={() => { haptic.impact('light'); onNavigateSettings(); }}
+              aria-label="Accountability is off. Tap to enable in Settings"
             >
-              <div className="w-8 h-8 rounded-full bg-telegram-hint/20 flex items-center justify-center">
+              <div className="w-8 h-8 rounded-full bg-telegram-hint/20 flex items-center justify-center" aria-hidden="true">
                 <Shield className="w-4 h-4 text-telegram-hint" />
               </div>
               <div>
                 <span className="text-sm font-medium text-telegram-hint">Accountability Off</span>
                 <p className="text-xs text-telegram-link">Tap to enable in Settings →</p>
               </div>
-            </div>
+            </button>
           )}
         </motion.div>
       </div>

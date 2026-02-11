@@ -23,13 +23,15 @@ export function LeaderboardRow({ entry, rank, isCurrentUser, timePeriod, index, 
       initial={{ opacity: 0, x: -20 }}
       animate={{ opacity: 1, x: 0 }}
       transition={{ delay: (index + 3) * 0.03 }}
+      role="row"
+      aria-label={`Rank ${rank}: ${entry.first_name || entry.username || 'Adventurer'}, Level ${entry.level}, ${xpValue.toLocaleString()} ${getXpLabel(timePeriod)}${isCurrentUser ? ' (You)' : ''}`}
       className={`rounded-2xl p-3 flex items-center gap-3 border-2 transition-colors ${
         isCurrentUser
           ? 'bg-telegram-link/10 border-telegram-link'
           : 'bg-telegram-secondaryBg border-transparent'
       }`}
     >
-      <div className="w-8 flex-shrink-0 flex flex-col items-center gap-0.5">
+      <div className="w-8 flex-shrink-0 flex flex-col items-center gap-0.5" aria-hidden="true">
         <RankIcon rank={rank} />
         <TrendArrow trend={trend} />
       </div>

@@ -29,20 +29,22 @@ export function AboutSection({ onOpenTelegramLink }: AboutSectionProps) {
         <div className="space-y-2">
           <button
             onClick={() => onOpenTelegramLink('https://t.me/maxlevelapp')}
+            aria-label="How it works — opens in Telegram"
             className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl bg-telegram-bg border border-telegram-hint/10 active:scale-[0.98] transition-transform"
           >
-            <BookOpen className="w-4 h-4 text-telegram-link flex-shrink-0" />
+            <BookOpen className="w-4 h-4 text-telegram-link flex-shrink-0" aria-hidden="true" />
             <span className="text-sm text-telegram-text">How it works</span>
-            <span className="ml-auto text-telegram-hint text-xs">&rsaquo;</span>
+            <span className="ml-auto text-telegram-hint text-xs" aria-hidden="true">&rsaquo;</span>
           </button>
 
           <button
             onClick={() => onOpenTelegramLink('https://t.me/maxlevelapp')}
+            aria-label="Report a bug — opens in Telegram"
             className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl bg-telegram-bg border border-telegram-hint/10 active:scale-[0.98] transition-transform"
           >
-            <Bug className="w-4 h-4 text-red-400 flex-shrink-0" />
+            <Bug className="w-4 h-4 text-red-400 flex-shrink-0" aria-hidden="true" />
             <span className="text-sm text-telegram-text">Report a bug</span>
-            <span className="ml-auto text-telegram-hint text-xs">&rsaquo;</span>
+            <span className="ml-auto text-telegram-hint text-xs" aria-hidden="true">&rsaquo;</span>
           </button>
         </div>
       </motion.div>

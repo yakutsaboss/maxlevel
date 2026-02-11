@@ -2814,6 +2814,30 @@ Read PARALLEL_AGENTS.md — you are Agent E for Run 29. Your job: Enhance the Pr
 
 **Commits:** 1 atomic commit `7b90237` covering all 5 tasks.
 
+#### Agent F Retrospective
+
+**Status:** All 6 tasks completed. Build passes cleanly.
+
+**What was done (6 commits, 25 files changed):**
+
+1. **Dashboard a11y** (8 files): StatCard aria-label with label+value, ModeCard aria-label + emoji role="img", QuestCardMini `div→button` conversion with progressbar role, StreakSection role="region" + streak card aria-label + per-mode streaks aria-label, DailyGoalRing SVG role="img", TodaysProgress role="region", DashboardAchievementCard aria-label, Dashboard.tsx motivational quote role="complementary" + sections role="region" + XP bar role="progressbar".
+
+2. **Leaderboard a11y** (5 files): TopThreeCard role="row" + aria-label with rank/name/level/XP, LeaderboardRow role="row" + aria-label, YourRankCard aria-label for both states, TimePeriodTabs role="tablist" + role="tab" + aria-selected, Leaderboard.tsx role="table" on list wrappers.
+
+3. **Achievements a11y** (3 files): AchievementCard `div→button` conversion + aria-label with lock status + XP badge aria-label, RarityGroup role="region" with unlock progress, Achievements.tsx progressbar role + category filter role="tablist".
+
+4. **Profile a11y** (5 files): ProfileHeader StatBadge aria-label + avatar role="img" + settings/edit button aria-labels + XP bar progressbar, ProfileModes role="region" + mode cards `div→button` + emoji role="img", ProfileStreak role="region" + fire emoji role="img", ProfileAchievements progressbar + achievement cards `div→button`, ProfileAccountability role="region" + accountability-off `div→button`.
+
+5. **Settings a11y** (7 files): All toggles role="switch" with aria-checked + aria-label (notifications, DND, haptic, accountability consent, safe mode), save status role="status" aria-live="polite", DangerZone delete button aria-describedby linked to warning, AboutSection button aria-labels with "opens in Telegram", Settings.tsx save button aria-label.
+
+6. **Shared a11y** (2 files): ErrorSection role="alert" + retry aria-label + icons aria-hidden, Navigation quest badge count in aria-label + icon container aria-hidden.
+
+**`div onClick` → `button` conversions:** QuestCardMini, AchievementCard, ProfileModes mode cards, ProfileAchievements achievement cards, ProfileAccountability "accountability off" CTA.
+
+**Build status:** `tsc && vite build` passes cleanly — zero errors, zero warnings.
+
+**Merge notes:** Agent F was designed to merge last. Changes are strictly additive accessibility attributes (aria-*, role, semantic element changes). No logic, styling, state, or API changes. Conflicts are possible if other agents modified the same JSX elements — resolve by keeping their content changes and re-applying the accessibility attributes.
+
 #### Agent 0 Retrospective
 
 **Merge summary:** 4 of 5 agents (A, B, D, E) had already been merged into main by the time Agent 0 started. Only Agent C (leaderboard) had 3 unmerged commits. Merged cleanly with no conflicts — git auto-merged PARALLEL_AGENTS.md.

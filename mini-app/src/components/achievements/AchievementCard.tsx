@@ -56,14 +56,16 @@ export function AchievementCard({ achievement: ach, userAchievement: userAch, is
   const isNew = isUnlocked && userAch && isRecentlyUnlocked(userAch.unlocked_at);
 
   return (
-    <motion.div
+    <motion.button
+      type="button"
       key={ach.id}
       initial={{ opacity: 0, scale: 0.9 }}
       animate={{ opacity: 1, scale: 1 }}
       transition={{ delay: index * 0.03, type: 'spring', stiffness: 200 }}
       whileTap={{ scale: 0.95 }}
       onClick={() => haptic.impact('light')}
-      className={`rounded-2xl p-4 border relative ${
+      aria-label={`Achievement: ${isUnlocked ? ach.name : 'Locked'} — ${isUnlocked ? 'Unlocked' : 'Locked'}, ${ach.xp_reward} XP reward`}
+      className={`rounded-2xl p-4 border relative text-left ${
         isUnlocked
           ? `bg-telegram-secondaryBg ${rarityStyle.border}`
           : 'bg-telegram-secondaryBg/60 border-telegram-hint/10 opacity-60'
@@ -75,12 +77,12 @@ export function AchievementCard({ achievement: ach, userAchievement: userAch, is
         </div>
       )}
       {isUnlocked && (
-        <div className="absolute -top-1.5 -right-1.5 bg-green-500 rounded-full p-0.5 shadow-sm">
+        <div className="absolute -top-1.5 -right-1.5 bg-green-500 rounded-full p-0.5 shadow-sm" aria-hidden="true">
           <CheckCircle className="w-4 h-4 text-white" />
         </div>
       )}
       {!isUnlocked && (
-        <div className="absolute -top-1.5 -right-1.5 bg-telegram-hint/50 rounded-full p-0.5">
+        <div className="absolute -top-1.5 -right-1.5 bg-telegram-hint/50 rounded-full p-0.5" aria-hidden="true">
           <Lock className="w-4 h-4 text-white" />
         </div>
       )}
@@ -96,8 +98,8 @@ export function AchievementCard({ achievement: ach, userAchievement: userAch, is
           <p className="text-xs text-telegram-hint text-center line-clamp-2 mb-2">
             {ach.description}
           </p>
-          <div className="flex items-center justify-center gap-1 bg-green-100 rounded-full px-2 py-0.5">
-            <Zap className="w-3.5 h-3.5 text-green-600" />
+          <div className="flex items-center justify-center gap-1 bg-green-100 rounded-full px-2 py-0.5" aria-label={`Earned ${ach.xp_reward} XP`}>
+            <Zap className="w-3.5 h-3.5 text-green-600" aria-hidden="true" />
             <span className="text-xs font-semibold text-green-700">Earned: +{ach.xp_reward} XP</span>
           </div>
           {userAch && (
@@ -111,12 +113,12 @@ export function AchievementCard({ achievement: ach, userAchievement: userAch, is
           <p className="text-[11px] text-telegram-hint text-center italic line-clamp-2 mb-2">
             {getCriteriaHint(ach.criteria)}
           </p>
-          <div className="flex items-center justify-center gap-1 bg-telegram-hint/10 rounded-full px-2 py-0.5">
-            <Star className="w-3 h-3 text-telegram-hint" />
+          <div className="flex items-center justify-center gap-1 bg-telegram-hint/10 rounded-full px-2 py-0.5" aria-label={`Reward: ${ach.xp_reward} XP`}>
+            <Star className="w-3 h-3 text-telegram-hint" aria-hidden="true" />
             <span className="text-xs text-telegram-hint font-medium">Reward: +{ach.xp_reward} XP</span>
           </div>
         </>
       )}
-    </motion.div>
+    </motion.button>
   );
 }

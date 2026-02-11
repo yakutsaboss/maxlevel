@@ -21,7 +21,7 @@ export function RarityGroup({ rarity, achievements, unlockedIds, userAchievement
   const unlockedInGroup = achievements.filter(a => unlockedIds.has(a.id)).length;
 
   return (
-    <div>
+    <div role="region" aria-label={`${rarityStyle.label} achievements — ${unlockedInGroup} of ${achievements.length} unlocked`}>
       <div className="flex items-center justify-between mb-3">
         <h2 className={`text-lg font-semibold ${rarityStyle.text}`}>
           {rarityStyle.label}

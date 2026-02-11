@@ -44,7 +44,7 @@ export function Navigation({ questBadgeCount = 0 }: NavigationProps) {
             <button
               key={item.path}
               onClick={() => handleNavigate(item.path)}
-              aria-label={item.label}
+              aria-label={item.path === '/quests' && questBadgeCount > 0 ? `${item.label} (${questBadgeCount} new)` : item.label}
               aria-current={isActive ? 'page' : undefined}
               className="relative flex flex-col items-center justify-center py-2 px-3 transition-colors"
             >
@@ -55,7 +55,7 @@ export function Navigation({ questBadgeCount = 0 }: NavigationProps) {
                   transition={{ type: 'spring', stiffness: 300, damping: 30 }}
                 />
               )}
-              <div className={`relative z-10 transition-colors ${isActive ? 'text-telegram-link' : 'text-telegram-hint'}`}>
+              <div className={`relative z-10 transition-colors ${isActive ? 'text-telegram-link' : 'text-telegram-hint'}`} aria-hidden="true">
                 {item.icon}
                 {item.path === '/quests' && questBadgeCount > 0 && (
                   <span className="absolute -top-1.5 -right-2.5 bg-red-500 text-white text-[10px] font-bold min-w-[16px] h-4 flex items-center justify-center rounded-full px-1 leading-none shadow-sm">

@@ -6,20 +6,26 @@ import { QuestDifficultyBadge } from '@/components/QuestDifficultyBadge';
 
 export const QuestCardMini = memo(function QuestCardMini({ quest, onClick }: { quest: Quest; onClick: () => void }) {
   return (
-    <motion.div className="bg-telegram-secondaryBg rounded-2xl p-4 border border-telegram-hint/10" whileHover={{ scale: 1.02 }} onClick={onClick}>
+    <motion.button
+      type="button"
+      className="bg-telegram-secondaryBg rounded-2xl p-4 border border-telegram-hint/10 w-full text-left"
+      whileHover={{ scale: 1.02 }}
+      onClick={onClick}
+      aria-label={`Quest: ${quest.title}, ${quest.progress} of ${quest.target} completed, ${quest.xp_reward} XP reward`}
+    >
       <div className="flex items-start justify-between mb-2">
         <div className="flex-1 min-w-0">
           <h3 className="font-semibold text-telegram-text truncate">{quest.title}</h3>
           <p className="text-sm text-telegram-hint mt-1 line-clamp-2">{quest.description}</p>
         </div>
         <div className="flex items-center gap-1 ml-2 flex-shrink-0">
-          <Zap className="w-4 h-4 text-yellow-500" />
+          <Zap className="w-4 h-4 text-yellow-500" aria-hidden="true" />
           <span className="text-sm font-semibold text-yellow-600">{quest.xp_reward}</span>
         </div>
       </div>
       <div className="mt-3">
         <div className="flex justify-between text-xs text-telegram-hint mb-1"><span>Progress</span><span>{quest.progress} / {quest.target}</span></div>
-        <div className="bg-telegram-hint/20 rounded-full h-2 overflow-hidden">
+        <div className="bg-telegram-hint/20 rounded-full h-2 overflow-hidden" role="progressbar" aria-valuenow={quest.progress} aria-valuemin={0} aria-valuemax={quest.target} aria-label={`Quest progress: ${quest.progress} of ${quest.target}`}>
           <motion.div className="h-full bg-telegram-link" initial={{ width: 0 }} animate={{ width: `${(quest.progress / quest.target) * 100}%` }} transition={{ duration: 0.5 }} />
         </div>
       </div>
@@ -27,6 +33,6 @@ export const QuestCardMini = memo(function QuestCardMini({ quest, onClick }: { q
         <QuestDifficultyBadge difficulty={quest.difficulty} />
         <span className="text-xs text-telegram-hint">{quest.frequency}</span>
       </div>
-    </motion.div>
+    </motion.button>
   );
 });

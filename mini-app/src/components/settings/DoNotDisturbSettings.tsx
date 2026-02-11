@@ -45,6 +45,9 @@ export function DoNotDisturbSettings({ dnd, onDndChange, haptic }: DoNotDisturbS
             haptic.selection();
             onDndChange({ ...dnd, dnd_enabled: !dnd.dnd_enabled });
           }}
+          role="switch"
+          aria-checked={dnd.dnd_enabled}
+          aria-label={`Do Not Disturb: ${dnd.dnd_enabled ? 'on' : 'off'}`}
           className={`w-12 h-7 rounded-full transition-colors relative ${dnd.dnd_enabled ? 'bg-telegram-link' : 'bg-telegram-hint/30'}`}
         >
           <motion.div

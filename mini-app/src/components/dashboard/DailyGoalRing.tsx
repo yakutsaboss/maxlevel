@@ -18,8 +18,8 @@ export const DailyGoalRing = memo(function DailyGoalRing({ completedToday, total
   return (
     <div className="px-4 mt-6">
       <div className={`rounded-2xl p-5 shadow-sm flex flex-col items-center ${isComplete ? 'bg-gradient-to-br from-green-500/10 to-emerald-500/10 border border-green-500/20' : 'bg-telegram-secondaryBg border border-telegram-hint/10'}`}>
-        <div className="relative" style={{ width: size, height: size }}>
-          <svg width={size} height={size} className="transform -rotate-90">
+        <div className="relative" style={{ width: size, height: size }} role="img" aria-label={`Daily quest progress: ${completedToday} of ${totalDaily} completed`}>
+          <svg width={size} height={size} className="transform -rotate-90" aria-hidden="true">
             <circle cx={size / 2} cy={size / 2} r={radius} fill="none" stroke="currentColor" strokeWidth={strokeWidth} className="text-telegram-hint/20" />
             <motion.circle
               cx={size / 2} cy={size / 2} r={radius}

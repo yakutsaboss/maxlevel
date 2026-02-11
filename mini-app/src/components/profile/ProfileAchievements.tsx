@@ -17,7 +17,7 @@ export function ProfileAchievements({ achievements, allAchievements, haptic, onV
   return (
     <div className="px-4 mt-6 mb-6">
       <h2 className="text-lg font-semibold mb-3 flex items-center gap-2">
-        <Trophy className="w-5 h-5 text-telegram-link" />Achievements
+        <Trophy className="w-5 h-5 text-telegram-link" aria-hidden="true" />Achievements
       </h2>
       <motion.div
         initial={{ opacity: 0, y: 10 }}
@@ -30,7 +30,7 @@ export function ProfileAchievements({ achievements, allAchievements, haptic, onV
             <span className="text-sm text-telegram-hint">{unlocked}/{total} unlocked</span>
             <span className="text-xs font-semibold text-telegram-link">{pct}%</span>
           </div>
-          <div className="w-full h-2 bg-telegram-bg rounded-full overflow-hidden">
+          <div className="w-full h-2 bg-telegram-bg rounded-full overflow-hidden" role="progressbar" aria-valuenow={unlocked} aria-valuemin={0} aria-valuemax={total} aria-label={`Achievement progress: ${unlocked} of ${total} unlocked`}>
             <motion.div
               initial={{ width: 0 }}
               animate={{ width: `${pct}%` }}
@@ -49,16 +49,18 @@ export function ProfileAchievements({ achievements, allAchievements, haptic, onV
                 const rarity = ua.achievement.rarity || ua.achievement.category || '';
                 const rarityColor = rarity === 'legendary' ? 'text-yellow-500' : rarity === 'epic' ? 'text-purple-500' : rarity === 'rare' ? 'text-blue-500' : 'text-telegram-hint';
                 return (
-                  <motion.div
+                  <motion.button
+                    type="button"
                     key={ua.achievement_id}
                     whileTap={{ scale: 0.95 }}
                     onClick={() => haptic.impact('light')}
                     className="bg-telegram-bg rounded-xl p-3 text-center cursor-pointer"
+                    aria-label={`Achievement: ${ua.achievement.name}${rarity ? `, ${rarity}` : ''}`}
                   >
-                    <div className="text-3xl mb-1">{ua.achievement.icon}</div>
+                    <div className="text-3xl mb-1" role="img" aria-label={ua.achievement.name}>{ua.achievement.icon}</div>
                     <div className="text-xs font-medium line-clamp-1">{ua.achievement.name}</div>
                     {rarity && <div className={`text-[10px] font-semibold capitalize mt-0.5 ${rarityColor}`}>{rarity}</div>}
-                  </motion.div>
+                  </motion.button>
                 );
               })}
           </div>
