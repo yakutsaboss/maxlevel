@@ -697,4 +697,239 @@ Tasks: Dashboard a11y (8 files), Leaderboard a11y (5 files), Achievements a11y (
 
 **Issues:** Agent E committed to main instead of worktree branch — harmless but violates protocol. All PARALLEL_AGENTS.md conflicts were structural (branches predated Run 30 section), not content conflicts.
 
-<!-- Next run goes here. Agent 0 will append RUN 31 below this line. -->
+## RUN 31: Test Coverage & Frontend Robustness (6 Agents + Agent 0)
+
+### Focus: Triple the mini-app test count (13 → 55+) with page and component tests, integrate Run 30's typed ApiError into all data hooks with user-friendly error messages, add AbortController cleanup to prevent memory leaks on navigation, refactor the 602-line bot onboarding handler into focused sub-modules, add pull-to-refresh to Profile/Settings for consistency, and slim down Onboarding.tsx with shared data extraction + type safety improvements.
+
+### Copy-Paste Prompts
+
+**Agent 0** (open in: `c:\Users\Asus\Desktop\Wibecode`):
+```
+Read PARALLEL_AGENTS.md — you are Agent 0 for Run 31. Wait for agents to finish, then merge and deploy.
+```
+
+**Agent A** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-a`):
+```
+Read PARALLEL_AGENTS.md — you are Agent A for Run 31. Your job: Write component tests for the 5 main user-facing pages. The test infrastructure already exists (vitest + @testing-library/react + jsdom). See `mini-app/vitest.config.ts` and `mini-app/src/test/setup.ts` for the existing setup. Look at `mini-app/src/__tests__/hooks/useDashboardData.test.ts` for mock patterns. (1) Create `mini-app/src/__tests__/pages/Dashboard.test.tsx`: test renders loading skeleton initially, test renders stat cards after data loads, test renders streak section, test error state shows ErrorSection, test pull-to-refresh triggers reload. Mock `useDashboardData` hook to return controlled states. (2) Create `mini-app/src/__tests__/pages/Leaderboard.test.tsx`: test renders loading skeleton, test renders top-3 cards + leaderboard rows after data loads, test time period tab switching, test "Your Rank" card displays. Mock apiClient. (3) Create `mini-app/src/__tests__/pages/Achievements.test.tsx`: test renders loading skeleton, test renders achievement cards grouped by rarity, test filter tabs work, test locked/unlocked states display correctly. Mock apiClient. (4) Create `mini-app/src/__tests__/pages/Profile.test.tsx`: test renders loading skeleton, test renders profile header with user data, test renders mode grid, test renders streak section, test error state. Mock `useProfileData` hook. (5) Create `mini-app/src/__tests__/pages/Settings.test.tsx`: test renders loading skeleton, test renders notification toggles, test renders danger zone, test delete account flow shows confirmation. Mock `useSettingsData` hook. Each test file should have 4-6 tests. Target: 25+ new tests. Build verify: `cd mini-app && npm run build && npm test`. Follow the Safety Protocol. Commit after each task. Write your retrospective when done.
+```
+
+**Agent B** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-b`):
+```
+Read PARALLEL_AGENTS.md — you are Agent B for Run 31. Your job: Write tests for key shared components and remaining untested hooks. Test infrastructure exists — see `mini-app/vitest.config.ts` and `mini-app/src/test/setup.ts`. (1) Create `mini-app/src/__tests__/components/Navigation.test.tsx`: test renders 5 nav items, test active item is highlighted based on route, test click triggers navigation, test haptic feedback on tap. Mock react-router-dom useLocation/useNavigate. (2) Create `mini-app/src/__tests__/components/ErrorSection.test.tsx`: test renders error message, test retry button calls onRetry callback, test renders with custom message. (3) Create `mini-app/src/__tests__/components/QuestCard.test.tsx`: test renders quest title and XP reward, test progress bar shows correct percentage, test click calls onClick handler, test completed quest shows check mark. (4) Create `mini-app/src/__tests__/components/AchievementCard.test.tsx`: test renders achievement name and description, test locked state shows lock icon, test unlocked state shows XP earned, test rarity badge color. (5) Create `mini-app/src/__tests__/hooks/useSettingsData.test.ts`: test loading state, test successful data fetch (preferences + punishment), test error handling, test save preference calls API. Mock apiClient methods. (6) Create `mini-app/src/__tests__/hooks/usePullToRefresh.test.ts`: test returns initial state (pullDistance 0, refreshing false), test touch handlers are defined, test pull beyond threshold triggers refresh callback. Each test file should have 3-5 tests. Target: 20+ new tests. Build verify: `cd mini-app && npm run build && npm test`. Follow the Safety Protocol. Commit after each task. Write your retrospective when done.
+```
+
+**Agent C** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-c`):
+```
+Read PARALLEL_AGENTS.md — you are Agent C for Run 31. Your job: Integrate ApiError into all data hooks and add AbortController for cleanup on unmount. (1) Update `hooks/useDashboardData.ts`: in the catch block, check `if (error instanceof ApiError)` and set a user-friendly error message based on error.code (e.g., 0 = "No internet connection", 401 = "Session expired", 500+ = "Server error, try again"). Import ApiError from `@/types/errors`. Add an AbortController — create it in the load function, pass `{ signal }` to all apiClient calls, abort on cleanup. Return an `errorMessage` string alongside the boolean `error` flag. (2) Update `hooks/useProfileData.ts`: same pattern — ApiError-based error messages + AbortController. The parallel Promise.all should share the same signal. On abort, don't set error state (aborts are expected on navigation). (3) Update `hooks/useSettingsData.ts`: same pattern — ApiError-based error messages + AbortController. This hook has multiple API calls (preferences, punishment settings) — all should use the same signal. (4) Update `api/client.ts`: add an optional `signal?: AbortSignal` parameter to the `deduplicatedGet` method and pass it through to axios. Update the public GET methods (getUserStats, getActiveQuests, getUserPreferences, etc.) to accept an optional `{ signal }` config and pass it through. Do NOT change the existing dedup, timeout, or retry logic — just thread the signal through. (5) Add a shared helper `hooks/useApiError.ts` (NEW): a tiny utility `export function getErrorMessage(error: unknown): string` that maps ApiError codes to user-friendly strings. All 3 hooks should import from this instead of duplicating the mapping. Build verify: `cd mini-app && npm run build && npm test`. Follow the Safety Protocol. Commit after each task. Write your retrospective when done.
+```
+
+**Agent D** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-d`):
+```
+Read PARALLEL_AGENTS.md — you are Agent D for Run 31. Your job: Refactor the 602-line bot onboarding handler (`bot/src/handlers/onboarding.ts`) into focused sub-modules. (1) Analyze the current handler: read the full file, identify logical sections. Typically: initial setup/registration, mode listing/selection, quiz flow, notification preferences, completion/XP award. Map out which functions call which. (2) Create a `bot/src/handlers/onboarding/` directory with sub-modules: `setup.ts` (handleOnboarding entry point + user registration), `modeSelection.ts` (listModes, handleModeSelection, handleModeToggle — mode-related callbacks), `quizFlow.ts` (handleQuizStart, handleQuizAnswer, handleQuizNext — quiz-related callbacks), `completion.ts` (handleOnboardingComplete, XP award, quest assignment). (3) Create `bot/src/handlers/onboarding/index.ts` that re-exports everything from the sub-modules. Existing imports like `import { handleOnboarding } from '../handlers/onboarding.js'` must continue to work. (4) Verify ALL callback_query handlers and command handlers in `bot/src/index.ts` (or wherever they're registered) still resolve correctly. Search for any imports from `handlers/onboarding` across the codebase. (5) Create `bot/src/__tests__/handlers/onboarding/setup.test.ts` with 5-8 tests for the setup sub-module (user creation, duplicate handling, error cases). Use patterns from existing `__tests__/handlers/onboarding.test.ts`. Build verify: `cd bot && npm run build && npx vitest --run`. Follow the Safety Protocol. Commit after each task. Write your retrospective when done.
+```
+
+**Agent E** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-e`):
+```
+Read PARALLEL_AGENTS.md — you are Agent E for Run 31. Your job: Add pull-to-refresh to Profile and Settings pages for consistency (4 other pages already have it), and ensure consistent loading/error patterns. (1) Update `pages/Profile.tsx`: import `usePullToRefresh` and `PullIndicator` from `@/hooks/usePullToRefresh`. Wrap the page content in a container with `ref={containerRef}` and `{...touchHandlers}`. Add `<PullIndicator>` at the top. The refresh callback should re-fetch profile data. Look at `pages/Dashboard.tsx` or `pages/Achievements.tsx` for the exact pattern. (2) Update `pages/Settings.tsx`: same pattern — add pull-to-refresh. The refresh callback should reload settings data. (3) Verify both pages: pull-to-refresh should work with the existing `useTelegram` haptic feedback. The container needs `overflow-y-auto` for the touch handlers to work. (4) Review all 7 main pages (Dashboard, Leaderboard, Achievements, Quests, Profile, Settings + Onboarding) for loading/error pattern consistency. All should use: `if (loading) return <XxxSkeleton />` and `if (error) return <ErrorSection message="..." onRetry={reload} />`. If Profile or Settings deviate, fix them. (5) Add pull-to-refresh to Onboarding.tsx if it makes sense (it may not — onboarding is a wizard, not a data list). If not, skip this and document why in your retrospective. Build verify: `cd mini-app && npm run build`. Follow the Safety Protocol. Commit after each task. Write your retrospective when done.
+```
+
+**Agent F** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-f`):
+```
+Read PARALLEL_AGENTS.md — you are Agent F for Run 31. Your job: Slim down Onboarding.tsx, extract shared data, and improve type safety across the mini-app. (1) Extract MODE_BADGES from `pages/Onboarding.tsx` (lines 25-30) into a new shared data file `data/modeBadges.ts`. Export it as `export const MODE_BADGES: Record<string, { icon: string; name: string; color: string }>`. Update Onboarding.tsx to import from the new file. Check if MODE_BADGES is used in any other file (Summary.tsx, PathSelect.tsx) and update those imports too. (2) Remove `as any` from `api/client.ts`: find all `as any` casts and replace with proper types. The `inflightGets` Map should be `Map<string, Promise<unknown>>` or properly typed. Check the response interceptor and error handler for `as any` usage. (3) Remove `as any` from `pages/Onboarding.tsx`: find all `as any` casts and replace with proper types. Add type annotations where TypeScript can't infer. (4) Audit `types/index.ts` (315 lines): check for duplicate or unused type exports. If any types defined here are only used in one file, consider moving them closer to usage (co-located types). Remove any truly unused exports. (5) Review all mini-app source files (NOT test files) for remaining `as any` usage. Fix any you find. If a fix requires changing types/index.ts, do so. Target: zero `as any` in mini-app/src/**/*.ts{x} (excluding test files and node_modules). Build verify: `cd mini-app && npm run build`. Follow the Safety Protocol. Commit after each task. Write your retrospective when done.
+```
+
+---
+
+### Agent A — Mini-app Page Tests
+
+**Branch:** `feature/r31-page-tests`
+**Worktree:** `../Wibecode-agent-a`
+
+**OWNED files:**
+- `mini-app/src/__tests__/pages/Dashboard.test.tsx` (NEW)
+- `mini-app/src/__tests__/pages/Leaderboard.test.tsx` (NEW)
+- `mini-app/src/__tests__/pages/Achievements.test.tsx` (NEW)
+- `mini-app/src/__tests__/pages/Profile.test.tsx` (NEW)
+- `mini-app/src/__tests__/pages/Settings.test.tsx` (NEW)
+
+**FORBIDDEN:**
+- `bot/**`, `tools/**`, `database/**`
+- All existing mini-app source files (pages, components, hooks, api, types) — read-only for writing tests
+- `mini-app/src/__tests__/hooks/**` (Agent B owns)
+- `mini-app/src/__tests__/components/**` (Agent B owns)
+- `mini-app/src/__tests__/App.test.tsx` (existing — do not modify)
+
+---
+
+### Agent B — Mini-app Component + Hook Tests
+
+**Branch:** `feature/r31-component-hook-tests`
+**Worktree:** `../Wibecode-agent-b`
+
+**OWNED files:**
+- `mini-app/src/__tests__/components/Navigation.test.tsx` (NEW)
+- `mini-app/src/__tests__/components/ErrorSection.test.tsx` (NEW)
+- `mini-app/src/__tests__/components/QuestCard.test.tsx` (NEW)
+- `mini-app/src/__tests__/components/AchievementCard.test.tsx` (NEW)
+- `mini-app/src/__tests__/hooks/useSettingsData.test.ts` (NEW)
+- `mini-app/src/__tests__/hooks/usePullToRefresh.test.ts` (NEW)
+
+**FORBIDDEN:**
+- `bot/**`, `tools/**`, `database/**`
+- All existing mini-app source files (pages, components, hooks, api, types) — read-only for writing tests
+- `mini-app/src/__tests__/pages/**` (Agent A owns)
+- `mini-app/src/__tests__/App.test.tsx` (existing — do not modify)
+- `mini-app/src/__tests__/hooks/useDashboardData.test.ts` (existing — do not modify)
+- `mini-app/src/__tests__/hooks/useProfileData.test.ts` (existing — do not modify)
+
+---
+
+### Agent C — ApiError Integration + AbortController
+
+**Branch:** `feature/r31-apierror-abort`
+**Worktree:** `../Wibecode-agent-c`
+
+**OWNED files:**
+- `mini-app/src/hooks/useDashboardData.ts`
+- `mini-app/src/hooks/useProfileData.ts`
+- `mini-app/src/hooks/useSettingsData.ts`
+- `mini-app/src/hooks/useApiError.ts` (NEW)
+- `mini-app/src/api/client.ts`
+
+**FORBIDDEN:**
+- `bot/**`, `tools/**`, `database/**`
+- All pages, all component directories
+- `mini-app/src/hooks/useOnboarding.ts`, `useOnboardingNavigation.ts`, `useTelegram.ts`, `usePullToRefresh.tsx`
+- `mini-app/src/types/**` (read-only — import ApiError, don't modify)
+- `mini-app/src/__tests__/**` (do not modify tests)
+
+---
+
+### Agent D — Bot Onboarding Handler Refactor
+
+**Branch:** `feature/r31-onboarding-refactor`
+**Worktree:** `../Wibecode-agent-d`
+
+**OWNED files:**
+- `bot/src/handlers/onboarding.ts` (refactor into slim re-export file)
+- `bot/src/handlers/onboarding/index.ts` (NEW)
+- `bot/src/handlers/onboarding/setup.ts` (NEW)
+- `bot/src/handlers/onboarding/modeSelection.ts` (NEW)
+- `bot/src/handlers/onboarding/quizFlow.ts` (NEW)
+- `bot/src/handlers/onboarding/completion.ts` (NEW)
+- `bot/src/__tests__/handlers/onboarding/setup.test.ts` (NEW)
+
+**GRAY AREA:**
+- `bot/src/index.ts` — ONLY if imports from `handlers/onboarding` need updating. Do NOT change handler registrations or bot logic.
+
+**FORBIDDEN:**
+- `mini-app/**`, `tools/**`, `database/**`
+- All other bot handlers, routes, middleware, jobs
+- All existing test files (do not modify, only create new ones)
+
+---
+
+### Agent E — Pull-to-Refresh + Page UX Consistency
+
+**Branch:** `feature/r31-ptr-consistency`
+**Worktree:** `../Wibecode-agent-e`
+
+**OWNED files:**
+- `mini-app/src/pages/Profile.tsx`
+- `mini-app/src/pages/Settings.tsx`
+
+**GRAY AREA:**
+- `mini-app/src/hooks/useProfileData.ts` — ONLY if a `reload` callback needs exposing for pull-to-refresh. Do NOT change data fetching logic or error handling (Agent C owns that).
+- `mini-app/src/hooks/useSettingsData.ts` — same constraint as above.
+
+**FORBIDDEN:**
+- `bot/**`, `tools/**`, `database/**`
+- All other pages (Dashboard, Leaderboard, Achievements, Quests, Onboarding)
+- All component directories
+- `mini-app/src/api/**`, `mini-app/src/types/**`
+- `mini-app/src/__tests__/**`
+
+---
+
+### Agent F — Onboarding Cleanup + Type Safety
+
+**Branch:** `feature/r31-type-safety`
+**Worktree:** `../Wibecode-agent-f`
+
+**OWNED files:**
+- `mini-app/src/pages/Onboarding.tsx`
+- `mini-app/src/data/modeBadges.ts` (NEW)
+- `mini-app/src/api/client.ts` — type-only changes (replace `as any`, no logic changes)
+- `mini-app/src/types/index.ts` — remove unused exports, tighten types
+
+**GRAY AREA:**
+- `mini-app/src/components/onboarding/Summary.tsx` — ONLY if it imports MODE_BADGES
+- `mini-app/src/components/onboarding/PathSelect.tsx` — ONLY if it imports MODE_BADGES
+
+**FORBIDDEN:**
+- `bot/**`, `tools/**`, `database/**`
+- All other pages (Dashboard, Leaderboard, Achievements, Profile, Settings)
+- All non-onboarding component directories
+- `mini-app/src/hooks/**` (Agent C owns)
+- `mini-app/src/__tests__/**`
+
+**CONSTRAINT:** Agent C also edits `api/client.ts` — Agent F may ONLY change `as any` casts and type annotations. Do NOT change logic, methods, interceptors, or dedup/timeout behavior.
+
+---
+
+### Run 31 File Ownership Matrix
+
+| File / Directory | Agent A | Agent B | Agent C | Agent D | Agent E | Agent F |
+|---|---|---|---|---|---|---|
+| `__tests__/pages/*.test.tsx` (NEW) | **OWNED** | — | — | — | — | — |
+| `__tests__/components/*.test.tsx` (NEW) | — | **OWNED** | — | — | — | — |
+| `__tests__/hooks/useSettingsData.test.ts` (NEW) | — | **OWNED** | — | — | — | — |
+| `__tests__/hooks/usePullToRefresh.test.ts` (NEW) | — | **OWNED** | — | — | — | — |
+| `hooks/useDashboardData.ts` | — | — | **OWNED** | — | — | — |
+| `hooks/useProfileData.ts` | — | — | **OWNED** | — | GRAY | — |
+| `hooks/useSettingsData.ts` | — | — | **OWNED** | — | GRAY | — |
+| `hooks/useApiError.ts` (NEW) | — | — | **OWNED** | — | — | — |
+| `api/client.ts` | — | — | **OWNED** | — | — | GRAY (types only) |
+| `bot/handlers/onboarding.ts` | — | — | — | **OWNED** | — | — |
+| `bot/handlers/onboarding/*.ts` (NEW) | — | — | — | **OWNED** | — | — |
+| `bot/__tests__/handlers/onboarding/*.ts` (NEW) | — | — | — | **OWNED** | — | — |
+| `pages/Profile.tsx` | — | — | — | — | **OWNED** | — |
+| `pages/Settings.tsx` | — | — | — | — | **OWNED** | — |
+| `pages/Onboarding.tsx` | — | — | — | — | — | **OWNED** |
+| `data/modeBadges.ts` (NEW) | — | — | — | — | — | **OWNED** |
+| `types/index.ts` | — | — | — | — | — | **OWNED** |
+| `bot/src/index.ts` | — | — | — | GRAY | — | — |
+| `bot/**` (other) | FORBIDDEN | FORBIDDEN | FORBIDDEN | — | FORBIDDEN | FORBIDDEN |
+
+### Run 31 Merge Order
+1. **Agent D** (bot only — zero mini-app file overlap)
+2. **Agent C** (hooks + api/client.ts — foundation for other agents)
+3. **Agent F** (Onboarding + types + api/client.ts type-only changes — merge after C to resolve client.ts)
+4. **Agent E** (Profile/Settings pages — may touch hooks Agent C modified, merge after C)
+5. **Agent A** (page tests — read-only on sources, no conflicts expected)
+6. **Agent B** (component + hook tests — read-only on sources, merge last)
+
+### Run 31 Retrospectives
+
+#### Agent A Retrospective
+*(To be filled by Agent A)*
+
+#### Agent B Retrospective
+*(To be filled by Agent B)*
+
+#### Agent C Retrospective
+*(To be filled by Agent C)*
+
+#### Agent D Retrospective
+*(To be filled by Agent D)*
+
+#### Agent E Retrospective
+*(To be filled by Agent E)*
+
+#### Agent F Retrospective
+*(To be filled by Agent F)*
+
+#### Agent 0 Retrospective
+*(To be filled by Agent 0)*
+
+<!-- Next run goes here. Agent 0 will append RUN 32 below this line. -->
