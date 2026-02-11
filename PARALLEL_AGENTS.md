@@ -2817,4 +2817,36 @@ Read PARALLEL_AGENTS.md — you are Agent E for Run 29. Your job: Enhance the Pr
 #### Agent 0 Retrospective
 *(To be filled by Agent 0 after merge)*
 
+### Run 30 — Agent D Retrospective (Backend users.ts Refactor)
+
+**Status:** Complete (1 commit)
+**Commit:** `39828be` — refactor(api): split users.ts (668 lines) into focused sub-route modules
+
+**What was done:**
+1. Split `users.ts` (668 lines -> 146 lines) into 4 focused sub-modules:
+   - `user-preferences.ts` — GET/PATCH /:telegramId/preferences (2 endpoints)
+   - `user-stats.ts` — GET stats, quests/active, quests/completed, achievements (4 endpoints)
+   - `user-account.ts` — PATCH profile, DELETE account (2 endpoints)
+   - `user-helpers.ts` — shared `resolveUser` helper function
+2. Wired sub-routers via `router.use('/', ...)` in users.ts — all API paths remain identical.
+3. Created `user-preferences.http.test.ts` with 13 HTTP tests covering GET preferences (4 tests), PATCH preferences (9 tests: valid data, timezone-only, invalid telegram ID, non-boolean notification_enabled, out-of-range reminder_time, empty timezone, empty body, user not found, DB error).
+4. Build passes cleanly, all 449 tests pass (including 13 new).
+
+**Design decisions:**
+- Extracted `resolveUser` into `user-helpers.ts` to avoid circular dependency (users.ts imports statsRouter from user-stats.ts, user-stats.ts needs resolveUser). Re-exported from users.ts for backward compat.
+- Kept POST /users, PATCH /xp, PATCH /streak in users.ts as "core CRUD".
+- Mounted sub-routers at `'/'` so path structure stays inside each sub-router — no API contract changes.
+
+**Files created/modified:**
+| File | Action | Lines |
+|------|--------|-------|
+| `bot/src/api/routes/users.ts` | Modified (slimmed) | 146 |
+| `bot/src/api/routes/user-preferences.ts` | NEW | 101 |
+| `bot/src/api/routes/user-stats.ts` | NEW | 259 |
+| `bot/src/api/routes/user-account.ts` | NEW | 147 |
+| `bot/src/api/routes/user-helpers.ts` | NEW | 47 |
+| `bot/src/__tests__/routes/http/user-preferences.http.test.ts` | NEW | 209 |
+
+**Issues:** None. Zero conflicts expected — all files are backend-only and within Agent D ownership.
+
 <!-- Next run goes here. Agent 0 will append RUN 30 below this line. -->
