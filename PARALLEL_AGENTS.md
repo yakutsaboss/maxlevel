@@ -1471,7 +1471,29 @@ Read PARALLEL_AGENTS.md — you are Agent J for Run 32. Your job: Write componen
 *(To be filled by Agent I)*
 
 #### Agent J Retrospective
-*(To be filled by Agent J)*
+**Task**: Write component tests for shared/admin components with zero test coverage.
+
+**Completed**: 23 new tests across 5 test files, all passing. TypeScript compiles clean.
+
+**Files created**:
+- `mini-app/src/__tests__/components/CheckInButton.test.tsx` (5 tests): render, remaining count display, API call + onSuccess, loading state, error handling
+- `mini-app/src/__tests__/components/ProfileEditModal.test.tsx` (5 tests): form render, closed state, save API call, cancel, error display
+- `mini-app/src/__tests__/components/AdminUserList.test.tsx` (5 tests): user list render, XP/level info, search filter, empty list, no-results message
+- `mini-app/src/__tests__/components/AdminJobs.test.tsx` (4 tests): job list with cron formatting, job count header, trigger success toast, trigger error toast
+- `mini-app/src/__tests__/components/AdminLogs.test.tsx` (4 tests): log entries with levels/sources, log count header, empty logs, auto-refresh interval
+
+**Key patterns used**:
+- Mocked `framer-motion` with plain HTML elements (consistent with existing QuestCard tests)
+- Mocked `apiClient` for CheckInButton/ProfileEditModal, `globalThis.fetch` for admin components (matches how components call APIs)
+- Used controlled promises to test loading states
+- `vi.useFakeTimers({ shouldAdvanceTime: true })` only in auto-refresh test to avoid blocking async operations
+
+**Issues encountered**:
+- `vi.useFakeTimers()` in `beforeEach` caused all AdminLogs tests to timeout — fake timers block promise resolution. Fix: only enable fake timers in the specific test that needs them, with `shouldAdvanceTime: true`.
+
+**Pre-existing failures**: 5 onboarding test files (LaunchScreen, PathSelect, PunishmentConfig, QuizScreen, Summary) fail due to missing `disableClosingConfirmation` mock in `@twa-dev/sdk`. These are NOT caused by Agent J changes.
+
+**Recommendations**: Consider fixing the onboarding test failures by adding `disableClosingConfirmation` to the TWA SDK mock in `test/setup.ts`.
 
 #### Agent 0 Retrospective
 *(To be filled by Agent 0 after merge)*
