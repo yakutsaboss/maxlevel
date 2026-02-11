@@ -1,6 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { authenticateTelegram, requireOwnership } from '../middleware/auth.js';
 import { query, queryOne, execute, transaction } from '../../utils/db.js';
+import { awardXp } from '../../utils/xpAward.js';
 import {
   asyncHandler,
   validateRequired,
@@ -165,14 +166,13 @@ router.post('/:telegramId/complete', authenticateTelegram, asyncHandler(async (r
       );
     }
 
-    // 4. Award 50 XP, reactivate user, and restore name from Telegram
+    // 4. Award 50 XP (via centralized awardXp), reactivate user, restore name
     const tgUser = (req as any).telegramUser;
     const restoreName = tgUser?.first_name || quiz_data.nickname || 'Player';
     const restoreUsername = tgUser?.username || null;
+    await awardXp(client, userId, 50);
     await client.query(
-      `UPDATE users SET total_xp = total_xp + 50,
-       current_level = ((total_xp + 50) / 500) + 1,
-       is_active = true,
+      `UPDATE users SET is_active = true,
        first_name = CASE WHEN first_name = 'Deleted User' THEN $2::text ELSE first_name END
        WHERE id = $1::int`,
       [userId, restoreName]
