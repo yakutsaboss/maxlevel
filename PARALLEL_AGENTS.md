@@ -719,4 +719,550 @@ Read PARALLEL_AGENTS.md — you are Agent F for Run 34. Your job: Write componen
 - Mini-app: 0 → 13 → 66 → 152 → 206 → 319
 - Total: 881
 
-<!-- Next run goes here. Agent 0 will append RUN 35 below this line. -->
+## RUN 35: Bug Fix Blitz — XP Overflow, Achievement Unlock, Overlay Issues (20 Agents + Agent 0)
+
+### Focus: Fix 30+ confirmed bugs across backend and mini-app. ROOT CAUSE: `user-helpers.ts:42` uses `currentLevel * 100` for XP-to-next-level but the level system uses 500 XP per level — causing XP bars to show 200%+ overflow. Also: 3 routes still use raw SQL for level calc instead of `awardXp()`, achievement checks are fire-and-forget (race condition), streak updates are non-atomic, and the mini-app has z-index conflicts, missing scroll locks, and division-by-zero in progress bars.
+
+### Shared Conventions (ALL mini-app agents MUST follow)
+
+**Z-INDEX SCALE:**
+- `z-10` — badges, small indicators
+- `z-30` — fixed floating overlays (YourRankCard)
+- `z-40` — navigation bar
+- `z-50` — modal backdrops + modals
+- `z-60` — toast notifications
+
+**BODY SCROLL LOCK (for modals):**
+```typescript
+useEffect(() => {
+  if (isOpen) {
+    document.body.style.overflow = 'hidden';
+    return () => { document.body.style.overflow = ''; };
+  }
+}, [isOpen]);
+```
+
+**DIV-BY-ZERO GUARD:**
+```typescript
+const pct = denominator > 0 ? (numerator / denominator) * 100 : 0;
+```
+
+---
+
+### Copy-Paste Prompts
+
+**Agent 0** (open in: `c:\Users\Asus\Desktop\Wibecode`):
+```
+Read PARALLEL_AGENTS.md — you are Agent 0 for Run 35. Wait for agents to finish, then merge and deploy.
+```
+
+**Agent A** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-a`):
+```
+Read PARALLEL_AGENTS.md — you are Agent A for Run 35. Fix the XP-to-next-level formula in `bot/src/api/routes/user-helpers.ts`. Line 42 has `xp_to_next_level: u.current_level * 100` but the level system uses 500 XP per level (LEVEL_XP_DIVISOR in `bot/src/utils/xpAward.ts`). Import the constant and fix the formula to `u.current_level * LEVEL_XP_DIVISOR`. This is the ROOT CAUSE of XP bars showing >100%. Verify build: `cd bot && npm run build`. Update existing tests if they assert xp_to_next_level values. Commit after each change. Write your retrospective when done.
+```
+
+**Agent B** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-b`):
+```
+Read PARALLEL_AGENTS.md — you are Agent B for Run 35. Fix `bot/src/api/routes/checkins.ts` lines 72-76: replace the raw SQL `UPDATE users SET total_xp = total_xp + $1, current_level = ((total_xp + $1) / 500) + 1 WHERE id = $2` with a call to `awardXp(client, quest.user_id, quest.xp_reward)` from `bot/src/utils/xpAward.ts`. The awardXp function needs a PoolClient from a transaction — you're already inside `transaction(async (client) => {...})`. Also add `checkAndUnlockAchievements(quest.user_id)` after the transaction (import from `bot/src/utils/achievementEngine.js`) so checkin auto-completions trigger achievement unlocks. Update existing tests in `bot/src/__tests__/routes/` that reference checkins to account for the new awardXp mock. Build verify: `cd bot && npm run build && npx vitest --run`. Commit after each change. Write your retrospective when done.
+```
+
+**Agent C** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-c`):
+```
+Read PARALLEL_AGENTS.md — you are Agent C for Run 35. Fix `bot/src/utils/achievementEngine.ts` lines 179-185: the `checkAndUnlockAchievements` function awards achievement XP with raw SQL `UPDATE users SET total_xp = total_xp + $1, current_level = ((total_xp + $1) / 500) + 1`. Replace with `awardXp(client, userId, totalXp)` from `bot/src/utils/xpAward.ts`. The `client` is already a PoolClient from the transaction. Also improve types: replace `any` in `checkCriteriaMet` params with proper interfaces for userRow and criteria. Build verify: `cd bot && npm run build && npx vitest --run`. Commit after each change. Write your retrospective when done.
+```
+
+**Agent D** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-d`):
+```
+Read PARALLEL_AGENTS.md — you are Agent D for Run 35. Fix `bot/src/api/routes/achievements.ts` lines 134-138: the POST /unlock endpoint awards XP with raw SQL `UPDATE users SET total_xp = total_xp + $1, current_level = ((total_xp + $1) / 500) + 1`. Replace with `awardXp(client, userId, achievement.xp_bonus)` from `bot/src/utils/xpAward.ts`. The `client` is available in the transaction. Also return the level-up info in the response. Update existing tests if they assert on the SQL pattern. Build verify: `cd bot && npm run build && npx vitest --run`. Commit after each change. Write your retrospective when done.
+```
+
+**Agent E** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-e`):
+```
+Read PARALLEL_AGENTS.md — you are Agent E for Run 35. Fix `bot/src/api/routes/quest-completion.ts` TWO bugs: (1) TOCTOU race: the status check at line 42 (`if (instance.status === QUEST_STATUS.COMPLETED)`) runs BEFORE the transaction starts. Move the fetch+check inside the transaction and use `SELECT ... FOR UPDATE` to lock the row. (2) Fire-and-forget achievement check at lines 60-64: `Promise.allSettled([...])` means the response is sent before achievements are checked. Change to `await Promise.allSettled([...])` so achievements are checked before the response. Update existing tests if needed. Build verify: `cd bot && npm run build && npx vitest --run`. Commit after each change. Write your retrospective when done.
+```
+
+**Agent F** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-f`):
+```
+Read PARALLEL_AGENTS.md — you are Agent F for Run 35. Fix `bot/src/utils/streak.ts` TWO bugs: (1) Non-atomic read-then-write: the function reads current_streak, calculates new value in JS, then writes it back. Under concurrency, two requests read the same old value. Fix by using a single atomic SQL UPDATE with CASE: `UPDATE streaks SET current_streak = CASE WHEN last_activity_date = $today THEN current_streak WHEN last_activity_date = $yesterday THEN current_streak + 1 ELSE 1 END, longest_streak = GREATEST(longest_streak, CASE ... END), last_activity_date = $today WHERE user_id = $1 AND mode_id = $2 RETURNING current_streak`. (2) UTC timezone: the function uses `new Date().toISOString().split('T')[0]` which is UTC. Users in different timezones have their day boundary at the wrong time. Fetch the user's timezone from the users table and compute "today"/"yesterday" in their timezone. Build verify: `cd bot && npm run build && npx vitest --run`. Commit after each change. Write your retrospective when done.
+```
+
+**Agent G** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-g`):
+```
+Read PARALLEL_AGENTS.md — you are Agent G for Run 35. Fix achievement job schedules: (1) In `bot/src/jobs/definitions/achievementBatchCheck.ts`, change the CRON_SCHEDULE from `'0 */6 * * *'` (every 6 hours) to `'0 */1 * * *'` (every 1 hour) so achievements unlock faster. (2) In `bot/src/jobs/definitions/achievementNotifier.ts`, find the SQL WHERE clause `ua.unlocked_at > NOW() - INTERVAL '20 minutes'` and change to `INTERVAL '2 hours'` so notifications aren't missed between job runs. Update the tests in `bot/src/__tests__/jobs/` if they assert on timing values. Build verify: `cd bot && npm run build && npx vitest --run`. Commit after each change. Write your retrospective when done.
+```
+
+**Agent H** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-h`):
+```
+Read PARALLEL_AGENTS.md — you are Agent H for Run 35. TWO tasks: (1) Fix `bot/src/api/routes/punishment.ts` line 122: the INSERT uses SQL string interpolation `${consent_given ? 'NOW()' : 'NULL'}` which is a SQL injection risk. Replace with a parameterized approach: add `consent_given ? new Date() : null` as a parameter and use `$N` in the query. (2) Create `bot/src/__tests__/utils/xpConsistency.test.ts` (NEW): write 5-6 tests that verify XP formula consistency — import LEVEL_XP_DIVISOR, test level boundaries (499→L1, 500→L2, 999→L2, 1000→L3), test that xp_to_next_level formula matches awardXp behavior, test negative/zero XP edge cases. Build verify: `cd bot && npm run build && npx vitest --run`. Commit after each change. Write your retrospective when done.
+```
+
+**Agent I** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-i`):
+```
+Read PARALLEL_AGENTS.md — you are Agent I for Run 35. Fix z-index and toast overlays in the mini-app. Z-INDEX SCALE: z-10=badges, z-30=fixed overlays, z-40=nav, z-50=modals, z-60=toasts. (1) In `mini-app/src/index.css`, add a CSS comment block documenting the z-index scale after the :root block. Also add a `.body-scroll-lock` class: `body.scroll-locked { overflow: hidden; }`. (2) In `mini-app/src/components/Toast.tsx` line 41, change `z-[100]` to `z-60`. (3) In `mini-app/src/components/AchievementToast.tsx` line 23, change `z-50` to `z-60` and add `safe-area-bottom` class so the toast doesn't overlap device safe area. Build verify: `cd mini-app && npm run build && npm test`. Commit after each change. Write your retrospective when done.
+```
+
+**Agent J** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-j`):
+```
+Read PARALLEL_AGENTS.md — you are Agent J for Run 35. Fix `mini-app/src/components/quests/QuestDetailModal.tsx`: (1) Add body scroll lock when modal is open — add a useEffect that sets `document.body.style.overflow = 'hidden'` when the component mounts and restores it on unmount. (2) Fix div-by-zero at line 74: `(quest.progress / quest.target) * 100` — guard with `quest.target > 0 ? ... : 0`. (3) Ensure z-index stays at z-50 (modal layer per the scale: z-10=badges, z-30=fixed, z-40=nav, z-50=modals, z-60=toasts). Build verify: `cd mini-app && npm run build && npm test`. Commit after each change. Write your retrospective when done.
+```
+
+**Agent K** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-k`):
+```
+Read PARALLEL_AGENTS.md — you are Agent K for Run 35. Fix `mini-app/src/components/ProfileEditModal.tsx`: (1) Add body scroll lock — in the existing useEffect (line 45-51) or add a new one that sets `document.body.style.overflow = 'hidden'` when `isOpen` is true, restores on cleanup. (2) Fix avatar bounds: line 41 `Math.max(0, currentAvatarId - 1)` should also clamp to max: `Math.min(Math.max(0, currentAvatarId - 1), AVATAR_OPTIONS.length - 1)`. (3) z-index stays at z-50 (modal layer). Build verify: `cd mini-app && npm run build && npm test`. Commit after each change. Write your retrospective when done.
+```
+
+**Agent L** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-l`):
+```
+Read PARALLEL_AGENTS.md — you are Agent L for Run 35. Fix div-by-zero in quest progress across 3 files: (1) `mini-app/src/components/quests/QuestCard.tsx` line 15: `const progress = (quest.progress / quest.target) * 100` → add guard: `quest.target > 0 ? (quest.progress / quest.target) * 100 : 0`. (2) `mini-app/src/components/dashboard/QuestCardMini.tsx` line 29: same pattern `(quest.progress / quest.target) * 100` → add guard. (3) `mini-app/src/pages/Quests.tsx`: find any progress division in the sort/filter logic and add guards. Also fix the `Promise.all` at the data fetch — if one call fails, handle gracefully instead of showing error for both. Build verify: `cd mini-app && npm run build && npm test`. Commit after each change. Write your retrospective when done.
+```
+
+**Agent M** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-m`):
+```
+Read PARALLEL_AGENTS.md — you are Agent M for Run 35. Fix `mini-app/src/pages/Dashboard.tsx` line 48: `const xpPercentage = (stats.user.xp / stats.user.xp_to_next_level) * 100` — add guard for div-by-zero and clamp to 0-100: `const xpPercentage = stats.user.xp_to_next_level > 0 ? Math.min((stats.user.xp / stats.user.xp_to_next_level) * 100, 100) : 0`. Also fix line 49: `const xpNeeded = stats.user.xp_to_next_level - stats.user.xp` — clamp to `Math.max(0, ...)` so it never shows negative. Build verify: `cd mini-app && npm run build && npm test`. Commit after each change. Write your retrospective when done.
+```
+
+**Agent N** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-n`):
+```
+Read PARALLEL_AGENTS.md — you are Agent N for Run 35. Fix 2 files: (1) `mini-app/src/components/profile/ProfileHeader.tsx` line 68: `width: ${(stats.user.xp / stats.user.xp_to_next_level) * 100}%` — add div-by-zero guard and clamp to 100%: `${stats.user.xp_to_next_level > 0 ? Math.min((stats.user.xp / stats.user.xp_to_next_level) * 100, 100) : 0}%`. Also fix the text display at line 73 to show clamped values. (2) `mini-app/src/components/profile/ProfileAchievements.tsx` — find the `Math.round((unlocked / total) * 100)` calculation and add guard for `total > 0`. Build verify: `cd mini-app && npm run build && npm test`. Commit after each change. Write your retrospective when done.
+```
+
+**Agent O** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-o`):
+```
+Read PARALLEL_AGENTS.md — you are Agent O for Run 35. Fix 2 files: (1) `mini-app/src/pages/Leaderboard.tsx` — find where user rank is calculated. If `entries.indexOf(currentUserEntry)` returns -1, `idx + 1 = 0` which displays "Rank #0". Guard: if idx is -1, use the entry's xp_rank or show "Unranked". (2) `mini-app/src/components/leaderboard/YourRankCard.tsx` — the z-30 z-index is correct per scale. But fix safe-area: add `safe-area-bottom` padding so it doesn't overlap the bottom safe area on notched devices. Also fix the hardcoded `bottom-[72px]` — consider using a CSS variable or at least add a comment explaining the magic number. Build verify: `cd mini-app && npm run build && npm test`. Commit after each change. Write your retrospective when done.
+```
+
+**Agent P** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-p`):
+```
+Read PARALLEL_AGENTS.md — you are Agent P for Run 35. Fix 2 files: (1) `mini-app/src/components/Navigation.tsx` line 36: the nav uses `safe-area-bottom` for padding but is positioned at `bottom-0`. This means the nav content has padding but the nav element itself doesn't account for the safe area. The current approach (padding inside) is actually correct for most cases. Verify it works on notched devices. (2) `mini-app/src/components/AdminUserList.tsx` — find the loading overlay (around line 253) with `z-40`. Since z-40 ties with Navigation, change it to `z-50` (modal layer) so the loading overlay appears above the nav. Build verify: `cd mini-app && npm run build && npm test`. Commit after each change. Write your retrospective when done.
+```
+
+**Agent Q** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-q`):
+```
+Read PARALLEL_AGENTS.md — you are Agent Q for Run 35. Fix `mini-app/src/components/achievements/AchievementCard.tsx`: (1) Find the locked achievement display (showing '?' for locked achievements). Change to show the actual icon grayed out instead of '?' — use `grayscale opacity-40` on the icon container and show the real `ach.icon`. This gives users a preview of what they can unlock. (2) Check for any rarity/category confusion — if the code uses `category` as a fallback for `rarity`, remove that fallback since categories are mode names (e.g., "fitness") not rarity levels. Build verify: `cd mini-app && npm run build && npm test`. Commit after each change. Write your retrospective when done.
+```
+
+**Agent R** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-r`):
+```
+Read PARALLEL_AGENTS.md — you are Agent R for Run 35. Fix 3 files: (1) `mini-app/src/api/client.ts` — find the deduplication key logic (around line 25-28) that uses `JSON.stringify(params)`. Object key order isn't guaranteed, so `{a:1,b:2}` and `{b:2,a:1}` produce different keys. Fix by sorting keys: `JSON.stringify(params, Object.keys(params || {}).sort())`. (2) `mini-app/src/pages/Profile.tsx` — find the `onSaved` callback and add cache invalidation: after `loadProfileData()`, also invalidate any cached dashboard data so stale profile info doesn't persist. (3) `mini-app/src/hooks/useDashboardData.ts` — find the achievement check code and add null guard: `res.data?.newAchievements?.[0]` instead of `res.data.newAchievements[0]`. Build verify: `cd mini-app && npm run build && npm test`. Commit after each change. Write your retrospective when done.
+```
+
+**Agent S** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-s`):
+```
+Read PARALLEL_AGENTS.md — you are Agent S for Run 35. Fix null checks in 2 components: (1) `mini-app/src/components/dashboard/StreakSection.tsx` — find `Math.max(...perModeStreaks.map(s => s.current_streak))`. If `perModeStreaks` is empty, `Math.max(...[])` returns `-Infinity`. Add guard: check array length before calling Math.max, or use `Math.max(0, ...perModeStreaks.map(...))`. (2) `mini-app/src/components/CheckInButton.tsx` — find the onSuccess callback that accesses `response.data.quest_progress.current`. Add optional chaining: `response.data?.quest_progress?.current` and handle missing data gracefully. Build verify: `cd mini-app && npm run build && npm test`. Commit after each change. Write your retrospective when done.
+```
+
+**Agent T** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-t`):
+```
+Read PARALLEL_AGENTS.md — you are Agent T for Run 35. Fix `mini-app/src/pages/Achievements.tsx`: (1) Check if the page properly handles the case where achievements are loaded but the user has met criteria for unlocking — the page should show a "Check for new achievements" button or auto-check. Read the component and verify it calls the achievement check endpoint. (2) Add null guards for any unguarded property access on achievement data. (3) Check the achievement grid for overflow on small screens — ensure responsive columns work. (4) If the page has no error boundary, wrap the achievement list in proper error handling. Build verify: `cd mini-app && npm run build && npm test`. Commit after each change. Write your retrospective when done.
+```
+
+---
+
+### Agent A — Fix user-helpers.ts XP Formula (ROOT CAUSE)
+
+**Branch:** `feature/r35-xp-formula`
+**Worktree:** `../Wibecode-agent-a`
+
+**OWNED files:**
+- `bot/src/api/routes/user-helpers.ts`
+
+**GRAY AREA:**
+- `bot/src/__tests__/routes/users.test.ts` — ONLY if assertions check `xp_to_next_level` values
+
+**FORBIDDEN:**
+- All other `bot/src/` files
+- `mini-app/**`, `tools/**`, `database/**`
+
+---
+
+### Agent B — Fix checkins.ts awardXp
+
+**Branch:** `feature/r35-checkins-xp`
+**Worktree:** `../Wibecode-agent-b`
+
+**OWNED files:**
+- `bot/src/api/routes/checkins.ts`
+
+**GRAY AREA:**
+- `bot/src/__tests__/routes/checkins.test.ts` — update if it exists
+- `bot/src/__tests__/routes/http/checkins.http.test.ts` — update if it exists
+
+**FORBIDDEN:**
+- All other `bot/src/` routes/utils
+- `mini-app/**`, `tools/**`, `database/**`
+
+---
+
+### Agent C — Fix achievementEngine.ts awardXp
+
+**Branch:** `feature/r35-ach-engine-xp`
+**Worktree:** `../Wibecode-agent-c`
+
+**OWNED files:**
+- `bot/src/utils/achievementEngine.ts`
+
+**GRAY AREA:**
+- `bot/src/__tests__/utils/achievementEngine.test.ts` — update if it exists
+
+**FORBIDDEN:**
+- All other `bot/src/` files
+- `mini-app/**`, `tools/**`, `database/**`
+
+---
+
+### Agent D — Fix achievements.ts unlock awardXp
+
+**Branch:** `feature/r35-ach-route-xp`
+**Worktree:** `../Wibecode-agent-d`
+
+**OWNED files:**
+- `bot/src/api/routes/achievements.ts`
+
+**GRAY AREA:**
+- `bot/src/__tests__/routes/achievements.test.ts` — update if it exists
+- `bot/src/__tests__/routes/http/achievements.http.test.ts` — update if it exists
+
+**FORBIDDEN:**
+- All other `bot/src/` files
+- `mini-app/**`, `tools/**`, `database/**`
+
+---
+
+### Agent E — Fix quest-completion.ts Race Conditions
+
+**Branch:** `feature/r35-quest-race`
+**Worktree:** `../Wibecode-agent-e`
+
+**OWNED files:**
+- `bot/src/api/routes/quest-completion.ts`
+
+**GRAY AREA:**
+- `bot/src/__tests__/routes/quest-completion.test.ts` — update if it exists
+
+**FORBIDDEN:**
+- All other `bot/src/` files
+- `mini-app/**`, `tools/**`, `database/**`
+
+---
+
+### Agent F — Fix streak.ts Atomicity
+
+**Branch:** `feature/r35-streak-atomic`
+**Worktree:** `../Wibecode-agent-f`
+
+**OWNED files:**
+- `bot/src/utils/streak.ts`
+
+**GRAY AREA:**
+- `bot/src/__tests__/utils/streak.test.ts` — update if it exists
+
+**FORBIDDEN:**
+- All other `bot/src/` files
+- `mini-app/**`, `tools/**`, `database/**`
+
+---
+
+### Agent G — Fix Achievement Job Schedules
+
+**Branch:** `feature/r35-job-schedules`
+**Worktree:** `../Wibecode-agent-g`
+
+**OWNED files:**
+- `bot/src/jobs/definitions/achievementBatchCheck.ts`
+- `bot/src/jobs/definitions/achievementNotifier.ts`
+
+**GRAY AREA:**
+- `bot/src/__tests__/jobs/achievementBatchCheck.test.ts` — update timing assertions
+- `bot/src/__tests__/jobs/achievementNotifier.test.ts` — update timing assertions
+
+**FORBIDDEN:**
+- All other `bot/src/` files
+- `mini-app/**`, `tools/**`, `database/**`
+
+---
+
+### Agent H — Fix punishment.ts SQL + XP Consistency Test
+
+**Branch:** `feature/r35-xp-test-punishment`
+**Worktree:** `../Wibecode-agent-h`
+
+**OWNED files:**
+- `bot/src/api/routes/punishment.ts`
+- `bot/src/__tests__/utils/xpConsistency.test.ts` (NEW)
+
+**FORBIDDEN:**
+- All other `bot/src/` routes/utils
+- `mini-app/**`, `tools/**`, `database/**`
+
+---
+
+### Agent I — Fix z-index Scale + Toast Overlays
+
+**Branch:** `feature/r35-zindex-toasts`
+**Worktree:** `../Wibecode-agent-i`
+
+**OWNED files:**
+- `mini-app/src/index.css`
+- `mini-app/src/components/Toast.tsx`
+- `mini-app/src/components/AchievementToast.tsx`
+
+**FORBIDDEN:**
+- `bot/**`, `tools/**`, `database/**`
+- All other mini-app components
+
+---
+
+### Agent J — Fix QuestDetailModal Overlay
+
+**Branch:** `feature/r35-quest-modal`
+**Worktree:** `../Wibecode-agent-j`
+
+**OWNED files:**
+- `mini-app/src/components/quests/QuestDetailModal.tsx`
+
+**FORBIDDEN:**
+- `bot/**`, `tools/**`, `database/**`
+- All other mini-app components
+
+---
+
+### Agent K — Fix ProfileEditModal Overlay
+
+**Branch:** `feature/r35-profile-modal`
+**Worktree:** `../Wibecode-agent-k`
+
+**OWNED files:**
+- `mini-app/src/components/ProfileEditModal.tsx`
+
+**FORBIDDEN:**
+- `bot/**`, `tools/**`, `database/**`
+- All other mini-app components
+
+---
+
+### Agent L — Fix Quest Card Div-by-Zero + Quests Page
+
+**Branch:** `feature/r35-quest-cards`
+**Worktree:** `../Wibecode-agent-l`
+
+**OWNED files:**
+- `mini-app/src/components/quests/QuestCard.tsx`
+- `mini-app/src/components/dashboard/QuestCardMini.tsx`
+- `mini-app/src/pages/Quests.tsx`
+
+**FORBIDDEN:**
+- `bot/**`, `tools/**`, `database/**`
+- All other mini-app components/pages
+
+---
+
+### Agent M — Fix Dashboard XP Display
+
+**Branch:** `feature/r35-dashboard-xp`
+**Worktree:** `../Wibecode-agent-m`
+
+**OWNED files:**
+- `mini-app/src/pages/Dashboard.tsx`
+
+**FORBIDDEN:**
+- `bot/**`, `tools/**`, `database/**`
+- All other mini-app components/pages
+
+---
+
+### Agent N — Fix ProfileHeader + ProfileAchievements
+
+**Branch:** `feature/r35-profile-header`
+**Worktree:** `../Wibecode-agent-n`
+
+**OWNED files:**
+- `mini-app/src/components/profile/ProfileHeader.tsx`
+- `mini-app/src/components/profile/ProfileAchievements.tsx`
+
+**FORBIDDEN:**
+- `bot/**`, `tools/**`, `database/**`
+- All other mini-app components/pages
+
+---
+
+### Agent O — Fix Leaderboard + YourRankCard
+
+**Branch:** `feature/r35-leaderboard`
+**Worktree:** `../Wibecode-agent-o`
+
+**OWNED files:**
+- `mini-app/src/pages/Leaderboard.tsx`
+- `mini-app/src/components/leaderboard/YourRankCard.tsx`
+
+**FORBIDDEN:**
+- `bot/**`, `tools/**`, `database/**`
+- All other mini-app components/pages
+
+---
+
+### Agent P — Fix Navigation + AdminUserList z-index
+
+**Branch:** `feature/r35-nav-admin`
+**Worktree:** `../Wibecode-agent-p`
+
+**OWNED files:**
+- `mini-app/src/components/Navigation.tsx`
+- `mini-app/src/components/AdminUserList.tsx`
+
+**FORBIDDEN:**
+- `bot/**`, `tools/**`, `database/**`
+- All other mini-app components/pages
+
+---
+
+### Agent Q — Fix AchievementCard Display
+
+**Branch:** `feature/r35-ach-card`
+**Worktree:** `../Wibecode-agent-q`
+
+**OWNED files:**
+- `mini-app/src/components/achievements/AchievementCard.tsx`
+
+**FORBIDDEN:**
+- `bot/**`, `tools/**`, `database/**`
+- All other mini-app components/pages
+
+---
+
+### Agent R — Fix client.ts + Profile.tsx + useDashboardData
+
+**Branch:** `feature/r35-client-profile`
+**Worktree:** `../Wibecode-agent-r`
+
+**OWNED files:**
+- `mini-app/src/api/client.ts`
+- `mini-app/src/pages/Profile.tsx`
+- `mini-app/src/hooks/useDashboardData.ts`
+
+**FORBIDDEN:**
+- `bot/**`, `tools/**`, `database/**`
+- All other mini-app components/pages
+
+---
+
+### Agent S — Fix StreakSection + CheckInButton Null Guards
+
+**Branch:** `feature/r35-streak-checkin`
+**Worktree:** `../Wibecode-agent-s`
+
+**OWNED files:**
+- `mini-app/src/components/dashboard/StreakSection.tsx`
+- `mini-app/src/components/CheckInButton.tsx`
+
+**FORBIDDEN:**
+- `bot/**`, `tools/**`, `database/**`
+- All other mini-app components/pages
+
+---
+
+### Agent T — Fix Achievements Page
+
+**Branch:** `feature/r35-achievements-page`
+**Worktree:** `../Wibecode-agent-t`
+
+**OWNED files:**
+- `mini-app/src/pages/Achievements.tsx`
+
+**FORBIDDEN:**
+- `bot/**`, `tools/**`, `database/**`
+- All other mini-app components/pages
+
+---
+
+### Run 35 Merge Order
+
+**Backend first (A → H):**
+1. **Agent A** — user-helpers.ts XP formula (foundation for display fixes)
+2. **Agent B** — checkins.ts awardXp
+3. **Agent C** — achievementEngine.ts awardXp
+4. **Agent D** — achievements.ts awardXp
+5. **Agent E** — quest-completion.ts race conditions
+6. **Agent F** — streak.ts atomicity
+7. **Agent G** — job schedules
+8. **Agent H** — punishment.ts + XP test
+
+**Mini-app second (I → T, any order since zero overlap):**
+9. **Agent I** — z-index scale + toasts
+10. **Agent J** — QuestDetailModal
+11. **Agent K** — ProfileEditModal
+12. **Agent L** — QuestCard + QuestCardMini + Quests
+13. **Agent M** — Dashboard XP
+14. **Agent N** — ProfileHeader + ProfileAchievements
+15. **Agent O** — Leaderboard + YourRankCard
+16. **Agent P** — Navigation + AdminUserList
+17. **Agent Q** — AchievementCard
+18. **Agent R** — client.ts + Profile + useDashboardData
+19. **Agent S** — StreakSection + CheckInButton
+20. **Agent T** — Achievements page
+
+### Run 35 Retrospectives
+
+#### Agent A Retrospective
+*(To be filled by Agent A)*
+
+#### Agent B Retrospective
+*(To be filled by Agent B)*
+
+#### Agent C Retrospective
+*(To be filled by Agent C)*
+
+#### Agent D Retrospective
+*(To be filled by Agent D)*
+
+#### Agent E Retrospective
+*(To be filled by Agent E)*
+
+#### Agent F Retrospective
+*(To be filled by Agent F)*
+
+#### Agent G Retrospective
+*(To be filled by Agent G)*
+
+#### Agent H Retrospective
+*(To be filled by Agent H)*
+
+#### Agent I Retrospective
+*(To be filled by Agent I)*
+
+#### Agent J Retrospective
+*(To be filled by Agent J)*
+
+#### Agent K Retrospective
+*(To be filled by Agent K)*
+
+#### Agent L Retrospective
+*(To be filled by Agent L)*
+
+#### Agent M Retrospective
+*(To be filled by Agent M)*
+
+#### Agent N Retrospective
+*(To be filled by Agent N)*
+
+#### Agent O Retrospective
+*(To be filled by Agent O)*
+
+#### Agent P Retrospective
+*(To be filled by Agent P)*
+
+#### Agent Q Retrospective
+*(To be filled by Agent Q)*
+
+#### Agent R Retrospective
+*(To be filled by Agent R)*
+
+#### Agent S Retrospective
+*(To be filled by Agent S)*
+
+#### Agent T Retrospective
+*(To be filled by Agent T)*
+
+#### Agent 0 Retrospective
+*(To be filled by Agent 0)*
+
+<!-- Next run goes here. Agent 0 will append RUN 36 below this line. -->
