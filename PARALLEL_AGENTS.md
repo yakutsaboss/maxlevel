@@ -3094,7 +3094,18 @@ Read PARALLEL_AGENTS.md — you are Agent F for Run 30. Your job: Add accessibil
 *(To be filled by Agent C)*
 
 #### Agent D Retrospective
-*(To be filled by Agent D)*
+**Status:** Complete (1 commit)
+**Commit:** `39828be` — refactor(api): split users.ts (668 lines) into focused sub-route modules
+
+**What was done:**
+1. Split `users.ts` (668→146 lines) into 4 sub-modules: `user-preferences.ts` (101 lines), `user-stats.ts` (259 lines), `user-account.ts` (147 lines), `user-helpers.ts` (47 lines).
+2. Wired sub-routers via `router.use('/', ...)` — all API paths remain identical.
+3. Created `user-preferences.http.test.ts` with 13 HTTP tests (GET prefs 4, PATCH prefs 9).
+4. Build passes, all 449 tests pass (including 13 new).
+
+**Design:** Extracted `resolveUser` into `user-helpers.ts` to avoid circular deps. Kept POST/PATCH core CRUD in users.ts.
+
+**Issues:** None.
 
 #### Agent E Retrospective
 **Status:** COMPLETE — all tasks done, build passes, 13/13 tests green.
