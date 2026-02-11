@@ -1,7 +1,9 @@
 import { motion } from 'framer-motion';
 import type { LeaderboardEntry } from '@/types';
-import type { TimePeriod } from './TimePeriodTabs';
-import { getAvatarColor, getInitials, RankIcon, getXpValue, getXpLabel } from './TopThreeCard';
+import type { TimePeriod } from './TimePeriodTabs.js';
+import { RankIcon, TrendArrow, getXpValue, getXpLabel } from './TopThreeCard.js';
+import type { TrendDirection } from './TopThreeCard.js';
+import { UserAvatar } from './UserAvatar.js';
 
 interface LeaderboardRowProps {
   entry: LeaderboardEntry;
@@ -9,9 +11,10 @@ interface LeaderboardRowProps {
   isCurrentUser: boolean;
   timePeriod: TimePeriod;
   index: number;
+  trend?: TrendDirection;
 }
 
-export function LeaderboardRow({ entry, rank, isCurrentUser, timePeriod, index }: LeaderboardRowProps) {
+export function LeaderboardRow({ entry, rank, isCurrentUser, timePeriod, index, trend = 'none' }: LeaderboardRowProps) {
   const xpValue = getXpValue(entry, timePeriod);
 
   return (
@@ -26,12 +29,11 @@ export function LeaderboardRow({ entry, rank, isCurrentUser, timePeriod, index }
           : 'bg-telegram-secondaryBg border-transparent'
       }`}
     >
-      <div className="w-8 flex-shrink-0 flex justify-center">
+      <div className="w-8 flex-shrink-0 flex flex-col items-center gap-0.5">
         <RankIcon rank={rank} />
+        <TrendArrow trend={trend} />
       </div>
-      <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white font-bold text-sm flex-shrink-0 ${getAvatarColor(entry.first_name || entry.username || '')}`}>
-        {getInitials(entry.first_name, entry.username)}
-      </div>
+      <UserAvatar userId={entry.user_id} firstName={entry.first_name} username={entry.username} size="md" />
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-1.5">
           <span className={`font-semibold text-sm truncate ${isCurrentUser ? 'text-telegram-link' : ''}`}>
