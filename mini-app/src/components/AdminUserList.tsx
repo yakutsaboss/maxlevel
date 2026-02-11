@@ -250,7 +250,7 @@ export function AdminUserList({ credentials }: AdminUserListProps) {
       )}
 
       {detailLoading && (
-        <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-40">
+        <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50">
           <div className="w-8 h-8 border-2 border-telegram-button/30 border-t-telegram-button rounded-full animate-spin" />
         </div>
       )}
