@@ -3091,7 +3091,19 @@ Read PARALLEL_AGENTS.md — you are Agent F for Run 30. Your job: Add accessibil
 *(To be filled by Agent B)*
 
 #### Agent C Retrospective
-*(To be filled by Agent C)*
+**All 5 tasks completed. Build passes cleanly.**
+
+| # | Task | Status |
+|---|------|--------|
+| 1 | Create `types/errors.ts` with `ApiError` class + `fromAxios` factory | Done |
+| 2 | Update `api/client.ts` response interceptor to reject `ApiError` instances | Done |
+| 3 | Add GET request deduplication via in-flight map | Done |
+| 4 | Add timeout presets (`TIMEOUT_FAST`/`NORMAL`/`SLOW`) + apply to `getUserStats`/`getActiveQuests` | Done |
+| 5 | Add 4 missing types: `QuestFilter`, `ApiErrorResponse`, `PaginatedResponse<T>`, `OnboardingProgress` | Done |
+
+**Files:** `types/errors.ts` (NEW), `api/client.ts` (modified — ApiError in interceptor, deduplicatedGet, timeout presets), `types/index.ts` (4 new interfaces).
+
+**Recommendations:** Update hooks to catch `ApiError` for user-friendly messages. Add AbortController for page navigation.
 
 #### Agent D Retrospective
 **Status:** Complete (1 commit)

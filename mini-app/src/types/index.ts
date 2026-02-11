@@ -194,6 +194,36 @@ export interface OnboardingState {
   quiz_data: Record<string, unknown> | null;
 }
 
+// Quest filter for querying/sorting quests
+export interface QuestFilter {
+  mode?: string;
+  difficulty?: QuestDifficulty;
+  sort?: 'due_date' | 'xp_reward' | 'difficulty' | 'created_at';
+}
+
+// Standardized API error response from the server
+export interface ApiErrorResponse {
+  success: false;
+  error: string;
+  code?: number;
+}
+
+// Generic paginated response wrapper
+export interface PaginatedResponse<T> {
+  items: T[];
+  page: number;
+  total: number;
+  totalPages: number;
+}
+
+// Onboarding progress tracking
+export interface OnboardingProgress {
+  currentStep: number;
+  totalSteps: number;
+  completedSteps: string[];
+  quizAnswers: Record<string, unknown>;
+}
+
 // Telegram WebApp types
 export interface TelegramUser {
   id: number;
