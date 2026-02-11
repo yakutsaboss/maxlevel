@@ -3097,7 +3097,21 @@ Read PARALLEL_AGENTS.md — you are Agent F for Run 30. Your job: Add accessibil
 *(To be filled by Agent D)*
 
 #### Agent E Retrospective
-*(To be filled by Agent E)*
+**Status:** COMPLETE — all tasks done, build passes, 13/13 tests green.
+
+**What was done:**
+1. Installed test deps: vitest 4.0.18, @testing-library/react 16.3.2, @testing-library/jest-dom 6.9.1, @testing-library/user-event 14.6.1, jsdom 28.0.0
+2. Created `vitest.config.ts` — jsdom env, globals, setupFiles, @/ alias matching vite.config.ts
+3. Created `src/test/setup.ts` — full Telegram WebApp mock (initData, HapticFeedback, BackButton, MainButton), IntersectionObserver mock, localStorage mock
+4. Added `"test"` and `"test:watch"` scripts to package.json
+5. Wrote `src/__tests__/hooks/useDashboardData.test.ts` (5 tests): loading state, successful fetch, error state, haptic on achievement, undefined userId
+6. Wrote `src/__tests__/hooks/useProfileData.test.ts` (6 tests): loading state, parallel Promise.all fetch, punishment API graceful error, main fetch error, undefined userId, punishment history with consent
+7. Wrote `src/__tests__/App.test.tsx` (2 tests): renders without crashing, shows loading state initially
+
+**Issue encountered & fixed:** `tsc` build was picking up test files and failing on `vi` globals. Fixed by adding `"exclude": ["src/test", "src/__tests__"]` to `tsconfig.json`. Also had to set `window.history.pushState({}, '', '/levelapp/')` in App test to match BrowserRouter basename.
+
+**Files changed:** `vitest.config.ts` (NEW), `src/test/setup.ts` (NEW), `src/__tests__/App.test.tsx` (NEW), `src/__tests__/hooks/useDashboardData.test.ts` (NEW), `src/__tests__/hooks/useProfileData.test.ts` (NEW), `package.json` (modified — test deps + scripts), `tsconfig.json` (modified — exclude test dirs).
+**No conflicts expected:** All files are new (owned by Agent E) except package.json (GRAY zone — only added devDeps + scripts, no overlap with other agents) and tsconfig.json (minor exclude addition).
 
 #### Agent F Retrospective
 *(To be filled by Agent F)*
