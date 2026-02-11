@@ -83,7 +83,7 @@ describe('resolveUser', () => {
       avatar_id: 3,
       level: 5,
       xp: 2000,
-      xp_to_next_level: 500,    // current_level * 100
+      xp_to_next_level: 2500,   // current_level(5) * LEVEL_XP_DIVISOR(500)
       total_quests_completed: 42,
       current_streak: 7,
       longest_streak: 14,
@@ -91,7 +91,7 @@ describe('resolveUser', () => {
     });
   });
 
-  it('should compute xp_to_next_level as level * 100', async () => {
+  it('should compute xp_to_next_level as level * LEVEL_XP_DIVISOR', async () => {
     mockQueryOne.mockResolvedValueOnce({
       ...mockDbRow,
       current_level: 10,
@@ -100,7 +100,7 @@ describe('resolveUser', () => {
 
     const user = await resolveUser('111');
 
-    expect(user!.xp_to_next_level).toBe(1000);
+    expect(user!.xp_to_next_level).toBe(5000);
     expect(user!.avatar_id).toBeNull();
   });
 });

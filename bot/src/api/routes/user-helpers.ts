@@ -1,4 +1,5 @@
 import { queryOne } from '../../utils/db.js';
+import { LEVEL_XP_DIVISOR } from '../../utils/xpAward.js';
 
 /**
  * Helper: look up user by telegram_id with streak + quest count in ONE query.
@@ -39,7 +40,7 @@ export async function resolveUser(telegramId: string) {
     avatar_id: u.avatar_id ?? null,
     level: u.current_level,
     xp: u.total_xp,
-    xp_to_next_level: u.current_level * 100,
+    xp_to_next_level: u.current_level * LEVEL_XP_DIVISOR,
     total_quests_completed: u.total_quests_completed,
     current_streak: u.current_streak,
     longest_streak: u.longest_streak,
