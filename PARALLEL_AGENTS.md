@@ -697,4 +697,30 @@ Tasks: Dashboard a11y (8 files), Leaderboard a11y (5 files), Achievements a11y (
 
 **Issues:** Agent E committed to main instead of worktree branch — harmless but violates protocol. All PARALLEL_AGENTS.md conflicts were structural (branches predated Run 30 section), not content conflicts.
 
-<!-- Next run goes here. Agent 0 will append RUN 31 below this line. -->
+### Run 31 Retrospectives
+
+#### Agent A Retrospective
+**Status:** COMPLETE — all 5 tasks done, build passes, 38/38 tests green (25 new + 13 existing).
+
+| # | Task | Status |
+|---|------|--------|
+| 1 | Dashboard.test.tsx — 5 tests (loading skeleton, stat cards, streak section, error state, pull-to-refresh wiring) | Done |
+| 2 | Leaderboard.test.tsx — 5 tests (loading skeleton, top-3 + rows, time period tabs, tab switching API call, Your Rank card) | Done |
+| 3 | Achievements.test.tsx — 5 tests (loading skeleton, rarity groups, category filter tabs, locked/unlocked states, error state) | Done |
+| 4 | Profile.test.tsx — 5 tests (loading skeleton, profile header + XP bar, mode grid, streak section aria-label, error state) | Done |
+| 5 | Settings.test.tsx — 5 tests (loading skeleton, notification toggle, danger zone, delete button handler, error state) | Done |
+| 6 | Build verification (`tsc && vite build && vitest --run`) | Pass — zero errors, 38/38 tests |
+
+**Files created:** `__tests__/pages/Dashboard.test.tsx`, `Leaderboard.test.tsx`, `Achievements.test.tsx`, `Profile.test.tsx`, `Settings.test.tsx` (5 new files, 25 new tests).
+
+**Approach:** Dashboard/Profile/Settings mock their data hooks (`useDashboardData`, `useProfileData`, `useSettingsData`) for controlled state. Leaderboard/Achievements mock `apiClient` directly + `usePullToRefresh`. All test files mock `@twa-dev/sdk` and `react-router-dom`.
+
+**Issues encountered:**
+- Locked achievements render "???" instead of name — used aria-label query for locked state verification.
+- "Delete Account" text appears as both h3 heading and button — used `getAllByText` with length assertion.
+- Leaderboard user entry appears in both main list and YourRankCard — used `getAllByText` instead of `getByText`.
+- ProfileHeader "Level" is on avatar badge, not a stat badge — used XP progressbar aria-label instead.
+
+**No conflicts expected:** All files are new (OWNED by Agent A). No existing source files modified.
+
+<!-- Next run goes here. Agent 0 will append RUN 32 below this line. -->
