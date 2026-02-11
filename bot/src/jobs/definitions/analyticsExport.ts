@@ -5,7 +5,7 @@
 
 import type { Job } from 'pg-boss';
 import { executePythonTool } from '../../utils/pythonTools.js';
-import { logger } from '../../api/utils/logger.js';
+import { logger } from '../../utils/logger.js';
 
 const log = logger.child({ component: 'analyticsExport' });
 

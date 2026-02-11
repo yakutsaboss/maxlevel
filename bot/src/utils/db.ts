@@ -5,7 +5,7 @@
  */
 
 import pg from 'pg';
-import { logger } from '../api/utils/logger.js';
+import { logger } from './logger.js';
 
 const dbLog = logger.child({ component: 'db' });
 

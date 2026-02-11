@@ -5,7 +5,7 @@
 
 import { Context } from 'grammy';
 import { query, queryOne } from '../utils/db.js';
-import { logger } from '../api/utils/logger.js';
+import { logger } from '../utils/logger.js';
 
 const log = logger.child({ component: 'leaderboard' });
 
