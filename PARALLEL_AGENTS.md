@@ -2815,6 +2815,283 @@ Read PARALLEL_AGENTS.md — you are Agent E for Run 29. Your job: Enhance the Pr
 **Commits:** 1 atomic commit `7b90237` covering all 5 tasks.
 
 #### Agent 0 Retrospective
+
+**Merge summary:** 4 of 5 agents (A, B, D, E) had already been merged into main by the time Agent 0 started. Only Agent C (leaderboard) had 3 unmerged commits. Merged cleanly with no conflicts — git auto-merged PARALLEL_AGENTS.md.
+
+| Step | Result |
+|------|--------|
+| Git status | Main 10 commits ahead of origin, all from prior agent merges |
+| Agent E (profile/nav) | Already on main — 0 unmerged commits |
+| Agent B (settings) | Already on main — 0 unmerged commits |
+| Agent A (dashboard) | Already on main — 0 unmerged commits |
+| Agent C (leaderboard) | 3 commits merged cleanly (UserAvatar, YourRankCard, retro) |
+| Agent D (achievements) | Already on main — 0 unmerged commits |
+| Mini-app build | Pass — zero errors |
+| Bot build | Pass — zero errors |
+| Tests | 436/436 passing (33 test files) |
+| Deploy | Version 23c8399 verified via /health |
+| Notification | Sent via local Python |
+
+**Issues:** None. Cleanest Run 29 merge — only 1 branch needed merging, zero conflicts, all tests green.
+
+---
+
+## RUN 30: Code Quality, Testing & UX Polish (6 Agents + Agent 0)
+
+### Focus: Harden the codebase with the mini-app's first test suite, improve API client robustness (typed errors, request dedup, timeouts), enhance Quests and Onboarding UX, split the 668-line users.ts backend route, and add accessibility across all pages. After Run 30: the app has a real test foundation, typed error handling, and the two most-used pages (Quests + Onboarding) feel significantly more polished.
+
+### Copy-Paste Prompts
+
+**Agent 0** (open in: `c:\Users\Asus\Desktop\Wibecode`):
+```
+Read PARALLEL_AGENTS.md — you are Agent 0 for Run 30. Wait for agents to finish, then merge and deploy.
+```
+
+**Agent A** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-a`):
+```
+Read PARALLEL_AGENTS.md — you are Agent A for Run 30. Your job: Enhance the Quests page UX. (1) Add a difficulty/mode filter bar: above the quest list, add a horizontal scrollable row of filter chips — "All", then one per unique mode (extracted from quest.mode_name or quest.mode). Selecting a filter shows only quests for that mode. Style like the existing TimePeriodTabs on Leaderboard. (2) Add sort options: a small dropdown/toggle in the header (next to "Quests" title area) allowing sort by "Newest", "XP Reward", "Progress". Default to "Newest" (created_at desc). (3) Add a quest completion progress summary in the header: below the tab buttons, show "X of Y quests completed today" with a mini progress bar (active tab only). (4) Improve empty states: "No active quests" should show a motivational message with a gradient CTA button "Explore Modes" linking to /settings (where modes are managed). "No completed quests" should say "Your victories will appear here — go crush a quest!" with a Trophy icon. (5) Add quest difficulty badge: if quest has a difficulty field, show a small colored badge (Easy=green, Medium=yellow, Hard=red) on QuestCard. Build verify: `cd mini-app && npm run build`. Follow the Safety Protocol. Commit after each task. Write your retrospective when done.
+```
+
+**Agent B** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-b`):
+```
+Read PARALLEL_AGENTS.md — you are Agent B for Run 30. Your job: Polish the Onboarding UX. (1) Add a visible progress bar: at the top of the onboarding screen (below the back button area), show a thin gradient progress bar (like the XP bars elsewhere) that fills based on calculateProgress(). Show "Step X of Y" text below it. The step count should reflect only the steps applicable to the user's selected modes (use getAllSteps logic from the store). (2) Add save status indicator: when the debounced backend save fires (in Onboarding.tsx around the saveTimeout ref), show a subtle toast/indicator — a small "Saved ✓" text that fades in/out near the top. On save failure, show "Save failed — will retry" in amber. Use a simple useState + setTimeout approach, no toast library needed. (3) Add step validation: before advancing to the next step, check if the current step has a required answer. For quiz steps, the answer must not be empty/null. For path selection, at least 1 mode must be selected. If validation fails, show a brief shake animation on the "Next" button and a red hint text "Please make a selection". (4) Split useOnboarding.ts (311 lines): extract the step navigation logic (getAllSteps, getNextStep, getPreviousStep, calculateProgress) into a new file `hooks/useOnboardingNavigation.ts`. Keep the Zustand store (state + setters) in useOnboarding.ts. Re-export everything from useOnboarding.ts so existing imports don't break. Build verify: `cd mini-app && npm run build`. Follow the Safety Protocol. Commit after each task. Write your retrospective when done.
+```
+
+**Agent C** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-c`):
+```
+Read PARALLEL_AGENTS.md — you are Agent C for Run 30. Your job: Harden the API client and type system. (1) Create a typed ApiError class in `types/errors.ts` (NEW file): export class ApiError extends Error with fields: code (number), message (string), retryable (boolean), originalError (unknown). Add a static `fromAxios(error)` factory that maps Axios errors to ApiError (network error → code 0 retryable true, 4xx → code from response retryable false, 5xx → code from response retryable true). (2) Update api/client.ts response interceptor: instead of rejecting raw Axios errors, reject ApiError instances using the factory. Update the retry logic to check `error instanceof ApiError && error.retryable` instead of raw status checks. (3) Add request deduplication: for GET requests, maintain an in-flight map (Map<string, Promise>). If the same URL+params are already in-flight, return the existing promise instead of firing a duplicate. Clear from map when the promise resolves/rejects. This prevents duplicate API calls when multiple components mount simultaneously. (4) Add timeout presets: create a helper `withTimeout(ms)` that returns a config override. Add constants: TIMEOUT_FAST = 5000 (user-facing), TIMEOUT_NORMAL = 10000 (default), TIMEOUT_SLOW = 20000 (background tasks like analytics export). Update getUserStats and getActiveQuests to use TIMEOUT_FAST. (5) Add 3-5 missing types to types/index.ts: QuestFilter (mode, difficulty, sort), ApiErrorResponse, PaginatedResponse<T>, OnboardingProgress. Build verify: `cd mini-app && npm run build`. Follow the Safety Protocol. Commit after each task. Write your retrospective when done.
+```
+
+**Agent D** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-d`):
+```
+Read PARALLEL_AGENTS.md — you are Agent D for Run 30. Your job: Refactor the backend users.ts route (668 lines — the largest route file). (1) Split users.ts into focused sub-route files: create `bot/src/api/routes/user-preferences.ts` (extract PATCH /:telegramId/preferences and GET /:telegramId/preferences — all preference-related endpoints), `bot/src/api/routes/user-stats.ts` (extract GET /:telegramId/stats and any stats-related endpoints), and `bot/src/api/routes/user-account.ts` (extract DELETE /:telegramId for account deletion + any account management endpoints). Keep the remaining CRUD (GET/POST user, GET /:telegramId) in users.ts. (2) Wire up sub-routers: in users.ts, import the sub-routers and mount them with `router.use('/', preferencesRouter)` etc. so all URL paths stay identical. Verify no API contract changes. (3) Update any imports: if other files import from users.ts directly (unlikely since it exports a router), update them. Check bot/src/api/server.ts to ensure routing still works. (4) Add HTTP tests for the new sub-routes: create `bot/src/__tests__/routes/http/user-preferences.http.test.ts` with 8-10 tests covering: GET preferences, PATCH preferences with valid data, PATCH with invalid data, auth required, ownership check. Use the same test patterns as existing HTTP tests (look at users.http.test.ts for examples). Build verify: `cd bot && npm run build && npx vitest --run`. Follow the Safety Protocol. Commit after each task. Write your retrospective when done.
+```
+
+**Agent E** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-e`):
+```
+Read PARALLEL_AGENTS.md — you are Agent E for Run 30. Your job: Set up the mini-app test infrastructure and write the first batch of tests. (1) Install test dependencies: run `npm install -D vitest @testing-library/react @testing-library/jest-dom @testing-library/user-event jsdom` in the mini-app directory. (2) Create vitest config: add `vitest.config.ts` at mini-app root with: environment 'jsdom', globals true, setupFiles ['./src/test/setup.ts'], resolve alias matching vite.config.ts (@/ → src/). (3) Create test setup file: `mini-app/src/test/setup.ts` — import '@testing-library/jest-dom', mock window.Telegram.WebApp (return { initData: 'test', initDataUnsafe: { user: { id: 123, first_name: 'Test' } } }), mock IntersectionObserver. (4) Add test script to package.json: "test": "vitest --run", "test:watch": "vitest". (5) Write hook tests — `mini-app/src/__tests__/hooks/useDashboardData.test.ts`: test loading state, successful data fetch, error state, haptic feedback on success. Mock apiClient methods. (6) Write hook tests — `mini-app/src/__tests__/hooks/useProfileData.test.ts`: test loading, successful fetch with parallel Promise.all, punishment API error graceful handling. (7) Write a smoke test — `mini-app/src/__tests__/App.test.tsx`: renders without crashing, shows loading state initially. Build verify: `cd mini-app && npm run build && npm test`. Follow the Safety Protocol. Commit after each task. Write your retrospective when done.
+```
+
+**Agent F** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-f`):
+```
+Read PARALLEL_AGENTS.md — you are Agent F for Run 30. Your job: Add accessibility and semantic HTML improvements across the mini-app. (1) Dashboard accessibility: in Dashboard.tsx and components/dashboard/*, add aria-labels to all interactive elements (StatCard buttons, mode cards, quest cards). Add role="region" with aria-label to major sections (streak, quests, modes). Ensure the motivational quote has role="complementary". (2) Leaderboard accessibility: in Leaderboard.tsx and components/leaderboard/*, add aria-labels to TopThreeCard (e.g., "Rank 1: {name}, Level {level}"), LeaderboardRow (role="row"), and YourRankCard. Add role="table" to the leaderboard list wrapper. (3) Achievements accessibility: in Achievements.tsx and components/achievements/*, add aria-labels to AchievementCard (include lock status: "Achievement: {name} — Locked" or "Achievement: {name} — Unlocked"). Add aria-label to CategoryFilter buttons. Ensure XP badge has aria-label. (4) Profile accessibility: in Profile.tsx and components/profile/*, add aria-labels to ProfileHeader stats, mode grid items, streak display. Add role="img" with aria-label to emoji-based avatars. (5) Settings accessibility: in Settings.tsx and components/settings/*, add aria-labels to all toggles (DND, haptic, notifications). Ensure the DangerZone delete button has aria-describedby linking to a warning text. Add role="alert" to save status messages. (6) Convert any `<div onClick>` patterns to `<button>` elements (with appropriate className to preserve styling). Check all pages for this pattern. Build verify: `cd mini-app && npm run build`. Follow the Safety Protocol. Commit after each task. Write your retrospective when done.
+```
+
+---
+
+### Agent A — Quests Page UX Enhancement
+
+**Branch:** `feature/r30-quests-ux`
+**Worktree:** `../Wibecode-agent-a`
+
+**OWNED files:**
+- `mini-app/src/pages/Quests.tsx`
+- `mini-app/src/components/quests/QuestCard.tsx`
+- `mini-app/src/components/quests/QuestDetailModal.tsx`
+- `mini-app/src/components/quests/QuestsSkeleton.tsx`
+- `mini-app/src/components/quests/TabButton.tsx`
+- `mini-app/src/components/quests/QuestFilters.tsx` (NEW)
+
+**FORBIDDEN:**
+- `bot/**`, `tools/**`, `database/**`
+- All other pages (Dashboard, Settings, Leaderboard, Achievements, Profile, Onboarding)
+- All other component directories
+- `mini-app/src/hooks/**`, `mini-app/src/api/**`, `mini-app/src/types/**`
+- `mini-app/src/components/Navigation.tsx`
+
+---
+
+### Agent B — Onboarding UX Polish
+
+**Branch:** `feature/r30-onboarding-ux`
+**Worktree:** `../Wibecode-agent-b`
+
+**OWNED files:**
+- `mini-app/src/pages/Onboarding.tsx`
+- `mini-app/src/hooks/useOnboarding.ts`
+- `mini-app/src/hooks/useOnboardingNavigation.ts` (NEW — extracted from useOnboarding.ts)
+- `mini-app/src/components/onboarding/SplashScreen.tsx`
+- `mini-app/src/components/onboarding/HeroIntro.tsx`
+- `mini-app/src/components/onboarding/AvatarSelect.tsx`
+- `mini-app/src/components/onboarding/PathSelect.tsx`
+- `mini-app/src/components/onboarding/ReferralSource.tsx`
+- `mini-app/src/components/onboarding/QuizScreen.tsx`
+- `mini-app/src/components/onboarding/PunishmentConfig.tsx`
+- `mini-app/src/components/onboarding/NotificationPrefs.tsx`
+- `mini-app/src/components/onboarding/Summary.tsx`
+- `mini-app/src/components/onboarding/LaunchScreen.tsx`
+- `mini-app/src/data/onboardingQuestions.ts`
+
+**GRAY AREA:**
+- `mini-app/src/components/onboarding/quiz/*` — if sub-components exist from Run 28 refactor, may edit for validation.
+
+**FORBIDDEN:**
+- `bot/**`, `tools/**`, `database/**`
+- All other pages and component directories
+- `mini-app/src/api/**`, `mini-app/src/types/**`
+- `mini-app/src/components/Navigation.tsx`
+
+---
+
+### Agent C — API Client Hardening & Types
+
+**Branch:** `feature/r30-api-hardening`
+**Worktree:** `../Wibecode-agent-c`
+
+**OWNED files:**
+- `mini-app/src/api/client.ts`
+- `mini-app/src/api/adminClient.ts`
+- `mini-app/src/types/index.ts`
+- `mini-app/src/types/errors.ts` (NEW)
+
+**FORBIDDEN:**
+- `bot/**`, `tools/**`, `database/**`
+- All pages, all component directories
+- `mini-app/src/hooks/**` (read-only)
+- `mini-app/src/components/Navigation.tsx`
+
+---
+
+### Agent D — Backend users.ts Route Refactor + Tests
+
+**Branch:** `feature/r30-users-refactor`
+**Worktree:** `../Wibecode-agent-d`
+
+**OWNED files:**
+- `bot/src/api/routes/users.ts`
+- `bot/src/api/routes/user-preferences.ts` (NEW)
+- `bot/src/api/routes/user-stats.ts` (NEW)
+- `bot/src/api/routes/user-account.ts` (NEW)
+- `bot/src/__tests__/routes/http/user-preferences.http.test.ts` (NEW)
+
+**GRAY AREA:**
+- `bot/src/api/server.ts` — ONLY if routing mount changes are needed. Do NOT change middleware or other routes.
+
+**FORBIDDEN:**
+- `mini-app/**`, `tools/**`, `database/**`
+- All other bot routes, handlers, jobs, middleware
+- All existing test files (do not modify, only create new ones)
+
+---
+
+### Agent E — Mini-App Test Infrastructure
+
+**Branch:** `feature/r30-miniapp-tests`
+**Worktree:** `../Wibecode-agent-e`
+
+**OWNED files:**
+- `mini-app/vitest.config.ts` (NEW)
+- `mini-app/src/test/setup.ts` (NEW)
+- `mini-app/src/__tests__/hooks/useDashboardData.test.ts` (NEW)
+- `mini-app/src/__tests__/hooks/useProfileData.test.ts` (NEW)
+- `mini-app/src/__tests__/App.test.tsx` (NEW)
+
+**GRAY AREA:**
+- `mini-app/package.json` — ONLY to add test dependencies and test scripts. Do NOT change existing deps or build scripts.
+- `mini-app/tsconfig.json` — ONLY if vitest types need adding to compilerOptions.types.
+
+**FORBIDDEN:**
+- `bot/**`, `tools/**`, `database/**`
+- All existing mini-app source files (pages, components, hooks, api, types) — read-only for writing tests
+- `mini-app/src/components/Navigation.tsx`
+
+---
+
+### Agent F — Accessibility & Semantic HTML
+
+**Branch:** `feature/r30-accessibility`
+**Worktree:** `../Wibecode-agent-f`
+
+**OWNED files (accessibility changes ONLY — aria-labels, role attributes, div→button conversions):**
+- `mini-app/src/pages/Dashboard.tsx`
+- `mini-app/src/pages/Leaderboard.tsx`
+- `mini-app/src/pages/Achievements.tsx`
+- `mini-app/src/pages/Profile.tsx`
+- `mini-app/src/pages/Settings.tsx`
+- `mini-app/src/components/dashboard/**`
+- `mini-app/src/components/leaderboard/**`
+- `mini-app/src/components/achievements/**`
+- `mini-app/src/components/profile/**`
+- `mini-app/src/components/settings/**`
+- `mini-app/src/components/Navigation.tsx`
+- `mini-app/src/components/ErrorSection.tsx`
+
+**CONSTRAINT:** Only add/modify accessibility attributes (aria-*, role, tabIndex, semantic HTML tags). Do NOT change component logic, styling, state management, or API calls.
+
+**FORBIDDEN:**
+- `bot/**`, `tools/**`, `database/**`
+- `mini-app/src/pages/Quests.tsx` (Agent A owns)
+- `mini-app/src/pages/Onboarding.tsx` (Agent B owns)
+- `mini-app/src/components/quests/**` (Agent A owns)
+- `mini-app/src/components/onboarding/**` (Agent B owns)
+- `mini-app/src/api/**`, `mini-app/src/types/**` (Agent C owns)
+- `mini-app/src/hooks/**`
+
+---
+
+### Run 30 File Ownership Matrix
+
+| File / Directory | Agent A | Agent B | Agent C | Agent D | Agent E | Agent F |
+|---|---|---|---|---|---|---|
+| `pages/Quests.tsx` | **OWNED** | — | — | — | — | — |
+| `components/quests/**` | **OWNED** | — | — | — | — | — |
+| `pages/Onboarding.tsx` | — | **OWNED** | — | — | — | — |
+| `components/onboarding/**` | — | **OWNED** | — | — | — | — |
+| `hooks/useOnboarding.ts` | — | **OWNED** | — | — | — | — |
+| `hooks/useOnboardingNavigation.ts` (NEW) | — | **OWNED** | — | — | — | — |
+| `api/client.ts` | — | — | **OWNED** | — | — | — |
+| `types/index.ts` | — | — | **OWNED** | — | — | — |
+| `types/errors.ts` (NEW) | — | — | **OWNED** | — | — | — |
+| `bot/routes/users.ts` | — | — | — | **OWNED** | — | — |
+| `bot/routes/user-*.ts` (NEW) | — | — | — | **OWNED** | — | — |
+| `bot/__tests__/routes/http/user-preferences*` | — | — | — | **OWNED** | — | — |
+| `vitest.config.ts` (NEW) | — | — | — | — | **OWNED** | — |
+| `src/test/setup.ts` (NEW) | — | — | — | — | **OWNED** | — |
+| `src/__tests__/**` (NEW) | — | — | — | — | **OWNED** | — |
+| `mini-app/package.json` | — | — | — | — | GRAY | — |
+| `pages/Dashboard.tsx` | — | — | — | — | — | **OWNED** (a11y only) |
+| `pages/Leaderboard.tsx` | — | — | — | — | — | **OWNED** (a11y only) |
+| `pages/Achievements.tsx` | — | — | — | — | — | **OWNED** (a11y only) |
+| `pages/Profile.tsx` | — | — | — | — | — | **OWNED** (a11y only) |
+| `pages/Settings.tsx` | — | — | — | — | — | **OWNED** (a11y only) |
+| `components/dashboard/**` | — | — | — | — | — | **OWNED** (a11y only) |
+| `components/leaderboard/**` | — | — | — | — | — | **OWNED** (a11y only) |
+| `components/achievements/**` | — | — | — | — | — | **OWNED** (a11y only) |
+| `components/profile/**` | — | — | — | — | — | **OWNED** (a11y only) |
+| `components/settings/**` | — | — | — | — | — | **OWNED** (a11y only) |
+| `components/Navigation.tsx` | — | — | — | — | — | **OWNED** (a11y only) |
+| `bot/api/server.ts` | — | — | — | GRAY | — | — |
+| `bot/**` (other) | FORBIDDEN | FORBIDDEN | FORBIDDEN | — | FORBIDDEN | FORBIDDEN |
+
+### Run 30 Merge Order
+1. **Agent D** (backend only — zero mini-app file overlap)
+2. **Agent C** (API client + types — base layer for frontend)
+3. **Agent E** (test infra — creates new files only, no source edits)
+4. **Agent B** (onboarding — modifies hooks, standalone page)
+5. **Agent A** (quests — standalone page)
+6. **Agent F** (accessibility — cross-cutting, merge last to minimize conflicts)
+
+### Run 30 Retrospectives
+
+#### Agent A Retrospective
+*(To be filled by Agent A)*
+
+#### Agent B Retrospective
+*(To be filled by Agent B)*
+
+#### Agent C Retrospective
+*(To be filled by Agent C)*
+
+#### Agent D Retrospective
+*(To be filled by Agent D)*
+
+#### Agent E Retrospective
+*(To be filled by Agent E)*
+
+#### Agent F Retrospective
+*(To be filled by Agent F)*
+
+#### Agent 0 Retrospective
 *(To be filled by Agent 0 after merge)*
 
-<!-- Next run goes here. Agent 0 will append RUN 30 below this line. -->
+<!-- Next run goes here. Agent 0 will append RUN 31 below this line. -->
