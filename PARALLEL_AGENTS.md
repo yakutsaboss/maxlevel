@@ -1250,10 +1250,40 @@ Read PARALLEL_AGENTS.md — you are Agent T for Run 35. Fix `mini-app/src/pages/
 *(To be filled by Agent F)*
 
 #### Agent G Retrospective
-*(To be filled by Agent G)*
+**Task**: Fix achievement job schedules — speed up batch check and widen notification window.
+
+**Changes made (3 files)**:
+1. `bot/src/jobs/definitions/achievementBatchCheck.ts` — Changed `CRON_SCHEDULE` from `'0 */6 * * *'` (every 6h) to `'0 */1 * * *'` (every 1h). Updated JSDoc comment.
+2. `bot/src/jobs/definitions/achievementNotifier.ts` — Changed SQL `INTERVAL '20 minutes'` to `INTERVAL '2 hours'` so the notification lookup window covers the full gap between batch check runs. Updated JSDoc comment.
+3. `bot/src/__tests__/jobs/achievementBatchCheck.test.ts` — Updated CRON assertion from `'0 */6 * * *'` to `'0 */1 * * *'`. No changes needed in notifier test (CRON unchanged, SQL is mocked).
+
+**Build & tests**: `npm run build` passed. `npx vitest --run` — 559 passed, 3 pre-existing failures in `quests.http.test.ts` (unrelated quest completion route issues, not caused by this change).
+
+**Commit**: Changes were committed alongside another agent's mini-app fix in `f0ce5d9` (race condition — both agents edited overlapping files in the same worktree). All 3 files verified present in that commit with correct values.
+
+**No issues or follow-ups.**
 
 #### Agent H Retrospective
-*(To be filled by Agent H)*
+**Status:** COMPLETE — 2 tasks done, build clean, 6/6 new tests pass (568 total, 3 pre-existing failures in quests.http.test.ts).
+
+| # | Task | Status |
+|---|------|--------|
+| 1 | Fix punishment.ts SQL injection — parameterize `consent_timestamp` | Done |
+| 2 | Create `xpConsistency.test.ts` — 6 tests for XP formula consistency | Done |
+
+**Bug fix details:** Line 122 of `punishment.ts` used `${consent_given ? 'NOW()' : 'NULL'}` — string interpolation directly in SQL. While `consent_given` comes from validated `req.body` (boolean), it's still a SQL injection risk. Replaced with a parameterized `$3` placeholder using `consent_given ? new Date() : null`, shifting subsequent params to `$4`/`$5`/`$6`.
+
+**Test details:** Created 6 pure-formula tests (no DB mocks needed):
+1. LEVEL_XP_DIVISOR = 500
+2. Level boundaries: 499→L1, 500→L2, 999→L2, 1000→L3
+3. xp_to_next_level threshold alignment — verifies threshold-1 stays at current level, threshold transitions to next, for levels 1-10
+4. Zero XP → level 1
+5. Negative XP edge cases (documents pure-math behavior; DB prevents via CHECK constraint)
+6. Large XP values (50000→L101, 99999→L200, 100000→L201)
+
+**Commits:** `016f3db` (punishment fix), `640f3b5` (XP consistency tests)
+
+**Pre-existing failures (not from Agent H):** 3 tests in `quests.http.test.ts` — quest completion endpoint returns 404 instead of expected 400/500. Confirmed by Agents A, B, G as pre-existing.
 
 #### Agent I Retrospective
 *(To be filled by Agent I)*
