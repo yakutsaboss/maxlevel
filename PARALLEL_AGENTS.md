@@ -1017,6 +1017,30 @@ Read PARALLEL_AGENTS.md — you are Agent F for Run 31. Your job: Slim down Onbo
 **Recommendations:** Define shared `HapticApi` interface, type QuizScreen callbacks with a `QuizValue` union.
 
 #### Agent 0 Retrospective
-*(To be filled by Agent 0)*
+
+**Merge summary:** Agents B and E committed directly to main (same pattern as Run 30). 4 remaining branches merged in order D→C→F→A. PARALLEL_AGENTS.md conflicted on all 4 merges (branches predated retro updates). api/client.ts auto-merged cleanly between Agents C (logic) and F (types).
+
+| Step | Result |
+|------|--------|
+| Agent B (component tests) | Already on main — 7 commits (28 new tests) |
+| Agent E (PTR consistency) | Already on main — 3 commits (Profile + Settings PTR) |
+| Agent D (onboarding refactor) | 3 commits merged, PARALLEL_AGENTS.md conflict resolved |
+| Agent C (ApiError + AbortController) | 5 commits merged, PARALLEL_AGENTS.md conflict resolved |
+| Agent F (type safety) | 5 commits merged, PARALLEL_AGENTS.md + api/client.ts auto-merged |
+| Agent A (page tests) | 6 commits merged, PARALLEL_AGENTS.md conflict resolved |
+| Agent 0 fix | 3 test assertions updated for AbortSignal parameter |
+| Bot build | Pass — zero errors |
+| Mini-app build | Pass — zero errors |
+| Bot tests | 456/456 passing (35 files, +7 new from Agent D) |
+| Mini-app tests | 66/66 passing (14 files, +53 new from Agents A+B) |
+| Deploy | Version 4d9cd69 verified via /health |
+| Notification | Sent via local Python |
+
+**Issues:**
+- Agents B and E committed to main instead of worktree branches — recurring pattern (3rd time). Needs stronger enforcement.
+- Agent C correctly flagged that 3 tests would break due to AbortSignal, but was FORBIDDEN from fixing them. Agent 0 fixed post-merge.
+- Agent F removed 4 types from types/index.ts that were added by Run 30 Agent C — these were unused because no hooks consumed them yet.
+
+**Test count progression:** Run 29: 0 mini-app tests → Run 30: 13 → Run 31: 66 (5x growth)
 
 <!-- Next run goes here. Agent 0 will append RUN 32 below this line. -->
