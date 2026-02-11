@@ -6,6 +6,9 @@ export default {
   ],
   theme: {
     extend: {
+      zIndex: {
+        '60': '60',
+      },
       colors: {
         telegram: {
           bg: 'var(--tg-theme-bg-color)',

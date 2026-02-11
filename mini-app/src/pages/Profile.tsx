@@ -2,6 +2,7 @@ import { useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTelegram } from '@/hooks/useTelegram';
 import { useProfileData } from '@/hooks/useProfileData';
+import { apiClient } from '@/api/client';
 import { usePullToRefresh, PullIndicator } from '@/hooks/usePullToRefresh';
 import { ProfileEditModal } from '@/components/ProfileEditModal';
 import { Toast } from '@/components/Toast';
@@ -99,6 +100,7 @@ export function Profile() {
         onClose={() => setEditModalOpen(false)}
         onSaved={() => {
           loadProfileData();
+          apiClient.clearCache();
           setToast({ message: 'Profile saved successfully!', variant: 'success' });
         }}
         telegramId={user!.id}

@@ -13,6 +13,20 @@
   --vh: 1vh;
 }
 
+/*
+ * Z-INDEX SCALE
+ * ─────────────────────────────
+ * z-10  — badges, inline overlays
+ * z-30  — fixed overlays (pull-to-refresh, banners)
+ * z-40  — bottom nav, fixed headers
+ * z-50  — modals, drawers, backdrops
+ * z-60  — toasts, snackbars (always on top)
+ */
+
+body.scroll-locked {
+  overflow: hidden;
+}
+
 @media (prefers-color-scheme: dark) {
   :root {
     --tg-theme-bg-color: #18222d;

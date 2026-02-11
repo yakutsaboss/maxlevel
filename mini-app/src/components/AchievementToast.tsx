@@ -20,7 +20,7 @@ export function AchievementToast({ achievement, onClose }: AchievementToastProps
       animate={{ y: 0, opacity: 1 }}
       exit={{ y: 100, opacity: 0 }}
       transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-      className="fixed bottom-24 left-4 right-4 z-50"
+      className="fixed bottom-24 left-4 right-4 z-60 safe-area-bottom"
     >
       <div
         className="bg-gradient-to-r from-amber-500 to-yellow-500 rounded-2xl p-4 shadow-lg border border-amber-400/50"

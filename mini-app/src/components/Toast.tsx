@@ -38,7 +38,7 @@ export function Toast({ message, variant, onDismiss }: ToastProps) {
         animate={{ opacity: 1, y: 0 }}
         exit={{ opacity: 0, y: -60 }}
         transition={{ type: 'spring', stiffness: 300, damping: 25 }}
-        className={`fixed top-4 left-4 right-4 z-[100] ${style.bg} rounded-2xl px-4 py-3 shadow-lg flex items-center gap-3`}
+        className={`fixed top-4 left-4 right-4 z-60 ${style.bg} rounded-2xl px-4 py-3 shadow-lg flex items-center gap-3`}
       >
         {style.icon}
         <span className="text-white text-sm font-medium flex-1">{message}</span>
