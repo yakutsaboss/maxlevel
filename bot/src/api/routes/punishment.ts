@@ -119,11 +119,12 @@ router.patch('/:telegramId/settings', authenticateTelegram, asyncHandler(async (
     // No existing row — insert with defaults + provided values
     const insertResult = await queryOne(
       `INSERT INTO punishment_settings (user_id, consent_given, consent_timestamp, intensity_level, safe_mode, custom_punishments)
-       VALUES ($1, $2, ${consent_given ? 'NOW()' : 'NULL'}, $3, $4, $5::jsonb)
+       VALUES ($1, $2, $3, $4, $5, $6::jsonb)
        RETURNING consent_given, consent_timestamp, intensity_level, safe_mode, custom_punishments, max_xp_penalty, max_streak_reset`,
       [
         user.id,
         consent_given ?? false,
+        consent_given ? new Date() : null,
         intensity_level ?? 'medium',
         safe_mode ?? true,
         JSON.stringify(custom_punishments ?? {}),
