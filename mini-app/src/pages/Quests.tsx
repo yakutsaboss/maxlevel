@@ -45,12 +45,23 @@ export function Quests() {
     try {
       setLoading(true);
       setError(false);
-      const [activeRes, completedRes] = await Promise.all([
+      const [activeResult, completedResult] = await Promise.allSettled([
         apiClient.getActiveQuests(user.id),
         apiClient.getCompletedQuests(user.id, 50),
       ]);
-      if (activeRes.success && activeRes.data) { setActiveQuests(activeRes.data); }
-      if (completedRes.success && completedRes.data) { setCompletedQuests(completedRes.data); }
+      if (activeResult.status === 'fulfilled' && activeResult.value.success && activeResult.value.data) {
+        setActiveQuests(activeResult.value.data);
+      } else if (activeResult.status === 'rejected') {
+        logger.error('Failed to load active quests', { error: activeResult.reason });
+      }
+      if (completedResult.status === 'fulfilled' && completedResult.value.success && completedResult.value.data) {
+        setCompletedQuests(completedResult.value.data);
+      } else if (completedResult.status === 'rejected') {
+        logger.error('Failed to load completed quests', { error: completedResult.reason });
+      }
+      if (activeResult.status === 'rejected' && completedResult.status === 'rejected') {
+        setError(true);
+      }
       loadTodayCheckins();
     } catch (error) {
       logger.error('Failed to load quests', { error });
