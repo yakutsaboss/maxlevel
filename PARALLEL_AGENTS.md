@@ -1584,4 +1584,233 @@ Read PARALLEL_AGENTS.md — you are Agent J for Run 32. Your job: Write componen
 
 **Test count progression:** Run 29: 0 mini-app → Run 30: 13 → Run 31: 66 → Run 32: 152 (2.3x). Bot: Run 31: 456 → Run 32: 520 (+14%).
 
-<!-- Next run goes here. Agent 0 will append RUN 33 below this line. -->
+## RUN 33: Test Coverage, Type Safety & XP Bug Fix (6 Agents + Agent 0)
+
+### Focus: Fix an XP-award level-calculation inconsistency between quest-completion and quest-progress (different formulas produce different levels for the same XP), consolidate shared test mocks to prevent recurring TWA SDK test failures, complete mini-app type safety (zero `any` in production code), split types/index.ts into domain modules, fix admin-stats security gap, write tests for 3 untested backend modules (modeSelection 315 lines, completion 137 lines, punishmentCheck 213 lines), and add component tests for 14 untested mini-app sub-components. After Run 33: zero `any`, consistent XP logic, shared test mocks, ~540+ bot tests, ~190+ mini-app tests.
+
+### Copy-Paste Prompts
+
+**Agent 0** (open in: `c:\Users\Asus\Desktop\Wibecode`):
+```
+Read PARALLEL_AGENTS.md — you are Agent 0 for Run 33. Wait for agents to finish, then merge and deploy.
+```
+
+**Agent A** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-a`):
+```
+Read PARALLEL_AGENTS.md — you are Agent A for Run 33. Your job: Consolidate shared test mocks and fix the test setup. (1) Create `mini-app/src/test/mocks/twa-sdk.ts`: export a complete @twa-dev/sdk mock object with ALL methods the real SDK provides. Include: initData, initDataUnsafe (with user object), HapticFeedback (impactOccurred, notificationOccurred, selectionChanged), BackButton (show, hide, onClick, offClick), MainButton (show, hide, setText, onClick, offClick, showProgress, hideProgress), expand, close, ready, isExpanded, viewportHeight, viewportStableHeight, platform, disableClosingConfirmation, enableClosingConfirmation, enableVerticalSwipes, disableVerticalSwipes, isVerticalSwipesEnabled, setHeaderColor, setBackgroundColor, showPopup, showAlert, showConfirm, openLink, openTelegramLink, openInvoice, switchInlineQuery, sendData, requestWriteAccess, requestContact. All should be vi.fn() mocks. Export as `export const mockWebApp = { ... }` and `export function setupTWAMock() { ... }`. (2) Create `mini-app/src/test/mocks/framer-motion.ts`: export a shared framer-motion mock that replaces motion.div/motion.button with plain HTML elements and AnimatePresence with a passthrough. Export as `export const framerMotionMock = { ... }`. (3) Update `mini-app/src/test/setup.ts`: import and use the shared TWA mock from step 1. Replace the inline window.Telegram.WebApp mock with a call to `setupTWAMock()`. Keep IntersectionObserver and localStorage mocks as-is. Ensure `disableClosingConfirmation` and `enableVerticalSwipes` are included (these were missing and caused test failures in Run 32). (4) Verify all 152 existing tests still pass — run `npm test` and fix any regressions. Do NOT modify individual test files — only create the shared mock files and update setup.ts. Build verify: `cd mini-app && npm run build && npm test`. Follow the Safety Protocol. Commit after each task. Write your retrospective when done.
+```
+
+**Agent B** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-b`):
+```
+Read PARALLEL_AGENTS.md — you are Agent B for Run 33. Your job: Complete type safety (zero `any`) and split types/index.ts into domain modules. (1) Fix `mini-app/src/components/onboarding/QuizScreen.tsx` line 21: change `value: any` to `value: QuizAnswerValue` in the `onAnswer` prop type. Import `QuizAnswerValue` from `@/types/telegram` (it was added in Run 32 by Agent C). Verify the type works with all callers. (2) Fix `mini-app/src/pages/Onboarding.tsx` line 132: same callback parameter — change `value: any` to `value: QuizAnswerValue`. Import from `@/types/telegram`. (3) Split `mini-app/src/types/index.ts` (285 lines) into focused domain modules. Create: `types/user.ts` (User, UserStats, UserPreferences, LeaderboardEntry — user-related types), `types/quest.ts` (Quest, QuestInstance, QuestCategory — quest-related types), `types/achievement.ts` (Achievement, AchievementCategory — achievement-related types), `types/mode.ts` (Mode, ModeConfig — mode-related types), `types/admin.ts` (AdminUser, AdminStats — admin-related types). Keep `types/index.ts` as a barrel re-export file: `export * from './user.js'` etc. so ALL existing imports `from '@/types'` continue to work with zero changes needed elsewhere. (4) Verify zero `any` in production source: search all `mini-app/src/**/*.ts{x}` (excluding __tests__ and node_modules) for `: any`, `as any`, `<any>`, `any[]`, `any,`. Fix any stragglers. (5) Build verify: `cd mini-app && npm run build && npm test`. Follow the Safety Protocol. Commit after each task. Write your retrospective when done.
+```
+
+**Agent C** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-c`):
+```
+Read PARALLEL_AGENTS.md — you are Agent C for Run 33. Your job: Extract shared XP-award utility (fixing a level-calculation BUG) and fix admin-stats security gap. CRITICAL BUG: quest-completion.ts uses `Math.floor(total_xp / 500) + 1` in JavaScript for level calculation, while quest-progress.ts uses `((total_xp + $1) / 500) + 1` directly in SQL (PostgreSQL integer division). These produce different level values for the same XP. The shared utility must normalize this. (1) Create `bot/src/utils/xpAward.ts`: export an `awardXp(client: PoolClient, userId: number, xpAmount: number): Promise<{ totalXp: number, newLevel: number, oldLevel: number, leveledUp: boolean }>` function. It should: UPDATE users SET total_xp = total_xp + xpAmount, then calculate new level consistently using `Math.floor(totalXp / 500) + 1`, then UPDATE current_level if leveled up. Return all relevant data. Also export a `LEVEL_XP_DIVISOR = 500` constant so the formula is defined once. (2) Update `bot/src/api/routes/quest-completion.ts`: replace the inline XP-award + level-check transaction logic with a call to `awardXp()`. Keep the quest_instances UPDATE and the post-transaction achievement/streak fire-and-forget. (3) Update `bot/src/api/routes/quest-progress.ts`: same replacement — use `awardXp()` in the auto-complete path. Remove the inline SQL level calculation. (4) Fix `bot/src/api/routes/admin-stats.ts`: add `requireRole('admin')` middleware to the `GET /stats` route (line ~28). Currently any authenticated user can access stats. Import requireRole if not already imported. (5) Write `bot/src/__tests__/utils/xpAward.test.ts` (6-8 tests): test basic XP award, test level-up threshold (499→500 XP triggers level 2), test no level-up (stays same level), test large XP jump (multi-level), test correct return values, test XP_DIVISOR constant. Mock the database client. (6) Build + test verify: `cd bot && npm run build && npx vitest --run`. Follow the Safety Protocol. Commit after each task. Write your retrospective when done.
+```
+
+**Agent D** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-d`):
+```
+Read PARALLEL_AGENTS.md — you are Agent D for Run 33. Your job: Write tests for the 3 largest untested backend modules. Test infrastructure exists — look at `bot/src/__tests__/handlers/onboarding/setup.test.ts` for handler test patterns and `bot/src/__tests__/jobs/streakCheck.test.ts` for job test patterns. (1) Create `bot/src/__tests__/handlers/onboarding/modeSelection.test.ts` (6-8 tests): test listModes sends mode keyboard, test handleModeSelection toggles mode on, test handleModeSelection toggles mode off, test multi-mode selection, test invalid mode ID handling, test mode selection with max modes limit (if applicable), test callback answer/edit on success. Read `bot/src/handlers/onboarding/modeSelection.ts` (315 lines) first to understand the full API. Mock Grammy context (ctx.reply, ctx.callbackQuery, ctx.answerCallbackQuery, ctx.editMessageText), database pool, and cache. (2) Create `bot/src/__tests__/handlers/onboarding/completion.test.ts` (5-7 tests): test handleOnboardingComplete awards XP, test quest assignment on completion, test duplicate completion guard (idempotency), test user state update to 'active', test error handling on DB failure, test notification/message sent on success. Read `bot/src/handlers/onboarding/completion.ts` (137 lines) first. (3) Create `bot/src/__tests__/jobs/punishmentCheck.test.ts` (5-7 tests): test identifies users with missed daily quests, test applies punishment (XP deduction or notification), test skips users with DND enabled, test different punishment intensity levels, test graceful handling when no users need punishment, test logging of punishment actions. Read `bot/src/jobs/definitions/punishmentCheck.ts` (213 lines) first. Target: ~18 new tests. Build verify: `cd bot && npm run build && npx vitest --run`. Follow the Safety Protocol. Commit after each task. Write your retrospective when done.
+```
+
+**Agent E** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-e`):
+```
+Read PARALLEL_AGENTS.md — you are Agent E for Run 33. Your job: Write component tests for the untested dashboard and leaderboard sub-components. Test infrastructure exists — see `mini-app/vitest.config.ts` and `mini-app/src/test/setup.ts`. Look at `mini-app/src/__tests__/components/QuestCard.test.tsx` for component test patterns. (1) Create `mini-app/src/__tests__/components/dashboard/StreakSection.test.tsx` (4-5 tests): renders current streak count, renders best streak, shows fire emoji for active streak, shows frozen state when streak is 0, shows streak freeze indicator if applicable. Read `components/dashboard/StreakSection.tsx` (128 lines) first. (2) Create `mini-app/src/__tests__/components/dashboard/DailyGoalRing.test.tsx` (3-4 tests): renders progress ring with correct percentage, shows completed state at 100%, shows goal text, handles zero progress. Read the component first. (3) Create `mini-app/src/__tests__/components/dashboard/TodaysProgress.test.tsx` (3-4 tests): renders quest completion count, renders XP earned today, handles empty state. (4) Create `mini-app/src/__tests__/components/dashboard/QuestCardMini.test.tsx` (3 tests): renders quest title, shows XP reward, shows progress indicator. (5) Create `mini-app/src/__tests__/components/leaderboard/TopThreeCard.test.tsx` (3-4 tests): renders top 3 users with names and levels, shows crown/medal icons, highlights current user if in top 3. (6) Create `mini-app/src/__tests__/components/leaderboard/YourRankCard.test.tsx` (3 tests): renders current rank position, shows XP and level, handles unranked state. (7) Create `mini-app/src/__tests__/components/leaderboard/LeaderboardRow.test.tsx` (3 tests): renders rank number and user name, shows level badge, shows XP value. Target: ~23 new tests. Build verify: `cd mini-app && npm run build && npm test`. Follow the Safety Protocol. Commit after each task. Write your retrospective when done.
+```
+
+**Agent F** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-f`):
+```
+Read PARALLEL_AGENTS.md — you are Agent F for Run 33. Your job: Write component tests for the untested settings and profile sub-components. Test infrastructure exists — see `mini-app/vitest.config.ts` and `mini-app/src/test/setup.ts`. Look at `mini-app/src/__tests__/components/QuestCard.test.tsx` for component test patterns. (1) Create `mini-app/src/__tests__/components/settings/DangerZone.test.tsx` (4-5 tests): renders delete account button, shows confirmation dialog on click, cancel returns to normal state, confirm triggers delete callback, button has warning styling. Read `components/settings/DangerZone.tsx` (42 lines) first. (2) Create `mini-app/src/__tests__/components/settings/NotificationSettings.test.tsx` (4-5 tests): renders notification toggle, toggle calls onToggle callback, renders reminder time selector, shows enabled/disabled state correctly. Read the component (155 lines) first. (3) Create `mini-app/src/__tests__/components/settings/DoNotDisturbSettings.test.tsx` (3-4 tests): renders DND toggle, shows schedule picker when enabled, time range selection works, disabled state hides schedule. Read the component (127 lines) first. (4) Create `mini-app/src/__tests__/components/profile/ProfileHeader.test.tsx` (3-4 tests): renders user name and avatar, shows level and XP bar, shows XP progress toward next level, handles missing avatar. Read the component (86 lines) first. (5) Create `mini-app/src/__tests__/components/profile/ProfileModes.test.tsx` (3 tests): renders active modes grid, shows mode icons and names, handles empty modes state. Read the component (40 lines) first. (6) Create `mini-app/src/__tests__/components/profile/ProfileStreak.test.tsx` (3 tests): renders streak count, shows streak status, handles zero streak. Read the component (27 lines) first. (7) Create `mini-app/src/__tests__/components/profile/ProfileAchievements.test.tsx` (3 tests): renders achievement badges, shows count of unlocked, handles no achievements. Read the component (80 lines) first. Target: ~24 new tests. Build verify: `cd mini-app && npm run build && npm test`. Follow the Safety Protocol. Commit after each task. Write your retrospective when done.
+```
+
+---
+
+### Agent A — Mini-App: Shared Test Mock Consolidation
+
+**Branch:** `feature/r33-test-mocks`
+**Worktree:** `../Wibecode-agent-a`
+
+**OWNED files:**
+- `mini-app/src/test/mocks/twa-sdk.ts` (NEW)
+- `mini-app/src/test/mocks/framer-motion.ts` (NEW)
+- `mini-app/src/test/setup.ts` (update mock imports)
+
+**FORBIDDEN:**
+- `bot/**`, `tools/**`, `database/**`
+- All mini-app source files (pages, components, hooks, api, types)
+- All existing test files in `__tests__/` — do NOT modify individual tests
+- `mini-app/package.json`, `mini-app/vitest.config.ts`
+
+---
+
+### Agent B — Mini-App: Type Safety Completion + Domain Module Split
+
+**Branch:** `feature/r33-type-modules`
+**Worktree:** `../Wibecode-agent-b`
+
+**OWNED files:**
+- `mini-app/src/types/index.ts` (refactor to barrel re-export)
+- `mini-app/src/types/user.ts` (NEW)
+- `mini-app/src/types/quest.ts` (NEW)
+- `mini-app/src/types/achievement.ts` (NEW)
+- `mini-app/src/types/mode.ts` (NEW)
+- `mini-app/src/types/admin.ts` (NEW)
+- `mini-app/src/components/onboarding/QuizScreen.tsx` (type-only: `any` → `QuizAnswerValue`)
+- `mini-app/src/pages/Onboarding.tsx` (type-only: `any` → `QuizAnswerValue`)
+
+**CONSTRAINT:** Only change type annotations in QuizScreen.tsx and Onboarding.tsx. Do NOT change component logic, rendering, or state management.
+
+**FORBIDDEN:**
+- `bot/**`, `tools/**`, `database/**`
+- All other pages, components, hooks
+- `mini-app/src/api/**`
+- `mini-app/src/__tests__/**`
+- `mini-app/src/types/telegram.ts`, `mini-app/src/types/errors.ts` (existing type files — do not modify)
+
+---
+
+### Agent C — Bot: XP-Award Utility (Bug Fix) + Admin Security
+
+**Branch:** `feature/r33-xp-utility`
+**Worktree:** `../Wibecode-agent-c`
+
+**OWNED files:**
+- `bot/src/utils/xpAward.ts` (NEW)
+- `bot/src/__tests__/utils/xpAward.test.ts` (NEW)
+- `bot/src/api/routes/quest-completion.ts` (use shared utility)
+- `bot/src/api/routes/quest-progress.ts` (use shared utility)
+- `bot/src/api/routes/admin-stats.ts` (add requireRole to GET)
+
+**FORBIDDEN:**
+- `mini-app/**`, `tools/**`, `database/**`
+- All other bot routes, handlers, jobs, middleware
+- All existing test files — do not modify
+- `bot/src/utils/sqlBuilder.ts`, `bot/src/utils/broadcast.ts` (other agents' utils)
+
+---
+
+### Agent D — Bot: Tests for Untested Handlers + Jobs
+
+**Branch:** `feature/r33-handler-tests`
+**Worktree:** `../Wibecode-agent-d`
+
+**OWNED files:**
+- `bot/src/__tests__/handlers/onboarding/modeSelection.test.ts` (NEW)
+- `bot/src/__tests__/handlers/onboarding/completion.test.ts` (NEW)
+- `bot/src/__tests__/jobs/punishmentCheck.test.ts` (NEW)
+
+**FORBIDDEN:**
+- `mini-app/**`, `tools/**`, `database/**`
+- All bot source files — read-only for writing tests
+- All existing test files — do not modify
+
+---
+
+### Agent E — Mini-App: Dashboard + Leaderboard Sub-Component Tests
+
+**Branch:** `feature/r33-dashboard-leaderboard-tests`
+**Worktree:** `../Wibecode-agent-e`
+
+**OWNED files:**
+- `mini-app/src/__tests__/components/dashboard/StreakSection.test.tsx` (NEW)
+- `mini-app/src/__tests__/components/dashboard/DailyGoalRing.test.tsx` (NEW)
+- `mini-app/src/__tests__/components/dashboard/TodaysProgress.test.tsx` (NEW)
+- `mini-app/src/__tests__/components/dashboard/QuestCardMini.test.tsx` (NEW)
+- `mini-app/src/__tests__/components/leaderboard/TopThreeCard.test.tsx` (NEW)
+- `mini-app/src/__tests__/components/leaderboard/YourRankCard.test.tsx` (NEW)
+- `mini-app/src/__tests__/components/leaderboard/LeaderboardRow.test.tsx` (NEW)
+
+**FORBIDDEN:**
+- `bot/**`, `tools/**`, `database/**`
+- All existing mini-app source files — read-only for writing tests
+- All existing test files — do not modify
+- `mini-app/src/__tests__/components/settings/**` (Agent F owns)
+- `mini-app/src/__tests__/components/profile/**` (Agent F owns)
+
+---
+
+### Agent F — Mini-App: Settings + Profile Sub-Component Tests
+
+**Branch:** `feature/r33-settings-profile-tests`
+**Worktree:** `../Wibecode-agent-f`
+
+**OWNED files:**
+- `mini-app/src/__tests__/components/settings/DangerZone.test.tsx` (NEW)
+- `mini-app/src/__tests__/components/settings/NotificationSettings.test.tsx` (NEW)
+- `mini-app/src/__tests__/components/settings/DoNotDisturbSettings.test.tsx` (NEW)
+- `mini-app/src/__tests__/components/profile/ProfileHeader.test.tsx` (NEW)
+- `mini-app/src/__tests__/components/profile/ProfileModes.test.tsx` (NEW)
+- `mini-app/src/__tests__/components/profile/ProfileStreak.test.tsx` (NEW)
+- `mini-app/src/__tests__/components/profile/ProfileAchievements.test.tsx` (NEW)
+
+**FORBIDDEN:**
+- `bot/**`, `tools/**`, `database/**`
+- All existing mini-app source files — read-only for writing tests
+- All existing test files — do not modify
+- `mini-app/src/__tests__/components/dashboard/**` (Agent E owns)
+- `mini-app/src/__tests__/components/leaderboard/**` (Agent E owns)
+
+---
+
+### Run 33 File Ownership Matrix
+
+| File / Directory | A | B | C | D | E | F |
+|---|---|---|---|---|---|---|
+| `test/mocks/twa-sdk.ts` (NEW) | **OWN** | — | — | — | — | — |
+| `test/mocks/framer-motion.ts` (NEW) | **OWN** | — | — | — | — | — |
+| `test/setup.ts` | **OWN** | — | — | — | — | — |
+| `types/index.ts` (refactor) | — | **OWN** | — | — | — | — |
+| `types/user.ts` (NEW) | — | **OWN** | — | — | — | — |
+| `types/quest.ts` (NEW) | — | **OWN** | — | — | — | — |
+| `types/achievement.ts` (NEW) | — | **OWN** | — | — | — | — |
+| `types/mode.ts` (NEW) | — | **OWN** | — | — | — | — |
+| `types/admin.ts` (NEW) | — | **OWN** | — | — | — | — |
+| `QuizScreen.tsx` (type-only) | — | **OWN** | — | — | — | — |
+| `pages/Onboarding.tsx` (type-only) | — | **OWN** | — | — | — | — |
+| `bot/utils/xpAward.ts` (NEW) | — | — | **OWN** | — | — | — |
+| `bot/__tests__/utils/xpAward.test.ts` (NEW) | — | — | **OWN** | — | — | — |
+| `bot/routes/quest-completion.ts` | — | — | **OWN** | — | — | — |
+| `bot/routes/quest-progress.ts` | — | — | **OWN** | — | — | — |
+| `bot/routes/admin-stats.ts` | — | — | **OWN** | — | — | — |
+| `bot/__tests__/handlers/onboarding/modeSelection.test.ts` (NEW) | — | — | — | **OWN** | — | — |
+| `bot/__tests__/handlers/onboarding/completion.test.ts` (NEW) | — | — | — | **OWN** | — | — |
+| `bot/__tests__/jobs/punishmentCheck.test.ts` (NEW) | — | — | — | **OWN** | — | — |
+| `__tests__/components/dashboard/*.test.tsx` (NEW) | — | — | — | — | **OWN** | — |
+| `__tests__/components/leaderboard/*.test.tsx` (NEW) | — | — | — | — | **OWN** | — |
+| `__tests__/components/settings/*.test.tsx` (NEW) | — | — | — | — | — | **OWN** |
+| `__tests__/components/profile/*.test.tsx` (NEW) | — | — | — | — | — | **OWN** |
+
+### Run 33 Merge Order
+1. **Agent C** (bot XP-award utility + security fix — foundational backend change, fixes level calc bug)
+2. **Agent D** (bot handler/job tests — new files only, tests post-C behavior)
+3. **Agent B** (mini-app types — foundational type changes before test infra)
+4. **Agent A** (mini-app test mock consolidation — updates setup.ts)
+5. **Agent E** (dashboard/leaderboard component tests — new files, benefits from Agent A's setup)
+6. **Agent F** (settings/profile component tests — new files, merge last)
+
+### Run 33 Retrospectives
+
+#### Agent A Retrospective
+*(To be filled by Agent A)*
+
+#### Agent B Retrospective
+*(To be filled by Agent B)*
+
+#### Agent C Retrospective
+*(To be filled by Agent C)*
+
+#### Agent D Retrospective
+*(To be filled by Agent D)*
+
+#### Agent E Retrospective
+*(To be filled by Agent E)*
+
+#### Agent F Retrospective
+*(To be filled by Agent F)*
+
+#### Agent 0 Retrospective
+*(To be filled by Agent 0)*
+
+<!-- Next run goes here. Agent 0 will append RUN 34 below this line. -->
