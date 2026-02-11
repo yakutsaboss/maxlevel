@@ -3,15 +3,62 @@ import { Flame, Award, Calendar } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { UserStats } from '@/types';
 
+const STREAK_MILESTONES: { days: number; label: string; icon: string }[] = [
+  { days: 7, label: '1 Week Streak!', icon: '🔥' },
+  { days: 14, label: '2 Week Streak!', icon: '🔥🔥' },
+  { days: 30, label: '1 Month Streak!', icon: '💎' },
+  { days: 60, label: '2 Month Streak!', icon: '⚡' },
+  { days: 100, label: 'Legendary 100 Days!', icon: '👑' },
+];
+
+function getActiveMilestone(current: number) {
+  // Return the highest milestone that the streak has reached
+  for (let i = STREAK_MILESTONES.length - 1; i >= 0; i--) {
+    if (current >= STREAK_MILESTONES[i].days) return STREAK_MILESTONES[i];
+  }
+  return null;
+}
+
 interface StreakSectionProps {
   streakData: UserStats['streakData'];
   perModeStreaks: UserStats['perModeStreaks'];
 }
 
 export const StreakSection = memo(function StreakSection({ streakData, perModeStreaks }: StreakSectionProps) {
+  const milestone = getActiveMilestone(streakData.current);
+
   return (
     <div className="px-4 mt-6">
       <h2 className="text-lg font-semibold mb-3 flex items-center gap-2"><Flame className="w-5 h-5 text-orange-500" />Your Streak</h2>
+
+      {/* Milestone celebration banner */}
+      {milestone && (
+        <motion.div
+          className="mb-3 rounded-2xl p-3 border border-orange-400/30 bg-gradient-to-r from-orange-500/15 to-amber-500/15 overflow-hidden relative"
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5 }}
+        >
+          <motion.div
+            className="absolute inset-0 rounded-2xl"
+            animate={{ boxShadow: ['0 0 8px rgba(251,146,60,0.3)', '0 0 20px rgba(251,146,60,0.5)', '0 0 8px rgba(251,146,60,0.3)'] }}
+            transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
+          />
+          <div className="flex items-center gap-3 relative z-10">
+            <motion.span
+              className="text-2xl"
+              animate={{ scale: [1, 1.15, 1] }}
+              transition={{ duration: 1.5, repeat: Infinity, ease: 'easeInOut' }}
+            >
+              {milestone.icon}
+            </motion.span>
+            <div>
+              <p className="text-sm font-bold text-orange-400">{milestone.label}</p>
+              <p className="text-xs text-telegram-hint">Keep the fire burning!</p>
+            </div>
+          </div>
+        </motion.div>
+      )}
 
       {/* Aggregate streak card */}
       <div className="bg-gradient-to-r from-orange-500 to-amber-500 rounded-2xl p-4 shadow-sm">
