@@ -11,6 +11,8 @@ import {
   NotFoundError,
   ForbiddenError,
 } from '../utils/errors.js';
+import { awardXp } from '../../utils/xpAward.js';
+import { checkAndUnlockAchievements } from '../../utils/achievementEngine.js';
 
 const router = Router();
 
@@ -69,11 +71,7 @@ router.post('/', authenticateTelegram, mutationLimiter, asyncHandler(async (req:
          WHERE id = $3`,
         [newCount, quest.xp_reward, quest_instance_id]
       );
-      await client.query(
-        `UPDATE users SET total_xp = total_xp + $1, current_level = ((total_xp + $1) / 500) + 1
-         WHERE id = $2`,
-        [quest.xp_reward, quest.user_id]
-      );
+      await awardXp(client, quest.user_id, quest.xp_reward);
     } else {
       // Just increment check-in count
       await client.query(
@@ -89,6 +87,10 @@ router.post('/', authenticateTelegram, mutationLimiter, asyncHandler(async (req:
   });
 
   invalidateUserCache(quest.user_id);
+
+  if (completed) {
+    await checkAndUnlockAchievements(quest.user_id);
+  }
 
   res.json(successResponse({
     check_in_id: result.check_in_id,
