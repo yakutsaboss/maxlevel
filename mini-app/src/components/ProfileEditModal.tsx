@@ -38,16 +38,20 @@ export const AVATAR_OPTIONS = [
 
 export function ProfileEditModal({ isOpen, onClose, onSaved, telegramId, currentName, currentAvatarId, haptic }: ProfileEditModalProps) {
   const [nickname, setNickname] = useState(currentName);
-  const [selectedAvatar, setSelectedAvatar] = useState(Math.max(0, currentAvatarId - 1));
+  const [selectedAvatar, setSelectedAvatar] = useState(Math.min(Math.max(0, currentAvatarId - 1), AVATAR_OPTIONS.length - 1));
   const [saving, setSaving] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
 
   useEffect(() => {
     if (isOpen) {
       setNickname(currentName);
-      setSelectedAvatar(Math.max(0, currentAvatarId - 1));
+      setSelectedAvatar(Math.min(Math.max(0, currentAvatarId - 1), AVATAR_OPTIONS.length - 1));
       setErrorMsg('');
+      document.body.style.overflow = 'hidden';
     }
+    return () => {
+      document.body.style.overflow = '';
+    };
   }, [isOpen, currentName, currentAvatarId]);
 
   const handleSave = async () => {
