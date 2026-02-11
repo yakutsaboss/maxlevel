@@ -8,6 +8,7 @@ import {
   BadRequestError,
   NotFoundError,
 } from '../utils/errors.js';
+import { buildDynamicUpdate } from '../../utils/sqlBuilder.js';
 
 const router = Router();
 
@@ -38,27 +39,22 @@ router.patch('/:telegramId/profile', authenticateTelegram, asyncHandler(async (r
   }
 
   // Build SET clause dynamically
-  const sets: string[] = [];
-  const params: any[] = [];
-  let idx = 1;
-
+  const fields: Record<string, unknown> = {};
   if (first_name !== undefined) {
-    sets.push(`first_name = $${idx++}`);
-    params.push(first_name.trim());
+    fields.first_name = first_name.trim();
   }
   if (avatar_id !== undefined) {
-    sets.push(`avatar_id = $${idx++}`);
-    params.push(parseInt(avatar_id));
+    fields.avatar_id = parseInt(avatar_id);
   }
 
-  if (sets.length === 0) {
+  if (Object.keys(fields).length === 0) {
     throw new BadRequestError('No valid fields to update');
   }
 
-  params.push(tid);
+  const { text, values } = buildDynamicUpdate('users', fields, 'telegram_id = $N', [tid]);
   const user = await queryOne(
-    `UPDATE users SET ${sets.join(', ')} WHERE telegram_id = $${idx} RETURNING id, telegram_id, username, first_name, avatar_id, current_level, total_xp, timezone`,
-    params
+    `${text} RETURNING id, telegram_id, username, first_name, avatar_id, current_level, total_xp, timezone`,
+    values
   );
 
   if (!user) {

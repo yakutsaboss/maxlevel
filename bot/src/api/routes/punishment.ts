@@ -18,6 +18,7 @@ import {
   NotFoundError,
 } from '../utils/errors.js';
 import { PUNISHMENT_INTENSITY } from '../utils/constants.js';
+import { buildDynamicUpdate } from '../../utils/sqlBuilder.js';
 
 const router = Router();
 
@@ -76,54 +77,42 @@ router.patch('/:telegramId/settings', authenticateTelegram, asyncHandler(async (
   }
 
   // Build dynamic SET clause for only provided fields
-  const setClauses: string[] = [];
-  const params: any[] = [];
-  let paramIndex = 1;
+  const fields: Record<string, unknown> = {};
+  const extraClauses: string[] = [];
 
   if (consent_given !== undefined) {
-    setClauses.push(`consent_given = $${paramIndex}`);
-    params.push(consent_given);
-    paramIndex++;
-
+    fields.consent_given = consent_given;
     // Update consent_timestamp when consent changes
-    if (consent_given) {
-      setClauses.push(`consent_timestamp = NOW()`);
-    } else {
-      setClauses.push(`consent_timestamp = NULL`);
-    }
+    extraClauses.push(consent_given ? `consent_timestamp = NOW()` : `consent_timestamp = NULL`);
   }
 
   if (intensity_level !== undefined) {
-    setClauses.push(`intensity_level = $${paramIndex}`);
-    params.push(intensity_level);
-    paramIndex++;
+    fields.intensity_level = intensity_level;
   }
 
   if (safe_mode !== undefined) {
-    setClauses.push(`safe_mode = $${paramIndex}`);
-    params.push(safe_mode);
-    paramIndex++;
+    fields.safe_mode = safe_mode;
   }
 
   if (custom_punishments !== undefined) {
-    setClauses.push(`custom_punishments = $${paramIndex}::jsonb`);
-    params.push(JSON.stringify(custom_punishments));
-    paramIndex++;
+    fields.custom_punishments = JSON.stringify(custom_punishments);
   }
 
-  if (setClauses.length === 0) {
+  if (Object.keys(fields).length === 0 && extraClauses.length === 0) {
     throw new BadRequestError('No fields to update');
   }
 
-  setClauses.push('updated_at = NOW()');
-  params.push(user.id);
+  extraClauses.push('updated_at = NOW()');
+
+  const { text, values } = buildDynamicUpdate('punishment_settings', fields, 'user_id = $N', [user.id], {
+    extraSetClauses: extraClauses,
+    casts: custom_punishments !== undefined ? { custom_punishments: 'jsonb' } : {},
+  });
 
   const updated = await queryOne(
-    `UPDATE punishment_settings
-     SET ${setClauses.join(', ')}
-     WHERE user_id = $${paramIndex}
+    `${text}
      RETURNING consent_given, consent_timestamp, intensity_level, safe_mode, custom_punishments, max_xp_penalty, max_streak_reset`,
-    params
+    values
   );
 
   if (!updated) {

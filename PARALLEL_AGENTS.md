@@ -1491,7 +1491,17 @@ Read PARALLEL_AGENTS.md — you are Agent J for Run 32. Your job: Write componen
 **Note:** Pre-existing TS build errors in `quest-helpers.ts` (LogContext/LogEntry export issues) — unrelated to this work, did not block tests.
 
 #### Agent G Retrospective
-*(To be filled by Agent G)*
+**Status:** COMPLETE — 5 commits, 2 new utils + 4 route refactors + 1 security fix + 6 new tests.
+
+| # | Task | Files changed | Status |
+|---|------|---------------|--------|
+| 1 | Create `utils/sqlBuilder.ts` | 1 new file | Done |
+| 2 | Refactor 4 routes to use sqlBuilder | admin-users, punishment, user-account, user-preferences | Done |
+| 3 | Fix admin-jobs.ts security gap | add `requireRole('admin')` to GET / | Done |
+| 4 | Extract broadcast utility | broadcast.ts (NEW), admin-stats.ts refactored | Done |
+| 5 | Write sqlBuilder unit tests | 6 tests | Done |
+
+**Design:** `buildDynamicUpdate()` with `$N` auto-indexing, optional `extraSetClauses` + `casts` map. `broadcast.ts` extracts batched `Promise.allSettled` + 1s delay pattern.
 
 #### Agent H Retrospective
 **Status:** COMPLETE — 5 commits, 14 console.error calls replaced, build clean.
