@@ -55,8 +55,9 @@ export function Achievements() {
       setNewCount(0);
       haptic.impact('medium');
       const res = await apiClient.checkAchievements(user.id);
-      if (res.success && res.data?.count > 0) {
-        setNewCount(res.data.count);
+      const count = res.data?.count ?? 0;
+      if (res.success && count > 0) {
+        setNewCount(count);
         haptic.impact('heavy');
         await loadData();
       }
