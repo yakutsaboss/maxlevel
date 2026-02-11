@@ -3,7 +3,7 @@ import { useTelegram } from '@/hooks/useTelegram';
 import { usePullToRefresh, PullIndicator } from '@/hooks/usePullToRefresh';
 import { apiClient } from '@/api/client';
 import { Achievement, UserAchievement } from '@/types';
-import { Trophy } from 'lucide-react';
+import { Trophy, RefreshCw } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { ErrorSection } from '@/components/ErrorSection';
 import { RarityGroup } from '@/components/achievements/RarityGroup';
@@ -27,6 +27,8 @@ export function Achievements() {
   const [userAchievements, setUserAchievements] = useState<UserAchievement[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
+  const [checking, setChecking] = useState(false);
+  const [newCount, setNewCount] = useState(0);
   const [selectedCategory, setSelectedCategory] = useState('all');
 
   const loadData = async () => {
@@ -38,12 +40,29 @@ export function Achievements() {
         apiClient.getAchievements(),
         apiClient.getUserAchievements(user.id),
       ]);
-      if (allRes.success && allRes.data) setAllAchievements(allRes.data);
-      if (userRes.success && userRes.data) setUserAchievements(userRes.data);
+      if (allRes.success && Array.isArray(allRes.data)) setAllAchievements(allRes.data);
+      if (userRes.success && Array.isArray(userRes.data)) setUserAchievements(userRes.data);
     } catch (err) {
       logger.error('Failed to load achievements', { error: err });
       setError(true);
     } finally { setLoading(false); }
+  };
+
+  const checkForNew = async () => {
+    if (!user?.id || checking) return;
+    try {
+      setChecking(true);
+      setNewCount(0);
+      haptic.impact('medium');
+      const res = await apiClient.checkAchievements(user.id);
+      if (res.success && res.data?.count > 0) {
+        setNewCount(res.data.count);
+        haptic.impact('heavy');
+        await loadData();
+      }
+    } catch (err) {
+      logger.error('Failed to check achievements', { error: err });
+    } finally { setChecking(false); }
   };
 
   const handleRefresh = useCallback(async () => { await loadData(); }, []);
@@ -100,6 +119,16 @@ export function Achievements() {
             />
           </div>
         </div>
+
+        {/* Check for new achievements */}
+        <button
+          onClick={checkForNew}
+          disabled={checking}
+          className="w-full mt-3 flex items-center justify-center gap-2 bg-white/20 hover:bg-white/30 active:scale-[0.98] backdrop-blur-sm rounded-xl px-4 py-2 text-white text-sm font-medium transition-all disabled:opacity-50"
+        >
+          <RefreshCw className={`w-4 h-4 ${checking ? 'animate-spin' : ''}`} />
+          {checking ? 'Checking...' : newCount > 0 ? `${newCount} new unlocked!` : 'Check for new achievements'}
+        </button>
 
         {/* Category filter */}
         {categories.length > 2 && (
