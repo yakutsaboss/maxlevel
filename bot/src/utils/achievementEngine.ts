@@ -7,12 +7,43 @@
 
 import { query, queryOne, transaction } from './db.js';
 import { invalidateUserCache } from './cache.js';
+import { awardXp } from './xpAward.js';
+
+/** Shape returned by the user row query in checkAndUnlockAchievements */
+interface UserRow {
+  level: number;
+  total_xp: number;
+  current_streak: number;
+  quests_completed: number;
+}
+
+/** JSON criteria stored in achievements.criteria column */
+interface AchievementCriteria {
+  type: string;
+  value?: number;
+  level?: number;
+  amount?: number;
+  count?: number;
+  days?: number;
+  mode?: string;
+}
+
+/** Row from the achievements table */
+interface AchievementRow {
+  id: number;
+  name: string;
+  description: string;
+  criteria: AchievementCriteria;
+  xp_bonus: number;
+  icon: string;
+  rarity: string;
+}
 
 /**
  * Check if a single achievement criterion is met for a user.
  * Mirrors the logic from achievements.ts POST /check endpoint.
  */
-async function checkCriteriaMet(userId: number, userRow: any, criteria: any): Promise<boolean> {
+async function checkCriteriaMet(userId: number, userRow: UserRow, criteria: AchievementCriteria): Promise<boolean> {
   if (!criteria || !criteria.type) return false;
 
   switch (criteria.type) {
@@ -109,25 +140,25 @@ async function checkCriteriaMet(userId: number, userRow: any, criteria: any): Pr
  */
 async function filterQualifyingAchievements(
   userId: number,
-  userRow: any,
-  achievements: any[]
-): Promise<any[]> {
+  userRow: UserRow,
+  achievements: AchievementRow[]
+): Promise<AchievementRow[]> {
   const results = await Promise.all(
-    achievements.map(async (a: any) => {
+    achievements.map(async (a: AchievementRow) => {
       const met = await checkCriteriaMet(userId, userRow, a.criteria);
       return met ? a : null;
     })
   );
-  return results.filter(Boolean);
+  return results.filter((a): a is AchievementRow => a !== null);
 }
 
 /**
  * Check and unlock all qualifying achievements for a user.
  * Returns an array of newly unlocked achievements (empty if none).
  */
-export async function checkAndUnlockAchievements(userId: number): Promise<any[]> {
+export async function checkAndUnlockAchievements(userId: number): Promise<AchievementRow[]> {
   const [userRow, availableAchievements] = await Promise.all([
-    queryOne(
+    queryOne<UserRow>(
       `SELECT u.current_level AS level, u.total_xp,
               COALESCE(s.current_streak, 0)::int AS current_streak,
               COALESCE(qc.total, 0)::int AS quests_completed
@@ -141,7 +172,7 @@ export async function checkAndUnlockAchievements(userId: number): Promise<any[]>
        WHERE u.id = $1`,
       [userId]
     ),
-    query(
+    query<AchievementRow>(
       `SELECT a.*
        FROM achievements a
        LEFT JOIN user_achievements ua ON ua.achievement_id = a.id AND ua.user_id = $1
@@ -161,7 +192,7 @@ export async function checkAndUnlockAchievements(userId: number): Promise<any[]>
   }
 
   const newAchievements = await transaction(async (client) => {
-    const unlocked = [];
+    const unlocked: AchievementRow[] = [];
     let totalXp = 0;
 
     for (const achievement of qualifying) {
@@ -177,12 +208,7 @@ export async function checkAndUnlockAchievements(userId: number): Promise<any[]>
     }
 
     if (totalXp > 0) {
-      await client.query(
-        `UPDATE users SET total_xp = total_xp + $1,
-                          current_level = ((total_xp + $1) / 500) + 1
-         WHERE id = $2`,
-        [totalXp, userId]
-      );
+      await awardXp(client, userId, totalXp);
     }
 
     return unlocked;
