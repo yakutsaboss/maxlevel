@@ -2742,7 +2742,23 @@ Read PARALLEL_AGENTS.md — you are Agent E for Run 29. Your job: Enhance the Pr
 **Commits:** 1 atomic commit covering all 5 tasks (3 files changed, +135/-6 lines).
 
 #### Agent B Retrospective
-*(To be filled by Agent B)*
+**Status:** All 3 tasks completed. Build passes (`tsc && vite build` — zero errors).
+
+| # | Task | Files Changed | Status |
+|---|------|---------------|--------|
+| 1 | Do Not Disturb section | `DoNotDisturbSettings.tsx` (new), `NotificationSettings.tsx`, `useSettingsData.ts`, `client.ts`, `types/index.ts` | Done |
+| 2 | Haptic Feedback toggle | `HapticFeedbackSettings.tsx` (new), `useTelegram.ts` | Done |
+| 3 | About section | `AboutSection.tsx` (new), `Settings.tsx` | Done |
+
+**Changes summary:**
+- **DoNotDisturbSettings**: Toggle + dual 24-hour scrollable time pickers (start/end), indigo-themed, with animated expand/collapse. DND fields (`dnd_enabled`, `dnd_start`, `dnd_end`) added to `UserPreferences` interface and wired through `useSettingsData` → `apiClient.updateUserPreferences`. Backend will ignore unknown fields gracefully until DB columns are added.
+- **HapticFeedbackSettings**: Client-only toggle stored in `localStorage`. Added `isHapticEnabled()`/`setHapticEnabled()` helpers to `useTelegram.ts` and gated all three haptic methods (`impact`, `notification`, `selection`) behind the flag.
+- **AboutSection**: Version "1.0.0" display, "How it works" and "Report a bug" buttons opening `@maxlevelapp` Telegram channel via `openTelegramLink`.
+- **Settings page**: New sections inserted in order — Notifications → DND → Haptic → Accountability → Save → DangerZone → About.
+
+**Problems:** Initial build failed on 2 unused-variable TS errors (`onOpenLink` in AboutSection, `isHapticEnabled` import in HapticFeedbackSettings). Fixed immediately — removed unused prop and import.
+
+**Commits:** 1 commit: `03e8c88` — 9 files changed, +277/-10 lines.
 
 #### Agent C Retrospective
 *(To be filled by Agent C)*
