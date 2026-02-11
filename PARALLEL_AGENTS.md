@@ -2205,7 +2205,21 @@ Read PARALLEL_AGENTS.md — you are Agent F for Run 34. Your job: Write componen
 **Recommendations:** The shared `framerMotionMock` from `@/test/mocks/framer-motion` works well — all motion components tested cleanly. Toast auto-dismiss test uses `vi.useFakeTimers()` — a good pattern for time-dependent components.
 
 #### Agent F Retrospective
-*(To be filled by Agent F)*
+**Status:** COMPLETE — 6 test files, 19 new tests, build clean, all Agent F tests pass.
+
+| # | File | Tests | What's covered |
+|---|------|-------|----------------|
+| 1 | `leaderboard/UserAvatar.test.tsx` | 3 | firstName initial, username fallback, missing data "?" fallback |
+| 2 | `leaderboard/TimePeriodTabs.test.tsx` | 3 | renders 3 period options, aria-selected on active tab, click calls onSelect + haptic |
+| 3 | `leaderboard/LeaderboardSkeleton.test.tsx` | 2 | skeleton placeholders render, exactly 6 skeleton rows |
+| 4 | `onboarding/quiz/useQuizState.test.ts` | 5 | initial empty state, single-select via handleSingleSelect, multi-select toggle on/off, drum-roller numeric, drum-roller with unit object |
+| 5 | `quests/TabButton.test.tsx` | 3 | label + count + icon, active bg-white styling, click handler |
+| 6 | `AchievementToast.test.tsx` | 3 | achievement name + "Unlocked!", XP reward with zap icon, achievement icon display |
+
+**Notes:**
+- useQuizState was the most complex — required understanding OnboardingData shape, QuestionConfig types, and QuizAnswerValue union type. Tested both numeric and `{value, unit}` drum-roller outputs.
+- 3 pre-existing failures in AdminBroadcast.test.tsx (Agent E's file) — not related to Agent F changes.
+- Files were committed to main via another agent session (shared worktree), so no separate Agent F commit was needed.
 
 #### Agent 0 Retrospective
 *(To be filled by Agent 0)*
