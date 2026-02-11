@@ -47,7 +47,7 @@ export function ProfileAchievements({ achievements, allAchievements, haptic, onV
               .sort((a, b) => new Date(b.unlocked_at).getTime() - new Date(a.unlocked_at).getTime())
               .slice(0, 4)
               .map((ua) => {
-                const rarity = ua.achievement.rarity || ua.achievement.category || '';
+                const rarity = ua.achievement.rarity || '';
                 const rarityColor = rarity === 'legendary' ? 'text-yellow-500' : rarity === 'epic' ? 'text-purple-500' : rarity === 'rare' ? 'text-blue-500' : 'text-telegram-hint';
                 return (
                   <motion.button

@@ -74,8 +74,9 @@ describe('AchievementCard', () => {
     // Locked achievements show '???' instead of the real name
     expect(screen.getByText('???')).toBeInTheDocument();
     expect(screen.queryByText('First Steps')).not.toBeInTheDocument();
-    // Shows '?' instead of the real icon
-    expect(screen.getByText('?')).toBeInTheDocument();
+    // Shows real icon grayed out (grayscale opacity-40) instead of '?'
+    expect(screen.getByText('🎯')).toBeInTheDocument();
+    expect(screen.queryByText('?')).not.toBeInTheDocument();
   });
 
   it('unlocked state shows XP earned', () => {

@@ -88,8 +88,8 @@ export function AchievementCard({ achievement: ach, userAchievement: userAch, is
         </div>
       )}
 
-      <div className={`text-4xl text-center mb-2 ${!isUnlocked ? 'grayscale opacity-50' : ''}`}>
-        {isUnlocked ? ach.icon : '?'}
+      <div className={`text-4xl text-center mb-2 ${!isUnlocked ? 'grayscale opacity-40' : ''}`}>
+        {ach.icon}
       </div>
       <h3 className="text-sm font-semibold text-center line-clamp-2 mb-1">
         {isUnlocked ? ach.name : '???'}
