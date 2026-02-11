@@ -1422,7 +1422,18 @@ Read PARALLEL_AGENTS.md — you are Agent F for Run 36. Refactor `mini-app/src/p
 - All 580 vitest tests pass cleanly.
 
 #### Agent C Retrospective
-*(To be filled by Agent C)*
+**All 3 files fixed. Zero `any` remaining in target files. 580/580 vitest pass.**
+
+**Changes per file:**
+- `completion.ts`: Added `SelectedMode` (icon_emoji, display_name) and `ModeRow` (mode_id) interfaces. Used `as SelectedMode[]` cast on `getUserActiveModes` return and `query<ModeRow>` generic on the modes query.
+- `quickActions.ts`: Added `QuestRow` (mode_icon, name, status, xp_reward) and `StreakRow` (current_streak) interfaces. Used `query<QuestRow>`, `query<StreakRow>` generics. Also replaced `queryOne<Record<string, any>>` with `queryOne<{ total: number }>`.
+- `dailyQuestReset.ts`: Added `ModeIdRow` (mode_id) interface, used `query<ModeIdRow>` generic in both `assignDailyQuestsWithRetry` and `assignWeeklyQuests`. Changed both `catch (err: any)` to `catch (err: unknown)` with `err instanceof Error ? err.message : String(err)` pattern.
+
+**Key insight:** The `query()` function returns `Record<string, any>[]` by default but supports generics (`query<T>`). Using `query<T>(...)` is the correct approach — annotating `.map()` callbacks directly causes TS2345 because `Record<string, any>` isn't assignable to a stricter interface.
+
+**Pre-existing issue:** `modeSelection.ts` has 8 type errors from another agent's concurrent work (Mode/UserMode interfaces on query results). Not in my scope.
+
+**Commits:** `6e398a1`
 
 #### Agent D Retrospective
 **Status:** COMPLETE — 2 tasks done, 12 new tests pass, 580/580 total tests pass.
