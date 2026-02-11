@@ -23,7 +23,7 @@ class ApiClient {
   private inflightGets = new Map<string, Promise<unknown>>();
 
   private deduplicatedGet<T>(url: string, params?: Record<string, unknown>, config?: { timeout?: number; signal?: AbortSignal }): Promise<T> {
-    const key = params ? `${url}?${JSON.stringify(params)}` : url;
+    const key = params ? `${url}?${JSON.stringify(params, Object.keys(params).sort())}` : url;
     const existing = this.inflightGets.get(key);
     if (existing) return existing as Promise<T>;
 
@@ -32,6 +32,10 @@ class ApiClient {
       .finally(() => this.inflightGets.delete(key));
     this.inflightGets.set(key, promise);
     return promise;
+  }
+
+  clearCache(): void {
+    this.inflightGets.clear();
   }
 
   constructor() {
