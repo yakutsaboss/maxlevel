@@ -1220,7 +1220,22 @@ Read PARALLEL_AGENTS.md — you are Agent T for Run 35. Fix `mini-app/src/pages/
 **Notes:** The old formula (`level * 100`) meant a level 5 user needed only 500 XP to "fill" the bar, but they already had 2000+ XP (since level = floor(totalXp / 500) + 1). With the fix, level 5 → 2500 XP threshold, so the bar correctly shows progress within the level.
 
 #### Agent B Retrospective
-*(To be filled by Agent B)*
+**All 3 tasks completed. Build clean (tsc), checkins tests 14/14 pass.**
+
+| # | Task | Status |
+|---|------|--------|
+| 1 | Replace raw SQL `UPDATE users SET total_xp...current_level` with `awardXp(client, quest.user_id, quest.xp_reward)` | Done |
+| 2 | Add `checkAndUnlockAchievements(quest.user_id)` after transaction on auto-completion | Done |
+| 3 | Update `checkins.http.test.ts` — mock xpAward.js + achievementEngine.js, remove stale 3rd client.query, add awardXp/achievement assertions | Done |
+
+**What changed:**
+- `checkins.ts` lines 72-76: removed inline SQL `current_level = ((total_xp + $1) / 500) + 1` (integer division bug) and replaced with shared `awardXp()` that uses `Math.floor(totalXp / 500) + 1`.
+- Added `checkAndUnlockAchievements(quest.user_id)` call after the transaction when `completed === true`, so checkin auto-completions now trigger achievement unlock checks.
+- Test: mocked `xpAward.js` and `achievementEngine.js`, removed the 3rd `.mockResolvedValueOnce` (UPDATE users no longer happens via raw client.query), added assertions that awardXp is called with correct args on completion and NOT called on partial progress.
+
+**Pre-existing failures:** 3 tests in `quests.http.test.ts` fail (missing achievementEngine mock in that file) — not in Agent B scope.
+
+**Commits:** `a2a9e36` (route fix), `bd4de20` (test update)
 
 #### Agent C Retrospective
 *(To be filled by Agent C)*
