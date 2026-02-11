@@ -14,6 +14,7 @@ import {
   NotFoundError,
   logger,
 } from './quest-helpers.js';
+import { awardXp } from '../../utils/xpAward.js';
 
 const log = logger.child({ component: 'quests' });
 
@@ -50,17 +51,8 @@ router.post('/:questId/complete', authenticateTelegram, mutationLimiter, asyncHa
       `UPDATE quest_instances SET status = 'completed', completed_at = NOW(), xp_awarded = $1 WHERE id = $2`,
       [xpReward, questId]
     );
-    const userRow = await client.query(
-      `UPDATE users SET total_xp = total_xp + $1 WHERE id = $2 RETURNING total_xp, current_level`,
-      [xpReward, instance.user_id]
-    );
-    const user = userRow.rows[0];
-    const newLevel = Math.floor(user.total_xp / 500) + 1;
-    const leveledUp = newLevel > user.current_level;
-    if (leveledUp) {
-      await client.query(`UPDATE users SET current_level = $1 WHERE id = $2`, [newLevel, instance.user_id]);
-    }
-    return { newLevel: leveledUp ? newLevel : null, leveledUp };
+    const xpResult = await awardXp(client, instance.user_id, xpReward);
+    return { newLevel: xpResult.leveledUp ? xpResult.newLevel : null, leveledUp: xpResult.leveledUp };
   });
 
   invalidateUserCache(instance.user_id);

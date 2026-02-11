@@ -25,7 +25,7 @@ const router = Router();
  * GET /api/admin/stats
  * Get overall system statistics
  */
-router.get('/stats', asyncHandler(async (req: Request, res: Response) => {
+router.get('/stats', requireRole('admin'), asyncHandler(async (req: Request, res: Response) => {
   const [usersRows, questsRows, achievementsRows] = await Promise.all([
     query<{ total: string; active: string }>(
       'SELECT COUNT(*) as total, COUNT(*) FILTER (WHERE is_active = true) as active FROM users'

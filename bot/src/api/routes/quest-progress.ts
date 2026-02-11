@@ -16,6 +16,7 @@ import {
   ForbiddenError,
   logger,
 } from './quest-helpers.js';
+import { awardXp } from '../../utils/xpAward.js';
 
 const log = logger.child({ component: 'quests' });
 
@@ -61,16 +62,12 @@ router.patch('/:questId/progress', authenticateTelegram, authorizeUser, mutation
 
   if (clampedProgress >= target) {
     // Auto-complete: award XP, update progress, mark completed
-    const result = await transaction(async (client) => {
+    const xpResult = await transaction(async (client) => {
       await client.query(
         `UPDATE quest_instances SET check_in_count = $1, status = 'completed', completed_at = NOW(), xp_awarded = $2 WHERE id = $3`,
         [clampedProgress, quest.xp_reward, questId]
       );
-      const userRow = await client.query(
-        `UPDATE users SET total_xp = total_xp + $1, current_level = ((total_xp + $1) / 500) + 1 WHERE id = $2 RETURNING total_xp, current_level`,
-        [quest.xp_reward, quest.user_id]
-      );
-      return userRow.rows[0];
+      return awardXp(client, quest.user_id, quest.xp_reward);
     });
 
     invalidateUserCache(quest.user_id);
@@ -87,8 +84,8 @@ router.patch('/:questId/progress', authenticateTelegram, authorizeUser, mutation
       progress: clampedProgress,
       target,
       xpEarned: quest.xp_reward,
-      newLevel: result?.current_level || null,
-      leveledUp: true,
+      newLevel: xpResult.leveledUp ? xpResult.newLevel : null,
+      leveledUp: xpResult.leveledUp,
     }));
   }
 
