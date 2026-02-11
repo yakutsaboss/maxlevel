@@ -2,6 +2,7 @@ import { useEffect, useState, useRef } from 'react';
 import { apiClient } from '@/api/client';
 import { UserStats, UserAchievement, Achievement } from '@/types';
 import { getErrorMessage } from '@/hooks/useApiError';
+import { logger } from '@/utils/logger';
 
 export function useProfileData(userId: number | undefined) {
   const [stats, setStats] = useState<UserStats | null>(null);
@@ -50,7 +51,7 @@ export function useProfileData(userId: number | undefined) {
       } catch { /* Punishment API not available yet — silently skip */ }
     } catch (err) {
       if (signal.aborted) return;
-      console.error('Failed to load profile data:', err);
+      logger.error('Failed to load profile data', { error: err });
       setError(true);
       setErrorMessage(getErrorMessage(err));
     } finally {

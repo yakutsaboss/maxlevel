@@ -4,6 +4,7 @@ import { detectTimezone } from '@/components/settings/NotificationSettings';
 import type { UserPreferences } from '@/components/settings/NotificationSettings';
 import type { PunishmentSettings } from '@/components/settings/AccountabilitySettings';
 import { getErrorMessage } from '@/hooks/useApiError';
+import { logger } from '@/utils/logger';
 
 interface UseSettingsDataParams {
   user: { id: number } | undefined;
@@ -93,7 +94,7 @@ export function useSettingsData({
       }
     } catch (err) {
       if (signal.aborted) return;
-      console.error('Failed to load preferences:', err);
+      logger.error('Failed to load preferences', { error: err });
       setError(true);
       setErrorMessage(getErrorMessage(err));
     } finally {
