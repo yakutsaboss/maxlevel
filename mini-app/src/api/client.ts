@@ -5,16 +5,25 @@ import { ApiError } from '@/types/errors';
 // API Base URL - should come from environment
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
 
+// Timeout presets
+export const TIMEOUT_FAST = 5000;    // User-facing requests (stats, active quests)
+export const TIMEOUT_NORMAL = 10000; // Default timeout
+export const TIMEOUT_SLOW = 20000;   // Background tasks (analytics, exports)
+
+export function withTimeout(ms: number) {
+  return { timeout: ms };
+}
+
 class ApiClient {
   private client: AxiosInstance;
   private inflightGets = new Map<string, Promise<any>>();
 
-  private deduplicatedGet<T>(url: string, params?: Record<string, unknown>): Promise<T> {
+  private deduplicatedGet<T>(url: string, params?: Record<string, unknown>, config?: { timeout?: number }): Promise<T> {
     const key = params ? `${url}?${JSON.stringify(params)}` : url;
     const existing = this.inflightGets.get(key);
     if (existing) return existing;
 
-    const promise = this.client.get(url, { params })
+    const promise = this.client.get(url, { params, ...config })
       .then((res) => res.data)
       .finally(() => this.inflightGets.delete(key));
     this.inflightGets.set(key, promise);
@@ -67,7 +76,7 @@ class ApiClient {
 
   // User endpoints
   async getUserStats(telegramId: number): Promise<ApiResponse<UserStats>> {
-    return this.deduplicatedGet(`/users/${telegramId}/stats`);
+    return this.deduplicatedGet(`/users/${telegramId}/stats`, undefined, withTimeout(TIMEOUT_FAST));
   }
 
   async createUser(userData: {
@@ -82,7 +91,7 @@ class ApiClient {
 
   // Quest endpoints
   async getActiveQuests(userId: number): Promise<ApiResponse<Quest[]>> {
-    const result = await this.deduplicatedGet<ApiResponse<Quest[]>>(`/users/${userId}/quests/active`);
+    const result = await this.deduplicatedGet<ApiResponse<Quest[]>>(`/users/${userId}/quests/active`, undefined, withTimeout(TIMEOUT_FAST));
     // Defensive: unwrap if data is not an array but has .quests
     if (result.data && !Array.isArray(result.data) && Array.isArray((result.data as any).quests)) {
       result.data = (result.data as any).quests;
