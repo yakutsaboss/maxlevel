@@ -26,8 +26,12 @@ export function RarityGroup({ rarity, achievements, unlockedIds, userAchievement
         <h2 className={`text-lg font-semibold ${rarityStyle.text}`}>
           {rarityStyle.label}
         </h2>
-        <span className="text-xs text-telegram-hint">
-          {unlockedInGroup}/{achievements.length}
+        <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${
+          unlockedInGroup === achievements.length
+            ? 'bg-green-100 text-green-700'
+            : 'bg-telegram-hint/10 text-telegram-hint'
+        }`}>
+          {unlockedInGroup} / {achievements.length} unlocked
         </span>
       </div>
       <div className="grid grid-cols-2 gap-3">
