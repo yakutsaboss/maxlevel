@@ -1449,7 +1449,22 @@ Read PARALLEL_AGENTS.md — you are Agent T for Run 35. Fix `mini-app/src/pages/
 **Note:** The OWNED files list only included `AchievementCard.tsx`, but the task required touching `ProfileAchievements.tsx` (for the rarity/category fix) and the test file. Both were minimal, targeted changes.
 
 #### Agent R Retrospective
-*(To be filled by Agent R)*
+**Status:** COMPLETE — 3 fixes across 3 files, 3 commits, Vite build clean, 319/319 tests pass.
+
+| # | File | Change |
+|---|------|--------|
+| 1 | `mini-app/src/api/client.ts` | Fixed dedup key: `JSON.stringify(params, Object.keys(params).sort())` for stable key order. Added `clearCache()` method. |
+| 2 | `mini-app/src/pages/Profile.tsx` | Added `apiClient.clearCache()` in `onSaved` callback after `loadProfileData()` to invalidate stale dashboard data. |
+| 3 | `mini-app/src/hooks/useDashboardData.ts` | Added null guard: `res.data.newAchievements &&` before accessing `.length` to prevent crash when `newAchievements` is null/undefined. |
+
+**Commits:**
+- `d8ca8da` — fix(mini-app): sort dedup keys + add clearCache to ApiClient
+- `565c90a` — fix(mini-app): invalidate API cache after profile save
+- `2a4f972` — fix(mini-app): add null guard for newAchievements in dashboard hook
+
+**Build & test:** Vite build passes. 73 test files / 319 tests pass. Pre-existing `tsc` error in `Achievements.tsx` (Agent T's file) blocks `npm run build` but is unrelated to Agent R changes.
+
+**Notes:** The dedup key fix ensures `{a:1,b:2}` and `{b:2,a:1}` produce the same cache key. The `clearCache()` method clears the `inflightGets` Map so concurrent requests after profile save don't serve stale data. The null guard on `newAchievements` prevents runtime crash when the API returns `data` without the `newAchievements` field.
 
 #### Agent S Retrospective
 **Status:** COMPLETE — null guards added to StreakSection + CheckInButton, build clean, 319/319 tests pass.
