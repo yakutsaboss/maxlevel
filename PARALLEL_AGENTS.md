@@ -1394,10 +1394,32 @@ Read PARALLEL_AGENTS.md — you are Agent F for Run 36. Refactor `mini-app/src/p
 ### Run 36 Retrospectives
 
 #### Agent A Retrospective
-*(To be filled by Agent A)*
+- **Scope**: `bot/src/handlers/onboarding/modeSelection.ts` — 11 `any` + 1 `Record<string, any>` replaced
+- **Interfaces created**: `Mode` (modes table row), `UserMode` (user_modes JOIN modes), `UserModeRow` (raw user_modes row)
+- **Changes**: 43 insertions, 13 deletions. All callback parameters now typed; `query<UserMode>(...)` added to inline SQL in `handleModeSummary`; `queryOne<UserModeRow>(...)` replaced `queryOne<Record<string, any>>(...)` in `handleModeSelection`
+- **Build**: `tsc` clean, 580/580 tests pass
+- **Issues**: None. Straightforward replacement — no test changes needed since tests mock at the `query`/`queryOne` level
+- **Recommendation**: Consider adding generic type params to `listAllModes()` and `getUserActiveModes()` in `queries.ts` so callers don't need per-callback type annotations
 
 #### Agent B Retrospective
-*(To be filled by Agent B)*
+**Status:** COMPLETE — all `any` eliminated from stats.ts and leaderboard.ts, 580/580 tests pass.
+
+| # | Task | Status |
+|---|------|--------|
+| 1 | Create `WeeklyStats`, `AllTimeStats`, `StreakRecord` interfaces in stats.ts | Done |
+| 2 | Replace `weeklyStats: any` + `streaks: any[]` in `formatWeeklyMessage` | Done |
+| 3 | Replace `allTimeStats: any` + `streaks: any[]` in `formatAllTimeMessage` | Done |
+| 4 | Type helper functions with generic `query<T>()` params | Done |
+| 5 | Create `LeaderboardRow` interface in leaderboard.ts | Done |
+| 6 | Replace `(r: any)` in `top10.find` + type `query`/`queryOne` calls | Done |
+
+**Changes (1 commit `ece5f5f`):**
+- `bot/src/handlers/stats.ts`: Added 3 interfaces (WeeklyStats, AllTimeStats, StreakRecord), typed all 3 helper functions with `query<T>()` generics, replaced 4 `any` annotations in formatWeeklyMessage/formatAllTimeMessage params.
+- `bot/src/handlers/leaderboard.ts`: Added LeaderboardRow interface, typed `query<LeaderboardRow>()` and `queryOne<LeaderboardRow>()` calls, replaced `(r: any)` callback with `(r: LeaderboardRow)`.
+
+**Notes:**
+- Pre-existing build errors in modeSelection.ts, quickActions.ts, dailyQuestReset.ts (other agents' files) — not caused by this work.
+- All 580 vitest tests pass cleanly.
 
 #### Agent C Retrospective
 *(To be filled by Agent C)*
