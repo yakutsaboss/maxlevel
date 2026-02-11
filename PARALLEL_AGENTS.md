@@ -924,7 +924,25 @@ Read PARALLEL_AGENTS.md — you are Agent F for Run 31. Your job: Slim down Onbo
 *(To be filled by Agent D)*
 
 #### Agent E Retrospective
-*(To be filled by Agent E)*
+**Status:** COMPLETE — all tasks done, build passes (`tsc && vite build` — zero errors).
+
+| # | Task | Status |
+|---|------|--------|
+| 1 | Add pull-to-refresh to Profile.tsx | Done |
+| 2 | Add pull-to-refresh to Settings.tsx | Done |
+| 3 | Review all 7 pages for loading/error consistency | Done — all consistent |
+| 4 | Evaluate pull-to-refresh for Onboarding.tsx | Skipped (see below) |
+| 5 | Build verification | Pass — zero errors |
+
+**Files changed:** `pages/Profile.tsx` (added pull-to-refresh), `pages/Settings.tsx` (added pull-to-refresh). 2 atomic commits.
+
+**Pull-to-refresh now covers all 6 data pages:** Dashboard, Leaderboard, Achievements, Quests, Profile, Settings.
+
+**Loading/error audit:** All 6 data pages use consistent `if (loading) return <XxxSkeleton />` + `if (error) return <ErrorSection message="..." onRetry={reload} />`. No fixes needed.
+
+**Onboarding pull-to-refresh — skipped.** Onboarding is a wizard, not a data page. No fetchable data to refresh — user fills in answers. Step transitions (AnimatePresence) would conflict with pull gestures. Save-status indicator already provides feedback. Adding PTR would cause accidental triggers during step scrolling.
+
+**No conflicts expected:** Only touched owned files (Profile.tsx, Settings.tsx). No hooks/api/types changes.
 
 #### Agent F Retrospective
 *(To be filled by Agent F)*
