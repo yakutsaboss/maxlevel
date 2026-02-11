@@ -1043,4 +1043,384 @@ Read PARALLEL_AGENTS.md — you are Agent F for Run 31. Your job: Slim down Onbo
 
 **Test count progression:** Run 29: 0 mini-app tests → Run 30: 13 → Run 31: 66 (5x growth)
 
-<!-- Next run goes here. Agent 0 will append RUN 32 below this line. -->
+## RUN 32: Comprehensive Testing & Code Quality (10 Agents + Agent 0)
+
+### Focus: Reach 170+ total tests (66→140+ mini-app, 456→490+ bot) by covering every untested page, hook, and component. Eliminate all `any` types via a shared HapticFeedback interface. Centralize frontend error logging. Split the 331-line quests.ts backend route. Add HTTP tests for 6 untested admin/user routes. Extract duplicated dynamic-SQL builder into a shared utility and fix admin-jobs auth gap.
+
+### Copy-Paste Prompts
+
+**Agent 0** (open in: `c:\Users\Asus\Desktop\Wibecode`):
+```
+Read PARALLEL_AGENTS.md — you are Agent 0 for Run 32. Wait for agents to finish, then merge and deploy.
+```
+
+**Agent A** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-a`):
+```
+Read PARALLEL_AGENTS.md — you are Agent A for Run 32. Your job: Write page tests for the 3 untested pages. Test infrastructure exists — see `mini-app/vitest.config.ts` and `mini-app/src/test/setup.ts`. (1) Create `mini-app/src/__tests__/pages/Quests.test.tsx` (5-6 tests): renders loading skeleton, renders active quest list after data loads, mode filter chips filter quests, sort toggle changes order, completion progress bar shows X/Y, empty state shows "Explore Modes" CTA. Mock `apiClient` methods (getActiveQuests, getCompletedQuests). Look at existing page tests in `__tests__/pages/Dashboard.test.tsx` for patterns. (2) Create `mini-app/src/__tests__/pages/Onboarding.test.tsx` (5-6 tests): renders splash screen initially, advances to next step, renders progress bar with step count, shows save indicator on save, validates required fields before advancing. Mock `useOnboarding` store. (3) Create `mini-app/src/__tests__/pages/Admin.test.tsx` (5-6 tests): renders admin panel tabs, renders user list component, renders jobs component, renders logs component, requires auth. Mock `apiClient` and admin-specific hooks. Target: ~16 new tests. Build verify: `cd mini-app && npm run build && npm test`. Follow the Safety Protocol. Commit after each task. Write your retrospective when done.
+```
+
+**Agent B** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-b`):
+```
+Read PARALLEL_AGENTS.md — you are Agent B for Run 32. Your job: Write tests for the 4 untested hooks. Test infrastructure exists — see `mini-app/vitest.config.ts` and `mini-app/src/test/setup.ts`. Look at `mini-app/src/__tests__/hooks/useDashboardData.test.ts` for mock patterns. (1) Create `mini-app/src/__tests__/hooks/useOnboarding.test.ts` (5-6 tests): test initial state shape, test setCurrentStep updates step, test setAnswer stores answer, test reset clears state, test mode selection (addMode/removeMode). This is a Zustand store — mock it or test via renderHook. (2) Create `mini-app/src/__tests__/hooks/useOnboardingNavigation.test.ts` (4-5 tests): test getAllSteps returns correct steps for selected modes, test getNextStep/getPreviousStep navigation, test calculateProgress returns correct percentage, test step list changes when modes change. (3) Create `mini-app/src/__tests__/hooks/useTelegram.test.ts` (5-6 tests): test returns WebApp object, test hapticImpact calls HapticFeedback.impactOccurred when enabled, test hapticImpact is no-op when disabled, test isHapticEnabled reads from localStorage, test setHapticEnabled writes to localStorage. Mock @twa-dev/sdk and localStorage. (4) Create `mini-app/src/__tests__/hooks/useApiError.test.ts` (4 tests): test getErrorMessage with ApiError code 0 returns "No internet", test with 401 returns session expired, test with 500 returns server error, test with non-ApiError returns generic message. Target: ~19 new tests. Build verify: `cd mini-app && npm run build && npm test`. Follow the Safety Protocol. Commit after each task. Write your retrospective when done.
+```
+
+**Agent C** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-c`):
+```
+Read PARALLEL_AGENTS.md — you are Agent C for Run 32. Your job: Eliminate ALL `any` types from mini-app source files. (1) Create `mini-app/src/types/telegram.ts` (NEW): define a `HapticFeedback` interface with `impactOccurred(style: 'light'|'medium'|'heavy'|'rigid'|'soft'): void`, `notificationOccurred(type: 'error'|'success'|'warning'): void`, `selectionChanged(): void`. Also define a `HapticHandler` type: `((...args: never[]) => void) | undefined` or whatever replaces `(...args: any[]) => void`. Export types for the safe haptic callback pattern used across components. (2) Update 8 component files to use the typed haptic interface: AchievementCard.tsx, RarityGroup.tsx, ProfileAccountability.tsx, ProfileAchievements.tsx, ProfileHeader.tsx, ProfileModes.tsx, DoNotDisturbSettings.tsx, NotificationSettings.tsx. Each file uses `(...args: any[]) => void` for haptic callback props — replace with the proper type from types/telegram.ts. (3) Update hooks: useDashboardData.ts (any type), usePullToRefresh.tsx (any type), useSettingsData.ts (2 any types) — replace with proper types. These are type-only changes, do NOT change logic. (4) Fix `Record<string, any>` in `components/onboarding/quiz/useQuizState.ts` and `data/onboardingQuestions.ts` — define proper types for quiz answer data and showIf callback parameter. (5) Verify zero `any` remaining: search all `mini-app/src/**/*.ts{x}` (excluding __tests__ and node_modules) for `any`. Fix any stragglers. Build verify: `cd mini-app && npm run build && npm test`. Follow the Safety Protocol. Commit after each task. Write your retrospective when done.
+```
+
+**Agent D** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-d`):
+```
+Read PARALLEL_AGENTS.md — you are Agent D for Run 32. Your job: Split the 331-line quests.ts backend route into focused sub-modules. (1) Analyze quests.ts: read the full file, identify logical sections. It likely has: GET active quests, GET completed quests, POST complete quest (with XP+achievements+streak), PATCH progress (check-in increment), POST assign daily quests (complex randomization). (2) Create sub-modules: `bot/src/api/routes/quest-progress.ts` (PATCH progress, check-in logic), `bot/src/api/routes/quest-completion.ts` (POST complete, XP award, achievement checks, streak update), `bot/src/api/routes/quest-assignment.ts` (POST assign, randomization, daily reset logic). Keep GET endpoints in quests.ts (they're simple reads). (3) Wire sub-routers: in quests.ts, import the sub-routers and mount with `router.use('/', progressRouter)` etc. All URL paths MUST stay identical. (4) Extract shared helpers: if completion and progress both use `invalidateUserCache` or `checkAndUnlockAchievements`, put shared logic in `bot/src/api/routes/quest-helpers.ts`. (5) Run existing tests to verify nothing broke: `cd bot && npm run build && npx vitest --run`. Target: quests.ts under 120 lines. Build verify: `cd bot && npm run build && npx vitest --run`. Follow the Safety Protocol. Commit after each task. Write your retrospective when done.
+```
+
+**Agent E** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-e`):
+```
+Read PARALLEL_AGENTS.md — you are Agent E for Run 32. Your job: Write HTTP integration tests for the untested user sub-routes (split in Run 30). (1) Create `bot/src/__tests__/routes/http/user-account.http.test.ts` (8-10 tests): GET user profile, PATCH user profile (update display_name, avatar_id), PATCH with invalid data (empty name), DELETE account (soft delete), DELETE requires ownership, auth required on all endpoints. Look at `users.http.test.ts` and `user-preferences.http.test.ts` for test patterns — they use `buildApp()`, mock `authenticateTelegram`/`authorizeUser`/`requireOwnership`, and test against `supertest`. (2) Create `bot/src/__tests__/routes/http/user-stats.http.test.ts` (8-10 tests): GET user stats returns all stat fields, GET with invalid userId, GET returns correct XP/level/streak data, auth required, stats include quest counts, stats include achievement counts. (3) Create `bot/src/__tests__/routes/http/user-helpers.test.ts` (4-5 tests): test resolveUser returns user for valid telegramId, test resolveUser throws NotFoundError for invalid id, test resolveUser returns all expected fields. Target: ~22 new tests. Build verify: `cd bot && npm run build && npx vitest --run`. Follow the Safety Protocol. Commit after each task. Write your retrospective when done.
+```
+
+**Agent F** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-f`):
+```
+Read PARALLEL_AGENTS.md — you are Agent F for Run 32. Your job: Write HTTP integration tests for the untested admin routes. (1) Create `bot/src/__tests__/routes/http/admin-jobs.http.test.ts` (6-8 tests): GET /admin/jobs lists registered jobs, GET returns job names and schedules, POST /admin/jobs/:name/trigger triggers a job, POST with invalid job name returns error, POST requires admin role, GET should require admin role (NOTE: the current code is missing requireRole on GET — test the actual behavior and document this as a finding). (2) Create `bot/src/__tests__/routes/http/admin-stats.http.test.ts` (6-8 tests): GET /admin/stats returns system statistics, GET requires admin role, POST /admin/broadcast sends messages (mock the Telegram API call), broadcast requires admin role, broadcast with empty message returns error. (3) Create `bot/src/__tests__/routes/http/admin-users.http.test.ts` (6-8 tests): GET /admin/users lists users, GET /admin/users/:id returns single user, PATCH /admin/users/:id updates user, PATCH with invalid data returns error, all endpoints require admin role. Look at existing admin.http.test.ts for patterns. Target: ~20 new tests. Build verify: `cd bot && npm run build && npx vitest --run`. Follow the Safety Protocol. Commit after each task. Write your retrospective when done.
+```
+
+**Agent G** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-g`):
+```
+Read PARALLEL_AGENTS.md — you are Agent G for Run 32. Your job: Extract shared backend utilities and fix security gaps. (1) Create `bot/src/utils/sqlBuilder.ts` (NEW): export a `buildDynamicUpdate(table: string, fields: Record<string, unknown>, whereClause: string, whereParams: unknown[]): { text: string, values: unknown[] }` function. This pattern is duplicated in admin-users.ts, punishment.ts, user-account.ts, user-preferences.ts — each builds a dynamic SET clause with `$N` placeholders. The shared helper should handle: empty fields (throw), parameterized SET clause, proper $N indexing. (2) Update the 4 route files (admin-users.ts, punishment.ts, user-account.ts, user-preferences.ts) to use the shared builder instead of inline construction. Behavior MUST stay identical — this is a pure refactor. (3) Fix admin-jobs.ts security: add `requireRole('admin')` middleware to the GET `/` route (line 20). Currently any authenticated user can list background jobs. (4) Create `bot/src/utils/broadcast.ts` (NEW): extract the broadcast messaging logic from admin-stats.ts (the part that batches Telegram API calls with Promise.allSettled and 1-second delays). Export as `broadcastMessage(botToken: string, chatIds: number[], text: string): Promise<{sent: number, failed: number}>`. Update admin-stats.ts to use it. (5) Write unit tests for sqlBuilder: `bot/src/__tests__/utils/sqlBuilder.test.ts` (5-6 tests): builds correct SET clause, correct $N params, throws on empty fields, handles multiple fields, handles WHERE params offset. Build verify: `cd bot && npm run build && npx vitest --run`. Follow the Safety Protocol. Commit after each task. Write your retrospective when done.
+```
+
+**Agent H** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-h`):
+```
+Read PARALLEL_AGENTS.md — you are Agent H for Run 32. Your job: Create a frontend logger for the mini-app and replace all 14 scattered console.error calls. (1) Create `mini-app/src/utils/logger.ts` (NEW): export a lightweight logger with methods `error(message: string, context?: Record<string, unknown>)`, `warn(message: string, context?: Record<string, unknown>)`, `info(message: string, context?: Record<string, unknown>)`. In development (import.meta.env.DEV), log to console with structured format. In production, suppress or send to future error tracking. Keep it under 30 lines — no dependencies. (2) Update pages to use logger: replace console.error in Achievements.tsx (1 call), Leaderboard.tsx (1 call), Quests.tsx (3 calls), Onboarding.tsx (1 call). Import logger and call `logger.error('descriptive message', { error })`. (3) Update hooks to use logger: replace console.error in useDashboardData.ts (3 calls), useProfileData.ts (1 call), useSettingsData.ts (1 call). NOTE: Agent C also modifies these hooks for type changes — you only change `console.error(...)` lines to `logger.error(...)`. Do NOT change type annotations. (4) Update components to use logger: replace console.error in CheckInButton.tsx (1 call), LaunchScreen.tsx (1 call). Keep ErrorBoundary.tsx's console.error as-is (it's the React error boundary — intentional). (5) Verify zero console.error remaining in production code (except ErrorBoundary). Build verify: `cd mini-app && npm run build && npm test`. Follow the Safety Protocol. Commit after each task. Write your retrospective when done.
+```
+
+**Agent I** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-i`):
+```
+Read PARALLEL_AGENTS.md — you are Agent I for Run 32. Your job: Write component tests for the onboarding flow. Test infrastructure exists — see `mini-app/vitest.config.ts` and `mini-app/src/test/setup.ts`. (1) Create `mini-app/src/__tests__/components/onboarding/Summary.test.tsx` (4-5 tests): renders selected modes with badges, renders avatar selection, renders quiz answers summary, renders "Start" CTA button, handles empty state. Mock useOnboarding store for state. (2) Create `mini-app/src/__tests__/components/onboarding/LaunchScreen.test.tsx` (4-5 tests): renders congratulations message, renders XP earned badge, triggers completeOnboarding on CTA click, handles double-fire prevention (useRef guard), shows error state on API failure. (3) Create `mini-app/src/__tests__/components/onboarding/PathSelect.test.tsx` (4-5 tests): renders mode cards with icons, clicking mode toggles selection, shows selected state visually, requires at least 1 mode selected. (4) Create `mini-app/src/__tests__/components/onboarding/QuizScreen.test.tsx` (4-5 tests): renders question text, renders answer input (varies by question type), submitting answer advances to next question, shows progress indicator. Mock quiz state hook. (5) Create `mini-app/src/__tests__/components/onboarding/PunishmentConfig.test.tsx` (3-4 tests): renders consent toggle, renders difficulty selector when consented, renders type selector. Target: ~20 new tests. Build verify: `cd mini-app && npm run build && npm test`. Follow the Safety Protocol. Commit after each task. Write your retrospective when done.
+```
+
+**Agent J** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-j`):
+```
+Read PARALLEL_AGENTS.md — you are Agent J for Run 32. Your job: Write component tests for shared/admin components that currently have zero test coverage. Test infrastructure exists — see `mini-app/vitest.config.ts` and `mini-app/src/test/setup.ts`. (1) Create `mini-app/src/__tests__/components/CheckInButton.test.tsx` (4-5 tests): renders check-in button, click triggers API call, shows loading state during check-in, shows success feedback after check-in, handles API error gracefully. Mock apiClient. (2) Create `mini-app/src/__tests__/components/ProfileEditModal.test.tsx` (4-5 tests): renders edit form with current values, save button calls API with updated data, cancel closes modal, validates display name not empty, shows loading during save. (3) Create `mini-app/src/__tests__/components/AdminUserList.test.tsx` (4-5 tests): renders user table/list, shows user count, search/filter works, handles empty user list, handles API error. (4) Create `mini-app/src/__tests__/components/AdminJobs.test.tsx` (3-4 tests): renders job list, trigger button calls API, shows job status/schedule, handles trigger error. (5) Create `mini-app/src/__tests__/components/AdminLogs.test.tsx` (3-4 tests): renders log entries, shows timestamps, handles empty logs, auto-refresh works. Target: ~19 new tests. Build verify: `cd mini-app && npm run build && npm test`. Follow the Safety Protocol. Commit after each task. Write your retrospective when done.
+```
+
+---
+
+### Agent A — Mini-App Page Tests: Quests, Onboarding, Admin
+
+**Branch:** `feature/r32-page-tests-2`
+**Worktree:** `../Wibecode-agent-a`
+
+**OWNED files:**
+- `mini-app/src/__tests__/pages/Quests.test.tsx` (NEW)
+- `mini-app/src/__tests__/pages/Onboarding.test.tsx` (NEW)
+- `mini-app/src/__tests__/pages/Admin.test.tsx` (NEW)
+
+**FORBIDDEN:**
+- `bot/**`, `tools/**`, `database/**`
+- All existing mini-app source files (pages, components, hooks, api, types) — read-only for writing tests
+- All existing test files — do not modify
+- `mini-app/src/__tests__/components/**` (Agents I/J own)
+- `mini-app/src/__tests__/hooks/**` (Agent B owns)
+
+---
+
+### Agent B — Mini-App Hook Tests
+
+**Branch:** `feature/r32-hook-tests`
+**Worktree:** `../Wibecode-agent-b`
+
+**OWNED files:**
+- `mini-app/src/__tests__/hooks/useOnboarding.test.ts` (NEW)
+- `mini-app/src/__tests__/hooks/useOnboardingNavigation.test.ts` (NEW)
+- `mini-app/src/__tests__/hooks/useTelegram.test.ts` (NEW)
+- `mini-app/src/__tests__/hooks/useApiError.test.ts` (NEW)
+
+**FORBIDDEN:**
+- `bot/**`, `tools/**`, `database/**`
+- All existing mini-app source files — read-only for writing tests
+- All existing test files — do not modify
+- `mini-app/src/__tests__/pages/**` (Agent A owns)
+- `mini-app/src/__tests__/components/**` (Agents I/J own)
+
+---
+
+### Agent C — Mini-App Type Safety: Eliminate All `any`
+
+**Branch:** `feature/r32-type-safety`
+**Worktree:** `../Wibecode-agent-c`
+
+**OWNED files:**
+- `mini-app/src/types/telegram.ts` (NEW)
+- `mini-app/src/components/achievements/AchievementCard.tsx` (type-only changes)
+- `mini-app/src/components/achievements/RarityGroup.tsx` (type-only changes)
+- `mini-app/src/components/profile/ProfileAccountability.tsx` (type-only changes)
+- `mini-app/src/components/profile/ProfileAchievements.tsx` (type-only changes)
+- `mini-app/src/components/profile/ProfileHeader.tsx` (type-only changes)
+- `mini-app/src/components/profile/ProfileModes.tsx` (type-only changes)
+- `mini-app/src/components/settings/DoNotDisturbSettings.tsx` (type-only changes)
+- `mini-app/src/components/settings/NotificationSettings.tsx` (type-only changes)
+- `mini-app/src/hooks/useDashboardData.ts` (type-only changes)
+- `mini-app/src/hooks/usePullToRefresh.tsx` (type-only changes)
+- `mini-app/src/hooks/useSettingsData.ts` (type-only changes)
+- `mini-app/src/components/onboarding/quiz/useQuizState.ts` (type-only changes)
+- `mini-app/src/data/onboardingQuestions.ts` (type-only changes)
+
+**CONSTRAINT:** Only change type annotations, interfaces, and generic parameters. Do NOT change component logic, API calls, state management, or rendering.
+
+**FORBIDDEN:**
+- `bot/**`, `tools/**`, `database/**`
+- All page files, `api/client.ts` (Agent H/logger may touch), `types/index.ts`
+- `mini-app/src/__tests__/**`
+
+---
+
+### Agent D — Bot: Split quests.ts Route
+
+**Branch:** `feature/r32-quests-split`
+**Worktree:** `../Wibecode-agent-d`
+
+**OWNED files:**
+- `bot/src/api/routes/quests.ts` (refactor to slim orchestrator)
+- `bot/src/api/routes/quest-progress.ts` (NEW)
+- `bot/src/api/routes/quest-completion.ts` (NEW)
+- `bot/src/api/routes/quest-assignment.ts` (NEW)
+- `bot/src/api/routes/quest-helpers.ts` (NEW — if shared helpers needed)
+
+**FORBIDDEN:**
+- `mini-app/**`, `tools/**`, `database/**`
+- All other bot routes, handlers, jobs, middleware
+- All existing test files — do not modify, only verify they still pass
+- `bot/src/utils/**` (Agent G owns)
+
+---
+
+### Agent E — Bot: HTTP Tests for User Sub-Routes
+
+**Branch:** `feature/r32-user-http-tests`
+**Worktree:** `../Wibecode-agent-e`
+
+**OWNED files:**
+- `bot/src/__tests__/routes/http/user-account.http.test.ts` (NEW)
+- `bot/src/__tests__/routes/http/user-stats.http.test.ts` (NEW)
+- `bot/src/__tests__/routes/http/user-helpers.test.ts` (NEW)
+
+**FORBIDDEN:**
+- `mini-app/**`, `tools/**`, `database/**`
+- All existing bot source files — read-only for writing tests
+- All existing test files — do not modify
+- `bot/src/__tests__/routes/http/admin-*.test.ts` (Agent F owns)
+
+---
+
+### Agent F — Bot: HTTP Tests for Admin Routes
+
+**Branch:** `feature/r32-admin-http-tests`
+**Worktree:** `../Wibecode-agent-f`
+
+**OWNED files:**
+- `bot/src/__tests__/routes/http/admin-jobs.http.test.ts` (NEW)
+- `bot/src/__tests__/routes/http/admin-stats.http.test.ts` (NEW)
+- `bot/src/__tests__/routes/http/admin-users.http.test.ts` (NEW)
+
+**FORBIDDEN:**
+- `mini-app/**`, `tools/**`, `database/**`
+- All existing bot source files — read-only for writing tests
+- All existing test files — do not modify
+- `bot/src/__tests__/routes/http/user-*.test.ts` (Agent E owns)
+
+---
+
+### Agent G — Bot: Shared Utilities + Security Fixes
+
+**Branch:** `feature/r32-bot-utils`
+**Worktree:** `../Wibecode-agent-g`
+
+**OWNED files:**
+- `bot/src/utils/sqlBuilder.ts` (NEW)
+- `bot/src/utils/broadcast.ts` (NEW)
+- `bot/src/__tests__/utils/sqlBuilder.test.ts` (NEW)
+- `bot/src/api/routes/admin-jobs.ts` (add requireRole to GET)
+- `bot/src/api/routes/admin-stats.ts` (extract broadcast logic)
+- `bot/src/api/routes/admin-users.ts` (use shared sqlBuilder)
+- `bot/src/api/routes/punishment.ts` (use shared sqlBuilder)
+- `bot/src/api/routes/user-account.ts` (use shared sqlBuilder)
+- `bot/src/api/routes/user-preferences.ts` (use shared sqlBuilder)
+
+**CONSTRAINT:** The sqlBuilder refactor must be behavior-preserving. All existing tests must continue to pass without modification.
+
+**FORBIDDEN:**
+- `mini-app/**`, `tools/**`, `database/**`
+- `bot/src/api/routes/quests.ts` (Agent D owns)
+- All other handlers, jobs, middleware
+- All existing test files — do not modify
+
+---
+
+### Agent H — Mini-App: Frontend Logger
+
+**Branch:** `feature/r32-frontend-logger`
+**Worktree:** `../Wibecode-agent-h`
+
+**OWNED files:**
+- `mini-app/src/utils/logger.ts` (NEW)
+- `mini-app/src/pages/Achievements.tsx` (console.error → logger)
+- `mini-app/src/pages/Leaderboard.tsx` (console.error → logger)
+- `mini-app/src/pages/Quests.tsx` (console.error → logger)
+- `mini-app/src/pages/Onboarding.tsx` (console.error → logger)
+- `mini-app/src/components/CheckInButton.tsx` (console.error → logger)
+- `mini-app/src/components/onboarding/LaunchScreen.tsx` (console.error → logger)
+
+**GRAY AREA:**
+- `mini-app/src/hooks/useDashboardData.ts` — ONLY replace `console.error` with `logger.error`. Do NOT change types (Agent C owns types).
+- `mini-app/src/hooks/useProfileData.ts` — same constraint.
+- `mini-app/src/hooks/useSettingsData.ts` — same constraint.
+
+**CONSTRAINT:** Only change `console.error(...)` to `logger.error(...)`. Do NOT change type annotations, logic, state management, or API calls. Keep ErrorBoundary.tsx's console.error as-is (intentional).
+
+**FORBIDDEN:**
+- `bot/**`, `tools/**`, `database/**`
+- `mini-app/src/types/**`, `mini-app/src/api/**`
+- All component files not listed above
+- `mini-app/src/__tests__/**`
+
+---
+
+### Agent I — Mini-App: Onboarding Component Tests
+
+**Branch:** `feature/r32-onboarding-tests`
+**Worktree:** `../Wibecode-agent-i`
+
+**OWNED files:**
+- `mini-app/src/__tests__/components/onboarding/Summary.test.tsx` (NEW)
+- `mini-app/src/__tests__/components/onboarding/LaunchScreen.test.tsx` (NEW)
+- `mini-app/src/__tests__/components/onboarding/PathSelect.test.tsx` (NEW)
+- `mini-app/src/__tests__/components/onboarding/QuizScreen.test.tsx` (NEW)
+- `mini-app/src/__tests__/components/onboarding/PunishmentConfig.test.tsx` (NEW)
+
+**FORBIDDEN:**
+- `bot/**`, `tools/**`, `database/**`
+- All existing mini-app source files — read-only for writing tests
+- All existing test files — do not modify
+- `mini-app/src/__tests__/pages/**` (Agent A owns)
+- `mini-app/src/__tests__/hooks/**` (Agent B owns)
+- `mini-app/src/__tests__/components/` root-level tests (Agent J owns)
+
+---
+
+### Agent J — Mini-App: Shared/Admin Component Tests
+
+**Branch:** `feature/r32-shared-component-tests`
+**Worktree:** `../Wibecode-agent-j`
+
+**OWNED files:**
+- `mini-app/src/__tests__/components/CheckInButton.test.tsx` (NEW)
+- `mini-app/src/__tests__/components/ProfileEditModal.test.tsx` (NEW)
+- `mini-app/src/__tests__/components/AdminUserList.test.tsx` (NEW)
+- `mini-app/src/__tests__/components/AdminJobs.test.tsx` (NEW)
+- `mini-app/src/__tests__/components/AdminLogs.test.tsx` (NEW)
+
+**FORBIDDEN:**
+- `bot/**`, `tools/**`, `database/**`
+- All existing mini-app source files — read-only for writing tests
+- All existing test files — do not modify
+- `mini-app/src/__tests__/pages/**` (Agent A owns)
+- `mini-app/src/__tests__/hooks/**` (Agent B owns)
+- `mini-app/src/__tests__/components/onboarding/**` (Agent I owns)
+
+---
+
+### Run 32 File Ownership Matrix
+
+| File / Directory | A | B | C | D | E | F | G | H | I | J |
+|---|---|---|---|---|---|---|---|---|---|---|
+| `__tests__/pages/*.test.tsx` (NEW) | **OWN** | — | — | — | — | — | — | — | — | — |
+| `__tests__/hooks/useOnboarding*.test.ts` (NEW) | — | **OWN** | — | — | — | — | — | — | — | — |
+| `__tests__/hooks/useTelegram.test.ts` (NEW) | — | **OWN** | — | — | — | — | — | — | — | — |
+| `__tests__/hooks/useApiError.test.ts` (NEW) | — | **OWN** | — | — | — | — | — | — | — | — |
+| `types/telegram.ts` (NEW) | — | — | **OWN** | — | — | — | — | — | — | — |
+| `components/achievements/*` (types) | — | — | **OWN** | — | — | — | — | — | — | — |
+| `components/profile/*` (types) | — | — | **OWN** | — | — | — | — | — | — | — |
+| `components/settings/*` (types) | — | — | **OWN** | — | — | — | — | — | — | — |
+| `hooks/useDashboardData.ts` | — | — | **OWN**(types) | — | — | — | — | GRAY(logger) | — | — |
+| `hooks/useProfileData.ts` | — | — | — | — | — | — | — | GRAY(logger) | — | — |
+| `hooks/useSettingsData.ts` | — | — | **OWN**(types) | — | — | — | — | GRAY(logger) | — | — |
+| `hooks/usePullToRefresh.tsx` | — | — | **OWN**(types) | — | — | — | — | — | — | — |
+| `data/onboardingQuestions.ts` | — | — | **OWN** | — | — | — | — | — | — | — |
+| `quiz/useQuizState.ts` | — | — | **OWN** | — | — | — | — | — | — | — |
+| `bot/routes/quests.ts` | — | — | — | **OWN** | — | — | — | — | — | — |
+| `bot/routes/quest-*.ts` (NEW) | — | — | — | **OWN** | — | — | — | — | — | — |
+| `bot/__tests__/http/user-account*` (NEW) | — | — | — | — | **OWN** | — | — | — | — | — |
+| `bot/__tests__/http/user-stats*` (NEW) | — | — | — | — | **OWN** | — | — | — | — | — |
+| `bot/__tests__/http/user-helpers*` (NEW) | — | — | — | — | **OWN** | — | — | — | — | — |
+| `bot/__tests__/http/admin-jobs*` (NEW) | — | — | — | — | — | **OWN** | — | — | — | — |
+| `bot/__tests__/http/admin-stats*` (NEW) | — | — | — | — | — | **OWN** | — | — | — | — |
+| `bot/__tests__/http/admin-users*` (NEW) | — | — | — | — | — | **OWN** | — | — | — | — |
+| `bot/utils/sqlBuilder.ts` (NEW) | — | — | — | — | — | — | **OWN** | — | — | — |
+| `bot/utils/broadcast.ts` (NEW) | — | — | — | — | — | — | **OWN** | — | — | — |
+| `bot/routes/admin-jobs.ts` | — | — | — | — | — | — | **OWN** | — | — | — |
+| `bot/routes/admin-stats.ts` | — | — | — | — | — | — | **OWN** | — | — | — |
+| `bot/routes/admin-users.ts` | — | — | — | — | — | — | **OWN** | — | — | — |
+| `bot/routes/punishment.ts` | — | — | — | — | — | — | **OWN** | — | — | — |
+| `bot/routes/user-account.ts` | — | — | — | — | — | — | **OWN** | — | — | — |
+| `bot/routes/user-preferences.ts` | — | — | — | — | — | — | **OWN** | — | — | — |
+| `utils/logger.ts` (NEW, mini-app) | — | — | — | — | — | — | — | **OWN** | — | — |
+| `pages/Achievements.tsx` (logger) | — | — | — | — | — | — | — | **OWN** | — | — |
+| `pages/Leaderboard.tsx` (logger) | — | — | — | — | — | — | — | **OWN** | — | — |
+| `pages/Quests.tsx` (logger) | — | — | — | — | — | — | — | **OWN** | — | — |
+| `pages/Onboarding.tsx` (logger) | — | — | — | — | — | — | — | **OWN** | — | — |
+| `components/CheckInButton.tsx` (logger) | — | — | — | — | — | — | — | **OWN** | — | — |
+| `components/onboarding/LaunchScreen.tsx` (logger) | — | — | — | — | — | — | — | **OWN** | — | — |
+| `__tests__/components/onboarding/*` (NEW) | — | — | — | — | — | — | — | — | **OWN** | — |
+| `__tests__/components/CheckInButton*` (NEW) | — | — | — | — | — | — | — | — | — | **OWN** |
+| `__tests__/components/ProfileEditModal*` (NEW) | — | — | — | — | — | — | — | — | — | **OWN** |
+| `__tests__/components/Admin*.test.tsx` (NEW) | — | — | — | — | — | — | — | — | — | **OWN** |
+
+### Run 32 Merge Order
+1. **Agent G** (bot utilities + security — foundational, route files change before tests run)
+2. **Agent D** (bot quests split — bot only, no overlap with G)
+3. **Agent E** (bot user HTTP tests — new files only, tests post-G behavior)
+4. **Agent F** (bot admin HTTP tests — new files only, tests post-G behavior)
+5. **Agent C** (mini-app types — foundational, type changes before logger touches same files)
+6. **Agent H** (mini-app logger — touches files C touched but different lines, merge after C)
+7. **Agent B** (mini-app hook tests — read-only on source, no conflicts)
+8. **Agent A** (mini-app page tests — read-only on source, no conflicts)
+9. **Agent I** (mini-app onboarding component tests — read-only, no conflicts)
+10. **Agent J** (mini-app shared component tests — read-only, merge last)
+
+### Run 32 Retrospectives
+
+#### Agent A Retrospective
+*(To be filled by Agent A)*
+
+#### Agent B Retrospective
+*(To be filled by Agent B)*
+
+#### Agent C Retrospective
+*(To be filled by Agent C)*
+
+#### Agent D Retrospective
+*(To be filled by Agent D)*
+
+#### Agent E Retrospective
+*(To be filled by Agent E)*
+
+#### Agent F Retrospective
+*(To be filled by Agent F)*
+
+#### Agent G Retrospective
+*(To be filled by Agent G)*
+
+#### Agent H Retrospective
+*(To be filled by Agent H)*
+
+#### Agent I Retrospective
+*(To be filled by Agent I)*
+
+#### Agent J Retrospective
+*(To be filled by Agent J)*
+
+#### Agent 0 Retrospective
+*(To be filled by Agent 0 after merge)*
+
+<!-- Next run goes here. Agent 0 will append RUN 33 below this line. -->
