@@ -1,9 +1,27 @@
 /**
  * Onboarding state management (Zustand store).
  * Questions & answers are defined in: data/onboardingQuestions.ts
+ * Navigation logic is in: hooks/useOnboardingNavigation.ts
  */
 
 import { create } from 'zustand';
+import {
+  buildStepSequence,
+  getAllSteps,
+  getCurrentStepIndex,
+  getTotalSteps,
+  calculateProgress,
+} from './useOnboardingNavigation';
+
+// Re-export navigation utilities so existing imports don't break
+export {
+  buildStepSequence,
+  getAllSteps,
+  getCurrentStepIndex,
+  getTotalSteps,
+  calculateProgress,
+  getStepLabel,
+} from './useOnboardingNavigation';
 
 export type OnboardingStep =
   | 'splash'
@@ -154,70 +172,6 @@ interface OnboardingStore {
   getProgress: () => number;
 }
 
-function buildStepSequence(selectedModes: string[]): OnboardingStep[] {
-  const steps: OnboardingStep[] = [
-    'splash',
-    'hero_intro',
-    'avatar',
-    'paths',
-    'referral',
-  ];
-
-  if (selectedModes.includes('fitness')) {
-    steps.push(
-      'fitness_motivation',
-      'fitness_focus',
-      'fitness_level',
-      'fitness_activity',
-      'fitness_age',
-      'fitness_height',
-      'fitness_weight',
-      'fitness_target_weight',
-      'fitness_equipment',
-      'fitness_frequency',
-      'fitness_days',
-      'fitness_time'
-    );
-  }
-
-  if (selectedModes.includes('hydration')) {
-    steps.push(
-      'hydration_intake',
-      'hydration_goals',
-      'hydration_target',
-      'hydration_reminder',
-      'hydration_schedule',
-      'hydration_vessel',
-      'hydration_barriers'
-    );
-  }
-
-  if (selectedModes.includes('finance')) {
-    steps.push(
-      'finance_goals',
-      'finance_income',
-      'finance_spending',
-      'finance_savings_target',
-      'finance_frequency'
-    );
-  }
-
-  if (selectedModes.includes('learning')) {
-    steps.push(
-      'learning_goals',
-      'learning_style',
-      'learning_time',
-      'learning_frequency',
-      'learning_days',
-      'learning_resources'
-    );
-  }
-
-  steps.push('punishments', 'notifications', 'summary', 'launch');
-
-  return steps;
-}
-
 export const useOnboarding = create<OnboardingStore>((set, get) => ({
   currentStep: 'splash',
   data: {},
@@ -272,11 +226,10 @@ export const useOnboarding = create<OnboardingStore>((set, get) => ({
     }),
 
   restoreState: (step, data) => {
-    // Rebuild step history up to the restored step so back navigation works
-    const allSteps = buildStepSequence(data.selected_modes || []);
-    const stepIndex = allSteps.indexOf(step);
+    const allStepsArr = buildStepSequence(data.selected_modes || []);
+    const stepIndex = allStepsArr.indexOf(step);
     const history = stepIndex >= 0
-      ? allSteps.slice(0, stepIndex + 1)
+      ? allStepsArr.slice(0, stepIndex + 1)
       : [step];
 
     set({
@@ -289,23 +242,21 @@ export const useOnboarding = create<OnboardingStore>((set, get) => ({
 
   getAllSteps: () => {
     const { data } = get();
-    return buildStepSequence(data.selected_modes || []);
+    return getAllSteps(data);
   },
 
   getCurrentStepIndex: () => {
-    const { currentStep } = get();
-    const steps = get().getAllSteps();
-    return steps.indexOf(currentStep);
+    const { currentStep, data } = get();
+    return getCurrentStepIndex(currentStep, data);
   },
 
   getTotalSteps: () => {
-    return get().getAllSteps().length;
+    const { data } = get();
+    return getTotalSteps(data);
   },
 
   getProgress: () => {
-    const index = get().getCurrentStepIndex();
-    const total = get().getTotalSteps();
-    if (total <= 1) return 0;
-    return Math.round((index / (total - 1)) * 100);
+    const { currentStep, data } = get();
+    return calculateProgress(currentStep, data);
   },
 }));
