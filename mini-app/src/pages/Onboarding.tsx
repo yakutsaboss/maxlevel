@@ -22,6 +22,7 @@ import { PunishmentConfig } from '@/components/onboarding/PunishmentConfig';
 import { NotificationPrefs } from '@/components/onboarding/NotificationPrefs';
 import { Summary } from '@/components/onboarding/Summary';
 import { LaunchScreen } from '@/components/onboarding/LaunchScreen';
+import { logger } from '@/utils/logger';
 
 export function Onboarding() {
   const navigate = useNavigate();
@@ -60,7 +61,7 @@ export function Onboarding() {
             saveStatusTimeout.current = setTimeout(() => setSaveStatus('idle'), 2000);
           })
           .catch((err) => {
-            console.error(err);
+            logger.error('Failed to save onboarding state', { error: err });
             setSaveStatus('failed');
             clearTimeout(saveStatusTimeout.current);
             saveStatusTimeout.current = setTimeout(() => setSaveStatus('idle'), 3000);
