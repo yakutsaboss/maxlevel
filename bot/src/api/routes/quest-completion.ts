@@ -2,7 +2,6 @@ import { Router, Request, Response } from 'express';
 import {
   authenticateTelegram,
   mutationLimiter,
-  queryOne,
   transaction,
   invalidateUserCache,
   checkAndUnlockAchievements,
@@ -27,45 +26,53 @@ const router = Router();
 router.post('/:questId/complete', authenticateTelegram, mutationLimiter, asyncHandler(async (req: Request, res: Response) => {
   const questId = parseInt(req.params.questId);
 
-  // Fetch quest instance with template info
-  const instance = await queryOne(
-    `SELECT qi.id, qi.user_id, qi.status, q.title, q.xp_reward, q.quest_type, q.difficulty, q.mode_id
-     FROM quest_instances qi
-     JOIN quests q ON qi.quest_id = q.id
-     WHERE qi.id = $1`,
-    [questId]
-  );
-
-  if (!instance) {
-    throw new NotFoundError('Quest instance not found');
-  }
-  if (instance.status === QUEST_STATUS.COMPLETED) {
-    throw new BadRequestError('Quest already completed');
-  }
-
-  const xpReward = instance.xp_reward;
-
-  // Transaction: mark completed, award XP, compute level
+  // Transaction: fetch with row lock, validate, mark completed, award XP
   const result = await transaction(async (client) => {
+    // SELECT FOR UPDATE locks the row to prevent concurrent double-completion (TOCTOU)
+    const { rows } = await client.query(
+      `SELECT qi.id, qi.user_id, qi.status, q.title, q.xp_reward, q.quest_type, q.difficulty, q.mode_id
+       FROM quest_instances qi
+       JOIN quests q ON qi.quest_id = q.id
+       WHERE qi.id = $1
+       FOR UPDATE OF qi`,
+      [questId]
+    );
+    const instance = rows[0] ?? null;
+
+    if (!instance) {
+      throw new NotFoundError('Quest instance not found');
+    }
+    if (instance.status === QUEST_STATUS.COMPLETED) {
+      throw new BadRequestError('Quest already completed');
+    }
+
+    const xpReward = instance.xp_reward;
+
     await client.query(
       `UPDATE quest_instances SET status = 'completed', completed_at = NOW(), xp_awarded = $1 WHERE id = $2`,
       [xpReward, questId]
     );
     const xpResult = await awardXp(client, instance.user_id, xpReward);
-    return { newLevel: xpResult.leveledUp ? xpResult.newLevel : null, leveledUp: xpResult.leveledUp };
+    return {
+      userId: instance.user_id,
+      modeId: instance.mode_id,
+      xpReward,
+      newLevel: xpResult.leveledUp ? xpResult.newLevel : null,
+      leveledUp: xpResult.leveledUp,
+    };
   });
 
-  invalidateUserCache(instance.user_id);
+  invalidateUserCache(result.userId);
 
-  // Fire-and-forget: update streak and check achievements
-  Promise.allSettled([
-    updateStreak(instance.user_id, instance.mode_id),
-    checkAndUnlockAchievements(instance.user_id),
+  // Await streak + achievement checks before responding
+  await Promise.allSettled([
+    updateStreak(result.userId, result.modeId),
+    checkAndUnlockAchievements(result.userId),
   ]).catch((err) => log.error('Post-completion side effects failed', err as Error));
 
   res.json(successResponse({
     message: 'Quest completed successfully',
-    xpEarned: xpReward,
+    xpEarned: result.xpReward,
     newLevel: result.newLevel,
     leveledUp: result.leveledUp,
   }));

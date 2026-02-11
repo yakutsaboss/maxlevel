@@ -159,19 +159,22 @@ describe('GET /api/quests/users/:userId/completed', () => {
 
 describe('POST /api/quests/:questId/complete', () => {
   it('should return 200 with XP and level data on success', async () => {
-    // queryOne: fetch quest instance
-    mockQueryOne.mockResolvedValueOnce({
-      id: 7, user_id: 1, status: 'in_progress',
-      title: 'Walk', xp_reward: 50, quest_type: 'daily',
-      difficulty: 'easy', mode_id: 1,
-    });
-
-    // transaction: mark complete + award XP
+    // All logic now runs inside the transaction (SELECT FOR UPDATE + UPDATE + awardXp)
     mockTransaction.mockImplementationOnce(async (fn: any) => {
       const mockClient = {
         query: vi.fn()
-          .mockResolvedValueOnce({})  // UPDATE quest_instances
-          .mockResolvedValueOnce({ rows: [{ total_xp: 1000, current_level: 2 }] }), // UPDATE users
+          // 1st: SELECT FOR UPDATE (fetch quest instance)
+          .mockResolvedValueOnce({ rows: [{
+            id: 7, user_id: 1, status: 'in_progress',
+            title: 'Walk', xp_reward: 50, quest_type: 'daily',
+            difficulty: 'easy', mode_id: 1,
+          }] })
+          // 2nd: UPDATE quest_instances
+          .mockResolvedValueOnce({})
+          // 3rd: UPDATE users (awardXp) — total_xp=1000, current_level=2 → newLevel=3
+          .mockResolvedValueOnce({ rows: [{ total_xp: 1000, current_level: 2 }] })
+          // 4th: UPDATE users SET current_level (level-up)
+          .mockResolvedValueOnce({}),
       };
       return fn(mockClient);
     });
@@ -187,7 +190,13 @@ describe('POST /api/quests/:questId/complete', () => {
   });
 
   it('should return 404 when quest not found', async () => {
-    mockQueryOne.mockResolvedValueOnce(null);
+    // SELECT FOR UPDATE returns no rows → NotFoundError thrown inside transaction
+    mockTransaction.mockImplementationOnce(async (fn: any) => {
+      const mockClient = {
+        query: vi.fn().mockResolvedValueOnce({ rows: [] }),
+      };
+      return fn(mockClient);
+    });
 
     const res = await request(buildApp())
       .post('/api/quests/999/complete')
@@ -197,10 +206,16 @@ describe('POST /api/quests/:questId/complete', () => {
   });
 
   it('should return 400 when quest already completed', async () => {
-    mockQueryOne.mockResolvedValueOnce({
-      id: 7, user_id: 1, status: 'completed',
-      title: 'Walk', xp_reward: 50, quest_type: 'daily',
-      difficulty: 'easy', mode_id: 1,
+    // SELECT FOR UPDATE returns completed quest → BadRequestError inside transaction
+    mockTransaction.mockImplementationOnce(async (fn: any) => {
+      const mockClient = {
+        query: vi.fn().mockResolvedValueOnce({ rows: [{
+          id: 7, user_id: 1, status: 'completed',
+          title: 'Walk', xp_reward: 50, quest_type: 'daily',
+          difficulty: 'easy', mode_id: 1,
+        }] }),
+      };
+      return fn(mockClient);
     });
 
     const res = await request(buildApp())
@@ -211,7 +226,7 @@ describe('POST /api/quests/:questId/complete', () => {
   });
 
   it('should return 500 when database throws', async () => {
-    mockQueryOne.mockRejectedValueOnce(new Error('Internal failure'));
+    mockTransaction.mockRejectedValueOnce(new Error('Internal failure'));
 
     const res = await request(buildApp())
       .post('/api/quests/7/complete')
