@@ -2427,7 +2427,17 @@ Read PARALLEL_AGENTS.md — you are Agent C for Run 28. Your job: Write HTTP int
 ### Run 28 Retrospectives
 
 #### Agent A Retrospective
-*(To be filled by Agent A)*
+**Status:** Task completed. Both components split, all files under 200 lines, build passes.
+
+| # | Task | Status | Details |
+|---|------|--------|---------|
+| 1 | Split QuizScreen.tsx (357 → 3 files) | Done | `quiz/useQuizState.ts` (148 lines — state, effects, handlers, validation), `quiz/AnswerInput.tsx` (130 lines — render dispatch by question type), `QuizScreen.tsx` (95 lines — layout orchestrator) |
+| 2 | Split PunishmentConfig.tsx (342 → 5 files) | Done | `punishment/constants.ts` (65 lines — types + data), `punishment/ConsentToggle.tsx` (30 lines), `punishment/TypeSelector.tsx` (70 lines), `punishment/DifficultySelector.tsx` (85 lines — includes safe mode toggle), `PunishmentConfig.tsx` (121 lines — layout orchestrator) |
+| 3 | Build verification | Done | `tsc && vite build` — zero errors, 2016 modules transformed |
+
+**Approach:** For QuizScreen, extracted a custom hook (`useQuizState`) for all state/handlers/validation + a pure render component (`AnswerInput`) that switches on question type. For PunishmentConfig, extracted constants to a shared file and each visual section into its own component, with haptic callbacks delegated via inline arrow functions from the parent.
+
+**No issues encountered.** Clean extraction — no logic changes, just reorganization. Both builds passed on first attempt.
 
 #### Agent B Retrospective
 *(To be filled by Agent B)*
