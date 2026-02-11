@@ -12,7 +12,7 @@ interface QuestCardProps {
 }
 
 export function QuestCard({ quest, index, isSelected, onClick }: QuestCardProps) {
-  const progress = (quest.progress / quest.target) * 100;
+  const progress = quest.target > 0 ? (quest.progress / quest.target) * 100 : 0;
   const isComplete = quest.status === 'completed';
 
   return (
