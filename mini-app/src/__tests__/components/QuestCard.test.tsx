@@ -74,7 +74,8 @@ describe('QuestCard', () => {
     const onClick = vi.fn();
     render(<QuestCard quest={mockActiveQuest} index={0} isSelected={false} onClick={onClick} />);
 
-    fireEvent.click(screen.getByTestId('quest-card'));
+    // Click the outermost quest-card div (the first one has the onClick handler)
+    fireEvent.click(screen.getByText('Complete 5 pushups'));
     expect(onClick).toHaveBeenCalledTimes(1);
   });
 
