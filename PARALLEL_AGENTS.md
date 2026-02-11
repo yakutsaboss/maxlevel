@@ -1206,4 +1206,212 @@ Read PARALLEL_AGENTS.md — you are Agent T for Run 35. Fix `mini-app/src/pages/
 - Mini-app: 0 → 13 → 66 → 152 → 206 → 319
 - Total: 887 (568 + 319)
 
-<!-- Next run goes here. Agent 0 will append RUN 36 below this line. -->
+## RUN 36: Type Safety Blitz + Component Refactoring (6 Agents + Agent 0)
+
+### Focus: Eliminate all remaining `any` types from bot production code (handlers + routes + jobs) and refactor the 2 largest mini-app files. After Run 36: zero `any` in bot source (only tests), AdminUserList and Onboarding.tsx under 200 lines each, quest-assignment route fully tested.
+
+---
+
+### Copy-Paste Prompts
+
+**Agent 0** (open in: `c:\Users\Asus\Desktop\Wibecode`):
+```
+Read PARALLEL_AGENTS.md — you are Agent 0 for Run 36. Wait for agents to finish, then merge and deploy.
+```
+
+**Agent A** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-a`):
+```
+Read PARALLEL_AGENTS.md — you are Agent A for Run 36. Fix ALL 11 `any` occurrences in `bot/src/handlers/onboarding/modeSelection.ts` (315 lines). (1) Create a `Mode` interface and a `UserMode` interface at the TOP of the file (before the first function). Read the database schema in `database/schema.sql` to find the `modes` and `user_modes` table columns. `Mode` should have: id, name, display_name, icon_emoji, description, etc. `UserMode` should have: mode_id, name, display_name, icon_emoji, is_active, etc. (2) Replace `any` on lines 36, 148, 157, 168, 206 (mode iteration callbacks) with `Mode`. (3) Replace `any` on lines 98, 250, 297, 298, 307 (user mode callbacks) with `UserMode`. (4) Replace `any` on line 299 (available modes filter) with `Mode`. Build verify: `cd bot && npm run build && npx vitest --run`. Commit after each task. Write your retrospective when done.
+```
+
+**Agent B** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-b`):
+```
+Read PARALLEL_AGENTS.md — you are Agent B for Run 36. Fix ALL `any` in `bot/src/handlers/stats.ts` (197 lines) and `bot/src/handlers/leaderboard.ts` (71 lines). (1) Read `stats.ts` and understand the data shapes passed to `formatWeeklyMessage` and `formatAllTimeMessage`. Create `WeeklyStats`, `AllTimeStats`, and `StreakRecord` interfaces at the top of `stats.ts`. (2) Replace `weeklyStats: any` on line 62 with `WeeklyStats`, `streaks: any[]` on line 63 with `StreakRecord[]`. (3) Replace `allTimeStats: any` on line 86 with `AllTimeStats`, `streaks: any[]` on line 87 with `StreakRecord[]`. (4) In `leaderboard.ts` line 45, replace `(r: any)` in `top10.find` with a `LeaderboardRow` interface (create it at top of leaderboard.ts with the fields used: telegram_id, first_name, username, etc.). Build verify: `cd bot && npm run build && npx vitest --run`. Commit after each task. Write your retrospective when done.
+```
+
+**Agent C** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-c`):
+```
+Read PARALLEL_AGENTS.md — you are Agent C for Run 36. Fix ALL `any` in 3 bot handler files. (1) `bot/src/handlers/onboarding/completion.ts`: line 42 `(m: any)` → use a `SelectedMode` interface with icon_emoji and display_name; line 79 `(m: any)` → use a `ModeRow` interface with mode_id. Create interfaces at top of file. (2) `bot/src/handlers/onboarding/quickActions.ts`: line 75 `(quest: any)` → use a `QuestRow` interface; line 124 `(s: any)` → use a `StreakRow` interface with current_streak. Create interfaces at top of file. (3) `bot/src/jobs/definitions/dailyQuestReset.ts`: lines 35, 74 `(m: any)` → use a `ModeIdRow` interface with mode_id; lines 58, 102 `err: any` → change to `err: unknown` with `err instanceof Error ? err.message : String(err)` for the log call. Build verify: `cd bot && npm run build && npx vitest --run`. Commit after each task. Write your retrospective when done.
+```
+
+**Agent D** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-d`):
+```
+Read PARALLEL_AGENTS.md — you are Agent D for Run 36. Type `bot/src/api/routes/quest-assignment.ts` (107 lines) and write tests for it. (1) Read the file. Line 44 has `let available: any[]` and line 76 has `const assigned: any[] = []`. Create `QuestTemplate` and `AssignedQuest` interfaces at the top based on the SQL query shapes. Replace both `any[]`. (2) Create `bot/src/__tests__/routes/http/quest-assignment.http.test.ts` (NEW) — write 5-6 HTTP integration tests: test assigns daily quests for user, test assigns weekly quests, test skips already-assigned quests, test handles no available quests, test respects mode filtering, test error handling. Follow the existing test patterns in `bot/src/__tests__/routes/http/` (mock db, auth middleware, rate limiters). Build verify: `cd bot && npm run build && npx vitest --run`. Commit after each task. Write your retrospective when done.
+```
+
+**Agent E** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-e`):
+```
+Read PARALLEL_AGENTS.md — you are Agent E for Run 36. Refactor `mini-app/src/components/AdminUserList.tsx` (259 lines) into smaller sub-components. (1) Read the file and identify extractable sections. (2) Extract `AdminUserSearch.tsx` — the search input + filter controls at the top. (3) Extract `AdminUserRow.tsx` — the individual user card/row rendering (the map callback body). (4) Extract `AdminPagination.tsx` — the pagination controls at the bottom. (5) Reduce `AdminUserList.tsx` to an orchestrator that composes these 3 sub-components. Target: AdminUserList.tsx under 120 lines. Update existing tests in `mini-app/src/__tests__/components/AdminUserList.test.tsx` if needed. Build verify: `cd mini-app && npm run build && npm test`. Commit after each task. Write your retrospective when done.
+```
+
+**Agent F** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-f`):
+```
+Read PARALLEL_AGENTS.md — you are Agent F for Run 36. Refactor `mini-app/src/pages/Onboarding.tsx` (337 lines) to extract step-rendering logic. (1) Read the file and identify the step-switch rendering pattern. (2) Extract each onboarding step's render block into its own component or consolidate the step-to-component mapping into a clean lookup object (e.g., `const STEP_COMPONENTS: Record<Step, React.ComponentType<StepProps>> = {...}`). (3) Extract any inline data-fetching or state-management logic that can become a custom hook (e.g., `useOnboardingFlow`). (4) Target: Onboarding.tsx under 180 lines. Ensure the existing tests in `mini-app/src/__tests__/` still pass — do NOT change behavior, only restructure. Build verify: `cd mini-app && npm run build && npm test`. Commit after each task. Write your retrospective when done.
+```
+
+---
+
+### Agent A — Type modeSelection.ts (11 `any`)
+
+**Branch:** `feature/r36-type-mode-selection`
+**Worktree:** `../Wibecode-agent-a`
+
+**OWNED files:**
+- `bot/src/handlers/onboarding/modeSelection.ts`
+
+**GRAY AREA:**
+- `bot/src/__tests__/handlers/onboarding/modeSelection.test.ts` — ONLY if test assertions need updating
+
+**FORBIDDEN:**
+- All other `bot/src/` files
+- `mini-app/**`, `tools/**`, `database/**`
+
+---
+
+### Agent B — Type stats.ts + leaderboard.ts
+
+**Branch:** `feature/r36-type-stats`
+**Worktree:** `../Wibecode-agent-b`
+
+**OWNED files:**
+- `bot/src/handlers/stats.ts`
+- `bot/src/handlers/leaderboard.ts`
+
+**GRAY AREA:**
+- `bot/src/__tests__/handlers/stats.test.ts` — update if needed
+- `bot/src/__tests__/handlers/leaderboard.test.ts` — update if needed
+
+**FORBIDDEN:**
+- All other `bot/src/` files
+- `mini-app/**`, `tools/**`, `database/**`
+
+---
+
+### Agent C — Type completion.ts + quickActions.ts + dailyQuestReset.ts
+
+**Branch:** `feature/r36-type-onboarding-jobs`
+**Worktree:** `../Wibecode-agent-c`
+
+**OWNED files:**
+- `bot/src/handlers/onboarding/completion.ts`
+- `bot/src/handlers/onboarding/quickActions.ts`
+- `bot/src/jobs/definitions/dailyQuestReset.ts`
+
+**GRAY AREA:**
+- `bot/src/__tests__/handlers/onboarding/completion.test.ts` — update if needed
+- `bot/src/__tests__/jobs/dailyQuestReset.test.ts` — update if needed
+
+**FORBIDDEN:**
+- All other `bot/src/` files
+- `mini-app/**`, `tools/**`, `database/**`
+
+---
+
+### Agent D — Type quest-assignment.ts + Write Tests
+
+**Branch:** `feature/r36-quest-assignment`
+**Worktree:** `../Wibecode-agent-d`
+
+**OWNED files:**
+- `bot/src/api/routes/quest-assignment.ts`
+- `bot/src/__tests__/routes/http/quest-assignment.http.test.ts` (NEW)
+
+**FORBIDDEN:**
+- All other `bot/src/` routes/utils
+- `mini-app/**`, `tools/**`, `database/**`
+
+---
+
+### Agent E — Refactor AdminUserList.tsx
+
+**Branch:** `feature/r36-admin-refactor`
+**Worktree:** `../Wibecode-agent-e`
+
+**OWNED files:**
+- `mini-app/src/components/AdminUserList.tsx`
+- `mini-app/src/components/admin/AdminUserSearch.tsx` (NEW)
+- `mini-app/src/components/admin/AdminUserRow.tsx` (NEW)
+- `mini-app/src/components/admin/AdminPagination.tsx` (NEW)
+
+**GRAY AREA:**
+- `mini-app/src/__tests__/components/AdminUserList.test.tsx` — update if needed
+
+**FORBIDDEN:**
+- `bot/**`, `tools/**`, `database/**`
+- All other mini-app components/pages
+
+---
+
+### Agent F — Refactor Onboarding.tsx
+
+**Branch:** `feature/r36-onboarding-refactor`
+**Worktree:** `../Wibecode-agent-f`
+
+**OWNED files:**
+- `mini-app/src/pages/Onboarding.tsx`
+- `mini-app/src/components/onboarding/StepRenderer.tsx` (NEW, optional)
+- `mini-app/src/hooks/useOnboardingFlow.ts` (NEW, optional)
+
+**GRAY AREA:**
+- `mini-app/src/__tests__/pages/Onboarding.test.tsx` — update if needed
+
+**FORBIDDEN:**
+- `bot/**`, `tools/**`, `database/**`
+- All other mini-app pages/components (existing onboarding sub-components are read-only)
+
+---
+
+### Run 36 File Ownership Matrix
+
+| File / Directory | A | B | C | D | E | F |
+|---|---|---|---|---|---|---|
+| `handlers/onboarding/modeSelection.ts` | **OWN** | — | — | — | — | — |
+| `handlers/stats.ts` | — | **OWN** | — | — | — | — |
+| `handlers/leaderboard.ts` | — | **OWN** | — | — | — | — |
+| `handlers/onboarding/completion.ts` | — | — | **OWN** | — | — | — |
+| `handlers/onboarding/quickActions.ts` | — | — | **OWN** | — | — | — |
+| `jobs/definitions/dailyQuestReset.ts` | — | — | **OWN** | — | — | — |
+| `api/routes/quest-assignment.ts` | — | — | — | **OWN** | — | — |
+| `__tests__/routes/http/quest-assignment*` | — | — | — | **OWN** | — | — |
+| `components/AdminUserList.tsx` | — | — | — | — | **OWN** | — |
+| `components/admin/*` (NEW) | — | — | — | — | **OWN** | — |
+| `pages/Onboarding.tsx` | — | — | — | — | — | **OWN** |
+| `components/onboarding/StepRenderer*` (NEW) | — | — | — | — | — | **OWN** |
+| `hooks/useOnboardingFlow*` (NEW) | — | — | — | — | — | **OWN** |
+
+### Run 36 Merge Order
+
+**Backend first (A → D):**
+1. **Agent A** — modeSelection.ts types
+2. **Agent B** — stats.ts + leaderboard.ts types
+3. **Agent C** — completion.ts + quickActions.ts + dailyQuestReset.ts types
+4. **Agent D** — quest-assignment.ts types + tests
+
+**Mini-app second (E → F):**
+5. **Agent E** — AdminUserList refactoring
+6. **Agent F** — Onboarding refactoring
+
+### Run 36 Retrospectives
+
+#### Agent A Retrospective
+*(To be filled by Agent A)*
+
+#### Agent B Retrospective
+*(To be filled by Agent B)*
+
+#### Agent C Retrospective
+*(To be filled by Agent C)*
+
+#### Agent D Retrospective
+*(To be filled by Agent D)*
+
+#### Agent E Retrospective
+*(To be filled by Agent E)*
+
+#### Agent F Retrospective
+*(To be filled by Agent F)*
+
+#### Agent 0 Retrospective
+*(To be filled by Agent 0)*
+
+<!-- Next run goes here. Agent 0 will append RUN 37 below this line. -->
