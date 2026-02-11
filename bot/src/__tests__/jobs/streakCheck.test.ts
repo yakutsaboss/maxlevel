@@ -22,7 +22,7 @@ const mockLogInfo = vi.fn();
 const mockLogWarn = vi.fn();
 const mockLogError = vi.fn();
 
-vi.mock('../../api/utils/logger.js', () => ({
+vi.mock('../../utils/logger.js', () => ({
   logger: {
     child: () => ({
       info: (...args: any[]) => mockLogInfo(...args),
