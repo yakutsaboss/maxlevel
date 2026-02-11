@@ -1043,4 +1043,25 @@ Read PARALLEL_AGENTS.md — you are Agent F for Run 31. Your job: Slim down Onbo
 
 **Test count progression:** Run 29: 0 mini-app tests → Run 30: 13 → Run 31: 66 (5x growth)
 
+### Run 32 Retrospectives
+
+#### Agent G Retrospective
+**Status:** COMPLETE — 5 commits, 2 new utils + 4 route refactors + 1 security fix + 6 new tests, build clean, 462/462 tests pass.
+
+| # | Task | Files changed | Status |
+|---|------|---------------|--------|
+| 1 | Create `utils/sqlBuilder.ts` | 1 new file | Done |
+| 2 | Refactor 4 routes to use sqlBuilder | admin-users.ts, punishment.ts, user-account.ts, user-preferences.ts | Done |
+| 3 | Fix admin-jobs.ts security gap | admin-jobs.ts (add `requireRole('admin')` to GET /) | Done |
+| 4 | Extract broadcast utility | broadcast.ts (NEW), admin-stats.ts (refactored) | Done |
+| 5 | Write sqlBuilder unit tests | `__tests__/utils/sqlBuilder.test.ts` (6 tests) | Done |
+
+**sqlBuilder design:** `buildDynamicUpdate(table, fields, whereClause, whereParams, options?)` with `$N` placeholder auto-indexing for WHERE params, optional `extraSetClauses` for raw SQL (e.g. `updated_at = NOW()`), and optional `casts` map for PostgreSQL type casts (e.g. `::jsonb`). The `options` parameter keeps the common case simple (4 args) while handling punishment.ts's special needs.
+
+**broadcast.ts design:** Extracts the batched `Promise.allSettled` + 1-second delay pattern from admin-stats.ts. Logs failures via shared logger. Same BATCH_SIZE=20 constant.
+
+**Security fix:** `GET /api/admin/jobs` was accessible to any authenticated user (no role check). Added `requireRole('admin')` — consistent with `POST /:name/trigger` on the same router. Agent F's admin-jobs HTTP tests documented this finding.
+
+**No conflicts expected:** All files are in Agent G's OWNED list. No overlap with other agents.
+
 <!-- Next run goes here. Agent 0 will append RUN 32 below this line. -->
