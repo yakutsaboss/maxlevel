@@ -1,27 +1,33 @@
-import { queryOne, execute } from './db.js';
+import { queryOne } from './db.js';
 
 /**
  * Update streak for a user+mode after activity.
- * - If last activity was today → no change
+ * - If last activity was today (user's timezone) → no change
  * - If last activity was yesterday → increment streak
  * - Otherwise → reset streak to 1
+ *
+ * Uses a single atomic UPDATE to prevent race conditions under concurrency.
+ * Respects user's timezone from the users table for day boundary calculations.
  */
 export async function updateStreak(userId: number, modeId: number): Promise<void> {
-  const today = new Date().toISOString().split('T')[0];
-  const yesterday = new Date(Date.now() - 86400000).toISOString().split('T')[0];
-  const streak = await queryOne(
-    'SELECT id, current_streak, longest_streak, last_activity_date FROM streaks WHERE user_id = $1 AND mode_id = $2',
+  await queryOne(
+    `UPDATE streaks s
+     SET
+       current_streak = CASE
+         WHEN s.last_activity_date = (CURRENT_TIMESTAMP AT TIME ZONE u.timezone)::date - 1
+           THEN s.current_streak + 1
+         ELSE 1
+       END,
+       longest_streak = GREATEST(s.longest_streak, CASE
+         WHEN s.last_activity_date = (CURRENT_TIMESTAMP AT TIME ZONE u.timezone)::date - 1
+           THEN s.current_streak + 1
+         ELSE 1
+       END),
+       last_activity_date = (CURRENT_TIMESTAMP AT TIME ZONE u.timezone)::date
+     FROM users u
+     WHERE s.user_id = $1 AND s.mode_id = $2 AND u.id = s.user_id
+       AND s.last_activity_date IS DISTINCT FROM (CURRENT_TIMESTAMP AT TIME ZONE u.timezone)::date
+     RETURNING s.current_streak`,
     [userId, modeId]
-  );
-  if (!streak) return;
-  const lastDate = streak.last_activity_date
-    ? new Date(streak.last_activity_date).toISOString().split('T')[0]
-    : null;
-  if (lastDate === today) return;
-  const newStreak = lastDate === yesterday ? streak.current_streak + 1 : 1;
-  const newLongest = Math.max(streak.longest_streak, newStreak);
-  await execute(
-    'UPDATE streaks SET current_streak = $1, longest_streak = $2, last_activity_date = $3 WHERE user_id = $4 AND mode_id = $5',
-    [newStreak, newLongest, today, userId, modeId]
   );
 }
