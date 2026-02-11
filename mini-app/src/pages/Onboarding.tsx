@@ -48,12 +48,12 @@ export function Onboarding() {
 
   // Save state to backend (debounced)
   const saveState = useCallback(
-    (step: OnboardingStep, data: Record<string, unknown>) => {
+    (step: OnboardingStep, data: OnboardingData) => {
       if (!telegramId) return;
       clearTimeout(saveTimeout.current);
       saveTimeout.current = setTimeout(() => {
         apiClient
-          .saveOnboardingState(telegramId, step, data)
+          .saveOnboardingState(telegramId, step, data as Record<string, unknown>)
           .then(() => {
             setSaveStatus('saved');
             clearTimeout(saveStatusTimeout.current);
