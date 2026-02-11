@@ -938,7 +938,23 @@ Read PARALLEL_AGENTS.md — you are Agent F for Run 31. Your job: Slim down Onbo
 *(To be filled by Agent C)*
 
 #### Agent D Retrospective
-*(To be filled by Agent D)*
+**Status:** Complete (2 commits)
+**Commits:** `943846c` — refactor(handlers): split onboarding.ts into sub-modules, `a4a6b49` — test(onboarding): add 7 tests for setup sub-module
+
+| # | Task | Status |
+|---|------|--------|
+| 1 | Analyze onboarding handler (602 lines) — map function dependencies | Done |
+| 2 | Create `onboarding/` directory with 4 sub-modules | Done |
+| 3 | Create `onboarding/index.ts` barrel re-exports | Done |
+| 4 | Verify all imports resolve across codebase (index.ts, tests, start.ts mock) | Done |
+| 5 | Create `setup.test.ts` with 7 tests | Done |
+| 6 | Build + test verification (456/456 pass) | Pass |
+
+**What was done:**
+1. Split `onboarding.ts` (602 lines) into 4 focused sub-modules + barrel: `setup.ts` (35 lines), `modeSelection.ts` (270 lines), `completion.ts` (130 lines), `quickActions.ts` (130 lines), `index.ts` (20 lines).
+2. Original `onboarding.ts` kept as thin re-export (22 lines) for ESM backward compatibility.
+3. Created `setup.test.ts` (7 tests): welcome message, fallback name, delay, missing userId, etc.
+4. All 456 tests pass (449 + 7 new). No `quizFlow.ts` — original had no quiz flow; created `quickActions.ts` instead.
 
 #### Agent E Retrospective
 **Status:** COMPLETE — all tasks done, build passes (`tsc && vite build` — zero errors).
