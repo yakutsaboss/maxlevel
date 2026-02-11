@@ -1271,7 +1271,19 @@ Read PARALLEL_AGENTS.md — you are Agent T for Run 35. Fix `mini-app/src/pages/
 **Issue:** Lost edits via git stash/stash pop/stash drop — pop failed due to other agents uncommitted files. Had to redo all edits. Lesson: never git stash with parallel agents.
 
 #### Agent E Retrospective
-*(To be filled by Agent E)*
+**Task**: Fix `bot/src/api/routes/quest-completion.ts` — two bugs: TOCTOU race and fire-and-forget achievement check.
+
+**Changes made (2 files)**:
+| File | What changed |
+|------|-------------|
+| `bot/src/api/routes/quest-completion.ts` | Moved SELECT+status check inside the transaction with `SELECT ... FOR UPDATE OF qi` to prevent concurrent double-completion. Changed `Promise.allSettled(...)` to `await Promise.allSettled(...)` so streak/achievement side effects complete before response. Removed unused `queryOne` import. |
+| `bot/src/__tests__/routes/http/quests.http.test.ts` | Updated 4 test cases in `POST /api/quests/:questId/complete` — mocks now provide quest data via `mockTransaction` + `mockClient.query` (inside transaction) instead of `mockQueryOne` (outside transaction). |
+
+**Build**: `npm run build` passes (pre-existing TS errors in `achievementEngine.ts` from another agent, not related).
+**Tests**: 568/568 pass, 49/49 test files pass.
+**Commits**: `6b62f57` — fix(api): prevent TOCTOU race and fire-and-forget in quest completion.
+
+**Challenge**: Source file was reverted twice by parallel agent activity while editing. Had to re-apply changes. Lesson: in parallel agent runs, verify source file integrity right before running tests.
 
 #### Agent F Retrospective
 **Task**: Fix `bot/src/utils/streak.ts` — two bugs: non-atomic read-then-write and UTC timezone.
