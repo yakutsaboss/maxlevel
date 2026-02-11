@@ -1,5 +1,6 @@
-import axios, { AxiosInstance } from 'axios';
+import axios, { AxiosError, AxiosInstance } from 'axios';
 import type { ApiResponse, UserStats, User, Mode, Quest, Achievement, UserAchievement, QuestCompleteResponse, CheckinResponse, CheckinListResponse, UserPreferences, PunishmentSettings, PunishmentHistoryResponse, OnboardingState, LeaderboardEntry } from '@/types';
+import { ApiError } from '@/types/errors';
 
 // API Base URL - should come from environment
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
@@ -32,20 +33,21 @@ class ApiClient {
     // Add response interceptor with retry for transient errors
     this.client.interceptors.response.use(
       (response) => response,
-      async (error) => {
+      async (error: AxiosError) => {
+        const apiError = ApiError.fromAxios(error);
         const config = error.config;
-        // Retry once on network errors or 5xx (but not on 4xx client errors)
+        // Retry once on retryable errors (network errors or 5xx)
         if (
           config &&
-          !config._retried &&
-          (!error.response || error.response.status >= 500)
+          !(config as any)._retried &&
+          apiError.retryable
         ) {
-          config._retried = true;
+          (config as any)._retried = true;
           // Wait 1 second before retry
           await new Promise((r) => setTimeout(r, 1000));
           return this.client(config);
         }
-        return Promise.reject(error);
+        return Promise.reject(apiError);
       }
     );
   }
