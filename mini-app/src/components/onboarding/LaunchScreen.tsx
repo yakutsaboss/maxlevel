@@ -4,6 +4,7 @@ import { Trophy, Zap, Sparkles } from 'lucide-react';
 import { useTelegram } from '@/hooks/useTelegram';
 import { apiClient } from '@/api/client';
 import type { OnboardingData } from '@/hooks/useOnboarding';
+import { logger } from '@/utils/logger';
 
 interface LaunchScreenProps {
   data: OnboardingData;
@@ -51,7 +52,7 @@ export function LaunchScreen({ data, telegramId, onLaunch }: LaunchScreenProps) 
       setSaving(false);
       haptic.notification('success');
     } catch (err) {
-      console.error('Failed to complete onboarding:', err);
+      logger.error('Failed to complete onboarding', { error: err });
       setError('Failed to save. Please try again.');
       setSaving(false);
     }

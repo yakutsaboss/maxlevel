@@ -3,6 +3,7 @@ import { useTelegram } from '@/hooks/useTelegram';
 import { apiClient } from '@/api/client';
 import { CheckCircle, Loader2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { logger } from '@/utils/logger';
 
 interface CheckInButtonProps {
   questInstanceId: number;
@@ -35,7 +36,7 @@ export function CheckInButton({ questInstanceId, telegramId, onSuccess, disabled
         setTimeout(() => setShowSuccess(false), 1500);
       }
     } catch (error) {
-      console.error('Check-in failed:', error);
+      logger.error('Check-in failed', { error });
       haptic.notification('error');
     } finally {
       setLoading(false);
