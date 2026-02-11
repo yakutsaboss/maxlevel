@@ -2433,7 +2433,21 @@ Read PARALLEL_AGENTS.md — you are Agent C for Run 28. Your job: Write HTTP int
 *(To be filled by Agent B)*
 
 #### Agent C Retrospective
-*(To be filled by Agent C)*
+**Status:** Task completed. 24 new tests, all 436 suite-wide tests pass.
+
+| # | Task | Status | Details |
+|---|------|--------|---------|
+| 1 | Write `punishment.http.test.ts` | Done | 24 tests across 3 describe blocks |
+
+**What was built:**
+- `bot/src/__tests__/routes/http/punishment.http.test.ts` — HTTP integration tests for all 3 punishment endpoints
+- **GET /:telegramId/settings** (4 tests): success, not-found, invalid ID, DB error
+- **PATCH /:telegramId/settings** (11 tests): update existing, insert on missing row, invalid intensity enum, all valid intensity levels, no fields = 400, user not found, invalid ID, consent_timestamp auto-set (NOW/NULL), custom_punishments JSON, DB error
+- **GET /:telegramId/history** (9 tests): paginated success, empty history, page/limit params, limit cap at 100, default params for invalid values, page clamped to 1, user not found, invalid ID, DB error
+
+**Patterns followed:** Same mock structure as `leaderboard.http.test.ts` — mocked `db.js` (both `query` and `queryOne`), `auth.js` (including `requireOwnership` as no-op), `cache.js`, `pythonTools.js`, `rateLimiter.js`. Used `createTestApp` + `addTestErrorHandler` from `helpers/testApp.ts`.
+
+**No issues encountered.** Clean first-pass implementation.
 
 #### Agent 0 Retrospective
 *(To be filled by Agent 0 after merge)*
