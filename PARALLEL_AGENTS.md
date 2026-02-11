@@ -2751,7 +2751,18 @@ Read PARALLEL_AGENTS.md — you are Agent E for Run 29. Your job: Enhance the Pr
 *(To be filled by Agent D)*
 
 #### Agent E Retrospective
-*(To be filled by Agent E)*
+
+**Status:** All 5 tasks completed, committed on main.
+
+**What was done (4 files changed, +63/-14 lines):**
+- `ProfileHeader.tsx`: Added animated XP progress bar (same gradient style as Dashboard — `from-yellow-400 to-orange-500` with white/20 backdrop), and "Joined Mon YYYY" member-since line below username using `Intl.DateTimeFormat`.
+- `ProfileModes.tsx`: Replaced flat streak text with overlay badge on mode icon — orange rounded pill with "🔥N" positioned top-right of the emoji. Removed redundant "No active streak" text for cleaner cards.
+- `Navigation.tsx`: Added `questBadgeCount` optional prop with red circle badge (white text, 16px min-width) on the Quests tab icon. Shows "9+" for counts > 9, hidden when 0. Replaced top-dot active indicator with a bottom underline (`h-0.5 w-5`) using `layoutId="activeIndicator"` for smooth spring animation between tabs.
+- `App.tsx` (GRAY AREA): Added `questBadgeCount` state + `useCallback`/`useEffect` to fetch `activeQuests.length` from `getUserStats` after onboarding completes. Passed count to `<Navigation>`.
+
+**Build status:** My 4 files compile cleanly. Full build fails due to pre-existing errors in Agent B's files (`HapticFeedbackSettings.tsx`, `AboutSection.tsx`, `Settings.tsx`) — all unused variable/import errors (TS6133). Not in my ownership.
+
+**Commits:** 1 atomic commit `7b90237` covering all 5 tasks.
 
 #### Agent 0 Retrospective
 *(To be filled by Agent 0 after merge)*
