@@ -4,14 +4,11 @@ import { detectTimezone } from '@/components/settings/NotificationSettings';
 import type { UserPreferences } from '@/components/settings/NotificationSettings';
 import type { PunishmentSettings } from '@/components/settings/AccountabilitySettings';
 import { getErrorMessage } from '@/hooks/useApiError';
+import type { HapticFull } from '@/types/telegram';
 
 interface UseSettingsDataParams {
   user: { id: number } | undefined;
-  haptic: {
-    impact: (...args: any[]) => void;
-    notification: (...args: any[]) => void;
-    selection: () => void;
-  };
+  haptic: HapticFull;
   showConfirm: (message: string) => Promise<boolean>;
   navigate: (path: string, options?: { replace?: boolean }) => void;
   queryClient: { clear: () => void };

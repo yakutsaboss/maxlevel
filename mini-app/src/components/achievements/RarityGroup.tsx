@@ -1,5 +1,6 @@
 import { Achievement, UserAchievement } from '@/types';
 import { AchievementCard } from './AchievementCard';
+import type { HapticImpactOnly } from '@/types/telegram';
 
 export const RARITY_COLORS: Record<string, { border: string; bg: string; text: string; label: string }> = {
   common: { border: 'border-gray-300', bg: 'bg-gray-100', text: 'text-gray-600', label: 'Common' },
@@ -13,7 +14,7 @@ interface RarityGroupProps {
   achievements: Achievement[];
   unlockedIds: Set<number>;
   userAchievements: UserAchievement[];
-  haptic: { impact: (...args: any[]) => void };
+  haptic: HapticImpactOnly;
 }
 
 export function RarityGroup({ rarity, achievements, unlockedIds, userAchievements, haptic }: RarityGroupProps) {

@@ -2,11 +2,12 @@ import { TrendingUp } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { UserStats } from '@/types';
 import { formatDate } from '@/utils/formatDate';
+import type { HapticImpactOnly } from '@/types/telegram';
 
 interface ProfileModesProps {
   modes: UserStats['modes'];
   perModeStreaks: UserStats['perModeStreaks'];
-  haptic: { impact: (...args: any[]) => void };
+  haptic: HapticImpactOnly;
 }
 
 export function ProfileModes({ modes, perModeStreaks, haptic }: ProfileModesProps) {

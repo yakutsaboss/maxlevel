@@ -1,9 +1,10 @@
 import { useRef, useState, useCallback } from 'react';
 import { RefreshCw } from 'lucide-react';
+import type { HapticImpactOnly } from '@/types/telegram';
 
 const PULL_THRESHOLD = 60;
 
-export function usePullToRefresh(onRefresh: () => Promise<void>, haptic?: { impact: (...args: any[]) => void }) {
+export function usePullToRefresh(onRefresh: () => Promise<void>, haptic?: HapticImpactOnly) {
   const [pullDistance, setPullDistance] = useState(0);
   const [refreshing, setRefreshing] = useState(false);
   const touchStartY = useRef(0);

@@ -32,7 +32,7 @@
  * ============================================================
  */
 
-import type { OnboardingStep } from '@/hooks/useOnboarding';
+import type { OnboardingStep, OnboardingData } from '@/hooks/useOnboarding';
 
 export type QuestionType =
   | 'single-select'
@@ -72,7 +72,7 @@ export interface QuestionConfig {
   valueLabel?: (v: number) => string;
   valueSuffix?: string;
   // Conditional
-  showIf?: (data: Record<string, any>) => boolean;
+  showIf?: (data: OnboardingData) => boolean;
   // Auto-select behavior
   autoSelectAll?: string;
 }
