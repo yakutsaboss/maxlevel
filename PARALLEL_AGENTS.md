@@ -1369,7 +1369,21 @@ Read PARALLEL_AGENTS.md — you are Agent T for Run 35. Fix `mini-app/src/pages/
 **Commit:** `7e1a359` — `fix(mini-app): guard Dashboard XP percentage against div-by-zero and clamp values`
 
 #### Agent N Retrospective
-*(To be filled by Agent N)*
+**Status:** DONE — 1 commit on `feature/r35-profile-header`
+
+**Changes:**
+1. **ProfileHeader.tsx** (3 fixes):
+   - Line 68: Added `xp_to_next_level > 0` div-by-zero guard + `Math.min(..., 100)` clamp on XP progress bar width
+   - Line 73: Clamped displayed XP text with `Math.min(xp, xp_to_next_level)` so it never shows e.g. "150 / 100 XP"
+   - Line 63: Clamped `aria-valuenow` and `aria-label` to match visual display
+2. **ProfileAchievements.tsx** (1 fix):
+   - Line 16: Added `Math.min(..., 100)` clamp to `pct` calculation. Note: the `total > 0` div-by-zero guard was already present — only the >100% clamp was missing.
+
+**Commit:** `aa23c31` — `fix(mini-app): add div-by-zero guard and clamp to XP progress bar`
+
+**Build:** passes (tsc + vite build). **Tests:** 73 files, 319 tests all pass.
+
+**Notes:** ProfileAchievements already had the div-by-zero guard (`total > 0 ? ...`), so only the clamp was added. No issues encountered.
 
 #### Agent O Retrospective
 *(To be filled by Agent O)*
