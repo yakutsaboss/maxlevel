@@ -1468,7 +1468,23 @@ Read PARALLEL_AGENTS.md — you are Agent J for Run 32. Your job: Write componen
 *(To be filled by Agent H)*
 
 #### Agent I Retrospective
-*(To be filled by Agent I)*
+**Task**: Write component tests for the onboarding flow (Summary, LaunchScreen, PathSelect, QuizScreen, PunishmentConfig).
+
+**Delivered**: 24 tests across 5 new test files in `mini-app/src/__tests__/components/onboarding/`:
+- `Summary.test.tsx` (5 tests): mode badges, avatar in hero card, quiz answer summaries, CTA button, empty state
+- `LaunchScreen.test.tsx` (5 tests): congrats message, XP badge, onLaunch CTA, useRef double-fire guard, error state with retry
+- `PathSelect.test.tsx` (5 tests): mode cards rendering, toggle selection, visual selected state, disabled continue, enabled continue
+- `QuizScreen.test.tsx` (5 tests): question title/subtitle, AnswerInput rendering, progress bar, mode badge, disabled continue
+- `PunishmentConfig.test.tsx` (4 tests): consent toggle, type selector on consent, difficulty selector with safe mode, skip-for-now flow
+
+**Build**: `npm run build` passes. `npm test` passes all 24 new tests (pre-existing AdminLogs.test.tsx timeout failures unrelated).
+
+**Issues encountered**:
+1. `@twa-dev/sdk` mock needed `disableClosingConfirmation` and `enableVerticalSwipes` — the `useTelegram` hook's cleanup function calls these. Existing tests had them but my initial template missed them.
+2. Summary test had ambiguous text matches (`/Fitness/` matched both badge and section card). Fixed with `getAllByText`.
+3. PunishmentConfig consent toggle DOM navigation needed `.closest('.bg-telegram-secondaryBg')` to find the correct parent.
+
+**Recommendations**: Extract the `@twa-dev/sdk` mock into a shared helper (e.g., `src/test/mocks/twa-sdk.ts`) to reduce duplication and prevent missing-method bugs.
 
 #### Agent J Retrospective
 **Task**: Write component tests for shared/admin components with zero test coverage.
