@@ -915,7 +915,24 @@ Read PARALLEL_AGENTS.md — you are Agent F for Run 31. Your job: Slim down Onbo
 *(To be filled by Agent A)*
 
 #### Agent B Retrospective
-*(To be filled by Agent B)*
+**Status:** COMPLETE — all 6 test files created, build passes, 41/41 mini-app tests green (28 new from Agent B).
+
+| # | Task | Tests | Status |
+|---|------|-------|--------|
+| 1 | Navigation.test.tsx — renders 5 items, active highlight, click navigation, haptic, badge count | 5 | Done |
+| 2 | ErrorSection.test.tsx — renders message, retry callback, haptic on retry, role=alert | 4 | Done |
+| 3 | QuestCard.test.tsx — renders title/XP, progress bar, click handler, completed state, difficulty badge | 5 | Done |
+| 4 | AchievementCard.test.tsx — name/description, locked state, unlocked XP, reward XP, haptic click | 5 | Done |
+| 5 | useSettingsData.test.ts — loading, successful fetch, error handling, handleSave API call, undefined user | 5 | Done |
+| 6 | usePullToRefresh.test.ts — initial state, touch handlers defined, containerRef, works without haptic | 4 | Done |
+
+**Issues encountered & fixed:**
+- QuestCard test: framer-motion `motion.div` mock applied `data-testid="quest-card"` to ALL motion.div instances (outer card + inner progress bar), causing `getByTestId` to fail with duplicate match. Fixed by clicking via text content instead.
+- Navigation test: React warning about unrecognized `layoutId` prop on DOM element — harmless, caused by framer-motion mock passing through all props.
+
+**Files changed:** 4 new component test files in `__tests__/components/`, 2 new hook test files in `__tests__/hooks/`. 7 commits total.
+
+**Recommendations for next run:** Consider adding integration tests that render full pages with real hook calls (currently all hooks are mocked). Also consider testing the `usePullToRefresh` touch interaction flow end-to-end with a real DOM container.
 
 #### Agent C Retrospective
 *(To be filled by Agent C)*
