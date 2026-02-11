@@ -60,17 +60,17 @@ export function ProfileHeader({ stats, achievementCount, onEdit, onSettingsClick
         <p className="text-purple-200 text-xs mb-4">
           Joined {new Intl.DateTimeFormat(undefined, { month: 'short', year: 'numeric' }).format(new Date(stats.user.created_at))}
         </p>
-        <div className="bg-white/20 backdrop-blur-sm rounded-full h-6 overflow-hidden mb-4" role="progressbar" aria-valuenow={stats.user.xp} aria-valuemin={0} aria-valuemax={stats.user.xp_to_next_level} aria-label={`XP progress: ${stats.user.xp} of ${stats.user.xp_to_next_level}`}>
+        <div className="bg-white/20 backdrop-blur-sm rounded-full h-6 overflow-hidden mb-4" role="progressbar" aria-valuenow={Math.min(stats.user.xp, stats.user.xp_to_next_level)} aria-valuemin={0} aria-valuemax={stats.user.xp_to_next_level} aria-label={`XP progress: ${Math.min(stats.user.xp, stats.user.xp_to_next_level)} of ${stats.user.xp_to_next_level}`}>
           <div className="relative h-full">
             <motion.div
               className="absolute top-0 left-0 h-full bg-gradient-to-r from-yellow-400 to-orange-500"
               initial={{ width: 0 }}
-              animate={{ width: `${(stats.user.xp / stats.user.xp_to_next_level) * 100}%` }}
+              animate={{ width: `${stats.user.xp_to_next_level > 0 ? Math.min((stats.user.xp / stats.user.xp_to_next_level) * 100, 100) : 0}%` }}
               transition={{ duration: 1, ease: 'easeOut' }}
             />
             <div className="absolute inset-0 flex items-center justify-center min-w-0 px-2">
               <span className="text-white text-xs font-semibold drop-shadow truncate">
-                {stats.user.xp} / {stats.user.xp_to_next_level} XP
+                {Math.min(stats.user.xp, stats.user.xp_to_next_level)} / {stats.user.xp_to_next_level} XP
               </span>
             </div>
           </div>

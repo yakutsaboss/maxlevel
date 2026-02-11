@@ -13,7 +13,7 @@ interface ProfileAchievementsProps {
 export function ProfileAchievements({ achievements, allAchievements, haptic, onViewAll }: ProfileAchievementsProps) {
   const total = allAchievements.length || achievements.length;
   const unlocked = achievements.length;
-  const pct = total > 0 ? Math.round((unlocked / total) * 100) : 0;
+  const pct = total > 0 ? Math.min(Math.round((unlocked / total) * 100), 100) : 0;
 
   return (
     <div className="px-4 mt-6 mb-6">
