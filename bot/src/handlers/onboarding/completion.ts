@@ -6,6 +6,15 @@ import { Context, InlineKeyboard } from 'grammy';
 import { query, execute } from '../../utils/db.js';
 import { getUserByTelegramId, getUserActiveModes } from '../../utils/queries.js';
 
+interface SelectedMode {
+  icon_emoji: string;
+  display_name: string;
+}
+
+interface ModeRow {
+  mode_id: number;
+}
+
 /**
  * Complete mode selection and start quest assignment
  */
@@ -25,7 +34,7 @@ export async function completeModeSelection(ctx: Context) {
   const internalUserId = user.id;
 
   // Check if user selected at least one mode
-  const selectedModes = await getUserActiveModes(internalUserId);
+  const selectedModes = await getUserActiveModes(internalUserId) as SelectedMode[];
 
   if (selectedModes.length === 0) {
     await ctx.answerCallbackQuery({
@@ -39,7 +48,7 @@ export async function completeModeSelection(ctx: Context) {
   await ctx.editMessageText(
     `✅ *Modes Selected!*\n\n` +
       `You've chosen ${selectedModes.length} mode(s):\n` +
-      selectedModes.map((m: any) => `${m.icon_emoji} ${m.display_name}`).join('\n'),
+      selectedModes.map(m => `${m.icon_emoji} ${m.display_name}`).join('\n'),
     { parse_mode: 'Markdown' }
   );
 
@@ -61,7 +70,7 @@ async function assignInitialQuests(ctx: Context, userId: number) {
   );
 
   // Get user's active mode IDs
-  const modes = await query(
+  const modes = await query<ModeRow>(
     'SELECT mode_id FROM user_modes WHERE user_id = $1 AND is_active = true',
     [userId]
   );
@@ -76,7 +85,7 @@ async function assignInitialQuests(ctx: Context, userId: number) {
     return;
   }
 
-  const modeIds = modes.map((m: any) => m.mode_id);
+  const modeIds = modes.map(m => m.mode_id);
   const today = new Date().toISOString().split('T')[0];
 
   // Find available daily templates not assigned today

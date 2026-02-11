@@ -6,6 +6,17 @@ import { Context, InlineKeyboard } from 'grammy';
 import { query, queryOne } from '../../utils/db.js';
 import { getUserByTelegramId } from '../../utils/queries.js';
 
+interface QuestRow {
+  mode_icon: string | null;
+  name: string;
+  status: string;
+  xp_reward: number;
+}
+
+interface StreakRow {
+  current_streak: number;
+}
+
 /**
  * Handle quick action buttons
  */
@@ -52,7 +63,7 @@ async function showQuickQuests(ctx: Context) {
     return;
   }
 
-  const quests = await query(
+  const quests = await query<QuestRow>(
     `SELECT qi.id, qi.quest_id, q.title AS name, q.description, q.xp_reward,
             q.quest_type, q.difficulty, q.mode_id, m.name AS mode_name,
             m.icon_emoji AS mode_icon, qi.status, qi.instance_date,
@@ -72,7 +83,7 @@ async function showQuickQuests(ctx: Context) {
 
   let message = `📋 *Your Active Quests*\n\n`;
 
-  quests.slice(0, 5).forEach((quest: any, index: number) => {
+  quests.slice(0, 5).forEach((quest, index) => {
     const icon = quest.mode_icon || '📌';
     const status = quest.status === 'pending' ? '⏳' : quest.status === 'in_progress' ? '🔄' : '✅';
 
@@ -108,11 +119,11 @@ async function showQuickProfile(ctx: Context) {
 
   // Get streaks and quest count in parallel
   const [streaks, totalCompleted] = await Promise.all([
-    query(
+    query<StreakRow>(
       `SELECT s.current_streak FROM streaks s WHERE s.user_id = $1`,
       [user.id]
     ),
-    queryOne<Record<string, any>>(
+    queryOne<{ total: number }>(
       `SELECT COUNT(*)::int AS total FROM quest_instances WHERE user_id = $1 AND status = 'completed'`,
       [user.id]
     ),
@@ -121,7 +132,7 @@ async function showQuickProfile(ctx: Context) {
   const level = user.current_level || 1;
   const xp = user.total_xp || 0;
   const overallStreak = streaks.length > 0
-    ? Math.min(...streaks.map((s: any) => s.current_streak))
+    ? Math.min(...streaks.map(s => s.current_streak))
     : 0;
   const questsCompleted = totalCompleted?.total || 0;
 

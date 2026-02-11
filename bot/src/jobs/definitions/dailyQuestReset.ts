@@ -14,6 +14,10 @@ import type { Job } from 'pg-boss';
 import { query, execute } from '../../utils/db.js';
 import { logger } from '../../utils/logger.js';
 
+interface ModeIdRow {
+  mode_id: number;
+}
+
 const log = logger.child({ component: 'dailyQuestReset' });
 
 export const JOB_NAME = 'daily-quest-reset';
@@ -30,9 +34,9 @@ async function assignDailyQuestsWithRetry(userId: number): Promise<boolean> {
   for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
     try {
       // 1. Get user's active modes
-      const modes = await query('SELECT mode_id FROM user_modes WHERE user_id = $1 AND is_active = true', [userId]);
+      const modes = await query<ModeIdRow>('SELECT mode_id FROM user_modes WHERE user_id = $1 AND is_active = true', [userId]);
       if (modes.length === 0) return true; // no modes — not a failure
-      const modeIds = modes.map((m: any) => m.mode_id);
+      const modeIds = modes.map(m => m.mode_id);
       const today = new Date().toISOString().split('T')[0];
 
       // 2. Find available daily templates not assigned today
@@ -55,10 +59,10 @@ async function assignDailyQuestsWithRetry(userId: number): Promise<boolean> {
       }
 
       return true;
-    } catch (err: any) {
+    } catch (err: unknown) {
       if (attempt < MAX_RETRIES) {
         const delay = Math.pow(2, attempt - 1) * 1000; // 1s, 2s, 4s
-        log.warn(`Retry ${attempt}/${MAX_RETRIES} for user ${userId} in ${delay}ms: ${err?.message || err}`);
+        log.warn(`Retry ${attempt}/${MAX_RETRIES} for user ${userId} in ${delay}ms: ${err instanceof Error ? err.message : String(err)}`);
         await sleep(delay);
       }
     }
@@ -69,9 +73,9 @@ async function assignDailyQuestsWithRetry(userId: number): Promise<boolean> {
 async function assignWeeklyQuests(userId: number): Promise<boolean> {
   try {
     // 1. Get user's active modes
-    const modes = await query('SELECT mode_id FROM user_modes WHERE user_id = $1 AND is_active = true', [userId]);
+    const modes = await query<ModeIdRow>('SELECT mode_id FROM user_modes WHERE user_id = $1 AND is_active = true', [userId]);
     if (modes.length === 0) return true; // no modes — not a failure
-    const modeIds = modes.map((m: any) => m.mode_id);
+    const modeIds = modes.map(m => m.mode_id);
     const weekAgo = new Date(Date.now() - 7 * 86400000).toISOString().split('T')[0];
 
     // 2. Find available weekly templates not assigned in the last 7 days
@@ -99,7 +103,7 @@ async function assignWeeklyQuests(userId: number): Promise<boolean> {
     }
 
     return true;
-  } catch (err: any) {
+  } catch (err: unknown) {
     return false;
   }
 }
