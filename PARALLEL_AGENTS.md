@@ -697,4 +697,32 @@ Tasks: Dashboard a11y (8 files), Leaderboard a11y (5 files), Achievements a11y (
 
 **Issues:** Agent E committed to main instead of worktree branch — harmless but violates protocol. All PARALLEL_AGENTS.md conflicts were structural (branches predated Run 30 section), not content conflicts.
 
-<!-- Next run goes here. Agent 0 will append RUN 31 below this line. -->
+#### Agent D Retrospective (Run 31)
+**Status:** Complete (2 commits)
+**Commits:** `943846c` — refactor(handlers): split onboarding.ts into sub-modules, `a4a6b49` — test(onboarding): add 7 tests for setup sub-module
+
+| # | Task | Status |
+|---|------|--------|
+| 1 | Analyze onboarding handler (602 lines) — map function dependencies | Done |
+| 2 | Create `onboarding/` directory with 4 sub-modules | Done |
+| 3 | Create `onboarding/index.ts` barrel re-exports | Done |
+| 4 | Verify all imports resolve across codebase (index.ts, tests, start.ts mock) | Done |
+| 5 | Create `setup.test.ts` with 7 tests | Done |
+| 6 | Build + test verification (456/456 pass) | Pass |
+
+**What was done:**
+1. Split `onboarding.ts` (602 lines) into 4 focused sub-modules + barrel:
+   - `setup.ts` (35 lines) — `handleOnboarding` entry point
+   - `modeSelection.ts` (270 lines) — mode listing/selection/toggling/management (`showModeSelection`, `handleModeSelection`, `handleModesCommand`, `handleModeSummary`)
+   - `completion.ts` (130 lines) — `completeModeSelection` + `assignInitialQuests`
+   - `quickActions.ts` (130 lines) — `handleQuickAction`, `showQuickQuests`, `showQuickProfile`
+   - `index.ts` (20 lines) — barrel re-exports
+2. Original `onboarding.ts` kept as thin re-export file (22 lines) for ESM backward compatibility — `import { handleOnboarding } from '../handlers/onboarding.js'` still resolves.
+3. Created `__tests__/handlers/onboarding/setup.test.ts` (7 tests): welcome message, fallback name, delay behavior, missing userId, pre-delay timing, mode loading failure, Markdown format.
+4. All 456 tests pass (449 existing + 7 new). Build clean.
+
+**Design decision:** No `quizFlow.ts` created — the original handler has no quiz flow. Created `quickActions.ts` instead for post-onboarding quick action buttons.
+
+**Issues:** None. Worktree branched before Run 31 section existed in PARALLEL_AGENTS.md — wrote retro at end of file for Agent 0 to splice.
+
+<!-- Next run goes here. Agent 0 will append RUN 32 below this line. -->
