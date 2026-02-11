@@ -1,23 +1,16 @@
 import { Trophy, Medal, Award } from 'lucide-react';
 import { motion } from 'framer-motion';
 import type { LeaderboardEntry } from '@/types';
-import type { TimePeriod } from './TimePeriodTabs';
+import type { TimePeriod } from './TimePeriodTabs.js';
+import { UserAvatar } from './UserAvatar.js';
 
-const AVATAR_COLORS = [
-  'bg-purple-500', 'bg-blue-500', 'bg-green-500', 'bg-orange-500',
-  'bg-pink-500', 'bg-cyan-500', 'bg-red-500', 'bg-yellow-500',
-];
+export type TrendDirection = 'up' | 'down' | 'same' | 'none';
 
-export function getAvatarColor(name: string): string {
-  let hash = 0;
-  for (let i = 0; i < name.length; i++) hash = name.charCodeAt(i) + ((hash << 5) - hash);
-  return AVATAR_COLORS[Math.abs(hash) % AVATAR_COLORS.length];
-}
-
-export function getInitials(firstName: string, username?: string): string {
-  if (firstName) return firstName.charAt(0).toUpperCase();
-  if (username) return username.charAt(0).toUpperCase();
-  return '?';
+export function TrendArrow({ trend }: { trend: TrendDirection }) {
+  if (trend === 'up') return <span className="text-green-400 text-xs font-bold ml-0.5">&#8593;</span>;
+  if (trend === 'down') return <span className="text-red-400 text-xs font-bold ml-0.5">&#8595;</span>;
+  if (trend === 'same') return <span className="text-telegram-hint text-xs ml-0.5">=</span>;
+  return <span className="text-telegram-hint text-xs ml-0.5">&mdash;</span>;
 }
 
 export function RankIcon({ rank, isTop }: { rank: number; isTop?: boolean }) {
@@ -39,6 +32,7 @@ interface TopThreeCardProps {
   isCurrentUser: boolean;
   timePeriod: TimePeriod;
   index: number;
+  trend?: TrendDirection;
 }
 
 export function getXpValue(entry: LeaderboardEntry, timePeriod: TimePeriod): number {
@@ -53,7 +47,7 @@ export function getXpLabel(timePeriod: TimePeriod): string {
   return 'XP';
 }
 
-export function TopThreeCard({ entry, rank, isCurrentUser, timePeriod, index }: TopThreeCardProps) {
+export function TopThreeCard({ entry, rank, isCurrentUser, timePeriod, index, trend = 'none' }: TopThreeCardProps) {
   const rankStyle = TOP_RANK_STYLES[rank];
   const xpValue = getXpValue(entry, timePeriod);
 
@@ -71,12 +65,11 @@ export function TopThreeCard({ entry, rank, isCurrentUser, timePeriod, index }: 
             : 'bg-telegram-secondaryBg border-transparent'
       }`}
     >
-      <div className="w-9 flex-shrink-0 flex justify-center">
+      <div className="w-9 flex-shrink-0 flex flex-col items-center gap-0.5">
         <RankIcon rank={rank} isTop />
+        <TrendArrow trend={trend} />
       </div>
-      <div className={`w-12 h-12 rounded-full flex items-center justify-center text-white font-bold text-base flex-shrink-0 ${getAvatarColor(entry.first_name || entry.username || '')}`}>
-        {getInitials(entry.first_name, entry.username)}
-      </div>
+      <UserAvatar userId={entry.user_id} firstName={entry.first_name} username={entry.username} size="lg" />
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-1.5">
           <span className={`font-bold text-sm truncate ${isCurrentUser ? 'text-telegram-link' : ''}`}>

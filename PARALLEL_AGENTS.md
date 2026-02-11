@@ -2761,7 +2761,25 @@ Read PARALLEL_AGENTS.md — you are Agent E for Run 29. Your job: Enhance the Pr
 **Commits:** 1 commit: `03e8c88` — 9 files changed, +277/-10 lines.
 
 #### Agent C Retrospective
-*(To be filled by Agent C)*
+**All 3 tasks completed. Build passes.**
+
+| # | Task | Status |
+|---|------|--------|
+| 1 | UserAvatar component (user_id-based color hashing, 3 sizes) | Done |
+| 2 | TrendArrow component + integration into TopThreeCard & LeaderboardRow | Done |
+| 3 | YourRankCard sticky card (floating above nav, blur backdrop, glow) | Done |
+| 4 | Leaderboard page integration (find user in entries, hook ordering fix) | Done |
+
+**Files created:** `UserAvatar.tsx`, `YourRankCard.tsx`
+**Files modified:** `TopThreeCard.tsx`, `LeaderboardRow.tsx`, `Leaderboard.tsx`
+
+**Problems faced:**
+- Caught a React rules-of-hooks violation: `useMemo` was placed after early `if (loading) return` — moved hooks above early returns.
+- Removed old `getAvatarColor`/`getInitials` from TopThreeCard exports (replaced by UserAvatar which uses `user_id` for consistent color instead of name string hash).
+
+**Recommendations for next run:**
+- Backend should add a `previous_rank` field to `LeaderboardEntry` so TrendArrow can show real up/down/same indicators instead of the current placeholder dash.
+- Consider adding a dedicated API endpoint for "my rank" that returns the user's rank even when they're outside top 50 — currently the YourRankCard can only show rank if the user is within the fetched entries.
 
 #### Agent D Retrospective
 **Status:** All 4 tasks completed. Build passes (`tsc --noEmit` — zero errors in my files; pre-existing errors in Settings.tsx from other agents' in-progress work).
