@@ -11,6 +11,31 @@ import {
   BadRequestError,
 } from './quest-helpers.js';
 
+/** Shape returned by the SELECT on the `quests` table for available templates. */
+interface QuestTemplate {
+  id: number;
+  title: string;
+  description: string;
+  xp_reward: number;
+  quest_type: string;
+  difficulty: string;
+  mode_id: number;
+}
+
+/** Shape of each quest pushed into the response after INSERT. */
+interface AssignedQuest {
+  id: number;
+  quest_id: number;
+  title: string;
+  description: string;
+  xp_reward: number;
+  quest_type: string;
+  difficulty: string;
+  target: number;
+  instance_date: string;
+  status: string;
+}
+
 const router = Router();
 
 /**
@@ -41,10 +66,10 @@ router.post('/users/:userId/assign', authenticateTelegram, authorizeUser, mutati
 
   const today = new Date().toISOString().split('T')[0];
 
-  let available: any[];
+  let available: QuestTemplate[];
   if (isDaily) {
     // Daily: find templates not assigned today
-    available = await query(
+    available = await query<QuestTemplate>(
       `SELECT q.id, q.title, q.description, q.xp_reward, q.quest_type, q.difficulty, q.mode_id
        FROM quests q
        WHERE q.mode_id = ANY($1) AND q.quest_type = 'daily'
@@ -55,7 +80,7 @@ router.post('/users/:userId/assign', authenticateTelegram, authorizeUser, mutati
   } else {
     // Weekly: find templates not actively assigned in past 7 days
     const weekAgo = new Date(Date.now() - 7 * 86400000).toISOString().split('T')[0];
-    available = await query(
+    available = await query<QuestTemplate>(
       `SELECT q.id, q.title, q.description, q.xp_reward, q.quest_type, q.difficulty, q.mode_id
        FROM quests q
        WHERE q.mode_id = ANY($1) AND q.quest_type = 'weekly'
@@ -73,11 +98,11 @@ router.post('/users/:userId/assign', authenticateTelegram, authorizeUser, mutati
   }
 
   const difficultyTarget: Record<string, number> = { easy: 1, medium: 3, hard: 5 };
-  const assigned: any[] = [];
+  const assigned: AssignedQuest[] = [];
 
   for (const quest of available) {
     const target = difficultyTarget[quest.difficulty] ?? 1;
-    const inst = await queryOne(
+    const inst = await queryOne<{ id: number }>(
       `INSERT INTO quest_instances (user_id, quest_id, instance_date, status, target)
        VALUES ($1, $2, $3, 'pending', $4) RETURNING id`,
       [userId, quest.id, today, target]
