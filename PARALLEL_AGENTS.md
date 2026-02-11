@@ -2153,7 +2153,22 @@ Read PARALLEL_AGENTS.md — you are Agent F for Run 34. Your job: Write componen
 **Commit:** `d0cf3dd` on `main`
 
 #### Agent C Retrospective
-*(To be filled by Agent C)*
+**All 4 tasks completed. Build + tests pass (tsc clean, 562/562 vitest).**
+
+| # | Task | Status |
+|---|------|--------|
+| 1 | Fix onboarding XP bug — replace inline SQL with `awardXp()` | Done |
+| 2 | Update onboarding tests for awardXp refactor | Done (HTTP test + unit test) |
+| 3 | Create `achievementBatchCheck.test.ts` | Done (6 tests) |
+| 4 | Create `achievementNotifier.test.ts` | Done (6 tests) |
+
+**Bug fix details:** The onboarding `/complete` route (line 172-179) used `current_level = ((total_xp + 50) / 500) + 1` — integer division in SQL that diverges from the JS formula `Math.floor(totalXp / 500) + 1`. Replaced with `awardXp(client, userId, 50)` and split the `is_active`/`first_name` restore into a separate UPDATE. The fix is identical in pattern to the Run 33 quest route fix.
+
+**Test updates:** The HTTP integration test needed 3 fixes: (1) mock `xpAward.js` module, (2) add second `mockQueryOne` call for the idempotency guard, (3) remove stale `executePythonTool` mocks (mode_manager/quest_manager no longer used — all native SQL now). The unit test's "award 50 XP" case was updated to reflect the `awardXp` RETURNING pattern.
+
+**What went well:** Clean separation of concerns — the `awardXp` utility made the fix trivial (import + 1-line call). All 9 bot jobs now have test coverage.
+
+**Recommendation for next run:** All bot jobs are now tested. The remaining test gap is the `achievementEngine.ts` utility itself (`checkAndUnlockAchievements`) — it's called by the batch check job but not directly tested.
 
 #### Agent D Retrospective
 **Status:** COMPLETE — 6 test files, 32 new tests, all pass, build clean.
