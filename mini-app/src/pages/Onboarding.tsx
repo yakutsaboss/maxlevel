@@ -10,6 +10,7 @@ import { useTelegram, useBackButton } from '@/hooks/useTelegram';
 import { useOnboarding, getStepLabel, type OnboardingStep } from '@/hooks/useOnboarding';
 import { apiClient } from '@/api/client';
 import { getQuestionForStep } from '@/data/onboardingQuestions';
+import { MODE_BADGES } from '@/data/modeBadges';
 
 import { SplashScreen } from '@/components/onboarding/SplashScreen';
 import { HeroIntro } from '@/components/onboarding/HeroIntro';
@@ -21,13 +22,6 @@ import { PunishmentConfig } from '@/components/onboarding/PunishmentConfig';
 import { NotificationPrefs } from '@/components/onboarding/NotificationPrefs';
 import { Summary } from '@/components/onboarding/Summary';
 import { LaunchScreen } from '@/components/onboarding/LaunchScreen';
-
-const MODE_BADGES: Record<string, { icon: string; name: string; color: string }> = {
-  fitness: { icon: '🏋️', name: 'Fitness', color: 'bg-red-500/15 text-red-400' },
-  hydration: { icon: '💧', name: 'Hydration', color: 'bg-blue-500/15 text-blue-400' },
-  finance: { icon: '💰', name: 'Finance', color: 'bg-yellow-500/15 text-yellow-400' },
-  learning: { icon: '📚', name: 'Learning', color: 'bg-green-500/15 text-green-400' },
-};
 
 export function Onboarding() {
   const navigate = useNavigate();
