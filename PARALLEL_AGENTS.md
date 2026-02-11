@@ -1427,7 +1427,20 @@ Read PARALLEL_AGENTS.md — you are Agent J for Run 32. Your job: Write componen
 *(To be filled by Agent E)*
 
 #### Agent F Retrospective
-*(To be filled by Agent F)*
+**All 3 tasks completed. 33 new tests, all 489 suite tests pass. 1 commit.**
+
+| # | Task | Tests | Status |
+|---|------|-------|--------|
+| 1 | `admin-jobs.http.test.ts` | 8 tests (GET list, names+schedules, empty list, error 500, FINDING no requireRole, POST trigger 200/404/503) | Done |
+| 2 | `admin-stats.http.test.ts` | 11 tests (GET stats 200/500/FINDING, POST broadcast 200/400/partial-fail/empty-users/whitespace, GET logs 200/empty) | Done |
+| 3 | `admin-users.http.test.ts` | 14 tests (GET list/pagination/filter/error, GET detail/404, PATCH update/invalid/empty/404/disallowed-fields, deactivate/reactivate) | Done |
+
+**Key finding:** `GET /api/admin/jobs` and `GET /api/admin/stats` lack `requireRole` middleware — any authenticated admin can access regardless of role. `POST /:name/trigger`, `POST /broadcast`, and `GET /logs` correctly require `requireRole('admin')`. Documented in test comments.
+
+**Files changed:** `bot/src/__tests__/routes/http/admin-jobs.http.test.ts` (NEW), `bot/src/__tests__/routes/http/admin-stats.http.test.ts` (NEW), `bot/src/__tests__/routes/http/admin-users.http.test.ts` (NEW).
+**No conflicts expected:** All files are new, no overlap with other agents.
+
+**Note:** Pre-existing TS build errors in `quest-helpers.ts` (LogContext/LogEntry export issues) — unrelated to this work, did not block tests.
 
 #### Agent G Retrospective
 *(To be filled by Agent G)*
