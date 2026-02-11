@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useMemo } from 'react';
 import { useTelegram } from '@/hooks/useTelegram';
 import { usePullToRefresh, PullIndicator } from '@/hooks/usePullToRefresh';
 import { apiClient } from '@/api/client';
@@ -11,12 +11,22 @@ import { AchievementsSkeleton } from '@/components/achievements/AchievementsSkel
 
 const RARITY_ORDER = ['common', 'rare', 'epic', 'legendary'] as const;
 
+const CATEGORY_LABELS: Record<string, string> = {
+  all: 'All',
+  fitness: 'Fitness',
+  hydration: 'Hydration',
+  finance: 'Finance',
+  learning: 'Learning',
+  general: 'General',
+};
+
 export function Achievements() {
   const { user, haptic } = useTelegram();
   const [allAchievements, setAllAchievements] = useState<Achievement[]>([]);
   const [userAchievements, setUserAchievements] = useState<UserAchievement[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
+  const [selectedCategory, setSelectedCategory] = useState('all');
 
   const loadData = async () => {
     if (!user?.id) { setLoading(false); return; }
@@ -44,9 +54,18 @@ export function Achievements() {
   const unlockedCount = userAchievements.length;
   const totalCount = allAchievements.length;
 
+  const categories = useMemo(() => {
+    const cats = new Set(allAchievements.map(a => a.category || 'general'));
+    return ['all', ...Array.from(cats).sort()];
+  }, [allAchievements]);
+
+  const filteredAchievements = selectedCategory === 'all'
+    ? allAchievements
+    : allAchievements.filter(a => (a.category || 'general') === selectedCategory);
+
   const grouped = RARITY_ORDER.map(rarity => ({
     rarity,
-    achievements: allAchievements.filter(a => a.rarity === rarity),
+    achievements: filteredAchievements.filter(a => a.rarity === rarity),
   })).filter(g => g.achievements.length > 0);
 
   if (loading) return <AchievementsSkeleton />;
@@ -80,6 +99,25 @@ export function Achievements() {
             />
           </div>
         </div>
+
+        {/* Category filter */}
+        {categories.length > 2 && (
+          <div className="flex gap-2 overflow-x-auto hide-scrollbar mt-3 -mx-1 px-1">
+            {categories.map(cat => (
+              <button
+                key={cat}
+                onClick={() => { haptic.impact('light'); setSelectedCategory(cat); }}
+                className={`shrink-0 py-1.5 px-3 rounded-xl font-medium text-sm transition-all ${
+                  selectedCategory === cat
+                    ? 'bg-white text-orange-600 shadow-lg'
+                    : 'bg-white/20 text-white/70'
+                }`}
+              >
+                {CATEGORY_LABELS[cat] || cat}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Achievement groups by rarity */}
@@ -95,10 +133,12 @@ export function Achievements() {
           />
         ))}
 
-        {allAchievements.length === 0 && (
+        {grouped.length === 0 && (
           <div className="text-center py-12 bg-telegram-secondaryBg rounded-2xl border border-telegram-hint/10">
             <Trophy className="w-12 h-12 text-telegram-hint mx-auto mb-3" />
-            <p className="text-telegram-hint">No achievements available yet</p>
+            <p className="text-telegram-hint">
+              {selectedCategory === 'all' ? 'No achievements available yet' : `No ${CATEGORY_LABELS[selectedCategory] || selectedCategory} achievements`}
+            </p>
           </div>
         )}
       </div>
