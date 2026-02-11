@@ -697,4 +697,26 @@ Tasks: Dashboard a11y (8 files), Leaderboard a11y (5 files), Achievements a11y (
 
 **Issues:** Agent E committed to main instead of worktree branch — harmless but violates protocol. All PARALLEL_AGENTS.md conflicts were structural (branches predated Run 30 section), not content conflicts.
 
-<!-- Next run goes here. Agent 0 will append RUN 31 below this line. -->
+### Run 31 Retrospectives
+
+#### Agent C Retrospective
+**All 5 tasks completed. Build passes cleanly (tsc + vite build — zero errors).**
+
+| # | Task | Status |
+|---|------|--------|
+| 1 | Create `hooks/useApiError.ts` — shared `getErrorMessage()` helper | Done |
+| 2 | Update `api/client.ts` — thread `signal?: AbortSignal` through `deduplicatedGet` and all public GET methods | Done |
+| 3 | Update `hooks/useDashboardData.ts` — ApiError-based error messages + AbortController + `errorMessage` return field | Done |
+| 4 | Update `hooks/useProfileData.ts` — same pattern, shared signal for Promise.all, abort-safe cleanup | Done |
+| 5 | Update `hooks/useSettingsData.ts` — same pattern, shared signal for preferences + punishment fetch | Done |
+
+**Files:** `hooks/useApiError.ts` (NEW, 13 lines), `api/client.ts` (modified — signal param on 13 GET methods), `hooks/useDashboardData.ts` (modified — AbortController + errorMessage), `hooks/useProfileData.ts` (modified — AbortController + errorMessage), `hooks/useSettingsData.ts` (modified — AbortController + errorMessage).
+
+**Known test impact:** 3 existing tests fail (2 in useDashboardData, 1 in useProfileData) because they assert `toHaveBeenCalledWith(123)` but hooks now pass `{ signal }` as second arg. Agent 0 should update assertions to `toHaveBeenCalledWith(123, expect.objectContaining({ signal: expect.any(AbortSignal) }))`. Agent C is FORBIDDEN from modifying test files.
+
+**Design decisions:**
+- AbortController is created per-load-call (not per-mount) so rapid re-fetches cancel the previous in-flight request.
+- On abort, hooks skip state updates entirely (no error/loading changes) since abort is expected during navigation.
+- `errorMessage` is returned alongside `error` boolean for backward compatibility — pages can adopt `errorMessage` incrementally.
+
+<!-- Next run goes here. Agent 0 will append RUN 32 below this line. -->
