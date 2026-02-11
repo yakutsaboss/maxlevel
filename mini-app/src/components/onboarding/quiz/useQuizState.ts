@@ -1,19 +1,20 @@
 import { useState, useEffect } from 'react';
 import type { QuestionConfig } from '@/data/onboardingQuestions';
 import type { OnboardingData } from '@/hooks/useOnboarding';
+import type { QuizAnswerValue } from '@/types/telegram';
 
 export function useQuizState(
   config: QuestionConfig,
   data: OnboardingData,
-  onAnswer: (key: string, nestedKey: string | undefined, value: any) => void,
+  onAnswer: (key: string, nestedKey: string | undefined, value: QuizAnswerValue) => void,
   haptic: { selection: () => void },
 ) {
-  const getCurrentValue = (): any => {
-    const parent = data[config.dataKey as keyof OnboardingData] as Record<string, any> | undefined;
+  const getCurrentValue = (): QuizAnswerValue | undefined => {
+    const parent = data[config.dataKey as keyof OnboardingData] as Record<string, QuizAnswerValue | undefined> | undefined;
     if (config.nestedKey && parent) {
       return parent[config.nestedKey];
     }
-    return parent;
+    return parent as QuizAnswerValue | undefined;
   };
 
   const currentValue = getCurrentValue();
@@ -31,7 +32,7 @@ export function useQuizState(
   const [drumValue, setDrumValue] = useState<number>(
     config.type === 'drum-roller'
       ? typeof currentValue === 'object'
-        ? currentValue?.value ?? config.defaultValue ?? config.min ?? 0
+        ? (currentValue as { value?: number })?.value ?? config.defaultValue ?? config.min ?? 0
         : (currentValue as number) ?? config.defaultValue ?? config.min ?? 0
       : 0,
   );
