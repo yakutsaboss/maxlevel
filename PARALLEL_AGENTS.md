@@ -1793,7 +1793,19 @@ Read PARALLEL_AGENTS.md — you are Agent F for Run 33. Your job: Write componen
 ### Run 33 Retrospectives
 
 #### Agent A Retrospective
-*(To be filled by Agent A)*
+**Status:** COMPLETE — all 4 tasks done, 152/152 tests passing, build clean.
+
+**What was done:**
+1. Created `mini-app/src/test/mocks/twa-sdk.ts` — complete @twa-dev/sdk mock with all 30+ WebApp methods/properties as vi.fn() stubs. Exports `mockWebApp` object and `setupTWAMock()` function. Includes `disableClosingConfirmation`, `enableVerticalSwipes`, `openInvoice`, `switchInlineQuery`, `requestWriteAccess`, `requestContact` — all previously missing from the inline setup.ts mock.
+2. Created `mini-app/src/test/mocks/framer-motion.ts` — Proxy-based mock that auto-generates plain HTML elements for any `motion.*` tag (div, button, span, h1, p, circle, etc.). Filters framer-specific props (initial, animate, exit, transition, whileHover, whileTap, variants, etc.) to avoid React DOM warnings. Also mocks AnimatePresence, useAnimation, useMotionValue, useTransform, useSpring, useInView, useScroll.
+3. Updated `mini-app/src/test/setup.ts` — replaced 53-line inline WebApp mock with 2-line import + `setupTWAMock()` call. IntersectionObserver and localStorage mocks kept as-is.
+4. Verified: build succeeds (`tsc && vite build`), all 152 tests pass across 31 test files.
+
+**What went well:** Clean separation — individual test files still work with their own `vi.mock('framer-motion')` calls since vitest hoists per-file mocks above imports. The shared mock is available for new tests (Agents E/F) but doesn't force migration of existing ones.
+
+**Notes for Agent 0:** Pre-existing warnings in some test files about `whileTap`/`layoutId` props leaking to DOM — these come from inline framer-motion mocks in individual test files that don't filter animation props. Not touched per task instructions (no individual test file modification). Agents E/F can use `vi.mock('framer-motion', () => framerMotionMock)` to get clean behavior in new tests.
+
+**Commit:** `434a705` on `feature/r33-test-mocks`
 
 #### Agent B Retrospective
 *(To be filled by Agent B)*
