@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { Quest } from '@/types';
 import { Zap, CheckCircle, Loader2, Calendar } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -14,6 +15,14 @@ interface QuestDetailModalProps {
 }
 
 export function QuestDetailModal({ quest, completing, userId, onClose, onCheckinSuccess }: QuestDetailModalProps) {
+  useEffect(() => {
+    if (!quest) return;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, [quest]);
+
   if (!quest) return null;
 
   return (
@@ -71,7 +80,7 @@ export function QuestDetailModal({ quest, completing, userId, onClose, onCheckin
               <motion.div
                 className={`h-full ${quest.progress >= quest.target ? 'bg-green-500' : 'bg-gradient-to-r from-blue-500 to-purple-500'}`}
                 initial={{ width: 0 }}
-                animate={{ width: `${(quest.progress / quest.target) * 100}%` }}
+                animate={{ width: `${quest.target > 0 ? (quest.progress / quest.target) * 100 : 0}%` }}
               />
             </div>
             {quest.target > 1 && (
