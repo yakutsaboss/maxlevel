@@ -2122,7 +2122,17 @@ Read PARALLEL_AGENTS.md — you are Agent F for Run 34. Your job: Write componen
 ### Run 34 Retrospectives
 
 #### Agent A Retrospective
-*(To be filled by Agent A)*
+**Status:** COMPLETE — 5 test files, 21 new tests, all pass, build clean.
+
+| # | File | Tests | What's covered |
+|---|------|-------|----------------|
+| 1 | `AvatarSelect.test.tsx` | 5 | Renders all 5 avatars with labels/descriptions, click calls onSelect with value, selected avatar has border highlight, continue disabled when none selected, enabled when selected |
+| 2 | `HeroIntro.test.tsx` | 4 | Renders nickname from prop, renders description text, renders "Let's Go!" CTA, CTA click calls onNext |
+| 3 | `SplashScreen.test.tsx` | 4 | Renders branding (title + tagline), renders "Get Started" button, renders 3 language flags, button disabled until language selected then calls onNext |
+| 4 | `ReferralSource.test.tsx` | 4 | Renders all 7 referral options, click calls onSelect with value, selected option has border highlight, "Other" shows text input for custom entry |
+| 5 | `NotificationPrefs.test.tsx` | 4 | Renders all 4 toggle rows, renders descriptions, toggling calls onUpdate with new prefs, Continue calls onNext |
+
+**Pattern notes:** All tests follow the established PathSelect.test.tsx pattern — inline TWA SDK mock, framer-motion stub, ProgressBar/ContinueButton mocks. No shared mock files used (per existing convention). Pre-existing QuestDetailModal backdrop test failure is unrelated.
 
 #### Agent B Retrospective
 *(To be filled by Agent B)*
