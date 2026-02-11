@@ -1386,7 +1386,19 @@ Read PARALLEL_AGENTS.md — you are Agent T for Run 35. Fix `mini-app/src/pages/
 **Notes:** ProfileAchievements already had the div-by-zero guard (`total > 0 ? ...`), so only the clamp was added. No issues encountered.
 
 #### Agent O Retrospective
-*(To be filled by Agent O)*
+**Status:** COMPLETE — 2 files fixed, vite build clean, 319/319 tests pass.
+
+| # | File | Change |
+|---|------|--------|
+| 1 | `mini-app/src/pages/Leaderboard.tsx` | Fixed `currentUserRank` useMemo: prefer `xp_rank` from backend; if `indexOf` returns -1, return `null` instead of `idx + 1 = 0`. Prevents "Rank #0" display. |
+| 2 | `mini-app/src/components/leaderboard/YourRankCard.tsx` | Replaced hardcoded `bottom-[72px]` with `bottom-[calc(72px+env(safe-area-inset-bottom,0px))]` on both render paths. Added JS comments documenting the 72px = nav bar height. Guarded `displayRank` in JSX to show `#?` instead of `#0`/`#undefined`. Improved aria-label for falsy rank. |
+
+**Commit:** `84c006a` on `main`
+
+**Notes:**
+- Pre-existing `tsc` error in `Achievements.tsx` (unused `RefreshCw` import) from Agent T's uncommitted changes — not caused by Agent O. Vite build succeeds.
+- The `entries.indexOf(currentUserEntry)` should never return -1 in practice (since `currentUserEntry` comes from `entries.find()`), but the guard protects against edge cases like stale references after re-renders.
+- `env(safe-area-inset-bottom, 0px)` gracefully degrades to `0px` on non-notched devices.
 
 #### Agent P Retrospective
 **Status:** COMPLETE — 2 tasks (1 verification, 1 fix), tests pass (319/319), build blocked by pre-existing Agent O error in YourRankCard.tsx.
