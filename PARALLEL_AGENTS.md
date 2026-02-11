@@ -1496,7 +1496,21 @@ Read PARALLEL_AGENTS.md — you are Agent T for Run 35. Fix `mini-app/src/pages/
 **Notes:** StreakSection already had a `perModeStreaks.length > 0` outer guard, but the explicit length check on maxStreak makes the intent clearer and protects against future refactors that might remove the outer guard. CheckInButton fallback uses `target ?? 1` (not 0) to avoid division-by-zero if progress bar math depends on target.
 
 #### Agent T Retrospective
-*(To be filled by Agent T)*
+
+**Scope:** Achievements page hardening — check button, null guards, responsive safety, error boundary audit.
+
+**Changes made (3 commits):**
+1. **"Check for new achievements" button** — Added `checkForNew()` calling `apiClient.checkAchievements(userId)` with loading spinner, haptic feedback, and count display. Also added `Array.isArray()` defensive guards on `loadData` response. *(Note: this commit was inadvertently included in Agent P's commit `ca8820b` because both agents shared the main worktree — my unstaged edits were picked up by Agent P's `git add`.)*
+2. **Null guards on AchievementCard** — `formatDate()` and `isRecentlyUnlocked()` now guard against null/undefined/invalid dates. `ach.icon` falls back to trophy emoji. `ach.xp_reward` uses nullish coalesce. Added `overflow-hidden` to card for small-screen safety.
+3. **TS strict fix** — Extracted `res.data?.count ?? 0` to satisfy strict null checks on the new `checkForNew` function.
+
+**Grid responsive assessment:** `grid-cols-2` is already appropriate for Telegram mini-app mobile viewports (min ~320px). Cards use `line-clamp-2` for text truncation. Added `overflow-hidden` as extra defense.
+
+**Error boundary assessment:** App-level `ErrorBoundary` wraps all routes in `App.tsx:157`. The Achievements page also has its own `error` state with `ErrorSection` fallback. No additional page-level boundary needed.
+
+**Build & test:** `tsc && vite build` passes. 73 test files / 319 tests all green.
+
+**Issue encountered:** Working in the main worktree (not a separate worktree as the protocol intended) caused my uncommitted changes to be absorbed into Agent P's commit. This is a known risk of parallel agents sharing a worktree. Future runs should ensure Agent T gets its own worktree to avoid this.
 
 #### Agent 0 Retrospective
 *(To be filled by Agent 0)*
