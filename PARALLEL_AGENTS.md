@@ -1259,7 +1259,16 @@ Read PARALLEL_AGENTS.md — you are Agent T for Run 35. Fix `mini-app/src/pages/
 **Pre-existing failures (NOT caused by this change):** 3 tests in `quests.http.test.ts` fail with 404 — likely caused by Agent E's quest-completion.ts route changes.
 
 #### Agent D Retrospective
-*(To be filled by Agent D)*
+**Task:** Replace raw SQL XP update in achievements.ts POST /unlock with shared awardXp(). Return level-up info in response.
+
+**Changes (1 commit e82a346):**
+- bot/src/api/routes/achievements.ts — Imported awardXp, replaced inline SQL with awardXp(client, userId, achievement.xp_bonus). Response now includes totalXp, newLevel, leveledUp.
+- bot/src/__tests__/routes/achievements.test.ts — Removed 3rd client.query mock, added xpResult assertions.
+- bot/src/__tests__/routes/http/achievements.http.test.ts — Added vi.mock for xpAward.js, updated unlock test assertions.
+
+**Build:** Clean. 28/28 achievement tests pass. Pre-existing quest test failures (3) from other agents changes.
+
+**Issue:** Lost edits via git stash/stash pop/stash drop — pop failed due to other agents uncommitted files. Had to redo all edits. Lesson: never git stash with parallel agents.
 
 #### Agent E Retrospective
 *(To be filled by Agent E)*
@@ -1323,7 +1332,18 @@ Read PARALLEL_AGENTS.md — you are Agent T for Run 35. Fix `mini-app/src/pages/
 **Recommendations**: Other agents should reference the z-index scale comment in `index.css` when choosing z-index values for new components.
 
 #### Agent J Retrospective
-*(To be filled by Agent J)*
+**Task**: Fix QuestDetailModal — body scroll lock, div-by-zero guard, z-index verification.
+
+**Changes made** (commit `c3021e4`):
+1. **Body scroll lock**: Added `useEffect` with `document.body.style.overflow = 'hidden'` when `quest` is non-null. Cleanup restores `overflow = ''`. Hook is placed before the early `if (!quest) return null` guard to satisfy React's rules of hooks — the `if (!quest) return` inside the effect handles the null case.
+2. **Div-by-zero fix**: Line 83 progress bar animation `(quest.progress / quest.target) * 100` now guarded with `quest.target > 0 ? ... : 0`. Prevents NaN/Infinity when target is 0.
+3. **Z-index verified**: Backdrop uses `z-50` (line 30), consistent with the modal layer scale (z-10=badges, z-30=fixed, z-40=nav, z-50=modals, z-60=toasts). No change needed.
+
+**Build**: `npx vite build` — clean. **Tests**: 73 files, 319 tests all pass.
+
+**Issues encountered**: First set of edits were silently reverted (likely another parallel agent's git operation). Had to re-apply all three edits and re-verify before committing. Pre-existing TS error in `YourRankCard.tsx:19` unrelated to my changes.
+
+**Recommendations**: Parallel agents editing files in the same `mini-app/src/components/` tree should coordinate or use separate branches to avoid silent overwrites.
 
 #### Agent K Retrospective
 **Task**: Fix ProfileEditModal — body scroll lock, avatar bounds clamping, z-index verification.
