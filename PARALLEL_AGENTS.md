@@ -2173,10 +2173,25 @@ Read PARALLEL_AGENTS.md — you are Agent C for Run 27. Your job: Add LOG_LEVEL 
 ### Run 27 Retrospectives
 
 #### Agent A Retrospective
-*(To be filled by Agent A)*
+- **Task**: Consolidate duplicate error handler from 8 HTTP test files into shared `addTestErrorHandler()` in `testApp.ts`
+- **Created**: `addTestErrorHandler(app: Express)` export in `bot/src/__tests__/helpers/testApp.ts` — imports `ApiError`, registers standard 4-param Express error middleware
+- **Updated**: All 8 HTTP test files (`users`, `onboarding`, `checkins`, `modes`, `achievements`, `quests`, `admin`, `leaderboard`) — replaced 6–10 line inline error handlers with single `addTestErrorHandler(app)` call; removed `ApiError` imports from 6 files that had them
+- **Assertion fixes**: Admin and leaderboard tests previously leaked raw error messages (`'DB down'`, `'connection timeout'`) through their non-instanceof handler. Updated 4 assertions to expect `'Internal Server Error'` — matches the standardized handler and is more secure (no raw message exposure)
+- **Handler variants found**: 3 different patterns existed: (A) users/onboarding/checkins with `{success:false}` in fallback, (B) modes/achievements/quests without `success:false` in fallback, (C) admin/leaderboard with `err.message || 'Internal Server Error'` passthrough. Standardized to variant A (includes `success:false`) since existing tests assert on it
+- **Tests**: All 412 tests pass (32 files), build clean
+- **Commit**: `ab476ee` — `refactor(tests): consolidate error handler into addTestErrorHandler() in testApp.ts`
+- **Net diff**: +35 / -89 lines across 9 files
+- **Risk**: Zero — pure test infrastructure refactor, no production code touched
 
 #### Agent B Retrospective
-*(To be filled by Agent B)*
+- **Task**: Extract shared SQL helpers from `handlers/onboarding.ts` into `utils/queries.ts`
+- **Created**: `bot/src/utils/queries.ts` with `getUserByTelegramId`, `listAllModes`, `getUserActiveModes`
+- **Updated**: `onboarding.ts` (removed 22 lines of local functions, added 1 import line), `start.ts` (replaced inline queryOne), `settings.ts` (replaced inline queryOne in getUserData), `admin-stats.ts` (replaced inline query for modes)
+- **Tests**: All 24 onboarding tests + 11 start tests pass — mocks target `../../utils/db.js` which both old and new code resolve to, so no test changes needed
+- **Build**: Clean, zero errors
+- **Commit**: `affc7bc` — `refactor: extract shared SQL helpers into utils/queries.ts`
+- **Risk**: Low — pure refactor, no behavior change. All callers use the same SQL; the functions are just in a shared location now
+- **Note**: `settings.ts` keeps its local `getUserData(ctx)` wrapper (which extracts `ctx.from?.id` then calls `getUserByTelegramId`) — didn't remove it because it serves a different purpose (context unwrapping)
 
 #### Agent C Retrospective
 *(To be filled by Agent C)*
