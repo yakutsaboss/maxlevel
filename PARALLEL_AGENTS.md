@@ -912,7 +912,17 @@ Read PARALLEL_AGENTS.md — you are Agent F for Run 31. Your job: Slim down Onbo
 ### Run 31 Retrospectives
 
 #### Agent A Retrospective
-*(To be filled by Agent A)*
+**Status:** COMPLETE — 25 new tests, 38/38 total green.
+
+| # | Task | Status |
+|---|------|--------|
+| 1 | Dashboard.test.tsx — 5 tests (loading, stat cards, streak, error, PTR) | Done |
+| 2 | Leaderboard.test.tsx — 5 tests (loading, top-3+rows, tabs, switching, rank) | Done |
+| 3 | Achievements.test.tsx — 5 tests (loading, rarity groups, filters, lock/unlock, error) | Done |
+| 4 | Profile.test.tsx — 5 tests (loading, header+XP, modes, streak, error) | Done |
+| 5 | Settings.test.tsx — 5 tests (loading, toggles, danger zone, delete, error) | Done |
+
+**Files:** 5 new page test files. Mocked data hooks for Dashboard/Profile/Settings, apiClient for Leaderboard/Achievements.
 
 #### Agent B Retrospective
 **Status:** COMPLETE — all 6 test files created, build passes, 41/41 mini-app tests green (28 new from Agent B).
