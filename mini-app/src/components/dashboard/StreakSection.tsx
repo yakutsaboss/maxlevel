@@ -102,7 +102,7 @@ export const StreakSection = memo(function StreakSection({ streakData, perModeSt
 
       {/* Per-mode streak breakdown */}
       {perModeStreaks && perModeStreaks.length > 0 && (() => {
-        const maxStreak = Math.max(...perModeStreaks.map(s => s.current_streak));
+        const maxStreak = perModeStreaks.length > 0 ? Math.max(...perModeStreaks.map(s => s.current_streak)) : 0;
         return (
           <div className="flex gap-2 overflow-x-auto pb-1 mt-3">
             {perModeStreaks.map((streak) => (

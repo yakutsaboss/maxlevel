@@ -30,8 +30,8 @@ export function CheckInButton({ questInstanceId, telegramId, onSuccess, disabled
         setShowSuccess(true);
         onSuccess({
           completed: response.data.completed,
-          current: response.data.quest_progress.current,
-          target: response.data.quest_progress.target,
+          current: response.data.quest_progress?.current ?? 0,
+          target: response.data.quest_progress?.target ?? 1,
         });
         setTimeout(() => setShowSuccess(false), 1500);
       }
