@@ -2156,7 +2156,23 @@ Read PARALLEL_AGENTS.md — you are Agent F for Run 34. Your job: Write componen
 *(To be filled by Agent C)*
 
 #### Agent D Retrospective
-*(To be filled by Agent D)*
+**Status:** COMPLETE — 6 test files, 32 new tests, all pass, build clean.
+
+| # | File | Tests | What's covered |
+|---|------|-------|----------------|
+| 1 | `onboarding/ui/ContinueButton.test.tsx` | 5 | Default label, custom label, click calls onClick, disabled prevents onClick, disabled shows hint text |
+| 2 | `onboarding/ui/ProgressBar.test.tsx` | 4 | Percentage text, step label, zero progress, overflow progress display |
+| 3 | `onboarding/quiz/AnswerInput.test.tsx` | 7 | Single-select render+click, multi-select render, drum-roller, slider, day-grid, dual-time |
+| 4 | `onboarding/punishment/ConsentToggle.test.tsx` | 4 | Consent text, explanation text, toggle callback, active/inactive styling |
+| 5 | `onboarding/punishment/DifficultySelector.test.tsx` | 6 | Workout options, click calls onSelectDifficulty, selected styling, Safe Mode, back button, book type options |
+| 6 | `onboarding/punishment/TypeSelector.test.tsx` | 6 | All type options, taglines, click calls onSelectType, Next button visibility, Next calls onNext |
+
+**Notes:**
+- Agent A (commit `594862e`) had already committed identical versions of all 6 files to main before Agent D started. This is a race condition — Agent A's scope included these same sub-components as part of its "5 untested onboarding steps" task.
+- No separate commit needed since files are already tracked and identical.
+- All 32 tests verified passing via `npx vitest --run` against the 6 files.
+- Pre-existing `AdminBroadcast.test.tsx` failure (3 tests) is unrelated.
+- AnswerInput tests mock all 4 sub-components (DrumRoller, SliderInput, DaySelector, DualTimePicker) to isolate unit behavior.
 
 #### Agent E Retrospective
 *(To be filled by Agent E)*
