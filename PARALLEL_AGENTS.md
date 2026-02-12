@@ -2137,7 +2137,20 @@ Read PARALLEL_AGENTS.md — you are Agent J for Run 38. Write tests for remainin
 *(To be filled by Agent B)*
 
 #### Agent C Retrospective
-*(To be filled by Agent C)*
+**Commit:** `93e148a` — `test(onboarding): add 8 tests for quickActions handler`
+
+**What was done:**
+- Created `bot/src/__tests__/handlers/onboarding/quickActions.test.ts` (NEW, 169 lines)
+- 8 tests covering all 3 branches of `handleQuickAction` (open_app, view_quests, view_profile)
+- Tests: early return on missing data, mini app button, active quests list, empty state, overflow (>5 quests), user-not-found for quests, profile stats (level/XP/streak/completed), user-not-found for profile
+- Mocked `db.query`, `db.queryOne`, `queries.getUserByTelegramId` following modeSelection.test.ts patterns
+
+**Build/test results:** 53 test files, 602 tests — all green. Zero issues.
+
+**Notes:**
+- `showQuickQuests` and `showQuickProfile` are private — tested via `handleQuickAction` dispatch
+- The streak logic uses `Math.min(...)` across all mode streaks — verified with multi-streak mock returning min value
+- No code changes to source files; test-only commit
 
 #### Agent D Retrospective
 *(To be filled by Agent D)*
