@@ -2149,7 +2149,22 @@ Read PARALLEL_AGENTS.md — you are Agent J for Run 38. Write tests for remainin
 *(To be filled by Agent F)*
 
 #### Agent G Retrospective
-*(To be filled by Agent G)*
+**Status:** COMPLETE — 4 dashboard test files created (11 tests), build clean, all pass.
+
+| # | Task | Status |
+|---|------|--------|
+| 1 | `DashboardAchievementCard.test.tsx` — 3 tests (icon+name, aria-label accessibility, different achievement data) | DONE |
+| 2 | `ModeCard.test.tsx` — 3 tests (name+icon, aria-label accessibility, different mode data) | DONE |
+| 3 | `StatCard.test.tsx` — 3 tests (label+value, icon rendering, zero/string values) | DONE |
+| 4 | `DashboardSkeleton.test.tsx` — 2 tests (skeleton structure counts, snapshot) | DONE |
+
+**Note:** Task prompt mentioned ModeCard should test "streak info" and "click handler", but the actual component has neither — it only renders mode icon and name. Tests were written to match real component behavior.
+
+**Collision:** Agent H's retrospective commit (`b040762`) inadvertently included my 4 test files since all agents share the same working directory. Tests were authored by Agent G but committed under Agent H's batch.
+
+**Pre-existing issue:** `AdminUserDetail.test.tsx` fails due to locale-dependent `toLocaleString()` — not related to Agent G changes.
+
+**No follow-ups needed.**
 
 #### Agent H Retrospective
 **Status:** COMPLETE — 4 test files created, build clean, 10/10 new tests pass (372 total, 1 pre-existing failure in AdminUserDetail.test.tsx).
