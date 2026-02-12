@@ -1847,7 +1847,15 @@ Build verify: `cd mini-app && npm run build` and `python tools/project_status_tr
 *(To be filled by Agent B)*
 
 #### Agent C Retrospective
-*(To be filled by Agent C)*
+**Task 1 — Tracker checks:** Updated two `lambda: False` stubs in `project_status_tracker.py` (lines 194–195) to use `self._file_exists()` for `HabitBuilder.tsx` and `HabitStreak.tsx`. Both now pass.
+
+**Task 2 — Habit UI components:** Created `mini-app/src/components/habits/` with two files:
+- `HabitBuilder.tsx` — Form component with name input, emoji icon picker (12 emojis), frequency selector (daily/weekdays/custom), time picker, and submit. Uses `memo`, `motion` for tap animations, project Tailwind patterns (rounded-2xl cards, orange-to-amber gradients, telegram-* colors). Exports `Habit` interface for reuse.
+- `HabitStreak.tsx` — Streak visualization matching StreakSection style: gradient card with animated flame icon, streak counter, longest-streak badge, progress bar, plus a 7-day calendar row with completed/missed indicators.
+
+**Build:** `tsc && vite build` passes clean (2041 modules, 2.42s). Tracker shows Habits Mode at 83% (5/6 — only "Onboarding quiz questions" remains, that's Agent B).
+
+**No issues.** Components are standalone — not wired into routes yet (that's a future run task).
 
 #### Agent 0 Retrospective
 *(To be filled by Agent 0)*

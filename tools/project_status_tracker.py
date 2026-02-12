@@ -191,8 +191,8 @@ class ProjectStatusTracker:
                     {"name": "Onboarding quiz questions", "check": lambda: self._has_onboarding_questions("HABITS")},
                     {"name": "Quest templates (custom habits)", "check": lambda: self._has_quest_templates("habits")},
                     {"name": "Achievements", "check": lambda: self._has_achievements_for_mode("habits")},
-                    {"name": "Custom habit builder UI", "check": lambda: False},
-                    {"name": "Habit streak visualization", "check": lambda: False},
+                    {"name": "Custom habit builder UI", "check": lambda: self._file_exists("mini-app/src/components/habits/HabitBuilder.tsx")},
+                    {"name": "Habit streak visualization", "check": lambda: self._file_exists("mini-app/src/components/habits/HabitStreak.tsx")},
                 ]
             },
             "payments": {

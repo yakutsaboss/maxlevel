@@ -10,7 +10,8 @@ INSERT INTO modes (name, display_name, description, icon_emoji) VALUES
 ('hydration', 'Hydration', 'Water intake and hydration tracking', '💧'),
 ('finance', 'Finance', 'Saving goals and budget tracking', '💰'),
 ('learning', 'Learning', 'Reading and skill development', '📚'),
-('medication', 'Medication', 'Track medication intake and adherence', '💊')
+('medication', 'Medication', 'Track medication intake and adherence', '💊'),
+('habits', 'New Habits', 'Build and track new daily habits', '🎯')
 ON CONFLICT (name) DO NOTHING;
 
 -- ========================================
@@ -62,6 +63,15 @@ INSERT INTO achievements (name, description, badge_icon, criteria, xp_bonus, rar
 ('refill_ready', 'Refill Ready', '🔄', '{"type": "quest_complete_consecutive", "mode": "medication", "days": 14}', 200, 'epic')
 ON CONFLICT (name) DO NOTHING;
 
+-- Habits Achievements
+INSERT INTO achievements (name, description, badge_icon, criteria, xp_bonus, rarity) VALUES
+('first_habit', 'Complete your first habit check-in', '🎯', '{"type": "quest_complete", "mode": "habits", "count": 1}', 50, 'common'),
+('habit_week', 'Maintain a 7-day habit streak', '🔥', '{"type": "streak", "mode": "habits", "days": 7}', 100, 'rare'),
+('habit_month', '30-day habit streak master', '🏆', '{"type": "streak", "mode": "habits", "days": 30}', 500, 'epic'),
+('habit_collector', 'Complete 50 habit check-ins', '📋', '{"type": "quest_complete", "mode": "habits", "count": 50}', 300, 'rare'),
+('habit_unstoppable', '14 consecutive days of habit tracking', '⚡', '{"type": "quest_complete_consecutive", "mode": "habits", "days": 14}', 200, 'epic')
+ON CONFLICT (name) DO NOTHING;
+
 -- Cross-Mode Achievements
 INSERT INTO achievements (name, description, badge_icon, criteria, xp_bonus, rarity) VALUES
 ('balanced_start', 'Balanced Start', '⚖️', '{"type": "multi_mode_active", "count": 2}', 100, 'common'),
@@ -83,12 +93,14 @@ DECLARE
     finance_mode_id INT;
     learning_mode_id INT;
     medication_mode_id INT;
+    habits_mode_id INT;
 BEGIN
     SELECT id INTO fitness_mode_id FROM modes WHERE name = 'fitness';
     SELECT id INTO hydration_mode_id FROM modes WHERE name = 'hydration';
     SELECT id INTO finance_mode_id FROM modes WHERE name = 'finance';
     SELECT id INTO learning_mode_id FROM modes WHERE name = 'learning';
     SELECT id INTO medication_mode_id FROM modes WHERE name = 'medication';
+    SELECT id INTO habits_mode_id FROM modes WHERE name = 'habits';
 
     -- Fitness Quest Templates
     INSERT INTO quests (mode_id, title, description, quest_type, xp_reward, difficulty, requires_timer, timer_window_start, timer_window_end, readiness_check_enabled, readiness_check_time, is_mandatory) VALUES
@@ -125,6 +137,13 @@ BEGIN
     (medication_mode_id, 'Take Morning Medication', 'Take your morning dosage on time to stay on track', 'daily', 40, 'easy', TRUE, '06:00:00', '09:00:00', TRUE, '05:45:00', TRUE),
     (medication_mode_id, 'Take Evening Medication', 'Take your evening dosage before bed for consistent adherence', 'daily', 40, 'easy', TRUE, '18:00:00', '21:00:00', TRUE, '17:45:00', TRUE),
     (medication_mode_id, 'Weekly Refill Check', 'Check your medication supply and plan a refill if needed', 'weekly', 150, 'medium', FALSE, NULL, NULL, FALSE, NULL, TRUE)
+    ON CONFLICT DO NOTHING;
+
+    -- Habits Quest Templates (added in Run 42)
+    INSERT INTO quests (mode_id, title, description, quest_type, xp_reward, difficulty, requires_timer, timer_window_start, timer_window_end, readiness_check_enabled, readiness_check_time, is_mandatory) VALUES
+    (habits_mode_id, 'Morning Habit Check', 'Complete your morning habit check-in to start the day right', 'daily', 40, 'easy', TRUE, '06:00:00', '10:00:00', TRUE, '05:45:00', TRUE),
+    (habits_mode_id, 'Evening Habit Review', 'Review your daily habits and mark completed ones', 'daily', 40, 'easy', TRUE, '19:00:00', '22:00:00', TRUE, '18:45:00', TRUE),
+    (habits_mode_id, 'Weekly Habit Reflection', 'Review which habits stuck this week and which need adjustment', 'weekly', 150, 'medium', FALSE, NULL, NULL, FALSE, NULL, TRUE)
     ON CONFLICT DO NOTHING;
 END $$;
 
