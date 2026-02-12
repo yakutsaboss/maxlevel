@@ -1832,7 +1832,24 @@ All agents create NEW test files only — zero file conflicts expected. Merge in
 ### Run 47 Retrospectives
 
 #### Agent A Retrospective
-*(To be filled by Agent A)*
+**Status**: COMPLETE — 26 tests passing across all 6 payment endpoints.
+
+**File created:**
+- `bot/src/__tests__/routes/http/payments.http.test.ts` (NEW, ~280 lines, 26 tests)
+
+**Endpoints tested (6):**
+1. `POST /create` — payment creation (5 tests: happy path 201, missing fields, invalid tier, negative amount, user not found)
+2. `POST /webhook` — Telegram webhook (6 tests: happy path, missing secret 401, wrong secret 401, missing charge_id, payment not found, idempotent for completed)
+3. `GET /history/:userId` — payment history (3 tests: happy path, invalid userId, empty results)
+4. `GET /subscription/:userId` — subscription status (4 tests: active sub, no sub = free, expired = free, invalid userId)
+5. `POST /subscription/upgrade` — upgrade tier (4 tests: happy path, missing fields, invalid tier, user not found)
+6. `POST /subscription/cancel` — cancel subscription (4 tests: active cancel, no sub, missing userId, invalid userId)
+
+**Notes:**
+- Followed the exact pattern from `checkins.http.test.ts`
+- Set `process.env.TELEGRAM_BOT_TOKEN` in `beforeEach` for webhook secret verification tests
+- Webhook tests exercise the `crypto.timingSafeEqual` path with matching/mismatching tokens
+- All 26 tests passed on first run
 
 #### Agent B Retrospective
 *(To be filled by Agent B)*
