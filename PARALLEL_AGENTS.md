@@ -1484,6 +1484,240 @@ Read PARALLEL_AGENTS.md — you are Agent F for Run 36. Refactor `mini-app/src/p
 **Risks/notes**: None. Pure structural refactor, zero behavioral changes.
 
 #### Agent 0 Retrospective
+**Merge summary:** 0/6 branches used — all agents committed to main (8th consecutive run). No merge needed.
+
+| Step | Result |
+|------|--------|
+| Branch verification | 6 branches checked — all empty |
+| Agent 0 fix | Added generic type params to `listAllModes<T>()` / `getUserActiveModes<T>()` in queries.ts, updated 5 call sites in modeSelection.ts |
+| Bot build | Pass after fix (pre-fix: 5 TS2345 errors in modeSelection.ts) |
+| Mini-app build | Pass — zero errors |
+| Bot tests | 580/580 passing (50 files, +12 from quest-assignment) |
+| Mini-app tests | 319/319 passing (73 files) |
+| Deploy | Success — version 9f354c7 verified via /health |
+| Notification | Sent via local Python |
+| Cleanup | 6 worktrees removed, 6 branches deleted |
+
+**Agent 0 fix details:** Agent A created Mode/UserMode interfaces and typed the `.forEach()` / `.map()` callbacks but didn't add generic params to `listAllModes()` and `getUserActiveModes()` in `utils/queries.ts`. These functions returned `Record<string, any>[]` by default, so passing `Mode` to callbacks caused type mismatch. Fix: made both functions generic (`<T extends Record<string, any> = Record<string, any>>`) and updated 5 call sites to pass `<Mode>` / `<UserMode>`.
+
+**Key achievements this run:**
+- **Zero `any` in typed handlers**: modeSelection.ts (12), stats.ts (4), leaderboard.ts (1), completion.ts (2), quickActions.ts (2), dailyQuestReset.ts (4), quest-assignment.ts (2) = **27 `any` eliminated**
+- **Quest-assignment tested**: 12 new HTTP integration tests (was untested)
+- **AdminUserList refactored**: 259 → 121 lines (4 sub-components extracted)
+- **Onboarding refactored**: 337 → 212 lines (useOnboardingFlow hook + StepRenderer)
+- **`err: any` → `err: unknown`**: dailyQuestReset.ts catch blocks now use proper narrowing
+
+**Test count progression:**
+- Bot: 456 → 520 → 550 → 562 → 568 → 580
+- Mini-app: 0 → 13 → 66 → 152 → 206 → 319
+- Total: 899 (580 + 319)
+
+## RUN 37: Final Type Safety + Missing Test Coverage (6 Agents + Agent 0)
+
+### Focus: Eliminate ALL remaining `any` in bot production code (routes, utils, handlers, jobs) and fill the last test gaps (quest-completion, quest-progress routes are untested; new Run 36 components/hooks untested). After Run 37: zero `any` in bot source (only tests + justified db.ts generics), all routes have HTTP tests.
+
+---
+
+### Copy-Paste Prompts
+
+**Agent 0** (open in: `c:\Users\Asus\Desktop\Wibecode`):
+```
+Read PARALLEL_AGENTS.md — you are Agent 0 for Run 37. Wait for agents to finish, then merge and deploy.
+```
+
+**Agent A** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-a`):
+```
+Read PARALLEL_AGENTS.md — you are Agent A for Run 37. Fix ALL 4 `any` in `bot/src/api/routes/leaderboard.ts` (198 lines). Read the file first. There are 4 `.map((row: any) => ...)` callbacks for formatting leaderboard entries (around lines 58, 100, 143, 184). (1) Create a `LeaderboardEntryRow` interface at the top with the DB columns used in those callbacks (user_id, telegram_id, first_name, username, level, total_xp, weekly_xp, monthly_xp, xp_rank, etc. — check the SQL queries). (2) Replace all 4 `(row: any)` with `(row: LeaderboardEntryRow)`. (3) Add `query<LeaderboardEntryRow>(...)` generics to the SQL query calls. Build verify: `cd bot && npm run build && npx vitest --run`. Commit after each task. Write your retrospective when done.
+```
+
+**Agent B** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-b`):
+```
+Read PARALLEL_AGENTS.md — you are Agent B for Run 37. Fix ALL 7 `any` in `bot/src/api/routes/user-stats.ts` (299 lines). Read the file first. There are `.map((row: any) => ...)` callbacks for formatting user mode, quest, achievement, and streak data. (1) Create interfaces at the top: `UserModeRow`, `ActiveQuestRow`, `RecentAchievementRow`, `StreakRow` — match each to the SQL SELECT columns used in the nearby queries. (2) Replace all 7 `(row: any)` or `(r: any)` callbacks with the correct interface. (3) Add `query<T>(...)` generics where possible. Build verify: `cd bot && npm run build && npx vitest --run`. Commit after each task. Write your retrospective when done.
+```
+
+**Agent C** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-c`):
+```
+Read PARALLEL_AGENTS.md — you are Agent C for Run 37. Fix `any` in 4 small files. (1) `bot/src/api/utils/errors.ts`: line ~58 `asyncHandler` takes `Promise<any>` — change to `Promise<void>`. Line ~67 `successResponse(data: any)` — add generic: `successResponse<T>(data: T)`. Line ~78 `validateRequired` fields param — use `Record<string, unknown>`. (2) `bot/src/api/routes/achievements.ts`: line ~48 `(r: any) => r.category` — replace with `(r: { category: string })`. (3) `bot/src/api/routes/admin-stats.ts`: line ~69 `(result.data as any)` — create a proper `AnalyticsExportResult` interface. (4) `bot/src/api/routes/onboarding.ts`: line ~170 `(req as any).telegramUser` — the auth middleware adds `telegramUser` to req. Create an `AuthenticatedRequest` interface extending Express Request, or use the existing one if it exists. Build verify: `cd bot && npm run build && npx vitest --run`. Commit after each task. Write your retrospective when done.
+```
+
+**Agent D** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-d`):
+```
+Read PARALLEL_AGENTS.md — you are Agent D for Run 37. Write HTTP integration tests for 2 untested routes. (1) Create `bot/src/__tests__/routes/http/quest-completion.http.test.ts` (NEW) — 6-8 tests: successful completion awards XP + checks achievements, already-completed quest returns error, quest not found, unauthorized access, transaction rollback on error, concurrent completion (SELECT FOR UPDATE prevents double-complete). Read `bot/src/api/routes/quest-completion.ts` first to understand the flow. (2) Create `bot/src/__tests__/routes/http/quest-progress.http.test.ts` (NEW) — 5-6 tests: normal progress update, auto-completion at target triggers XP award, progress clamped to target, unauthorized access, invalid params. Read `bot/src/api/routes/quest-progress.ts` first. Follow patterns in existing HTTP test files (mock db, auth middleware, rate limiters). Build verify: `cd bot && npm run build && npx vitest --run`. Commit after each task. Write your retrospective when done.
+```
+
+**Agent E** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-e`):
+```
+Read PARALLEL_AGENTS.md — you are Agent E for Run 37. Fix ALL remaining `any` in bot handlers + jobs. (1) `bot/src/handlers/settings.ts` line ~171: `user: any` param — create `UserRow` interface with the fields used (id, telegram_id, notifications_enabled, reminder_hour, timezone, etc.). (2) `bot/src/handlers/start.ts` lines ~115, ~137: `catch (err: any)` — change to `catch (err: unknown)` with `err instanceof Error ? err.message : String(err)`. (3) `bot/src/jobs/definitions/punishmentCheck.ts` line ~67: `(q: any) => q.quest_instance_id` — create `FailedQuestRow` interface; line ~194: `catch (err: any)` → `unknown`. (4) `bot/src/jobs/definitions/questReminders.ts` line ~69: `catch (err: any)` → `unknown` with Telegram error access via `(err as {parameters?: {retry_after?: number}})`. (5) `bot/src/jobs/definitions/achievementNotifier.ts` line ~68: `catch (err: any)` → `unknown`. Build verify: `cd bot && npm run build && npx vitest --run`. Commit after each task. Write your retrospective when done.
+```
+
+**Agent F** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-f`):
+```
+Read PARALLEL_AGENTS.md — you are Agent F for Run 37. Write tests for new Run 36 components and hooks. (1) Create `mini-app/src/__tests__/hooks/useOnboardingFlow.test.ts` (NEW) — 5-6 tests: test initial state, test step navigation (goToStep, advanceFrom), test quiz answer handling, test progress calculation, test back button integration. Use `renderHook` from `@testing-library/react`. Read `mini-app/src/hooks/useOnboardingFlow.ts` first. (2) Create `mini-app/src/__tests__/components/AdminUserSearch.test.tsx` (NEW) — 3 tests: renders search input, typing updates value, search calls onChange. (3) Create `mini-app/src/__tests__/components/AdminUserRow.test.tsx` (NEW) — 3 tests: renders user name, renders level/XP, click calls onSelect. (4) Create `mini-app/src/__tests__/components/AdminPagination.test.tsx` (NEW) — 3 tests: renders page info, prev/next buttons work, disabled at boundaries. Read each component first. Build verify: `cd mini-app && npm run build && npm test`. Commit after each task. Write your retrospective when done.
+```
+
+---
+
+### Agent A — Type leaderboard.ts Route
+
+**Branch:** `feature/r37-type-leaderboard-route`
+**Worktree:** `../Wibecode-agent-a`
+
+**OWNED files:**
+- `bot/src/api/routes/leaderboard.ts`
+
+**GRAY AREA:**
+- `bot/src/__tests__/routes/http/leaderboard.http.test.ts` — update if needed
+
+**FORBIDDEN:**
+- All other `bot/src/` files
+- `mini-app/**`, `tools/**`, `database/**`
+
+---
+
+### Agent B — Type user-stats.ts Route
+
+**Branch:** `feature/r37-type-user-stats`
+**Worktree:** `../Wibecode-agent-b`
+
+**OWNED files:**
+- `bot/src/api/routes/user-stats.ts`
+
+**GRAY AREA:**
+- `bot/src/__tests__/routes/http/user-stats.http.test.ts` — update if needed
+
+**FORBIDDEN:**
+- All other `bot/src/` files
+- `mini-app/**`, `tools/**`, `database/**`
+
+---
+
+### Agent C — Type errors.ts + Small Route Fixes
+
+**Branch:** `feature/r37-type-errors-routes`
+**Worktree:** `../Wibecode-agent-c`
+
+**OWNED files:**
+- `bot/src/api/utils/errors.ts`
+- `bot/src/api/routes/achievements.ts`
+- `bot/src/api/routes/admin-stats.ts`
+- `bot/src/api/routes/onboarding.ts`
+
+**FORBIDDEN:**
+- All other `bot/src/` files
+- `mini-app/**`, `tools/**`, `database/**`
+
+---
+
+### Agent D — HTTP Tests for Quest Completion + Progress
+
+**Branch:** `feature/r37-quest-tests`
+**Worktree:** `../Wibecode-agent-d`
+
+**OWNED files:**
+- `bot/src/__tests__/routes/http/quest-completion.http.test.ts` (NEW)
+- `bot/src/__tests__/routes/http/quest-progress.http.test.ts` (NEW)
+
+**FORBIDDEN:**
+- All bot source files (read-only)
+- `mini-app/**`, `tools/**`, `database/**`
+
+---
+
+### Agent E — Type Handlers + Jobs (err: any → unknown)
+
+**Branch:** `feature/r37-type-handlers-jobs`
+**Worktree:** `../Wibecode-agent-e`
+
+**OWNED files:**
+- `bot/src/handlers/settings.ts`
+- `bot/src/handlers/start.ts`
+- `bot/src/jobs/definitions/punishmentCheck.ts`
+- `bot/src/jobs/definitions/questReminders.ts`
+- `bot/src/jobs/definitions/achievementNotifier.ts`
+
+**GRAY AREA:**
+- `bot/src/__tests__/handlers/settings.test.ts` — update if needed
+- `bot/src/__tests__/handlers/start.test.ts` — update if needed
+
+**FORBIDDEN:**
+- All other `bot/src/` files
+- `mini-app/**`, `tools/**`, `database/**`
+
+---
+
+### Agent F — Tests for New Run 36 Components + Hook
+
+**Branch:** `feature/r37-run36-tests`
+**Worktree:** `../Wibecode-agent-f`
+
+**OWNED files:**
+- `mini-app/src/__tests__/hooks/useOnboardingFlow.test.ts` (NEW)
+- `mini-app/src/__tests__/components/AdminUserSearch.test.tsx` (NEW)
+- `mini-app/src/__tests__/components/AdminUserRow.test.tsx` (NEW)
+- `mini-app/src/__tests__/components/AdminPagination.test.tsx` (NEW)
+
+**FORBIDDEN:**
+- `bot/**`, `tools/**`, `database/**`
+- All existing mini-app source files — read-only
+- All existing test files — do not modify
+
+---
+
+### Run 37 File Ownership Matrix
+
+| File / Directory | A | B | C | D | E | F |
+|---|---|---|---|---|---|---|
+| `api/routes/leaderboard.ts` | **OWN** | — | — | — | — | — |
+| `api/routes/user-stats.ts` | — | **OWN** | — | — | — | — |
+| `api/utils/errors.ts` | — | — | **OWN** | — | — | — |
+| `api/routes/achievements.ts` | — | — | **OWN** | — | — | — |
+| `api/routes/admin-stats.ts` | — | — | **OWN** | — | — | — |
+| `api/routes/onboarding.ts` | — | — | **OWN** | — | — | — |
+| `__tests__/routes/http/quest-completion*` (NEW) | — | — | — | **OWN** | — | — |
+| `__tests__/routes/http/quest-progress*` (NEW) | — | — | — | **OWN** | — | — |
+| `handlers/settings.ts` | — | — | — | — | **OWN** | — |
+| `handlers/start.ts` | — | — | — | — | **OWN** | — |
+| `jobs/definitions/punishmentCheck.ts` | — | — | — | — | **OWN** | — |
+| `jobs/definitions/questReminders.ts` | — | — | — | — | **OWN** | — |
+| `jobs/definitions/achievementNotifier.ts` | — | — | — | — | **OWN** | — |
+| `__tests__/hooks/useOnboardingFlow*` (NEW) | — | — | — | — | — | **OWN** |
+| `__tests__/components/AdminUserSearch*` (NEW) | — | — | — | — | — | **OWN** |
+| `__tests__/components/AdminUserRow*` (NEW) | — | — | — | — | — | **OWN** |
+| `__tests__/components/AdminPagination*` (NEW) | — | — | — | — | — | **OWN** |
+
+### Run 37 Merge Order
+
+**Backend first (A → E):**
+1. **Agent C** — errors.ts generics first (other routes may depend on successResponse)
+2. **Agent A** — leaderboard.ts route types
+3. **Agent B** — user-stats.ts route types
+4. **Agent D** — quest test files (new files only, no conflicts)
+5. **Agent E** — handlers + jobs typing
+
+**Mini-app last:**
+6. **Agent F** — new test files only
+
+### Run 37 Retrospectives
+
+#### Agent A Retrospective
+*(To be filled by Agent A)*
+
+#### Agent B Retrospective
+*(To be filled by Agent B)*
+
+#### Agent C Retrospective
+*(To be filled by Agent C)*
+
+#### Agent D Retrospective
+*(To be filled by Agent D)*
+
+#### Agent E Retrospective
+*(To be filled by Agent E)*
+
+#### Agent F Retrospective
+*(To be filled by Agent F)*
+
+#### Agent 0 Retrospective
 *(To be filled by Agent 0)*
 
-<!-- Next run goes here. Agent 0 will append RUN 37 below this line. -->
+<!-- Next run goes here. Agent 0 will append RUN 38 below this line. -->
