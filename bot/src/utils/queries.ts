@@ -12,12 +12,12 @@ export async function getUserByTelegramId(telegramId: number) {
   );
 }
 
-export async function listAllModes() {
-  return query('SELECT * FROM modes ORDER BY id');
+export async function listAllModes<T extends Record<string, any> = Record<string, any>>() {
+  return query<T>('SELECT * FROM modes ORDER BY id');
 }
 
-export async function getUserActiveModes(userId: number) {
-  return query(
+export async function getUserActiveModes<T extends Record<string, any> = Record<string, any>>(userId: number) {
+  return query<T>(
     `SELECT m.id AS mode_id, m.name, m.display_name, m.description, m.icon_emoji,
             um.id AS user_mode_id, um.enabled_at, um.is_active
      FROM user_modes um

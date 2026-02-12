@@ -46,7 +46,7 @@ export async function showModeSelection(ctx: Context) {
   if (!userId) return;
 
   // Get available modes from database
-  const modes = await listAllModes();
+  const modes = await listAllModes<Mode>();
 
   if (modes.length === 0) {
     await ctx.reply('❌ Error loading modes. Please try again later.');
@@ -124,7 +124,7 @@ export async function handleModeSelection(ctx: Context) {
   const internalUserId = user.id;
 
   // Get currently selected modes
-  const currentModes = await getUserActiveModes(internalUserId);
+  const currentModes = await getUserActiveModes<UserMode>(internalUserId);
   const isSelected = currentModes.some((m: UserMode) => m.mode_id === modeId);
 
   if (isSelected) {
@@ -173,8 +173,8 @@ export async function handleModeSelection(ctx: Context) {
  */
 async function updateModeSelectionMessage(ctx: Context, userId: number) {
   // Get available modes and user's selected modes
-  const allModes = await listAllModes();
-  const selectedModes = await getUserActiveModes(userId);
+  const allModes = await listAllModes<Mode>();
+  const selectedModes = await getUserActiveModes<UserMode>(userId);
   const selectedIds = selectedModes.map((m: UserMode) => m.mode_id);
 
   // Build message
@@ -229,7 +229,7 @@ async function updateModeSelectionMessage(ctx: Context, userId: number) {
  * Show detailed mode information
  */
 async function showModeInfo(ctx: Context) {
-  const modes = await listAllModes();
+  const modes = await listAllModes<Mode>();
 
   let message = `ℹ️ *Mode Information*\n\n`;
 
@@ -262,7 +262,7 @@ export async function handleModesCommand(ctx: Context) {
   }
 
   const internalUserId = user.id;
-  const activeModes = await getUserActiveModes(internalUserId);
+  const activeModes = await getUserActiveModes<UserMode>(internalUserId);
 
   if (activeModes.length === 0) {
     await ctx.reply(
@@ -312,7 +312,7 @@ export async function handleModeSummary(ctx: Context) {
 
   // Get all modes and user's modes to compute summary
   const [allModes, userModes] = await Promise.all([
-    listAllModes(),
+    listAllModes<Mode>(),
     query<UserMode>(
       `SELECT m.id AS mode_id, m.name, m.display_name, m.description, m.icon_emoji,
               um.is_active
