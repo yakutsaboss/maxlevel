@@ -2618,7 +2618,16 @@ Read PARALLEL_AGENTS.md — you are Agent H for Run 39. Refactor `mini-app/src/c
 *(To be filled by Agent B)*
 
 #### Agent C Retrospective
-*(To be filled by Agent C)*
+**All 5 HTTP test files migrated to shared httpMocks helpers. Build clean (tsc), 602/602 vitest pass.**
+
+- **Files migrated:** achievements.http.test.ts, admin.http.test.ts, admin-jobs.http.test.ts, admin-stats.http.test.ts, admin-users.http.test.ts
+- **Pattern:** `vi.mock('...db.js', async () => (await import('../../helpers/httpMocks.js')).createMockDb().module)` + `getMockDb()` aliases
+- **Technique:** Destructured aliases (`const { query: mockQuery } = getMockDb()`) keep test bodies unchanged — only mock setup sections modified
+- **Mocks replaced:** db (all 5), pythonTools (all 5), cache (achievements), auth (achievements), rateLimiter (achievements)
+- **Mocks kept inline:** adminAuth (not in httpMocks), registerJobs, boss, queries, achievementEngine, xpAward
+- **Net reduction:** ~94 lines of inline mock boilerplate removed across 5 files
+- **Commits:** `1573e05`, `51033bb`, `293b88f`, `1f6b645`, `6fc293f`
+- **Observation:** Admin test files had extra mock exports (testConnection, closePool) not in httpMocks createMockDb — removing them caused no failures, confirming they were unused by route code
 
 #### Agent D Retrospective
 **Status**: Complete — 5 files migrated, 73 tests across files, all 602 suite-wide tests passing.
