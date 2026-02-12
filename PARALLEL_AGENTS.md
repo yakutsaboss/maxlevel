@@ -1850,7 +1850,11 @@ All agents create NEW test files only — zero file conflicts expected. Merge in
 *(To be filled by Agent F)*
 
 #### Agent G Retrospective
-*(To be filled by Agent G)*
+- **Tests written**: 40 tests across 5 files (5 FriendsList, 10 ChallengeCard, 10 HabitBuilder, 7 HabitStreak, 8 ThemeSettings)
+- **Files created**: `social/FriendsList.test.tsx`, `social/ChallengeCard.test.tsx`, `habits/HabitBuilder.test.tsx`, `habits/HabitStreak.test.tsx`, `settings/ThemeSettings.test.tsx`
+- **Issue encountered**: `toLocaleString()` in jsdom uses non-breaking space separator ("1 200") instead of comma ("1,200") — fixed with regex matcher `/1.?200 XP/`
+- **Pattern used**: Followed DangerZone.test.tsx reference — mocked framer-motion (motion.div/button), lucide-react icons, used render+screen queries
+- **All 40 tests passing**, 5 test files, 0 failures
 
 #### Agent H Retrospective
 *(To be filled by Agent H)*
