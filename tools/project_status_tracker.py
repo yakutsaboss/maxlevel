@@ -135,9 +135,9 @@ class ProjectStatusTracker:
                     {"name": "Quest templates (daily/weekly)", "check": lambda: self._has_quest_templates("fitness")},
                     {"name": "Onboarding quiz (12 questions)", "check": lambda: self._has_onboarding_questions("FITNESS")},
                     {"name": "Achievements (5 fitness)", "check": lambda: self._has_achievements_for_mode("fitness")},
-                    {"name": "Personalized plan generation", "check": lambda: False},
-                    {"name": "Smart quest recommendations", "check": lambda: False},
-                    {"name": "Progress analytics per mode", "check": lambda: False},
+                    {"name": "Personalized plan generation", "check": lambda: self._file_exists("bot/src/utils/planGenerator.ts")},
+                    {"name": "Smart quest recommendations", "check": lambda: self._file_exists("bot/src/utils/questRecommender.ts")},
+                    {"name": "Progress analytics per mode", "check": lambda: self._file_exists("bot/src/api/routes/analytics.ts")},
                 ]
             },
             "hydration": {
@@ -149,9 +149,9 @@ class ProjectStatusTracker:
                     {"name": "Quest templates (daily/weekly)", "check": lambda: self._has_quest_templates("hydration")},
                     {"name": "Onboarding quiz (7 questions)", "check": lambda: self._has_onboarding_questions("HYDRATION")},
                     {"name": "Achievements (5 hydration)", "check": lambda: self._has_achievements_for_mode("hydration")},
-                    {"name": "Personalized plan generation", "check": lambda: False},
-                    {"name": "Smart reminder scheduling", "check": lambda: False},
-                    {"name": "Progress analytics per mode", "check": lambda: False},
+                    {"name": "Personalized plan generation", "check": lambda: self._file_exists("bot/src/utils/planGenerator.ts")},
+                    {"name": "Smart reminder scheduling", "check": lambda: self._file_exists("bot/src/utils/smartReminder.ts")},
+                    {"name": "Progress analytics per mode", "check": lambda: self._file_exists("bot/src/api/routes/analytics.ts")},
                 ]
             },
             "medication": {
@@ -177,9 +177,9 @@ class ProjectStatusTracker:
                     {"name": "Onboarding quiz questions", "check": lambda: self._has_onboarding_questions("FINANCE")},
                     {"name": "Quest templates (saving goals)", "check": lambda: self._has_quest_templates("finance")},
                     {"name": "Achievements", "check": lambda: self._has_achievements_for_mode("finance")},
-                    {"name": "Budget tracking", "check": lambda: False},
-                    {"name": "Savings goal dashboard", "check": lambda: False},
-                    {"name": "Expense categories", "check": lambda: False},
+                    {"name": "Budget tracking", "check": lambda: self._file_exists("mini-app/src/components/finance/BudgetTracker.tsx")},
+                    {"name": "Savings goal dashboard", "check": lambda: self._file_exists("mini-app/src/components/finance/SavingsGoal.tsx")},
+                    {"name": "Expense categories", "check": lambda: self._file_contains_pattern("bot/src/api/routes/finance.ts", r"categories|expense")},
                 ]
             },
             "habits": {
@@ -200,12 +200,12 @@ class ProjectStatusTracker:
                 "emoji": "💳",
                 "weight": 10,
                 "tasks": [
-                    {"name": "Payment provider integration", "check": lambda: False},
-                    {"name": "Premium tiers defined", "check": lambda: False},
-                    {"name": "Subscription management", "check": lambda: False},
+                    {"name": "Payment provider integration", "check": lambda: self._file_contains_pattern("bot/src/api/routes/payments.ts", r"webhook|provider|charge")},
+                    {"name": "Premium tiers defined", "check": lambda: self._file_contains_pattern("database/schema.sql", r"subscriptions.*tier|tier.*VARCHAR") or self._file_contains("database/seed_data.sql", "premium")},
+                    {"name": "Subscription management", "check": lambda: self._file_contains_pattern("bot/src/api/routes/payments.ts", r"subscription|upgrade|cancel")},
                     {"name": "Payment DB tables", "check": lambda: self._file_contains_pattern("database/schema.sql", r"CREATE TABLE.*payment")},
                     {"name": "Payment API routes", "check": lambda: self._file_exists("bot/src/api/routes/payments.ts")},
-                    {"name": "Premium features gating", "check": lambda: False},
+                    {"name": "Premium features gating", "check": lambda: self._file_exists("bot/src/api/middleware/premiumGate.ts")},
                 ]
             },
             "sheets": {

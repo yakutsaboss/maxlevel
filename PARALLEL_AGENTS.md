@@ -2822,7 +2822,17 @@ After completing work, write your retrospective in PARALLEL_AGENTS.md under "Run
 *(To be filled by Agent F)*
 
 #### Agent G Retrospective
-*(To be filled by Agent G)*
+**Task**: Replace all 13 remaining `lambda: False` checks in `tools/project_status_tracker.py` for milestones being built in Run 44.
+
+**What was done**:
+- Replaced 4 Payment System checks (payment provider integration, premium tiers, subscription management, premium features gating)
+- Replaced 3 Fitness Mode checks (personalized plan generation, smart quest recommendations, progress analytics)
+- Replaced 3 Hydration Mode checks (personalized plan generation, smart reminder scheduling, progress analytics)
+- Replaced 3 Finance Mode checks (budget tracking, savings goal dashboard, expense categories)
+
+**Verification**: Script runs clean — no Python errors. New checks correctly return False (target files don't exist yet). 5 `lambda: False` remain in `onboarding_qa` and `leaderboard` sections (not part of this task). No existing non-lambda:False checks were modified.
+
+**Issues**: None. Straightforward replacement task.
 
 #### Agent 0 Retrospective
 *(To be filled by Agent 0)*
