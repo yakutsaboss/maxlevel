@@ -14,11 +14,12 @@ import { DoNotDisturbSettings } from '@/components/settings/DoNotDisturbSettings
 import { HapticFeedbackSettings } from '@/components/settings/HapticFeedbackSettings';
 import { AccountabilitySettings } from '@/components/settings/AccountabilitySettings';
 import { AboutSection } from '@/components/settings/AboutSection';
+import { ThemeSettings } from '@/components/settings/ThemeSettings';
 import { DangerZone } from '@/components/settings/DangerZone';
 import { SettingsSkeleton } from '@/components/settings/SettingsSkeleton';
 
 export function Settings() {
-  const { user, haptic, showConfirm, openTelegramLink } = useTelegram();
+  const { user, haptic, showConfirm, openTelegramLink, colorScheme, themeParams } = useTelegram();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const onboardingStore = useOnboarding();
@@ -66,6 +67,7 @@ export function Settings() {
           haptic={haptic}
         />
         <HapticFeedbackSettings enabled={hapticEnabled} onChange={setHapticEnabled} />
+        <ThemeSettings colorScheme={colorScheme} themeParams={themeParams as any} haptic={haptic} />
         <AccountabilitySettings
           punishment={punishment}
           punishmentAvailable={punishmentAvailable}
