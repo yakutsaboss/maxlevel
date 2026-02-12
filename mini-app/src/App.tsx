@@ -2,9 +2,6 @@ import './i18n';
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { lazy, Suspense, useCallback, useEffect, useState } from 'react';
-import { Dashboard } from '@/pages/Dashboard';
-import { Quests } from '@/pages/Quests';
-import { Profile } from '@/pages/Profile';
 import { Onboarding } from '@/pages/Onboarding';
 import { Navigation } from '@/components/Navigation';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
@@ -15,7 +12,10 @@ import { useOnboarding } from '@/hooks/useOnboarding';
 import { apiClient } from '@/api/client';
 import type { OnboardingStep } from '@/hooks/useOnboarding';
 
-// Lazy-loaded pages (non-critical path)
+// Lazy-loaded pages — all routes except Onboarding (needed for first-load flow)
+const Dashboard = lazy(() => import('@/pages/Dashboard').then(m => ({ default: m.Dashboard })));
+const Quests = lazy(() => import('@/pages/Quests').then(m => ({ default: m.Quests })));
+const Profile = lazy(() => import('@/pages/Profile').then(m => ({ default: m.Profile })));
 const Admin = lazy(() => import('@/pages/Admin').then(m => ({ default: m.Admin })));
 const Achievements = lazy(() => import('@/pages/Achievements').then(m => ({ default: m.Achievements })));
 const Leaderboard = lazy(() => import('@/pages/Leaderboard').then(m => ({ default: m.Leaderboard })));
@@ -120,9 +120,9 @@ function AppContent() {
           }
         />
         <Route path="/onboarding" element={<Onboarding />} />
-        <Route path="/dashboard" element={<ProtectedRoute needsOnboarding={effectiveNeedsOnboarding}><Dashboard /></ProtectedRoute>} />
-        <Route path="/quests" element={<ProtectedRoute needsOnboarding={effectiveNeedsOnboarding}><Quests /></ProtectedRoute>} />
-        <Route path="/profile" element={<ProtectedRoute needsOnboarding={effectiveNeedsOnboarding}><Profile /></ProtectedRoute>} />
+        <Route path="/dashboard" element={<ProtectedRoute needsOnboarding={effectiveNeedsOnboarding} lazy><Dashboard /></ProtectedRoute>} />
+        <Route path="/quests" element={<ProtectedRoute needsOnboarding={effectiveNeedsOnboarding} lazy><Quests /></ProtectedRoute>} />
+        <Route path="/profile" element={<ProtectedRoute needsOnboarding={effectiveNeedsOnboarding} lazy><Profile /></ProtectedRoute>} />
         <Route path="/leaderboard" element={<ProtectedRoute needsOnboarding={effectiveNeedsOnboarding} lazy><Leaderboard /></ProtectedRoute>} />
         <Route path="/achievements" element={<ProtectedRoute needsOnboarding={effectiveNeedsOnboarding} lazy><Achievements /></ProtectedRoute>} />
         <Route path="/settings" element={<ProtectedRoute needsOnboarding={effectiveNeedsOnboarding} lazy><Settings /></ProtectedRoute>} />

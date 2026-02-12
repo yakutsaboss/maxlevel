@@ -2516,7 +2516,14 @@ After completing work, write your retrospective in PARALLEL_AGENTS.md under "Run
 ### Run 48 Retrospectives
 
 #### Agent A Retrospective
-*(To be filled by Agent A)*
+**Task**: Mini-App Bundle Optimization (P7) — reduce main chunk from 282KB to <200KB
+**Result**: SUCCESS — main chunk reduced to **165.40KB** (41.4% reduction)
+
+**Changes made**:
+1. `mini-app/src/App.tsx`: Converted Dashboard, Quests, and Profile from eager to `React.lazy()` imports. Added `lazy` prop to their `<ProtectedRoute>` wrappers for proper Suspense boundaries. Onboarding kept as eager import per instructions.
+2. `mini-app/vite.config.ts`: Added `vendor-i18n` manual chunk (`i18next`, `react-i18next`, `i18next-browser-languagedetector`) — extracted 59KB from main bundle.
+
+**Notes**: 4 pages were already lazy-loaded (Admin, Achievements, Leaderboard, Settings) and all 3 vendor chunks (react, ui, query) were already configured from prior work. The remaining wins came from lazy-loading the 3 core pages (Dashboard, Quests, Profile) and splitting out the i18n vendor libraries. No issues encountered.
 
 #### Agent B Retrospective
 **Analytics CTE refactor (P4)**: Replaced 7 correlated subqueries in `GET /:userId/summary` with 3 CTEs (quest_stats, mode_stats, streak_stats). The DB now scans each table once per user instead of 7 times. Response shape unchanged — same fields, same types.
