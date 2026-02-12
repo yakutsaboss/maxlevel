@@ -2,6 +2,7 @@ import { Router, Request, Response } from 'express';
 import { authenticateTelegram, authorizeUser } from '../middleware/auth.js';
 import { mutationLimiter, readLimiter } from '../middleware/rateLimiter.js';
 import { query, queryOne, execute } from '../../utils/db.js';
+import { cached } from '../../utils/cache.js';
 import {
   asyncHandler,
   successResponse,
@@ -126,13 +127,15 @@ router.post('/challenges/create', authenticateTelegram, mutationLimiter, asyncHa
 router.get('/challenges/:userId', authenticateTelegram, authorizeUser, readLimiter, asyncHandler(async (req: Request, res: Response) => {
   const userId = parseInt(req.params.userId);
 
-  const challenges = await query(
-    `SELECT c.*, cp.progress, cp.joined_at,
-            (SELECT COUNT(*) FROM challenge_participants WHERE challenge_id = c.id) AS participant_count
-     FROM challenges c
-     JOIN challenge_participants cp ON cp.challenge_id = c.id AND cp.user_id = $1
-     ORDER BY c.created_at DESC`,
-    [userId]
+  const challenges = await cached(`social:challenges:${userId}`, 2 * 60_000, () =>
+    query(
+      `SELECT c.*, cp.progress, cp.joined_at,
+              (SELECT COUNT(*) FROM challenge_participants WHERE challenge_id = c.id) AS participant_count
+       FROM challenges c
+       JOIN challenge_participants cp ON cp.challenge_id = c.id AND cp.user_id = $1
+       ORDER BY c.created_at DESC`,
+      [userId]
+    )
   );
 
   res.json(successResponse(challenges));

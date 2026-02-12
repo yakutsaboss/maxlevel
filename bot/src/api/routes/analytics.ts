@@ -63,7 +63,7 @@ router.get('/:userId/modes', authenticateTelegram, authorizeUser, readLimiter, a
   const userId = parseInt(req.params.userId);
   if (isNaN(userId)) throw new BadRequestError('Invalid userId');
 
-  const modeAnalytics = await cached(`analytics:modes:${userId}`, TTL.SHORT, async () => {
+  const modeAnalytics = await cached(`analytics:modes:${userId}`, TTL.MEDIUM, async () => {
     const rows = await query<ModeAnalyticsRow>(
       `SELECT
          m.id AS mode_id,
@@ -124,87 +124,91 @@ router.get('/:userId/modes/:mode', authenticateTelegram, authorizeUser, readLimi
   );
   if (!mode) throw new NotFoundError(`Mode '${modeName}' not found`);
 
-  // Run progress analytics queries in parallel
-  const [questHistory, streakData, weeklyXp] = await Promise.all([
-    // Recent quest instances for this mode
-    query<ModeDetailQuestRow>(
-      `SELECT
-         qi.id AS quest_instance_id,
-         q.title,
-         q.quest_type,
-         q.difficulty,
-         qi.status,
-         qi.xp_awarded,
-         qi.instance_date::text,
-         qi.completed_at::text,
-         qi.check_in_count,
-         qi.target
-       FROM quest_instances qi
-       JOIN quests q ON qi.quest_id = q.id
-       WHERE qi.user_id = $1 AND q.mode_id = $2
-       ORDER BY qi.instance_date DESC
-       LIMIT 30`,
-      [userId, mode.id]
-    ),
+  const modeDetail = await cached(`analytics:mode:${userId}:${modeName}`, TTL.MEDIUM, async () => {
+    // Run progress analytics queries in parallel
+    const [questHistory, streakData, weeklyXp] = await Promise.all([
+      // Recent quest instances for this mode
+      query<ModeDetailQuestRow>(
+        `SELECT
+           qi.id AS quest_instance_id,
+           q.title,
+           q.quest_type,
+           q.difficulty,
+           qi.status,
+           qi.xp_awarded,
+           qi.instance_date::text,
+           qi.completed_at::text,
+           qi.check_in_count,
+           qi.target
+         FROM quest_instances qi
+         JOIN quests q ON qi.quest_id = q.id
+         WHERE qi.user_id = $1 AND q.mode_id = $2
+         ORDER BY qi.instance_date DESC
+         LIMIT 30`,
+        [userId, mode.id]
+      ),
 
-    // Streak data for this mode
-    queryOne<{ current_streak: number; longest_streak: number; last_activity_date: string | null }>(
-      `SELECT current_streak, longest_streak, last_activity_date::text
-       FROM streaks
-       WHERE user_id = $1 AND mode_id = $2`,
-      [userId, mode.id]
-    ),
+      // Streak data for this mode
+      queryOne<{ current_streak: number; longest_streak: number; last_activity_date: string | null }>(
+        `SELECT current_streak, longest_streak, last_activity_date::text
+         FROM streaks
+         WHERE user_id = $1 AND mode_id = $2`,
+        [userId, mode.id]
+      ),
 
-    // XP earned per day in the last 7 days for this mode
-    query<{ day: string; xp: number }>(
-      `SELECT
-         qi.instance_date::text AS day,
-         COALESCE(SUM(qi.xp_awarded), 0)::int AS xp
-       FROM quest_instances qi
-       JOIN quests q ON qi.quest_id = q.id
-       WHERE qi.user_id = $1 AND q.mode_id = $2
-         AND qi.status = 'completed'
-         AND qi.instance_date >= CURRENT_DATE - INTERVAL '6 days'
-       GROUP BY qi.instance_date
-       ORDER BY qi.instance_date ASC`,
-      [userId, mode.id]
-    ),
-  ]);
+      // XP earned per day in the last 7 days for this mode
+      query<{ day: string; xp: number }>(
+        `SELECT
+           qi.instance_date::text AS day,
+           COALESCE(SUM(qi.xp_awarded), 0)::int AS xp
+         FROM quest_instances qi
+         JOIN quests q ON qi.quest_id = q.id
+         WHERE qi.user_id = $1 AND q.mode_id = $2
+           AND qi.status = 'completed'
+           AND qi.instance_date >= CURRENT_DATE - INTERVAL '6 days'
+         GROUP BY qi.instance_date
+         ORDER BY qi.instance_date ASC`,
+        [userId, mode.id]
+      ),
+    ]);
 
-  const totalQuests = questHistory.length;
-  const completedQuests = questHistory.filter((q) => q.status === 'completed').length;
+    const totalQuests = questHistory.length;
+    const completedQuests = questHistory.filter((q) => q.status === 'completed').length;
 
-  res.json(successResponse({
-    mode: {
-      id: mode.id,
-      name: mode.name,
-      display_name: mode.display_name,
-      icon: mode.icon_emoji,
-    },
-    progress: {
-      completion_rate: totalQuests > 0 ? Math.round((completedQuests / totalQuests) * 100) : 0,
-      total_quests: totalQuests,
-      completed_quests: completedQuests,
-    },
-    streak: {
-      current: streakData?.current_streak ?? 0,
-      longest: streakData?.longest_streak ?? 0,
-      last_activity: streakData?.last_activity_date ?? null,
-    },
-    weekly_xp: weeklyXp,
-    quest_history: questHistory.map((q) => ({
-      id: q.quest_instance_id,
-      title: q.title,
-      type: q.quest_type,
-      difficulty: q.difficulty,
-      status: q.status,
-      xp_awarded: q.xp_awarded,
-      date: q.instance_date,
-      completed_at: q.completed_at,
-      check_ins: q.check_in_count,
-      target: q.target,
-    })),
-  }));
+    return {
+      mode: {
+        id: mode.id,
+        name: mode.name,
+        display_name: mode.display_name,
+        icon: mode.icon_emoji,
+      },
+      progress: {
+        completion_rate: totalQuests > 0 ? Math.round((completedQuests / totalQuests) * 100) : 0,
+        total_quests: totalQuests,
+        completed_quests: completedQuests,
+      },
+      streak: {
+        current: streakData?.current_streak ?? 0,
+        longest: streakData?.longest_streak ?? 0,
+        last_activity: streakData?.last_activity_date ?? null,
+      },
+      weekly_xp: weeklyXp,
+      quest_history: questHistory.map((q) => ({
+        id: q.quest_instance_id,
+        title: q.title,
+        type: q.quest_type,
+        difficulty: q.difficulty,
+        status: q.status,
+        xp_awarded: q.xp_awarded,
+        date: q.instance_date,
+        completed_at: q.completed_at,
+        check_ins: q.check_in_count,
+        target: q.target,
+      })),
+    };
+  });
+
+  res.json(successResponse(modeDetail));
 }));
 
 /**
@@ -215,7 +219,7 @@ router.get('/:userId/summary', authenticateTelegram, authorizeUser, readLimiter,
   const userId = parseInt(req.params.userId);
   if (isNaN(userId)) throw new BadRequestError('Invalid userId');
 
-  const summary = await cached(`analytics:summary:${userId}`, TTL.SHORT, async () => {
+  const summary = await cached(`analytics:summary:${userId}`, 2 * 60_000, async () => {
     const row = await queryOne<ProgressSummaryRow>(
       `SELECT
          u.total_xp,

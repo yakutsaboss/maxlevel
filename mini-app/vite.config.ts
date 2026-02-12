@@ -1,9 +1,25 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import path from 'path';
+import { readFileSync, writeFileSync, existsSync } from 'fs';
+
+// Vite plugin: inject build hash into sw.js so each deploy busts the SW cache
+function swCacheBust() {
+  return {
+    name: 'sw-cache-bust',
+    closeBundle() {
+      const swPath = path.resolve(__dirname, 'dist/sw.js');
+      if (existsSync(swPath)) {
+        const content = readFileSync(swPath, 'utf8');
+        const hash = Date.now().toString(36);
+        writeFileSync(swPath, content.replace('__BUILD_HASH__', hash));
+      }
+    },
+  };
+}
 
 export default defineConfig({
-  plugins: [react()],
+  plugins: [react(), swCacheBust()],
   base: '/levelapp/',
   resolve: {
     alias: {
