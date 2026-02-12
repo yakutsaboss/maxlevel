@@ -306,10 +306,10 @@ class ProjectStatusTracker:
                 "tasks": [
                     {"name": "i18n framework setup", "check": lambda: self._file_exists("mini-app/src/i18n/index.ts")},
                     {"name": "Russian translation file", "check": lambda: self._file_exists("mini-app/src/i18n/ru.ts")},
-                    {"name": "Onboarding translated", "check": lambda: False},
-                    {"name": "Dashboard translated", "check": lambda: False},
-                    {"name": "Quest UI translated", "check": lambda: False},
-                    {"name": "Bot messages in Russian", "check": lambda: False},
+                    {"name": "Onboarding translated", "check": lambda: self._file_contains("mini-app/src/i18n/ru.ts", "onboarding")},
+                    {"name": "Dashboard translated", "check": lambda: self._file_contains("mini-app/src/i18n/ru.ts", "dashboard")},
+                    {"name": "Quest UI translated", "check": lambda: self._file_contains("mini-app/src/i18n/ru.ts", "quest")},
+                    {"name": "Bot messages in Russian", "check": lambda: self._file_contains_pattern("bot/src/i18n/messages.ts", r"[а-яА-Я]{3,}") or self._file_contains_pattern("bot/src/handlers/start.ts", r"[а-яА-Я]{3,}")},
                 ]
             },
             "chinese_language": {
@@ -318,10 +318,10 @@ class ProjectStatusTracker:
                 "weight": 8,
                 "tasks": [
                     {"name": "Chinese translation file", "check": lambda: self._file_exists("mini-app/src/i18n/zh.ts")},
-                    {"name": "Onboarding translated", "check": lambda: False},
-                    {"name": "Dashboard translated", "check": lambda: False},
-                    {"name": "Quest UI translated", "check": lambda: False},
-                    {"name": "Bot messages in Chinese", "check": lambda: False},
+                    {"name": "Onboarding translated", "check": lambda: self._file_contains("mini-app/src/i18n/zh.ts", "onboarding")},
+                    {"name": "Dashboard translated", "check": lambda: self._file_contains("mini-app/src/i18n/zh.ts", "dashboard")},
+                    {"name": "Quest UI translated", "check": lambda: self._file_contains("mini-app/src/i18n/zh.ts", "quest")},
+                    {"name": "Bot messages in Chinese", "check": lambda: self._file_contains_pattern("bot/src/i18n/messages.ts", r"[\u4e00-\u9fff]{2,}") or self._file_contains_pattern("bot/src/handlers/start.ts", r"[\u4e00-\u9fff]{2,}")},
                 ]
             },
             "admin_panel": {
