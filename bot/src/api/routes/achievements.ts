@@ -40,12 +40,12 @@ router.get('/', authenticateTelegram, asyncHandler(async (req: Request, res: Res
  */
 router.get('/categories', authenticateTelegram, asyncHandler(async (req: Request, res: Response) => {
   const categories = await cached('achievements:categories', TTL.MEDIUM, async () => {
-    const rows = await query(
+    const rows = await query<{ category: string }>(
       `SELECT DISTINCT COALESCE(criteria->>'mode', 'general') AS category
        FROM achievements
        ORDER BY category ASC`
     );
-    return rows.map((r: any) => r.category);
+    return rows.map((r) => r.category);
   });
 
   res.json(successResponse(categories));

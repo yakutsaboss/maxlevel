@@ -78,7 +78,7 @@ router.patch('/:questId/progress', authenticateTelegram, authorizeUser, mutation
       checkAndUnlockAchievements(quest.user_id),
     ]).catch((err) => log.error('Post-progress side effects failed', err as Error));
 
-    return res.json(successResponse({
+    res.json(successResponse({
       id: questId,
       status: QUEST_STATUS.COMPLETED,
       progress: clampedProgress,
@@ -87,6 +87,7 @@ router.patch('/:questId/progress', authenticateTelegram, authorizeUser, mutation
       newLevel: xpResult.leveledUp ? xpResult.newLevel : null,
       leveledUp: xpResult.leveledUp,
     }));
+    return;
   }
 
   // Just update progress

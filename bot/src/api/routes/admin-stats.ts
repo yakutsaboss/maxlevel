@@ -17,6 +17,13 @@ import {
 import { logger } from '../../utils/logger.js';
 import { broadcastMessage } from '../../utils/broadcast.js';
 
+/** Shape returned by sheets_analytics_export Python tool */
+interface AnalyticsExportResult {
+  spreadsheet_url?: string;
+  rows_exported?: number;
+  sheets_updated?: string[];
+}
+
 const log = logger.child({ component: 'adminStats' });
 
 const router = Router();
@@ -55,7 +62,7 @@ router.get('/stats', requireRole('admin'), asyncHandler(async (req: Request, res
  * Trigger Google Sheets analytics export on demand
  */
 router.post('/analytics/export', requireRole('admin'), asyncHandler(async (req: Request, res: Response) => {
-  const result = await executePythonTool('sheets_analytics_export', ['--export-all']);
+  const result = await executePythonTool<AnalyticsExportResult>('sheets_analytics_export', ['--export-all']);
 
   if (!result.success) {
     throw new InternalServerError(result.error || 'Analytics export failed');
@@ -66,7 +73,7 @@ router.post('/analytics/export', requireRole('admin'), asyncHandler(async (req: 
 
   res.json(successResponse({
     message: 'Analytics export completed',
-    ...((result.data as any) || {}),
+    ...(result.data || {}),
   }));
 }));
 

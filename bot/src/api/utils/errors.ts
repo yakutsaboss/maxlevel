@@ -55,7 +55,7 @@ export class InternalServerError extends ApiError {
 /**
  * Async handler wrapper to catch errors in async routes
  */
-export const asyncHandler = (fn: (req: Request, res: Response, next: NextFunction) => Promise<any>) => {
+export const asyncHandler = (fn: (req: Request, res: Response, next: NextFunction) => Promise<void>) => {
   return (req: Request, res: Response, next: NextFunction): void => {
     Promise.resolve(fn(req, res, next)).catch(next);
   };
@@ -64,7 +64,7 @@ export const asyncHandler = (fn: (req: Request, res: Response, next: NextFunctio
 /**
  * Success response formatter
  */
-export const successResponse = (data: any, message?: string): { success: true; data: any; message?: string } => {
+export const successResponse = <T>(data: T, message?: string): { success: true; data: T; message?: string } => {
   return {
     success: true,
     ...(message && { message }),
@@ -75,7 +75,7 @@ export const successResponse = (data: any, message?: string): { success: true; d
 /**
  * Validation helper
  */
-export const validateRequired = (fields: { [key: string]: any }, fieldNames: string[]) => {
+export const validateRequired = (fields: Record<string, unknown>, fieldNames: string[]) => {
   const missing: string[] = [];
 
   for (const fieldName of fieldNames) {

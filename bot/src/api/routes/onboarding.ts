@@ -167,7 +167,7 @@ router.post('/:telegramId/complete', authenticateTelegram, asyncHandler(async (r
     }
 
     // 4. Award 50 XP (via centralized awardXp), reactivate user, restore name
-    const tgUser = (req as any).telegramUser;
+    const tgUser = req.telegramUser;
     const restoreName = tgUser?.first_name || quiz_data.nickname || 'Player';
     const restoreUsername = tgUser?.username || null;
     await awardXp(client, userId, 50);
