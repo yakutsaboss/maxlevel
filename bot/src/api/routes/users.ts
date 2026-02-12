@@ -88,9 +88,7 @@ router.patch('/:userId/streak', authenticateTelegram, asyncHandler(async (req: R
 
   const streaks = await query<{ user_id: number; mode_id: number }>('SELECT user_id, mode_id FROM streaks WHERE user_id = $1', [uid]);
 
-  for (const streak of streaks) {
-    await updateStreak(streak.user_id, streak.mode_id);
-  }
+  await Promise.all(streaks.map(s => updateStreak(s.user_id, s.mode_id)));
 
   // Re-fetch to get updated values
   const updated = await query<{ current_streak: number }>('SELECT current_streak FROM streaks WHERE user_id = $1', [uid]);

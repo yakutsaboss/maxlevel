@@ -2519,7 +2519,11 @@ After completing work, write your retrospective in PARALLEL_AGENTS.md under "Run
 *(To be filled by Agent A)*
 
 #### Agent B Retrospective
-*(To be filled by Agent B)*
+**Analytics CTE refactor (P4)**: Replaced 7 correlated subqueries in `GET /:userId/summary` with 3 CTEs (quest_stats, mode_stats, streak_stats). The DB now scans each table once per user instead of 7 times. Response shape unchanged — same fields, same types.
+
+**Streak parallelization (P3)**: Replaced `for...of` sequential `await updateStreak()` loop in `PATCH /:userId/streak` with `Promise.all(streaks.map(...))`. All streak updates now fire concurrently.
+
+**Build & tests**: Clean build, 63 test files / 771 tests all passing. No changes to response shapes, endpoints, or middleware.
 
 #### Agent C Retrospective
 *(To be filled by Agent C)*
