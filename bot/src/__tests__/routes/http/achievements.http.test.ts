@@ -10,31 +10,20 @@ import { createTestApp, addTestErrorHandler } from '../../helpers/testApp.js';
 
 // ─── Mocks ─────────────────────────────────────────────────────────
 
-const mockQuery = vi.fn();
-const mockQueryOne = vi.fn();
-const mockTransaction = vi.fn();
+vi.mock('../../../utils/db.js', async () =>
+  (await import('../../helpers/httpMocks.js')).createMockDb().module);
 
-vi.mock('../../../utils/db.js', () => ({
-  query: (...args: any[]) => mockQuery(...args),
-  queryOne: (...args: any[]) => mockQueryOne(...args),
-  execute: vi.fn(),
-  transaction: (...args: any[]) => mockTransaction(...args),
-  getPool: vi.fn(),
-}));
+vi.mock('../../../utils/cache.js', async () =>
+  (await import('../../helpers/httpMocks.js')).createMockCache().module);
 
-vi.mock('../../../utils/cache.js', () => ({
-  cached: vi.fn(async (_k: string, _t: number, fn: () => Promise<any>) => fn()),
-  invalidate: vi.fn(),
-  invalidatePrefix: vi.fn(),
-  clearAll: vi.fn(),
-  TTL: { SHORT: 30_000, MEDIUM: 300_000, LONG: 1_800_000 },
-}));
+vi.mock('../../../utils/pythonTools.js', async () =>
+  (await import('../../helpers/httpMocks.js')).createMockPythonTools().module);
 
-vi.mock('../../../utils/pythonTools.js', () => ({
-  executePythonTool: vi.fn(),
-  getUserByTelegramId: vi.fn(),
-  getUserById: vi.fn(),
-}));
+vi.mock('../../../api/middleware/auth.js', async () =>
+  (await import('../../helpers/httpMocks.js')).createMockAuth().module);
+
+vi.mock('../../../api/middleware/rateLimiter.js', async () =>
+  (await import('../../helpers/httpMocks.js')).createMockRateLimiters().module);
 
 vi.mock('../../../utils/achievementEngine.js', () => ({
   checkAndUnlockAchievements: vi.fn().mockResolvedValue([]),
@@ -46,15 +35,8 @@ vi.mock('../../../utils/xpAward.js', () => ({
   LEVEL_XP_DIVISOR: 500,
 }));
 
-vi.mock('../../../api/middleware/auth.js', () => ({
-  authenticateTelegram: (_req: any, _res: any, next: any) => next(),
-  authorizeUser: (_req: any, _res: any, next: any) => next(),
-  requireOwnership: vi.fn(),
-}));
-
-vi.mock('../../../api/middleware/rateLimiter.js', () => ({
-  apiLimiter: (_req: any, _res: any, next: any) => next(),
-}));
+import { getMockDb } from '../../helpers/httpMocks.js';
+const { query: mockQuery, queryOne: mockQueryOne, transaction: mockTransaction } = getMockDb();
 
 // ─── Import router after mocks ─────────────────────────────────────
 
