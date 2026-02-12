@@ -2627,7 +2627,18 @@ Read PARALLEL_AGENTS.md — you are Agent H for Run 39. Refactor `mini-app/src/c
 *(To be filled by Agent E)*
 
 #### Agent F Retrospective
-*(To be filled by Agent F)*
+**Status**: Complete — 3 files, 11 tests, all passing.
+
+**Created**:
+- `mini-app/src/__tests__/components/admin/AdminLoginForm.test.tsx` (4 tests) — renders form inputs, shows loading spinner on submit, displays error toast on 401, calls onLoginSuccess with credentials + stats on success.
+- `mini-app/src/__tests__/components/admin/AdminOverview.test.tsx` (2 tests) — renders AdminStatsCard with stats data, renders empty/null state correctly.
+- `mini-app/src/__tests__/hooks/useQuestsData.test.ts` (5 tests) — initial loading state, loads quests + checkins on mount, handleCompleteQuest updates state + clears selection, filter by mode_id works, sort by newest/xp_reward/progress works.
+
+**Approach**: AdminLoginForm mocks `adminFetch`, `framer-motion`, `lucide-react`, and `Toast` to isolate component logic. AdminOverview mocks `AdminStatsCard` since it's a thin wrapper. useQuestsData mocks `apiClient` and `logger`, tests the full hook lifecycle with `renderHook` + `waitFor` + `act`.
+
+**Build**: TypeScript + Vite build clean. All 395 tests pass (11 new).
+
+**Commits**: `dd0c5f2`, `1c20cf6`, `295f18d` (one per test file).
 
 #### Agent G Retrospective
 **Status**: Complete — 4 files, 12 tests, all passing.
