@@ -1610,7 +1610,25 @@ Commit when done. Write your retrospective in the designated section of PARALLEL
 - **No conflicts**: Only touched `database/seed_data.sql`, no overlap with Agent B or C files
 
 #### Agent B Retrospective
-*(To be filled by Agent B)*
+**Task:** Create MEDICATION_QUESTIONS array for onboarding quiz (6 questions).
+
+**What was done:**
+- Added 6 medication steps to `OnboardingStep` type in `useOnboarding.ts`: `medication_count`, `medication_types`, `medication_schedule`, `medication_goals`, `medication_barriers`, `medication_reminders`
+- Added `medication` data interface to `OnboardingData` with fields: `medication_count`, `types`, `schedule`, `goals`, `reminder_preference`
+- Extended `pain_points` interface to include `medication?: string[]`
+- Created `MEDICATION_QUESTIONS: QuestionConfig[]` with 6 questions following exact existing patterns (same interface, same option structure)
+- Updated `getQuestionForStep()` to include `MEDICATION_QUESTIONS` in the search array
+- Updated file header comment to list MEDICATION_QUESTIONS
+
+**Files modified:**
+- `mini-app/src/data/onboardingQuestions.ts` — new MEDICATION_QUESTIONS array + header + getQuestionForStep
+- `mini-app/src/hooks/useOnboarding.ts` — OnboardingStep type + OnboardingData interface
+
+**Build:** `tsc && vite build` passed clean, 0 errors.
+
+**Notes for Agent 0:**
+- Question 5 (`medication_barriers`) uses `dataKey: 'pain_points'` with `nestedKey: 'medication'` — same pattern as `hydration_barriers`. The `pain_points` interface in OnboardingData was extended accordingly.
+- No conflicts expected — file ownership was exclusive to Agent B per the matrix.
 
 #### Agent C Retrospective
 - **Task**: Replace `lambda: False` with real keyword-based checks for medication tracker items 5-7
