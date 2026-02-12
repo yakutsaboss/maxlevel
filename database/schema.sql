@@ -322,3 +322,41 @@ COMMENT ON TABLE payments IS 'Telegram Stars payment records for premium subscri
 COMMENT ON TABLE subscriptions IS 'User premium subscription tier and billing state';
 COMMENT ON VIEW user_stats IS 'Aggregated user stats for achievement checking (level, XP, streaks, quest counts)';
 COMMENT ON MATERIALIZED VIEW leaderboard_mv IS 'Cached leaderboard rankings, refreshed every 30 minutes by pg-boss job';
+
+-- Friend requests (social system, added in Run 45)
+CREATE TABLE friend_requests (
+    id SERIAL PRIMARY KEY,
+    from_user_id INTEGER NOT NULL REFERENCES users(id),
+    to_user_id INTEGER NOT NULL REFERENCES users(id),
+    status VARCHAR(20) NOT NULL DEFAULT 'pending',
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    UNIQUE(from_user_id, to_user_id)
+);
+CREATE INDEX idx_friend_requests_to_user ON friend_requests(to_user_id);
+
+-- Challenges (social system, added in Run 45)
+CREATE TABLE challenges (
+    id SERIAL PRIMARY KEY,
+    creator_id INTEGER NOT NULL REFERENCES users(id),
+    title VARCHAR(200) NOT NULL,
+    description TEXT,
+    mode VARCHAR(50),
+    target_value INTEGER,
+    start_date TIMESTAMPTZ DEFAULT NOW(),
+    end_date TIMESTAMPTZ,
+    status VARCHAR(20) NOT NULL DEFAULT 'active',
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Challenge participants (social system, added in Run 45)
+CREATE TABLE challenge_participants (
+    challenge_id INTEGER NOT NULL REFERENCES challenges(id),
+    user_id INTEGER NOT NULL REFERENCES users(id),
+    progress INTEGER DEFAULT 0,
+    joined_at TIMESTAMPTZ DEFAULT NOW(),
+    PRIMARY KEY (challenge_id, user_id)
+);
+
+COMMENT ON TABLE friend_requests IS 'Friend request tracking for social features';
+COMMENT ON TABLE challenges IS 'User-created challenges with goals and deadlines';
+COMMENT ON TABLE challenge_participants IS 'Challenge participation and progress tracking';

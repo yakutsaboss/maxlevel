@@ -2,7 +2,7 @@ import { useEffect, useState, useCallback, useMemo } from 'react';
 import { useTelegram } from '@/hooks/useTelegram';
 import { usePullToRefresh, PullIndicator } from '@/hooks/usePullToRefresh';
 import { apiClient } from '@/api/client';
-import { Trophy } from 'lucide-react';
+import { Trophy, Share2 } from 'lucide-react';
 import type { LeaderboardEntry } from '@/types';
 import { ErrorSection } from '@/components/ErrorSection';
 import { TimePeriodTabs, type TimePeriod } from '@/components/leaderboard/TimePeriodTabs';
@@ -56,6 +56,22 @@ export function Leaderboard() {
     return idx >= 0 ? idx + 1 : null;
   }, [entries, currentUserEntry]);
 
+  const handleShare = useCallback(() => {
+    const rankText = currentUserRank ? `I'm ranked #${currentUserRank}` : 'Check out the leaderboard';
+    const xpText = currentUserEntry ? ` with ${currentUserEntry.total_xp.toLocaleString()} XP` : '';
+    const shareText = `${rankText}${xpText} on MaxLevel RPG! Can you beat me?`;
+    const botLink = 'https://t.me/maxlevel_rpg_bot/app';
+
+    const tgWebApp = (window as any).Telegram?.WebApp;
+    if (tgWebApp?.openTelegramLink) {
+      const encoded = encodeURIComponent(`${shareText}\n${botLink}`);
+      tgWebApp.openTelegramLink(`https://t.me/share/url?url=${encodeURIComponent(botLink)}&text=${encoded}`);
+    } else if (navigator.share) {
+      navigator.share({ title: 'MaxLevel Leaderboard', text: shareText, url: botLink }).catch(() => {});
+    }
+    haptic?.impact('light');
+  }, [currentUserRank, currentUserEntry, haptic]);
+
   useEffect(() => { loadLeaderboard(); }, [timePeriod]);
 
   if (loading && !refreshing) return <LeaderboardSkeleton />;
@@ -75,10 +91,17 @@ export function Leaderboard() {
           <div className="bg-white/20 backdrop-blur-sm rounded-2xl p-3">
             <Trophy className="w-8 h-8 text-white" />
           </div>
-          <div>
+          <div className="flex-1">
             <h1 className="text-2xl font-bold text-white">Leaderboard</h1>
             <p className="text-yellow-100 text-sm">Top adventurers ranked by XP</p>
           </div>
+          <button
+            onClick={handleShare}
+            className="bg-white/20 backdrop-blur-sm rounded-2xl p-3 active:scale-95 transition-transform"
+            aria-label="Share leaderboard"
+          >
+            <Share2 className="w-6 h-6 text-white" />
+          </button>
         </div>
         <TimePeriodTabs timePeriod={timePeriod} onSelect={setTimePeriod} haptic={haptic} />
       </div>
