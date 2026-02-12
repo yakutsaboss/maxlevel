@@ -1939,6 +1939,607 @@ All agents create NEW test files only — zero file conflicts expected. Merge in
 - **All 36 tests passing.**
 
 #### Agent 0 Retrospective
+**Run 47 = Comprehensive Test Coverage** — 9 agents, all 22 untested files covered.
+
+**Merge**: 8 branches merged (Agent E committed to main directly). Zero conflicts — all agents created NEW test files only.
+
+| Step | Result |
+|------|--------|
+| Branch verification | 8 branches with commits, 1 (Agent E) on main |
+| Merges | 8 clean merges, zero conflicts |
+| Bot build | Pass |
+| Mini-app build | Pass |
+| Bot tests | 63 files, **771 tests** (was 602 → +169) |
+| Mini-app tests | 108 files, **487 tests** (was 395 → +92) |
+| Total tests | **1258** (was 997 → **+261 new**) |
+| Deploy | Success — version 163cf20 |
+| Notification | Sent |
+| Cleanup | 9 worktrees + 9 branches removed |
+
+**Agent contributions:**
+- Agent A: +26 payment tests
+- Agent B: +17 social tests
+- Agent C: +19 finance tests
+- Agent D: +26 analytics + admin-quests tests
+- Agent E: +28 premiumGate + i18n tests
+- Agent F: +53 utility tests (planGenerator, questRecommender, smartReminder)
+- Agent G: +40 mini-app simple component tests
+- Agent H: +16 finance component tests
+- Agent I: +36 admin/analytics + i18n tests
+
+**Retrospective quality**: Agents didn't fill Run 47 retrospectives in PARALLEL_AGENTS.md — but all had descriptive commit messages. Work was complete and all tests passed.
+
+**Production DB issue discovered**: 3 tables from Run 45 (friend_requests, challenges, challenge_participants) are missing from production DB. Also 4 indexes from Run 46 not applied. Will fix in Run 48 deploy.
+
+---
+
+## Run 48: Performance + Quality Hardening (8 Agents + Agent 0)
+
+**Date**: 2026-02-12
+**Agents**: 8 (A-H) + Agent 0
+**Goal**: Fix remaining performance issues (P3, P4, P7), improve code quality, and add operational improvements. Agent 0 applies DB migration during deploy.
+
+**What this covers from the Strategic Program:**
+- **P3**: Sequential streak updates → parallel
+- **P4**: 7 correlated analytics subqueries → CTE
+- **P7**: 282KB main bundle → code splitting with lazy routes
+- **S10**: SHA-256 admin password → bcrypt
+- Plus: cache invalidation, config validation, type safety, admin route cleanup
+
+---
+
+### Run 48 Copy-Paste Prompts
+
+**Agent A — Mini-App Bundle Optimization (P7)**
+```
+Read c:\Users\Asus\Desktop\Wibecode-agent-a\PARALLEL_AGENTS.md — find "Run 48" and locate the "Agent A" section. You are Agent A.
+
+YOUR TASK: Reduce the main bundle from 282KB to under 200KB via lazy loading and code splitting.
+
+OWNED FILES (only you modify these):
+- mini-app/src/App.tsx (MODIFY — lazy-load route pages)
+- mini-app/vite.config.ts (MODIFY — add manual chunks config)
+
+WHAT TO DO:
+
+1. In App.tsx, convert page imports to React.lazy:
+   Current: import Dashboard from './pages/Dashboard';
+   New: const Dashboard = React.lazy(() => import('./pages/Dashboard'));
+
+   Do this for ALL pages: Dashboard, Profile, Quests, Leaderboard, Settings, Achievements, Admin.
+   Keep Onboarding as eager import (needed for first-load flow).
+
+   Wrap the Routes in <React.Suspense fallback={<LoadingFallback />}>
+   Create a simple LoadingFallback component inline (div with spinner).
+
+2. In vite.config.ts, under build.rollupOptions.output, add manualChunks:
+   ```
+   manualChunks: {
+     'vendor-react': ['react', 'react-dom', 'react-router-dom'],
+     'vendor-ui': ['framer-motion', 'lucide-react'],
+     'vendor-query': ['@tanstack/react-query'],
+   }
+   ```
+   Check if this is already partially configured and only add what's missing.
+
+3. Verify the build output shows the main index.js chunk is significantly smaller.
+
+FORBIDDEN: Do NOT modify any other files, bot files, or database files.
+
+BUILD VERIFY: cd mini-app && npm run build — check that main chunk < 200KB.
+
+After completing work, write your retrospective in PARALLEL_AGENTS.md under "Run 48 Retrospectives" → "Agent A Retrospective", replacing the placeholder text. Then commit all changes.
+```
+
+**Agent B — Analytics Query Optimization (P4 + P3)**
+```
+Read c:\Users\Asus\Desktop\Wibecode-agent-b\PARALLEL_AGENTS.md — find "Run 48" and locate the "Agent B" section. You are Agent B.
+
+YOUR TASK: Fix the 7 correlated subqueries in analytics summary (P4) and parallelize streak updates (P3).
+
+OWNED FILES (only you modify these):
+- bot/src/api/routes/analytics.ts (MODIFY — CTE refactor for summary endpoint)
+- bot/src/api/routes/users.ts (MODIFY — Promise.all for streak updates)
+
+WHAT TO DO:
+
+1. analytics.ts — Refactor GET /:userId/summary query:
+   The current query has 7 correlated subqueries (each rescans for the same user). Replace with CTEs:
+
+   ```sql
+   WITH quest_stats AS (
+     SELECT
+       COUNT(*) FILTER (WHERE status = 'completed') AS quests_completed,
+       COUNT(*) AS quests_total,
+       COUNT(DISTINCT instance_date) FILTER (WHERE status = 'completed') AS days_active,
+       COALESCE(SUM(xp_awarded) FILTER (WHERE status = 'completed' AND completed_at >= CURRENT_DATE - INTERVAL '6 days'), 0)::int AS xp_this_week
+     FROM quest_instances WHERE user_id = $1
+   ),
+   mode_stats AS (
+     SELECT
+       COUNT(*) FILTER (WHERE is_active = true) AS active_modes
+     FROM user_modes WHERE user_id = $1
+   ),
+   streak_stats AS (
+     SELECT
+       COUNT(*) FILTER (WHERE current_streak > 0) AS active_streaks,
+       COALESCE(MAX(current_streak), 0)::int AS best_streak
+     FROM streaks WHERE user_id = $1
+   )
+   SELECT
+     u.total_xp, u.current_level,
+     q.quests_completed::int, q.quests_total::int,
+     m.active_modes::int,
+     s.active_streaks::int, s.best_streak,
+     q.days_active::int, q.xp_this_week
+   FROM users u, quest_stats q, mode_stats m, streak_stats s
+   WHERE u.id = $1
+   ```
+
+   Keep the same response shape — only change the SQL. The cached() wrapper stays.
+
+2. users.ts — Fix PATCH /:userId/streak handler:
+   Find the sequential loop: `for (const streak of streaks) { await updateStreak(...) }`
+   Replace with: `await Promise.all(streaks.map(s => updateStreak(s.user_id, s.mode_id)))`
+
+FORBIDDEN: Do NOT change response shapes, endpoint paths, or middleware. Only optimize SQL and execution patterns.
+
+BUILD VERIFY: cd bot && npm run build && npx vitest --run — all tests must pass.
+
+After completing work, write your retrospective in PARALLEL_AGENTS.md under "Run 48 Retrospectives" → "Agent B Retrospective", replacing the placeholder text. Then commit all changes.
+```
+
+**Agent C — Cache Invalidation on Writes**
+```
+Read c:\Users\Asus\Desktop\Wibecode-agent-c\PARALLEL_AGENTS.md — find "Run 48" and locate the "Agent C" section. You are Agent C.
+
+YOUR TASK: Add cache invalidation so analytics/social caches are cleared when data changes.
+
+OWNED FILES (only you modify these):
+- bot/src/api/routes/quest-completion.ts (MODIFY — invalidate analytics cache after quest complete)
+- bot/src/api/routes/quest-progress.ts (MODIFY — invalidate analytics cache after auto-complete)
+- bot/src/api/routes/checkins.ts (MODIFY — invalidate analytics cache after check-in)
+- bot/src/api/routes/social.ts (MODIFY — invalidate challenges cache after create/accept)
+
+WHAT TO DO:
+
+1. Read bot/src/utils/cache.ts to understand the caching API. Look for a `del()` or `invalidate()` or `clear()` method.
+
+2. In quest-completion.ts, after the XP award and achievement check, add:
+   ```typescript
+   import { invalidate } from '../../utils/cache.js';
+   // After successful completion:
+   invalidate(`analytics:modes:${userId}`);
+   invalidate(`analytics:summary:${userId}`);
+   ```
+   If `invalidate()` doesn't exist, use whatever cache deletion method is available. If none exists, create a simple `invalidate(key)` function in cache.ts (add it to OWNED files).
+
+3. In quest-progress.ts, after auto-complete logic, add same invalidation.
+
+4. In checkins.ts, after successful check-in, add same invalidation.
+
+5. In social.ts, after creating a challenge or accepting a friend request, invalidate:
+   ```typescript
+   invalidate(`social:challenges:${userId}`);
+   ```
+
+FORBIDDEN: Do NOT change endpoint behavior, auth middleware, or response shapes. Only add cache invalidation calls.
+
+BUILD VERIFY: cd bot && npm run build && npx vitest --run — all tests must pass.
+
+After completing work, write your retrospective in PARALLEL_AGENTS.md under "Run 48 Retrospectives" → "Agent C Retrospective", replacing the placeholder text. Then commit all changes.
+```
+
+**Agent D — bcrypt Admin Password (S10) + Admin Route Cleanup**
+```
+Read c:\Users\Asus\Desktop\Wibecode-agent-d\PARALLEL_AGENTS.md — find "Run 48" and locate the "Agent D" section. You are Agent D.
+
+YOUR TASK: Migrate admin password from SHA-256 to bcrypt, and clean up admin-jobs route.
+
+OWNED FILES (only you modify these):
+- bot/src/api/middleware/adminAuth.ts (MODIFY — use bcrypt instead of SHA-256)
+- bot/src/api/routes/admin-jobs.ts (MODIFY — use asyncHandler)
+
+WHAT TO DO:
+
+1. adminAuth.ts — Migrate to bcrypt:
+   a. Read the current file to understand how passwords are verified
+   b. Install bcrypt if not already available: check package.json for 'bcrypt' or 'bcryptjs'
+   c. Replace SHA-256 comparison with bcrypt.compare()
+   d. If ADMIN_PASSWORD_HASH env var exists, use bcrypt.compare(password, hash)
+   e. If only plain ADMIN_PASSWORD exists, hash it with bcrypt on startup and compare
+   f. Keep backward compatibility: if the stored hash starts with '$2' it's bcrypt; otherwise fall back to SHA-256
+
+   IMPORTANT: Check if bcrypt or bcryptjs is already in package.json. If not, use crypto.timingSafeEqual with SHA-256 as an improvement over plain comparison (still better than what's there). Don't add new dependencies without checking.
+
+2. admin-jobs.ts — Replace manual try-catch with asyncHandler:
+   a. Import asyncHandler and successResponse from '../utils/errors.js'
+   b. Replace the manual try-catch in both GET / and POST /:name/trigger with asyncHandler
+   c. Use typed errors (NotFoundError for missing job name, BadRequestError for invalid input)
+   d. Keep the same response shape
+
+FORBIDDEN: Do NOT modify other route files, middleware, or mini-app files.
+
+BUILD VERIFY: cd bot && npm run build && npx vitest --run — all tests must pass.
+
+After completing work, write your retrospective in PARALLEL_AGENTS.md under "Run 48 Retrospectives" → "Agent D Retrospective", replacing the placeholder text. Then commit all changes.
+```
+
+**Agent E — .env.example + Startup Config Validation**
+```
+Read c:\Users\Asus\Desktop\Wibecode-agent-e\PARALLEL_AGENTS.md — find "Run 48" and locate the "Agent E" section. You are Agent E.
+
+YOUR TASK: Create .env.example with all required env vars, and add startup validation.
+
+OWNED FILES (only you create/modify these):
+- .env.example (NEW — in project root)
+- bot/src/utils/config.ts (NEW — startup config validation)
+
+WHAT TO DO:
+
+1. Create .env.example in the project root:
+   a. Search ALL source files for process.env.* references (bot/src/ and mini-app/src/)
+   b. List every env var with a descriptive comment and placeholder value
+   c. Mark required vs optional vars
+   d. Group by category (Database, Telegram, Admin, etc.)
+   e. NEVER include actual secrets — use placeholders like "your_bot_token_here"
+
+2. Create bot/src/utils/config.ts:
+   a. Export a validateConfig() function that checks all REQUIRED env vars are set
+   b. Call it at server startup (but do NOT modify server.ts — just export the function)
+   c. If a required var is missing, log a clear error message listing ALL missing vars
+   d. Categories to check:
+      - TELEGRAM_BOT_TOKEN (required)
+      - DATABASE_URL or individual PG_* vars (required)
+      - ADMIN_PASSWORD (required)
+      - PORT (optional, default 3000)
+   e. Export typed config object: { botToken: string, dbUrl: string, ... }
+
+FORBIDDEN: Do NOT modify server.ts, .env, or any other existing files. Only create new files.
+
+BUILD VERIFY: cd bot && npm run build must pass.
+
+After completing work, write your retrospective in PARALLEL_AGENTS.md under "Run 48 Retrospectives" → "Agent E Retrospective", replacing the placeholder text. Then commit all changes.
+```
+
+**Agent F — Type Safety: Remove `any` Casts in Routes**
+```
+Read c:\Users\Asus\Desktop\Wibecode-agent-f\PARALLEL_AGENTS.md — find "Run 48" and locate the "Agent F" section. You are Agent F.
+
+YOUR TASK: Find and fix all `any` type casts in bot/src/api/routes/*.ts files.
+
+OWNED FILES (only you modify these):
+- All files in bot/src/api/routes/ (MODIFY — type safety only)
+
+WHAT TO DO:
+
+1. Search all route files for `: any`, `as any`, `(any)`, and `any[]`:
+   Run: grep -rn "any" bot/src/api/routes/ | grep -v node_modules | grep -v ".test."
+
+2. For each `any` found, create a proper TypeScript interface:
+   - For DB query results: define interface matching the SELECT columns, use query<T>()
+   - For request body: define interface, use `req.body as CreatePaymentRequest`
+   - For callback params: define proper function signatures
+
+3. Add interfaces at the top of each file (not in separate type files).
+
+4. Do NOT change any logic — only add types and replace `any`.
+
+EXCEPTION: Test files (*.test.ts) are FORBIDDEN — leave their `any` casts alone.
+EXCEPTION: If fixing an `any` requires changing a shared utility type, skip it and document in retro.
+
+BUILD VERIFY: cd bot && npm run build must pass. Run tests: cd bot && npx vitest --run — all must pass.
+
+After completing work, write your retrospective in PARALLEL_AGENTS.md under "Run 48 Retrospectives" → "Agent F Retrospective", replacing the placeholder text. Then commit all changes.
+```
+
+**Agent G — DB Migration Script**
+```
+Read c:\Users\Asus\Desktop\Wibecode-agent-g\PARALLEL_AGENTS.md — find "Run 48" and locate the "Agent G" section. You are Agent G.
+
+YOUR TASK: Create a database migration script that safely applies schema changes to production.
+
+OWNED FILES (only you create these):
+- tools/migrate.py (NEW)
+- database/migrations/001_social_tables.sql (NEW)
+- database/migrations/002_performance_indexes.sql (NEW)
+
+WHAT TO DO:
+
+1. Create database/migrations/ directory with numbered SQL migration files:
+
+   001_social_tables.sql:
+   ```sql
+   -- Run 45: Social features tables
+   CREATE TABLE IF NOT EXISTS friend_requests (
+     id SERIAL PRIMARY KEY,
+     from_user_id INTEGER NOT NULL REFERENCES users(id),
+     to_user_id INTEGER NOT NULL REFERENCES users(id),
+     status VARCHAR(20) NOT NULL DEFAULT 'pending',
+     created_at TIMESTAMPTZ DEFAULT NOW(),
+     UNIQUE(from_user_id, to_user_id)
+   );
+   CREATE INDEX IF NOT EXISTS idx_friend_requests_to_user ON friend_requests(to_user_id);
+
+   CREATE TABLE IF NOT EXISTS challenges (
+     id SERIAL PRIMARY KEY,
+     creator_id INTEGER NOT NULL REFERENCES users(id),
+     title VARCHAR(200) NOT NULL,
+     description TEXT,
+     mode VARCHAR(50),
+     target_value INTEGER,
+     start_date TIMESTAMPTZ DEFAULT NOW(),
+     end_date TIMESTAMPTZ,
+     status VARCHAR(20) NOT NULL DEFAULT 'active',
+     created_at TIMESTAMPTZ DEFAULT NOW()
+   );
+
+   CREATE TABLE IF NOT EXISTS challenge_participants (
+     challenge_id INTEGER NOT NULL REFERENCES challenges(id),
+     user_id INTEGER NOT NULL REFERENCES users(id),
+     progress INTEGER DEFAULT 0,
+     joined_at TIMESTAMPTZ DEFAULT NOW(),
+     PRIMARY KEY (challenge_id, user_id)
+   );
+   ```
+
+   002_performance_indexes.sql:
+   ```sql
+   -- Run 46: Performance indexes
+   CREATE INDEX IF NOT EXISTS idx_friend_requests_from_user ON friend_requests(from_user_id);
+   CREATE INDEX IF NOT EXISTS idx_challenge_participants_challenge ON challenge_participants(challenge_id);
+   CREATE INDEX IF NOT EXISTS idx_challenge_participants_user ON challenge_participants(user_id);
+   CREATE INDEX IF NOT EXISTS idx_activity_log_type_date ON user_activity_log(activity_type, created_at DESC);
+   ```
+
+2. Create tools/migrate.py:
+   - Read .env for database credentials
+   - Connect to PostgreSQL using psycopg2
+   - Create a `schema_migrations` table to track applied migrations
+   - For each migration file in database/migrations/ (sorted by number):
+     - Check if already applied (SELECT from schema_migrations)
+     - If not, execute the SQL and record it
+   - Support --dry-run flag to show what would be applied
+   - Support --status flag to show migration status
+   - Print clear output for each step
+
+FORBIDDEN: Do NOT modify existing files (schema.sql, routes, mini-app).
+
+VERIFY: python tools/migrate.py --dry-run should list pending migrations.
+
+After completing work, write your retrospective in PARALLEL_AGENTS.md under "Run 48 Retrospectives" → "Agent G Retrospective", replacing the placeholder text. Then commit all changes.
+```
+
+**Agent H — Error Monitoring + Request Timeout**
+```
+Read c:\Users\Asus\Desktop\Wibecode-agent-h\PARALLEL_AGENTS.md — find "Run 48" and locate the "Agent H" section. You are Agent H.
+
+YOUR TASK: Add request timeout middleware and improve error monitoring.
+
+OWNED FILES (only you create/modify these):
+- bot/src/api/middleware/timeout.ts (NEW — request timeout middleware)
+- bot/src/api/middleware/errorReporter.ts (NEW — structured error reporting)
+
+GRAY AREA:
+- bot/src/server.ts (MODIFY — register timeout and errorReporter middleware, ONLY add app.use() lines)
+
+WHAT TO DO:
+
+1. Create bot/src/api/middleware/timeout.ts:
+   - Express middleware that sets a request timeout (default 30 seconds)
+   - If request takes longer, respond with 504 Gateway Timeout
+   - Uses `req.setTimeout()` or a manual timer
+   - Export as `requestTimeout(ms?: number)`
+   - Log slow requests (> 5s) as warnings
+
+2. Create bot/src/api/middleware/errorReporter.ts:
+   - Express error middleware (4 params: err, req, res, next)
+   - Logs ALL unhandled errors with structured context: method, path, userId, error message, stack
+   - Increments an in-memory error counter per route
+   - Export `errorReporter` middleware and `getErrorStats()` function
+   - getErrorStats() returns: { totalErrors: number, errorsByRoute: Record<string, number>, lastError: { path, message, timestamp } }
+
+3. In server.ts, add ONLY these two lines (find the appropriate location):
+   - `app.use(requestTimeout(30000));` — before route handlers
+   - `app.use(errorReporter);` — after route handlers, before the existing error handler
+
+FORBIDDEN: Do NOT modify existing middleware, routes, or mini-app files.
+
+BUILD VERIFY: cd bot && npm run build must pass.
+
+After completing work, write your retrospective in PARALLEL_AGENTS.md under "Run 48 Retrospectives" → "Agent H Retrospective", replacing the placeholder text. Then commit all changes.
+```
+
+---
+
+### Agent A — Bundle Optimization
+
+**Branch:** `feature/r48-bundle-opt`
+**Worktree:** `../Wibecode-agent-a`
+
+**OWNED files:**
+- `mini-app/src/App.tsx`
+- `mini-app/vite.config.ts`
+
+**FORBIDDEN:**
+- All bot files, database files, tools
+- All other mini-app files
+
+---
+
+### Agent B — Query Optimization (P4 + P3)
+
+**Branch:** `feature/r48-query-opt`
+**Worktree:** `../Wibecode-agent-b`
+
+**OWNED files:**
+- `bot/src/api/routes/analytics.ts`
+- `bot/src/api/routes/users.ts`
+
+**FORBIDDEN:**
+- All mini-app files, database files, tools
+- All other bot files
+
+---
+
+### Agent C — Cache Invalidation
+
+**Branch:** `feature/r48-cache-invalidation`
+**Worktree:** `../Wibecode-agent-c`
+
+**OWNED files:**
+- `bot/src/api/routes/quest-completion.ts`
+- `bot/src/api/routes/quest-progress.ts`
+- `bot/src/api/routes/checkins.ts`
+- `bot/src/api/routes/social.ts`
+- `bot/src/utils/cache.ts` (if invalidate function doesn't exist)
+
+**FORBIDDEN:**
+- All mini-app files, database files, tools
+- All other bot files
+
+---
+
+### Agent D — bcrypt + Admin Cleanup
+
+**Branch:** `feature/r48-bcrypt-admin`
+**Worktree:** `../Wibecode-agent-d`
+
+**OWNED files:**
+- `bot/src/api/middleware/adminAuth.ts`
+- `bot/src/api/routes/admin-jobs.ts`
+
+**FORBIDDEN:**
+- All mini-app files, database files, tools
+- All other bot files
+
+---
+
+### Agent E — Config Validation
+
+**Branch:** `feature/r48-config-validation`
+**Worktree:** `../Wibecode-agent-e`
+
+**OWNED files:**
+- `.env.example` (NEW)
+- `bot/src/utils/config.ts` (NEW)
+
+**FORBIDDEN:**
+- All existing files (do NOT modify)
+- Mini-app files, database files, tools
+
+---
+
+### Agent F — Type Safety
+
+**Branch:** `feature/r48-type-safety`
+**Worktree:** `../Wibecode-agent-f`
+
+**OWNED files:**
+- All `bot/src/api/routes/*.ts` files (type changes only)
+
+**FORBIDDEN:**
+- All test files, mini-app files, database files, tools
+- Do NOT change logic, only add types
+
+---
+
+### Agent G — DB Migration Script
+
+**Branch:** `feature/r48-db-migration`
+**Worktree:** `../Wibecode-agent-g`
+
+**OWNED files:**
+- `tools/migrate.py` (NEW)
+- `database/migrations/*.sql` (NEW)
+
+**FORBIDDEN:**
+- All existing files (do NOT modify schema.sql)
+- Bot files, mini-app files
+
+---
+
+### Agent H — Error Monitoring
+
+**Branch:** `feature/r48-error-monitoring`
+**Worktree:** `../Wibecode-agent-h`
+
+**OWNED files:**
+- `bot/src/api/middleware/timeout.ts` (NEW)
+- `bot/src/api/middleware/errorReporter.ts` (NEW)
+
+**GRAY AREA:**
+- `bot/src/server.ts` (add 2 app.use() lines only)
+
+**FORBIDDEN:**
+- All mini-app files, database files, tools
+- All other bot files
+
+---
+
+### Run 48 File Ownership Matrix
+
+| File / Directory | A | B | C | D | E | F | G | H |
+|---|---|---|---|---|---|---|---|---|
+| `mini-app/src/App.tsx` | **OWNED** | - | - | - | - | - | - | - |
+| `mini-app/vite.config.ts` | **OWNED** | - | - | - | - | - | - | - |
+| `bot/src/api/routes/analytics.ts` | - | **OWNED** | - | - | - | **GRAY** | - | - |
+| `bot/src/api/routes/users.ts` | - | **OWNED** | - | - | - | **GRAY** | - | - |
+| `bot/src/api/routes/quest-completion.ts` | - | - | **OWNED** | - | - | **GRAY** | - | - |
+| `bot/src/api/routes/quest-progress.ts` | - | - | **OWNED** | - | - | **GRAY** | - | - |
+| `bot/src/api/routes/checkins.ts` | - | - | **OWNED** | - | - | **GRAY** | - | - |
+| `bot/src/api/routes/social.ts` | - | - | **OWNED** | - | - | **GRAY** | - | - |
+| `bot/src/utils/cache.ts` | - | - | **OWNED** | - | - | - | - | - |
+| `bot/src/api/middleware/adminAuth.ts` | - | - | - | **OWNED** | - | - | - | - |
+| `bot/src/api/routes/admin-jobs.ts` | - | - | - | **OWNED** | - | **GRAY** | - | - |
+| `.env.example` | - | - | - | - | **NEW** | - | - | - |
+| `bot/src/utils/config.ts` | - | - | - | - | **NEW** | - | - | - |
+| `bot/src/api/routes/*.ts` (types only) | - | - | - | - | - | **OWNED** | - | - |
+| `tools/migrate.py` | - | - | - | - | - | - | **NEW** | - |
+| `database/migrations/*.sql` | - | - | - | - | - | - | **NEW** | - |
+| `bot/src/api/middleware/timeout.ts` | - | - | - | - | - | - | - | **NEW** |
+| `bot/src/api/middleware/errorReporter.ts` | - | - | - | - | - | - | - | **NEW** |
+| `bot/src/server.ts` | - | - | - | - | - | - | - | **GRAY** |
+| `PARALLEL_AGENTS.md` | retro | retro | retro | retro | retro | retro | retro | retro |
+
+### Run 48 Merge Order
+
+1. Agent G (DB migration script) — independent, no code overlap
+2. Agent E (config validation) — independent, new files only
+3. Agent B (query optimization) — backend changes first
+4. Agent C (cache invalidation) — depends on cache.ts being stable
+5. Agent F (type safety) — touches many route files, merge after B+C
+6. Agent D (bcrypt + admin) — admin middleware + routes
+7. Agent H (error monitoring) — modifies server.ts, merge late
+8. Agent A (bundle optimization) — mini-app, fully independent
+
+### Run 48 Retrospectives
+
+#### Agent A Retrospective
+*(To be filled by Agent A)*
+
+#### Agent B Retrospective
+*(To be filled by Agent B)*
+
+#### Agent C Retrospective
+*(To be filled by Agent C)*
+
+#### Agent D Retrospective
+*(To be filled by Agent D)*
+
+#### Agent E Retrospective
+*(To be filled by Agent E)*
+
+#### Agent F Retrospective
+*(To be filled by Agent F)*
+
+#### Agent G Retrospective
+*(To be filled by Agent G)*
+
+#### Agent H Retrospective
+*(To be filled by Agent H)*
+
+#### Agent 0 Retrospective
 *(To be filled by Agent 0)*
 
-<!-- Next run goes here. Agent 0 will append RUN 48 below this line. -->
+<!-- Next run goes here. Agent 0 will append RUN 49 below this line. -->
