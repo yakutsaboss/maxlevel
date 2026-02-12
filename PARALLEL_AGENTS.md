@@ -2169,7 +2169,26 @@ Read PARALLEL_AGENTS.md — you are Agent J for Run 38. Write tests for remainin
 *(To be filled by Agent I)*
 
 #### Agent J Retrospective
-*(To be filled by Agent J)*
+
+**Task**: Write API client unit tests + verify QuestFilters test exists.
+
+**Completed**:
+1. Created `mini-app/src/__tests__/api/client.test.ts` — 6 tests covering:
+   - GET request via `getUserStats` (verifies URL, timeout, response)
+   - POST request via `createUser` (verifies payload and response)
+   - Request deduplication (concurrent identical GETs → 1 HTTP call, both get same result)
+   - `clearCache()` invalidation (clears in-flight map, next call triggers fresh request)
+   - Error propagation (rejected promise propagates through deduplicatedGet)
+   - Same-params cache key matching (identical params → same dedup key)
+2. Verified `QuestFilters.test.tsx` already exists with 4 tests (mode chips, click handler, sort label, active "All" chip).
+
+**Approach**: Used `vi.hoisted()` + `vi.mock('axios')` to inject a controlled mock axios instance. Tests exercise the public API (`getUserStats`, `createUser`, `getLeaderboard`, `clearCache`) rather than private `deduplicatedGet` directly.
+
+**Build**: `tsc && vite build` passes. 6/6 new tests pass. 371/372 total tests pass (1 pre-existing failure in `AdminUserDetail.test.tsx` — locale-dependent `toLocaleString()` issue, unrelated).
+
+**Issues**: None. The `vi.mock` hoisting initially caused a `ReferenceError` because the mock factory was hoisted above a `let` declaration — fixed by switching to `vi.hoisted()`.
+
+**Commits**: `54778c6` — test(mini-app): add API client unit tests
 
 #### Agent 0 Retrospective
 *(To be filled by Agent 0)*
