@@ -19,6 +19,9 @@ import { onboardingRouter } from './routes/onboarding.js';
 import { checkinRouter } from './routes/checkins.js';
 import { punishmentRouter } from './routes/punishment.js';
 import { paymentsRouter } from './routes/payments.js';
+import { socialRouter } from './routes/social.js';
+import { analyticsRouter } from './routes/analytics.js';
+import { financeRouter } from './routes/finance.js';
 import { apiLimiter } from './middleware/rateLimiter.js';
 import { ApiError } from './utils/errors.js';
 import { logger, generateRequestId } from '../utils/logger.js';
@@ -106,6 +109,9 @@ app.use('/api/onboarding', onboardingRouter);
 app.use('/api/checkins', checkinRouter);
 app.use('/api/punishment', punishmentRouter);
 app.use('/api/payments', paymentsRouter);
+app.use('/api/social', socialRouter);
+app.use('/api/analytics', analyticsRouter);
+app.use('/api/finance', financeRouter);
 
 // Webhook route (mounted dynamically when webhook handler is provided)
 let _webhookMounted = false;
