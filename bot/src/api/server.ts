@@ -23,6 +23,8 @@ import { socialRouter } from './routes/social.js';
 import { analyticsRouter } from './routes/analytics.js';
 import { financeRouter } from './routes/finance.js';
 import { apiLimiter } from './middleware/rateLimiter.js';
+import { requestTimeout } from './middleware/timeout.js';
+import { errorReporter } from './middleware/errorReporter.js';
 import { ApiError } from './utils/errors.js';
 import { logger, generateRequestId } from '../utils/logger.js';
 
@@ -83,6 +85,9 @@ app.use((req: Request, res: Response, next: NextFunction) => {
 
   next();
 });
+
+// Request timeout (504 after 30s, warn on slow > 5s)
+app.use(requestTimeout(30000));
 
 // Rate limiting (applied to all API routes)
 app.use('/api', apiLimiter);
@@ -161,6 +166,9 @@ export function startApiServer(webhookHandler?: RequestHandler): Promise<http.Se
       message: `Route ${req.method} ${req.path} not found`,
     });
   });
+
+  // Error monitoring (logs + stats before the global handler)
+  app.use(errorReporter);
 
   // Global error handler
   app.use((err: Error, req: Request, res: Response, _next: NextFunction) => {
