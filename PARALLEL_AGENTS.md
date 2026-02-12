@@ -2315,7 +2315,18 @@ Commit when done. Write your retrospective.
 ### Run 43 Retrospectives
 
 #### Agent A Retrospective
-*(To be filled by Agent A)*
+**Task**: Set up i18n framework and create English base translation file.
+
+**What was done**:
+- Installed `react-i18next`, `i18next`, `i18next-browser-languagedetector` in mini-app
+- Created `mini-app/src/i18n/en.ts` with all 8 top-level sections matching the Translation Key Structure exactly
+- Created `mini-app/src/i18n/index.ts` with: LanguageDetector plugin, Telegram WebApp language detection (`window.Telegram?.WebApp?.initDataUnsafe?.user?.language_code`), detection order `['querystring', 'navigator']`, fallbackLng `'en'`, imports for en/ru/zh
+- Wired into `App.tsx`: added `import './i18n'` at top, added `Suspense` import, wrapped app content in `<Suspense>` with loading fallback
+- Note: ru.ts and zh.ts already existed in this worktree (merged from Agents B/C), so `npx tsc --noEmit` and full `npm run build` both passed cleanly
+
+**Commit**: `d8513f3` — `feat: add i18n framework with English base translations`
+
+**Issues**: None. All 4 files created/modified, build clean.
 
 #### Agent B Retrospective
 **Task**: Create `mini-app/src/i18n/ru.ts` — complete Russian translation of all keys from the Translation Key Structure.
