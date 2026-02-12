@@ -8,6 +8,69 @@ import {
 } from '../utils/errors.js';
 import { resolveUser } from './user-helpers.js';
 
+/** Row returned by the active-modes JOIN query */
+interface UserModeRow {
+  user_id: number;
+  mode_id: number;
+  is_active: boolean;
+  activated_at: string;
+  m_id: number;
+  name: string;
+  display_name: string;
+  description: string;
+  icon: string;
+}
+
+/** Row returned by quest_instances JOIN quests JOIN modes queries */
+interface ActiveQuestRow {
+  id: number;
+  user_id: number;
+  mode_id: number;
+  title: string;
+  description: string;
+  xp_reward: number;
+  frequency: string;
+  difficulty: string | null;
+  status: string;
+  progress: number | null;
+  target: number | null;
+  due_date: string;
+  completed_at: string | null;
+  mode_name: string | null;
+  mode_display_name: string | null;
+  mode_icon: string | null;
+}
+
+/** Row returned by user_achievements JOIN achievements queries */
+interface RecentAchievementRow {
+  user_id: number;
+  achievement_id: number;
+  unlocked_at: string;
+  name: string;
+  description: string;
+  icon: string | null;
+  xp_reward: number;
+  rarity: string;
+  category: string;
+}
+
+/** Row returned by the per-mode streaks query */
+interface StreakRow {
+  mode_id: number;
+  current_streak: number;
+  longest_streak: number;
+  mode_name: string;
+  mode_display_name: string;
+  mode_icon: string;
+}
+
+/** Aggregated stats from the single-row aggregates query */
+interface AggregatesRow {
+  completed_today: number;
+  xp_today: number;
+  days_active: number;
+}
+
 const router = Router();
 
 /**
@@ -26,7 +89,7 @@ router.get('/:telegramId/stats', authenticateTelegram, asyncHandler(async (req: 
   // Run all supplementary queries in parallel (4 queries instead of 7)
   const [modes, activeQuests, aggregates, modeStreaks] = await Promise.all([
     // 1. Active modes with details
-    query(
+    query<UserModeRow>(
       `SELECT um.user_id, um.mode_id, um.is_active, um.enabled_at AS activated_at,
               m.id AS m_id, m.name, m.display_name, m.description, m.icon_emoji AS icon
        FROM user_modes um
@@ -36,7 +99,7 @@ router.get('/:telegramId/stats', authenticateTelegram, asyncHandler(async (req: 
     ),
 
     // 2. Active quests with mode info
-    query(
+    query<ActiveQuestRow>(
       `SELECT qi.id, qi.user_id, q.mode_id, q.title, q.description, q.xp_reward,
               q.quest_type AS frequency, q.difficulty, qi.status,
               qi.check_in_count AS progress, qi.target,
@@ -51,7 +114,7 @@ router.get('/:telegramId/stats', authenticateTelegram, asyncHandler(async (req: 
     ),
 
     // 3. Aggregates: completed today, XP today, days active — ONE query
-    queryOne(
+    queryOne<AggregatesRow>(
       `SELECT
          (SELECT COUNT(*)::int FROM quest_instances
           WHERE user_id = $1 AND status = 'completed'
@@ -64,7 +127,7 @@ router.get('/:telegramId/stats', authenticateTelegram, asyncHandler(async (req: 
     ),
 
     // 4. Per-mode streak breakdown
-    query(
+    query<StreakRow>(
       `SELECT s.mode_id, s.current_streak, s.longest_streak,
               m.name AS mode_name, m.display_name AS mode_display_name, m.icon_emoji AS mode_icon
        FROM streaks s
@@ -76,7 +139,7 @@ router.get('/:telegramId/stats', authenticateTelegram, asyncHandler(async (req: 
   ]);
 
   // Recent achievements (small separate query, fast with index)
-  const recentAchievementsRows = await query(
+  const recentAchievementsRows = await query<RecentAchievementRow>(
     `SELECT ua.user_id, ua.achievement_id, ua.unlocked_at,
             a.name, a.description, a.badge_icon AS icon, a.xp_bonus AS xp_reward,
             a.rarity, COALESCE(a.criteria->>'mode', 'general') AS category
@@ -88,7 +151,7 @@ router.get('/:telegramId/stats', authenticateTelegram, asyncHandler(async (req: 
   );
 
   // Format response
-  const formattedModes = modes.map((row: any) => ({
+  const formattedModes = modes.map((row: UserModeRow) => ({
     user_id: row.user_id,
     mode_id: row.mode_id,
     is_active: row.is_active,
@@ -103,7 +166,7 @@ router.get('/:telegramId/stats', authenticateTelegram, asyncHandler(async (req: 
     },
   }));
 
-  const formattedQuests = activeQuests.map((row: any) => ({
+  const formattedQuests = activeQuests.map((row: ActiveQuestRow) => ({
     id: row.id,
     user_id: row.user_id,
     mode_id: row.mode_id,
@@ -125,7 +188,7 @@ router.get('/:telegramId/stats', authenticateTelegram, asyncHandler(async (req: 
     } : undefined,
   }));
 
-  const recentAchievements = recentAchievementsRows.map((row: any) => ({
+  const recentAchievements = recentAchievementsRows.map((row: RecentAchievementRow) => ({
     user_id: row.user_id,
     achievement_id: row.achievement_id,
     unlocked_at: row.unlocked_at,
@@ -152,7 +215,7 @@ router.get('/:telegramId/stats', authenticateTelegram, asyncHandler(async (req: 
       longest: user.longest_streak,
       daysActive: aggregates?.days_active ?? 0,
     },
-    perModeStreaks: modeStreaks.map((s: any) => ({
+    perModeStreaks: modeStreaks.map((s: StreakRow) => ({
       mode_id: s.mode_id,
       mode_name: s.mode_display_name,
       mode_icon: s.mode_icon,
@@ -170,7 +233,7 @@ router.get('/:telegramId/quests/active', authenticateTelegram, asyncHandler(asyn
   const tid = parseInt(telegramId);
   requireOwnership(req);
 
-  const rows = await query(
+  const rows = await query<ActiveQuestRow>(
     `SELECT qi.id, qi.user_id, q.mode_id, q.title, q.description, q.xp_reward,
             q.quest_type AS frequency, q.difficulty, qi.status,
             qi.check_in_count AS progress, qi.target,
@@ -185,7 +248,7 @@ router.get('/:telegramId/quests/active', authenticateTelegram, asyncHandler(asyn
     [tid]
   );
 
-  const quests = rows.map((row: any) => ({
+  const quests = rows.map((row: ActiveQuestRow) => ({
     id: row.id,
     user_id: row.user_id,
     mode_id: row.mode_id,
@@ -219,7 +282,7 @@ router.get('/:telegramId/quests/completed', authenticateTelegram, asyncHandler(a
   requireOwnership(req);
   const limit = Math.min(parseInt(req.query.limit as string) || 50, 100);
 
-  const rows = await query(
+  const rows = await query<ActiveQuestRow>(
     `SELECT qi.id, qi.user_id, q.mode_id, q.title, q.description, q.xp_reward,
             q.quest_type AS frequency, q.difficulty, qi.status,
             qi.check_in_count AS progress, qi.target,
@@ -234,7 +297,7 @@ router.get('/:telegramId/quests/completed', authenticateTelegram, asyncHandler(a
     [tid, limit]
   );
 
-  const quests = rows.map((row: any) => ({
+  const quests = rows.map((row: ActiveQuestRow) => ({
     id: row.id,
     user_id: row.user_id,
     mode_id: row.mode_id,
@@ -267,7 +330,7 @@ router.get('/:telegramId/achievements', authenticateTelegram, asyncHandler(async
   const tid = parseInt(telegramId);
   requireOwnership(req);
 
-  const rows = await query(
+  const rows = await query<RecentAchievementRow>(
     `SELECT ua.user_id, ua.achievement_id, ua.unlocked_at,
             a.name, a.description, a.badge_icon AS icon, a.xp_bonus AS xp_reward,
             a.rarity, COALESCE(a.criteria->>'mode', 'general') AS category
@@ -278,7 +341,7 @@ router.get('/:telegramId/achievements', authenticateTelegram, asyncHandler(async
     [tid]
   );
 
-  const achievements = rows.map((row: any) => ({
+  const achievements = rows.map((row: RecentAchievementRow) => ({
     user_id: row.user_id,
     achievement_id: row.achievement_id,
     unlocked_at: row.unlocked_at,
