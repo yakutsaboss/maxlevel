@@ -2153,7 +2153,16 @@ Read PARALLEL_AGENTS.md — you are Agent J for Run 38. Write tests for remainin
 - No code changes to source files; test-only commit
 
 #### Agent D Retrospective
-*(To be filled by Agent D)*
+**Task**: Refactor `user-stats.ts` (362 lines) into smaller modules.
+
+**What was done**:
+- Extracted 5 row interfaces and 4 formatting functions into new `bot/src/api/routes/user-stats-helpers.ts` (137 lines).
+- Slimmed `user-stats.ts` from 362 to 192 lines. Route definitions and SQL queries stay in the main file.
+- `formatQuest` takes an optional `statusOverride` param to handle the 3 different status-mapping patterns.
+
+**Results**: user-stats.ts = 192 lines, helpers = 137 lines. Both under 200 target.
+**Build**: Clean. **Tests**: 592/592 pass (1 pre-existing failure in user-account.http.test.ts, unrelated).
+**Commit**: `baac4c8`
 
 #### Agent E Retrospective
 **Status:** COMPLETE — Quests.tsx refactored: state management extracted into `useQuestsData` hook.
