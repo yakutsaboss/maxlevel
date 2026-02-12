@@ -2131,7 +2131,31 @@ Read PARALLEL_AGENTS.md — you are Agent J for Run 38. Write tests for remainin
 ### Run 38 Retrospectives
 
 #### Agent A Retrospective
-*(To be filled by Agent A)*
+**Status:** COMPLETE — all 4 task areas done, 0 `any` remaining in specified files, 602/602 tests pass.
+
+**Task:** Eliminate the last `any` from bot production code across 4 files: `bot.ts`, `boss.ts`, `admin-stats.ts`, `queries.ts`.
+
+**Changes (6 files, 99 insertions, 17 deletions):**
+
+1. **`bot/src/bot.ts`** — Created `QuizData`, `QuizPunishments`, `QuizNotificationPreferences` interfaces for onboarding quiz session data (replaces `Record<string, any>`). Used Grammy's `Parameters<MyContext['reply']>[1]` extraction to type `sendMarkdownMessage`'s `extra` param as `SendMessageOptions` (replaces `Record<string, any>`).
+
+2. **`bot/src/jobs/boss.ts`** — Removed `as any` on PgBoss error handler. PgBoss v12 extends `EventEmitter<PgBossEventMap>` where `error: [error: Error]`, so the typed callback matches directly.
+
+3. **`bot/src/api/routes/admin-stats.ts`** — Replaced `(req as any).adminUser` → `req.adminUser!` (2 locations). Changed `output: any` → `output: unknown` in pg-boss job query type.
+
+4. **`bot/src/api/middleware/adminAuth.ts`** (bonus) — Replaced 3x `(req as any).adminUser` → `req.adminUser`, removed 2x redundant `as AdminUser | undefined` casts.
+
+5. **`bot/src/types/express.d.ts`** — Added `adminUser?: AdminUser` to global Express Request augmentation (imported from `adminAuth.ts`). Root fix enabling all `as any` removals in admin routes.
+
+6. **`bot/src/utils/queries.ts`** — Created `UserRow` (12 fields matching users table), `ModeRow` (5 fields), `UserActiveModeRow` (8 fields). Replaced `queryOne<Record<string, any>>` → `queryOne<UserRow>`. Changed `listAllModes`/`getUserActiveModes` to typed defaults.
+
+**Build:** `tsc` clean, `npx vitest --run` 602/602 pass (53 test files).
+
+**Complications:**
+- `listAllModes`/`getUserActiveModes` callers pass type args — couldn't remove generics. Used unconstrained generics with explicit return types + cast, since `db.ts`'s `query<T extends Record<string, any>>` constraint conflicts with interfaces.
+- `QuizData` needed index signature for dynamic mode-name keys, requiring union value type.
+
+**Remaining `any` in bot prod code:** `db.ts` still has `Record<string, any>` in `query<T>`/`queryOne<T>` constraints + `params: any[]` (foundational, separate effort needed).
 
 #### Agent B Retrospective
 *(To be filled by Agent B)*
