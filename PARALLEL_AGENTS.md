@@ -1175,7 +1175,26 @@ After completing work, write your retrospective in PARALLEL_AGENTS.md under "Run
 *(To be filled by Agent C)*
 
 #### Agent D Retrospective
-*(To be filled by Agent D)*
+**Task**: Add caching to analytics/social endpoints and fix service worker cache versioning.
+
+**What was done**:
+1. **analytics.ts** — Updated caching TTLs and added missing cache:
+   - `GET /:userId/modes`: TTL changed from SHORT (30s) to MEDIUM (5 min)
+   - `GET /:userId/modes/:mode`: Wrapped entire handler in `cached()` with MEDIUM TTL (5 min) — was completely uncached before
+   - `GET /:userId/summary`: TTL changed from SHORT (30s) to 2 minutes
+2. **social.ts** — Added caching to `GET /challenges/:userId` with 2-minute TTL. Imported `cached` from cache.ts.
+3. **sw.js** — Replaced hardcoded `'maxlevel-v1'` with `'maxlevel-__BUILD_HASH__'` placeholder.
+4. **vite.config.ts** — Added `swCacheBust()` plugin that runs on `closeBundle`, reads dist/sw.js, and replaces `__BUILD_HASH__` with `Date.now().toString(36)`. Each build generates a unique cache name, ensuring old caches are cleaned up on deploy.
+
+**Build**: Both `bot` (tsc) and `mini-app` (tsc + vite build) pass cleanly.
+
+**Verification**: Built `dist/sw.js` contains `maxlevel-mljtf3fc` (dynamic hash, not `v1`).
+
+**Notes for Agent 0**:
+- Caching changes in analytics.ts are inside route handlers (wrapping DB queries), not on route registration — no conflict with Agent B's auth middleware additions.
+- The social.ts caching import is the only structural change to that file — Agent B's auth changes should merge cleanly.
+- Cache keys used: `analytics:modes:{userId}`, `analytics:mode:{userId}:{modeName}`, `analytics:summary:{userId}`, `social:challenges:{userId}`.
+- No invalidation was added for these new cache keys. Consider adding invalidation in quest completion / challenge update handlers in a future run.
 
 #### Agent 0 Retrospective
 *(To be filled by Agent 0)*

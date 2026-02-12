@@ -1,4 +1,4 @@
-const CACHE_NAME = 'maxlevel-v1';
+const CACHE_NAME = 'maxlevel-__BUILD_HASH__';
 const STATIC_ASSETS = [
   '/levelapp/',
   '/levelapp/index.html',
