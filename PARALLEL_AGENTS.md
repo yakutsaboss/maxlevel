@@ -1263,6 +1263,602 @@ After completing work, write your retrospective in PARALLEL_AGENTS.md under "Run
 - No invalidation was added for these new cache keys. Consider adding invalidation in quest completion / challenge update handlers in a future run.
 
 #### Agent 0 Retrospective
+**Run 46 = Security Hardening** — Fix all 14 CRITICAL/HIGH security issues + performance fixes.
+
+**Merge**: 4 branches merged. Order: C (fast-forward) → A → B → D. Zero conflicts — git auto-merged all 4 cleanly.
+
+| Step | Result |
+|------|--------|
+| Branch verification | 4 branches — all had commits (C:5, A:1, B:1, D:1) |
+| Route registration | None needed (Run 46 only modified existing routes) |
+| Bot build | Pass — zero errors |
+| Mini-app build | Pass — zero errors |
+| Bot tests | 602/602 (53 files) |
+| Mini-app tests | 395/395 (97 files) |
+| Deploy | Success — version 47004b1 |
+| Notification | Sent |
+| Cleanup | 4 worktrees + 4 branches removed |
+
+**Security issues resolved (14/14):**
+- S1 CRITICAL: Payment auth → authenticateTelegram on all routes
+- S2 CRITICAL: Webhook verification → X-Telegram-Bot-Api-Secret-Token + timingSafeEqual
+- S3 HIGH: Social auth → authenticateTelegram + authorizeUser on all routes
+- S4 HIGH: Finance auth → authenticateTelegram + authorizeUser on all routes
+- S5 HIGH: Ownership checks → authorizeUser on all :userId params
+- S6 HIGH: Input validation → positive integers, string limits, enum restrictions
+- S7 HIGH: Rate limits → mutationLimiter on POST, readLimiter on GET
+- S8 MEDIUM: Analytics auth → added authorizeUser (was authenticate-only)
+
+**Performance fixes:**
+- P1: modes.ts N+1 → 15 queries reduced to 5 max (batch SELECT/INSERT)
+- P2: quest-assignment.ts N+1 → N INSERTs reduced to 1 multi-row INSERT
+- P5: 4 new DB indexes on friend_requests, challenge_participants, activity_log
+- P6: Caching on analytics (5min) and social challenges (2min)
+- P8: SW cache versioning → dynamic hash per build
+
+**Remaining from audit:** S9 (admin-quests auth — already uses requirePermission), S10 (SHA-256 admin password — low priority), P3/P4/P7 (sequential streaks, analytics subqueries, bundle size).
+
+**Test count**: 997 (602 + 395) — unchanged. Deploy version: `47004b1`.
+
+**Note**: Agent C mentioned 4 indexes need to be applied to production DB. TODO for next deploy.
+
+---
+
+## Run 47: Comprehensive Test Coverage (9 Agents + Agent 0)
+
+**Date**: 2026-02-12
+**Agents**: 9 (A-I) + Agent 0
+**Goal**: Test ALL 22 untested files from Runs 40-45 audit. Zero new features. Pure test coverage.
+
+**What this covers from the Strategic Program:**
+- **Run 47 tasks**: 5 bot route test files
+- **Run 48 tasks**: 3 bot utility test files + premiumGate + i18n
+- **Run 49 tasks**: 10 mini-app component test files + i18n translations
+
+**Expected impact**: +~170 new tests (997 → ~1170)
+
+---
+
+### Run 47 Copy-Paste Prompts
+
+**Agent A — Payment Route Tests**
+```
+Read c:\Users\Asus\Desktop\Wibecode-agent-a\PARALLEL_AGENTS.md — find "Run 47" and locate the "Agent A" section. You are Agent A.
+
+YOUR TASK: Write HTTP integration tests for bot/src/api/routes/payments.ts (344 lines, 6 endpoints).
+
+OWNED FILES (only you create/modify these):
+- bot/src/__tests__/routes/http/payments.http.test.ts (NEW)
+
+REFERENCE: Read bot/src/__tests__/routes/http/checkins.http.test.ts for the exact test pattern.
+
+TEST PATTERN (MUST follow exactly):
+1. Mock setup with vi.mock() hoisted above imports:
+   - vi.mock('../../../utils/db.js', async () => (await import('../../helpers/httpMocks.js')).createMockDb().module)
+   - vi.mock('../../../utils/cache.js', async () => (await import('../../helpers/httpMocks.js')).createMockCache().module)
+   - vi.mock('../../../api/middleware/auth.js', ...) — mock authenticateTelegram to set req.telegramUser = { id: 111 }, authorizeUser to call next()
+   - vi.mock('../../../api/middleware/rateLimiter.js', async () => (await import('../../helpers/httpMocks.js')).createMockRateLimiters().module)
+2. Import the router: import { paymentsRouter } from '../../../api/routes/payments.js'
+3. Import getMockDb: import { getMockDb } from '../../helpers/httpMocks.js'
+4. Build test app: createTestApp() + app.use('/api/payments', paymentsRouter) + addTestErrorHandler(app)
+5. Use supertest: request(app).post('/api/payments/create').send({...})
+
+ENDPOINTS TO TEST (6 total):
+1. POST /create — payment creation (userId, amount, tier)
+2. POST /webhook — Telegram payment webhook (test with/without secret header)
+3. GET /history/:userId — payment history
+4. GET /subscription/:userId — subscription status
+5. POST /subscription/upgrade — upgrade tier
+6. POST /subscription/cancel — cancel subscription
+
+FOR EACH ENDPOINT, test:
+- Happy path (200 with correct response shape)
+- Validation errors (400 for missing/invalid params)
+- Not found cases (404 where applicable)
+- For webhook: test secret token verification (401 for missing/wrong token)
+
+Target: ~15-20 tests. Use .js extensions on all local imports.
+
+BUILD VERIFY: cd bot && npx vitest --run src/__tests__/routes/http/payments.http.test.ts
+
+After completing work, write your retrospective in PARALLEL_AGENTS.md under "Run 47 Retrospectives" → "Agent A Retrospective", replacing the placeholder text. Then commit all changes.
+```
+
+**Agent B — Social Route Tests**
+```
+Read c:\Users\Asus\Desktop\Wibecode-agent-b\PARALLEL_AGENTS.md — find "Run 47" and locate the "Agent B" section. You are Agent B.
+
+YOUR TASK: Write HTTP integration tests for bot/src/api/routes/social.ts (144 lines, 5 endpoints).
+
+OWNED FILES (only you create/modify these):
+- bot/src/__tests__/routes/http/social.http.test.ts (NEW)
+
+REFERENCE: Read bot/src/__tests__/routes/http/checkins.http.test.ts for the exact test pattern.
+
+TEST PATTERN:
+1. Mock setup: vi.mock for db, cache, auth (authenticateTelegram + authorizeUser), rateLimiter
+2. Import: import { socialRouter } from '../../../api/routes/social.js'
+3. Build: createTestApp() + app.use('/api/social', socialRouter) + addTestErrorHandler(app)
+
+ENDPOINTS TO TEST (5 total):
+1. POST /friends/request — send friend request (fromUserId, toUserId)
+2. POST /friends/accept — accept request (requestId)
+3. GET /friends/:userId — list friends
+4. POST /challenges/create — create challenge (title, description, mode, targetValue, creatorId)
+5. GET /challenges/:userId — list user challenges
+
+FOR EACH ENDPOINT, test:
+- Happy path (200)
+- Validation errors (fromUserId === toUserId, missing required fields, string length limits)
+- Not found / empty results
+
+Target: ~12-15 tests.
+
+BUILD VERIFY: cd bot && npx vitest --run src/__tests__/routes/http/social.http.test.ts
+
+After completing work, write your retrospective in PARALLEL_AGENTS.md under "Run 47 Retrospectives" → "Agent B Retrospective", replacing the placeholder text. Then commit all changes.
+```
+
+**Agent C — Finance Route Tests**
+```
+Read c:\Users\Asus\Desktop\Wibecode-agent-c\PARALLEL_AGENTS.md — find "Run 47" and locate the "Agent C" section. You are Agent C.
+
+YOUR TASK: Write HTTP integration tests for bot/src/api/routes/finance.ts (212 lines, 6 endpoints).
+
+OWNED FILES (only you create/modify these):
+- bot/src/__tests__/routes/http/finance.http.test.ts (NEW)
+
+REFERENCE: Read bot/src/__tests__/routes/http/checkins.http.test.ts for the exact test pattern.
+
+TEST PATTERN:
+1. Mock setup: vi.mock for db, cache, auth (authenticateTelegram + authorizeUser), rateLimiter
+2. Import: import { financeRouter } from '../../../api/routes/finance.js'
+3. Build: createTestApp() + app.use('/api/finance', financeRouter) + addTestErrorHandler(app)
+
+ENDPOINTS TO TEST (6 total):
+1. GET /budget/:userId — get budget entries
+2. POST /budget — create budget entry (userId, category, amount, type)
+3. GET /savings/:userId — get savings goals
+4. POST /savings — create savings goal (userId, name, targetAmount)
+5. PATCH /savings/:id — deposit into savings (amount)
+6. GET /categories — list budget categories
+
+FOR EACH ENDPOINT, test:
+- Happy path (200)
+- Validation (negative amounts, missing fields, category max 100 chars, name max 200 chars, type must be income/expense)
+- Not found for savings/:id PATCH
+
+Target: ~15-18 tests.
+
+BUILD VERIFY: cd bot && npx vitest --run src/__tests__/routes/http/finance.http.test.ts
+
+After completing work, write your retrospective in PARALLEL_AGENTS.md under "Run 47 Retrospectives" → "Agent C Retrospective", replacing the placeholder text. Then commit all changes.
+```
+
+**Agent D — Analytics + Admin-Quests Route Tests**
+```
+Read c:\Users\Asus\Desktop\Wibecode-agent-d\PARALLEL_AGENTS.md — find "Run 47" and locate the "Agent D" section. You are Agent D.
+
+YOUR TASK: Write HTTP integration tests for analytics.ts (3 endpoints) and admin-quests.ts (4 endpoints).
+
+OWNED FILES (only you create/modify these):
+- bot/src/__tests__/routes/http/analytics.http.test.ts (NEW)
+- bot/src/__tests__/routes/http/admin-quests.http.test.ts (NEW)
+
+REFERENCE: Read bot/src/__tests__/routes/http/checkins.http.test.ts (for auth pattern) and bot/src/__tests__/routes/http/admin.http.test.ts (for admin auth pattern).
+
+FILE 1 — analytics.http.test.ts:
+- Import: import { analyticsRouter } from '../../../api/routes/analytics.js'
+- Mock: db, cache, auth (authenticateTelegram + authorizeUser), rateLimiter
+- Mount: app.use('/api/analytics', analyticsRouter)
+- Endpoints:
+  1. GET /:userId/modes — analytics per mode
+  2. GET /:userId/modes/:mode — analytics for specific mode
+  3. GET /:userId/summary — summary analytics
+- Test: happy paths, invalid userId (NaN), empty results
+
+FILE 2 — admin-quests.http.test.ts:
+- Import: import { adminQuestsRouter } from '../../../api/routes/admin-quests.js'
+- Mock: db, cache, adminAuth (requirePermission — mock to call next())
+  vi.mock('../../../api/middleware/adminAuth.js', () => ({
+    requirePermission: () => (_req: any, _res: any, next: any) => next(),
+  }))
+- Also mock: import { buildDynamicUpdate } from '../../../utils/sqlBuilder.js' — read the file to understand what it returns
+- Mount: app.use('/api/admin/quests', adminQuestsRouter)
+- Endpoints:
+  1. GET / — list quest templates (with optional mode_id, quest_type filters)
+  2. POST / — create quest template
+  3. PATCH /:id — update quest template
+  4. DELETE /:id — delete quest template
+- Test: CRUD happy paths, validation errors, not found
+
+Target: ~20 tests total (8-10 per file).
+
+BUILD VERIFY: cd bot && npx vitest --run src/__tests__/routes/http/analytics.http.test.ts src/__tests__/routes/http/admin-quests.http.test.ts
+
+After completing work, write your retrospective in PARALLEL_AGENTS.md under "Run 47 Retrospectives" → "Agent D Retrospective", replacing the placeholder text. Then commit all changes.
+```
+
+**Agent E — PremiumGate Middleware + i18n Messages Tests**
+```
+Read c:\Users\Asus\Desktop\Wibecode-agent-e\PARALLEL_AGENTS.md — find "Run 47" and locate the "Agent E" section. You are Agent E.
+
+YOUR TASK: Write tests for premiumGate middleware (83 lines) and i18n messages (54 lines).
+
+OWNED FILES (only you create/modify these):
+- bot/src/__tests__/middleware/premiumGate.test.ts (NEW)
+- bot/src/__tests__/i18n/messages.test.ts (NEW — create i18n dir if needed)
+
+FILE 1 — premiumGate.test.ts:
+- Read bot/src/api/middleware/premiumGate.ts to understand the middleware logic
+- Test as Express middleware: create mock req/res/next, call premiumGate(req, res, next)
+- Test cases:
+  - Allows access for premium users
+  - Blocks access for free users (returns 403)
+  - Handles missing user data
+  - Handles different tier levels
+
+FILE 2 — messages.test.ts:
+- Read bot/src/i18n/messages.ts to understand the module
+- Test cases:
+  - All supported languages have required keys
+  - Default language fallback works
+  - Message interpolation works (if applicable)
+  - No missing translations between languages
+
+Target: ~12-15 tests total.
+
+BUILD VERIFY: cd bot && npx vitest --run src/__tests__/middleware/premiumGate.test.ts src/__tests__/i18n/messages.test.ts
+
+After completing work, write your retrospective in PARALLEL_AGENTS.md under "Run 47 Retrospectives" → "Agent E Retrospective", replacing the placeholder text. Then commit all changes.
+```
+
+**Agent F — planGenerator + questRecommender + smartReminder Utility Tests**
+```
+Read c:\Users\Asus\Desktop\Wibecode-agent-f\PARALLEL_AGENTS.md — find "Run 47" and locate the "Agent F" section. You are Agent F.
+
+YOUR TASK: Write tests for 3 bot utility files: planGenerator.ts (392 lines), questRecommender.ts (180 lines), smartReminder.ts (179 lines).
+
+OWNED FILES (only you create/modify these):
+- bot/src/__tests__/utils/planGenerator.test.ts (NEW)
+- bot/src/__tests__/utils/questRecommender.test.ts (NEW)
+- bot/src/__tests__/utils/smartReminder.test.ts (NEW)
+
+APPROACH:
+1. Read each source file to understand exports and dependencies
+2. Mock database calls (vi.mock('../../utils/db.js'))
+3. Test exported functions with various inputs
+
+For planGenerator.ts:
+- Read the file first to understand what it exports and how it works
+- Test plan generation for different modes/inputs
+- Test edge cases (empty inputs, invalid modes)
+
+For questRecommender.ts:
+- Test quest recommendation logic
+- Test with different user profiles/history
+- Test empty recommendations case
+
+For smartReminder.ts:
+- Test reminder scheduling logic
+- Test different reminder conditions
+- Test timezone handling if applicable
+
+Target: ~20-25 tests total (7-8 per file).
+
+BUILD VERIFY: cd bot && npx vitest --run src/__tests__/utils/planGenerator.test.ts src/__tests__/utils/questRecommender.test.ts src/__tests__/utils/smartReminder.test.ts
+
+After completing work, write your retrospective in PARALLEL_AGENTS.md under "Run 47 Retrospectives" → "Agent F Retrospective", replacing the placeholder text. Then commit all changes.
+```
+
+**Agent G — Mini-App Simple Component Tests (5 components)**
+```
+Read c:\Users\Asus\Desktop\Wibecode-agent-g\PARALLEL_AGENTS.md — find "Run 47" and locate the "Agent G" section. You are Agent G.
+
+YOUR TASK: Write tests for 5 simple mini-app components.
+
+OWNED FILES (only you create/modify these):
+- mini-app/src/__tests__/components/social/FriendsList.test.tsx (NEW)
+- mini-app/src/__tests__/components/social/ChallengeCard.test.tsx (NEW)
+- mini-app/src/__tests__/components/habits/HabitBuilder.test.tsx (NEW)
+- mini-app/src/__tests__/components/habits/HabitStreak.test.tsx (NEW)
+- mini-app/src/__tests__/components/settings/ThemeSettings.test.tsx (NEW)
+
+Create directories as needed (social/, habits/ under __tests__/components/).
+
+REFERENCE: Read mini-app/src/__tests__/components/settings/DangerZone.test.tsx for the test pattern.
+
+TEST PATTERN:
+1. Mock framer-motion: vi.mock('framer-motion', () => ({ motion: { div: ({children, className}: any) => <div className={className}>{children}</div> } }))
+2. Mock lucide-react icons used by each component
+3. Import component
+4. Use render() + screen queries from @testing-library/react
+5. Test: renders correctly, displays expected data, handles interactions
+
+FOR EACH COMPONENT:
+- Read the source file first to understand props and behavior
+- Write 3-5 tests covering: rendering, data display, user interactions
+- Mock any API calls or external hooks
+
+Target: ~18-22 tests total (3-5 per component).
+
+BUILD VERIFY: cd mini-app && npx vitest --run src/__tests__/components/social src/__tests__/components/habits src/__tests__/components/settings/ThemeSettings.test.tsx
+
+After completing work, write your retrospective in PARALLEL_AGENTS.md under "Run 47 Retrospectives" → "Agent G Retrospective", replacing the placeholder text. Then commit all changes.
+```
+
+**Agent H — Mini-App Finance Component Tests (BudgetTracker + SavingsGoal)**
+```
+Read c:\Users\Asus\Desktop\Wibecode-agent-h\PARALLEL_AGENTS.md — find "Run 47" and locate the "Agent H" section. You are Agent H.
+
+YOUR TASK: Write tests for 2 complex finance components: BudgetTracker.tsx (320 lines) and SavingsGoal.tsx (343 lines).
+
+OWNED FILES (only you create/modify these):
+- mini-app/src/__tests__/components/finance/BudgetTracker.test.tsx (NEW)
+- mini-app/src/__tests__/components/finance/SavingsGoal.test.tsx (NEW)
+
+Create the finance/ directory under __tests__/components/ if needed.
+
+REFERENCE: Read mini-app/src/__tests__/components/settings/DangerZone.test.tsx for the test pattern.
+
+TEST PATTERN:
+1. Mock framer-motion, lucide-react icons
+2. Mock any API client calls (vi.mock('@/api/client'))
+3. Mock useTelegram hook if used
+4. Use render() + screen queries + fireEvent/userEvent
+
+FOR EACH COMPONENT:
+- Read the source file first to understand props, state, and API calls
+- BudgetTracker: test rendering, category display, amount formatting, add/delete interactions
+- SavingsGoal: test rendering, progress bars, deposit interactions, goal completion state
+
+Target: ~12-16 tests total (6-8 per component).
+
+BUILD VERIFY: cd mini-app && npx vitest --run src/__tests__/components/finance
+
+After completing work, write your retrospective in PARALLEL_AGENTS.md under "Run 47 Retrospectives" → "Agent H Retrospective", replacing the placeholder text. Then commit all changes.
+```
+
+**Agent I — Mini-App Admin/Analytics Component Tests + i18n Tests**
+```
+Read c:\Users\Asus\Desktop\Wibecode-agent-i\PARALLEL_AGENTS.md — find "Run 47" and locate the "Agent I" section. You are Agent I.
+
+YOUR TASK: Write tests for 3 admin/analytics components and i18n translations.
+
+OWNED FILES (only you create/modify these):
+- mini-app/src/__tests__/components/analytics/ModeAnalytics.test.tsx (NEW)
+- mini-app/src/__tests__/components/admin/AnswerAnalytics.test.tsx (NEW)
+- mini-app/src/__tests__/components/admin/AdminQuestEditor.test.tsx (NEW)
+- mini-app/src/__tests__/i18n/translations.test.ts (NEW)
+
+Create directories as needed (analytics/ under __tests__/components/, i18n/ under __tests__/).
+
+REFERENCE: Read mini-app/src/__tests__/components/admin/AdminOverview.test.tsx for admin component test pattern.
+
+FOR ADMIN/ANALYTICS COMPONENTS:
+- Read each source file to understand props and API calls
+- Mock adminFetch/adminClient API calls
+- Mock framer-motion and lucide-react
+- Test: rendering, loading state, error state, data display, mode switching (tabs)
+
+FOR i18n TRANSLATIONS:
+- Read mini-app/src/i18n/ to find translation files (en.ts, ru.ts, zh.ts)
+- Test: all languages have same keys, no empty values, key structure consistency
+
+Target: ~15-20 tests total.
+
+BUILD VERIFY: cd mini-app && npx vitest --run src/__tests__/components/analytics src/__tests__/components/admin/AnswerAnalytics.test.tsx src/__tests__/components/admin/AdminQuestEditor.test.tsx src/__tests__/i18n
+
+After completing work, write your retrospective in PARALLEL_AGENTS.md under "Run 47 Retrospectives" → "Agent I Retrospective", replacing the placeholder text. Then commit all changes.
+```
+
+---
+
+### Agent A — Payment Route Tests
+
+**Branch:** `feature/r47-test-payments`
+**Worktree:** `../Wibecode-agent-a`
+
+**OWNED files:**
+- `bot/src/__tests__/routes/http/payments.http.test.ts` (NEW)
+
+**FORBIDDEN:**
+- All source files, mini-app files, database files, tools
+- All existing test files
+
+---
+
+### Agent B — Social Route Tests
+
+**Branch:** `feature/r47-test-social`
+**Worktree:** `../Wibecode-agent-b`
+
+**OWNED files:**
+- `bot/src/__tests__/routes/http/social.http.test.ts` (NEW)
+
+**FORBIDDEN:**
+- All source files, mini-app files, database files, tools
+- All existing test files
+
+---
+
+### Agent C — Finance Route Tests
+
+**Branch:** `feature/r47-test-finance`
+**Worktree:** `../Wibecode-agent-c`
+
+**OWNED files:**
+- `bot/src/__tests__/routes/http/finance.http.test.ts` (NEW)
+
+**FORBIDDEN:**
+- All source files, mini-app files, database files, tools
+- All existing test files
+
+---
+
+### Agent D — Analytics + Admin-Quests Route Tests
+
+**Branch:** `feature/r47-test-analytics-admin`
+**Worktree:** `../Wibecode-agent-d`
+
+**OWNED files:**
+- `bot/src/__tests__/routes/http/analytics.http.test.ts` (NEW)
+- `bot/src/__tests__/routes/http/admin-quests.http.test.ts` (NEW)
+
+**FORBIDDEN:**
+- All source files, mini-app files, database files, tools
+- All existing test files
+
+---
+
+### Agent E — PremiumGate + i18n Tests
+
+**Branch:** `feature/r47-test-middleware-i18n`
+**Worktree:** `../Wibecode-agent-e`
+
+**OWNED files:**
+- `bot/src/__tests__/middleware/premiumGate.test.ts` (NEW)
+- `bot/src/__tests__/i18n/messages.test.ts` (NEW)
+
+**FORBIDDEN:**
+- All source files, mini-app files, database files, tools
+- All existing test files
+
+---
+
+### Agent F — Bot Utility Tests
+
+**Branch:** `feature/r47-test-utils`
+**Worktree:** `../Wibecode-agent-f`
+
+**OWNED files:**
+- `bot/src/__tests__/utils/planGenerator.test.ts` (NEW)
+- `bot/src/__tests__/utils/questRecommender.test.ts` (NEW)
+- `bot/src/__tests__/utils/smartReminder.test.ts` (NEW)
+
+**FORBIDDEN:**
+- All source files, mini-app files, database files, tools
+- All existing test files
+
+---
+
+### Agent G — Mini-App Simple Component Tests
+
+**Branch:** `feature/r47-test-miniapp-simple`
+**Worktree:** `../Wibecode-agent-g`
+
+**OWNED files:**
+- `mini-app/src/__tests__/components/social/FriendsList.test.tsx` (NEW)
+- `mini-app/src/__tests__/components/social/ChallengeCard.test.tsx` (NEW)
+- `mini-app/src/__tests__/components/habits/HabitBuilder.test.tsx` (NEW)
+- `mini-app/src/__tests__/components/habits/HabitStreak.test.tsx` (NEW)
+- `mini-app/src/__tests__/components/settings/ThemeSettings.test.tsx` (NEW)
+
+**FORBIDDEN:**
+- All source files, bot files, database files, tools
+- All existing test files
+
+---
+
+### Agent H — Mini-App Finance Component Tests
+
+**Branch:** `feature/r47-test-miniapp-finance`
+**Worktree:** `../Wibecode-agent-h`
+
+**OWNED files:**
+- `mini-app/src/__tests__/components/finance/BudgetTracker.test.tsx` (NEW)
+- `mini-app/src/__tests__/components/finance/SavingsGoal.test.tsx` (NEW)
+
+**FORBIDDEN:**
+- All source files, bot files, database files, tools
+- All existing test files
+
+---
+
+### Agent I — Mini-App Admin/Analytics + i18n Tests
+
+**Branch:** `feature/r47-test-miniapp-admin`
+**Worktree:** `../Wibecode-agent-i`
+
+**OWNED files:**
+- `mini-app/src/__tests__/components/analytics/ModeAnalytics.test.tsx` (NEW)
+- `mini-app/src/__tests__/components/admin/AnswerAnalytics.test.tsx` (NEW)
+- `mini-app/src/__tests__/components/admin/AdminQuestEditor.test.tsx` (NEW)
+- `mini-app/src/__tests__/i18n/translations.test.ts` (NEW)
+
+**FORBIDDEN:**
+- All source files, bot files, database files, tools
+- All existing test files
+
+---
+
+### Run 47 File Ownership Matrix
+
+| File / Directory | A | B | C | D | E | F | G | H | I |
+|---|---|---|---|---|---|---|---|---|---|
+| `bot/__tests__/routes/http/payments.http.test.ts` | **NEW** | - | - | - | - | - | - | - | - |
+| `bot/__tests__/routes/http/social.http.test.ts` | - | **NEW** | - | - | - | - | - | - | - |
+| `bot/__tests__/routes/http/finance.http.test.ts` | - | - | **NEW** | - | - | - | - | - | - |
+| `bot/__tests__/routes/http/analytics.http.test.ts` | - | - | - | **NEW** | - | - | - | - | - |
+| `bot/__tests__/routes/http/admin-quests.http.test.ts` | - | - | - | **NEW** | - | - | - | - | - |
+| `bot/__tests__/middleware/premiumGate.test.ts` | - | - | - | - | **NEW** | - | - | - | - |
+| `bot/__tests__/i18n/messages.test.ts` | - | - | - | - | **NEW** | - | - | - | - |
+| `bot/__tests__/utils/planGenerator.test.ts` | - | - | - | - | - | **NEW** | - | - | - |
+| `bot/__tests__/utils/questRecommender.test.ts` | - | - | - | - | - | **NEW** | - | - | - |
+| `bot/__tests__/utils/smartReminder.test.ts` | - | - | - | - | - | **NEW** | - | - | - |
+| `mini-app/__tests__/components/social/*.test.tsx` | - | - | - | - | - | - | **NEW** | - | - |
+| `mini-app/__tests__/components/habits/*.test.tsx` | - | - | - | - | - | - | **NEW** | - | - |
+| `mini-app/__tests__/components/settings/ThemeSettings.test.tsx` | - | - | - | - | - | - | **NEW** | - | - |
+| `mini-app/__tests__/components/finance/*.test.tsx` | - | - | - | - | - | - | - | **NEW** | - |
+| `mini-app/__tests__/components/analytics/*.test.tsx` | - | - | - | - | - | - | - | - | **NEW** |
+| `mini-app/__tests__/components/admin/AnswerAnalytics.test.tsx` | - | - | - | - | - | - | - | - | **NEW** |
+| `mini-app/__tests__/components/admin/AdminQuestEditor.test.tsx` | - | - | - | - | - | - | - | - | **NEW** |
+| `mini-app/__tests__/i18n/translations.test.ts` | - | - | - | - | - | - | - | - | **NEW** |
+| `PARALLEL_AGENTS.md` | retro | retro | retro | retro | retro | retro | retro | retro | retro |
+
+### Run 47 Merge Order
+
+All agents create NEW test files only — zero file conflicts expected. Merge in any order:
+1. Agent A (payment tests)
+2. Agent B (social tests)
+3. Agent C (finance tests)
+4. Agent D (analytics + admin-quests tests)
+5. Agent E (premiumGate + i18n tests)
+6. Agent F (utility tests)
+7. Agent G (mini-app simple component tests)
+8. Agent H (mini-app finance component tests)
+9. Agent I (mini-app admin/analytics + i18n tests)
+
+### Run 47 Retrospectives
+
+#### Agent A Retrospective
+*(To be filled by Agent A)*
+
+#### Agent B Retrospective
+*(To be filled by Agent B)*
+
+#### Agent C Retrospective
+*(To be filled by Agent C)*
+
+#### Agent D Retrospective
+*(To be filled by Agent D)*
+
+#### Agent E Retrospective
+*(To be filled by Agent E)*
+
+#### Agent F Retrospective
+*(To be filled by Agent F)*
+
+#### Agent G Retrospective
+*(To be filled by Agent G)*
+
+#### Agent H Retrospective
+*(To be filled by Agent H)*
+
+#### Agent I Retrospective
+*(To be filled by Agent I)*
+
+#### Agent 0 Retrospective
 *(To be filled by Agent 0)*
 
-<!-- Next run goes here. Agent 0 will append RUN 47 below this line. -->
+<!-- Next run goes here. Agent 0 will append RUN 48 below this line. -->
