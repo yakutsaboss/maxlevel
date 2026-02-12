@@ -18,6 +18,7 @@ import { leaderboardRouter } from './routes/leaderboard.js';
 import { onboardingRouter } from './routes/onboarding.js';
 import { checkinRouter } from './routes/checkins.js';
 import { punishmentRouter } from './routes/punishment.js';
+import { paymentsRouter } from './routes/payments.js';
 import { apiLimiter } from './middleware/rateLimiter.js';
 import { ApiError } from './utils/errors.js';
 import { logger, generateRequestId } from '../utils/logger.js';
@@ -104,6 +105,7 @@ app.use('/api/leaderboard', leaderboardRouter);
 app.use('/api/onboarding', onboardingRouter);
 app.use('/api/checkins', checkinRouter);
 app.use('/api/punishment', punishmentRouter);
+app.use('/api/payments', paymentsRouter);
 
 // Webhook route (mounted dynamically when webhook handler is provided)
 let _webhookMounted = false;
