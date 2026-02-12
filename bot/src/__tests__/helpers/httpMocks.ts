@@ -1,17 +1,32 @@
 /**
  * Shared HTTP test mock factories.
  *
- * These helpers reduce boilerplate in supertest-based HTTP integration tests.
- * Each factory returns a vi.mock()-compatible module shape plus trackable
- * references that test code can use for assertions (.mockResolvedValueOnce, etc.).
+ * Reduces boilerplate in supertest-based HTTP integration tests.
+ * Each `createMock*()` factory returns a vi.mock()-compatible `.module`
+ * shape plus trackable fn references for test assertions.
  *
- * Usage pattern:
- *   const db = createMockDb();
- *   vi.mock('../../../utils/db.js', () => db.module);
+ * Because vitest hoists `vi.mock()` above static imports, the factories
+ * must be called via async dynamic import inside the `vi.mock` factory:
+ *
+ *   vi.mock('../../../utils/db.js', async () =>
+ *     (await import('../../helpers/httpMocks.js')).createMockDb().module);
+ *
+ * Then retrieve the mock refs at module scope via the getter:
+ *
+ *   import { getMockDb } from '../../helpers/httpMocks.js';
+ *   const db = getMockDb();
  *   // in tests: db.query.mockResolvedValueOnce([...])
  */
 
 import { vi } from 'vitest';
+
+// ─── Internal state (per-test-file since vitest isolates modules) ────
+
+let _db: MockDb | null = null;
+let _cache: MockCache | null = null;
+let _pythonTools: MockPythonTools | null = null;
+let _auth: MockAuth | null = null;
+let _rateLimiters: MockRateLimiters | null = null;
 
 // ─── Database mock ───────────────────────────────────────────────────
 
@@ -23,17 +38,12 @@ export interface MockDb {
   module: Record<string, unknown>;
 }
 
-/**
- * Creates a mock db module with trackable fn references.
- * `query`, `queryOne`, `execute`, `transaction` are all vi.fn() — wire them
- * into assertions with `.mockResolvedValueOnce()` etc.
- */
 export function createMockDb(): MockDb {
   const query = vi.fn();
   const queryOne = vi.fn();
   const execute = vi.fn();
   const transaction = vi.fn();
-  return {
+  _db = {
     query,
     queryOne,
     execute,
@@ -46,6 +56,12 @@ export function createMockDb(): MockDb {
       getPool: vi.fn(),
     },
   };
+  return _db;
+}
+
+export function getMockDb(): MockDb {
+  if (!_db) throw new Error('createMockDb() not called — add vi.mock for db.js');
+  return _db;
 }
 
 // ─── Cache mock ──────────────────────────────────────────────────────
@@ -55,13 +71,9 @@ export interface MockCache {
   module: Record<string, unknown>;
 }
 
-/**
- * Creates a mock cache module. `cached` passes through to the factory fn
- * by default (i.e. no caching in tests).
- */
 export function createMockCache(): MockCache {
   const cached = vi.fn(async (_k: string, _t: number, fn: () => Promise<unknown>) => fn());
-  return {
+  _cache = {
     cached,
     module: {
       cached,
@@ -72,6 +84,12 @@ export function createMockCache(): MockCache {
       TTL: { SHORT: 30_000, MEDIUM: 300_000, LONG: 1_800_000 },
     },
   };
+  return _cache;
+}
+
+export function getMockCache(): MockCache {
+  if (!_cache) throw new Error('createMockCache() not called — add vi.mock for cache.js');
+  return _cache;
 }
 
 // ─── PythonTools mock ────────────────────────────────────────────────
@@ -81,12 +99,9 @@ export interface MockPythonTools {
   module: Record<string, unknown>;
 }
 
-/**
- * Creates a mock pythonTools module with a trackable `executePythonTool`.
- */
 export function createMockPythonTools(): MockPythonTools {
   const executePythonTool = vi.fn();
-  return {
+  _pythonTools = {
     executePythonTool,
     module: {
       executePythonTool: (...args: unknown[]) => executePythonTool(...args),
@@ -94,6 +109,12 @@ export function createMockPythonTools(): MockPythonTools {
       getUserById: vi.fn(),
     },
   };
+  return _pythonTools;
+}
+
+export function getMockPythonTools(): MockPythonTools {
+  if (!_pythonTools) throw new Error('createMockPythonTools() not called');
+  return _pythonTools;
 }
 
 // ─── Auth middleware mock ────────────────────────────────────────────
@@ -103,14 +124,9 @@ export interface MockAuth {
   module: Record<string, unknown>;
 }
 
-/**
- * Creates a mock auth middleware module. `authenticateTelegram` and
- * `authorizeUser` are passthroughs (call next()). `requireOwnership`
- * is a bare vi.fn() so tests can override it per-case.
- */
 export function createMockAuth(): MockAuth {
   const requireOwnership = vi.fn();
-  return {
+  _auth = {
     requireOwnership,
     module: {
       authenticateTelegram: (_req: unknown, _res: unknown, next: () => void) => next(),
@@ -118,6 +134,12 @@ export function createMockAuth(): MockAuth {
       requireOwnership,
     },
   };
+  return _auth;
+}
+
+export function getMockAuth(): MockAuth {
+  if (!_auth) throw new Error('createMockAuth() not called — add vi.mock for auth.js');
+  return _auth;
 }
 
 // ─── Rate limiter mock ──────────────────────────────────────────────
@@ -126,12 +148,9 @@ export interface MockRateLimiters {
   module: Record<string, unknown>;
 }
 
-/**
- * Creates a mock rateLimiter module where all limiters are passthroughs.
- */
 export function createMockRateLimiters(): MockRateLimiters {
   const passthrough = (_req: unknown, _res: unknown, next: () => void) => next();
-  return {
+  _rateLimiters = {
     module: {
       apiLimiter: passthrough,
       authLimiter: passthrough,
@@ -139,6 +158,12 @@ export function createMockRateLimiters(): MockRateLimiters {
       readLimiter: passthrough,
     },
   };
+  return _rateLimiters;
+}
+
+export function getMockRateLimiters(): MockRateLimiters {
+  if (!_rateLimiters) throw new Error('createMockRateLimiters() not called');
+  return _rateLimiters;
 }
 
 // ─── Transaction helper ─────────────────────────────────────────────
@@ -148,12 +173,10 @@ export interface MockClient {
 }
 
 /**
- * Returns a mock transaction implementation that creates a mockClient
- * and passes it to the callback fn. Use with:
+ * Returns a mock transaction implementation. Use with:
  *   db.transaction.mockImplementation(createMockTransaction())
  *
- * The returned mockClient is accessible via the `.client` property
- * on the returned function for assertions.
+ * The mockClient is accessible via `.client` for assertions.
  */
 export function createMockTransaction(): ((fn: (client: MockClient) => Promise<unknown>) => Promise<unknown>) & { client: MockClient } {
   const client: MockClient = { query: vi.fn().mockResolvedValue({ rows: [] }) };

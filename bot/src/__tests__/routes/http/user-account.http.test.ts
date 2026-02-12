@@ -9,52 +9,34 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import request from 'supertest';
 import { createTestApp, addTestErrorHandler } from '../../helpers/testApp.js';
+import { getMockDb, getMockAuth, createMockTransaction } from '../../helpers/httpMocks.js';
 
-// ─── Mocks (hoisted before any route import) ───────────────────────
+// ─── Mocks (hoisted — use async dynamic import for httpMocks) ───────
 
-const mockQuery = vi.fn();
-const mockQueryOne = vi.fn();
-const mockExecute = vi.fn();
-const mockTransaction = vi.fn();
+vi.mock('../../../utils/db.js', async () =>
+  (await import('../../helpers/httpMocks.js')).createMockDb().module);
 
-vi.mock('../../../utils/db.js', () => ({
-  query: (...args: any[]) => mockQuery(...args),
-  queryOne: (...args: any[]) => mockQueryOne(...args),
-  execute: (...args: any[]) => mockExecute(...args),
-  transaction: (...args: any[]) => mockTransaction(...args),
-  getPool: vi.fn(),
-}));
+vi.mock('../../../utils/cache.js', async () =>
+  (await import('../../helpers/httpMocks.js')).createMockCache().module);
 
-vi.mock('../../../utils/cache.js', () => ({
-  cached: vi.fn(async (_k: string, _t: number, fn: () => Promise<any>) => fn()),
-  invalidate: vi.fn(),
-  invalidatePrefix: vi.fn(),
-  clearAll: vi.fn(),
-  TTL: { SHORT: 30_000, MEDIUM: 300_000, LONG: 1_800_000 },
-}));
+vi.mock('../../../utils/pythonTools.js', async () =>
+  (await import('../../helpers/httpMocks.js')).createMockPythonTools().module);
 
-const mockExecutePythonTool = vi.fn();
-vi.mock('../../../utils/pythonTools.js', () => ({
-  executePythonTool: (...args: any[]) => mockExecutePythonTool(...args),
-  getUserByTelegramId: vi.fn(),
-  getUserById: vi.fn(),
-}));
+vi.mock('../../../api/middleware/auth.js', async () =>
+  (await import('../../helpers/httpMocks.js')).createMockAuth().module);
 
-vi.mock('../../../api/middleware/auth.js', () => ({
-  authenticateTelegram: (_req: any, _res: any, next: any) => next(),
-  authorizeUser: (_req: any, _res: any, next: any) => next(),
-  requireOwnership: vi.fn(),
-}));
+vi.mock('../../../api/middleware/rateLimiter.js', async () =>
+  (await import('../../helpers/httpMocks.js')).createMockRateLimiters().module);
 
-vi.mock('../../../api/middleware/rateLimiter.js', () => ({
-  apiLimiter: (_req: any, _res: any, next: any) => next(),
-}));
-
-// ─── Import router and mocked modules after mocks ──────────────────
+// ─── Import router after mocks ──────────────────────────────────────
 
 import { accountRouter } from '../../../api/routes/user-account.js';
-import { requireOwnership } from '../../../api/middleware/auth.js';
 import { ForbiddenError } from '../../../api/utils/errors.js';
+
+// ─── Mock refs (populated by vi.mock factories above) ───────────────
+
+const db = getMockDb();
+const auth = getMockAuth();
 
 // ─── Build test app ────────────────────────────────────────────────
 
@@ -73,7 +55,7 @@ beforeEach(() => {
 
 describe('PATCH /api/users/:telegramId/profile', () => {
   it('should return 200 with updated profile when updating first_name', async () => {
-    mockQueryOne.mockResolvedValueOnce({
+    db.queryOne.mockResolvedValueOnce({
       id: 1,
       telegram_id: 111,
       username: 'alice',
@@ -95,7 +77,7 @@ describe('PATCH /api/users/:telegramId/profile', () => {
   });
 
   it('should return 200 with updated profile when updating avatar_id', async () => {
-    mockQueryOne.mockResolvedValueOnce({
+    db.queryOne.mockResolvedValueOnce({
       id: 1,
       telegram_id: 111,
       username: 'alice',
@@ -116,7 +98,7 @@ describe('PATCH /api/users/:telegramId/profile', () => {
   });
 
   it('should return 200 when updating both first_name and avatar_id', async () => {
-    mockQueryOne.mockResolvedValueOnce({
+    db.queryOne.mockResolvedValueOnce({
       id: 1,
       telegram_id: 111,
       username: 'alice',
@@ -168,7 +150,7 @@ describe('PATCH /api/users/:telegramId/profile', () => {
   });
 
   it('should return 404 when user does not exist', async () => {
-    mockQueryOne.mockResolvedValueOnce(null);
+    db.queryOne.mockResolvedValueOnce(null);
 
     const res = await request(buildApp())
       .patch('/api/users/999/profile')
@@ -182,11 +164,8 @@ describe('PATCH /api/users/:telegramId/profile', () => {
 
 describe('DELETE /api/users/:telegramId/account', () => {
   it('should return 200 on successful account deletion', async () => {
-    mockQueryOne.mockResolvedValueOnce({ id: 1 });
-    mockTransaction.mockImplementation(async (fn: any) => {
-      const mockClient = { query: vi.fn().mockResolvedValue({ rows: [] }) };
-      await fn(mockClient);
-    });
+    db.queryOne.mockResolvedValueOnce({ id: 1 });
+    db.transaction.mockImplementation(createMockTransaction());
 
     const res = await request(buildApp())
       .delete('/api/users/111/account')
@@ -194,11 +173,11 @@ describe('DELETE /api/users/:telegramId/account', () => {
 
     expect(res.body.success).toBe(true);
     expect(res.body.data.message).toBe('Account deleted successfully');
-    expect(mockTransaction).toHaveBeenCalledOnce();
+    expect(db.transaction).toHaveBeenCalledOnce();
   });
 
   it('should return 404 when user not found or already deleted', async () => {
-    mockQueryOne.mockResolvedValueOnce(null);
+    db.queryOne.mockResolvedValueOnce(null);
 
     const res = await request(buildApp())
       .delete('/api/users/999/account')
@@ -209,7 +188,7 @@ describe('DELETE /api/users/:telegramId/account', () => {
   });
 
   it('should return 403 when ownership check fails', async () => {
-    vi.mocked(requireOwnership).mockImplementationOnce(() => {
+    auth.requireOwnership.mockImplementationOnce(() => {
       throw new ForbiddenError('You do not have permission to access this resource');
     });
 
