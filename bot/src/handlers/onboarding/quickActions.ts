@@ -6,16 +6,16 @@ import { Context, InlineKeyboard } from 'grammy';
 import { query, queryOne } from '../../utils/db.js';
 import { getUserByTelegramId } from '../../utils/queries.js';
 
-interface QuestRow {
+type QuestRow = {
   mode_icon: string | null;
   name: string;
   status: string;
   xp_reward: number;
-}
+};
 
-interface StreakRow {
+type StreakRow = {
   current_streak: number;
-}
+};
 
 /**
  * Handle quick action buttons

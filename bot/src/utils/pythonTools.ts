@@ -24,7 +24,7 @@ const TOOLS_PATH = process.env.PYTHON_TOOLS_PATH || path.resolve(__dirname, '..'
 // Whitelist pattern for tool names (lowercase alphanumeric + underscores only)
 const TOOL_NAME_PATTERN = /^[a-z][a-z0-9_]*$/;
 
-export interface PythonToolResult<T = any> {
+export interface PythonToolResult<T = unknown> {
   success: boolean;
   data?: T;
   error?: string;
@@ -35,7 +35,7 @@ export interface PythonToolResult<T = any> {
  * Execute a Python tool and return parsed JSON result.
  * Uses execFile (no shell) to prevent command injection.
  */
-export async function executePythonTool<T = any>(
+export async function executePythonTool<T = unknown>(
   toolName: string,
   args: string[]
 ): Promise<PythonToolResult<T>> {
@@ -70,16 +70,16 @@ export async function executePythonTool<T = any>(
       // If not JSON, return raw stdout
       return {
         success: true,
-        data: stdout as any,
+        data: stdout as unknown as T,
         stderr: stderr.trim() || undefined,
       };
     }
-  } catch (error: any) {
-    log.error(`Error executing ${toolName}`, error as Error);
+  } catch (error: unknown) {
+    log.error(`Error executing ${toolName}`, error instanceof Error ? error : new Error(String(error)));
     return {
       success: false,
-      error: error.message,
-      stderr: error.stderr || undefined,
+      error: error instanceof Error ? error.message : String(error),
+      stderr: error instanceof Error && 'stderr' in error ? (error as { stderr: string }).stderr : undefined,
     };
   }
 }

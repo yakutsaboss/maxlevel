@@ -37,7 +37,7 @@ export async function handler(jobs: Job[]): Promise<void> {
   const startTime = Date.now();
   log.info('Started');
 
-  const usersWithQuests = await query(`
+  const usersWithQuests = await query<{ telegram_id: number; first_name: string | null; pending_count: number }>(`
     SELECT DISTINCT u.telegram_id, u.first_name, COUNT(qi.id)::int AS pending_count
     FROM quest_instances qi
     JOIN users u ON qi.user_id = u.id

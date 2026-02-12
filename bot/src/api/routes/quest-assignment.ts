@@ -12,7 +12,7 @@ import {
 } from './quest-helpers.js';
 
 /** Shape returned by the SELECT on the `quests` table for available templates. */
-interface QuestTemplate {
+type QuestTemplate = {
   id: number;
   title: string;
   description: string;
@@ -20,7 +20,7 @@ interface QuestTemplate {
   quest_type: string;
   difficulty: string;
   mode_id: number;
-}
+};
 
 /** Shape of each quest pushed into the response after INSERT. */
 interface AssignedQuest {

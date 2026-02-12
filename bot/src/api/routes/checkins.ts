@@ -32,7 +32,7 @@ router.post('/', authenticateTelegram, mutationLimiter, asyncHandler(async (req:
   }
 
   // Fetch quest instance with user verification
-  const quest = await queryOne(
+  const quest = await queryOne<{ id: number; user_id: number; status: string; check_in_count: number; xp_reward: number; title: string; target: number }>(
     `SELECT qi.id, qi.user_id, qi.status, qi.check_in_count,
             q.xp_reward, q.title, qi.target
      FROM quest_instances qi

@@ -14,9 +14,9 @@ import type { Job } from 'pg-boss';
 import { query, execute } from '../../utils/db.js';
 import { logger } from '../../utils/logger.js';
 
-interface ModeIdRow {
+type ModeIdRow = {
   mode_id: number;
-}
+};
 
 const log = logger.child({ component: 'dailyQuestReset' });
 
@@ -119,7 +119,7 @@ export async function handler(jobs: Job[]): Promise<void> {
   const failedUserIds: number[] = [];
 
   while (true) {
-    const users = await query(
+    const users = await query<{ id: number }>(
       'SELECT * FROM users WHERE is_active = true ORDER BY created_at DESC LIMIT $1 OFFSET $2',
       [BATCH_SIZE, offset]
     );
@@ -152,7 +152,7 @@ export async function handler(jobs: Job[]): Promise<void> {
 
     let weeklyOffset = 0;
     while (true) {
-      const users = await query(
+      const users = await query<{ id: number }>(
         'SELECT * FROM users WHERE is_active = true ORDER BY created_at DESC LIMIT $1 OFFSET $2',
         [BATCH_SIZE, weeklyOffset]
       );

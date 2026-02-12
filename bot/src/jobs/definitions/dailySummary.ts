@@ -40,7 +40,7 @@ export async function handler(jobs: Job[]): Promise<void> {
   log.info('Started');
 
   // Fetch active users whose reminder_time matches the current UTC hour
-  const users = await query(
+  const users = await query<{ id: number; telegram_id: number }>(
     `SELECT id, telegram_id FROM users
      WHERE is_active = true
        AND notification_enabled = true

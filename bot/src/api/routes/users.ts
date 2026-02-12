@@ -86,15 +86,15 @@ router.patch('/:userId/streak', authenticateTelegram, asyncHandler(async (req: R
     throw new BadRequestError('Invalid user ID');
   }
 
-  const streaks = await query('SELECT user_id, mode_id FROM streaks WHERE user_id = $1', [uid]);
+  const streaks = await query<{ user_id: number; mode_id: number }>('SELECT user_id, mode_id FROM streaks WHERE user_id = $1', [uid]);
 
   for (const streak of streaks) {
     await updateStreak(streak.user_id, streak.mode_id);
   }
 
   // Re-fetch to get updated values
-  const updated = await query('SELECT current_streak FROM streaks WHERE user_id = $1', [uid]);
-  const maxStreak = Math.max(0, ...updated.map((s: any) => s.current_streak));
+  const updated = await query<{ current_streak: number }>('SELECT current_streak FROM streaks WHERE user_id = $1', [uid]);
+  const maxStreak = Math.max(0, ...updated.map((s) => s.current_streak));
 
   res.json(successResponse({ message: 'Streaks updated', current_streak: maxStreak }));
 }));

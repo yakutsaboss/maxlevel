@@ -8,14 +8,14 @@ import { query, queryOne } from '../utils/db.js';
 import { logger } from '../utils/logger.js';
 
 /** A row from leaderboard_mv materialized view. */
-interface LeaderboardRow {
+type LeaderboardRow = {
   telegram_id?: number;
   username: string | null;
   first_name: string | null;
   current_level: number;
   total_xp: number;
   xp_rank: string;
-}
+};
 
 const log = logger.child({ component: 'leaderboard' });
 

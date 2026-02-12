@@ -10,12 +10,12 @@ import { invalidateUserCache } from './cache.js';
 import { awardXp } from './xpAward.js';
 
 /** Shape returned by the user row query in checkAndUnlockAchievements */
-interface UserRow {
+type UserRow = {
   level: number;
   total_xp: number;
   current_streak: number;
   quests_completed: number;
-}
+};
 
 /** JSON criteria stored in achievements.criteria column */
 interface AchievementCriteria {
@@ -29,7 +29,7 @@ interface AchievementCriteria {
 }
 
 /** Row from the achievements table */
-interface AchievementRow {
+type AchievementRow = {
   id: number;
   name: string;
   description: string;
@@ -37,7 +37,7 @@ interface AchievementRow {
   xp_bonus: number;
   icon: string;
   rarity: string;
-}
+};
 
 /**
  * Check if a single achievement criterion is met for a user.
@@ -59,7 +59,7 @@ async function checkCriteriaMet(userId: number, userRow: UserRow, criteria: Achi
 
     case 'streak': {
       if (criteria.mode) {
-        const row = await queryOne(
+        const row = await queryOne<{ streak: number }>(
           `SELECT COALESCE(s.current_streak, 0)::int AS streak
            FROM streaks s
            JOIN modes m ON m.id = s.mode_id
@@ -73,7 +73,7 @@ async function checkCriteriaMet(userId: number, userRow: UserRow, criteria: Achi
 
     case 'quest_complete': {
       if (criteria.mode) {
-        const row = await queryOne(
+        const row = await queryOne<{ cnt: number }>(
           `SELECT COUNT(*)::int AS cnt
            FROM quest_instances qi
            JOIN quests q ON q.id = qi.quest_id
@@ -88,7 +88,7 @@ async function checkCriteriaMet(userId: number, userRow: UserRow, criteria: Achi
 
     case 'quest_complete_consecutive': {
       if (criteria.mode) {
-        const row = await queryOne(
+        const row = await queryOne<{ max_consecutive: number }>(
           `WITH daily AS (
              SELECT DISTINCT qi.instance_date
              FROM quest_instances qi
@@ -112,7 +112,7 @@ async function checkCriteriaMet(userId: number, userRow: UserRow, criteria: Achi
     }
 
     case 'multi_mode_active': {
-      const row = await queryOne(
+      const row = await queryOne<{ cnt: number }>(
         `SELECT COUNT(DISTINCT mode_id)::int AS cnt
          FROM user_modes
          WHERE user_id = $1 AND is_active = true`,
@@ -122,7 +122,7 @@ async function checkCriteriaMet(userId: number, userRow: UserRow, criteria: Achi
     }
 
     case 'streak_rebuild': {
-      const row = await queryOne(
+      const row = await queryOne<{ best: number }>(
         `SELECT MAX(current_streak)::int AS best
          FROM streaks WHERE user_id = $1`,
         [userId]

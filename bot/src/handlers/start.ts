@@ -93,7 +93,7 @@ export async function handleStart(ctx: MyContext) {
     } else {
       // New user - create account
       try {
-        const newUser = await queryOne(
+        const newUser = await queryOne<{ id: number }>(
           `INSERT INTO users (telegram_id, username, first_name, timezone)
            VALUES ($1, $2, $3, 'UTC')
            RETURNING *`,
