@@ -2326,4 +2326,35 @@ This allows the helper to own the mock shape definitions while the getter provid
 #### Agent 0 Retrospective
 *(To be filled by Agent 0)*
 
-<!-- Next run goes here. Agent 0 will append RUN 39 below this line. -->
+---
+
+## Run 39
+
+### Agent H — Refactor Summary.tsx into Sub-Components
+
+**Branch:** `feature/r39-summary-refactor`
+**Worktree:** `../Wibecode-agent-h`
+
+#### Agent H Retrospective
+**Status:** COMPLETE — Summary.tsx refactored from 247 lines to 60 lines (76% reduction). 4 sub-components extracted. Build clean, all 90 test files (372 tests) pass unmodified.
+
+| # | File | Lines | Purpose |
+|---|------|-------|---------|
+| 1 | `summary/SectionCard.tsx` | 28 | Shared editable card wrapper (was inline in Summary.tsx) |
+| 2 | `summary/SummaryStats.tsx` | 46 | Hero card — name, avatar label, level badge, XP bar |
+| 3 | `summary/SummaryModeCard.tsx` | 93 | Focus area badges + 4 mode-specific summary cards (fitness/hydration/finance/learning) with summary helper functions |
+| 4 | `summary/SummarySchedule.tsx` | 55 | Accountability (punishment summary) + Notifications sections with display constants |
+
+**Key decisions:**
+- Moved `SectionCard` to its own file since it's shared by `SummaryModeCard` and `SummarySchedule`
+- Moved mode summary functions (`fitnessSummary`, `hydrationSummary`, etc.) from closures inside `Summary` to pure functions in `SummaryModeCard.tsx` — cleaner and testable independently
+- Moved display constants (`MODE_INFO`, `AVATAR_LABELS`, `TYPE_DISPLAY`, `DIFFICULTY_LABELS`) to whichever sub-component uses them — no shared constants file needed
+- Exported two components from `SummaryModeCard.tsx`: `SummaryFocusAreas` (mode badges) and `SummaryModeCards` (mode-specific detail cards)
+
+**Zero behavioral changes** — existing test file (`Summary.test.tsx`) passes without any modification. The test imports `Summary` from the same path and all assertions (mode badges, hero card, quiz answers, CTA button, empty state) continue to work.
+
+**Commits:** `b718b89` — refactor(mini-app): extract Summary.tsx into sub-components
+
+**No issues or follow-ups.**
+
+<!-- Next run goes here. Agent 0 will append the next RUN below this line. -->
