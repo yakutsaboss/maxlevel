@@ -2534,7 +2534,24 @@ After completing work, write your retrospective in PARALLEL_AGENTS.md under "Run
 *(To be filled by Agent F)*
 
 #### Agent G Retrospective
-*(To be filled by Agent G)*
+**Task**: DB Migration Script
+**Files created**:
+- `tools/migrate.py` — Migration runner with `--dry-run`, `--status`, and apply modes
+- `database/migrations/001_social_tables.sql` — Run 45 social tables (friend_requests, challenges, challenge_participants)
+- `database/migrations/002_performance_indexes.sql` — Run 46 performance indexes
+
+**How it works**:
+- `schema_migrations` table tracks applied filenames
+- Discovers numbered SQL files matching `NNN_*.sql` pattern (ignores old ad-hoc files like `run5_sync.sql`)
+- Applies pending migrations in numeric order, each in a transaction
+- Records each successful migration in `schema_migrations`
+- `--dry-run` lists pending migrations; `--status` shows full matrix
+
+**Notes**:
+- Existing old migrations (run5/6/11/13/14/16) are not affected — they use a different naming convention and are skipped by the pattern
+- All SQL uses `IF NOT EXISTS` / `IF NOT EXISTS` so re-running is safe even if tables already exist on production
+- Requires `DATABASE_URL` in `.env` (production only)
+- No existing files were modified
 
 #### Agent H Retrospective
 *(To be filled by Agent H)*
