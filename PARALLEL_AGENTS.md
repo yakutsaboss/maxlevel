@@ -1738,7 +1738,18 @@ Read PARALLEL_AGENTS.md — you are Agent F for Run 37. Write tests for new Run 
 *(To be filled by Agent E)*
 
 #### Agent F Retrospective
-*(To be filled by Agent F)*
+**Task**: Write tests for new Run 36 components and hooks (4 new test files, 16 tests total).
+
+**What was done**:
+1. `useOnboardingFlow.test.ts` — 7 tests: initial state, goToStep, advanceFrom sequential navigation, handleAnswer (non-nested + nested), progress calculation, handleLaunch with navigation. Required mocking 6 dependencies (react-router-dom, useTelegram, apiClient, onboardingQuestions, modeBadges, logger).
+2. `AdminUserSearch.test.tsx` — 3 tests: renders input with placeholder, displays controlled value, calls onChange on typing.
+3. `AdminUserRow.test.tsx` — 3 tests: renders display name, renders level/XP, click calls onClick. Used shared framer-motion mock.
+4. `AdminPagination.test.tsx` — 3 tests: renders page info text, prev/next buttons trigger onPageChange, buttons disabled at boundaries.
+
+**Issue hit**: `toLocaleString()` outputs `1 500` (space separator) instead of `1,500` (comma) on the test environment's locale. Fixed by using `/1.500 XP/` regex (`.` matches any char) to be locale-agnostic.
+
+**Results**: All 77 test files pass (335 tests), build compiles cleanly.
+**Commit**: `f0f8084` — `test: add tests for Run 36 components`
 
 #### Agent 0 Retrospective
 *(To be filled by Agent 0)*
