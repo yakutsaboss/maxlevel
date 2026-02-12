@@ -3248,7 +3248,20 @@ After completing work, write your retrospective in PARALLEL_AGENTS.md under "Run
 **Issues**: None. Straightforward enhancement to existing export tool.
 
 #### Agent C Retrospective
-*(To be filled by Agent C)*
+**Task**: Create an answer analytics dashboard component for the admin panel.
+**File created**: `mini-app/src/components/admin/AnswerAnalytics.tsx` (new, ~270 lines)
+
+**What was built**:
+- React component showing aggregated quiz/onboarding response statistics per mode
+- Mode selector tabs for all 6 modes (fitness, hydration, medication, finance, habits, learning) with respondent counts
+- Per-question statistics: response distribution bars (animated with framer-motion), most common answer highlight, total answer count
+- Expandable question cards — top 4 answers shown by default, "Show all" toggle for questions with more options
+- Comprehensive human-readable label maps for all answer keys across all modes (~100 entries)
+- Uses `adminFetch` from `@/api/adminClient` with Basic Auth pattern, consistent with existing admin components
+- Graceful loading skeletons, error state with retry button, and empty state handling
+- Expects `/api/admin/analytics` endpoint to return `{ data: { modes: ModeAnalytics[] } }` — endpoint needs to be wired by Agent 0
+
+**Build**: `tsc && vite build` passes cleanly. No modifications to any existing files.
 
 #### Agent D Retrospective
 **Task**: Add dark mode / theme customization to the Settings page using Telegram themeParams.
