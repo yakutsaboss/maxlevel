@@ -2864,7 +2864,28 @@ After completing work, write your retrospective in PARALLEL_AGENTS.md under "Run
 **Issues**: None. All three deliverables completed as specified.
 
 #### Agent E Retrospective
-*(To be filled by Agent E)*
+**Status**: Complete — 2 new files created, both builds pass (bot tsc + mini-app vite).
+
+**Created**:
+| File | Lines | Description |
+|------|-------|-------------|
+| `bot/src/api/routes/analytics.ts` | ~257 | Per-mode progress analytics API (3 endpoints) |
+| `mini-app/src/components/analytics/ModeAnalytics.tsx` | ~304 | React component with overview + detail views |
+
+**API Endpoints**:
+- `GET /:userId/modes` — per-mode completion rates, streak trends, XP breakdown (cached 30s)
+- `GET /:userId/modes/:mode` — detailed analytics with quest history + weekly XP chart
+- `GET /:userId/summary` — overall progress summary (level, XP, streaks, completion rate)
+
+**Component Features**: Mode overview list with progress rings + progress bars, drill-down detail view with weekly XP bar chart, quest history list, streak/completion stats, loading/error states, Telegram WebApp auth header.
+
+**Issues Fixed During Build**:
+1. `TTL.FAST` doesn't exist — corrected to `TTL.SHORT` (30s)
+2. TypeScript `Record<string, unknown>` constraint on `query<T>()` — added `[key: string]: unknown` index signatures to all row interfaces
+
+**Patterns Followed**: asyncHandler + successResponse from errors.js, authenticateTelegram middleware, cached() with TTL.SHORT, query/queryOne from db.js, Tailwind telegram-* classes, framer-motion animations, lucide-react icons.
+
+**Note for Agent 0**: Route exported as `analyticsRouter` — needs registration in server.ts (e.g. `app.use('/api/analytics', analyticsRouter)`).
 
 #### Agent F Retrospective
 **Task**: Create finance mode advanced features — BudgetTracker component, SavingsGoal component, and finance API route.
