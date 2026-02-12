@@ -12,6 +12,7 @@
  *   FINANCE_QUESTIONS      — 5 questions for Finance mode
  *   LEARNING_QUESTIONS     — 5 questions for Learning mode (6 with resources)
  *   MEDICATION_QUESTIONS   — 6 questions for Medication mode
+ *   HABITS_QUESTIONS       — 6 questions for Habits mode
  *   REFERRAL_OPTIONS       — "How did you find us?" answer choices
  *
  * Player answers are stored in PostgreSQL:
@@ -617,6 +618,91 @@ export const MEDICATION_QUESTIONS: QuestionConfig[] = [
   },
 ];
 
+export const HABITS_QUESTIONS: QuestionConfig[] = [
+  {
+    step: 'habits_type',
+    title: 'Habit Types',
+    subtitle: 'What kinds of habits do you want to build?',
+    type: 'multi-select',
+    dataKey: 'habits',
+    nestedKey: 'types',
+    options: [
+      { value: 'health', label: 'Health & Wellness', sublabel: 'Exercise, sleep, diet' },
+      { value: 'productivity', label: 'Productivity', sublabel: 'Focus, time management' },
+      { value: 'mindfulness', label: 'Mindfulness', sublabel: 'Meditation, journaling' },
+      { value: 'social', label: 'Social', sublabel: 'Relationships, networking' },
+    ],
+  },
+  {
+    step: 'habits_frequency',
+    title: 'Habit Frequency',
+    subtitle: 'How often do you want to practice your habits?',
+    type: 'single-select',
+    dataKey: 'habits',
+    nestedKey: 'frequency',
+    options: [
+      { value: 'daily', label: 'Every day', sublabel: 'Daily practice' },
+      { value: 'weekdays', label: 'Weekdays only', sublabel: 'Monday through Friday' },
+      { value: 'custom', label: 'Custom schedule', sublabel: 'Pick your own days' },
+      { value: 'flexible', label: 'As often as possible', sublabel: 'No fixed schedule' },
+    ],
+  },
+  {
+    step: 'habits_count',
+    title: 'Habit Count',
+    subtitle: 'How many habits do you want to track simultaneously?',
+    type: 'drum-roller',
+    dataKey: 'habits',
+    nestedKey: 'target_count',
+    min: 1,
+    max: 10,
+    defaultValue: 3,
+    formatValue: (v) => v === 1 ? '1 habit' : `${v} habits`,
+  },
+  {
+    step: 'habits_trigger',
+    title: 'Habit Triggers',
+    subtitle: 'What helps you stick to habits?',
+    type: 'single-select',
+    dataKey: 'habits',
+    nestedKey: 'trigger_preference',
+    options: [
+      { value: 'time', label: 'Set times', sublabel: 'Specific time reminders' },
+      { value: 'routine', label: 'After routines', sublabel: 'After meals, workouts, etc.' },
+      { value: 'location', label: 'Places', sublabel: 'When arriving at gym, office' },
+      { value: 'social', label: 'Accountability', sublabel: 'Partner or group tracking' },
+    ],
+  },
+  {
+    step: 'habits_goals',
+    title: 'Habit Goals',
+    subtitle: 'What are your habit-building goals?',
+    type: 'multi-select',
+    dataKey: 'habits',
+    nestedKey: 'goals',
+    options: [
+      { value: 'consistency', label: 'Build consistency', sublabel: 'Stick to daily routines' },
+      { value: 'replace_bad', label: 'Replace bad habits', sublabel: 'Swap out unhealthy patterns' },
+      { value: 'track_progress', label: 'Track my progress', sublabel: 'See how far you\'ve come' },
+      { value: 'feel_better', label: 'Feel better overall', sublabel: 'Improve quality of life' },
+    ],
+  },
+  {
+    step: 'habits_barriers',
+    title: 'Habit Barriers',
+    subtitle: 'What usually stops you from building habits?',
+    type: 'multi-select',
+    dataKey: 'pain_points',
+    nestedKey: 'habits',
+    options: [
+      { value: 'motivation', label: 'Lack of motivation', sublabel: 'Hard to get started' },
+      { value: 'forget', label: 'I forget', sublabel: 'Simply slips my mind' },
+      { value: 'time', label: 'No time', sublabel: 'Too busy to fit it in' },
+      { value: 'overwhelmed', label: 'Too many at once', sublabel: 'Trying to change everything' },
+    ],
+  },
+];
+
 export const REFERRAL_OPTIONS: QuestionOption[] = [
   { value: 'tiktok', label: 'TikTok' },
   { value: 'instagram', label: 'Instagram' },
@@ -628,5 +714,5 @@ export const REFERRAL_OPTIONS: QuestionOption[] = [
 ];
 
 export function getQuestionForStep(step: OnboardingStep): QuestionConfig | undefined {
-  return [...FITNESS_QUESTIONS, ...HYDRATION_QUESTIONS, ...FINANCE_QUESTIONS, ...LEARNING_QUESTIONS, ...MEDICATION_QUESTIONS].find((q) => q.step === step);
+  return [...FITNESS_QUESTIONS, ...HYDRATION_QUESTIONS, ...FINANCE_QUESTIONS, ...LEARNING_QUESTIONS, ...MEDICATION_QUESTIONS, ...HABITS_QUESTIONS].find((q) => q.step === step);
 }

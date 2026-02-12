@@ -1853,7 +1853,20 @@ Build verify: `cd mini-app && npm run build` and `python tools/project_status_tr
 **Notes:** Followed exact patterns from existing modes (fitness, medication). All ON CONFLICT clauses preserved. The `habits_mode_id` variable was declared and selected in the DO $$ block alongside existing mode IDs.
 
 #### Agent B Retrospective
-*(To be filled by Agent B)*
+**Status**: Complete — all tasks done, build passes.
+
+**What was done:**
+1. Created `HABITS_QUESTIONS` array with 6 questions in `onboardingQuestions.ts`
+2. Registered all 6 habits step types in `OnboardingStep` union in `useOnboarding.ts`
+3. Added `habits` data interface to `OnboardingData` + `habits?: string[]` to pain_points
+4. Updated `getQuestionForStep` to include `HABITS_QUESTIONS`
+
+**Bonus fix:** Added both `medication` AND `habits` modes to `buildStepSequence` in `useOnboardingNavigation.ts`. Run 41 Agent B had missed registering medication in the navigation sequence — without this, selecting medication/habits mode during onboarding would skip their questions entirely.
+
+**Files changed (3):**
+- `mini-app/src/data/onboardingQuestions.ts` — +85 lines (HABITS_QUESTIONS array)
+- `mini-app/src/hooks/useOnboarding.ts` — +17 lines (step types + data interface)
+- `mini-app/src/hooks/useOnboardingNavigation.ts` — +22 lines (medication + habits in buildStepSequence)
 
 #### Agent C Retrospective
 **Task 1 — Tracker checks:** Updated two `lambda: False` stubs in `project_status_tracker.py` (lines 194–195) to use `self._file_exists()` for `HabitBuilder.tsx` and `HabitStreak.tsx`. Both now pass.

@@ -64,6 +64,28 @@ export function buildStepSequence(selectedModes: string[]): OnboardingStep[] {
     );
   }
 
+  if (selectedModes.includes('medication')) {
+    steps.push(
+      'medication_count',
+      'medication_types',
+      'medication_schedule',
+      'medication_goals',
+      'medication_barriers',
+      'medication_reminders'
+    );
+  }
+
+  if (selectedModes.includes('habits')) {
+    steps.push(
+      'habits_type',
+      'habits_frequency',
+      'habits_count',
+      'habits_trigger',
+      'habits_goals',
+      'habits_barriers'
+    );
+  }
+
   steps.push('punishments', 'notifications', 'summary', 'launch');
 
   return steps;

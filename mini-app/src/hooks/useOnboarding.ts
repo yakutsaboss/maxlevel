@@ -70,6 +70,13 @@ export type OnboardingStep =
   | 'medication_goals'
   | 'medication_barriers'
   | 'medication_reminders'
+  // Habits
+  | 'habits_type'
+  | 'habits_frequency'
+  | 'habits_count'
+  | 'habits_trigger'
+  | 'habits_goals'
+  | 'habits_barriers'
   // Convergence
   | 'punishments'
   | 'notifications'
@@ -140,10 +147,20 @@ export interface OnboardingData {
     reminder_preference?: string;
   };
 
+  // Habits quiz responses
+  habits?: {
+    types?: string[];
+    frequency?: string;
+    target_count?: number;
+    trigger_preference?: string;
+    goals?: string[];
+  };
+
   // Pain points
   pain_points?: {
     hydration?: string[];
     medication?: string[];
+    habits?: string[];
   };
 
   // Punishments
