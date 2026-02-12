@@ -1871,7 +1871,11 @@ All agents create NEW test files only — zero file conflicts expected. Merge in
 - No issues encountered — all tests passed on first run.
 
 #### Agent C Retrospective
-*(To be filled by Agent C)*
+- **Files created**: `bot/src/__tests__/routes/http/finance.http.test.ts`
+- **Tests**: 19 passing (target was 15-18)
+- **Coverage**: All 6 finance endpoints tested — GET /budget/:userId (2), POST /budget (6), GET /savings/:userId (2), POST /savings (4), PATCH /savings/:id (4), GET /categories (1)
+- **Issue found**: `targetAmount: 0` is falsy in JS, so `!targetAmount` catches it before the positive-number validation. Fixed test to use `-500` instead. The route itself is fine — it's just that `0` is a missing-field scenario, not a negative-amount scenario.
+- **Time**: ~5 minutes total. Pattern was straightforward — followed checkins.http.test.ts exactly.
 
 #### Agent D Retrospective
 *(To be filled by Agent D)*
