@@ -1841,7 +1841,16 @@ Build verify: `cd mini-app && npm run build` and `python tools/project_status_tr
 ### Run 42 Retrospectives
 
 #### Agent A Retrospective
-*(To be filled by Agent A)*
+**Task:** Add habits mode seed data to `database/seed_data.sql`
+**Status:** Complete
+**Commit:** `fb644f7` — `feat: add habits mode seed data (mode, achievements, quest templates)`
+
+**Changes made (20 insertions, 1 deletion):**
+1. **Habits mode** added to modes INSERT: `('habits', 'New Habits', 'Build and track new daily habits', '🎯')`
+2. **5 habits achievements** added after medication achievements block — first_habit (common/50XP), habit_week (rare/100XP), habit_month (epic/500XP), habit_collector (rare/300XP), habit_unstoppable (epic/200XP)
+3. **3 habits quest templates** added in DO $$ block — Morning Habit Check (daily/40XP/timer 06:00-10:00), Evening Habit Review (daily/40XP/timer 19:00-22:00), Weekly Habit Reflection (weekly/150XP/no timer)
+
+**Notes:** Followed exact patterns from existing modes (fitness, medication). All ON CONFLICT clauses preserved. The `habits_mode_id` variable was declared and selected in the DO $$ block alongside existing mode IDs.
 
 #### Agent B Retrospective
 *(To be filled by Agent B)*
