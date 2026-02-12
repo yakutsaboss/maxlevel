@@ -98,30 +98,41 @@ router.post('/users/:userId/assign', authenticateTelegram, authorizeUser, mutati
   }
 
   const difficultyTarget: Record<string, number> = { easy: 1, medium: 3, hard: 5 };
-  const assigned: AssignedQuest[] = [];
 
-  for (const quest of available) {
+  // Batch INSERT all quest instances in a single query
+  const values: unknown[] = [];
+  const placeholders: string[] = [];
+  const questTargets: { quest: QuestTemplate; target: number }[] = [];
+
+  for (let i = 0; i < available.length; i++) {
+    const quest = available[i];
     const target = difficultyTarget[quest.difficulty] ?? 1;
-    const inst = await queryOne<{ id: number }>(
-      `INSERT INTO quest_instances (user_id, quest_id, instance_date, status, target)
-       VALUES ($1, $2, $3, 'pending', $4) RETURNING id`,
-      [userId, quest.id, today, target]
-    );
-    if (inst) {
-      assigned.push({
-        id: inst.id,
-        quest_id: quest.id,
-        title: quest.title,
-        description: quest.description,
-        xp_reward: quest.xp_reward,
-        quest_type: quest.quest_type,
-        difficulty: quest.difficulty,
-        target,
-        instance_date: today,
-        status: 'pending',
-      });
-    }
+    questTargets.push({ quest, target });
+    const offset = i * 4;
+    placeholders.push(`($${offset + 1}, $${offset + 2}, $${offset + 3}, 'pending', $${offset + 4})`);
+    values.push(userId, quest.id, today, target);
   }
+
+  const inserted = await query<{ id: number; quest_id: number }>(
+    `INSERT INTO quest_instances (user_id, quest_id, instance_date, status, target)
+     VALUES ${placeholders.join(', ')}
+     RETURNING id, quest_id`,
+    values
+  );
+
+  const insertedMap = new Map(inserted.map(r => [r.quest_id, r.id]));
+  const assigned: AssignedQuest[] = questTargets.map(({ quest, target }) => ({
+    id: insertedMap.get(quest.id)!,
+    quest_id: quest.id,
+    title: quest.title,
+    description: quest.description,
+    xp_reward: quest.xp_reward,
+    quest_type: quest.quest_type,
+    difficulty: quest.difficulty,
+    target,
+    instance_date: today,
+    status: 'pending',
+  }));
 
   res.json(successResponse({
     message: `${assigned.length} ${frequency} quests assigned successfully`,
