@@ -9,50 +9,32 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import request from 'supertest';
 import { createTestApp, addTestErrorHandler } from '../../helpers/testApp.js';
+import { getMockDb } from '../../helpers/httpMocks.js';
 
-// ─── Mocks (hoisted before any route import) ───────────────────────
+// ─── Mocks (hoisted — use async dynamic import for httpMocks) ───────
 
-const mockQuery = vi.fn();
-const mockQueryOne = vi.fn();
-const mockExecute = vi.fn();
-const mockTransaction = vi.fn();
+vi.mock('../../../utils/db.js', async () =>
+  (await import('../../helpers/httpMocks.js')).createMockDb().module);
 
-vi.mock('../../../utils/db.js', () => ({
-  query: (...args: any[]) => mockQuery(...args),
-  queryOne: (...args: any[]) => mockQueryOne(...args),
-  execute: (...args: any[]) => mockExecute(...args),
-  transaction: (...args: any[]) => mockTransaction(...args),
-  getPool: vi.fn(),
-}));
+vi.mock('../../../utils/cache.js', async () =>
+  (await import('../../helpers/httpMocks.js')).createMockCache().module);
 
-vi.mock('../../../utils/cache.js', () => ({
-  cached: vi.fn(async (_k: string, _t: number, fn: () => Promise<any>) => fn()),
-  invalidate: vi.fn(),
-  invalidatePrefix: vi.fn(),
-  clearAll: vi.fn(),
-  TTL: { SHORT: 30_000, MEDIUM: 300_000, LONG: 1_800_000 },
-}));
+vi.mock('../../../utils/pythonTools.js', async () =>
+  (await import('../../helpers/httpMocks.js')).createMockPythonTools().module);
 
-const mockExecutePythonTool = vi.fn();
-vi.mock('../../../utils/pythonTools.js', () => ({
-  executePythonTool: (...args: any[]) => mockExecutePythonTool(...args),
-  getUserByTelegramId: vi.fn(),
-  getUserById: vi.fn(),
-}));
+vi.mock('../../../api/middleware/auth.js', async () =>
+  (await import('../../helpers/httpMocks.js')).createMockAuth().module);
 
-vi.mock('../../../api/middleware/auth.js', () => ({
-  authenticateTelegram: (_req: any, _res: any, next: any) => next(),
-  authorizeUser: (_req: any, _res: any, next: any) => next(),
-  requireOwnership: vi.fn(),
-}));
-
-vi.mock('../../../api/middleware/rateLimiter.js', () => ({
-  apiLimiter: (_req: any, _res: any, next: any) => next(),
-}));
+vi.mock('../../../api/middleware/rateLimiter.js', async () =>
+  (await import('../../helpers/httpMocks.js')).createMockRateLimiters().module);
 
 // ─── Import router after mocks ─────────────────────────────────────
 
 import { statsRouter } from '../../../api/routes/user-stats.js';
+
+// ─── Mock refs (populated by vi.mock factories above) ───────────────
+
+const db = getMockDb();
 
 // ─── Build test app ────────────────────────────────────────────────
 
@@ -83,19 +65,19 @@ function mockStatsHappyPath(userOverrides: Record<string, any> = {}) {
     total_quests_completed: 42,
   };
 
-  // 1st mockQueryOne: resolveUser
-  mockQueryOne.mockResolvedValueOnce({ ...defaultUser, ...userOverrides });
+  // 1st db.queryOne: resolveUser
+  db.queryOne.mockResolvedValueOnce({ ...defaultUser, ...userOverrides });
 
   // Promise.all: [modes, activeQuests, aggregates, modeStreaks]
-  mockQuery
+  db.query
     .mockResolvedValueOnce([])   // modes
     .mockResolvedValueOnce([])   // activeQuests
     .mockResolvedValueOnce([]);  // modeStreaks
-  mockQueryOne
+  db.queryOne
     .mockResolvedValueOnce({ completed_today: 3, xp_today: 150, days_active: 20 }); // aggregates
 
   // recentAchievementsRows
-  mockQuery.mockResolvedValueOnce([]);
+  db.query.mockResolvedValueOnce([]);
 }
 
 // ─── Tests ─────────────────────────────────────────────────────────
@@ -125,7 +107,7 @@ describe('GET /api/users/:telegramId/stats', () => {
   });
 
   it('should return 404 when user does not exist', async () => {
-    mockQueryOne.mockResolvedValueOnce(null);
+    db.queryOne.mockResolvedValueOnce(null);
 
     const res = await request(buildApp())
       .get('/api/users/999/stats')
@@ -157,7 +139,7 @@ describe('GET /api/users/:telegramId/stats', () => {
 
   it('should return quest and achievement counts', async () => {
     // resolveUser
-    mockQueryOne.mockResolvedValueOnce({
+    db.queryOne.mockResolvedValueOnce({
       id: 1, telegram_id: 111, username: 'alice', first_name: 'Alice',
       avatar_id: 3, current_level: 5, total_xp: 2000, is_active: true,
       timezone: 'UTC', created_at: '2025-01-01',
@@ -165,15 +147,15 @@ describe('GET /api/users/:telegramId/stats', () => {
     });
 
     // Promise.all
-    mockQuery
+    db.query
       .mockResolvedValueOnce([])   // modes
       .mockResolvedValueOnce([])   // activeQuests
       .mockResolvedValueOnce([]);  // modeStreaks
-    mockQueryOne
+    db.queryOne
       .mockResolvedValueOnce({ completed_today: 5, xp_today: 250, days_active: 30 });
 
     // recentAchievements — include some data
-    mockQuery.mockResolvedValueOnce([
+    db.query.mockResolvedValueOnce([
       {
         user_id: 1, achievement_id: 10, unlocked_at: '2025-06-01',
         name: 'First Quest', description: 'Complete your first quest',
@@ -193,7 +175,7 @@ describe('GET /api/users/:telegramId/stats', () => {
   });
 
   it('should return 500 when database throws', async () => {
-    mockQueryOne.mockRejectedValueOnce(new Error('DB down'));
+    db.queryOne.mockRejectedValueOnce(new Error('DB down'));
 
     const res = await request(buildApp())
       .get('/api/users/111/stats')
@@ -205,7 +187,7 @@ describe('GET /api/users/:telegramId/stats', () => {
 
 describe('GET /api/users/:telegramId/quests/active', () => {
   it('should return 200 with active quests', async () => {
-    mockQuery.mockResolvedValueOnce([
+    db.query.mockResolvedValueOnce([
       {
         id: 1, user_id: 1, mode_id: 1, title: 'Morning Run',
         description: 'Go for a run', xp_reward: 50, frequency: 'daily',
@@ -227,7 +209,7 @@ describe('GET /api/users/:telegramId/quests/active', () => {
   });
 
   it('should return empty array when no active quests', async () => {
-    mockQuery.mockResolvedValueOnce([]);
+    db.query.mockResolvedValueOnce([]);
 
     const res = await request(buildApp())
       .get('/api/users/111/quests/active')
@@ -240,7 +222,7 @@ describe('GET /api/users/:telegramId/quests/active', () => {
 
 describe('GET /api/users/:telegramId/quests/completed', () => {
   it('should return 200 with completed quests', async () => {
-    mockQuery.mockResolvedValueOnce([
+    db.query.mockResolvedValueOnce([
       {
         id: 2, user_id: 1, mode_id: 1, title: 'Read 30 mins',
         description: 'Read a book', xp_reward: 30, frequency: 'daily',
@@ -263,7 +245,7 @@ describe('GET /api/users/:telegramId/quests/completed', () => {
 
 describe('GET /api/users/:telegramId/achievements', () => {
   it('should return 200 with user achievements', async () => {
-    mockQuery.mockResolvedValueOnce([
+    db.query.mockResolvedValueOnce([
       {
         user_id: 1, achievement_id: 5, unlocked_at: '2025-06-10',
         name: 'Streak Master', description: '7-day streak',
@@ -282,7 +264,7 @@ describe('GET /api/users/:telegramId/achievements', () => {
   });
 
   it('should return empty array when no achievements', async () => {
-    mockQuery.mockResolvedValueOnce([]);
+    db.query.mockResolvedValueOnce([]);
 
     const res = await request(buildApp())
       .get('/api/users/111/achievements')

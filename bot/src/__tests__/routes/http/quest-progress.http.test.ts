@@ -9,35 +9,18 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import request from 'supertest';
 import { createTestApp, addTestErrorHandler } from '../../helpers/testApp.js';
+import { getMockDb } from '../../helpers/httpMocks.js';
 
-// ─── Mocks (hoisted before any route import) ───────────────────────
+// ─── Mocks (hoisted — use async dynamic import for httpMocks) ───────
 
-const mockQuery = vi.fn();
-const mockQueryOne = vi.fn();
-const mockTransaction = vi.fn();
+vi.mock('../../../utils/db.js', async () =>
+  (await import('../../helpers/httpMocks.js')).createMockDb().module);
 
-vi.mock('../../../utils/db.js', () => ({
-  query: (...args: any[]) => mockQuery(...args),
-  queryOne: (...args: any[]) => mockQueryOne(...args),
-  execute: vi.fn(),
-  transaction: (...args: any[]) => mockTransaction(...args),
-  getPool: vi.fn(),
-}));
+vi.mock('../../../utils/cache.js', async () =>
+  (await import('../../helpers/httpMocks.js')).createMockCache().module);
 
-vi.mock('../../../utils/cache.js', () => ({
-  cached: vi.fn(async (_k: string, _t: number, fn: () => Promise<any>) => fn()),
-  invalidate: vi.fn(),
-  invalidatePrefix: vi.fn(),
-  invalidateUserCache: vi.fn(),
-  clearAll: vi.fn(),
-  TTL: { SHORT: 30_000, MEDIUM: 300_000, LONG: 1_800_000 },
-}));
-
-vi.mock('../../../utils/pythonTools.js', () => ({
-  executePythonTool: vi.fn(),
-  getUserByTelegramId: vi.fn(),
-  getUserById: vi.fn(),
-}));
+vi.mock('../../../utils/pythonTools.js', async () =>
+  (await import('../../helpers/httpMocks.js')).createMockPythonTools().module);
 
 const mockCheckAchievements = vi.fn().mockResolvedValue([]);
 vi.mock('../../../utils/achievementEngine.js', () => ({
@@ -64,15 +47,16 @@ vi.mock('../../../api/middleware/auth.js', () => ({
   requireOwnership: vi.fn(),
 }));
 
-vi.mock('../../../api/middleware/rateLimiter.js', () => ({
-  apiLimiter: (_req: any, _res: any, next: any) => next(),
-  mutationLimiter: (_req: any, _res: any, next: any) => next(),
-  readLimiter: (_req: any, _res: any, next: any) => next(),
-}));
+vi.mock('../../../api/middleware/rateLimiter.js', async () =>
+  (await import('../../helpers/httpMocks.js')).createMockRateLimiters().module);
 
 // ─── Import router after mocks ─────────────────────────────────────
 
 import { questProgressRouter } from '../../../api/routes/quest-progress.js';
+
+// ─── Mock refs (populated by vi.mock factories above) ───────────────
+
+const db = getMockDb();
 
 // ─── Build test app ────────────────────────────────────────────────
 
@@ -108,7 +92,7 @@ beforeEach(() => {
 describe('PATCH /api/quests/:questId/progress', () => {
   it('should update progress without completing when below target', async () => {
     const instance = QUEST_INSTANCE({ target: 5 });
-    mockQueryOne
+    db.queryOne
       .mockResolvedValueOnce(instance)              // fetch quest
       .mockResolvedValueOnce({ id: 1 });             // UPDATE RETURNING
 
@@ -124,15 +108,15 @@ describe('PATCH /api/quests/:questId/progress', () => {
     expect(res.body.data.xpEarned).toBe(0);
     expect(res.body.data.leveledUp).toBe(false);
     // Should NOT have called transaction or awardXp
-    expect(mockTransaction).not.toHaveBeenCalled();
+    expect(db.transaction).not.toHaveBeenCalled();
     expect(mockAwardXp).not.toHaveBeenCalled();
   });
 
   it('should auto-complete and award XP when progress reaches target', async () => {
     const instance = QUEST_INSTANCE({ target: 5, xp_reward: 100 });
-    mockQueryOne.mockResolvedValueOnce(instance);    // fetch quest
+    db.queryOne.mockResolvedValueOnce(instance);    // fetch quest
 
-    mockTransaction.mockImplementationOnce(async (fn: any) => {
+    db.transaction.mockImplementationOnce(async (fn: any) => {
       const mockClient = {
         query: vi.fn().mockResolvedValueOnce({ rowCount: 1 }),  // UPDATE
       };
@@ -159,9 +143,9 @@ describe('PATCH /api/quests/:questId/progress', () => {
 
   it('should clamp progress to target when exceeding it', async () => {
     const instance = QUEST_INSTANCE({ target: 3, xp_reward: 75 });
-    mockQueryOne.mockResolvedValueOnce(instance);
+    db.queryOne.mockResolvedValueOnce(instance);
 
-    mockTransaction.mockImplementationOnce(async (fn: any) => {
+    db.transaction.mockImplementationOnce(async (fn: any) => {
       const mockClient = {
         query: vi.fn().mockResolvedValueOnce({ rowCount: 1 }),
       };
@@ -186,7 +170,7 @@ describe('PATCH /api/quests/:questId/progress', () => {
   it('should return 403 when user does not own the quest', async () => {
     // authorizeUser sets req.dbUser.id = 42, but quest belongs to user 99
     const instance = QUEST_INSTANCE({ user_id: 99 });
-    mockQueryOne.mockResolvedValueOnce(instance);
+    db.queryOne.mockResolvedValueOnce(instance);
 
     const res = await request(buildApp())
       .patch('/api/quests/1/progress')
@@ -220,7 +204,7 @@ describe('PATCH /api/quests/:questId/progress', () => {
   });
 
   it('should return 404 when quest not found', async () => {
-    mockQueryOne.mockResolvedValueOnce(null);
+    db.queryOne.mockResolvedValueOnce(null);
 
     const res = await request(buildApp())
       .patch('/api/quests/999/progress')

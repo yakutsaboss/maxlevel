@@ -8,50 +8,32 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import request from 'supertest';
 import { createTestApp, addTestErrorHandler } from '../../helpers/testApp.js';
+import { getMockDb } from '../../helpers/httpMocks.js';
 
-// ─── Mocks (hoisted before any route import) ───────────────────────
+// ─── Mocks (hoisted — use async dynamic import for httpMocks) ───────
 
-const mockQuery = vi.fn();
-const mockQueryOne = vi.fn();
-const mockExecute = vi.fn();
-const mockTransaction = vi.fn();
+vi.mock('../../../utils/db.js', async () =>
+  (await import('../../helpers/httpMocks.js')).createMockDb().module);
 
-vi.mock('../../../utils/db.js', () => ({
-  query: (...args: any[]) => mockQuery(...args),
-  queryOne: (...args: any[]) => mockQueryOne(...args),
-  execute: (...args: any[]) => mockExecute(...args),
-  transaction: (...args: any[]) => mockTransaction(...args),
-  getPool: vi.fn(),
-}));
+vi.mock('../../../utils/cache.js', async () =>
+  (await import('../../helpers/httpMocks.js')).createMockCache().module);
 
-vi.mock('../../../utils/cache.js', () => ({
-  cached: vi.fn(async (_k: string, _t: number, fn: () => Promise<any>) => fn()),
-  invalidate: vi.fn(),
-  invalidatePrefix: vi.fn(),
-  clearAll: vi.fn(),
-  TTL: { SHORT: 30_000, MEDIUM: 300_000, LONG: 1_800_000 },
-}));
+vi.mock('../../../utils/pythonTools.js', async () =>
+  (await import('../../helpers/httpMocks.js')).createMockPythonTools().module);
 
-const mockExecutePythonTool = vi.fn();
-vi.mock('../../../utils/pythonTools.js', () => ({
-  executePythonTool: (...args: any[]) => mockExecutePythonTool(...args),
-  getUserByTelegramId: vi.fn(),
-  getUserById: vi.fn(),
-}));
+vi.mock('../../../api/middleware/auth.js', async () =>
+  (await import('../../helpers/httpMocks.js')).createMockAuth().module);
 
-vi.mock('../../../api/middleware/auth.js', () => ({
-  authenticateTelegram: (_req: any, _res: any, next: any) => next(),
-  authorizeUser: (_req: any, _res: any, next: any) => next(),
-  requireOwnership: vi.fn(),
-}));
-
-vi.mock('../../../api/middleware/rateLimiter.js', () => ({
-  apiLimiter: (_req: any, _res: any, next: any) => next(),
-}));
+vi.mock('../../../api/middleware/rateLimiter.js', async () =>
+  (await import('../../helpers/httpMocks.js')).createMockRateLimiters().module);
 
 // ─── Import router after mocks ─────────────────────────────────────
 
 import { userRouter } from '../../../api/routes/users.js';
+
+// ─── Mock refs (populated by vi.mock factories above) ───────────────
+
+const db = getMockDb();
 
 // ─── Build test app ────────────────────────────────────────────────
 
@@ -71,7 +53,7 @@ beforeEach(() => {
 describe('GET /api/users/:telegramId/stats', () => {
   it('should return 200 with user stats when user exists', async () => {
     // resolveUser uses queryOne
-    mockQueryOne
+    db.queryOne
       .mockResolvedValueOnce({
         id: 1,
         telegram_id: 111,
@@ -88,15 +70,15 @@ describe('GET /api/users/:telegramId/stats', () => {
       });
 
     // Promise.all: [modes, activeQuests, aggregates, modeStreaks]
-    mockQuery
+    db.query
       .mockResolvedValueOnce([])   // modes
       .mockResolvedValueOnce([])   // activeQuests
       .mockResolvedValueOnce([]);  // modeStreaks
-    mockQueryOne
+    db.queryOne
       .mockResolvedValueOnce({ completed_today: 2, xp_today: 50, days_active: 30 }); // aggregates
 
     // recentAchievementsRows
-    mockQuery.mockResolvedValueOnce([]);
+    db.query.mockResolvedValueOnce([]);
 
     const res = await request(buildApp())
       .get('/api/users/111/stats')
@@ -109,7 +91,7 @@ describe('GET /api/users/:telegramId/stats', () => {
   });
 
   it('should return 404 when user does not exist', async () => {
-    mockQueryOne.mockResolvedValueOnce(null);
+    db.queryOne.mockResolvedValueOnce(null);
 
     const res = await request(buildApp())
       .get('/api/users/999/stats')
@@ -120,7 +102,7 @@ describe('GET /api/users/:telegramId/stats', () => {
   });
 
   it('should return 500 when database throws', async () => {
-    mockQueryOne.mockRejectedValueOnce(new Error('DB down'));
+    db.queryOne.mockRejectedValueOnce(new Error('DB down'));
 
     const res = await request(buildApp())
       .get('/api/users/111/stats')
@@ -132,7 +114,7 @@ describe('GET /api/users/:telegramId/stats', () => {
 
 describe('POST /api/users', () => {
   it('should return 201 when creating a new user', async () => {
-    mockQueryOne.mockResolvedValueOnce({
+    db.queryOne.mockResolvedValueOnce({
       id: 1,
       telegram_id: 111,
       username: 'bob',
@@ -170,7 +152,7 @@ describe('POST /api/users', () => {
   });
 
   it('should return 500 when database throws', async () => {
-    mockQueryOne.mockRejectedValueOnce(new Error('constraint violation'));
+    db.queryOne.mockRejectedValueOnce(new Error('constraint violation'));
 
     const res = await request(buildApp())
       .post('/api/users')
@@ -184,7 +166,7 @@ describe('POST /api/users', () => {
 
 describe('PATCH /api/users/:telegramId/preferences', () => {
   it('should return 200 when updating notification preferences', async () => {
-    mockQueryOne.mockResolvedValueOnce({
+    db.queryOne.mockResolvedValueOnce({
       notification_enabled: false,
       reminder_time: 14,
       timezone: 'UTC',
@@ -229,7 +211,7 @@ describe('PATCH /api/users/:telegramId/preferences', () => {
   });
 
   it('should return 404 when user does not exist', async () => {
-    mockQueryOne.mockResolvedValueOnce(null);
+    db.queryOne.mockResolvedValueOnce(null);
 
     const res = await request(buildApp())
       .patch('/api/users/999/preferences')
