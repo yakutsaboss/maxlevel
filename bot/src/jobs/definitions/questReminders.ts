@@ -66,10 +66,11 @@ export async function handler(jobs: Job[]): Promise<void> {
         `Hey ${user.first_name || 'there'}! You have ${user.pending_count} quest(s) still waiting today. Don't break your streak! 🔥`
       );
       sent++;
-    } catch (err: any) {
+    } catch (err: unknown) {
       // Handle Telegram rate limit (HTTP 429)
-      if (err?.error_code === 429 || err?.parameters?.retry_after) {
-        const retryAfter = err.parameters?.retry_after ?? 5;
+      const tgErr = err as { error_code?: number; parameters?: { retry_after?: number }; message?: string };
+      if (tgErr.error_code === 429 || tgErr.parameters?.retry_after) {
+        const retryAfter = tgErr.parameters?.retry_after ?? 5;
         log.warn(`Rate limited, waiting ${retryAfter}s before continuing`);
         await sleep(retryAfter * 1000);
 
@@ -88,7 +89,7 @@ export async function handler(jobs: Job[]): Promise<void> {
 
       failed++;
       failedUserIds.push(user.telegram_id);
-      log.warn(`Failed to send reminder to user ${user.telegram_id}: ${err?.message || err}`);
+      log.warn(`Failed to send reminder to user ${user.telegram_id}: ${err instanceof Error ? err.message : String(err)}`);
     }
 
     // Rate limiting: pause every BATCH_RATE messages for 1 second

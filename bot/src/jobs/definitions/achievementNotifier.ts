@@ -65,9 +65,10 @@ export async function handler(jobs: Job[]): Promise<void> {
         [unlock.user_id, unlock.achievement_id]
       );
       sent++;
-    } catch (err: any) {
-      if (err?.error_code === 429 || err?.parameters?.retry_after) {
-        const retryAfter = err.parameters?.retry_after ?? 5;
+    } catch (err: unknown) {
+      const tgErr = err as { error_code?: number; parameters?: { retry_after?: number } };
+      if (tgErr.error_code === 429 || tgErr.parameters?.retry_after) {
+        const retryAfter = tgErr.parameters?.retry_after ?? 5;
         log.warn(`Rate limited, waiting ${retryAfter}s`);
         await sleep(retryAfter * 1000);
 
@@ -85,7 +86,7 @@ export async function handler(jobs: Job[]): Promise<void> {
       }
 
       failed++;
-      log.warn(`Failed to notify user ${unlock.telegram_id}: ${err?.message || err}`);
+      log.warn(`Failed to notify user ${unlock.telegram_id}: ${err instanceof Error ? err.message : String(err)}`);
     }
 
     // Rate limiting: 200ms delay between sends

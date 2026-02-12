@@ -35,10 +35,17 @@ const TIMEZONES = [
   { label: '🇺🇸 UTC-5 (New York)', tz: 'America/New_York' },
 ];
 
-async function getUserData(ctx: MyContext) {
+interface SettingsUserRow {
+  id: number;
+  notification_enabled: boolean;
+  timezone: string | null;
+  [key: string]: unknown;
+}
+
+async function getUserData(ctx: MyContext): Promise<SettingsUserRow | null> {
   const telegramId = ctx.from?.id;
   if (!telegramId) return null;
-  return getUserByTelegramId(telegramId);
+  return getUserByTelegramId(telegramId) as Promise<SettingsUserRow | null>;
 }
 
 /**
@@ -168,7 +175,7 @@ export async function handleSettingsCallback(ctx: MyContext) {
   }
 }
 
-async function showMainSettings(ctx: MyContext, user: any) {
+async function showMainSettings(ctx: MyContext, user: SettingsUserRow) {
   const notifStatus = user.notification_enabled !== false ? '✅ On' : '❌ Off';
   const tz = user.timezone || 'UTC';
 

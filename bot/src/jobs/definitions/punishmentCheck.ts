@@ -24,6 +24,15 @@ export function setBotInstance(bot: Bot<MyContext>): void {
 export const JOB_NAME = 'punishment-check';
 export const CRON_SCHEDULE = '30 0 * * *';
 
+/** Row shape returned by the failed-quests query */
+interface FailedQuestRow {
+  quest_instance_id: number;
+  user_id: number;
+  telegram_id: string;
+  title: string;
+  xp_reward: number;
+}
+
 const BATCH_SIZE = 50;
 const DELAY_BETWEEN_SENDS_MS = 200;
 
@@ -44,7 +53,7 @@ export async function handler(jobs: Job[]): Promise<void> {
   log.info('Started');
 
   // Step 1: Find quests that expired yesterday and were not completed
-  const failedQuests = await query(
+  const failedQuests = await query<FailedQuestRow>(
     `SELECT qi.id AS quest_instance_id, qi.user_id, u.telegram_id,
             q.title, q.xp_reward
      FROM quest_instances qi
@@ -64,7 +73,7 @@ export async function handler(jobs: Job[]): Promise<void> {
   }
 
   // Step 2: Mark these quests as failed
-  const failedIds = failedQuests.map((q: any) => q.quest_instance_id);
+  const failedIds = failedQuests.map(q => q.quest_instance_id);
   await execute(
     `UPDATE quest_instances SET status = 'failed' WHERE id = ANY($1)`,
     [failedIds]
@@ -191,9 +200,9 @@ export async function handler(jobs: Job[]): Promise<void> {
         try {
           await botRef.api.sendMessage(telegramId, message);
           notificationsSent++;
-        } catch (err: any) {
+        } catch (err: unknown) {
           notificationsFailed++;
-          log.warn(`Failed to notify user ${telegramId}: ${err?.message || err}`);
+          log.warn(`Failed to notify user ${telegramId}: ${err instanceof Error ? err.message : String(err)}`);
         }
         await sleep(DELAY_BETWEEN_SENDS_MS);
       }

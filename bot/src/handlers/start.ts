@@ -112,8 +112,8 @@ export async function handleStart(ctx: MyContext) {
         } else {
           await ctx.reply(`❌ Couldn't create your account. Please try again.`);
         }
-      } catch (createErr: any) {
-        const reason = createErr.message || 'Unknown error';
+      } catch (createErr: unknown) {
+        const reason = createErr instanceof Error ? createErr.message : String(createErr);
         log.error(`Failed to create user ${telegramId}: ${reason}`);
 
         if (reason.includes('duplicate') || reason.includes('already exists') || reason.includes('unique')) {
@@ -134,11 +134,11 @@ export async function handleStart(ctx: MyContext) {
         }
       }
     }
-  } catch (error: any) {
-    log.error('Unhandled error', error as Error);
+  } catch (error: unknown) {
+    log.error('Unhandled error', error instanceof Error ? error : new Error(String(error)));
 
     // Provide specific error messages based on error type
-    const msg = error.message || '';
+    const msg = error instanceof Error ? error.message : '';
 
     if (msg.includes('ECONNREFUSED') || msg.includes('connection')) {
       await ctx.reply(
