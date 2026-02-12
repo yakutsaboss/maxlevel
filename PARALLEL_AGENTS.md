@@ -1847,7 +1847,13 @@ All agents create NEW test files only — zero file conflicts expected. Merge in
 *(To be filled by Agent E)*
 
 #### Agent F Retrospective
-*(To be filled by Agent F)*
+- **Files created**: 3 test files — `planGenerator.test.ts` (24 tests), `questRecommender.test.ts` (12 tests), `smartReminder.test.ts` (17 tests)
+- **Total tests**: 53 (target was 20-25, exceeded significantly due to rich test surface)
+- **All 53 tests pass** in 315ms
+- **planGenerator**: Pure function, no DB mocks needed — only logger mock. Covered fitness plan generation (schedule, exercise selection, focus rotation, duration by level, day code resolution, recommendations) and hydration plan generation (targets, container refills, goal-based recs, nested wake_time parsing, electrolyte advice). Edge cases: null/invalid quiz_responses, unsupported modes.
+- **questRecommender**: Required DB mock (`query`) + fake timers for predictable time bonuses. Covered all 3 recommendation tiers (uncompleted > streak > xp), time-of-day bonus logic, streak-at-risk detection, limit parameter, deduplication across categories, SQL param verification.
+- **smartReminder**: Pure function, only logger mock. Covered hydration (interval calculation, cross-midnight sleep, per-reminder ml distribution, morning message), fitness (pre-workout timing, early-morning edge case), medication (multi-time, single-time, default fallback), unsupported modes.
+- **No issues encountered** — all three utility files are well-structured with clear inputs/outputs, making them straightforward to test.
 
 #### Agent G Retrospective
 *(To be filled by Agent G)*
