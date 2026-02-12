@@ -1169,7 +1169,29 @@ After completing work, write your retrospective in PARALLEL_AGENTS.md under "Run
 *(To be filled by Agent A)*
 
 #### Agent B Retrospective
-*(To be filled by Agent B)*
+**Status:** COMPLETE — social.ts and analytics.ts fully secured. Build passes with zero errors.
+
+**What was done:**
+
+1. **`bot/src/api/routes/social.ts`** — Security hardening (5 routes):
+   - Added `authenticateTelegram` middleware to ALL 5 routes
+   - Added `authorizeUser` middleware to GET `/friends/:userId` and GET `/challenges/:userId` (ownership check via :userId param)
+   - Added `mutationLimiter` to all 3 POST routes (`/friends/request`, `/friends/accept`, `/challenges/create`)
+   - Added `readLimiter` to both GET routes
+   - Added input validation to POST `/friends/request`: `fromUserId`/`toUserId` must be positive integers, can't friend yourself
+   - Added input validation to POST `/friends/accept`: `requestId` must be positive integer
+   - Added input validation to POST `/challenges/create`: `title` must be non-empty string ≤200 chars, `description` optional string ≤2000 chars, `targetValue` optional positive integer
+
+2. **`bot/src/api/routes/analytics.ts`** — Security hardening (3 routes):
+   - Added `authorizeUser` middleware to all 3 routes (was missing — only `authenticateTelegram` was present)
+   - Added `readLimiter` to all 3 routes
+   - No input validation needed (GET-only routes, userId already validated inline with `isNaN()` check)
+
+**Security issues resolved:** S3 (social no auth), S5 (ownership checks on social/analytics userId params), S6 (input validation on social string fields), S8 (analytics auth — upgraded from authenticate-only to authenticate+authorize)
+
+**Build:** `tsc` reports 0 errors.
+
+**Notes for Agent 0:** Agent D plans to add caching inside analytics.ts and social.ts handlers (GRAY AREA). My changes are on route middleware level — no conflict expected.
 
 #### Agent C Retrospective
 *(To be filled by Agent C)*
