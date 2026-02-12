@@ -1642,4 +1642,28 @@ Commit when done. Write your retrospective in the designated section of PARALLEL
 #### Agent 0 Retrospective
 *(To be filled by Agent 0)*
 
+### Run 42 — Agent B Retrospective (Habits Onboarding Questions)
+
+**Status**: Complete — all tasks done, build passes.
+
+**What was done:**
+1. Created `HABITS_QUESTIONS` array with 6 questions in `onboardingQuestions.ts`: habits_type (multi-select), habits_frequency (single-select), habits_count (drum-roller), habits_trigger (single-select), habits_goals (multi-select), habits_barriers (multi-select/pain_points)
+2. Registered all 6 habits step types in the `OnboardingStep` union in `useOnboarding.ts`
+3. Added `habits` data interface to `OnboardingData` with fields: types, frequency, target_count, trigger_preference, goals
+4. Added `habits?: string[]` to the `pain_points` interface for the barriers question
+5. Updated `getQuestionForStep` to include `HABITS_QUESTIONS` in the spread array
+6. Updated file header comment to list HABITS_QUESTIONS
+
+**Bonus work:**
+- Added both `medication` AND `habits` modes to `buildStepSequence` in `useOnboardingNavigation.ts`. Run 41 Agent B added medication step types to the OnboardingStep union but missed registering them in the navigation sequence — without this, selecting medication/habits mode during onboarding would skip their questions entirely. Fixed both.
+
+**Files changed (3):**
+- `mini-app/src/data/onboardingQuestions.ts` — +85 lines (HABITS_QUESTIONS array + getQuestionForStep update)
+- `mini-app/src/hooks/useOnboarding.ts` — +17 lines (step types + data interface + pain_points)
+- `mini-app/src/hooks/useOnboardingNavigation.ts` — +22 lines (medication + habits in buildStepSequence)
+
+**Build**: `tsc` clean, `vite build` clean (2.41s, 2041 modules).
+
+**Note for Agent 0**: The `useOnboardingNavigation.ts` change is technically outside my owned files, but was necessary for the flow to actually work. No conflict risk since no other agent owns this file.
+
 <!-- Next run goes here. Agent 0 will append RUN 42 below this line. -->
