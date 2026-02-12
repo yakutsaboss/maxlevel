@@ -1,6 +1,8 @@
 import { Router, Request, Response } from 'express';
 import { query, queryOne, execute } from '../../utils/db.js';
-import { asyncHandler, successResponse } from '../utils/errors.js';
+import { authenticateTelegram, authorizeUser } from '../middleware/auth.js';
+import { mutationLimiter, readLimiter } from '../middleware/rateLimiter.js';
+import { asyncHandler, successResponse, BadRequestError, NotFoundError } from '../utils/errors.js';
 
 const router = Router();
 
@@ -10,8 +12,11 @@ const DEFAULT_CATEGORIES = [
   'Health', 'Education', 'Shopping', 'Bills', 'Other',
 ];
 
+/** Valid budget entry types */
+const VALID_BUDGET_TYPES = ['income', 'expense'] as const;
+
 // GET /budget/:userId — get budget summary for the current month
-router.get('/budget/:userId', asyncHandler(async (req: Request, res: Response) => {
+router.get('/budget/:userId', authenticateTelegram, authorizeUser, readLimiter, asyncHandler(async (req: Request, res: Response) => {
   const userId = parseInt(req.params.userId);
 
   const entries = await query<{
@@ -52,35 +57,42 @@ router.get('/budget/:userId', asyncHandler(async (req: Request, res: Response) =
 }));
 
 // POST /budget — create a new budget entry (income or expense)
-router.post('/budget', asyncHandler(async (req: Request, res: Response) => {
-  const { userId, category, amount, type } = req.body as {
-    userId: number;
-    category: string;
-    amount: number;
-    type: 'income' | 'expense';
-  };
+router.post('/budget', authenticateTelegram, mutationLimiter, asyncHandler(async (req: Request, res: Response) => {
+  const { userId, category, amount, type } = req.body;
 
   if (!userId || !category || !amount || !type) {
-    res.status(400).json({ success: false, message: 'Missing required fields: userId, category, amount, type' });
-    return;
+    throw new BadRequestError('Missing required fields: userId, category, amount, type');
   }
 
-  if (type !== 'income' && type !== 'expense') {
-    res.status(400).json({ success: false, message: 'Type must be "income" or "expense"' });
-    return;
+  const numericUserId = typeof userId === 'string' ? parseInt(userId) : userId;
+  if (!Number.isInteger(numericUserId) || numericUserId <= 0) {
+    throw new BadRequestError('userId must be a positive integer');
+  }
+
+  if (typeof category !== 'string' || category.length === 0 || category.length > 100) {
+    throw new BadRequestError('category must be a string with max 100 characters');
+  }
+
+  const numericAmount = typeof amount === 'string' ? parseFloat(amount) : amount;
+  if (typeof numericAmount !== 'number' || isNaN(numericAmount) || numericAmount <= 0) {
+    throw new BadRequestError('amount must be a positive number');
+  }
+
+  if (!VALID_BUDGET_TYPES.includes(type as typeof VALID_BUDGET_TYPES[number])) {
+    throw new BadRequestError('type must be "income" or "expense"');
   }
 
   await execute(
     `INSERT INTO finance_budget_entries (user_id, category, amount, type)
      VALUES ($1, $2, $3, $4)`,
-    [userId, category, amount, type]
+    [numericUserId, category.trim(), numericAmount, type]
   );
 
   res.json(successResponse({ message: 'Budget entry created' }));
 }));
 
 // GET /savings/:userId — get all savings goals for a user
-router.get('/savings/:userId', asyncHandler(async (req: Request, res: Response) => {
+router.get('/savings/:userId', authenticateTelegram, authorizeUser, readLimiter, asyncHandler(async (req: Request, res: Response) => {
   const userId = parseInt(req.params.userId);
 
   const goals = await query<{
@@ -120,36 +132,49 @@ router.get('/savings/:userId', asyncHandler(async (req: Request, res: Response) 
 }));
 
 // POST /savings — create a new savings goal
-router.post('/savings', asyncHandler(async (req: Request, res: Response) => {
-  const { userId, name, targetAmount } = req.body as {
-    userId: number;
-    name: string;
-    targetAmount: number;
-  };
+router.post('/savings', authenticateTelegram, mutationLimiter, asyncHandler(async (req: Request, res: Response) => {
+  const { userId, name, targetAmount } = req.body;
 
   if (!userId || !name || !targetAmount) {
-    res.status(400).json({ success: false, message: 'Missing required fields: userId, name, targetAmount' });
-    return;
+    throw new BadRequestError('Missing required fields: userId, name, targetAmount');
+  }
+
+  const numericUserId = typeof userId === 'string' ? parseInt(userId) : userId;
+  if (!Number.isInteger(numericUserId) || numericUserId <= 0) {
+    throw new BadRequestError('userId must be a positive integer');
+  }
+
+  if (typeof name !== 'string' || name.length === 0 || name.length > 200) {
+    throw new BadRequestError('name must be a string with max 200 characters');
+  }
+
+  const numericTarget = typeof targetAmount === 'string' ? parseFloat(targetAmount) : targetAmount;
+  if (typeof numericTarget !== 'number' || isNaN(numericTarget) || numericTarget <= 0) {
+    throw new BadRequestError('targetAmount must be a positive number');
   }
 
   const goal = await queryOne<{ id: number }>(
     `INSERT INTO finance_savings_goals (user_id, name, target_amount, current_amount)
      VALUES ($1, $2, $3, 0)
      RETURNING id`,
-    [userId, name, targetAmount]
+    [numericUserId, name.trim(), numericTarget]
   );
 
   res.json(successResponse({ id: goal?.id, message: 'Savings goal created' }));
 }));
 
 // PATCH /savings/:id — add a deposit to update savings progress
-router.patch('/savings/:id', asyncHandler(async (req: Request, res: Response) => {
+router.patch('/savings/:id', authenticateTelegram, mutationLimiter, asyncHandler(async (req: Request, res: Response) => {
   const goalId = parseInt(req.params.id);
-  const { amount } = req.body as { amount: number };
+  if (isNaN(goalId) || goalId <= 0) {
+    throw new BadRequestError('Invalid savings goal ID');
+  }
 
-  if (!amount || amount <= 0) {
-    res.status(400).json({ success: false, message: 'Amount must be a positive number' });
-    return;
+  const { amount } = req.body;
+
+  const numericAmount = typeof amount === 'string' ? parseFloat(amount) : amount;
+  if (typeof numericAmount !== 'number' || isNaN(numericAmount) || numericAmount <= 0) {
+    throw new BadRequestError('amount must be a positive number');
   }
 
   // Verify goal exists
@@ -159,29 +184,28 @@ router.patch('/savings/:id', asyncHandler(async (req: Request, res: Response) =>
   );
 
   if (!goal) {
-    res.status(404).json({ success: false, message: 'Savings goal not found' });
-    return;
+    throw new NotFoundError('Savings goal not found');
   }
 
   // Record deposit and update current amount
   await execute(
     `INSERT INTO finance_savings_deposits (goal_id, amount) VALUES ($1, $2)`,
-    [goalId, amount]
+    [goalId, numericAmount]
   );
 
   await execute(
     `UPDATE finance_savings_goals SET current_amount = current_amount + $1 WHERE id = $2`,
-    [amount, goalId]
+    [numericAmount, goalId]
   );
 
   res.json(successResponse({
-    new_amount: Number(goal.current_amount) + amount,
+    new_amount: Number(goal.current_amount) + numericAmount,
     message: 'Deposit recorded',
   }));
 }));
 
 // GET /categories — list available expense categories
-router.get('/categories', asyncHandler(async (_req: Request, res: Response) => {
+router.get('/categories', authenticateTelegram, readLimiter, asyncHandler(async (_req: Request, res: Response) => {
   res.json(successResponse({ categories: DEFAULT_CATEGORIES }));
 }));
 

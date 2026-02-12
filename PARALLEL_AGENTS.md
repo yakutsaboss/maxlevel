@@ -1166,7 +1166,30 @@ After completing work, write your retrospective in PARALLEL_AGENTS.md under "Run
 ### Run 46 Retrospectives
 
 #### Agent A Retrospective
-*(To be filled by Agent A)*
+**Status**: COMPLETE — all security issues in payments.ts and finance.ts fixed. Build passes (0 errors).
+
+**Changes made:**
+
+1. **`bot/src/api/routes/payments.ts`** — Security hardening:
+   - Added `authenticateTelegram` middleware to all 5 non-webhook routes (create, history, subscription, upgrade, cancel)
+   - Added `authorizeUser` middleware to GET routes with `:userId` params (history, subscription) — prevents cross-user access
+   - Added `mutationLimiter` to POST routes (create, upgrade, cancel) — prevents spam/abuse
+   - Added `readLimiter` to GET routes (history, subscription)
+   - Added webhook secret token verification (`X-Telegram-Bot-Api-Secret-Token` header) with constant-time comparison (`crypto.timingSafeEqual`) to prevent timing attacks
+   - Strengthened input validation: `userId` must be positive integer, `tier` for payment creation restricted to `pro`/`premium` (not `free`)
+   - Imported `crypto`, `UnauthorizedError`, auth middleware, and rate limiters
+
+2. **`bot/src/api/routes/finance.ts`** — Security hardening:
+   - Added `authenticateTelegram` middleware to ALL 6 routes
+   - Added `authorizeUser` middleware to GET routes with `:userId` params (budget, savings) — prevents cross-user access
+   - Added `mutationLimiter` to POST/PATCH routes (budget, savings create, savings deposit)
+   - Added `readLimiter` to GET routes (budget, savings, categories)
+   - Strengthened input validation: userId (positive int), category (string max 100), amount (positive number), type (income/expense enum), name (string max 200), targetAmount (positive number), goalId (positive int)
+   - Replaced raw `res.status(400/404).json(...)` with proper `BadRequestError`/`NotFoundError` for consistent error handling
+
+**Security issues addressed**: S1 (payment auth), S2 (webhook verification), S4 (finance auth), S5 (ownership checks on payments/finance), S6 (input validation on finance), S7 (rate limits on payments)
+
+**Issues**: None. Clean build, zero TypeScript errors.
 
 #### Agent B Retrospective
 *(To be filled by Agent B)*

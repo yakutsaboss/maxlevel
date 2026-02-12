@@ -5,8 +5,11 @@
  */
 
 import { Router, Request, Response } from 'express';
+import crypto from 'crypto';
 import { query, queryOne, execute, transaction } from '../../utils/db.js';
-import { asyncHandler, successResponse, BadRequestError, NotFoundError } from '../utils/errors.js';
+import { authenticateTelegram, authorizeUser } from '../middleware/auth.js';
+import { mutationLimiter, readLimiter } from '../middleware/rateLimiter.js';
+import { asyncHandler, successResponse, BadRequestError, NotFoundError, UnauthorizedError } from '../utils/errors.js';
 import { logger } from '../../utils/logger.js';
 
 const router = Router();
@@ -20,17 +23,50 @@ function isValidTier(tier: string): tier is Tier {
   return VALID_TIERS.includes(tier as Tier);
 }
 
+/** Verify Telegram webhook secret token */
+function verifyWebhookSecret(req: Request): void {
+  const secret = req.headers['x-telegram-bot-api-secret-token'] as string | undefined;
+  const expectedSecret = process.env.TELEGRAM_WEBHOOK_SECRET || process.env.TELEGRAM_BOT_TOKEN;
+
+  if (!expectedSecret) {
+    log.error('Webhook secret not configured');
+    throw new UnauthorizedError('Webhook verification not configured');
+  }
+
+  if (!secret) {
+    log.warn('Webhook call missing secret token', { ip: req.ip });
+    throw new UnauthorizedError('Missing webhook secret token');
+  }
+
+  // Constant-time comparison to prevent timing attacks
+  const secretBuf = Buffer.from(secret);
+  const expectedBuf = Buffer.from(expectedSecret);
+  if (secretBuf.length !== expectedBuf.length || !crypto.timingSafeEqual(secretBuf, expectedBuf)) {
+    log.warn('Webhook call with invalid secret token', { ip: req.ip });
+    throw new UnauthorizedError('Invalid webhook secret token');
+  }
+}
+
+function isPositiveInteger(value: unknown): value is number {
+  return typeof value === 'number' && Number.isInteger(value) && value > 0;
+}
+
 // ─── POST /create ────────────────────────────────────────────────────────────
 // Initiate a new payment via Telegram Stars provider
-router.post('/create', asyncHandler(async (req: Request, res: Response) => {
+router.post('/create', authenticateTelegram, mutationLimiter, asyncHandler(async (req: Request, res: Response) => {
   const { userId, amount, tier } = req.body;
 
   if (!userId || !amount || !tier) {
     throw new BadRequestError('Missing required fields: userId, amount, tier');
   }
 
-  if (!isValidTier(tier)) {
-    throw new BadRequestError(`Invalid tier: ${tier}. Must be one of: ${VALID_TIERS.join(', ')}`);
+  const numericUserId = typeof userId === 'string' ? parseInt(userId) : userId;
+  if (!isPositiveInteger(numericUserId)) {
+    throw new BadRequestError('userId must be a positive integer');
+  }
+
+  if (!isValidTier(tier) || tier === 'free') {
+    throw new BadRequestError(`Invalid tier for payment: ${tier}. Must be one of: pro, premium`);
   }
 
   const numericAmount = parseFloat(amount);
@@ -67,7 +103,12 @@ router.post('/create', asyncHandler(async (req: Request, res: Response) => {
 
 // ─── POST /webhook ───────────────────────────────────────────────────────────
 // Handle Telegram Stars payment callback (provider webhook)
+// NOTE: No authenticateTelegram — webhooks come from Telegram servers, not Mini App.
+// Instead, uses secret token verification.
 router.post('/webhook', asyncHandler(async (req: Request, res: Response) => {
+  // Verify webhook authenticity via secret token
+  verifyWebhookSecret(req);
+
   const { telegram_payment_charge_id, provider_payment_charge_id, payment_id } = req.body;
 
   if (!telegram_payment_charge_id) {
@@ -144,7 +185,7 @@ router.post('/webhook', asyncHandler(async (req: Request, res: Response) => {
 
 // ─── GET /history/:userId ────────────────────────────────────────────────────
 // List payment history for a user
-router.get('/history/:userId', asyncHandler(async (req: Request, res: Response) => {
+router.get('/history/:userId', authenticateTelegram, authorizeUser, readLimiter, asyncHandler(async (req: Request, res: Response) => {
   const userId = parseInt(req.params.userId);
   if (isNaN(userId)) {
     throw new BadRequestError('Invalid userId');
@@ -168,7 +209,7 @@ router.get('/history/:userId', asyncHandler(async (req: Request, res: Response) 
 
 // ─── GET /subscription/:userId ───────────────────────────────────────────────
 // Get current subscription status for a user
-router.get('/subscription/:userId', asyncHandler(async (req: Request, res: Response) => {
+router.get('/subscription/:userId', authenticateTelegram, authorizeUser, readLimiter, asyncHandler(async (req: Request, res: Response) => {
   const userId = parseInt(req.params.userId);
   if (isNaN(userId)) {
     throw new BadRequestError('Invalid userId');
@@ -215,11 +256,16 @@ router.get('/subscription/:userId', asyncHandler(async (req: Request, res: Respo
 
 // ─── POST /subscription/upgrade ──────────────────────────────────────────────
 // Upgrade a user's subscription tier
-router.post('/subscription/upgrade', asyncHandler(async (req: Request, res: Response) => {
+router.post('/subscription/upgrade', authenticateTelegram, mutationLimiter, asyncHandler(async (req: Request, res: Response) => {
   const { userId, tier } = req.body;
 
   if (!userId || !tier) {
     throw new BadRequestError('Missing required fields: userId, tier');
+  }
+
+  const numericUserId = typeof userId === 'string' ? parseInt(userId) : userId;
+  if (!isPositiveInteger(numericUserId)) {
+    throw new BadRequestError('userId must be a positive integer');
   }
 
   if (!isValidTier(tier) || tier === 'free') {
@@ -257,11 +303,16 @@ router.post('/subscription/upgrade', asyncHandler(async (req: Request, res: Resp
 
 // ─── POST /subscription/cancel ───────────────────────────────────────────────
 // Cancel a user's subscription (set to free tier)
-router.post('/subscription/cancel', asyncHandler(async (req: Request, res: Response) => {
+router.post('/subscription/cancel', authenticateTelegram, mutationLimiter, asyncHandler(async (req: Request, res: Response) => {
   const { userId } = req.body;
 
   if (!userId) {
     throw new BadRequestError('Missing required field: userId');
+  }
+
+  const numericUserId = typeof userId === 'string' ? parseInt(userId) : userId;
+  if (!isPositiveInteger(numericUserId)) {
+    throw new BadRequestError('userId must be a positive integer');
   }
 
   const sub = await queryOne<{ id: number; tier: string }>(
