@@ -1700,7 +1700,20 @@ Read PARALLEL_AGENTS.md — you are Agent F for Run 37. Write tests for new Run 
 ### Run 37 Retrospectives
 
 #### Agent A Retrospective
-*(To be filled by Agent A)*
+**Task**: Fix all 4 `any` in `bot/src/api/routes/leaderboard.ts`
+
+**What was done**:
+1. Created `LeaderboardEntryRow` interface with all DB columns used across 4 SQL queries (common base fields + optional fields for mode/default/weekly/monthly variants)
+2. Added `query<LeaderboardEntryRow>(...)` generics to all 4 SQL query calls
+3. Replaced all 4 `(row: any)` callbacks with `(row: LeaderboardEntryRow)`
+4. Added `as string` casts for `parseInt()` calls on ROW_NUMBER string fields (`xp_rank`, `level_rank`, `best_current_streak`, `total_quests_completed`)
+5. Fixed bonus issue: `return res.json(...)` changed to `res.json(...); return;` to satisfy asyncHandler's `Promise<void>` return type
+
+**Build**: leaderboard.ts compiles cleanly. Pre-existing errors in achievements.ts, quest-progress.ts, settings.ts are from other agents' parallel work (main branch builds clean).
+**Tests**: 52 files, 594 tests — all passed.
+**Commit**: `ed2ade7` — `fix(types): replace 4 any in leaderboard.ts with LeaderboardEntryRow interface`
+
+**Design note**: Used a single interface with optional fields rather than separate interfaces per query variant — keeps it simple since all 4 queries share the same base columns and the optional fields are clearly grouped by comments.
 
 #### Agent B Retrospective
 *(To be filled by Agent B)*
