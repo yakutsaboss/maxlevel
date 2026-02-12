@@ -221,17 +221,32 @@ router.get('/:userId/summary', authenticateTelegram, authorizeUser, readLimiter,
 
   const summary = await cached(`analytics:summary:${userId}`, 2 * 60_000, async () => {
     const row = await queryOne<ProgressSummaryRow>(
-      `SELECT
-         u.total_xp,
-         u.current_level,
-         (SELECT COUNT(*)::int FROM quest_instances WHERE user_id = u.id AND status = 'completed') AS quests_completed,
-         (SELECT COUNT(*)::int FROM quest_instances WHERE user_id = u.id) AS quests_total,
-         (SELECT COUNT(*)::int FROM user_modes WHERE user_id = u.id AND is_active = true) AS active_modes,
-         (SELECT COUNT(*)::int FROM streaks WHERE user_id = u.id AND current_streak > 0) AS active_streaks,
-         COALESCE((SELECT MAX(current_streak) FROM streaks WHERE user_id = u.id), 0)::int AS best_streak,
-         (SELECT COUNT(DISTINCT instance_date)::int FROM quest_instances WHERE user_id = u.id AND status = 'completed') AS days_active,
-         COALESCE((SELECT SUM(xp_awarded)::int FROM quest_instances WHERE user_id = u.id AND status = 'completed' AND completed_at >= CURRENT_DATE - INTERVAL '6 days'), 0) AS xp_this_week
-       FROM users u
+      `WITH quest_stats AS (
+         SELECT
+           COUNT(*) FILTER (WHERE status = 'completed') AS quests_completed,
+           COUNT(*) AS quests_total,
+           COUNT(DISTINCT instance_date) FILTER (WHERE status = 'completed') AS days_active,
+           COALESCE(SUM(xp_awarded) FILTER (WHERE status = 'completed' AND completed_at >= CURRENT_DATE - INTERVAL '6 days'), 0)::int AS xp_this_week
+         FROM quest_instances WHERE user_id = $1
+       ),
+       mode_stats AS (
+         SELECT
+           COUNT(*) FILTER (WHERE is_active = true) AS active_modes
+         FROM user_modes WHERE user_id = $1
+       ),
+       streak_stats AS (
+         SELECT
+           COUNT(*) FILTER (WHERE current_streak > 0) AS active_streaks,
+           COALESCE(MAX(current_streak), 0)::int AS best_streak
+         FROM streaks WHERE user_id = $1
+       )
+       SELECT
+         u.total_xp, u.current_level,
+         q.quests_completed::int, q.quests_total::int,
+         m.active_modes::int,
+         s.active_streaks::int, s.best_streak,
+         q.days_active::int, q.xp_this_week
+       FROM users u, quest_stats q, mode_stats m, streak_stats s
        WHERE u.id = $1`,
       [userId]
     );
