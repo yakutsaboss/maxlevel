@@ -3234,7 +3234,18 @@ After completing work, write your retrospective in PARALLEL_AGENTS.md under "Run
 *(To be filled by Agent A)*
 
 #### Agent B Retrospective
-*(To be filled by Agent B)*
+**Task**: Enhance Google Sheets analytics export with per-module Q&A export and organized answers.
+
+**What was done**:
+- Added `export_quiz_responses()` — queries `mode_configs` for `quiz_responses` JSONB, groups by mode, writes each mode's Q&A to a separate sheet tab (`QA_{ModeName}`). Dynamically discovers question keys per mode so columns adapt to whatever quiz structure each mode uses.
+- Added `organize_answers_per_mode()` — aggregates all answers across all players by mode → question → answer, computes response counts and percentages, writes to a single "Organized Answers" sheet. Uses window function for per-mode respondent counts.
+- Added `export_qa()` convenience function that runs both exports together.
+- Added `--export-qa` CLI flag wired into `main()`.
+- All required tracker keywords present: `quiz_responses` (12 occurrences), `mode_configs`/`organized`/`per_mode` (30+ occurrences).
+
+**Verification**: File contains all tracker keywords. Only `tools/sheets_analytics_export.py` modified (owned file). No other files touched.
+
+**Issues**: None. Straightforward enhancement to existing export tool.
 
 #### Agent C Retrospective
 *(To be filled by Agent C)*

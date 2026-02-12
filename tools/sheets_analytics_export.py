@@ -8,6 +8,7 @@ Usage:
     python tools/sheets_analytics_export.py --export-all
     python tools/sheets_analytics_export.py --export-users
     python tools/sheets_analytics_export.py --export-engagement
+    python tools/sheets_analytics_export.py --export-qa
 """
 
 import os
@@ -275,6 +276,177 @@ def export_summary(service, spreadsheet_id: str) -> int:
     return clear_and_write_sheet(service, spreadsheet_id, 'Summary', headers, rows)
 
 
+def export_quiz_responses(service, spreadsheet_id: str) -> Dict[str, int]:
+    """Export onboarding Q&A per module from mode_configs quiz_responses.
+
+    Reads quiz_responses JSONB from mode_configs, groups by mode,
+    and writes each mode's Q&A to a separate sheet tab.
+
+    Returns:
+        Dict mapping mode name to number of rows written.
+    """
+    rows_data = execute_query("""
+        SELECT
+            mc.id,
+            mc.user_id,
+            u.telegram_id,
+            u.username,
+            m.name AS mode_name,
+            m.display_name,
+            mc.quiz_responses,
+            mc.created_at
+        FROM mode_configs mc
+        JOIN users u ON u.id = mc.user_id
+        JOIN modes m ON m.id = mc.mode_id
+        WHERE mc.quiz_responses IS NOT NULL
+        ORDER BY m.name, mc.created_at
+    """)
+
+    # Group rows by mode
+    per_mode_data: Dict[str, List[Dict]] = {}
+    for row in rows_data:
+        mode = row.get('mode_name', 'unknown')
+        if mode not in per_mode_data:
+            per_mode_data[mode] = []
+        per_mode_data[mode].append(row)
+
+    results = {}
+    for mode_name, mode_rows in per_mode_data.items():
+        display = mode_rows[0].get('display_name', mode_name)
+        sheet_name = f'QA_{display}'
+
+        # Collect all unique question keys across responses for this mode
+        all_questions = set()
+        for row in mode_rows:
+            responses = row.get('quiz_responses') or {}
+            if isinstance(responses, str):
+                try:
+                    responses = json.loads(responses)
+                except (json.JSONDecodeError, TypeError):
+                    responses = {}
+            for key in responses.keys():
+                all_questions.add(key)
+
+        question_keys = sorted(all_questions)
+        headers = ['user_id', 'telegram_id', 'username', 'created_at'] + question_keys
+
+        sheet_rows = []
+        for row in mode_rows:
+            responses = row.get('quiz_responses') or {}
+            if isinstance(responses, str):
+                try:
+                    responses = json.loads(responses)
+                except (json.JSONDecodeError, TypeError):
+                    responses = {}
+            sheet_row = [
+                str(row.get('user_id', '')),
+                str(row.get('telegram_id', '')),
+                str(row.get('username', '')),
+                str(row.get('created_at', '')),
+            ]
+            for qk in question_keys:
+                val = responses.get(qk, '')
+                if isinstance(val, (list, dict)):
+                    val = json.dumps(val, ensure_ascii=False)
+                sheet_row.append(str(val))
+            sheet_rows.append(sheet_row)
+
+        count = clear_and_write_sheet(service, spreadsheet_id, sheet_name, headers, sheet_rows)
+        results[mode_name] = count
+
+    return results
+
+
+def organize_answers_per_mode(service, spreadsheet_id: str) -> int:
+    """Organize all player answers by mode with aggregated response statistics.
+
+    Reads mode_configs, groups answers by mode then by question,
+    and writes organized summary with response distributions.
+
+    Returns:
+        Number of rows written to the organized answers sheet.
+    """
+    rows_data = execute_query("""
+        SELECT
+            m.name AS mode_name,
+            m.display_name,
+            mc.quiz_responses,
+            COUNT(*) OVER (PARTITION BY m.name) AS total_respondents_in_mode
+        FROM mode_configs mc
+        JOIN modes m ON m.id = mc.mode_id
+        WHERE mc.quiz_responses IS NOT NULL
+        ORDER BY m.name
+    """)
+
+    # Build aggregation: mode -> question -> answer -> count
+    organized: Dict[str, Dict[str, Dict[str, int]]] = {}
+    mode_display_names: Dict[str, str] = {}
+    mode_respondent_counts: Dict[str, int] = {}
+
+    for row in rows_data:
+        mode = row.get('mode_name', 'unknown')
+        mode_display_names[mode] = row.get('display_name', mode)
+        mode_respondent_counts[mode] = int(row.get('total_respondents_in_mode', 0))
+
+        responses = row.get('quiz_responses') or {}
+        if isinstance(responses, str):
+            try:
+                responses = json.loads(responses)
+            except (json.JSONDecodeError, TypeError):
+                responses = {}
+
+        if mode not in organized:
+            organized[mode] = {}
+
+        for question, answer in responses.items():
+            if question not in organized[mode]:
+                organized[mode][question] = {}
+            answer_str = str(answer) if not isinstance(answer, (list, dict)) else json.dumps(answer, ensure_ascii=False)
+            organized[mode][question][answer_str] = organized[mode][question].get(answer_str, 0) + 1
+
+    # Write to sheet: one row per mode/question/answer combination
+    headers = ['Mode', 'Mode Display', 'Total Respondents', 'Question',
+               'Answer', 'Count', 'Percentage']
+    sheet_rows = []
+
+    for mode in sorted(organized.keys()):
+        display = mode_display_names.get(mode, mode)
+        total = mode_respondent_counts.get(mode, 0)
+
+        for question in sorted(organized[mode].keys()):
+            answers = organized[mode][question]
+            for answer, count in sorted(answers.items(), key=lambda x: -x[1]):
+                pct = round(100.0 * count / total, 1) if total > 0 else 0
+                sheet_rows.append([
+                    mode,
+                    display,
+                    str(total),
+                    question,
+                    answer,
+                    str(count),
+                    f'{pct}%',
+                ])
+
+    return clear_and_write_sheet(service, spreadsheet_id, 'Organized Answers', headers, sheet_rows)
+
+
+def export_qa(service, spreadsheet_id: str) -> Dict[str, Any]:
+    """Export all Q&A data: per-module sheets + organized summary.
+
+    Combines export_quiz_responses (one tab per mode) with
+    organize_answers_per_mode (aggregated statistics tab).
+    """
+    qa_results = export_quiz_responses(service, spreadsheet_id)
+    organized_rows = organize_answers_per_mode(service, spreadsheet_id)
+
+    total_qa_rows = sum(qa_results.values())
+    return {
+        "per_mode_sheets": qa_results,
+        "organized_summary_rows": organized_rows,
+        "total_qa_rows": total_qa_rows,
+    }
+
+
 def export_all() -> Dict[str, Any]:
     """Run all exports and return summary."""
     service = get_sheets_service()
@@ -318,6 +490,8 @@ def main():
                         help='Export users sheet only')
     parser.add_argument('--export-engagement', action='store_true',
                         help='Export engagement sheet only')
+    parser.add_argument('--export-qa', action='store_true',
+                        help='Export onboarding Q&A per module + organized answers')
 
     args = parser.parse_args()
 
@@ -339,6 +513,18 @@ def main():
             spreadsheet_id = get_spreadsheet_id()
             rows = export_engagement(service, spreadsheet_id)
             print(json.dumps({"success": True, "sheet": "Engagement", "rows": rows}))
+            return 0
+
+        elif args.export_qa:
+            service = get_sheets_service()
+            spreadsheet_id = get_spreadsheet_id()
+            qa_result = export_qa(service, spreadsheet_id)
+            print(json.dumps({
+                "success": True,
+                "per_mode_sheets": qa_result["per_mode_sheets"],
+                "organized_summary_rows": qa_result["organized_summary_rows"],
+                "total_qa_rows": qa_result["total_qa_rows"],
+            }, default=str))
             return 0
 
         else:
