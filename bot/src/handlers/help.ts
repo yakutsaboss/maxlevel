@@ -5,6 +5,7 @@
 
 import { InlineKeyboard } from 'grammy';
 import type { Context } from 'grammy';
+import { t } from '../i18n/index.js';
 
 const CB = {
   COMMANDS: 'help:commands',
@@ -76,7 +77,10 @@ function getBackKeyboard(activeCategory: string): InlineKeyboard {
  * Handle /help command — shows main help with category buttons.
  */
 export async function handleHelp(ctx: Context) {
-  await ctx.reply(MAIN_TEXT, {
+  const lang = ctx.from?.language_code || 'en';
+  const helpText = t(lang, 'help');
+
+  await ctx.reply(helpText, {
     parse_mode: 'Markdown',
     reply_markup: getMainKeyboard(),
   });

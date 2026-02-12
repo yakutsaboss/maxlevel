@@ -9,6 +9,7 @@ import { query, queryOne, execute } from '../utils/db.js';
 import { getUserByTelegramId } from '../utils/queries.js';
 import { handleOnboarding } from './onboarding.js';
 import { logger } from '../utils/logger.js';
+import { t } from '../i18n/index.js';
 
 const log = logger.child({ component: 'start' });
 
@@ -55,9 +56,13 @@ export async function handleStart(ctx: MyContext) {
 
       const statusLine = `⭐ Level ${user.current_level} · 💎 ${user.total_xp} XP` + questLine;
 
+      // i18n: detect user language (Добро пожаловать / 欢迎)
+      const lang = ctx.from?.language_code || 'en';
+      const welcomeText = t(lang, 'welcome');
+
       await sendMarkdownMessage(
         ctx,
-        `👋 Welcome back, **${userName}**!\n\n` +
+        `${welcomeText}\n\n**${userName}**\n\n` +
           `${statusLine}\n\n` +
           `What would you like to do?`
       );
