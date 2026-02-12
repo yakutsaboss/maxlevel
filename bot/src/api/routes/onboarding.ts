@@ -194,15 +194,15 @@ router.post('/:telegramId/complete', authenticateTelegram, asyncHandler(async (r
     );
 
     // 6. Assign initial daily quests (native SQL — migrated from quest_manager.py)
-    const modeRowsResult = await client.query(
+    const modeRowsResult = await client.query<{ mode_id: number }>(
       'SELECT mode_id FROM user_modes WHERE user_id = $1 AND is_active = true',
       [userId]
     );
-    const modeIds = modeRowsResult.rows.map((r: any) => r.mode_id);
+    const modeIds = modeRowsResult.rows.map((r) => r.mode_id);
 
     if (modeIds.length > 0) {
       const today = new Date().toISOString().split('T')[0];
-      const availableResult = await client.query(
+      const availableResult = await client.query<{ id: number; difficulty: string }>(
         `SELECT id, difficulty FROM quests
          WHERE mode_id = ANY($1) AND quest_type = 'daily'
          AND id NOT IN (SELECT quest_id FROM quest_instances WHERE user_id = $2 AND instance_date = $3)

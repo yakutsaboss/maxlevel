@@ -2554,7 +2554,21 @@ After completing work, write your retrospective in PARALLEL_AGENTS.md under "Run
 - The existing `bot/src/config.ts` already validates at import time — the new `utils/config.ts` is complementary, providing a callable function that reports ALL issues at once rather than failing on the first one.
 
 #### Agent F Retrospective
-*(To be filled by Agent F)*
+**Task:** Remove all `any` type casts from `bot/src/api/routes/*.ts` files.
+
+**Changes made (3 files, 4 fixes):**
+1. `admin-quests.ts:188` — Added `queryOne<{ count: number }>()` generic, removed `(instanceCount as any)?.count` cast
+2. `onboarding.ts:197` — Added `client.query<{ mode_id: number }>()` generic, removed `(r: any)` callback param cast
+3. `onboarding.ts:205` — Added `client.query<{ id: number; difficulty: string }>()` generic for `availableResult` (implicit any on `.rows`)
+4. `social.ts:111` — Added `queryOne<{ id: number }>()` generic, replaced `(challenge as any).id` with `challenge!.id`
+
+**Approach:** The existing `queryOne<T>` and `query<T>` helpers already supported generics but weren't being used — callers defaulted to `Record<string, unknown>` which required `as any` to access specific fields. Fix was to pass proper type parameters matching SELECT columns.
+
+**Skipped:** The only remaining `any` in routes is the English word "any" in a comment in `users.ts:16` — not a type cast.
+
+**No shared utility changes needed** — all fixes were self-contained in route files using existing generic support.
+
+**Build:** `tsc` passes clean. **Tests:** 771/771 pass (63 test files).
 
 #### Agent G Retrospective
 **Task**: DB Migration Script
