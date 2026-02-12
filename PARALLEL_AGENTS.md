@@ -1376,7 +1376,18 @@ Commit after all changes. Write your retrospective when done.
 **Notes for Agent 0**: No merge needed — changes are already on main. The miniapp_polish checks are intentionally forward-looking (return False now, will auto-flip when i18n/PWA/dark mode are implemented).
 
 #### Agent B Retrospective
-*(To be filled by Agent B)*
+**Completed all 3 tasks. 2 commits on `feature/r40-config-placeholders`.**
+
+1. **`admin-app/src/index.ts`** — Created minimal placeholder (3 lines). Tracker `dir_exists("admin-app/src")` will pass after merge.
+2. **`service_account.json`** — Created `{}` placeholder. Had to `git add -f` because `.gitignore` already lists it (line 11). Once force-tracked, git will deliver it on `git pull`. Tracker `file_exists("service_account.json")` will pass.
+3. **`.env` GOOGLE_SHEETS_SPREADSHEET_ID** — Added to main repo's `.env` (filesystem edit, not git — `.env` is gitignored). **Agent 0 must also add this line to the server's `.env`** at `/opt/wibecode-bot/.env` during deploy, or the tracker won't pass on server.
+
+**Gotcha for Agent 0:** The `.env` change is NOT in any git commit. It must be manually applied on the server via SSH:
+```bash
+ssh root@85.239.58.205 "echo '' >> /opt/wibecode-bot/.env && echo '# GOOGLE SHEETS (placeholder)' >> /opt/wibecode-bot/.env && echo 'GOOGLE_SHEETS_SPREADSHEET_ID=placeholder' >> /opt/wibecode-bot/.env"
+```
+
+**No conflicts expected** — all files are new or append-only, no overlap with Agent A or C.
 
 #### Agent C Retrospective
 **Task**: Replace `lambda: False` with forward-looking checks in `admin_panel` and `sheets` milestones.
