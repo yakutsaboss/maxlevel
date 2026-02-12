@@ -9,7 +9,8 @@ INSERT INTO modes (name, display_name, description, icon_emoji) VALUES
 ('fitness', 'Fitness', 'Physical exercise and workouts', '🏋️'),
 ('hydration', 'Hydration', 'Water intake and hydration tracking', '💧'),
 ('finance', 'Finance', 'Saving goals and budget tracking', '💰'),
-('learning', 'Learning', 'Reading and skill development', '📚')
+('learning', 'Learning', 'Reading and skill development', '📚'),
+('medication', 'Medication', 'Track medication intake and adherence', '💊')
 ON CONFLICT (name) DO NOTHING;
 
 -- ========================================
@@ -52,6 +53,15 @@ INSERT INTO achievements (name, description, badge_icon, criteria, xp_bonus, rar
 ('lifelong_learner', 'Lifelong Learner', '🧠', '{"type": "quest_complete_consecutive", "mode": "learning", "days": 14}', 200, 'epic')
 ON CONFLICT (name) DO NOTHING;
 
+-- Medication Achievements
+INSERT INTO achievements (name, description, badge_icon, criteria, xp_bonus, rarity) VALUES
+('first_dose', 'First Dose', '💊', '{"type": "quest_complete", "mode": "medication", "count": 1}', 50, 'common'),
+('week_adherent', 'Week Adherent', '📅', '{"type": "streak", "mode": "medication", "days": 7}', 100, 'rare'),
+('month_adherent', 'Month Adherent', '🏅', '{"type": "streak", "mode": "medication", "days": 30}', 500, 'epic'),
+('dosage_master', 'Dosage Master', '💉', '{"type": "quest_complete", "mode": "medication", "count": 50}', 300, 'rare'),
+('refill_ready', 'Refill Ready', '🔄', '{"type": "quest_complete_consecutive", "mode": "medication", "days": 14}', 200, 'epic')
+ON CONFLICT (name) DO NOTHING;
+
 -- Cross-Mode Achievements
 INSERT INTO achievements (name, description, badge_icon, criteria, xp_bonus, rarity) VALUES
 ('balanced_start', 'Balanced Start', '⚖️', '{"type": "multi_mode_active", "count": 2}', 100, 'common'),
@@ -72,11 +82,13 @@ DECLARE
     hydration_mode_id INT;
     finance_mode_id INT;
     learning_mode_id INT;
+    medication_mode_id INT;
 BEGIN
     SELECT id INTO fitness_mode_id FROM modes WHERE name = 'fitness';
     SELECT id INTO hydration_mode_id FROM modes WHERE name = 'hydration';
     SELECT id INTO finance_mode_id FROM modes WHERE name = 'finance';
     SELECT id INTO learning_mode_id FROM modes WHERE name = 'learning';
+    SELECT id INTO medication_mode_id FROM modes WHERE name = 'medication';
 
     -- Fitness Quest Templates
     INSERT INTO quests (mode_id, title, description, quest_type, xp_reward, difficulty, requires_timer, timer_window_start, timer_window_end, readiness_check_enabled, readiness_check_time, is_mandatory) VALUES
@@ -106,6 +118,13 @@ BEGIN
     (learning_mode_id, 'Practice Skills', 'Practice what you learned with exercises or projects', 'daily', 40, 'medium', FALSE, NULL, NULL, FALSE, NULL, FALSE),
     (learning_mode_id, 'Weekly Learning Review', 'Review what you learned this week and plan next topics', 'weekly', 150, 'medium', FALSE, NULL, NULL, FALSE, NULL, TRUE),
     (learning_mode_id, 'Weekly Goal: 5 Sessions', 'Complete at least 5 study sessions this week', 'weekly', 200, 'medium', FALSE, NULL, NULL, FALSE, NULL, TRUE)
+    ON CONFLICT DO NOTHING;
+
+    -- Medication Quest Templates (added in Run 41)
+    INSERT INTO quests (mode_id, title, description, quest_type, xp_reward, difficulty, requires_timer, timer_window_start, timer_window_end, readiness_check_enabled, readiness_check_time, is_mandatory) VALUES
+    (medication_mode_id, 'Take Morning Medication', 'Take your morning dosage on time to stay on track', 'daily', 40, 'easy', TRUE, '06:00:00', '09:00:00', TRUE, '05:45:00', TRUE),
+    (medication_mode_id, 'Take Evening Medication', 'Take your evening dosage before bed for consistent adherence', 'daily', 40, 'easy', TRUE, '18:00:00', '21:00:00', TRUE, '17:45:00', TRUE),
+    (medication_mode_id, 'Weekly Refill Check', 'Check your medication supply and plan a refill if needed', 'weekly', 150, 'medium', FALSE, NULL, NULL, FALSE, NULL, TRUE)
     ON CONFLICT DO NOTHING;
 END $$;
 
