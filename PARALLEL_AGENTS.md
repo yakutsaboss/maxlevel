@@ -1606,7 +1606,13 @@ Commit when done. Write your retrospective in the designated section of PARALLEL
 *(To be filled by Agent B)*
 
 #### Agent C Retrospective
-*(To be filled by Agent C)*
+- **Task**: Replace `lambda: False` with real keyword-based checks for medication tracker items 5-7
+- **Changes**: Updated 3 checks in `tools/project_status_tracker.py` lines 166-168:
+  - "Medication schedule reminders" → checks `questReminders.ts` for `medication|med.*remind` OR `seed_data.sql` for `medication.*timer_window` patterns
+  - "Dosage tracking" → checks `seed_data.sql` for "dosage" OR `onboardingQuestions.ts` for "dosage"
+  - "Refill alerts" → checks `seed_data.sql` for "refill"
+- **Verified**: `_file_contains_pattern` method already existed (line 36). Tracker runs cleanly — medication checks return False as expected (awaiting Agent A's seed data).
+- **No conflicts**: Only touched `tools/project_status_tracker.py`, no overlap with Agent A or B files.
 
 #### Agent 0 Retrospective
 *(To be filled by Agent 0)*
