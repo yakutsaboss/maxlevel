@@ -1172,7 +1172,28 @@ After completing work, write your retrospective in PARALLEL_AGENTS.md under "Run
 *(To be filled by Agent B)*
 
 #### Agent C Retrospective
-*(To be filled by Agent C)*
+**Status:** COMPLETE — 4 indexes added, 2 N+1 patterns fixed, build passes, 602/602 tests pass.
+
+**What was done:**
+
+| # | Task | Status |
+|---|------|--------|
+| 1 | Add 4 missing DB indexes (friend_requests, challenge_participants x2, activity_log) | Done |
+| 2 | Fix N+1 in modes.ts POST handler: 15 queries -> 5 max (batch SELECT, UPDATE, INSERT, streak upsert) | Done |
+| 3 | Fix N+1 in quest-assignment.ts: sequential INSERT -> single multi-row INSERT RETURNING | Done |
+| 4 | Update 9 test mocks across 3 files to match new batch query patterns | Done |
+
+**Performance impact:**
+- **modes.ts**: Adding 5 modes previously did 15 DB roundtrips (3 per mode). Now does 5 max regardless of mode count.
+- **quest-assignment.ts**: Assigning N quests previously did N INSERTs. Now does 1 multi-row INSERT.
+- **Schema**: 4 new indexes cover foreign keys on social tables + composite index on activity_log for analytics queries.
+
+**Issues encountered:**
+- Test mocks used sequential `queryOne` for INSERT calls. After batching to `query`, 9 tests across 3 files (modes.http, quest-assignment.http, quests.http) needed mock updates. All fixed, 602/602 pass.
+
+**Notes for Agent 0:**
+- The 4 indexes need to be applied to the production DB: `CREATE INDEX IF NOT EXISTS ...` (safe to run).
+- No changes to endpoint behavior — same inputs produce same outputs, just fewer DB roundtrips.
 
 #### Agent D Retrospective
 *(To be filled by Agent D)*
