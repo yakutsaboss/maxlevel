@@ -7,36 +7,18 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import request from 'supertest';
 import { createTestApp, addTestErrorHandler } from '../../helpers/testApp.js';
+import { getMockDb } from '../../helpers/httpMocks.js';
 
-// ─── Mocks (hoisted before any route import) ───────────────────────
+// ─── Mocks (hoisted — use async dynamic import for httpMocks) ───────
 
-const mockQuery = vi.fn();
-const mockQueryOne = vi.fn();
-const mockExecute = vi.fn();
-const mockTransaction = vi.fn();
+vi.mock('../../../utils/db.js', async () =>
+  (await import('../../helpers/httpMocks.js')).createMockDb().module);
 
-vi.mock('../../../utils/db.js', () => ({
-  query: (...args: any[]) => mockQuery(...args),
-  queryOne: (...args: any[]) => mockQueryOne(...args),
-  execute: (...args: any[]) => mockExecute(...args),
-  transaction: (...args: any[]) => mockTransaction(...args),
-  getPool: vi.fn(),
-}));
+vi.mock('../../../utils/cache.js', async () =>
+  (await import('../../helpers/httpMocks.js')).createMockCache().module);
 
-vi.mock('../../../utils/cache.js', () => ({
-  cached: vi.fn(async (_k: string, _t: number, fn: () => Promise<any>) => fn()),
-  invalidate: vi.fn(),
-  invalidatePrefix: vi.fn(),
-  invalidateUserCache: vi.fn(),
-  clearAll: vi.fn(),
-  TTL: { SHORT: 30_000, MEDIUM: 300_000, LONG: 1_800_000 },
-}));
-
-vi.mock('../../../utils/pythonTools.js', () => ({
-  executePythonTool: vi.fn(),
-  getUserByTelegramId: vi.fn(),
-  getUserById: vi.fn(),
-}));
+vi.mock('../../../utils/pythonTools.js', async () =>
+  (await import('../../helpers/httpMocks.js')).createMockPythonTools().module);
 
 vi.mock('../../../utils/xpAward.js', () => ({
   awardXp: vi.fn().mockResolvedValue({ totalXp: 550, newLevel: 2, oldLevel: 1, leveledUp: true }),
@@ -56,17 +38,18 @@ vi.mock('../../../api/middleware/auth.js', () => ({
   requireOwnership: vi.fn(),
 }));
 
-vi.mock('../../../api/middleware/rateLimiter.js', () => ({
-  apiLimiter: (_req: any, _res: any, next: any) => next(),
-  mutationLimiter: (_req: any, _res: any, next: any) => next(),
-  readLimiter: (_req: any, _res: any, next: any) => next(),
-}));
+vi.mock('../../../api/middleware/rateLimiter.js', async () =>
+  (await import('../../helpers/httpMocks.js')).createMockRateLimiters().module);
 
 // ─── Import router + mocked modules after mocks ──────────────────
 
 import { checkinRouter } from '../../../api/routes/checkins.js';
 import { awardXp } from '../../../utils/xpAward.js';
 import { checkAndUnlockAchievements } from '../../../utils/achievementEngine.js';
+
+// ─── Mock refs (populated by vi.mock factories above) ───────────────
+
+const db = getMockDb();
 
 // ─── Build test app ────────────────────────────────────────────────
 
@@ -85,7 +68,7 @@ beforeEach(() => {
 
 describe('POST /api/checkins', () => {
   it('should return 200 and create a check-in with progress', async () => {
-    mockQueryOne.mockResolvedValueOnce({
+    db.queryOne.mockResolvedValueOnce({
       id: 10,
       user_id: 1,
       status: 'in_progress',
@@ -95,7 +78,7 @@ describe('POST /api/checkins', () => {
       target: 1,
     });
 
-    mockTransaction.mockImplementationOnce(async (fn: any) => {
+    db.transaction.mockImplementationOnce(async (fn: any) => {
       const mockClient = {
         query: vi.fn()
           .mockResolvedValueOnce({ rows: [{ id: 1, check_in_time: '2026-02-10T08:00:00Z' }] }) // INSERT check_in
@@ -119,7 +102,7 @@ describe('POST /api/checkins', () => {
   });
 
   it('should increment progress without completing when target not reached', async () => {
-    mockQueryOne.mockResolvedValueOnce({
+    db.queryOne.mockResolvedValueOnce({
       id: 10,
       user_id: 1,
       status: 'in_progress',
@@ -129,7 +112,7 @@ describe('POST /api/checkins', () => {
       target: 5,
     });
 
-    mockTransaction.mockImplementationOnce(async (fn: any) => {
+    db.transaction.mockImplementationOnce(async (fn: any) => {
       const mockClient = {
         query: vi.fn()
           .mockResolvedValueOnce({ rows: [{ id: 2, check_in_time: '2026-02-10T09:00:00Z' }] }) // INSERT
@@ -153,7 +136,7 @@ describe('POST /api/checkins', () => {
   });
 
   it('should return 400 for already completed quest', async () => {
-    mockQueryOne.mockResolvedValueOnce({
+    db.queryOne.mockResolvedValueOnce({
       id: 10,
       user_id: 1,
       status: 'completed',
@@ -173,7 +156,7 @@ describe('POST /api/checkins', () => {
   });
 
   it('should return 404 for non-existent quest_instance', async () => {
-    mockQueryOne.mockResolvedValueOnce(null);
+    db.queryOne.mockResolvedValueOnce(null);
 
     const res = await request(buildApp())
       .post('/api/checkins')
@@ -205,7 +188,7 @@ describe('POST /api/checkins', () => {
   });
 
   it('should return 500 when database throws', async () => {
-    mockQueryOne.mockRejectedValueOnce(new Error('DB down'));
+    db.queryOne.mockRejectedValueOnce(new Error('DB down'));
 
     const res = await request(buildApp())
       .post('/api/checkins')
@@ -219,7 +202,7 @@ describe('POST /api/checkins', () => {
 
 describe('GET /api/checkins/:telegramId/today', () => {
   it('should return 200 with today\'s check-ins', async () => {
-    mockQuery.mockResolvedValueOnce([
+    db.query.mockResolvedValueOnce([
       { id: 1, check_in_time: '2026-02-10T08:00:00Z', notes: null, is_valid: true, quest_title: 'Morning Run', quest_status: 'completed' },
       { id: 2, check_in_time: '2026-02-10T09:00:00Z', notes: 'Good session', is_valid: true, quest_title: 'Study', quest_status: 'in_progress' },
     ]);
@@ -235,7 +218,7 @@ describe('GET /api/checkins/:telegramId/today', () => {
   });
 
   it('should return empty array when no check-ins today', async () => {
-    mockQuery.mockResolvedValueOnce([]);
+    db.query.mockResolvedValueOnce([]);
 
     const res = await request(buildApp())
       .get('/api/checkins/111/today')
@@ -258,7 +241,7 @@ describe('GET /api/checkins/:telegramId/today', () => {
 
 describe('GET /api/checkins/:telegramId/history', () => {
   it('should return 200 with paginated history', async () => {
-    mockQuery.mockResolvedValueOnce([
+    db.query.mockResolvedValueOnce([
       { id: 3, check_in_time: '2026-02-10T10:00:00Z', notes: null, is_valid: true, quest_title: 'Read', quest_status: 'completed' },
     ]);
 
@@ -273,7 +256,7 @@ describe('GET /api/checkins/:telegramId/history', () => {
   });
 
   it('should default to page=1 limit=20', async () => {
-    mockQuery.mockResolvedValueOnce([]);
+    db.query.mockResolvedValueOnce([]);
 
     const res = await request(buildApp())
       .get('/api/checkins/111/history')
@@ -294,7 +277,7 @@ describe('GET /api/checkins/:telegramId/history', () => {
   });
 
   it('should return 500 when database throws', async () => {
-    mockQuery.mockRejectedValueOnce(new Error('connection lost'));
+    db.query.mockRejectedValueOnce(new Error('connection lost'));
 
     const res = await request(buildApp())
       .get('/api/checkins/111/history')

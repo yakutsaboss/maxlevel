@@ -8,48 +8,32 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import request from 'supertest';
 import { createTestApp, addTestErrorHandler } from '../../helpers/testApp.js';
+import { getMockDb } from '../../helpers/httpMocks.js';
 
-// ─── Mocks (hoisted before any route import) ───────────────────────
+// ─── Mocks (hoisted — use async dynamic import for httpMocks) ───────
 
-const mockQuery = vi.fn();
+vi.mock('../../../utils/db.js', async () =>
+  (await import('../../helpers/httpMocks.js')).createMockDb().module);
 
-vi.mock('../../../utils/db.js', () => ({
-  query: (...args: any[]) => mockQuery(...args),
-  queryOne: vi.fn(),
-  execute: vi.fn(),
-  transaction: vi.fn(),
-  getPool: vi.fn(),
-}));
+vi.mock('../../../utils/cache.js', async () =>
+  (await import('../../helpers/httpMocks.js')).createMockCache().module);
 
-vi.mock('../../../utils/cache.js', () => ({
-  cached: vi.fn(async (_k: string, _t: number, fn: () => Promise<any>) => fn()),
-  invalidate: vi.fn(),
-  invalidatePrefix: vi.fn(),
-  invalidateUserCache: vi.fn(),
-  clearAll: vi.fn(),
-  TTL: { SHORT: 30_000, MEDIUM: 300_000, LONG: 1_800_000 },
-}));
+vi.mock('../../../utils/pythonTools.js', async () =>
+  (await import('../../helpers/httpMocks.js')).createMockPythonTools().module);
 
-vi.mock('../../../utils/pythonTools.js', () => ({
-  executePythonTool: vi.fn(),
-  getUserByTelegramId: vi.fn(),
-  getUserById: vi.fn(),
-}));
+vi.mock('../../../api/middleware/auth.js', async () =>
+  (await import('../../helpers/httpMocks.js')).createMockAuth().module);
 
-vi.mock('../../../api/middleware/auth.js', () => ({
-  authenticateTelegram: (_req: any, _res: any, next: any) => next(),
-  authorizeUser: (_req: any, _res: any, next: any) => next(),
-}));
-
-vi.mock('../../../api/middleware/rateLimiter.js', () => ({
-  apiLimiter: (_req: any, _res: any, next: any) => next(),
-  mutationLimiter: (_req: any, _res: any, next: any) => next(),
-  readLimiter: (_req: any, _res: any, next: any) => next(),
-}));
+vi.mock('../../../api/middleware/rateLimiter.js', async () =>
+  (await import('../../helpers/httpMocks.js')).createMockRateLimiters().module);
 
 // ─── Import router after mocks ─────────────────────────────────────
 
 import { leaderboardRouter } from '../../../api/routes/leaderboard.js';
+
+// ─── Mock refs (populated by vi.mock factories above) ───────────────
+
+const db = getMockDb();
 
 // ─── Build test app ────────────────────────────────────────────────
 
@@ -81,7 +65,7 @@ describe('GET /api/leaderboard', () => {
   };
 
   it('should return 200 with cross-mode top 50 leaderboard', async () => {
-    mockQuery.mockResolvedValueOnce([sampleEntry]);
+    db.query.mockResolvedValueOnce([sampleEntry]);
 
     const res = await request(buildApp())
       .get('/api/leaderboard')
@@ -97,7 +81,7 @@ describe('GET /api/leaderboard', () => {
   });
 
   it('should return empty array when no active users', async () => {
-    mockQuery.mockResolvedValueOnce([]);
+    db.query.mockResolvedValueOnce([]);
 
     const res = await request(buildApp())
       .get('/api/leaderboard')
@@ -108,34 +92,34 @@ describe('GET /api/leaderboard', () => {
   });
 
   it('should respect limit query parameter', async () => {
-    mockQuery.mockResolvedValueOnce([]);
+    db.query.mockResolvedValueOnce([]);
 
     await request(buildApp())
       .get('/api/leaderboard?limit=10')
       .expect(200);
 
     // The query should have been called with limit=10
-    expect(mockQuery).toHaveBeenCalledWith(
+    expect(db.query).toHaveBeenCalledWith(
       expect.stringContaining('LIMIT'),
       [10],
     );
   });
 
   it('should cap limit at 100', async () => {
-    mockQuery.mockResolvedValueOnce([]);
+    db.query.mockResolvedValueOnce([]);
 
     await request(buildApp())
       .get('/api/leaderboard?limit=500')
       .expect(200);
 
-    expect(mockQuery).toHaveBeenCalledWith(
+    expect(db.query).toHaveBeenCalledWith(
       expect.stringContaining('LIMIT'),
       [100],
     );
   });
 
   it('should return 500 when database throws', async () => {
-    mockQuery.mockRejectedValueOnce(new Error('connection timeout'));
+    db.query.mockRejectedValueOnce(new Error('connection timeout'));
 
     const res = await request(buildApp())
       .get('/api/leaderboard')
@@ -161,7 +145,7 @@ describe('GET /api/leaderboard?mode=fitness', () => {
   };
 
   it('should return 200 with mode-specific leaderboard', async () => {
-    mockQuery.mockResolvedValueOnce([modeSampleEntry]);
+    db.query.mockResolvedValueOnce([modeSampleEntry]);
 
     const res = await request(buildApp())
       .get('/api/leaderboard?mode=fitness')
@@ -176,7 +160,7 @@ describe('GET /api/leaderboard?mode=fitness', () => {
   });
 
   it('should return empty list for nonexistent mode', async () => {
-    mockQuery.mockResolvedValueOnce([]);
+    db.query.mockResolvedValueOnce([]);
 
     const res = await request(buildApp())
       .get('/api/leaderboard?mode=nonexistent')
@@ -188,13 +172,13 @@ describe('GET /api/leaderboard?mode=fitness', () => {
   });
 
   it('should pass mode to the SQL query', async () => {
-    mockQuery.mockResolvedValueOnce([]);
+    db.query.mockResolvedValueOnce([]);
 
     await request(buildApp())
       .get('/api/leaderboard?mode=hydration')
       .expect(200);
 
-    expect(mockQuery).toHaveBeenCalledWith(
+    expect(db.query).toHaveBeenCalledWith(
       expect.stringContaining('m.name'),
       [50, 'hydration'],
     );
@@ -203,7 +187,7 @@ describe('GET /api/leaderboard?mode=fitness', () => {
 
 describe('GET /api/leaderboard/weekly', () => {
   it('should return 200 with weekly rankings', async () => {
-    mockQuery.mockResolvedValueOnce([
+    db.query.mockResolvedValueOnce([
       {
         user_id: 1,
         telegram_id: 111,
@@ -226,7 +210,7 @@ describe('GET /api/leaderboard/weekly', () => {
   });
 
   it('should return empty array when no weekly activity', async () => {
-    mockQuery.mockResolvedValueOnce([]);
+    db.query.mockResolvedValueOnce([]);
 
     const res = await request(buildApp())
       .get('/api/leaderboard/weekly')
@@ -237,7 +221,7 @@ describe('GET /api/leaderboard/weekly', () => {
   });
 
   it('should return 500 when database throws', async () => {
-    mockQuery.mockRejectedValueOnce(new Error('DB failure'));
+    db.query.mockRejectedValueOnce(new Error('DB failure'));
 
     const res = await request(buildApp())
       .get('/api/leaderboard/weekly')

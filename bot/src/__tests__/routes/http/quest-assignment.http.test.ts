@@ -9,34 +9,18 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import request from 'supertest';
 import { createTestApp, addTestErrorHandler } from '../../helpers/testApp.js';
+import { getMockDb } from '../../helpers/httpMocks.js';
 
-// ─── Mocks (hoisted before any route import) ───────────────────────
+// ─── Mocks (hoisted — use async dynamic import for httpMocks) ───────
 
-const mockQuery = vi.fn();
-const mockQueryOne = vi.fn();
+vi.mock('../../../utils/db.js', async () =>
+  (await import('../../helpers/httpMocks.js')).createMockDb().module);
 
-vi.mock('../../../utils/db.js', () => ({
-  query: (...args: any[]) => mockQuery(...args),
-  queryOne: (...args: any[]) => mockQueryOne(...args),
-  execute: vi.fn(),
-  transaction: vi.fn(),
-  getPool: vi.fn(),
-}));
+vi.mock('../../../utils/cache.js', async () =>
+  (await import('../../helpers/httpMocks.js')).createMockCache().module);
 
-vi.mock('../../../utils/cache.js', () => ({
-  cached: vi.fn(async (_k: string, _t: number, fn: () => Promise<any>) => fn()),
-  invalidate: vi.fn(),
-  invalidatePrefix: vi.fn(),
-  invalidateUserCache: vi.fn(),
-  clearAll: vi.fn(),
-  TTL: { SHORT: 30_000, MEDIUM: 300_000, LONG: 1_800_000 },
-}));
-
-vi.mock('../../../utils/pythonTools.js', () => ({
-  executePythonTool: vi.fn(),
-  getUserByTelegramId: vi.fn(),
-  getUserById: vi.fn(),
-}));
+vi.mock('../../../utils/pythonTools.js', async () =>
+  (await import('../../helpers/httpMocks.js')).createMockPythonTools().module);
 
 vi.mock('../../../utils/achievementEngine.js', () => ({
   checkAndUnlockAchievements: vi.fn().mockResolvedValue([]),
@@ -55,15 +39,16 @@ vi.mock('../../../api/middleware/auth.js', () => ({
   requireOwnership: vi.fn(),
 }));
 
-vi.mock('../../../api/middleware/rateLimiter.js', () => ({
-  apiLimiter: (_req: any, _res: any, next: any) => next(),
-  mutationLimiter: (_req: any, _res: any, next: any) => next(),
-  readLimiter: (_req: any, _res: any, next: any) => next(),
-}));
+vi.mock('../../../api/middleware/rateLimiter.js', async () =>
+  (await import('../../helpers/httpMocks.js')).createMockRateLimiters().module);
 
 // ─── Import router after mocks ─────────────────────────────────────
 
 import { questAssignmentRouter } from '../../../api/routes/quest-assignment.js';
+
+// ─── Mock refs (populated by vi.mock factories above) ───────────────
+
+const db = getMockDb();
 
 // ─── Build test app ────────────────────────────────────────────────
 
@@ -96,15 +81,15 @@ describe('POST /api/quests/users/:userId/assign', () => {
   describe('daily quest assignment', () => {
     it('should assign 3 daily quests by default', async () => {
       // query 1: user active modes
-      mockQuery.mockResolvedValueOnce([{ mode_id: 1 }]);
+      db.query.mockResolvedValueOnce([{ mode_id: 1 }]);
       // query 2: available daily quests
-      mockQuery.mockResolvedValueOnce([
+      db.query.mockResolvedValueOnce([
         DAILY_QUEST(1), DAILY_QUEST(2), DAILY_QUEST(3),
       ]);
       // queryOne: INSERT for each quest
-      mockQueryOne.mockResolvedValueOnce({ id: 101 });
-      mockQueryOne.mockResolvedValueOnce({ id: 102 });
-      mockQueryOne.mockResolvedValueOnce({ id: 103 });
+      db.queryOne.mockResolvedValueOnce({ id: 101 });
+      db.queryOne.mockResolvedValueOnce({ id: 102 });
+      db.queryOne.mockResolvedValueOnce({ id: 103 });
 
       const res = await request(buildApp())
         .post('/api/quests/users/42/assign')
@@ -125,9 +110,9 @@ describe('POST /api/quests/users/:userId/assign', () => {
     });
 
     it('should use custom count when provided', async () => {
-      mockQuery.mockResolvedValueOnce([{ mode_id: 1 }]);
-      mockQuery.mockResolvedValueOnce([DAILY_QUEST(1)]);
-      mockQueryOne.mockResolvedValueOnce({ id: 201 });
+      db.query.mockResolvedValueOnce([{ mode_id: 1 }]);
+      db.query.mockResolvedValueOnce([DAILY_QUEST(1)]);
+      db.queryOne.mockResolvedValueOnce({ id: 201 });
 
       const res = await request(buildApp())
         .post('/api/quests/users/42/assign')
@@ -139,15 +124,15 @@ describe('POST /api/quests/users/:userId/assign', () => {
     });
 
     it('should set target based on difficulty', async () => {
-      mockQuery.mockResolvedValueOnce([{ mode_id: 1 }]);
-      mockQuery.mockResolvedValueOnce([
+      db.query.mockResolvedValueOnce([{ mode_id: 1 }]);
+      db.query.mockResolvedValueOnce([
         DAILY_QUEST(1, 'easy'),
         DAILY_QUEST(2, 'medium'),
         DAILY_QUEST(3, 'hard'),
       ]);
-      mockQueryOne.mockResolvedValueOnce({ id: 301 });
-      mockQueryOne.mockResolvedValueOnce({ id: 302 });
-      mockQueryOne.mockResolvedValueOnce({ id: 303 });
+      db.queryOne.mockResolvedValueOnce({ id: 301 });
+      db.queryOne.mockResolvedValueOnce({ id: 302 });
+      db.queryOne.mockResolvedValueOnce({ id: 303 });
 
       const res = await request(buildApp())
         .post('/api/quests/users/42/assign')
@@ -163,10 +148,10 @@ describe('POST /api/quests/users/:userId/assign', () => {
 
   describe('weekly quest assignment', () => {
     it('should assign 2 weekly quests by default', async () => {
-      mockQuery.mockResolvedValueOnce([{ mode_id: 1 }]);
-      mockQuery.mockResolvedValueOnce([WEEKLY_QUEST(10), WEEKLY_QUEST(11)]);
-      mockQueryOne.mockResolvedValueOnce({ id: 401 });
-      mockQueryOne.mockResolvedValueOnce({ id: 402 });
+      db.query.mockResolvedValueOnce([{ mode_id: 1 }]);
+      db.query.mockResolvedValueOnce([WEEKLY_QUEST(10), WEEKLY_QUEST(11)]);
+      db.queryOne.mockResolvedValueOnce({ id: 401 });
+      db.queryOne.mockResolvedValueOnce({ id: 402 });
 
       const res = await request(buildApp())
         .post('/api/quests/users/42/assign')
@@ -182,9 +167,9 @@ describe('POST /api/quests/users/:userId/assign', () => {
     });
 
     it('should use weekly SQL filter (past 7 days, active statuses)', async () => {
-      mockQuery.mockResolvedValueOnce([{ mode_id: 2 }]);
-      mockQuery.mockResolvedValueOnce([WEEKLY_QUEST(20)]);
-      mockQueryOne.mockResolvedValueOnce({ id: 501 });
+      db.query.mockResolvedValueOnce([{ mode_id: 2 }]);
+      db.query.mockResolvedValueOnce([WEEKLY_QUEST(20)]);
+      db.queryOne.mockResolvedValueOnce({ id: 501 });
 
       await request(buildApp())
         .post('/api/quests/users/42/assign')
@@ -192,7 +177,7 @@ describe('POST /api/quests/users/:userId/assign', () => {
         .expect(200);
 
       // Verify the second query call used mode_id from first call
-      const secondQueryCall = mockQuery.mock.calls[1];
+      const secondQueryCall = db.query.mock.calls[1];
       expect(secondQueryCall[1][0]).toEqual([2]); // modeIds
       expect(secondQueryCall[1][1]).toBe(42);      // userId
       // 3rd param is weekAgo date string
@@ -202,8 +187,8 @@ describe('POST /api/quests/users/:userId/assign', () => {
 
   describe('no available quests', () => {
     it('should return 400 when no quests available for user modes', async () => {
-      mockQuery.mockResolvedValueOnce([{ mode_id: 1 }]);
-      mockQuery.mockResolvedValueOnce([]); // no available quests
+      db.query.mockResolvedValueOnce([{ mode_id: 1 }]);
+      db.query.mockResolvedValueOnce([]); // no available quests
 
       const res = await request(buildApp())
         .post('/api/quests/users/42/assign')
@@ -217,7 +202,7 @@ describe('POST /api/quests/users/:userId/assign', () => {
 
   describe('mode filtering', () => {
     it('should return 400 when user has no active modes', async () => {
-      mockQuery.mockResolvedValueOnce([]); // no active modes
+      db.query.mockResolvedValueOnce([]); // no active modes
 
       const res = await request(buildApp())
         .post('/api/quests/users/42/assign')
@@ -228,9 +213,9 @@ describe('POST /api/quests/users/:userId/assign', () => {
     });
 
     it('should pass all active mode IDs to the quest query', async () => {
-      mockQuery.mockResolvedValueOnce([{ mode_id: 1 }, { mode_id: 3 }, { mode_id: 5 }]);
-      mockQuery.mockResolvedValueOnce([DAILY_QUEST(1)]);
-      mockQueryOne.mockResolvedValueOnce({ id: 601 });
+      db.query.mockResolvedValueOnce([{ mode_id: 1 }, { mode_id: 3 }, { mode_id: 5 }]);
+      db.query.mockResolvedValueOnce([DAILY_QUEST(1)]);
+      db.queryOne.mockResolvedValueOnce({ id: 601 });
 
       await request(buildApp())
         .post('/api/quests/users/42/assign')
@@ -238,7 +223,7 @@ describe('POST /api/quests/users/:userId/assign', () => {
         .expect(200);
 
       // Verify modeIds array passed to the available-quests query
-      const secondQueryCall = mockQuery.mock.calls[1];
+      const secondQueryCall = db.query.mock.calls[1];
       expect(secondQueryCall[1][0]).toEqual([1, 3, 5]);
     });
   });
@@ -265,7 +250,7 @@ describe('POST /api/quests/users/:userId/assign', () => {
 
   describe('error handling', () => {
     it('should return 500 when database throws on mode query', async () => {
-      mockQuery.mockRejectedValueOnce(new Error('DB connection lost'));
+      db.query.mockRejectedValueOnce(new Error('DB connection lost'));
 
       const res = await request(buildApp())
         .post('/api/quests/users/42/assign')
@@ -276,8 +261,8 @@ describe('POST /api/quests/users/:userId/assign', () => {
     });
 
     it('should return 500 when database throws on quest query', async () => {
-      mockQuery.mockResolvedValueOnce([{ mode_id: 1 }]);
-      mockQuery.mockRejectedValueOnce(new Error('Query timeout'));
+      db.query.mockResolvedValueOnce([{ mode_id: 1 }]);
+      db.query.mockRejectedValueOnce(new Error('Query timeout'));
 
       const res = await request(buildApp())
         .post('/api/quests/users/42/assign')

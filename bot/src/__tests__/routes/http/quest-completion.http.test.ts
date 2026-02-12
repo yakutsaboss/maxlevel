@@ -10,35 +10,18 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import request from 'supertest';
 import { createTestApp, addTestErrorHandler } from '../../helpers/testApp.js';
 import { UnauthorizedError } from '../../../api/utils/errors.js';
+import { getMockDb } from '../../helpers/httpMocks.js';
 
-// ─── Mocks (hoisted before any route import) ───────────────────────
+// ─── Mocks (hoisted — use async dynamic import for httpMocks) ───────
 
-const mockQuery = vi.fn();
-const mockQueryOne = vi.fn();
-const mockTransaction = vi.fn();
+vi.mock('../../../utils/db.js', async () =>
+  (await import('../../helpers/httpMocks.js')).createMockDb().module);
 
-vi.mock('../../../utils/db.js', () => ({
-  query: (...args: any[]) => mockQuery(...args),
-  queryOne: (...args: any[]) => mockQueryOne(...args),
-  execute: vi.fn(),
-  transaction: (...args: any[]) => mockTransaction(...args),
-  getPool: vi.fn(),
-}));
+vi.mock('../../../utils/cache.js', async () =>
+  (await import('../../helpers/httpMocks.js')).createMockCache().module);
 
-vi.mock('../../../utils/cache.js', () => ({
-  cached: vi.fn(async (_k: string, _t: number, fn: () => Promise<any>) => fn()),
-  invalidate: vi.fn(),
-  invalidatePrefix: vi.fn(),
-  invalidateUserCache: vi.fn(),
-  clearAll: vi.fn(),
-  TTL: { SHORT: 30_000, MEDIUM: 300_000, LONG: 1_800_000 },
-}));
-
-vi.mock('../../../utils/pythonTools.js', () => ({
-  executePythonTool: vi.fn(),
-  getUserByTelegramId: vi.fn(),
-  getUserById: vi.fn(),
-}));
+vi.mock('../../../utils/pythonTools.js', async () =>
+  (await import('../../helpers/httpMocks.js')).createMockPythonTools().module);
 
 const mockCheckAchievements = vi.fn().mockResolvedValue([]);
 vi.mock('../../../utils/achievementEngine.js', () => ({
@@ -67,15 +50,16 @@ vi.mock('../../../api/middleware/auth.js', () => ({
   requireOwnership: vi.fn(),
 }));
 
-vi.mock('../../../api/middleware/rateLimiter.js', () => ({
-  apiLimiter: (_req: any, _res: any, next: any) => next(),
-  mutationLimiter: (_req: any, _res: any, next: any) => next(),
-  readLimiter: (_req: any, _res: any, next: any) => next(),
-}));
+vi.mock('../../../api/middleware/rateLimiter.js', async () =>
+  (await import('../../helpers/httpMocks.js')).createMockRateLimiters().module);
 
 // ─── Import router after mocks ─────────────────────────────────────
 
 import { questCompletionRouter } from '../../../api/routes/quest-completion.js';
+
+// ─── Mock refs (populated by vi.mock factories above) ───────────────
+
+const db = getMockDb();
 
 // ─── Build test app ────────────────────────────────────────────────
 
@@ -101,7 +85,7 @@ const QUEST_INSTANCE = (overrides: Record<string, any> = {}) => ({
 });
 
 function mockSuccessfulTransaction(instance: Record<string, any>, xpResult: Record<string, any>) {
-  mockTransaction.mockImplementationOnce(async (fn: any) => {
+  db.transaction.mockImplementationOnce(async (fn: any) => {
     const mockClient = {
       query: vi.fn()
         .mockResolvedValueOnce({ rows: [instance] })   // SELECT FOR UPDATE
@@ -156,7 +140,7 @@ describe('POST /api/quests/:questId/complete', () => {
   });
 
   it('should return 400 when quest is already completed', async () => {
-    mockTransaction.mockImplementationOnce(async (fn: any) => {
+    db.transaction.mockImplementationOnce(async (fn: any) => {
       const mockClient = {
         query: vi.fn().mockResolvedValueOnce({
           rows: [QUEST_INSTANCE({ status: 'completed' })],
@@ -173,7 +157,7 @@ describe('POST /api/quests/:questId/complete', () => {
   });
 
   it('should return 404 when quest instance not found', async () => {
-    mockTransaction.mockImplementationOnce(async (fn: any) => {
+    db.transaction.mockImplementationOnce(async (fn: any) => {
       const mockClient = {
         query: vi.fn().mockResolvedValueOnce({ rows: [] }),
       };
@@ -200,7 +184,7 @@ describe('POST /api/quests/:questId/complete', () => {
   });
 
   it('should return 500 when transaction throws a database error', async () => {
-    mockTransaction.mockRejectedValueOnce(new Error('Connection lost'));
+    db.transaction.mockRejectedValueOnce(new Error('Connection lost'));
 
     const res = await request(buildApp())
       .post('/api/quests/1/complete')
@@ -233,7 +217,7 @@ describe('POST /api/quests/:questId/complete', () => {
     await request(app).post('/api/quests/1/complete').expect(200);
 
     // Second request sees quest already completed (simulates row lock releasing after first commit)
-    mockTransaction.mockImplementationOnce(async (fn: any) => {
+    db.transaction.mockImplementationOnce(async (fn: any) => {
       const mockClient = {
         query: vi.fn().mockResolvedValueOnce({
           rows: [QUEST_INSTANCE({ status: 'completed' })],
