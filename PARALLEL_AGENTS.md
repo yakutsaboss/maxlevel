@@ -1923,7 +1923,12 @@ All agents create NEW test files only — zero file conflicts expected. Merge in
 - **All 40 tests passing**, 5 test files, 0 failures
 
 #### Agent H Retrospective
-*(To be filled by Agent H)*
+- **Files created**: `mini-app/src/__tests__/components/finance/BudgetTracker.test.tsx`, `mini-app/src/__tests__/components/finance/SavingsGoal.test.tsx`
+- **Tests written**: 16 total (8 per component), all passing
+- **BudgetTracker tests**: loading state, summary rendering, category breakdown, spent percentage, form toggle, expense/income switching, error handling, form submission
+- **SavingsGoal tests**: loading state, empty state, goals with progress, amount display, completed projection, deposit history, new goal form toggle, error handling
+- **Key issue**: `toLocaleString()` in jsdom uses locale-specific formatting (spaces instead of commas as thousand separators). Fixed by using custom matcher functions that strip whitespace/commas before comparison. This is a recurring pattern that other mini-app test agents should watch for.
+- **Duration**: ~10 minutes, one test fix iteration
 
 #### Agent I Retrospective
 *(To be filled by Agent I)*
