@@ -2143,7 +2143,25 @@ Read PARALLEL_AGENTS.md — you are Agent J for Run 38. Write tests for remainin
 *(To be filled by Agent D)*
 
 #### Agent E Retrospective
-*(To be filled by Agent E)*
+**Status:** COMPLETE — Quests.tsx refactored: state management extracted into `useQuestsData` hook.
+
+| # | Task | Status |
+|---|------|--------|
+| 1 | Created `mini-app/src/hooks/useQuestsData.ts` (156 lines) — all state vars, data fetching, handlers, filter/sort, computed values | DONE |
+| 2 | Reduced `mini-app/src/pages/Quests.tsx` from 289→154 lines (pure rendering) | DONE |
+| 3 | Build verification: `tsc` + `vite build` clean | DONE |
+| 4 | Test verification: 90 test files, 372 tests all passing | DONE |
+
+**What was extracted into the hook:**
+- 10 state variables (`activeTab`, `activeQuests`, `completedQuests`, `loading`, `error`, `selectedQuest`, `completing`, `todayCheckinCount`, `selectedModeId`, `sortBy`)
+- 2 data-fetching functions (`loadQuests`, `loadTodayCheckins`)
+- 4 handlers (`handleQuestSelect`, `handleCompleteQuest`, `handleCheckinSuccess`, `closeSelectedQuest`)
+- 3 useMemo computations (`availableModes`, `currentQuests`, `completionStats`)
+- Main button config (`mainButtonText`, `mainButtonVisible`, `mainButtonActive`)
+
+**Pattern followed:** Matches existing project hooks (`useProfileData`, `useDashboardData`, `useSettingsData`).
+
+**Zero functional changes** — all 289 lines of original behavior preserved. Component now only handles rendering + two UI hooks (`usePullToRefresh`, `useMainButton`).
 
 #### Agent F Retrospective
 *(To be filled by Agent F)*
