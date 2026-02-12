@@ -1729,7 +1729,22 @@ Read PARALLEL_AGENTS.md — you are Agent F for Run 37. Write tests for new Run 
 *(To be filled by Agent B)*
 
 #### Agent C Retrospective
-*(To be filled by Agent C)*
+**All 4 target files fixed + 1 collateral fix. Build clean (tsc), 594/594 vitest pass.**
+
+| # | File | Change | `any` removed |
+|---|------|--------|---------------|
+| 1 | `errors.ts` | `asyncHandler` `Promise<any>` → `Promise<void>`, `successResponse` generic `<T>`, `validateRequired` `Record<string, unknown>` | 3 |
+| 2 | `achievements.ts` | `query<{ category: string }>` generic instead of `(r: any)` callback cast | 1 |
+| 3 | `admin-stats.ts` | `AnalyticsExportResult` interface + `executePythonTool<AnalyticsExportResult>` generic | 1 |
+| 4 | `onboarding.ts` | `req.telegramUser` (Express augmentation already exists) instead of `(req as any)` | 1 |
+| 5 | `quest-progress.ts` | Collateral: `return res.json()` → `res.json(); return;` for `Promise<void>` compat | 0 |
+
+**Total `any` removed: 6** (3 in errors.ts, 1 each in achievements/admin-stats/onboarding)
+
+**Notes:**
+- `Promise<void>` on `asyncHandler` is correct but strict — any handler using `return res.json()` breaks because `res.json()` returns `Response`. Fixed the one occurrence in quest-progress.ts by splitting to `res.json(...); return;`.
+- `successResponse<T>` is a zero-disruption change — TypeScript infers `T` from the argument, so all callsites work without modification.
+- The Express Request augmentation in `types/express.d.ts` already had `telegramUser` — the `(req as any)` cast in onboarding.ts was unnecessary.
 
 #### Agent D Retrospective
 **Task**: Write HTTP integration tests for quest-completion and quest-progress routes
