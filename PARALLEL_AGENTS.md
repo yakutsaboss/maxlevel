@@ -2810,7 +2810,18 @@ After completing work, write your retrospective in PARALLEL_AGENTS.md under "Run
 *(To be filled by Agent B)*
 
 #### Agent C Retrospective
-*(To be filled by Agent C)*
+**Task**: Create personalized plan generator (fitness + hydration) from onboarding quiz responses.
+**File created**: `bot/src/utils/planGenerator.ts` (new, ~290 lines)
+**What was built**:
+- `generatePlan(modeConfig)` — main entry point dispatches to fitness or hydration generators
+- `generateFitnessPlan` — builds weekly schedule from quiz data (focus areas, equipment, level, workout days/frequency). Uses a 26-exercise pool filtered by equipment, level, and focus. Produces `FitnessScheduleDay[]` with day, focus, exercises, and duration.
+- `generateHydrationPlan` — calculates daily ml targets, reminder intervals, and maps container sizes. Produces `HydrationTargets` with glasses, ml, reminder interval, wake/sleep times.
+- Both generators produce contextual recommendations based on quiz answers (level-based tips, motivation-based nutrition advice, intake ramp-up guidance, container-specific refill counts).
+- Exported types: `PlanType` (union), `FitnessPlan`, `HydrationPlan`, `ModeConfig`, `FitnessScheduleDay`, `HydrationTargets`.
+- Structured logger via `logger.child({ component: 'planGenerator' })`.
+**Build**: Clean pass (`tsc` — zero errors).
+**Quiz data mapping**: Read `onboardingQuestions.ts` to align exactly with stored `quiz_responses` nested keys (fitness_level, workout_frequency, focus_areas, equipment, motivation, workout_days, daily_target, container, reminder_frequency, goals, current_intake, wake_time).
+**Notes for Agent 0**: This file is standalone (no imports except logger). No other files were modified. Ready to be consumed by future handlers that read `mode_configs.personalized_plan` JSONB column.
 
 #### Agent D Retrospective
 *(To be filled by Agent D)*
