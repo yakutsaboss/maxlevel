@@ -68,7 +68,7 @@ router.post('/analytics/export', requireRole('admin'), asyncHandler(async (req: 
     throw new InternalServerError(result.error || 'Analytics export failed');
   }
 
-  const adminUser = (req as any).adminUser;
+  const adminUser = req.adminUser!;
   log.info(`Analytics export triggered by ${adminUser.username}`);
 
   res.json(successResponse({
@@ -116,7 +116,7 @@ router.post('/broadcast', requireRole('admin'), asyncHandler(async (req: Request
     return;
   }
 
-  const adminUser = (req as any).adminUser;
+  const adminUser = req.adminUser!;
   log.info(`Broadcast initiated by ${adminUser.username}`, { recipientCount: users.length });
 
   const chatIds = users.map(u => u.telegram_id);
@@ -139,7 +139,7 @@ router.get('/logs', requireRole('admin'), asyncHandler(async (req: Request, res:
     name: string;
     state: string;
     completedon: string;
-    output: any;
+    output: unknown;
     createdon: string;
   }>(
     `SELECT name, state, completedon, output, createdon

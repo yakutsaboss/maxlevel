@@ -20,9 +20,9 @@ export async function startJobQueue(): Promise<PgBoss> {
 
   boss = new PgBoss(databaseUrl);
 
-  boss.on('error', ((error: Error) => {
+  boss.on('error', (error: Error) => {
     log.error('Error', error);
-  }) as any);
+  });
 
   await boss.start();
   log.info('Job queue started');

@@ -134,7 +134,7 @@ export function authenticateAdmin(req: Request, res: Response, next: NextFunctio
   }
 
   // Attach admin user to request
-  (req as any).adminUser = {
+  req.adminUser = {
     id: credentials.username,
     username: adminUser.username,
     role: adminUser.role,
@@ -153,7 +153,7 @@ export function authenticateAdmin(req: Request, res: Response, next: NextFunctio
  */
 export function requirePermission(permission: string) {
   return (req: Request, res: Response, next: NextFunction): void => {
-    const adminUser = (req as any).adminUser as AdminUser | undefined;
+    const adminUser = req.adminUser;
 
     if (!adminUser) {
       res.status(401).json({
@@ -197,7 +197,7 @@ export function requireRole(role: 'super_admin' | 'admin' | 'moderator') {
   };
 
   return (req: Request, res: Response, next: NextFunction): void => {
-    const adminUser = (req as any).adminUser as AdminUser | undefined;
+    const adminUser = req.adminUser;
 
     if (!adminUser) {
       res.status(401).json({

@@ -1,8 +1,9 @@
 /**
- * Extended Express types for Telegram authentication
+ * Extended Express types for Telegram authentication and admin auth
  */
 
 import { TelegramUser } from './telegram.js';
+import { AdminUser } from '../api/middleware/adminAuth.js';
 
 declare global {
   namespace Express {
@@ -32,6 +33,11 @@ declare global {
         created_at: string;
         updated_at: string;
       };
+
+      /**
+       * Admin user data attached by authenticateAdmin middleware
+       */
+      adminUser?: AdminUser;
     }
   }
 }
