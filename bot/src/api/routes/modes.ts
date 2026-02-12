@@ -89,46 +89,99 @@ router.post('/users/:userId', authenticateTelegram, authorizeUser, asyncHandler(
   const failed: { mode: string; reason: string }[] = [];
   const already_active: string[] = [];
 
-  for (const modeName of modes) {
-    const mode = await queryOne<{ id: number }>(
-      `SELECT id FROM modes WHERE name = $1`,
-      [String(modeName).trim()]
-    );
+  // Normalize mode names
+  const modeNames = modes.map((m: string) => String(m).trim());
 
-    if (!mode) {
+  // Batch 1: Fetch ALL requested modes in one query
+  const allModes = await query<{ id: number; name: string }>(
+    `SELECT id, name FROM modes WHERE name = ANY($1::text[])`,
+    [modeNames]
+  );
+  const modeMap = new Map(allModes.map(m => [m.name, m.id]));
+
+  // Identify modes not found
+  for (const modeName of modeNames) {
+    if (!modeMap.has(modeName)) {
       failed.push({ mode: modeName, reason: 'Mode not found' });
-      continue;
     }
+  }
 
-    const existing = await queryOne<{ id: number; is_active: boolean }>(
-      `SELECT id, is_active FROM user_modes WHERE user_id = $1 AND mode_id = $2`,
-      [userId, mode.id]
-    );
+  const foundModeIds = [...modeMap.values()];
+  if (foundModeIds.length === 0) {
+    res.json(successResponse({ message: 'Modes added successfully', added, failed, already_active }));
+    return;
+  }
 
+  // Batch 2: Fetch ALL existing user_modes for this user + requested modes in one query
+  const existingUserModes = await query<{ id: number; mode_id: number; is_active: boolean }>(
+    `SELECT id, mode_id, is_active FROM user_modes WHERE user_id = $1 AND mode_id = ANY($2::int[])`,
+    [userId, foundModeIds]
+  );
+  const existingMap = new Map(existingUserModes.map(um => [um.mode_id, um]));
+
+  // Categorize: reactivate, insert new, or skip already active
+  const toReactivateIds: number[] = [];
+  const toInsert: { modeName: string; modeId: number }[] = [];
+
+  for (const modeName of modeNames) {
+    const modeId = modeMap.get(modeName);
+    if (modeId === undefined) continue; // already in failed
+
+    const existing = existingMap.get(modeId);
     if (existing && existing.is_active) {
       already_active.push(modeName);
-      continue;
-    }
-
-    if (existing && !existing.is_active) {
-      await execute(
-        `UPDATE user_modes SET is_active = true, enabled_at = NOW() WHERE id = $1`,
-        [existing.id]
-      );
+    } else if (existing && !existing.is_active) {
+      toReactivateIds.push(existing.id);
       added.push({ mode: modeName, user_mode_id: existing.id });
     } else {
-      const newUserMode = await queryOne<{ id: number }>(
-        `INSERT INTO user_modes (user_id, mode_id, is_active) VALUES ($1, $2, true) RETURNING id`,
-        [userId, mode.id]
-      );
-      added.push({ mode: modeName, user_mode_id: newUserMode!.id });
+      toInsert.push({ modeName, modeId });
     }
+  }
 
+  // Batch 3: Reactivate inactive user_modes in one UPDATE
+  if (toReactivateIds.length > 0) {
+    await execute(
+      `UPDATE user_modes SET is_active = true, enabled_at = NOW() WHERE id = ANY($1::int[])`,
+      [toReactivateIds]
+    );
+  }
+
+  // Batch 4: Insert new user_modes in one multi-row INSERT
+  if (toInsert.length > 0) {
+    const values: unknown[] = [];
+    const placeholders: string[] = [];
+    toInsert.forEach((item, i) => {
+      const offset = i * 2;
+      placeholders.push(`($${offset + 1}, $${offset + 2}, true)`);
+      values.push(userId, item.modeId);
+    });
+    const inserted = await query<{ id: number; mode_id: number }>(
+      `INSERT INTO user_modes (user_id, mode_id, is_active)
+       VALUES ${placeholders.join(', ')}
+       RETURNING id, mode_id`,
+      values
+    );
+    const insertedMap = new Map(inserted.map(r => [r.mode_id, r.id]));
+    for (const item of toInsert) {
+      added.push({ mode: item.modeName, user_mode_id: insertedMap.get(item.modeId)! });
+    }
+  }
+
+  // Batch 5: Upsert streaks for all modes that were added (reactivated + new)
+  const allAddedModeIds = added.map(a => modeMap.get(a.mode)!).filter(Boolean);
+  if (allAddedModeIds.length > 0) {
+    const streakValues: unknown[] = [];
+    const streakPlaceholders: string[] = [];
+    allAddedModeIds.forEach((modeId, i) => {
+      const offset = i * 2;
+      streakPlaceholders.push(`($${offset + 1}, $${offset + 2}, 0, 0)`);
+      streakValues.push(userId, modeId);
+    });
     await execute(
       `INSERT INTO streaks (user_id, mode_id, current_streak, longest_streak)
-       VALUES ($1, $2, 0, 0)
+       VALUES ${streakPlaceholders.join(', ')}
        ON CONFLICT (user_id, mode_id) DO NOTHING`,
-      [userId, mode.id]
+      streakValues
     );
   }
 
