@@ -357,6 +357,12 @@ CREATE TABLE challenge_participants (
     PRIMARY KEY (challenge_id, user_id)
 );
 
+-- Performance indexes added in Run 46
+CREATE INDEX IF NOT EXISTS idx_friend_requests_from_user ON friend_requests(from_user_id);
+CREATE INDEX IF NOT EXISTS idx_challenge_participants_challenge ON challenge_participants(challenge_id);
+CREATE INDEX IF NOT EXISTS idx_challenge_participants_user ON challenge_participants(user_id);
+CREATE INDEX IF NOT EXISTS idx_activity_log_type_date ON user_activity_log(activity_type, created_at DESC);
+
 COMMENT ON TABLE friend_requests IS 'Friend request tracking for social features';
 COMMENT ON TABLE challenges IS 'User-created challenges with goals and deadlines';
 COMMENT ON TABLE challenge_participants IS 'Challenge participation and progress tracking';
