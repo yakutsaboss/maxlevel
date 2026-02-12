@@ -8,50 +8,32 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import request from 'supertest';
 import { createTestApp, addTestErrorHandler } from '../../helpers/testApp.js';
+import { getMockDb } from '../../helpers/httpMocks.js';
 
-// ─── Mocks (hoisted before any route import) ───────────────────────
+// ─── Mocks (hoisted — use async dynamic import for httpMocks) ───────
 
-const mockQuery = vi.fn();
-const mockQueryOne = vi.fn();
+vi.mock('../../../utils/db.js', async () =>
+  (await import('../../helpers/httpMocks.js')).createMockDb().module);
 
-vi.mock('../../../utils/db.js', () => ({
-  query: (...args: any[]) => mockQuery(...args),
-  queryOne: (...args: any[]) => mockQueryOne(...args),
-  execute: vi.fn(),
-  transaction: vi.fn(),
-  getPool: vi.fn(),
-}));
+vi.mock('../../../utils/cache.js', async () =>
+  (await import('../../helpers/httpMocks.js')).createMockCache().module);
 
-vi.mock('../../../utils/cache.js', () => ({
-  cached: vi.fn(async (_k: string, _t: number, fn: () => Promise<any>) => fn()),
-  invalidate: vi.fn(),
-  invalidatePrefix: vi.fn(),
-  invalidateUserCache: vi.fn(),
-  clearAll: vi.fn(),
-  TTL: { SHORT: 30_000, MEDIUM: 300_000, LONG: 1_800_000 },
-}));
+vi.mock('../../../utils/pythonTools.js', async () =>
+  (await import('../../helpers/httpMocks.js')).createMockPythonTools().module);
 
-vi.mock('../../../utils/pythonTools.js', () => ({
-  executePythonTool: vi.fn(),
-  getUserByTelegramId: vi.fn(),
-  getUserById: vi.fn(),
-}));
+vi.mock('../../../api/middleware/auth.js', async () =>
+  (await import('../../helpers/httpMocks.js')).createMockAuth().module);
 
-vi.mock('../../../api/middleware/auth.js', () => ({
-  authenticateTelegram: (_req: any, _res: any, next: any) => next(),
-  requireOwnership: vi.fn(),
-  authorizeUser: (_req: any, _res: any, next: any) => next(),
-}));
-
-vi.mock('../../../api/middleware/rateLimiter.js', () => ({
-  apiLimiter: (_req: any, _res: any, next: any) => next(),
-  mutationLimiter: (_req: any, _res: any, next: any) => next(),
-  readLimiter: (_req: any, _res: any, next: any) => next(),
-}));
+vi.mock('../../../api/middleware/rateLimiter.js', async () =>
+  (await import('../../helpers/httpMocks.js')).createMockRateLimiters().module);
 
 // ─── Import router after mocks ─────────────────────────────────────
 
 import { punishmentRouter } from '../../../api/routes/punishment.js';
+
+// ─── Mock refs (populated by vi.mock factories above) ───────────────
+
+const db = getMockDb();
 
 // ─── Build test app ────────────────────────────────────────────────
 
@@ -82,7 +64,7 @@ describe('GET /api/punishment/:telegramId/settings', () => {
   };
 
   it('should return 200 with punishment settings', async () => {
-    mockQueryOne.mockResolvedValueOnce(sampleSettings);
+    db.queryOne.mockResolvedValueOnce(sampleSettings);
 
     const res = await request(buildApp())
       .get('/api/punishment/123456/settings')
@@ -96,7 +78,7 @@ describe('GET /api/punishment/:telegramId/settings', () => {
   });
 
   it('should return 404 when no settings found', async () => {
-    mockQueryOne.mockResolvedValueOnce(null);
+    db.queryOne.mockResolvedValueOnce(null);
 
     const res = await request(buildApp())
       .get('/api/punishment/123456/settings')
@@ -116,7 +98,7 @@ describe('GET /api/punishment/:telegramId/settings', () => {
   });
 
   it('should return 500 when database throws', async () => {
-    mockQueryOne.mockRejectedValueOnce(new Error('connection timeout'));
+    db.queryOne.mockRejectedValueOnce(new Error('connection timeout'));
 
     const res = await request(buildApp())
       .get('/api/punishment/123456/settings')
@@ -143,9 +125,9 @@ describe('PATCH /api/punishment/:telegramId/settings', () => {
 
   it('should return 200 when updating existing settings', async () => {
     // 1st queryOne: user lookup → found
-    mockQueryOne.mockResolvedValueOnce(dbUser);
+    db.queryOne.mockResolvedValueOnce(dbUser);
     // 2nd queryOne: UPDATE RETURNING → success
-    mockQueryOne.mockResolvedValueOnce(updatedSettings);
+    db.queryOne.mockResolvedValueOnce(updatedSettings);
 
     const res = await request(buildApp())
       .patch('/api/punishment/123456/settings')
@@ -169,11 +151,11 @@ describe('PATCH /api/punishment/:telegramId/settings', () => {
     };
 
     // 1st queryOne: user lookup → found
-    mockQueryOne.mockResolvedValueOnce(dbUser);
+    db.queryOne.mockResolvedValueOnce(dbUser);
     // 2nd queryOne: UPDATE RETURNING → null (no existing row)
-    mockQueryOne.mockResolvedValueOnce(null);
+    db.queryOne.mockResolvedValueOnce(null);
     // 3rd queryOne: INSERT RETURNING → new row
-    mockQueryOne.mockResolvedValueOnce(insertedSettings);
+    db.queryOne.mockResolvedValueOnce(insertedSettings);
 
     const res = await request(buildApp())
       .patch('/api/punishment/123456/settings')
@@ -198,8 +180,8 @@ describe('PATCH /api/punishment/:telegramId/settings', () => {
   it('should accept all valid intensity levels', async () => {
     for (const level of ['low', 'medium', 'high', 'extreme']) {
       vi.resetAllMocks();
-      mockQueryOne.mockResolvedValueOnce(dbUser);
-      mockQueryOne.mockResolvedValueOnce({ ...updatedSettings, intensity_level: level });
+      db.queryOne.mockResolvedValueOnce(dbUser);
+      db.queryOne.mockResolvedValueOnce({ ...updatedSettings, intensity_level: level });
 
       const res = await request(buildApp())
         .patch('/api/punishment/123456/settings')
@@ -212,7 +194,7 @@ describe('PATCH /api/punishment/:telegramId/settings', () => {
 
   it('should return 400 when no fields provided', async () => {
     // User lookup happens before field check in the route
-    mockQueryOne.mockResolvedValueOnce(dbUser);
+    db.queryOne.mockResolvedValueOnce(dbUser);
 
     const res = await request(buildApp())
       .patch('/api/punishment/123456/settings')
@@ -224,7 +206,7 @@ describe('PATCH /api/punishment/:telegramId/settings', () => {
   });
 
   it('should return 404 when user not found', async () => {
-    mockQueryOne.mockResolvedValueOnce(null);
+    db.queryOne.mockResolvedValueOnce(null);
 
     const res = await request(buildApp())
       .patch('/api/punishment/123456/settings')
@@ -246,8 +228,8 @@ describe('PATCH /api/punishment/:telegramId/settings', () => {
   });
 
   it('should include consent_timestamp = NOW() when consent_given is true', async () => {
-    mockQueryOne.mockResolvedValueOnce(dbUser);
-    mockQueryOne.mockResolvedValueOnce(updatedSettings);
+    db.queryOne.mockResolvedValueOnce(dbUser);
+    db.queryOne.mockResolvedValueOnce(updatedSettings);
 
     await request(buildApp())
       .patch('/api/punishment/123456/settings')
@@ -255,27 +237,27 @@ describe('PATCH /api/punishment/:telegramId/settings', () => {
       .expect(200);
 
     // The UPDATE query should contain consent_timestamp = NOW()
-    const updateCall = mockQueryOne.mock.calls[1];
+    const updateCall = db.queryOne.mock.calls[1];
     expect(updateCall[0]).toContain('consent_timestamp = NOW()');
   });
 
   it('should set consent_timestamp = NULL when consent_given is false', async () => {
-    mockQueryOne.mockResolvedValueOnce(dbUser);
-    mockQueryOne.mockResolvedValueOnce(updatedSettings);
+    db.queryOne.mockResolvedValueOnce(dbUser);
+    db.queryOne.mockResolvedValueOnce(updatedSettings);
 
     await request(buildApp())
       .patch('/api/punishment/123456/settings')
       .send({ consent_given: false })
       .expect(200);
 
-    const updateCall = mockQueryOne.mock.calls[1];
+    const updateCall = db.queryOne.mock.calls[1];
     expect(updateCall[0]).toContain('consent_timestamp = NULL');
   });
 
   it('should handle custom_punishments as JSON', async () => {
     const customPunishments = { no_sweets: true, extra_pushups: 10 };
-    mockQueryOne.mockResolvedValueOnce(dbUser);
-    mockQueryOne.mockResolvedValueOnce({ ...updatedSettings, custom_punishments: customPunishments });
+    db.queryOne.mockResolvedValueOnce(dbUser);
+    db.queryOne.mockResolvedValueOnce({ ...updatedSettings, custom_punishments: customPunishments });
 
     const res = await request(buildApp())
       .patch('/api/punishment/123456/settings')
@@ -284,13 +266,13 @@ describe('PATCH /api/punishment/:telegramId/settings', () => {
 
     expect(res.body.data.custom_punishments).toEqual(customPunishments);
     // Verify JSON.stringify was passed to DB
-    const updateCall = mockQueryOne.mock.calls[1];
+    const updateCall = db.queryOne.mock.calls[1];
     expect(updateCall[1]).toContain(JSON.stringify(customPunishments));
   });
 
   it('should return 500 when database throws', async () => {
-    mockQueryOne.mockResolvedValueOnce(dbUser);
-    mockQueryOne.mockRejectedValueOnce(new Error('DB failure'));
+    db.queryOne.mockResolvedValueOnce(dbUser);
+    db.queryOne.mockRejectedValueOnce(new Error('DB failure'));
 
     const res = await request(buildApp())
       .patch('/api/punishment/123456/settings')
@@ -321,11 +303,11 @@ describe('GET /api/punishment/:telegramId/history', () => {
 
   it('should return 200 with paginated punishment history', async () => {
     // 1st queryOne: user lookup
-    mockQueryOne.mockResolvedValueOnce(dbUser);
+    db.queryOne.mockResolvedValueOnce(dbUser);
     // 2nd queryOne: COUNT
-    mockQueryOne.mockResolvedValueOnce({ total: 1 });
+    db.queryOne.mockResolvedValueOnce({ total: 1 });
     // query: punishment rows
-    mockQuery.mockResolvedValueOnce([samplePunishment]);
+    db.query.mockResolvedValueOnce([samplePunishment]);
 
     const res = await request(buildApp())
       .get('/api/punishment/123456/history')
@@ -340,9 +322,9 @@ describe('GET /api/punishment/:telegramId/history', () => {
   });
 
   it('should return empty array when no punishment history', async () => {
-    mockQueryOne.mockResolvedValueOnce(dbUser);
-    mockQueryOne.mockResolvedValueOnce({ total: 0 });
-    mockQuery.mockResolvedValueOnce([]);
+    db.queryOne.mockResolvedValueOnce(dbUser);
+    db.queryOne.mockResolvedValueOnce({ total: 0 });
+    db.query.mockResolvedValueOnce([]);
 
     const res = await request(buildApp())
       .get('/api/punishment/123456/history')
@@ -354,9 +336,9 @@ describe('GET /api/punishment/:telegramId/history', () => {
   });
 
   it('should respect page and limit query params', async () => {
-    mockQueryOne.mockResolvedValueOnce(dbUser);
-    mockQueryOne.mockResolvedValueOnce({ total: 50 });
-    mockQuery.mockResolvedValueOnce([samplePunishment]);
+    db.queryOne.mockResolvedValueOnce(dbUser);
+    db.queryOne.mockResolvedValueOnce({ total: 50 });
+    db.query.mockResolvedValueOnce([samplePunishment]);
 
     const res = await request(buildApp())
       .get('/api/punishment/123456/history?page=3&limit=5')
@@ -364,41 +346,41 @@ describe('GET /api/punishment/:telegramId/history', () => {
 
     expect(res.body.data.page).toBe(3);
     // Verify offset = (3-1)*5 = 10
-    const queryCall = mockQuery.mock.calls[0];
+    const queryCall = db.query.mock.calls[0];
     expect(queryCall[1]).toEqual([dbUser.id, 5, 10]);
   });
 
   it('should cap limit at 100', async () => {
-    mockQueryOne.mockResolvedValueOnce(dbUser);
-    mockQueryOne.mockResolvedValueOnce({ total: 200 });
-    mockQuery.mockResolvedValueOnce([]);
+    db.queryOne.mockResolvedValueOnce(dbUser);
+    db.queryOne.mockResolvedValueOnce({ total: 200 });
+    db.query.mockResolvedValueOnce([]);
 
     await request(buildApp())
       .get('/api/punishment/123456/history?limit=500')
       .expect(200);
 
-    const queryCall = mockQuery.mock.calls[0];
+    const queryCall = db.query.mock.calls[0];
     expect(queryCall[1][1]).toBe(100);
   });
 
   it('should default page=1 and limit=20 for invalid params', async () => {
-    mockQueryOne.mockResolvedValueOnce(dbUser);
-    mockQueryOne.mockResolvedValueOnce({ total: 0 });
-    mockQuery.mockResolvedValueOnce([]);
+    db.queryOne.mockResolvedValueOnce(dbUser);
+    db.queryOne.mockResolvedValueOnce({ total: 0 });
+    db.query.mockResolvedValueOnce([]);
 
     await request(buildApp())
       .get('/api/punishment/123456/history?page=abc&limit=xyz')
       .expect(200);
 
-    const queryCall = mockQuery.mock.calls[0];
+    const queryCall = db.query.mock.calls[0];
     // page defaults to 1 → offset = 0, limit defaults to 20
     expect(queryCall[1]).toEqual([dbUser.id, 20, 0]);
   });
 
   it('should clamp page to minimum 1', async () => {
-    mockQueryOne.mockResolvedValueOnce(dbUser);
-    mockQueryOne.mockResolvedValueOnce({ total: 0 });
-    mockQuery.mockResolvedValueOnce([]);
+    db.queryOne.mockResolvedValueOnce(dbUser);
+    db.queryOne.mockResolvedValueOnce({ total: 0 });
+    db.query.mockResolvedValueOnce([]);
 
     const res = await request(buildApp())
       .get('/api/punishment/123456/history?page=-5')
@@ -408,7 +390,7 @@ describe('GET /api/punishment/:telegramId/history', () => {
   });
 
   it('should return 404 when user not found', async () => {
-    mockQueryOne.mockResolvedValueOnce(null);
+    db.queryOne.mockResolvedValueOnce(null);
 
     const res = await request(buildApp())
       .get('/api/punishment/123456/history')
@@ -428,8 +410,8 @@ describe('GET /api/punishment/:telegramId/history', () => {
   });
 
   it('should return 500 when database throws', async () => {
-    mockQueryOne.mockResolvedValueOnce(dbUser);
-    mockQueryOne.mockRejectedValueOnce(new Error('DB failure'));
+    db.queryOne.mockResolvedValueOnce(dbUser);
+    db.queryOne.mockRejectedValueOnce(new Error('DB failure'));
 
     const res = await request(buildApp())
       .get('/api/punishment/123456/history')
