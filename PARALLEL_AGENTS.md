@@ -2621,7 +2621,20 @@ Read PARALLEL_AGENTS.md — you are Agent H for Run 39. Refactor `mini-app/src/c
 *(To be filled by Agent C)*
 
 #### Agent D Retrospective
-*(To be filled by Agent D)*
+**Status**: Complete — 5 files migrated, 73 tests across files, all 602 suite-wide tests passing.
+
+**Migrated** (inline vi.mock → shared httpMocks helpers):
+1. `checkins.http.test.ts` (14 tests) — db, cache, pythonTools, rateLimiter → shared; auth (custom `req.telegramUser`), xpAward, achievementEngine kept inline
+2. `leaderboard.http.test.ts` (14 tests) — all 5 mocks → shared (cleanest migration, no custom mocks needed)
+3. `onboarding.http.test.ts` (11 tests) — db, pythonTools, auth → shared; xpAward kept inline (custom `mockAwardXp`)
+4. `quest-assignment.http.test.ts` (12 tests) — db, cache, pythonTools, rateLimiter → shared; auth (custom `req.dbUser`), achievementEngine, streak kept inline
+5. `quest-completion.http.test.ts` (8 tests, complex) — db, cache, pythonTools, rateLimiter → shared; auth (custom `mockAuthMiddleware`), xpAward, achievementEngine, streak kept inline
+
+**Boilerplate reduction**: 226 lines removed, 149 lines added (net -77 lines, ~34% reduction in mock boilerplate).
+
+**Pattern**: Files with custom auth behavior (setting `req.telegramUser`, `req.dbUser`, or wrapping `mockAuthMiddleware`) can't use `createMockAuth()` — these need inline mocks. Similarly, files that assert on specific mock functions (e.g., `mockAwardXp`, `mockCheckAchievements`) keep those inline for test-level control.
+
+**Recommendation**: Consider adding `createMockXpAward()` and `createMockAchievementEngine()` to httpMocks.ts — these are repeated across checkins, onboarding, quest-assignment, and quest-completion tests with identical shapes.
 
 #### Agent E Retrospective
 **Status**: Complete — 5 files migrated, 63 tests, all 602 suite-wide tests passing.
