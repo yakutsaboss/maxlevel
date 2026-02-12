@@ -1759,7 +1759,20 @@ Read PARALLEL_AGENTS.md — you are Agent F for Run 37. Write tests for new Run 
 **Commit**: `80ce188` — `test: add HTTP integration tests for quest-completion and quest-progress routes`
 
 #### Agent E Retrospective
-*(To be filled by Agent E)*
+**Task**: Remove all remaining `any` types from bot handlers and job definitions (5 files).
+
+**What was done (5 files)**:
+1. `settings.ts` — Created `SettingsUserRow` interface (id, notification_enabled, timezone + index signature for Record compatibility). Typed `showMainSettings` param and `getUserData` return.
+2. `start.ts` — Changed both `catch (err: any)` to `catch (err: unknown)` with `instanceof Error` narrowing.
+3. `punishmentCheck.ts` — Created `FailedQuestRow` interface, typed query generic param, removed `(q: any)` lambda. Fixed catch to `unknown`.
+4. `questReminders.ts` — Catch to `unknown`, added Telegram error type assertion for 429 rate-limit handling.
+5. `achievementNotifier.ts` — Same pattern: `unknown` catch + Telegram error type assertion.
+
+**Build**: My 5 files compile clean. 2 pre-existing errors in `achievements.ts` and `quest-progress.ts` (not my scope).
+**Tests**: 52 files, 594/594 pass.
+**Commit**: `b82f80c` — `fix(types): remove all any from handlers + jobs — Agent E Run 37`
+
+**Remaining `any`**: `getUserByTelegramId` in `queries.ts` still returns `Record<string, any>`. A future task could type it with a full `UserRow` shared across all handlers.
 
 #### Agent F Retrospective
 **Task**: Write tests for new Run 36 components and hooks (4 new test files, 16 tests total).
