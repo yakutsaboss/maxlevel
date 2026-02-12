@@ -2818,7 +2818,24 @@ After completing work, write your retrospective in PARALLEL_AGENTS.md under "Run
 **Issues**: None. Straightforward schema addition.
 
 #### Agent B Retrospective
-*(To be filled by Agent B)*
+**Status**: COMPLETE — all 3 files created/modified, build passes with zero errors.
+
+**What was done:**
+1. **`bot/src/api/routes/payments.ts`** (NEW, ~230 lines) — 6 endpoints:
+   - `POST /create` — initiate payment (validates user, tier, amount; creates pending record)
+   - `POST /webhook` — handle Telegram Stars callback (verifies telegram_payment_charge_id, completes payment + upserts subscription in a transaction)
+   - `GET /history/:userId` — paginated payment history with limit/offset
+   - `GET /subscription/:userId` — current subscription status with expiry check
+   - `POST /subscription/upgrade` — upgrade tier (upsert with 30-day expiry)
+   - `POST /subscription/cancel` — cancel subscription (set to free, disable auto_renew)
+2. **`bot/src/api/middleware/premiumGate.ts`** (NEW, ~85 lines) — `requirePremium(minTier)` middleware factory. Checks subscription tier from DB, enforces hierarchy (free < pro < premium), handles expired subscriptions as free tier. Returns 403 with clear message on insufficient tier.
+3. **`bot/src/api/server.ts`** — added import + `app.use('/api/payments', paymentsRouter)` route registration (2-line gray area change).
+
+**Patterns followed:** asyncHandler, successResponse, parameterized queries ($1/$2), logger.child, transaction for multi-step DB ops. All local imports use `.js` extensions (ESM).
+
+**Tracker keywords present:** webhook, provider, subscription, upgrade, cancel — all verified in payments.ts.
+
+**Issues**: None. Clean build on first attempt.
 
 #### Agent C Retrospective
 *(To be filled by Agent C)*
@@ -2839,7 +2856,18 @@ After completing work, write your retrospective in PARALLEL_AGENTS.md under "Run
 *(To be filled by Agent E)*
 
 #### Agent F Retrospective
-*(To be filled by Agent F)*
+**Task**: Create finance mode advanced features — BudgetTracker component, SavingsGoal component, and finance API route.
+
+**What was done**:
+- Created `mini-app/src/components/finance/BudgetTracker.tsx` — full budget tracking component with income/expense input form, category breakdown with color-coded bars, monthly summary (income/expense/balance), and spending progress bar with color thresholds (green/yellow/red)
+- Created `mini-app/src/components/finance/SavingsGoal.tsx` — savings goal dashboard with goal cards, progress bars, deposit history, projected completion date calculation, and inline deposit form
+- Created `bot/src/api/routes/finance.ts` — Express router with 6 endpoints: GET/POST budget, GET/POST savings, PATCH savings/:id (deposits), GET categories. Exported as `financeRouter`
+- All components use Telegram theme classes (`telegram-bg-*`, `telegram-text-*`), framer-motion animations, and lucide-react icons following existing codebase patterns
+- Import path note: `asyncHandler`/`successResponse` are in `../utils/errors.js` (not `response.js` as stated in the task spec)
+
+**Verification**: Both `cd bot && npm run build` and `cd mini-app && npm run build` pass cleanly. All required keywords present in all files.
+
+**Issues**: The finance route references DB tables (`finance_budget_entries`, `finance_savings_goals`, `finance_savings_deposits`) that don't exist in the schema yet. Agent A or Agent 0 will need to add these tables for the routes to work at runtime. The components and route compile fine — they just need the backing tables.
 
 #### Agent G Retrospective
 **Task**: Replace all 13 remaining `lambda: False` checks in `tools/project_status_tracker.py` for milestones being built in Run 44.
