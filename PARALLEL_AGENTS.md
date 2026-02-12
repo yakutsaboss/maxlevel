@@ -1732,7 +1732,31 @@ Read PARALLEL_AGENTS.md — you are Agent F for Run 37. Write tests for new Run 
 *(To be filled by Agent C)*
 
 #### Agent D Retrospective
-*(To be filled by Agent D)*
+**Task**: Write HTTP integration tests for quest-completion and quest-progress routes
+
+**What was done**:
+1. Created `quest-completion.http.test.ts` — 8 tests covering:
+   - Successful completion awards XP (no level-up)
+   - Level-up info returned when XP triggers level increase
+   - 400 when quest already completed
+   - 404 when quest instance not found
+   - 401 when authentication fails (configurable auth mock)
+   - 500 on transaction/DB error (rollback)
+   - Post-completion side effects (updateStreak + checkAndUnlockAchievements called with correct args)
+   - Double-completion prevention via SELECT FOR UPDATE (second request sees 'completed' status)
+2. Created `quest-progress.http.test.ts` — 6 tests covering:
+   - Normal progress update below target (no XP, no completion)
+   - Auto-complete at target triggers XP award + streak + achievements
+   - Progress clamped to target when exceeding it (still triggers completion)
+   - 403 when user doesn't own the quest (dbUser.id !== quest.user_id)
+   - 400 for missing, negative, and non-numeric progress values
+   - 404 when quest not found
+
+**Patterns used**: Same mock structure as quest-assignment tests (mockTransaction with mockClient.query, mockAwardXp, configurable auth mock for 401 test). Helper factories (QUEST_INSTANCE) and mockSuccessfulTransaction for DRY setup.
+
+**Build**: Pre-existing TS errors in achievements.ts, quest-progress.ts, settings.ts (other agents' scope). Test files transpile fine via vitest.
+**Tests**: 52 files, 594 tests — all passed.
+**Commit**: `80ce188` — `test: add HTTP integration tests for quest-completion and quest-progress routes`
 
 #### Agent E Retrospective
 *(To be filled by Agent E)*
