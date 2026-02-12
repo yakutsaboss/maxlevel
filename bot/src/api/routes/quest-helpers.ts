@@ -5,7 +5,7 @@
 export { authenticateTelegram, authorizeUser } from '../middleware/auth.js';
 export { mutationLimiter, readLimiter } from '../middleware/rateLimiter.js';
 export { query, queryOne, execute, transaction } from '../../utils/db.js';
-export { invalidateUserCache } from '../../utils/cache.js';
+export { invalidateUserCache, invalidatePrefix } from '../../utils/cache.js';
 export { checkAndUnlockAchievements } from '../../utils/achievementEngine.js';
 export { updateStreak } from '../../utils/streak.js';
 export { QUEST_STATUS, QUEST_FREQUENCY } from '../utils/constants.js';

@@ -4,6 +4,7 @@ import {
   mutationLimiter,
   transaction,
   invalidateUserCache,
+  invalidatePrefix,
   checkAndUnlockAchievements,
   updateStreak,
   QUEST_STATUS,
@@ -63,6 +64,9 @@ router.post('/:questId/complete', authenticateTelegram, mutationLimiter, asyncHa
   });
 
   invalidateUserCache(result.userId);
+  invalidatePrefix(`analytics:mode:${result.userId}:`);
+  invalidatePrefix(`analytics:modes:${result.userId}`);
+  invalidatePrefix(`analytics:summary:${result.userId}`);
 
   // Await streak + achievement checks before responding
   await Promise.allSettled([

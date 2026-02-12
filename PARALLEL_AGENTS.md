@@ -2526,7 +2526,14 @@ After completing work, write your retrospective in PARALLEL_AGENTS.md under "Run
 **Build & tests**: Clean build, 63 test files / 771 tests all passing. No changes to response shapes, endpoints, or middleware.
 
 #### Agent C Retrospective
-*(To be filled by Agent C)*
+**Task**: Cache invalidation for analytics and social routes.
+**Files changed**: quest-helpers.ts (re-export `invalidatePrefix`), quest-completion.ts, quest-progress.ts, checkins.ts, social.ts.
+**What was done**:
+- Added `invalidatePrefix` calls for `analytics:modes:`, `analytics:mode:`, and `analytics:summary:` after quest completion, quest progress updates, and check-ins.
+- Added `invalidate` calls for `social:challenges:` after challenge creation and friend request acceptance.
+- The cache.ts module already had all needed functions (`invalidate`, `invalidatePrefix`, `invalidateUserCache`), so no changes to cache.ts were needed.
+**Build**: `tsc` clean, 63 test files / 771 tests all passing.
+**Issues**: None. Straightforward task — the cache API was well-designed with clear invalidation functions.
 
 #### Agent D Retrospective
 *(To be filled by Agent D)*

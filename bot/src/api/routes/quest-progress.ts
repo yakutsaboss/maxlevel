@@ -6,6 +6,7 @@ import {
   queryOne,
   transaction,
   invalidateUserCache,
+  invalidatePrefix,
   checkAndUnlockAchievements,
   updateStreak,
   QUEST_STATUS,
@@ -71,6 +72,9 @@ router.patch('/:questId/progress', authenticateTelegram, authorizeUser, mutation
     });
 
     invalidateUserCache(quest.user_id);
+    invalidatePrefix(`analytics:mode:${quest.user_id}:`);
+    invalidatePrefix(`analytics:modes:${quest.user_id}`);
+    invalidatePrefix(`analytics:summary:${quest.user_id}`);
 
     // Fire-and-forget: update streak and check achievements
     Promise.allSettled([
@@ -97,6 +101,9 @@ router.patch('/:questId/progress', authenticateTelegram, authorizeUser, mutation
   );
 
   invalidateUserCache(quest.user_id);
+  invalidatePrefix(`analytics:mode:${quest.user_id}:`);
+  invalidatePrefix(`analytics:modes:${quest.user_id}`);
+  invalidatePrefix(`analytics:summary:${quest.user_id}`);
 
   res.json(successResponse({
     id: questId,
