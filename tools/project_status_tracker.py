@@ -231,8 +231,8 @@ class ProjectStatusTracker:
                     {"name": "Medication questions defined", "check": lambda: self._has_onboarding_questions("MEDICATION")},
                     {"name": "Finance questions defined", "check": lambda: self._has_onboarding_questions("FINANCE")},
                     {"name": "Habits questions defined", "check": lambda: self._has_onboarding_questions("HABITS")},
-                    {"name": "All Q&A exported to Google Sheets", "check": lambda: False},
-                    {"name": "Answer analytics dashboard", "check": lambda: False},
+                    {"name": "All Q&A exported to Google Sheets", "check": lambda: self._file_contains_pattern("tools/sheets_analytics_export.py", r"quiz_responses|onboarding.*export|qa.*sheet")},
+                    {"name": "Answer analytics dashboard", "check": lambda: self._file_exists("mini-app/src/components/admin/AnswerAnalytics.tsx")},
                 ]
             },
             "leaderboard": {
@@ -243,9 +243,9 @@ class ProjectStatusTracker:
                     {"name": "Leaderboard route exists", "check": lambda: self._file_exists("bot/src/api/routes/leaderboard.ts")},
                     {"name": "Ranking logic implemented", "check": lambda: self._route_has_logic("bot/src/api/routes/leaderboard.ts", 30)},
                     {"name": "Mini app leaderboard page", "check": lambda: self._file_exists("mini-app/src/pages/Leaderboard.tsx")},
-                    {"name": "Friend system", "check": lambda: False},
-                    {"name": "Shared challenges", "check": lambda: False},
-                    {"name": "Leaderboard sharing", "check": lambda: False},
+                    {"name": "Friend system", "check": lambda: self._file_exists("bot/src/api/routes/social.ts") and self._file_contains_pattern("database/schema.sql", r"friend_requests")},
+                    {"name": "Shared challenges", "check": lambda: self._file_contains_pattern("database/schema.sql", r"CREATE TABLE challenges|CREATE TABLE challenge")},
+                    {"name": "Leaderboard sharing", "check": lambda: self._file_contains_pattern("mini-app/src/pages/Leaderboard.tsx", r"[Ss]hare")},
                 ]
             },
             "bug_fixes": {

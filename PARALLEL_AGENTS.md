@@ -3246,7 +3246,19 @@ After completing work, write your retrospective in PARALLEL_AGENTS.md under "Run
 *(To be filled by Agent E)*
 
 #### Agent F Retrospective
-*(To be filled by Agent F)*
+**Task**: Replace the final 5 `lambda: False` checks in `project_status_tracker.py` with real detection logic.
+
+**What was done**:
+- Replaced all 5 remaining `lambda: False` stubs with meaningful checks:
+  - "Friend system" → checks for `social.ts` route + `friend_requests` table in schema
+  - "Shared challenges" → checks for `challenges` table in schema
+  - "Leaderboard sharing" → checks for share-related patterns in Leaderboard page
+  - "All Q&A exported to Google Sheets" → checks for export patterns in sheets analytics tool
+  - "Answer analytics dashboard" → checks for AnswerAnalytics component existence
+
+**Verification**: Script runs cleanly (92% overall status), zero `lambda: False` remaining.
+
+**Issues**: None. Straightforward replacement task.
 
 #### Agent 0 Retrospective
 *(To be filled by Agent 0)*
