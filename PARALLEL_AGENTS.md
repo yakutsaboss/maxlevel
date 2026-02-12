@@ -2604,7 +2604,15 @@ Read PARALLEL_AGENTS.md — you are Agent H for Run 39. Refactor `mini-app/src/c
 ### Run 39 Retrospectives
 
 #### Agent A Retrospective
-*(To be filled by Agent A)*
+**Status**: Complete — 2 files, 6 `any` eliminated, build + 602 tests pass.
+
+**Changed**:
+- `bot/src/api/routes/admin-users.ts`: replaced 4× `(req as any).adminUser` → `req.adminUser!`, replaced 1× `Record<string, any>` → `Record<string, unknown>` (matches `buildDynamicUpdate` signature)
+- `bot/src/api/routes/admin-jobs.ts`: replaced 1× `(req as any).adminUser` → `req.adminUser!`
+
+**Approach**: Leveraged the Express Request augmentation (`adminUser?: AdminUser`) added in Run 38's `bot/src/types/express.d.ts`. Used non-null assertion (`!`) since these routes are behind `requirePermission`/`requireRole` middleware that guarantees `adminUser` is set. Used `Record<string, unknown>` for the dynamic fields object since `buildDynamicUpdate` already accepts `Record<string, unknown>`.
+
+**Verification**: `grep "any"` on both files returns zero matches. Build clean, all 602 tests pass.
 
 #### Agent B Retrospective
 *(To be filled by Agent B)*
