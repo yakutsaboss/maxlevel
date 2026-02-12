@@ -2528,7 +2528,19 @@ After completing work, write your retrospective in PARALLEL_AGENTS.md under "Run
 *(To be filled by Agent D)*
 
 #### Agent E Retrospective
-*(To be filled by Agent E)*
+**Status**: DONE
+**Files created**: `.env.example` (root, overwritten), `bot/src/utils/config.ts` (new)
+**Build**: `npm run build` passes clean, zero errors.
+
+**What was done**:
+1. Searched all source files (`bot/src/`, `mini-app/src/`, `ecosystem.config.js`) for `process.env.*` and `import.meta.env.*` references. Found 20+ unique env vars across the codebase.
+2. Rewrote `.env.example` from 97 lines to 122 lines. Added missing vars that were actually used but not documented: `API_PORT`, `USE_WEBHOOK`, `WEBHOOK_DOMAIN`, `TELEGRAM_WEBHOOK_SECRET`, `PYTHON_TOOLS_PATH`, `BUILD_VERSION`, `BUILD_TIMESTAMP`, `SKIP_AUTH`, `SKIP_RATE_LIMIT`. Added `[REQUIRED]`/`[OPTIONAL]`/`[DEV-ONLY]` severity labels to each section header.
+3. Created `bot/src/utils/config.ts` with `validateConfig()` that collects ALL missing required vars before reporting (unlike existing `bot/src/config.ts` which throws on the first missing var). Exports `AppConfig` interface, `validateConfig()`, `getAppConfig()`, and a pre-built `appConfig` object.
+
+**Design decisions**:
+- Did NOT modify `server.ts` or any existing files (as instructed). The `validateConfig()` function is exported and ready to be called at startup, but integration is left to Agent 0 or a future run.
+- Kept `TELEGRAM_BOT_TOKEN` and `DATABASE_URL` as hard errors; `ADMIN_PASSWORD_HASH` and `MINI_APP_URL` as warnings since the app can technically start without them.
+- The existing `bot/src/config.ts` already validates at import time — the new `utils/config.ts` is complementary, providing a callable function that reports ALL issues at once rather than failing on the first one.
 
 #### Agent F Retrospective
 *(To be filled by Agent F)*
