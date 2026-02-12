@@ -8,51 +8,32 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import request from 'supertest';
 import { createTestApp, addTestErrorHandler } from '../../helpers/testApp.js';
+import { getMockDb } from '../../helpers/httpMocks.js';
 
-// ─── Mocks (hoisted before any route import) ───────────────────────
+// ─── Mocks (hoisted — use async dynamic import for httpMocks) ───────
 
-const mockQuery = vi.fn();
-const mockQueryOne = vi.fn();
-const mockExecute = vi.fn();
+vi.mock('../../../utils/db.js', async () =>
+  (await import('../../helpers/httpMocks.js')).createMockDb().module);
 
-vi.mock('../../../utils/db.js', () => ({
-  query: (...args: any[]) => mockQuery(...args),
-  queryOne: (...args: any[]) => mockQueryOne(...args),
-  execute: (...args: any[]) => mockExecute(...args),
-  transaction: vi.fn(),
-  getPool: vi.fn(),
-}));
+vi.mock('../../../utils/cache.js', async () =>
+  (await import('../../helpers/httpMocks.js')).createMockCache().module);
 
-vi.mock('../../../utils/cache.js', () => ({
-  cached: vi.fn(async (_k: string, _t: number, fn: () => Promise<any>) => fn()),
-  invalidate: vi.fn(),
-  invalidatePrefix: vi.fn(),
-  invalidateUserCache: vi.fn(),
-  clearAll: vi.fn(),
-  TTL: { SHORT: 30_000, MEDIUM: 300_000, LONG: 1_800_000 },
-}));
+vi.mock('../../../utils/pythonTools.js', async () =>
+  (await import('../../helpers/httpMocks.js')).createMockPythonTools().module);
 
-vi.mock('../../../utils/pythonTools.js', () => ({
-  executePythonTool: vi.fn(),
-  getUserByTelegramId: vi.fn(),
-  getUserById: vi.fn(),
-}));
+vi.mock('../../../api/middleware/auth.js', async () =>
+  (await import('../../helpers/httpMocks.js')).createMockAuth().module);
 
-vi.mock('../../../api/middleware/auth.js', () => ({
-  authenticateTelegram: (_req: any, _res: any, next: any) => next(),
-  authorizeUser: (_req: any, _res: any, next: any) => next(),
-  requireOwnership: vi.fn(),
-}));
-
-vi.mock('../../../api/middleware/rateLimiter.js', () => ({
-  apiLimiter: (_req: any, _res: any, next: any) => next(),
-  mutationLimiter: (_req: any, _res: any, next: any) => next(),
-  readLimiter: (_req: any, _res: any, next: any) => next(),
-}));
+vi.mock('../../../api/middleware/rateLimiter.js', async () =>
+  (await import('../../helpers/httpMocks.js')).createMockRateLimiters().module);
 
 // ─── Import router after mocks ─────────────────────────────────────
 
 import { modeRouter } from '../../../api/routes/modes.js';
+
+// ─── Mock refs (populated by vi.mock factories above) ───────────────
+
+const db = getMockDb();
 
 // ─── Build test app ────────────────────────────────────────────────
 
@@ -71,7 +52,7 @@ beforeEach(() => {
 
 describe('GET /api/modes', () => {
   it('should return 200 with all available modes', async () => {
-    mockQuery.mockResolvedValueOnce([
+    db.query.mockResolvedValueOnce([
       { id: 1, name: 'fitness', display_name: 'Fitness', description: 'Stay fit', icon: '💪' },
       { id: 2, name: 'hydration', display_name: 'Hydration', description: 'Drink water', icon: '💧' },
     ]);
@@ -87,7 +68,7 @@ describe('GET /api/modes', () => {
   });
 
   it('should return empty array when no modes exist', async () => {
-    mockQuery.mockResolvedValueOnce([]);
+    db.query.mockResolvedValueOnce([]);
 
     const res = await request(buildApp())
       .get('/api/modes')
@@ -98,7 +79,7 @@ describe('GET /api/modes', () => {
   });
 
   it('should return 500 when database throws', async () => {
-    mockQuery.mockRejectedValueOnce(new Error('connection lost'));
+    db.query.mockRejectedValueOnce(new Error('connection lost'));
 
     const res = await request(buildApp())
       .get('/api/modes')
@@ -110,7 +91,7 @@ describe('GET /api/modes', () => {
 
 describe('GET /api/modes/users/:userId', () => {
   it('should return 200 with user active modes', async () => {
-    mockQuery.mockResolvedValueOnce([
+    db.query.mockResolvedValueOnce([
       { id: 1, user_id: 42, mode_id: 1, is_active: true, name: 'fitness', display_name: 'Fitness', description: 'Stay fit', icon: '💪' },
     ]);
 
@@ -124,7 +105,7 @@ describe('GET /api/modes/users/:userId', () => {
   });
 
   it('should return empty array for user with no active modes', async () => {
-    mockQuery.mockResolvedValueOnce([]);
+    db.query.mockResolvedValueOnce([]);
 
     const res = await request(buildApp())
       .get('/api/modes/users/42')
@@ -135,7 +116,7 @@ describe('GET /api/modes/users/:userId', () => {
   });
 
   it('should return 500 when database throws', async () => {
-    mockQuery.mockRejectedValueOnce(new Error('timeout'));
+    db.query.mockRejectedValueOnce(new Error('timeout'));
 
     const res = await request(buildApp())
       .get('/api/modes/users/42')
@@ -149,13 +130,13 @@ describe('POST /api/modes/users/:userId', () => {
   it('should return 200 when adding modes', async () => {
     // Mock sequence for adding one mode:
     // 1. queryOne: mode lookup by name → found
-    mockQueryOne.mockResolvedValueOnce({ id: 1 });
+    db.queryOne.mockResolvedValueOnce({ id: 1 });
     // 2. queryOne: check existing user_mode → not found
-    mockQueryOne.mockResolvedValueOnce(null);
+    db.queryOne.mockResolvedValueOnce(null);
     // 3. queryOne: INSERT user_mode RETURNING id
-    mockQueryOne.mockResolvedValueOnce({ id: 100 });
+    db.queryOne.mockResolvedValueOnce({ id: 100 });
     // 4. execute: INSERT streak ON CONFLICT
-    mockExecute.mockResolvedValueOnce(1);
+    db.execute.mockResolvedValueOnce(1);
 
     const res = await request(buildApp())
       .post('/api/modes/users/42')
@@ -196,7 +177,7 @@ describe('POST /api/modes/users/:userId', () => {
 
   it('should return 200 with failed entry when mode not found', async () => {
     // Mode lookup returns null → mode not found in DB
-    mockQueryOne.mockResolvedValueOnce(null);
+    db.queryOne.mockResolvedValueOnce(null);
 
     const res = await request(buildApp())
       .post('/api/modes/users/42')
@@ -211,7 +192,7 @@ describe('POST /api/modes/users/:userId', () => {
 
 describe('DELETE /api/modes/users/:userId/:modeId', () => {
   it('should return 200 when mode removed successfully', async () => {
-    mockExecute.mockResolvedValueOnce(1);
+    db.execute.mockResolvedValueOnce(1);
 
     const res = await request(buildApp())
       .delete('/api/modes/users/42/1')
@@ -221,7 +202,7 @@ describe('DELETE /api/modes/users/:userId/:modeId', () => {
   });
 
   it('should return 404 when mode not found for user', async () => {
-    mockExecute.mockResolvedValueOnce(0);
+    db.execute.mockResolvedValueOnce(0);
 
     const res = await request(buildApp())
       .delete('/api/modes/users/42/999')
@@ -231,7 +212,7 @@ describe('DELETE /api/modes/users/:userId/:modeId', () => {
   });
 
   it('should return 500 when database throws', async () => {
-    mockExecute.mockRejectedValueOnce(new Error('constraint error'));
+    db.execute.mockRejectedValueOnce(new Error('constraint error'));
 
     const res = await request(buildApp())
       .delete('/api/modes/users/42/1')
@@ -243,7 +224,7 @@ describe('DELETE /api/modes/users/:userId/:modeId', () => {
 
 describe('PATCH /api/modes/users/:userId/:modeId', () => {
   it('should return 200 when settings updated', async () => {
-    mockQueryOne.mockResolvedValueOnce({
+    db.queryOne.mockResolvedValueOnce({
       user_id: 42, mode_id: 1, settings: { reminder: true },
     });
 
@@ -265,7 +246,7 @@ describe('PATCH /api/modes/users/:userId/:modeId', () => {
   });
 
   it('should return 404 when mode not found for user', async () => {
-    mockQueryOne.mockResolvedValueOnce(null);
+    db.queryOne.mockResolvedValueOnce(null);
 
     const res = await request(buildApp())
       .patch('/api/modes/users/42/1')
@@ -278,7 +259,7 @@ describe('PATCH /api/modes/users/:userId/:modeId', () => {
 
 describe('GET /api/modes/:modeId/quests', () => {
   it('should return 200 with quest templates for mode', async () => {
-    mockQuery.mockResolvedValueOnce([
+    db.query.mockResolvedValueOnce([
       { id: 1, name: 'Morning Run', description: 'Run 2km', xp_reward: 50, frequency: 'daily', difficulty: 'easy', requires_timer: false, is_mandatory: false },
     ]);
 
@@ -292,7 +273,7 @@ describe('GET /api/modes/:modeId/quests', () => {
   });
 
   it('should return empty array for mode with no quests', async () => {
-    mockQuery.mockResolvedValueOnce([]);
+    db.query.mockResolvedValueOnce([]);
 
     const res = await request(buildApp())
       .get('/api/modes/999/quests')
@@ -303,7 +284,7 @@ describe('GET /api/modes/:modeId/quests', () => {
   });
 
   it('should return 500 when database throws', async () => {
-    mockQuery.mockRejectedValueOnce(new Error('timeout'));
+    db.query.mockRejectedValueOnce(new Error('timeout'));
 
     const res = await request(buildApp())
       .get('/api/modes/1/quests')
