@@ -1,5 +1,6 @@
 import { Router, Request, Response } from 'express';
-import { authenticateTelegram } from '../middleware/auth.js';
+import { authenticateTelegram, authorizeUser } from '../middleware/auth.js';
+import { readLimiter } from '../middleware/rateLimiter.js';
 import { query, queryOne } from '../../utils/db.js';
 import { cached, TTL } from '../../utils/cache.js';
 import {
@@ -58,7 +59,7 @@ interface ProgressSummaryRow {
  * Returns per-mode completion rates, streak trends, and XP breakdown.
  * This endpoint powers the mode analytics progress dashboard.
  */
-router.get('/:userId/modes', authenticateTelegram, asyncHandler(async (req: Request, res: Response) => {
+router.get('/:userId/modes', authenticateTelegram, authorizeUser, readLimiter, asyncHandler(async (req: Request, res: Response) => {
   const userId = parseInt(req.params.userId);
   if (isNaN(userId)) throw new BadRequestError('Invalid userId');
 
@@ -111,7 +112,7 @@ router.get('/:userId/modes', authenticateTelegram, asyncHandler(async (req: Requ
  * Returns detailed analytics for a specific mode including quest history.
  * The :mode param is the mode name (e.g. 'fitness', 'hydration').
  */
-router.get('/:userId/modes/:mode', authenticateTelegram, asyncHandler(async (req: Request, res: Response) => {
+router.get('/:userId/modes/:mode', authenticateTelegram, authorizeUser, readLimiter, asyncHandler(async (req: Request, res: Response) => {
   const userId = parseInt(req.params.userId);
   const modeName = req.params.mode;
   if (isNaN(userId)) throw new BadRequestError('Invalid userId');
@@ -210,7 +211,7 @@ router.get('/:userId/modes/:mode', authenticateTelegram, asyncHandler(async (req
  * GET /api/analytics/:userId/summary
  * Returns overall progress summary: total XP, level, quests completed, active streaks.
  */
-router.get('/:userId/summary', authenticateTelegram, asyncHandler(async (req: Request, res: Response) => {
+router.get('/:userId/summary', authenticateTelegram, authorizeUser, readLimiter, asyncHandler(async (req: Request, res: Response) => {
   const userId = parseInt(req.params.userId);
   if (isNaN(userId)) throw new BadRequestError('Invalid userId');
 

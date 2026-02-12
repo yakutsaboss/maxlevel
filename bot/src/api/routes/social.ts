@@ -1,4 +1,6 @@
 import { Router, Request, Response } from 'express';
+import { authenticateTelegram, authorizeUser } from '../middleware/auth.js';
+import { mutationLimiter, readLimiter } from '../middleware/rateLimiter.js';
 import { query, queryOne, execute } from '../../utils/db.js';
 import {
   asyncHandler,
@@ -11,10 +13,17 @@ import {
 const router = Router();
 
 // POST /api/social/friends/request — send friend request
-router.post('/friends/request', asyncHandler(async (req: Request, res: Response) => {
+router.post('/friends/request', authenticateTelegram, mutationLimiter, asyncHandler(async (req: Request, res: Response) => {
   const { fromUserId, toUserId } = req.body;
   validateRequired(req.body, ['fromUserId', 'toUserId']);
 
+  // Input validation
+  if (!Number.isInteger(fromUserId) || fromUserId <= 0) {
+    throw new BadRequestError('fromUserId must be a positive integer');
+  }
+  if (!Number.isInteger(toUserId) || toUserId <= 0) {
+    throw new BadRequestError('toUserId must be a positive integer');
+  }
   if (fromUserId === toUserId) {
     throw new BadRequestError('Cannot send friend request to yourself');
   }
@@ -40,9 +49,14 @@ router.post('/friends/request', asyncHandler(async (req: Request, res: Response)
 }));
 
 // POST /api/social/friends/accept — accept friend request
-router.post('/friends/accept', asyncHandler(async (req: Request, res: Response) => {
+router.post('/friends/accept', authenticateTelegram, mutationLimiter, asyncHandler(async (req: Request, res: Response) => {
   const { requestId } = req.body;
   validateRequired(req.body, ['requestId']);
+
+  // Input validation
+  if (!Number.isInteger(requestId) || requestId <= 0) {
+    throw new BadRequestError('requestId must be a positive integer');
+  }
 
   const request = await queryOne(
     `UPDATE friend_requests SET status = 'accepted'
@@ -58,7 +72,7 @@ router.post('/friends/accept', asyncHandler(async (req: Request, res: Response) 
 }));
 
 // GET /api/social/friends/:userId — list friends
-router.get('/friends/:userId', asyncHandler(async (req: Request, res: Response) => {
+router.get('/friends/:userId', authenticateTelegram, authorizeUser, readLimiter, asyncHandler(async (req: Request, res: Response) => {
   const userId = parseInt(req.params.userId);
 
   const friends = await query(
@@ -78,9 +92,20 @@ router.get('/friends/:userId', asyncHandler(async (req: Request, res: Response) 
 }));
 
 // POST /api/social/challenges/create — create challenge
-router.post('/challenges/create', asyncHandler(async (req: Request, res: Response) => {
+router.post('/challenges/create', authenticateTelegram, mutationLimiter, asyncHandler(async (req: Request, res: Response) => {
   const { creatorId, title, description, mode, targetValue, endDate } = req.body;
   validateRequired(req.body, ['creatorId', 'title']);
+
+  // Input validation
+  if (typeof title !== 'string' || title.length === 0 || title.length > 200) {
+    throw new BadRequestError('title must be a string with max 200 characters');
+  }
+  if (description !== undefined && description !== null && (typeof description !== 'string' || description.length > 2000)) {
+    throw new BadRequestError('description must be a string with max 2000 characters');
+  }
+  if (targetValue !== undefined && targetValue !== null && (!Number.isInteger(targetValue) || targetValue <= 0)) {
+    throw new BadRequestError('target_value must be a positive integer');
+  }
 
   const challenge = await queryOne(
     `INSERT INTO challenges (creator_id, title, description, mode, target_value, end_date)
@@ -98,7 +123,7 @@ router.post('/challenges/create', asyncHandler(async (req: Request, res: Respons
 }));
 
 // GET /api/social/challenges/:userId — list user's challenges
-router.get('/challenges/:userId', asyncHandler(async (req: Request, res: Response) => {
+router.get('/challenges/:userId', authenticateTelegram, authorizeUser, readLimiter, asyncHandler(async (req: Request, res: Response) => {
   const userId = parseInt(req.params.userId);
 
   const challenges = await query(
