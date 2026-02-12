@@ -1,9 +1,7 @@
-import { useEffect, useState, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTelegram, useMainButton } from '@/hooks/useTelegram';
 import { usePullToRefresh, PullIndicator } from '@/hooks/usePullToRefresh';
-import { apiClient } from '@/api/client';
-import { Quest, Mode } from '@/types';
+import { useQuestsData } from '@/hooks/useQuestsData';
 import { Target, CheckCircle, Clock, Trophy } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ErrorSection } from '@/components/ErrorSection';
@@ -11,167 +9,34 @@ import { QuestCard } from '@/components/quests/QuestCard';
 import { QuestDetailModal } from '@/components/quests/QuestDetailModal';
 import { TabButton } from '@/components/quests/TabButton';
 import { QuestsSkeleton } from '@/components/quests/QuestsSkeleton';
-import { QuestFilters, SortOption } from '@/components/quests/QuestFilters';
-import { logger } from '@/utils/logger';
-
-type QuestTab = 'active' | 'completed';
+import { QuestFilters } from '@/components/quests/QuestFilters';
 
 export function Quests() {
   const { user, haptic } = useTelegram();
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState<QuestTab>('active');
-  const [activeQuests, setActiveQuests] = useState<Quest[]>([]);
-  const [completedQuests, setCompletedQuests] = useState<Quest[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(false);
-  const [selectedQuest, setSelectedQuest] = useState<Quest | null>(null);
-  const [completing, setCompleting] = useState(false);
-  const [todayCheckinCount, setTodayCheckinCount] = useState(0);
-  const [selectedModeId, setSelectedModeId] = useState<number | null>(null);
-  const [sortBy, setSortBy] = useState<SortOption>('newest');
 
-  const loadTodayCheckins = async () => {
-    if (!user?.id) return;
-    try {
-      const res = await apiClient.getTodayCheckins(user.id);
-      if (res.success && res.data) { setTodayCheckinCount(res.data.count); }
-    } catch (err) {
-      logger.error('Failed to load today check-ins', { error: err });
-    }
-  };
+  const {
+    activeTab, setActiveTab,
+    loading, error,
+    activeQuests, completedQuests,
+    availableModes, currentQuests, completionStats,
+    selectedQuest, completing, todayCheckinCount,
+    selectedModeId, setSelectedModeId,
+    sortBy, setSortBy,
+    handleRefresh, handleQuestSelect, handleCompleteQuest,
+    handleCheckinSuccess, closeSelectedQuest, loadQuests,
+    mainButtonText, mainButtonVisible, mainButtonActive,
+  } = useQuestsData(user?.id, haptic);
 
-  const loadQuests = async () => {
-    if (!user?.id) { setLoading(false); return; }
-    try {
-      setLoading(true);
-      setError(false);
-      const [activeResult, completedResult] = await Promise.allSettled([
-        apiClient.getActiveQuests(user.id),
-        apiClient.getCompletedQuests(user.id, 50),
-      ]);
-      if (activeResult.status === 'fulfilled' && activeResult.value.success && activeResult.value.data) {
-        setActiveQuests(activeResult.value.data);
-      } else if (activeResult.status === 'rejected') {
-        logger.error('Failed to load active quests', { error: activeResult.reason });
-      }
-      if (completedResult.status === 'fulfilled' && completedResult.value.success && completedResult.value.data) {
-        setCompletedQuests(completedResult.value.data);
-      } else if (completedResult.status === 'rejected') {
-        logger.error('Failed to load completed quests', { error: completedResult.reason });
-      }
-      if (activeResult.status === 'rejected' && completedResult.status === 'rejected') {
-        setError(true);
-      }
-      loadTodayCheckins();
-    } catch (error) {
-      logger.error('Failed to load quests', { error });
-      setError(true);
-    } finally { setLoading(false); }
-  };
-
-  const handleRefresh = useCallback(async () => { await loadQuests(); }, []);
   const { containerRef, pullDistance, refreshing, pullThreshold, touchHandlers } = usePullToRefresh(handleRefresh, haptic);
 
-  useEffect(() => { loadQuests(); }, [user]);
+  useMainButton(mainButtonText, handleCompleteQuest, {
+    isVisible: mainButtonVisible,
+    isActive: mainButtonActive,
+  });
 
-  const handleQuestSelect = (quest: Quest) => {
-    haptic.impact('light');
-    setSelectedQuest(quest);
-  };
-
-  const handleCompleteQuest = async () => {
-    if (!selectedQuest || completing) return;
-    try {
-      setCompleting(true);
-      const response = await apiClient.completeQuest(selectedQuest.id, selectedQuest.target);
-      if (response.success) {
-        haptic.notification('success');
-        await loadQuests();
-        setSelectedQuest(null);
-      }
-    } catch (error) {
-      logger.error('Failed to complete quest', { error });
-      haptic.notification('error');
-    } finally { setCompleting(false); }
-  };
-
-  const handleCheckinSuccess = useCallback((result: { completed: boolean; current: number; target: number }) => {
-    if (selectedQuest) {
-      setSelectedQuest({ ...selectedQuest, progress: result.current, status: result.completed ? 'completed' : selectedQuest.status });
-    }
-    loadTodayCheckins();
-    if (result.completed) {
-      haptic.notification('success');
-      loadQuests().then(() => setSelectedQuest(null));
-    } else {
-      loadQuests();
-    }
-  }, [selectedQuest, haptic]);
-
-  useMainButton(
-    selectedQuest ? (completing ? 'Completing...' : 'Complete Quest') : '',
-    handleCompleteQuest,
-    {
-      isVisible: !!selectedQuest && selectedQuest.progress >= selectedQuest.target,
-      isActive: !completing,
-    }
-  );
-
-  // Extract unique modes from all quests
-  const availableModes = useMemo(() => {
-    const modeMap = new Map<number, Mode>();
-    [...activeQuests, ...completedQuests].forEach((q) => {
-      if (q.mode) modeMap.set(q.mode.id, q.mode);
-    });
-    return Array.from(modeMap.values());
-  }, [activeQuests, completedQuests]);
-
-  // Filter and sort quests
-  const currentQuests = useMemo(() => {
-    const source = activeTab === 'active' ? activeQuests : completedQuests;
-
-    const filtered = selectedModeId !== null
-      ? source.filter((q) => q.mode_id === selectedModeId)
-      : source;
-
-    const sorted = [...filtered];
-    switch (sortBy) {
-      case 'xp_reward':
-        sorted.sort((a, b) => b.xp_reward - a.xp_reward);
-        break;
-      case 'progress':
-        sorted.sort((a, b) => {
-          const progressA = a.target > 0 ? a.progress / a.target : 0;
-          const progressB = b.target > 0 ? b.progress / b.target : 0;
-          return progressB - progressA;
-        });
-        break;
-      case 'newest':
-      default:
-        sorted.sort((a, b) => b.id - a.id);
-        break;
-    }
-
-    return sorted;
-  }, [activeTab, activeQuests, completedQuests, selectedModeId, sortBy]);
-
-  // Completion stats for progress bar
-  const completionStats = useMemo(() => {
-    if (activeTab === 'active') {
-      const total = activeQuests.length;
-      const done = activeQuests.filter((q) => q.progress >= q.target).length;
-      return { done, total };
-    }
-    return { done: completedQuests.length, total: completedQuests.length };
-  }, [activeTab, activeQuests, completedQuests]);
-
-  if (loading) {
-    return <QuestsSkeleton />;
-  }
-
-  if (error) {
-    return <ErrorSection message="Could not load your quests" onRetry={loadQuests} />;
-  }
+  if (loading) return <QuestsSkeleton />;
+  if (error) return <ErrorSection message="Could not load your quests" onRetry={loadQuests} />;
 
   return (
     <div
@@ -280,7 +145,7 @@ export function Quests() {
           quest={selectedQuest}
           completing={completing}
           userId={user?.id}
-          onClose={() => { haptic.impact('light'); setSelectedQuest(null); }}
+          onClose={closeSelectedQuest}
           onCheckinSuccess={handleCheckinSuccess}
         />
       )}
