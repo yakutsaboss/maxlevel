@@ -216,9 +216,9 @@ class ProjectStatusTracker:
                     {"name": "Export tool script", "check": lambda: self._file_exists("tools/sheets_analytics_export.py")},
                     {"name": "Google service account configured", "check": lambda: self._file_exists("service_account.json")},
                     {"name": "Spreadsheet ID in .env", "check": lambda: self._file_contains(".env", "GOOGLE_SHEETS_SPREADSHEET_ID")},
-                    {"name": "Onboarding Q&A sheet per module", "check": lambda: False},
-                    {"name": "Auto-scheduled weekly export", "check": lambda: False},
-                    {"name": "All player answers organized", "check": lambda: False},
+                    {"name": "Onboarding Q&A sheet per module", "check": lambda: self._file_contains_pattern("tools/sheets_analytics_export.py", r"quiz_responses|onboarding.*export|qa.*sheet")},
+                    {"name": "Auto-scheduled weekly export", "check": lambda: self._file_exists("bot/src/jobs/definitions/analyticsExport.ts")},
+                    {"name": "All player answers organized", "check": lambda: self._file_contains_pattern("tools/sheets_analytics_export.py", r"mode_configs|organized|per.?mode")},
                 ]
             },
             "onboarding_qa": {
@@ -262,7 +262,7 @@ class ProjectStatusTracker:
                     {
                         "name": "Drum/slider/time defaults not saved on skip",
                         "check": lambda: self._file_contains(
-                            "mini-app/src/components/onboarding/QuizScreen.tsx",
+                            "mini-app/src/components/onboarding/quiz/useQuizState.ts",
                             "Persist default values on mount"
                         ),
                     },
@@ -330,10 +330,10 @@ class ProjectStatusTracker:
                 "weight": 10,
                 "tasks": [
                     {"name": "Admin API routes", "check": lambda: self._file_exists("bot/src/api/routes/admin.ts")},
-                    {"name": "Admin authentication", "check": lambda: False},
-                    {"name": "User management dashboard", "check": lambda: False},
-                    {"name": "Quest/mode editor", "check": lambda: False},
-                    {"name": "Analytics overview", "check": lambda: False},
+                    {"name": "Admin authentication", "check": lambda: self._file_exists("bot/src/api/middleware/adminAuth.ts")},
+                    {"name": "User management dashboard", "check": lambda: self._file_exists("mini-app/src/components/AdminUserList.tsx")},
+                    {"name": "Quest/mode editor", "check": lambda: self._file_exists("mini-app/src/components/admin/AdminQuestEditor.tsx")},
+                    {"name": "Analytics overview", "check": lambda: self._file_exists("mini-app/src/components/AdminStatsCard.tsx")},
                     {"name": "Admin mini app frontend", "check": lambda: self._dir_exists("admin-app/src")},
                 ]
             },
@@ -345,9 +345,9 @@ class ProjectStatusTracker:
                     {"name": "Core pages (Dashboard, Quests, Profile)", "check": lambda: self._file_exists("mini-app/src/pages/Dashboard.tsx")},
                     {"name": "Onboarding flow complete", "check": lambda: self._file_exists("mini-app/src/pages/Onboarding.tsx")},
                     {"name": "Settings page", "check": lambda: self._file_exists("mini-app/src/pages/Settings.tsx")},
-                    {"name": "Theme customization (dark mode)", "check": lambda: False},
-                    {"name": "Localization (i18n)", "check": lambda: False},
-                    {"name": "Offline support / PWA", "check": lambda: False},
+                    {"name": "Theme customization (dark mode)", "check": lambda: self._file_contains_pattern("mini-app/src/pages/Settings.tsx", r"theme|dark.?mode|themeParams")},
+                    {"name": "Localization (i18n)", "check": lambda: self._file_exists("mini-app/src/i18n/index.ts")},
+                    {"name": "Offline support / PWA", "check": lambda: self._file_exists("mini-app/public/manifest.json")},
                 ]
             },
         }
