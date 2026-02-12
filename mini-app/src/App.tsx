@@ -1,6 +1,7 @@
+import './i18n';
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { lazy, useCallback, useEffect, useState } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useState } from 'react';
 import { Dashboard } from '@/pages/Dashboard';
 import { Quests } from '@/pages/Quests';
 import { Profile } from '@/pages/Profile';
@@ -155,9 +156,11 @@ function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <ErrorBoundary>
-        <BrowserRouter basename="/levelapp">
-          <AppContent />
-        </BrowserRouter>
+        <Suspense fallback={<div className="flex items-center justify-center min-h-screen bg-telegram-bg"><div className="text-telegram-hint animate-pulse">Loading...</div></div>}>
+          <BrowserRouter basename="/levelapp">
+            <AppContent />
+          </BrowserRouter>
+        </Suspense>
       </ErrorBoundary>
     </QueryClientProvider>
   );
