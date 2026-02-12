@@ -2804,7 +2804,18 @@ After completing work, write your retrospective in PARALLEL_AGENTS.md under "Run
 ### Run 44 Retrospectives
 
 #### Agent A Retrospective
-*(To be filled by Agent A)*
+**Task**: Create payment and subscription database tables + premium tier seed data.
+
+**What was done**:
+- Added `payments` table to `database/schema.sql` with columns: id, user_id (FK → users), amount, currency (default 'XTR'), status (CHECK: pending/completed/failed/refunded), provider (default 'telegram_stars'), telegram/provider charge IDs, metadata (JSONB), timestamps (TIMESTAMPTZ). Indexes on user_id and status.
+- Added `subscriptions` table with columns: id, user_id (FK → users, UNIQUE), tier (CHECK: free/pro/premium), started_at, expires_at, auto_renew, timestamps. Indexes on user_id and tier.
+- Added DROP TABLE IF EXISTS for both new tables in the drop block at schema top.
+- Added COMMENT ON TABLE for both new tables.
+- Added premium tier reference data as a comment block in `database/seed_data.sql` documenting the 3 tiers: free (0 Stars), pro (299 Stars/month), premium (599 Stars/month).
+
+**Style consistency**: Used SERIAL PRIMARY KEY, ON DELETE CASCADE, TIMESTAMPTZ, CHECK constraints, and index naming conventions (`idx_tablename_column`) matching existing schema patterns.
+
+**Issues**: None. Straightforward schema addition.
 
 #### Agent B Retrospective
 *(To be filled by Agent B)*

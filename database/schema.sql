@@ -4,6 +4,8 @@
 -- Drop existing tables and views (for fresh install)
 DROP VIEW IF EXISTS user_stats CASCADE;
 DROP MATERIALIZED VIEW IF EXISTS leaderboard_mv CASCADE;
+DROP TABLE IF EXISTS subscriptions CASCADE;
+DROP TABLE IF EXISTS payments CASCADE;
 DROP TABLE IF EXISTS user_activity_log CASCADE;
 DROP TABLE IF EXISTS punishment_history CASCADE;
 DROP TABLE IF EXISTS punishment_settings CASCADE;
@@ -227,6 +229,37 @@ CREATE TABLE user_activity_log (
 CREATE INDEX idx_activity_log_user_date ON user_activity_log(user_id, created_at);
 CREATE INDEX idx_activity_log_type ON user_activity_log(activity_type);
 
+-- Payments (Telegram Stars payment records, added in Run 44)
+CREATE TABLE payments (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    amount DECIMAL(10,2) NOT NULL,
+    currency VARCHAR(3) NOT NULL DEFAULT 'XTR',
+    status VARCHAR(20) NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'completed', 'failed', 'refunded')),
+    provider VARCHAR(50) NOT NULL DEFAULT 'telegram_stars',
+    telegram_payment_charge_id VARCHAR(255),
+    provider_payment_charge_id VARCHAR(255),
+    metadata JSONB DEFAULT '{}',
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE INDEX idx_payments_user_id ON payments(user_id);
+CREATE INDEX idx_payments_status ON payments(status);
+
+-- Subscriptions (premium tier tracking, added in Run 44)
+CREATE TABLE subscriptions (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE UNIQUE,
+    tier VARCHAR(20) NOT NULL DEFAULT 'free' CHECK (tier IN ('free', 'pro', 'premium')),
+    started_at TIMESTAMPTZ DEFAULT NOW(),
+    expires_at TIMESTAMPTZ,
+    auto_renew BOOLEAN DEFAULT true,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE INDEX idx_subscriptions_user_id ON subscriptions(user_id);
+CREATE INDEX idx_subscriptions_tier ON subscriptions(tier);
+
 -- User stats view (used by achievement_manager.py check_and_unlock_achievements, added in Run 19)
 CREATE VIEW user_stats AS
 SELECT
@@ -285,5 +318,7 @@ COMMENT ON TABLE punishment_settings IS 'User consent and punishment preferences
 COMMENT ON TABLE punishment_history IS 'Audit log of applied punishments';
 COMMENT ON TABLE onboarding_state IS 'State for resuming interrupted onboarding';
 COMMENT ON TABLE user_activity_log IS 'Tracks all user interactions for engagement analytics';
+COMMENT ON TABLE payments IS 'Telegram Stars payment records for premium subscriptions';
+COMMENT ON TABLE subscriptions IS 'User premium subscription tier and billing state';
 COMMENT ON VIEW user_stats IS 'Aggregated user stats for achievement checking (level, XP, streaks, quest counts)';
 COMMENT ON MATERIALIZED VIEW leaderboard_mv IS 'Cached leaderboard rankings, refreshed every 30 minutes by pg-boss job';

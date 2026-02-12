@@ -158,6 +158,20 @@ END $$;
 -- ON CONFLICT (telegram_id) DO NOTHING;
 
 -- ========================================
+-- PREMIUM TIERS (added in Run 44)
+-- ========================================
+
+-- Premium Tier Reference (used by payment routes and subscription management):
+--   Tier       | Price (Stars/month) | Currency | Features
+--   -----------|---------------------|----------|-------------------------------------------
+--   free       | 0                   | XTR      | Basic quests, standard modes, ads
+--   pro        | 299                 | XTR      | Priority quests, analytics, no ads
+--   premium    | 599                 | XTR      | All pro features + personalized plans, smart recommendations, advanced analytics
+--
+-- Telegram Stars (XTR) is the payment currency via Telegram's built-in payment system.
+-- 1 Star ≈ $0.013 USD (approximate, set by Telegram).
+
+-- ========================================
 -- VERIFICATION QUERIES
 -- ========================================
 
