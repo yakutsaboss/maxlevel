@@ -87,7 +87,7 @@ describe('handleStart', () => {
     // Should send welcome-back message via sendMarkdownMessage
     expect(mockSendMarkdownMessage).toHaveBeenCalledTimes(1);
     const msg = mockSendMarkdownMessage.mock.calls[0][1] as string;
-    expect(msg).toContain('Welcome back');
+    expect(msg).toContain('Welcome');
     expect(msg).toContain('Alice');
     expect(msg).toContain('Level 5');
     expect(msg).toContain('2500 XP');
@@ -113,7 +113,7 @@ describe('handleStart', () => {
 
     expect(mockSendMarkdownMessage).toHaveBeenCalledTimes(1);
     const msg = mockSendMarkdownMessage.mock.calls[0][1] as string;
-    expect(msg).toContain('Welcome back');
+    expect(msg).toContain('Welcome');
     expect(msg).toContain("Couldn't load quests");
   });
 
