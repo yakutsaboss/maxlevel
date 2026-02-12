@@ -1852,7 +1852,23 @@ All agents create NEW test files only — zero file conflicts expected. Merge in
 - All 26 tests passed on first run
 
 #### Agent B Retrospective
-*(To be filled by Agent B)*
+**Status:** COMPLETE — 17 tests pass, all green, zero regressions (255/255 HTTP tests pass).
+
+**What was done:**
+- Created `bot/src/__tests__/routes/http/social.http.test.ts` with 17 tests covering all 5 endpoints in `social.ts` (144 lines).
+- Followed the exact HTTP test pattern from `checkins.http.test.ts`: vi.mock hoisting for db/cache/auth/rateLimiter, supertest with `createTestApp()` + `addTestErrorHandler()`.
+
+**Test breakdown (17 tests across 5 describes):**
+1. **POST /friends/request** (6 tests): happy path 201, missing fromUserId, missing toUserId, self-request (fromUserId === toUserId), already-exists duplicate, DB error 500.
+2. **POST /friends/accept** (3 tests): happy path 200, missing requestId, not-found/already-processed 404.
+3. **GET /friends/:userId** (2 tests): friend list returned, empty array.
+4. **POST /challenges/create** (4 tests): happy path 201 with auto-join participant assertion, missing title, title > 200 chars, negative targetValue.
+5. **GET /challenges/:userId** (2 tests): challenges list, empty array.
+
+**Decisions:**
+- Exceeded the 12-15 target (17 tests) because the friend-request endpoint has rich validation (self-request, duplicate check, integer checks) worth covering.
+- Tested `db.execute` call for auto-join participant in challenges/create to verify the side effect.
+- No issues encountered — all tests passed on first run.
 
 #### Agent C Retrospective
 *(To be filled by Agent C)*
