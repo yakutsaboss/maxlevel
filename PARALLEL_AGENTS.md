@@ -2330,7 +2330,21 @@ Created `mini-app/src/i18n/zh.ts` with Simplified Chinese translations. All 8 to
 *(To be filled by Agent E)*
 
 #### Agent F Retrospective
-*(To be filled by Agent F)*
+**Task**: Create admin quests API route (backend CRUD for quest templates).
+
+**What was done**:
+- Created `bot/src/api/routes/admin-quests.ts` with 4 endpoints:
+  - `GET /api/admin/quests` — list all quest templates with mode join, optional `mode_id` and `quest_type` filters
+  - `POST /api/admin/quests` — create quest template with validation (quest_type, difficulty enums)
+  - `PATCH /api/admin/quests/:id` — update quest template using `buildDynamicUpdate` (same pattern as admin-users)
+  - `DELETE /api/admin/quests/:id` — delete quest template with referential integrity check (blocks if instances exist)
+- Registered in `bot/src/api/routes/admin.ts` as `router.use('/quests', adminQuestsRouter)` — follows existing sub-router pattern (auth applied at parent level)
+- All routes use `requirePermission('quests:*')`, parameterized queries, `asyncHandler`, `successResponse`, structured logging
+- Build passes clean (`tsc` no errors)
+
+**Issues**: One TypeScript strict mode fix needed — `instanceCount.count` was `unknown`, used `(instanceCount as any)?.count` pattern per project convention.
+
+**Note for Agent 0**: The route is mounted under the existing `/api/admin` prefix via admin.ts, NOT directly in server.ts — this is consistent with how admin-users and admin-jobs are structured.
 
 #### Agent G Retrospective
 **Task**: Replace 8 `lambda: False` checks in project_status_tracker.py for Russian and Chinese language sections.
