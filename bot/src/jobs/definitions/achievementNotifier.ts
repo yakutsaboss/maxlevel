@@ -34,7 +34,7 @@ export async function handler(jobs: Job[]): Promise<void> {
   const startTime = Date.now();
   log.info('Started');
 
-  const recentUnlocks = await query(
+  const recentUnlocks = await query<{ user_id: number; telegram_id: number; achievement_id: number; name: string; badge_icon: string; xp_bonus: number }>(
     `SELECT ua.user_id, u.telegram_id, a.id AS achievement_id, a.name, a.badge_icon, a.xp_bonus
      FROM user_achievements ua
      JOIN users u ON u.id = ua.user_id

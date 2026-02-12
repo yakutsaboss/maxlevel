@@ -8,21 +8,21 @@ import type { MyContext } from '../bot.js';
 import { query, queryOne } from '../utils/db.js';
 
 /** Weekly XP and quest counts (last 7 days). */
-interface WeeklyStats {
+type WeeklyStats = {
   weekly_xp: number;
   quests_completed: number;
-}
+};
 
 /** All-time user stats joined from users + quest_instances. */
-interface AllTimeStats {
+type AllTimeStats = {
   total_xp: number;
   current_level: number;
   total_quests_completed: number;
   created_at?: string;
-}
+};
 
 /** A streak row joined with its mode metadata. */
-interface StreakRecord {
+type StreakRecord = {
   current_streak: number;
   best_streak?: number;
   longest_streak?: number;
@@ -30,7 +30,7 @@ interface StreakRecord {
   display_name: string;
   icon_emoji: string;
   mode_icon?: string;
-}
+};
 
 const CB = {
   WEEK: 'stats:week',
@@ -38,7 +38,7 @@ const CB = {
 } as const;
 
 async function getInternalUserId(telegramId: number): Promise<number | null> {
-  const user = await queryOne('SELECT id FROM users WHERE telegram_id = $1', [telegramId]);
+  const user = await queryOne<{ id: number }>('SELECT id FROM users WHERE telegram_id = $1', [telegramId]);
   return user?.id ?? null;
 }
 

@@ -18,7 +18,7 @@ const log = logger.child({ component: 'dailySummary' });
 export async function sendDailySummary<C extends Context>(bot: Bot<C>, userId: number): Promise<boolean> {
   try {
     // Fetch user's telegram_id and daily stats in one query
-    const stats = await queryOne(
+    const stats = await queryOne<{ telegram_id: number; first_name: string | null; current_level: number; total_xp: number; quests_today: number; xp_today: number; current_streak: number }>(
       `SELECT
          u.telegram_id,
          u.first_name,

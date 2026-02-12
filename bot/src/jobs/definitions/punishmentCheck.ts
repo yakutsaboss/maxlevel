@@ -25,13 +25,13 @@ export const JOB_NAME = 'punishment-check';
 export const CRON_SCHEDULE = '30 0 * * *';
 
 /** Row shape returned by the failed-quests query */
-interface FailedQuestRow {
+type FailedQuestRow = {
   quest_instance_id: number;
   user_id: number;
   telegram_id: string;
   title: string;
   xp_reward: number;
-}
+};
 
 const BATCH_SIZE = 50;
 const DELAY_BETWEEN_SENDS_MS = 200;
@@ -110,7 +110,7 @@ export async function handler(jobs: Job[]): Promise<void> {
       const telegramId = quests[0].telegram_id;
 
       // Check if user has punishment consent
-      const settings = await queryOne(
+      const settings = await queryOne<{ consent_given: boolean; intensity_level: string; safe_mode: boolean; max_xp_penalty: number }>(
         `SELECT consent_given, intensity_level, safe_mode, max_xp_penalty
          FROM punishment_settings WHERE user_id = $1`,
         [userId]
@@ -137,7 +137,7 @@ export async function handler(jobs: Job[]): Promise<void> {
       // Calculate today's already-deducted XP (for safe mode cap)
       let dailyDeducted = 0;
       if (settings.safe_mode) {
-        const todayPenalties = await queryOne(
+        const todayPenalties = await queryOne<{ total: number }>(
           `SELECT COALESCE(SUM(xp_deducted), 0)::int AS total
            FROM punishment_history
            WHERE user_id = $1 AND applied_at >= CURRENT_DATE`,

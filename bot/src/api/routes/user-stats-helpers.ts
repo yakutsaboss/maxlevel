@@ -3,10 +3,10 @@
  * Extracted from user-stats.ts to keep each module under 200 lines.
  */
 
-// ─── Row interfaces (match SQL query result shapes) ─────────────────
+// ─── Row types (match SQL query result shapes) ──────────────────────
 
 /** Row returned by the active-modes JOIN query */
-export interface UserModeRow {
+export type UserModeRow = {
   user_id: number;
   mode_id: number;
   is_active: boolean;
@@ -16,10 +16,10 @@ export interface UserModeRow {
   display_name: string;
   description: string;
   icon: string;
-}
+};
 
 /** Row returned by quest_instances JOIN quests JOIN modes queries */
-export interface ActiveQuestRow {
+export type ActiveQuestRow = {
   id: number;
   user_id: number;
   mode_id: number;
@@ -36,10 +36,10 @@ export interface ActiveQuestRow {
   mode_name: string | null;
   mode_display_name: string | null;
   mode_icon: string | null;
-}
+};
 
 /** Row returned by user_achievements JOIN achievements queries */
-export interface RecentAchievementRow {
+export type RecentAchievementRow = {
   user_id: number;
   achievement_id: number;
   unlocked_at: string;
@@ -49,24 +49,24 @@ export interface RecentAchievementRow {
   xp_reward: number;
   rarity: string;
   category: string;
-}
+};
 
 /** Row returned by the per-mode streaks query */
-export interface StreakRow {
+export type StreakRow = {
   mode_id: number;
   current_streak: number;
   longest_streak: number;
   mode_name: string;
   mode_display_name: string;
   mode_icon: string;
-}
+};
 
 /** Aggregated stats from the single-row aggregates query */
-export interface AggregatesRow {
+export type AggregatesRow = {
   completed_today: number;
   xp_today: number;
   days_active: number;
-}
+};
 
 // ─── Formatting functions ───────────────────────────────────────────
 

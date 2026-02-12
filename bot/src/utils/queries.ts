@@ -6,7 +6,7 @@
 import { query, queryOne } from './db.js';
 
 /** Row shape for the `users` table (SELECT *). */
-export interface UserRow {
+export type UserRow = {
   id: number;
   telegram_id: number;
   username: string | null;
@@ -19,19 +19,19 @@ export interface UserRow {
   avatar_id: number;
   notification_enabled: boolean;
   reminder_time: number;
-}
+};
 
 /** Row shape for the `modes` table (SELECT *). */
-export interface ModeRow {
+export type ModeRow = {
   id: number;
   name: string;
   display_name: string | null;
   description: string | null;
   icon_emoji: string | null;
-}
+};
 
 /** Row shape for the user active modes join query. */
-export interface UserActiveModeRow {
+export type UserActiveModeRow = {
   mode_id: number;
   name: string;
   display_name: string | null;
@@ -40,7 +40,7 @@ export interface UserActiveModeRow {
   user_mode_id: number;
   enabled_at: string;
   is_active: boolean;
-}
+};
 
 export async function getUserByTelegramId(telegramId: number) {
   return queryOne<UserRow>(

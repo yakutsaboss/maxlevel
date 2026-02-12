@@ -70,7 +70,7 @@ router.get('/users/:userId', authenticateTelegram, authorizeUser, asyncHandler(a
   );
 
   const totalCount = await cached('achievements:total_count', TTL.MEDIUM, async () => {
-    const row = await queryOne(`SELECT COUNT(*)::int AS total FROM achievements`);
+    const row = await queryOne<{ total: number }>(`SELECT COUNT(*)::int AS total FROM achievements`);
     return row?.total ?? 0;
   });
 

@@ -22,7 +22,7 @@ export async function handler(jobs: Job[]): Promise<void> {
   const yesterday = new Date(Date.now() - 86400000).toISOString().split('T')[0];
 
   // Get all active streaks that might be broken
-  const activeStreaks = await query(`
+  const activeStreaks = await query<{ id: number; user_id: number; mode_id: number; current_streak: number; longest_streak: number; last_activity_date: string | null; telegram_id: number; first_name: string | null }>(`
     SELECT s.id, s.user_id, s.mode_id, s.current_streak, s.longest_streak,
            s.last_activity_date, u.telegram_id, u.first_name
     FROM streaks s

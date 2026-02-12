@@ -8,16 +8,16 @@ import { getUserByTelegramId, listAllModes, getUserActiveModes } from '../../uti
 import { completeModeSelection } from './completion.js';
 
 /** Row shape from `SELECT * FROM modes` */
-interface Mode {
+type Mode = {
   id: number;
   name: string;
   display_name: string | null;
   description: string | null;
   icon_emoji: string | null;
-}
+};
 
 /** Row shape from user_modes JOIN modes (getUserActiveModes / summary query) */
-interface UserMode {
+type UserMode = {
   mode_id: number;
   name: string;
   display_name: string | null;
@@ -26,16 +26,16 @@ interface UserMode {
   user_mode_id?: number;
   enabled_at?: string;
   is_active: boolean;
-}
+};
 
 /** Raw user_modes table row */
-interface UserModeRow {
+type UserModeRow = {
   id: number;
   user_id: number;
   mode_id: number;
   enabled_at: string;
   is_active: boolean;
-}
+};
 
 /**
  * Show mode selection screen

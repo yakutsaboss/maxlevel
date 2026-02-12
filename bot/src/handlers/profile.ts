@@ -20,7 +20,7 @@ export async function handleProfile(ctx: Context) {
     }
 
     // Fetch user basic info
-    const user = await queryOne(
+    const user = await queryOne<{ id: number; telegram_id: number; username: string | null; first_name: string | null; current_level: number; total_xp: number; timezone: string; created_at: string }>(
       `SELECT id, telegram_id, username, first_name, current_level, total_xp, timezone, created_at
        FROM users WHERE telegram_id = $1`,
       [telegramId]
@@ -33,21 +33,21 @@ export async function handleProfile(ctx: Context) {
 
     // Fetch modes, streaks, achievements count in parallel
     const [modes, streaks, achievementCount] = await Promise.all([
-      query(
+      query<{ display_name: string | null; icon_emoji: string | null }>(
         `SELECT m.display_name, m.icon_emoji
          FROM user_modes um
          JOIN modes m ON um.mode_id = m.id
          WHERE um.user_id = $1 AND um.is_active = true`,
         [user.id]
       ),
-      query(
+      query<{ current_streak: number; longest_streak: number; display_name: string | null; icon_emoji: string | null }>(
         `SELECT s.current_streak, s.longest_streak, m.display_name, m.icon_emoji
          FROM streaks s
          JOIN modes m ON s.mode_id = m.id
          WHERE s.user_id = $1`,
         [user.id]
       ),
-      queryOne(
+      queryOne<{ count: number }>(
         `SELECT COUNT(*)::int AS count FROM user_achievements WHERE user_id = $1`,
         [user.id]
       ),

@@ -10,7 +10,7 @@ export async function resolveUser(telegramId: string) {
   const tid = parseInt(telegramId);
   if (isNaN(tid)) return null;
 
-  const u = await queryOne(
+  const u = await queryOne<{ id: number; telegram_id: number; username: string | null; first_name: string | null; avatar_id: number | null; current_level: number; total_xp: number; is_active: boolean; timezone: string; created_at: string; current_streak: number; longest_streak: number; total_quests_completed: number }>(
     `SELECT u.id, u.telegram_id, u.username, u.first_name, u.avatar_id,
             u.current_level, u.total_xp, u.is_active, u.timezone, u.created_at,
             COALESCE(s.current_streak, 0)::int AS current_streak,

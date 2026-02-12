@@ -2615,7 +2615,19 @@ Read PARALLEL_AGENTS.md — you are Agent H for Run 39. Refactor `mini-app/src/c
 **Verification**: `grep "any"` on both files returns zero matches. Build clean, all 602 tests pass.
 
 #### Agent B Retrospective
-*(To be filled by Agent B)*
+**Status:** COMPLETE — all `any` eliminated from `db.ts` (7) and `pythonTools.ts` (4), plus cascading fixes across 26 caller files. Build clean, 602/602 tests pass.
+
+| # | Task | Status |
+|---|------|--------|
+| 1 | Fix `any` in `db.ts` — constraint `Record<string, unknown>`, params `unknown[]` | Done |
+| 2 | Fix `any` in `pythonTools.ts` — generic defaults `unknown`, catch narrowing | Done |
+| 3 | Convert 15 `interface` row types → `type` aliases (TS interfaces lack implicit index signatures) | Done |
+| 4 | Add explicit type params to ~20 untyped `query()`/`queryOne()` calls | Done |
+| 5 | Fix `(s: any)` residual annotation in `users.ts` | Done |
+
+**Key discovery:** Changing `Record<string, any>` → `Record<string, unknown>` triggered ~55 compile errors. Fixed by converting 15 `interface` → `type` aliases (TS interfaces lack implicit index signatures for `Record<string, unknown>`) and adding `query<T>()` type parameters to ~20 untyped calls across 26 files. 94 insertions / 94 deletions — zero logic changes.
+
+**Recommendation:** Consider ESLint rule `@typescript-eslint/no-explicit-any` to catch new `any` introductions.
 
 #### Agent C Retrospective
 **All 5 HTTP test files migrated to shared httpMocks helpers. Build clean (tsc), 602/602 vitest pass.**

@@ -75,14 +75,14 @@ router.post('/:telegramId/complete', authenticateTelegram, asyncHandler(async (r
   }
 
   // 0. Look up user id first
-  const userLookup = await queryOne('SELECT id FROM users WHERE telegram_id = $1', [tid]);
+  const userLookup = await queryOne<{ id: number }>('SELECT id FROM users WHERE telegram_id = $1', [tid]);
   if (!userLookup) {
     throw new NotFoundError('User not found');
   }
   const userId = userLookup.id;
 
   // Idempotency guard: if onboarding already completed, return early
-  const existingState = await queryOne(
+  const existingState = await queryOne<{ current_step: string }>(
     'SELECT current_step FROM onboarding_state WHERE user_id = $1',
     [userId]
   );

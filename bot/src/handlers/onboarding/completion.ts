@@ -11,9 +11,9 @@ interface SelectedMode {
   display_name: string;
 }
 
-interface ModeRow {
+type ModeRow = {
   mode_id: number;
-}
+};
 
 /**
  * Complete mode selection and start quest assignment
@@ -89,7 +89,7 @@ async function assignInitialQuests(ctx: Context, userId: number) {
   const today = new Date().toISOString().split('T')[0];
 
   // Find available daily templates not assigned today
-  const templates = await query(
+  const templates = await query<{ id: number; difficulty: string }>(
     `SELECT q.* FROM quests q
      WHERE q.mode_id = ANY($1) AND q.quest_type = 'daily'
      AND q.id NOT IN (

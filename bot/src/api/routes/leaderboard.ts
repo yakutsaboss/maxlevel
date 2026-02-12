@@ -8,7 +8,7 @@ import {
 } from '../utils/errors.js';
 
 /** Row shape returned by leaderboard SQL queries. Optional fields vary by query type. */
-interface LeaderboardEntryRow {
+type LeaderboardEntryRow = {
   user_id: number;
   telegram_id: string;
   username: string | null;
@@ -28,7 +28,7 @@ interface LeaderboardEntryRow {
   monthly_xp?: number;
   // common rank (ROW_NUMBER returns string from pg)
   xp_rank?: string;
-}
+};
 
 const router = Router();
 

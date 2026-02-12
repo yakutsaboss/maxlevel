@@ -51,9 +51,9 @@ export function getPool(): pg.Pool {
  * Execute a parameterized query and return rows.
  * Uses $1, $2, ... placeholders (standard pg parameterization).
  */
-export async function query<T extends Record<string, any> = Record<string, any>>(
+export async function query<T extends Record<string, unknown> = Record<string, unknown>>(
   text: string,
-  params: any[] = []
+  params: unknown[] = []
 ): Promise<T[]> {
   const client = getPool();
   const result = await client.query<T>(text, params);
@@ -63,9 +63,9 @@ export async function query<T extends Record<string, any> = Record<string, any>>
 /**
  * Execute a query and return the first row or null.
  */
-export async function queryOne<T extends Record<string, any> = Record<string, any>>(
+export async function queryOne<T extends Record<string, unknown> = Record<string, unknown>>(
   text: string,
-  params: any[] = []
+  params: unknown[] = []
 ): Promise<T | null> {
   const rows = await query<T>(text, params);
   return rows[0] ?? null;
@@ -76,7 +76,7 @@ export async function queryOne<T extends Record<string, any> = Record<string, an
  */
 export async function execute(
   text: string,
-  params: any[] = []
+  params: unknown[] = []
 ): Promise<number> {
   const client = getPool();
   const result = await client.query(text, params);

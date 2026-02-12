@@ -90,7 +90,7 @@ router.post('/users/:userId', authenticateTelegram, authorizeUser, asyncHandler(
   const already_active: string[] = [];
 
   for (const modeName of modes) {
-    const mode = await queryOne(
+    const mode = await queryOne<{ id: number }>(
       `SELECT id FROM modes WHERE name = $1`,
       [String(modeName).trim()]
     );
@@ -100,7 +100,7 @@ router.post('/users/:userId', authenticateTelegram, authorizeUser, asyncHandler(
       continue;
     }
 
-    const existing = await queryOne(
+    const existing = await queryOne<{ id: number; is_active: boolean }>(
       `SELECT id, is_active FROM user_modes WHERE user_id = $1 AND mode_id = $2`,
       [userId, mode.id]
     );
@@ -117,7 +117,7 @@ router.post('/users/:userId', authenticateTelegram, authorizeUser, asyncHandler(
       );
       added.push({ mode: modeName, user_mode_id: existing.id });
     } else {
-      const newUserMode = await queryOne(
+      const newUserMode = await queryOne<{ id: number }>(
         `INSERT INTO user_modes (user_id, mode_id, is_active) VALUES ($1, $2, true) RETURNING id`,
         [userId, mode.id]
       );
