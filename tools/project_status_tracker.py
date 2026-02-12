@@ -163,9 +163,9 @@ class ProjectStatusTracker:
                     {"name": "Onboarding quiz questions", "check": lambda: self._has_onboarding_questions("MEDICATION")},
                     {"name": "Quest templates", "check": lambda: self._has_quest_templates("medication")},
                     {"name": "Achievements", "check": lambda: self._has_achievements_for_mode("medication")},
-                    {"name": "Medication schedule reminders", "check": lambda: False},
-                    {"name": "Dosage tracking", "check": lambda: False},
-                    {"name": "Refill alerts", "check": lambda: False},
+                    {"name": "Medication schedule reminders", "check": lambda: self._file_contains_pattern("bot/src/jobs/definitions/questReminders.ts", r"medication|med.*remind") or self._file_contains_pattern("database/seed_data.sql", r"medication.*timer_window|medication_mode_id.*requires_timer.*TRUE")},
+                    {"name": "Dosage tracking", "check": lambda: self._file_contains("database/seed_data.sql", "dosage") or self._file_contains("mini-app/src/data/onboardingQuestions.ts", "dosage")},
+                    {"name": "Refill alerts", "check": lambda: self._file_contains("database/seed_data.sql", "refill")},
                 ]
             },
             "finance": {
