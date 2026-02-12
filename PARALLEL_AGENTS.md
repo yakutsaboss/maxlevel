@@ -3243,7 +3243,19 @@ After completing work, write your retrospective in PARALLEL_AGENTS.md under "Run
 *(To be filled by Agent D)*
 
 #### Agent E Retrospective
-*(To be filled by Agent E)*
+**Task**: Add Progressive Web App support with manifest and service worker.
+
+**What was done**:
+- Created `mini-app/public/manifest.json` with app name "MaxLevel RPG", standalone display mode, theme color #6366f1, and icon references for 192px and 512px sizes
+- Created `mini-app/public/sw.js` — minimal service worker with: cache static assets on install, network-first strategy for API calls (`/api/`), cache-first for all other static assets, old cache cleanup on activate
+- Updated `mini-app/index.html`: added `<link rel="manifest">` in head, added service worker registration script before `</body>`, updated `theme-color` meta to match manifest (#6366f1)
+
+**Build verification**: `npm run build` passes. Both `manifest.json` and `sw.js` confirmed present in `dist/` output. Built `index.html` contains manifest link and SW registration.
+
+**Notes for Agent 0**:
+- Icon files (`icon-192.png`, `icon-512.png`) are referenced but not yet created — will need actual icon assets in `mini-app/public/` for full PWA installability
+- The theme-color was changed from `#2481cc` to `#6366f1` to match the manifest — this is a visible change in mobile browser chrome
+- No React components, bot files, or database files were touched
 
 #### Agent F Retrospective
 *(To be filled by Agent F)*
