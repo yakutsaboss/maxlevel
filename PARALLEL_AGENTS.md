@@ -2703,7 +2703,20 @@ Read PARALLEL_AGENTS.md — you are Agent H for Run 39. Refactor `mini-app/src/c
 **Commits**: `0e78c2a`, `5ee2161`, `90a1976`, `89a779a` (one per test file).
 
 #### Agent H Retrospective
-*(To be filled by Agent H)*
+**Status:** COMPLETE — Summary.tsx refactored from 247 lines to 60 lines (76% reduction). 4 sub-components extracted. Build clean, all 90 test files (372 tests) pass unmodified.
+
+| # | File | Lines | Purpose |
+|---|------|-------|---------|
+| 1 | `summary/SectionCard.tsx` | 28 | Shared editable card wrapper |
+| 2 | `summary/SummaryStats.tsx` | 46 | Hero card — name, avatar, level, XP bar |
+| 3 | `summary/SummaryModeCard.tsx` | 93 | Focus area badges + 4 mode-specific summary cards |
+| 4 | `summary/SummarySchedule.tsx` | 55 | Accountability + Notifications sections |
+
+**Key decisions:** Moved mode summary functions to pure functions in SummaryModeCard.tsx. Moved display constants to whichever sub-component uses them. Exported `SummaryFocusAreas` and `SummaryModeCards` from SummaryModeCard.tsx.
+
+**Zero behavioral changes** — existing `Summary.test.tsx` passes without modification.
+
+**Commit:** `b718b89` — refactor(mini-app): extract Summary.tsx into sub-components
 
 #### Agent 0 Retrospective
 *(To be filled by Agent 0)*
