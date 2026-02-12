@@ -2622,7 +2622,19 @@ Read PARALLEL_AGENTS.md — you are Agent H for Run 39. Refactor `mini-app/src/c
 *(To be filled by Agent F)*
 
 #### Agent G Retrospective
-*(To be filled by Agent G)*
+**Status**: Complete — 4 files, 12 tests, all passing.
+
+**Created**:
+- `mini-app/src/__tests__/components/onboarding/ui/DaySelector.test.tsx` (3 tests) — renders 7 day buttons, toggles selection on click, respects requiredCount limit
+- `mini-app/src/__tests__/components/onboarding/ui/DrumRoller.test.tsx` (3 tests) — renders initial value, formatLabel support, renders all items min-to-max
+- `mini-app/src/__tests__/components/onboarding/ui/DualTimePicker.test.tsx` (3 tests) — renders wake/sleep labels, displays formatted times, calls onChange handlers
+- `mini-app/src/__tests__/components/onboarding/ui/SliderInput.test.tsx` (3 tests) — renders value with suffix, range input fires onChange, displays min/max labels and flavor text
+
+**Approach**: DualTimePicker mocks its DrumRoller dependency to isolate tests. DaySelector mocks `useTelegram` for haptic feedback. DrumRoller and SliderInput tested directly with no mocks needed.
+
+**Build**: TypeScript + Vite build clean. All 12 tests pass.
+
+**Commits**: `0e78c2a`, `5ee2161`, `90a1976`, `89a779a` (one per test file).
 
 #### Agent H Retrospective
 *(To be filled by Agent H)*
