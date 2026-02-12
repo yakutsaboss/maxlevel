@@ -108,7 +108,7 @@ router.post('/challenges/create', authenticateTelegram, mutationLimiter, asyncHa
     throw new BadRequestError('target_value must be a positive integer');
   }
 
-  const challenge = await queryOne(
+  const challenge = await queryOne<{ id: number }>(
     `INSERT INTO challenges (creator_id, title, description, mode, target_value, end_date)
      VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
     [creatorId, title, description || null, mode || null, targetValue || null, endDate || null]
@@ -117,7 +117,7 @@ router.post('/challenges/create', authenticateTelegram, mutationLimiter, asyncHa
   // Auto-join creator as first participant
   await execute(
     `INSERT INTO challenge_participants (challenge_id, user_id) VALUES ($1, $2)`,
-    [(challenge as any).id, creatorId]
+    [challenge!.id, creatorId]
   );
 
   res.status(201).json(successResponse(challenge, 'Challenge created'));

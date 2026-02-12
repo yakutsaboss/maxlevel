@@ -185,12 +185,12 @@ router.delete('/:id', requirePermission('quests:delete'), asyncHandler(async (re
   }
 
   // Check for existing quest instances to prevent orphaned data
-  const instanceCount = await queryOne(
+  const instanceCount = await queryOne<{ count: number }>(
     'SELECT COUNT(*)::int AS count FROM quest_instances WHERE quest_id = $1',
     [questId]
   );
 
-  const count = (instanceCount as any)?.count ?? 0;
+  const count = instanceCount?.count ?? 0;
   if (count > 0) {
     throw new BadRequestError(
       `Cannot delete quest template: ${count} instance(s) reference it. Delete instances first or deactivate the quest instead.`
