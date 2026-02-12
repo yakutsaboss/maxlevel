@@ -2326,4 +2326,23 @@ This allows the helper to own the mock shape definitions while the getter provid
 #### Agent 0 Retrospective
 *(To be filled by Agent 0)*
 
+#### Agent B Retrospective (Run 39)
+**Status:** COMPLETE — all `any` eliminated from `db.ts` (7) and `pythonTools.ts` (4), plus cascading fixes across 26 caller files. Build clean, 602/602 tests pass.
+
+| # | Task | Status |
+|---|------|--------|
+| 1 | Fix `any` in `db.ts` — constraint `Record<string, unknown>`, params `unknown[]` | Done |
+| 2 | Fix `any` in `pythonTools.ts` — generic defaults `unknown`, catch narrowing | Done |
+| 3 | Convert 15 `interface` row types → `type` aliases (TS interfaces lack implicit index signatures) | Done |
+| 4 | Add explicit type params to ~20 untyped `query()`/`queryOne()` calls | Done |
+| 5 | Fix `(s: any)` residual annotation in `users.ts` | Done |
+
+**Key discovery:** Changing `Record<string, any>` → `Record<string, unknown>` as the generic constraint triggered ~55 compile errors in 2 categories:
+1. **Interface vs type alias** (15 files) — TS interfaces don't satisfy `Record<string, unknown>` because they lack implicit index signatures. Fixed by converting `interface FooRow { ... }` → `type FooRow = { ... }`.
+2. **Untyped queries** (15 files) — `query(sql)` without a type parameter now returns `Record<string, unknown>` rows instead of `Record<string, any>`, making property access return `unknown`. Fixed by adding `query<{ col: type }>(sql)` type parameters.
+
+**Files touched:** 28 total (2 core + 26 callers). 94 insertions / 94 deletions — zero logic changes.
+
+**Recommendation for future runs:** Consider adding a project-wide ESLint rule `@typescript-eslint/no-explicit-any` with `--fix` to catch new `any` introductions at commit time.
+
 <!-- Next run goes here. Agent 0 will append RUN 39 below this line. -->
