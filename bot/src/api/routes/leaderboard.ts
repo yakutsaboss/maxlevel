@@ -7,6 +7,29 @@ import {
   successResponse,
 } from '../utils/errors.js';
 
+/** Row shape returned by leaderboard SQL queries. Optional fields vary by query type. */
+interface LeaderboardEntryRow {
+  user_id: number;
+  telegram_id: string;
+  username: string | null;
+  first_name: string;
+  current_level: number;
+  total_xp: number;
+  // mode-filtered leaderboard
+  mode_xp?: number;
+  mode_streak?: number;
+  mode_quests_completed?: number;
+  // default cross-mode leaderboard
+  best_current_streak?: string;
+  total_quests_completed?: string;
+  level_rank?: string;
+  // weekly / monthly
+  weekly_xp?: number;
+  monthly_xp?: number;
+  // common rank (ROW_NUMBER returns string from pg)
+  xp_rank?: string;
+}
+
 const router = Router();
 
 /**
@@ -23,7 +46,7 @@ router.get('/', authenticateTelegram, asyncHandler(async (req: Request, res: Res
     // Mode-filtered leaderboard: rank by mode-specific XP and streaks
     const cacheKey = `leaderboard:mode:${mode}:${limit}`;
     const entries = await cached(cacheKey, TTL.SHORT, () =>
-      query(
+      query<LeaderboardEntryRow>(
         `SELECT u.id AS user_id, u.telegram_id, u.username, u.first_name,
                 u.current_level, u.total_xp,
                 COALESCE(s.current_streak, 0)::int AS mode_streak,
@@ -55,7 +78,7 @@ router.get('/', authenticateTelegram, asyncHandler(async (req: Request, res: Res
       )
     );
 
-    const formatted = entries.map((row: any) => ({
+    const formatted = entries.map((row: LeaderboardEntryRow) => ({
       user_id: row.user_id,
       telegram_id: row.telegram_id,
       username: row.username,
@@ -65,15 +88,16 @@ router.get('/', authenticateTelegram, asyncHandler(async (req: Request, res: Res
       mode_xp: row.mode_xp,
       mode_streak: row.mode_streak,
       mode_quests_completed: row.mode_quests_completed,
-      xp_rank: parseInt(row.xp_rank) || 0,
+      xp_rank: parseInt(row.xp_rank as string) || 0,
     }));
 
-    return res.json({ ...successResponse(formatted), mode });
+    res.json({ ...successResponse(formatted), mode });
+    return;
   }
 
   // Default cross-mode leaderboard
   const entries = await cached(`leaderboard:${limit}`, TTL.SHORT, () =>
-    query(
+    query<LeaderboardEntryRow>(
       `SELECT u.id AS user_id, u.telegram_id, u.username, u.first_name,
               u.current_level, u.total_xp,
               COALESCE(s.best_streak, 0) AS best_current_streak,
@@ -97,17 +121,17 @@ router.get('/', authenticateTelegram, asyncHandler(async (req: Request, res: Res
     )
   );
 
-  const formatted = entries.map((row: any) => ({
+  const formatted = entries.map((row: LeaderboardEntryRow) => ({
     user_id: row.user_id,
     telegram_id: row.telegram_id,
     username: row.username,
     first_name: row.first_name,
     level: row.current_level,
     total_xp: row.total_xp,
-    current_streak: parseInt(row.best_current_streak) || 0,
-    total_quests_completed: parseInt(row.total_quests_completed) || 0,
-    xp_rank: parseInt(row.xp_rank) || 0,
-    level_rank: parseInt(row.level_rank) || 0,
+    current_streak: parseInt(row.best_current_streak as string) || 0,
+    total_quests_completed: parseInt(row.total_quests_completed as string) || 0,
+    xp_rank: parseInt(row.xp_rank as string) || 0,
+    level_rank: parseInt(row.level_rank as string) || 0,
   }));
 
   res.json(successResponse(formatted));
@@ -122,7 +146,7 @@ router.get('/weekly', authenticateTelegram, asyncHandler(async (req: Request, re
   const limit = Math.min(parseInt(req.query.limit as string) || 50, 100);
 
   const entries = await cached(`leaderboard:weekly:${limit}`, 300, () =>
-    query(
+    query<LeaderboardEntryRow>(
       `SELECT u.id AS user_id, u.telegram_id, u.username, u.first_name,
               u.current_level, u.total_xp,
               COALESCE(SUM(qi.xp_awarded), 0)::int AS weekly_xp
@@ -140,7 +164,7 @@ router.get('/weekly', authenticateTelegram, asyncHandler(async (req: Request, re
     )
   );
 
-  const formatted = entries.map((row: any, index: number) => ({
+  const formatted = entries.map((row: LeaderboardEntryRow, index: number) => ({
     user_id: row.user_id,
     telegram_id: row.telegram_id,
     username: row.username,
@@ -163,7 +187,7 @@ router.get('/monthly', authenticateTelegram, asyncHandler(async (req: Request, r
   const limit = Math.min(parseInt(req.query.limit as string) || 50, 100);
 
   const entries = await cached(`leaderboard:monthly:${limit}`, 300, () =>
-    query(
+    query<LeaderboardEntryRow>(
       `SELECT u.id AS user_id, u.telegram_id, u.username, u.first_name,
               u.current_level, u.total_xp,
               COALESCE(SUM(qi.xp_awarded), 0)::int AS monthly_xp
@@ -181,7 +205,7 @@ router.get('/monthly', authenticateTelegram, asyncHandler(async (req: Request, r
     )
   );
 
-  const formatted = entries.map((row: any, index: number) => ({
+  const formatted = entries.map((row: LeaderboardEntryRow, index: number) => ({
     user_id: row.user_id,
     telegram_id: row.telegram_id,
     username: row.username,
