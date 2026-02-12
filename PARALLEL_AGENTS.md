@@ -2333,7 +2333,17 @@ Commit when done. Write your retrospective.
 *(To be filled by Agent F)*
 
 #### Agent G Retrospective
-*(To be filled by Agent G)*
+**Task**: Replace 8 `lambda: False` checks in project_status_tracker.py for Russian and Chinese language sections.
+
+**What was done**:
+- Replaced 4 Russian checks (lines 309-312): onboarding/dashboard/quest translated → `_file_contains("mini-app/src/i18n/ru.ts", ...)`, bot messages → `_file_contains_pattern` with Cyrillic regex
+- Replaced 4 Chinese checks (lines 321-324): same pattern but with `zh.ts` and CJK Unicode regex `[\u4e00-\u9fff]{2,}`
+- Admin section had NO `lambda: False` checks (already uses `_file_exists`/`_dir_exists`), so no changes needed there
+- Verified: `python tools/project_status_tracker.py .` runs clean, Russian 0/6 and Chinese 0/5 (correct — i18n files don't exist yet)
+
+**Commit**: `f5880fb` — `fix: replace lambda:False with real checks for Russian/Chinese tracker sections`
+
+**Issues**: None. Straightforward replacement, all 8 checks updated in one edit.
 
 #### Agent 0 Retrospective
 *(To be filled by Agent 0)*
