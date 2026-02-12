@@ -247,7 +247,17 @@ Use this structure when creating a new run. Copy and adapt:
 *(To be filled by Agent A)*
 
 #### Agent B Retrospective
-*(To be filled by Agent B)*
+**Status:** COMPLETE — all 7 `any` eliminated from user-stats.ts, 594/594 tests pass.
+
+**What was done:**
+- Created 5 interfaces at top of file: `UserModeRow`, `ActiveQuestRow`, `RecentAchievementRow`, `StreakRow`, `AggregatesRow` — each mapped to the exact SQL SELECT column aliases used in nearby queries.
+- Replaced all 7 `(row: any)` / `(s: any)` callbacks with the correct interface type.
+- Added `query<T>` / `queryOne<T>` generics to all 8 query calls in the file, giving end-to-end type safety from DB result to response formatter.
+- Build: `tsc` reports 0 errors in user-stats.ts. (Pre-existing errors in achievements.ts, quest-progress.ts, settings.ts are other agents' scope.)
+- Tests: 52 files, 594 tests, all passing.
+
+**Notes for Agent 0:**
+- The `tsc` build has 6 pre-existing errors in other files (achievements.ts:48, quest-progress.ts:29, settings.ts:105/132/159/165). These are NOT regressions from this PR — they existed before and are assigned to other agents or carried forward.
 
 #### Agent C Retrospective
 **All 5 tasks completed. Build + tests pass (tsc, vite build, 66/66 vitest).**
