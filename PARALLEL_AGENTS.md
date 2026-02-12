@@ -2525,7 +2525,17 @@ After completing work, write your retrospective in PARALLEL_AGENTS.md under "Run
 *(To be filled by Agent C)*
 
 #### Agent D Retrospective
-*(To be filled by Agent D)*
+**Task**: bcrypt admin password (S10) + admin route cleanup
+**Files modified**: `bot/src/api/middleware/adminAuth.ts`, `bot/src/api/routes/admin-jobs.ts`
+**Result**: SUCCESS — build clean, 771/771 tests pass
+
+**Changes made**:
+1. **adminAuth.ts** — Replaced timing-unsafe `===` comparison in `verifyPassword()` with `crypto.timingSafeEqual`. No bcrypt in package.json, so used the recommended fallback: SHA-256 + timingSafeEqual. Added future-proof guard for bcrypt hashes (prefix `$2`) that logs a warning and rejects gracefully.
+2. **admin-jobs.ts** — Replaced manual try-catch in both GET `/` and POST `/:name/trigger` with `asyncHandler` + typed errors (`NotFoundError`, `ApiError`, `InternalServerError`). Used `successResponse()` for consistent response shape. Kept error-translation try-catch for `getRegisteredJobs()` and `boss.send()` to preserve existing test expectations (`'Failed to list jobs'`, `'Failed to trigger job'`).
+
+**Issues encountered**: Initial refactor removed all try-catch, but 2 tests expected the old specific error messages (e.g. `'Failed to list jobs'`). The global error handler returns `'Internal Server Error'` for non-ApiError exceptions. Fixed by wrapping external calls in targeted try-catch that re-throws as `InternalServerError` with the expected message — preserving the response contract while still using asyncHandler for the overall flow.
+
+**No conflicts**: Only touched owned files.
 
 #### Agent E Retrospective
 *(To be filled by Agent E)*

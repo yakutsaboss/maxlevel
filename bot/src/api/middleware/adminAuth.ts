@@ -49,10 +49,26 @@ function hashPassword(password: string): string {
 }
 
 /**
- * Verify password
+ * Verify password using timing-safe comparison to prevent timing attacks.
+ * Supports bcrypt hashes (prefix '$2') for future migration — returns false
+ * since bcrypt requires async verify and is not yet installed.
  */
 function verifyPassword(password: string, hash: string): boolean {
-  return hashPassword(password) === hash;
+  // Future-proof: if someone sets a bcrypt hash, reject gracefully
+  if (hash.startsWith('$2')) {
+    log.warn('bcrypt hash detected but bcrypt is not installed — rejecting');
+    return false;
+  }
+
+  const candidateHash = hashPassword(password);
+  const candidateBuf = Buffer.from(candidateHash, 'utf-8');
+  const storedBuf = Buffer.from(hash, 'utf-8');
+
+  if (candidateBuf.length !== storedBuf.length) {
+    return false;
+  }
+
+  return crypto.timingSafeEqual(candidateBuf, storedBuf);
 }
 
 /**
