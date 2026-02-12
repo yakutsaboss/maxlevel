@@ -2158,7 +2158,36 @@ Read PARALLEL_AGENTS.md — you are Agent J for Run 38. Write tests for remainin
 **Remaining `any` in bot prod code:** `db.ts` still has `Record<string, any>` in `query<T>`/`queryOne<T>` constraints + `params: any[]` (foundational, separate effort needed).
 
 #### Agent B Retrospective
-*(To be filled by Agent B)*
+**Status:** COMPLETE — shared httpMocks.ts helper created, 3 test files migrated, 602/602 tests pass.
+
+| # | Task | Status |
+|---|------|--------|
+| 1 | Create `httpMocks.ts` helper | Done |
+| 2 | Migrate `user-account.http.test.ts` | Done (10 tests) |
+| 3 | Migrate `modes.http.test.ts` | Done (20 tests) |
+| 4 | Migrate `punishment.http.test.ts` | Done (24 tests) |
+
+**Key design decision:** Vitest hoists `vi.mock()` above static imports, so imported helper factories can't be called at module scope. Solved with async dynamic import pattern inside `vi.mock` factories:
+```ts
+vi.mock('../../../utils/db.js', async () =>
+  (await import('../../helpers/httpMocks.js')).createMockDb().module);
+const db = getMockDb(); // singleton getter, populated by factory above
+```
+This allows the helper to own the mock shape definitions while the getter provides typed references for test assertions.
+
+**What httpMocks.ts provides:**
+- `createMockDb()` / `getMockDb()` — db module mock with trackable query/queryOne/execute/transaction
+- `createMockCache()` / `getMockCache()` — cache module mock with passthrough `cached()`
+- `createMockPythonTools()` / `getMockPythonTools()` — pythonTools module mock
+- `createMockAuth()` / `getMockAuth()` — auth middleware mock with passthrough + trackable `requireOwnership`
+- `createMockRateLimiters()` / `getMockRateLimiters()` — all limiters as passthroughs
+- `createMockTransaction()` — reusable transaction mock with `.client` accessor
+
+**Boilerplate reduction:** ~50 lines of inline vi.mock blocks per file → ~15 lines of imports + one-liner vi.mock calls. Net: −19 lines in modes, −18 in punishment. Test bodies unchanged — only the mock setup section changes.
+
+**Recommendation:** Migrate remaining HTTP test files (checkins, quests, admin, leaderboard, etc.) to use the same pattern in future runs.
+
+**Commits:** `9033ae9`, `d3dab86`, `c2733ee`, `55efb83`
 
 #### Agent C Retrospective
 **Commit:** `93e148a` — `test(onboarding): add 8 tests for quickActions handler`
