@@ -25,6 +25,12 @@ export function setBotInstance(bot: Bot<MyContext>): void {
 export const JOB_NAME = 'quest-reminders';
 export const CRON_SCHEDULE = '0 18 * * *';
 
+// Mode-specific reminder logic:
+// - fitness: workout reminders based on scheduled days
+// - hydration: water intake reminders at intervals
+// - medication: medication schedule reminders, dosage tracking, refill alerts
+// - habits: daily habit check-in reminders
+
 const BATCH_RATE = 30; // max messages per second (Telegram limit)
 
 async function sleep(ms: number): Promise<void> {
