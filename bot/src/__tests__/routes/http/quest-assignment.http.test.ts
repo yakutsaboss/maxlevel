@@ -86,10 +86,10 @@ describe('POST /api/quests/users/:userId/assign', () => {
       db.query.mockResolvedValueOnce([
         DAILY_QUEST(1), DAILY_QUEST(2), DAILY_QUEST(3),
       ]);
-      // queryOne: INSERT for each quest
-      db.queryOne.mockResolvedValueOnce({ id: 101 });
-      db.queryOne.mockResolvedValueOnce({ id: 102 });
-      db.queryOne.mockResolvedValueOnce({ id: 103 });
+      // query 3: batch INSERT RETURNING
+      db.query.mockResolvedValueOnce([
+        { id: 101, quest_id: 1 }, { id: 102, quest_id: 2 }, { id: 103, quest_id: 3 },
+      ]);
 
       const res = await request(buildApp())
         .post('/api/quests/users/42/assign')
@@ -112,7 +112,7 @@ describe('POST /api/quests/users/:userId/assign', () => {
     it('should use custom count when provided', async () => {
       db.query.mockResolvedValueOnce([{ mode_id: 1 }]);
       db.query.mockResolvedValueOnce([DAILY_QUEST(1)]);
-      db.queryOne.mockResolvedValueOnce({ id: 201 });
+      db.query.mockResolvedValueOnce([{ id: 201, quest_id: 1 }]);
 
       const res = await request(buildApp())
         .post('/api/quests/users/42/assign')
@@ -130,9 +130,9 @@ describe('POST /api/quests/users/:userId/assign', () => {
         DAILY_QUEST(2, 'medium'),
         DAILY_QUEST(3, 'hard'),
       ]);
-      db.queryOne.mockResolvedValueOnce({ id: 301 });
-      db.queryOne.mockResolvedValueOnce({ id: 302 });
-      db.queryOne.mockResolvedValueOnce({ id: 303 });
+      db.query.mockResolvedValueOnce([
+        { id: 301, quest_id: 1 }, { id: 302, quest_id: 2 }, { id: 303, quest_id: 3 },
+      ]);
 
       const res = await request(buildApp())
         .post('/api/quests/users/42/assign')
@@ -150,8 +150,9 @@ describe('POST /api/quests/users/:userId/assign', () => {
     it('should assign 2 weekly quests by default', async () => {
       db.query.mockResolvedValueOnce([{ mode_id: 1 }]);
       db.query.mockResolvedValueOnce([WEEKLY_QUEST(10), WEEKLY_QUEST(11)]);
-      db.queryOne.mockResolvedValueOnce({ id: 401 });
-      db.queryOne.mockResolvedValueOnce({ id: 402 });
+      db.query.mockResolvedValueOnce([
+        { id: 401, quest_id: 10 }, { id: 402, quest_id: 11 },
+      ]);
 
       const res = await request(buildApp())
         .post('/api/quests/users/42/assign')
@@ -169,7 +170,7 @@ describe('POST /api/quests/users/:userId/assign', () => {
     it('should use weekly SQL filter (past 7 days, active statuses)', async () => {
       db.query.mockResolvedValueOnce([{ mode_id: 2 }]);
       db.query.mockResolvedValueOnce([WEEKLY_QUEST(20)]);
-      db.queryOne.mockResolvedValueOnce({ id: 501 });
+      db.query.mockResolvedValueOnce([{ id: 501, quest_id: 20 }]);
 
       await request(buildApp())
         .post('/api/quests/users/42/assign')
@@ -215,7 +216,7 @@ describe('POST /api/quests/users/:userId/assign', () => {
     it('should pass all active mode IDs to the quest query', async () => {
       db.query.mockResolvedValueOnce([{ mode_id: 1 }, { mode_id: 3 }, { mode_id: 5 }]);
       db.query.mockResolvedValueOnce([DAILY_QUEST(1)]);
-      db.queryOne.mockResolvedValueOnce({ id: 601 });
+      db.query.mockResolvedValueOnce([{ id: 601, quest_id: 1 }]);
 
       await request(buildApp())
         .post('/api/quests/users/42/assign')

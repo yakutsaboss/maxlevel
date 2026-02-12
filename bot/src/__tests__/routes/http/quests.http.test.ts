@@ -229,10 +229,10 @@ describe('POST /api/quests/users/:userId/assign', () => {
       { id: 2, title: 'Stretch', description: 'Stretch out', xp_reward: 30, quest_type: 'daily', difficulty: 'easy', mode_id: 1 },
       { id: 3, title: 'Walk', description: 'Take a walk', xp_reward: 40, quest_type: 'daily', difficulty: 'easy', mode_id: 1 },
     ]);
-    // queryOne: INSERT quest_instance for each quest
-    db.queryOne.mockResolvedValueOnce({ id: 101 });
-    db.queryOne.mockResolvedValueOnce({ id: 102 });
-    db.queryOne.mockResolvedValueOnce({ id: 103 });
+    // query 3: batch INSERT quest_instances RETURNING
+    db.query.mockResolvedValueOnce([
+      { id: 101, quest_id: 1 }, { id: 102, quest_id: 2 }, { id: 103, quest_id: 3 },
+    ]);
 
     const res = await request(buildApp())
       .post('/api/quests/users/42/assign')

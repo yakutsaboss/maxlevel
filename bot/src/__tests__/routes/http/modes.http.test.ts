@@ -128,14 +128,14 @@ describe('GET /api/modes/users/:userId', () => {
 
 describe('POST /api/modes/users/:userId', () => {
   it('should return 200 when adding modes', async () => {
-    // Mock sequence for adding one mode:
-    // 1. queryOne: mode lookup by name → found
-    db.queryOne.mockResolvedValueOnce({ id: 1 });
-    // 2. queryOne: check existing user_mode → not found
-    db.queryOne.mockResolvedValueOnce(null);
-    // 3. queryOne: INSERT user_mode RETURNING id
-    db.queryOne.mockResolvedValueOnce({ id: 100 });
-    // 4. execute: INSERT streak ON CONFLICT
+    // Mock sequence for batched mode addition:
+    // 1. query: batch mode lookup by name → found
+    db.query.mockResolvedValueOnce([{ id: 1, name: 'fitness' }]);
+    // 2. query: batch check existing user_modes → none exist
+    db.query.mockResolvedValueOnce([]);
+    // 3. query: batch INSERT user_modes RETURNING id, mode_id
+    db.query.mockResolvedValueOnce([{ id: 100, mode_id: 1 }]);
+    // 4. execute: batch INSERT streaks ON CONFLICT
     db.execute.mockResolvedValueOnce(1);
 
     const res = await request(buildApp())
@@ -176,8 +176,8 @@ describe('POST /api/modes/users/:userId', () => {
   });
 
   it('should return 200 with failed entry when mode not found', async () => {
-    // Mode lookup returns null → mode not found in DB
-    db.queryOne.mockResolvedValueOnce(null);
+    // Batch mode lookup returns empty → mode not found in DB
+    db.query.mockResolvedValueOnce([]);
 
     const res = await request(buildApp())
       .post('/api/modes/users/42')
