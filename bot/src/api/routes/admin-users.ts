@@ -71,7 +71,7 @@ router.patch('/:userId', requirePermission('users:update'), asyncHandler(async (
   const updates = req.body;
 
   const allowedFields = ['username', 'first_name', 'timezone', 'is_active'];
-  const fields: Record<string, any> = {};
+  const fields: Record<string, unknown> = {};
 
   for (const [key, value] of Object.entries(updates)) {
     if (allowedFields.includes(key)) {
@@ -94,7 +94,7 @@ router.patch('/:userId', requirePermission('users:update'), asyncHandler(async (
     throw new NotFoundError('User not found');
   }
 
-  const adminUser = (req as any).adminUser;
+  const adminUser = req.adminUser!;
   log.info(`User ${userId} updated by ${adminUser.username}`, { fields });
 
   res.json(successResponse({
@@ -117,7 +117,7 @@ router.delete('/:userId', requireRole('super_admin'), asyncHandler(async (req: R
 
   await execute('DELETE FROM users WHERE id = $1', [userId]);
 
-  const adminUser = (req as any).adminUser;
+  const adminUser = req.adminUser!;
   log.warn(`User ${userId} (telegram_id: ${user.telegram_id}) DELETED by ${adminUser.username}`);
 
   res.json(successResponse({
@@ -142,7 +142,7 @@ router.post('/:userId/deactivate', requirePermission('users:update'), asyncHandl
     throw new NotFoundError('User not found');
   }
 
-  const adminUser = (req as any).adminUser;
+  const adminUser = req.adminUser!;
   log.info(`User ${userId} deactivated by ${adminUser.username}`);
 
   res.json(successResponse({
@@ -163,7 +163,7 @@ router.post('/:userId/reactivate', requirePermission('users:update'), asyncHandl
     throw new NotFoundError('User not found');
   }
 
-  const adminUser = (req as any).adminUser;
+  const adminUser = req.adminUser!;
   log.info(`User ${userId} reactivated by ${adminUser.username}`);
 
   res.json(successResponse({
