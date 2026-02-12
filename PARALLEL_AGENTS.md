@@ -1844,7 +1844,25 @@ All agents create NEW test files only — zero file conflicts expected. Merge in
 *(To be filled by Agent D)*
 
 #### Agent E Retrospective
-*(To be filled by Agent E)*
+**Files created:** 2 new test files
+- `bot/src/__tests__/middleware/premiumGate.test.ts` (16 tests)
+- `bot/src/__tests__/i18n/messages.test.ts` (12 tests)
+
+**Total tests:** 28 (all passing)
+
+**premiumGate.test.ts coverage:**
+- userId extraction (missing, NaN, from params, from body)
+- Tier access control (premium→pro ✓, pro→pro ✓, free→pro ✗, pro→premium ✗, no-sub→pro ✗, free→free ✓)
+- Subscription expiry (expired blocks, expired allows free, non-expired passes)
+- Error handling (DB errors forwarded to next)
+- Unknown tier handling (unknown minTier defaults to 0, unknown userTier defaults to 0)
+
+**messages.test.ts coverage:**
+- Translation completeness (all 3 languages have all 7 keys, same key count)
+- t() function (correct language returns, English fallback for unknown/empty lang, non-empty results)
+- Content quality (non-English languages have distinct translations, help messages are multi-line)
+
+**Notes:** Straightforward task. Used existing `setup.ts` mock helpers (mockRequest/mockResponse/mockNext). Mocked `db.queryOne` and `logger` for premiumGate; messages.ts needed no mocks (pure function).
 
 #### Agent F Retrospective
 *(To be filled by Agent F)*
