@@ -15,9 +15,11 @@ import { createTestApp, addTestErrorHandler } from '../../helpers/testApp.js';
 
 // ─── Mocks (hoisted before any route import) ───────────────────────
 
-vi.mock('../../../utils/pythonTools.js', () => ({
-  executePythonTool: vi.fn(),
-}));
+vi.mock('../../../utils/db.js', async () =>
+  (await import('../../helpers/httpMocks.js')).createMockDb().module);
+
+vi.mock('../../../utils/pythonTools.js', async () =>
+  (await import('../../helpers/httpMocks.js')).createMockPythonTools().module);
 
 vi.mock('../../../api/middleware/adminAuth.js', () => ({
   authenticateAdmin: (req: any, _res: any, next: any) => {
@@ -33,19 +35,6 @@ vi.mock('../../../api/middleware/adminAuth.js', () => ({
   requireRole: () => (_req: any, _res: any, next: any) => next(),
 }));
 
-const mockQuery = vi.fn();
-const mockQueryOne = vi.fn();
-
-vi.mock('../../../utils/db.js', () => ({
-  query: (...args: any[]) => mockQuery(...args),
-  queryOne: (...args: any[]) => mockQueryOne(...args),
-  execute: vi.fn(),
-  transaction: vi.fn(),
-  getPool: vi.fn(),
-  testConnection: vi.fn(),
-  closePool: vi.fn(),
-}));
-
 vi.mock('../../../jobs/registerJobs.js', () => ({
   getRegisteredJobs: vi.fn().mockReturnValue([]),
 }));
@@ -57,6 +46,9 @@ vi.mock('../../../jobs/boss.js', () => ({
 vi.mock('../../../utils/queries.js', () => ({
   listAllModes: vi.fn().mockResolvedValue([]),
 }));
+
+import { getMockDb } from '../../helpers/httpMocks.js';
+const { query: mockQuery, queryOne: mockQueryOne } = getMockDb();
 
 // ─── Import router after mocks ─────────────────────────────────────
 
