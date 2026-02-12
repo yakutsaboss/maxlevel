@@ -63,6 +63,13 @@ export type OnboardingStep =
   | 'learning_frequency'
   | 'learning_days'
   | 'learning_resources'
+  // Medication
+  | 'medication_count'
+  | 'medication_types'
+  | 'medication_schedule'
+  | 'medication_goals'
+  | 'medication_barriers'
+  | 'medication_reminders'
   // Convergence
   | 'punishments'
   | 'notifications'
@@ -124,9 +131,19 @@ export interface OnboardingData {
     resources?: string[];
   };
 
+  // Medication quiz responses
+  medication?: {
+    medication_count?: string;
+    types?: string[];
+    schedule?: string;
+    goals?: string[];
+    reminder_preference?: string;
+  };
+
   // Pain points
   pain_points?: {
     hydration?: string[];
+    medication?: string[];
   };
 
   // Punishments

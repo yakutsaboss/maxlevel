@@ -7,11 +7,12 @@
  * during the onboarding flow. To add, edit, or remove a
  * question, modify the arrays below:
  *
- *   FITNESS_QUESTIONS   — 12 questions for Fitness mode
- *   HYDRATION_QUESTIONS — 7 questions for Hydration mode
- *   FINANCE_QUESTIONS   — 5 questions for Finance mode
- *   LEARNING_QUESTIONS  — 5 questions for Learning mode
- *   REFERRAL_OPTIONS    — "How did you find us?" answer choices
+ *   FITNESS_QUESTIONS      — 12 questions for Fitness mode
+ *   HYDRATION_QUESTIONS    — 7 questions for Hydration mode
+ *   FINANCE_QUESTIONS      — 5 questions for Finance mode
+ *   LEARNING_QUESTIONS     — 5 questions for Learning mode (6 with resources)
+ *   MEDICATION_QUESTIONS   — 6 questions for Medication mode
+ *   REFERRAL_OPTIONS       — "How did you find us?" answer choices
  *
  * Player answers are stored in PostgreSQL:
  *   - onboarding_state.quiz_data (JSONB) — all raw answers
@@ -529,6 +530,93 @@ export const LEARNING_QUESTIONS: QuestionConfig[] = [
   },
 ];
 
+export const MEDICATION_QUESTIONS: QuestionConfig[] = [
+  {
+    step: 'medication_count',
+    title: 'Daily Medications',
+    subtitle: 'How many medications do you take daily?',
+    type: 'single-select',
+    dataKey: 'medication',
+    nestedKey: 'medication_count',
+    options: [
+      { value: '1', label: 'One medication', sublabel: 'Just one' },
+      { value: '2-3', label: 'A few medications', sublabel: '2-3 daily' },
+      { value: '4-6', label: 'Several medications', sublabel: '4-6 daily' },
+      { value: '7+', label: 'Many medications', sublabel: '7 or more' },
+    ],
+  },
+  {
+    step: 'medication_types',
+    title: 'Medication Types',
+    subtitle: 'What types of medication do you take?',
+    type: 'multi-select',
+    dataKey: 'medication',
+    nestedKey: 'types',
+    options: [
+      { value: 'prescription', label: 'Prescription', sublabel: 'Doctor-prescribed meds' },
+      { value: 'otc', label: 'Over-the-counter', sublabel: 'No prescription needed' },
+      { value: 'supplements', label: 'Vitamins & Supplements', sublabel: 'Daily vitamins & more' },
+      { value: 'herbal', label: 'Herbal remedies', sublabel: 'Natural alternatives' },
+    ],
+  },
+  {
+    step: 'medication_schedule',
+    title: 'Medication Schedule',
+    subtitle: 'When do you take your medications?',
+    type: 'single-select',
+    dataKey: 'medication',
+    nestedKey: 'schedule',
+    options: [
+      { value: 'morning', label: 'Morning only', sublabel: 'Once in the AM' },
+      { value: 'evening', label: 'Evening only', sublabel: 'Once in the PM' },
+      { value: 'both', label: 'Morning & Evening', sublabel: 'Twice daily' },
+      { value: 'multiple', label: '3+ times daily', sublabel: 'Multiple doses' },
+    ],
+  },
+  {
+    step: 'medication_goals',
+    title: 'Management Goals',
+    subtitle: 'What are your medication management goals?',
+    type: 'multi-select',
+    dataKey: 'medication',
+    nestedKey: 'goals',
+    options: [
+      { value: 'never_miss', label: 'Never miss a dose', sublabel: 'Perfect adherence' },
+      { value: 'track_effects', label: 'Track side effects', sublabel: 'Monitor how you feel' },
+      { value: 'manage_refills', label: 'Manage refills', sublabel: 'Never run out' },
+      { value: 'reduce', label: 'Simplify my routine', sublabel: 'Streamline your schedule' },
+    ],
+  },
+  {
+    step: 'medication_barriers',
+    title: 'Adherence Challenges',
+    subtitle: 'What makes medication adherence hard?',
+    type: 'multi-select',
+    dataKey: 'pain_points',
+    nestedKey: 'medication',
+    options: [
+      { value: 'forget', label: 'I forget to take them', sublabel: 'Simply slips my mind' },
+      { value: 'side_effects', label: 'Side effects', sublabel: 'Unpleasant reactions' },
+      { value: 'cost', label: 'Cost/insurance issues', sublabel: 'Financial barriers' },
+      { value: 'too_many', label: 'Too many to track', sublabel: 'Overwhelming number' },
+    ],
+  },
+  {
+    step: 'medication_reminders',
+    title: 'Reminder Preference',
+    subtitle: 'How would you like to be reminded?',
+    type: 'single-select',
+    dataKey: 'medication',
+    nestedKey: 'reminder_preference',
+    options: [
+      { value: '15min', label: '15 min before', sublabel: 'Quick heads-up' },
+      { value: '30min', label: '30 min before', sublabel: 'Some lead time' },
+      { value: '1hour', label: '1 hour before', sublabel: 'Plenty of notice' },
+      { value: 'exact', label: 'At exact time', sublabel: 'Right on schedule' },
+    ],
+  },
+];
+
 export const REFERRAL_OPTIONS: QuestionOption[] = [
   { value: 'tiktok', label: 'TikTok' },
   { value: 'instagram', label: 'Instagram' },
@@ -540,5 +628,5 @@ export const REFERRAL_OPTIONS: QuestionOption[] = [
 ];
 
 export function getQuestionForStep(step: OnboardingStep): QuestionConfig | undefined {
-  return [...FITNESS_QUESTIONS, ...HYDRATION_QUESTIONS, ...FINANCE_QUESTIONS, ...LEARNING_QUESTIONS].find((q) => q.step === step);
+  return [...FITNESS_QUESTIONS, ...HYDRATION_QUESTIONS, ...FINANCE_QUESTIONS, ...LEARNING_QUESTIONS, ...MEDICATION_QUESTIONS].find((q) => q.step === step);
 }
