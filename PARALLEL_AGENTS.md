@@ -1841,7 +1841,12 @@ All agents create NEW test files only — zero file conflicts expected. Merge in
 *(To be filled by Agent C)*
 
 #### Agent D Retrospective
-*(To be filled by Agent D)*
+- **Files created**: `bot/src/__tests__/routes/http/analytics.http.test.ts`, `bot/src/__tests__/routes/http/admin-quests.http.test.ts`
+- **Tests written**: 26 total (10 analytics + 16 admin-quests) — exceeded the ~20 target
+- **Analytics tests (10)**: 4 for `/:userId/modes` (happy path, empty, invalid userId, DB error), 3 for `/:userId/modes/:mode` (happy path, mode not found, invalid userId), 3 for `/:userId/summary` (happy path, user not found, invalid userId)
+- **Admin-quests tests (16)**: 4 for `GET /` (list, filter by mode_id, filter by quest_type, DB error), 5 for `POST /` (create, missing title, missing quest_type, invalid quest_type, invalid difficulty), 4 for `PATCH /:id` (update, no valid fields, invalid quest_type, not found), 3 for `DELETE /:id` (success, not found, has instances)
+- **Key pattern**: Analytics uses user auth mocks (authenticateTelegram + authorizeUser); admin-quests uses admin auth mock (requirePermission). Also mocked `buildDynamicUpdate` for PATCH tests and `logger` to suppress output.
+- **All 26 tests pass** in 652ms. No issues encountered.
 
 #### Agent E Retrospective
 *(To be filled by Agent E)*
