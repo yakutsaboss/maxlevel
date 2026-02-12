@@ -2146,7 +2146,20 @@ Read PARALLEL_AGENTS.md — you are Agent J for Run 38. Write tests for remainin
 *(To be filled by Agent E)*
 
 #### Agent F Retrospective
-*(To be filled by Agent F)*
+
+**Task:** Refactor `Admin.tsx` (222 lines) → orchestrator + extracted components.
+
+**Changes (1 commit):**
+- `mini-app/src/components/admin/AdminLoginForm.tsx` (NEW, 103 lines) — self-contained login form with own state (username, password, loading, toast). Accepts `onLoginSuccess(credentials, stats)` callback.
+- `mini-app/src/components/admin/AdminOverview.tsx` (NEW, 19 lines) — thin wrapper around `AdminStatsCard` for the overview tab. Provides a growth point for future overview widgets.
+- `mini-app/src/pages/Admin.tsx` (130 lines, was 222) — pure orchestrator: auth state, session restore, tab switching, composing sub-components. Removed `username`, `password`, `loginLoading` state; replaced `handleLogin` with `handleLoginSuccess` callback.
+
+**Test results:** 77 files, 335 tests — all pass. Existing `Admin.test.tsx` required zero changes because:
+- `AdminLoginForm` renders the same markup (inputs, button, toast) — test selectors still match
+- `AdminStatsCard` mock applies transitively through `AdminOverview` (Vitest module-level mocks)
+- Login flow preserved: AdminLoginForm calls `onLoginSuccess` → Admin sets auth state
+
+**Issues:** None. Clean refactor with no behavioral changes.
 
 #### Agent G Retrospective
 *(To be filled by Agent G)*
