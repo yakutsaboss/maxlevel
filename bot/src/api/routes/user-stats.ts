@@ -7,69 +7,17 @@ import {
   NotFoundError,
 } from '../utils/errors.js';
 import { resolveUser } from './user-helpers.js';
-
-/** Row returned by the active-modes JOIN query */
-interface UserModeRow {
-  user_id: number;
-  mode_id: number;
-  is_active: boolean;
-  activated_at: string;
-  m_id: number;
-  name: string;
-  display_name: string;
-  description: string;
-  icon: string;
-}
-
-/** Row returned by quest_instances JOIN quests JOIN modes queries */
-interface ActiveQuestRow {
-  id: number;
-  user_id: number;
-  mode_id: number;
-  title: string;
-  description: string;
-  xp_reward: number;
-  frequency: string;
-  difficulty: string | null;
-  status: string;
-  progress: number | null;
-  target: number | null;
-  due_date: string;
-  completed_at: string | null;
-  mode_name: string | null;
-  mode_display_name: string | null;
-  mode_icon: string | null;
-}
-
-/** Row returned by user_achievements JOIN achievements queries */
-interface RecentAchievementRow {
-  user_id: number;
-  achievement_id: number;
-  unlocked_at: string;
-  name: string;
-  description: string;
-  icon: string | null;
-  xp_reward: number;
-  rarity: string;
-  category: string;
-}
-
-/** Row returned by the per-mode streaks query */
-interface StreakRow {
-  mode_id: number;
-  current_streak: number;
-  longest_streak: number;
-  mode_name: string;
-  mode_display_name: string;
-  mode_icon: string;
-}
-
-/** Aggregated stats from the single-row aggregates query */
-interface AggregatesRow {
-  completed_today: number;
-  xp_today: number;
-  days_active: number;
-}
+import {
+  UserModeRow,
+  ActiveQuestRow,
+  RecentAchievementRow,
+  StreakRow,
+  AggregatesRow,
+  formatMode,
+  formatQuest,
+  formatAchievement,
+  formatStreak,
+} from './user-stats-helpers.js';
 
 const router = Router();
 
@@ -150,78 +98,19 @@ router.get('/:telegramId/stats', authenticateTelegram, asyncHandler(async (req: 
     [user.id]
   );
 
-  // Format response
-  const formattedModes = modes.map((row: UserModeRow) => ({
-    user_id: row.user_id,
-    mode_id: row.mode_id,
-    is_active: row.is_active,
-    activated_at: row.activated_at,
-    mode: {
-      id: row.m_id,
-      name: row.name,
-      display_name: row.display_name,
-      description: row.description,
-      icon: row.icon,
-      is_active: true,
-    },
-  }));
-
-  const formattedQuests = activeQuests.map((row: ActiveQuestRow) => ({
-    id: row.id,
-    user_id: row.user_id,
-    mode_id: row.mode_id,
-    title: row.title,
-    description: row.description,
-    xp_reward: row.xp_reward,
-    frequency: row.frequency === 'daily' ? 'daily' : 'weekly',
-    difficulty: row.difficulty || 'medium',
-    status: row.status === 'in_progress' ? 'active' : row.status,
-    progress: row.progress || 0,
-    target: row.target || 1,
-    due_date: row.due_date,
-    completed_at: row.completed_at,
-    mode: row.mode_name ? {
-      id: row.mode_id,
-      name: row.mode_name,
-      display_name: row.mode_display_name,
-      icon: row.mode_icon,
-    } : undefined,
-  }));
-
-  const recentAchievements = recentAchievementsRows.map((row: RecentAchievementRow) => ({
-    user_id: row.user_id,
-    achievement_id: row.achievement_id,
-    unlocked_at: row.unlocked_at,
-    achievement: {
-      id: row.achievement_id,
-      name: row.name,
-      description: row.description,
-      icon: row.icon || '\u{1F3C6}',
-      xp_reward: row.xp_reward,
-      rarity: row.rarity,
-      category: row.category || '',
-    },
-  }));
-
   res.json(successResponse({
     user,
-    modes: formattedModes,
-    activeQuests: formattedQuests,
+    modes: modes.map(formatMode),
+    activeQuests: activeQuests.map(r => formatQuest(r)),
     completedQuestsToday: aggregates?.completed_today ?? 0,
-    recentAchievements,
+    recentAchievements: recentAchievementsRows.map(formatAchievement),
     xpGainedToday: aggregates?.xp_today ?? 0,
     streakData: {
       current: user.current_streak,
       longest: user.longest_streak,
       daysActive: aggregates?.days_active ?? 0,
     },
-    perModeStreaks: modeStreaks.map((s: StreakRow) => ({
-      mode_id: s.mode_id,
-      mode_name: s.mode_display_name,
-      mode_icon: s.mode_icon,
-      current_streak: s.current_streak,
-      longest_streak: s.longest_streak,
-    })),
+    perModeStreaks: modeStreaks.map(formatStreak),
   }));
 }));
 
@@ -248,29 +137,7 @@ router.get('/:telegramId/quests/active', authenticateTelegram, asyncHandler(asyn
     [tid]
   );
 
-  const quests = rows.map((row: ActiveQuestRow) => ({
-    id: row.id,
-    user_id: row.user_id,
-    mode_id: row.mode_id,
-    title: row.title,
-    description: row.description,
-    xp_reward: row.xp_reward,
-    frequency: row.frequency === 'daily' ? 'daily' : 'weekly',
-    difficulty: row.difficulty || 'medium',
-    status: 'active' as const,
-    progress: row.progress || 0,
-    target: row.target || 1,
-    due_date: row.due_date,
-    completed_at: row.completed_at,
-    mode: row.mode_name ? {
-      id: row.mode_id,
-      name: row.mode_name,
-      display_name: row.mode_display_name,
-      icon: row.mode_icon,
-    } : undefined,
-  }));
-
-  res.json(successResponse(quests));
+  res.json(successResponse(rows.map(r => formatQuest(r, 'active'))));
 }));
 
 /**
@@ -297,29 +164,7 @@ router.get('/:telegramId/quests/completed', authenticateTelegram, asyncHandler(a
     [tid, limit]
   );
 
-  const quests = rows.map((row: ActiveQuestRow) => ({
-    id: row.id,
-    user_id: row.user_id,
-    mode_id: row.mode_id,
-    title: row.title,
-    description: row.description,
-    xp_reward: row.xp_reward,
-    frequency: row.frequency === 'daily' ? 'daily' : 'weekly',
-    difficulty: row.difficulty || 'medium',
-    status: 'completed' as const,
-    progress: row.progress || 0,
-    target: row.target || 1,
-    due_date: row.due_date,
-    completed_at: row.completed_at,
-    mode: row.mode_name ? {
-      id: row.mode_id,
-      name: row.mode_name,
-      display_name: row.mode_display_name,
-      icon: row.mode_icon,
-    } : undefined,
-  }));
-
-  res.json(successResponse(quests));
+  res.json(successResponse(rows.map(r => formatQuest(r, 'completed'))));
 }));
 
 /**
@@ -341,22 +186,7 @@ router.get('/:telegramId/achievements', authenticateTelegram, asyncHandler(async
     [tid]
   );
 
-  const achievements = rows.map((row: RecentAchievementRow) => ({
-    user_id: row.user_id,
-    achievement_id: row.achievement_id,
-    unlocked_at: row.unlocked_at,
-    achievement: {
-      id: row.achievement_id,
-      name: row.name,
-      description: row.description,
-      icon: row.icon || '\u{1F3C6}',
-      xp_reward: row.xp_reward,
-      rarity: row.rarity,
-      category: row.category || '',
-    },
-  }));
-
-  res.json(successResponse(achievements));
+  res.json(successResponse(rows.map(formatAchievement)));
 }));
 
 export { router as statsRouter };
