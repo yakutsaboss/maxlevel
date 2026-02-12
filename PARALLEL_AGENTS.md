@@ -2624,7 +2624,20 @@ Read PARALLEL_AGENTS.md — you are Agent H for Run 39. Refactor `mini-app/src/c
 *(To be filled by Agent D)*
 
 #### Agent E Retrospective
-*(To be filled by Agent E)*
+**Status**: Complete — 5 files migrated, 63 tests, all 602 suite-wide tests passing.
+
+**Migrated** (inline vi.mock → shared httpMocks helpers):
+- `quest-progress.http.test.ts` — db, cache, pythonTools, rateLimiter via shared helpers; auth + achievementEngine + streak + xpAward kept inline (custom `req.dbUser = { id: 42 }`)
+- `quests.http.test.ts` — db, cache, pythonTools, rateLimiter via shared helpers; auth + achievementEngine + streak kept inline (custom `req.dbUser = { id: 10 }`)
+- `user-preferences.http.test.ts` — all 5 mocks via shared helpers (full migration)
+- `users.http.test.ts` — all 5 mocks via shared helpers (full migration)
+- `user-stats.http.test.ts` — all 5 mocks via shared helpers (full migration)
+
+**Net change**: -244 lines, +157 lines (−87 lines total).
+
+**Observations**:
+- Files with custom `authorizeUser` behavior (setting `req.dbUser`) cannot use `createMockAuth()` — the shared helper's `authorizeUser` just calls `next()` without setting `req.dbUser`. A future `createMockAuth({ dbUser: { id: N } })` option would allow full migration of quest-progress and quests tests.
+- The `replace_all` edit approach for renaming `mockQueryOne` → `db.queryOne` works well since `mockQuery` is a prefix of `mockQueryOne`, and `replace_all` handles both in one pass.
 
 #### Agent F Retrospective
 **Status**: Complete — 3 files, 11 tests, all passing.
