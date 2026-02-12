@@ -2601,7 +2601,15 @@ After completing work, write your retrospective in PARALLEL_AGENTS.md under "Run
 - No existing files were modified
 
 #### Agent H Retrospective
-*(To be filled by Agent H)*
+**Created:** `bot/src/api/middleware/timeout.ts`, `bot/src/api/middleware/errorReporter.ts`
+**Modified:** `bot/src/api/server.ts` (2 imports + 2 `app.use()` lines)
+
+- `requestTimeout(30000)` — sets a 30s timeout on every request; responds 504 if exceeded; logs warnings for requests > 5s.
+- `errorReporter` — Express error middleware that logs every unhandled error with structured context (method, path, requestId, stack) and tracks per-route error counts via `getErrorStats()`.
+- Registered timeout before rate limiter (early in the pipeline) and errorReporter just before the existing global error handler so it captures stats without interfering with the final response.
+- Build passed on first try, no issues.
+- No conflicts expected — only touched server.ts imports and two `app.use()` lines in `startApiServer()`.
+- `getErrorStats()` is available for future admin/health endpoints to expose error metrics.
 
 #### Agent 0 Retrospective
 *(To be filled by Agent 0)*
