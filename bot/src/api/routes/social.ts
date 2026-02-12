@@ -2,7 +2,7 @@ import { Router, Request, Response } from 'express';
 import { authenticateTelegram, authorizeUser } from '../middleware/auth.js';
 import { mutationLimiter, readLimiter } from '../middleware/rateLimiter.js';
 import { query, queryOne, execute } from '../../utils/db.js';
-import { cached } from '../../utils/cache.js';
+import { cached, invalidate } from '../../utils/cache.js';
 import {
   asyncHandler,
   successResponse,
@@ -69,6 +69,9 @@ router.post('/friends/accept', authenticateTelegram, mutationLimiter, asyncHandl
     throw new NotFoundError('Friend request not found or already processed');
   }
 
+  invalidate(`social:challenges:${(request as any).from_user_id}`);
+  invalidate(`social:challenges:${(request as any).to_user_id}`);
+
   res.json(successResponse(request, 'Friend request accepted'));
 }));
 
@@ -119,6 +122,8 @@ router.post('/challenges/create', authenticateTelegram, mutationLimiter, asyncHa
     `INSERT INTO challenge_participants (challenge_id, user_id) VALUES ($1, $2)`,
     [(challenge as any).id, creatorId]
   );
+
+  invalidate(`social:challenges:${creatorId}`);
 
   res.status(201).json(successResponse(challenge, 'Challenge created'));
 }));

@@ -2,7 +2,7 @@ import { Router, Request, Response } from 'express';
 import { authenticateTelegram, requireOwnership } from '../middleware/auth.js';
 import { mutationLimiter, readLimiter } from '../middleware/rateLimiter.js';
 import { query, queryOne, transaction } from '../../utils/db.js';
-import { invalidateUserCache } from '../../utils/cache.js';
+import { invalidateUserCache, invalidatePrefix } from '../../utils/cache.js';
 import {
   asyncHandler,
   validateRequired,
@@ -87,6 +87,9 @@ router.post('/', authenticateTelegram, mutationLimiter, asyncHandler(async (req:
   });
 
   invalidateUserCache(quest.user_id);
+  invalidatePrefix(`analytics:mode:${quest.user_id}:`);
+  invalidatePrefix(`analytics:modes:${quest.user_id}`);
+  invalidatePrefix(`analytics:summary:${quest.user_id}`);
 
   if (completed) {
     await checkAndUnlockAchievements(quest.user_id);
