@@ -64,7 +64,7 @@ router.post('/:name/trigger', requireRole('admin'), async (req: Request, res: Re
 
     const jobId = await boss.send(name, {});
 
-    const adminUser = (req as any).adminUser;
+    const adminUser = req.adminUser!;
     log.info(`Job '${name}' triggered by ${adminUser.username}`, { jobId });
 
     res.json({
