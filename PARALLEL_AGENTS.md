@@ -1638,7 +1638,15 @@ PGPASSWORD=postgres psql -h localhost -U postgres -d telegram_rpg -f /opt/wibeco
 *(To be filled by Agent A)*
 
 #### Agent B Retrospective
-*(To be filled by Agent B)*
+- **Files modified**: `bot/src/jobs/definitions/dailyQuestReset.ts`, `bot/src/api/routes/quest-assignment.ts`
+- **What was done**: Added fitness-level-aware quest selection to both the daily quest reset job and the manual quest assignment API endpoint. Both now query `mode_configs.quiz_responses` for the user's `fitness_level` and bias template selection accordingly:
+  - **Beginner**: only easy+medium quests, easy preferred (70/30 bias via ORDER BY CASE)
+  - **Intermediate**: all difficulties, fully random
+  - **Advanced**: only medium+hard quests, hard preferred (80/20 bias via ORDER BY CASE)
+- **Graceful fallback**: Missing `mode_configs` row, NULL `quiz_responses`, or absent `fitness_level` key all default to 'beginner'
+- **Shared pattern**: Both files use identical `getUserFitnessLevel()` + `getDifficultyFilter()` helper functions (duplicated intentionally to avoid cross-file dependencies between jobs and routes)
+- **Build**: `npm run build` passes cleanly with no errors
+- **No issues encountered**: Straightforward implementation, no blockers
 
 #### Agent C Retrospective
 *(To be filled by Agent C)*

@@ -23,6 +23,48 @@ type QuestTemplate = {
   mode_id: number;
 };
 
+type FitnessLevel = 'beginner' | 'intermediate' | 'advanced';
+
+/**
+ * Get the user's fitness level from quiz_responses in mode_configs.
+ * Falls back to 'beginner' if not set.
+ */
+async function getUserFitnessLevel(userId: number, modeIds: number[]): Promise<FitnessLevel> {
+  const rows = await query<{ quiz_responses: Record<string, unknown> | null }>(
+    'SELECT quiz_responses FROM mode_configs WHERE user_id = $1 AND mode_id = ANY($2) AND quiz_responses IS NOT NULL LIMIT 1',
+    [userId, modeIds]
+  );
+  if (rows.length === 0 || !rows[0].quiz_responses) return 'beginner';
+  const level = String(rows[0].quiz_responses.fitness_level || 'beginner');
+  if (level === 'intermediate' || level === 'advanced') return level;
+  return 'beginner';
+}
+
+/**
+ * Build SQL clauses that bias quest selection toward difficulties
+ * appropriate for the user's fitness level.
+ */
+function getDifficultyFilter(level: FitnessLevel): { whereClause: string; orderClause: string } {
+  switch (level) {
+    case 'beginner':
+      return {
+        whereClause: "AND q.difficulty IN ('easy','medium')",
+        orderClause: "ORDER BY CASE WHEN q.difficulty='easy' THEN 0 ELSE 1 END, RANDOM()",
+      };
+    case 'advanced':
+      return {
+        whereClause: "AND q.difficulty IN ('medium','hard')",
+        orderClause: "ORDER BY CASE WHEN q.difficulty='hard' THEN 0 ELSE 1 END, RANDOM()",
+      };
+    case 'intermediate':
+    default:
+      return {
+        whereClause: '',
+        orderClause: 'ORDER BY RANDOM()',
+      };
+  }
+}
+
 /** Shape of each quest pushed into the response after INSERT. */
 interface AssignedQuest {
   id: number;
@@ -67,19 +109,24 @@ router.post('/users/:userId/assign', authenticateTelegram, authorizeUser, mutati
 
   const today = new Date().toISOString().split('T')[0];
 
+  // Get fitness level to bias quest difficulty selection
+  const fitnessLevel = await getUserFitnessLevel(userId, modeIds);
+  const { whereClause, orderClause } = getDifficultyFilter(fitnessLevel);
+
   let available: QuestTemplate[];
   if (isDaily) {
-    // Daily: find templates not assigned today
+    // Daily: find templates not assigned today, biased by fitness level
     available = await query<QuestTemplate>(
       `SELECT q.id, q.title, q.description, q.xp_reward, q.quest_type, q.difficulty, q.mode_id
        FROM quests q
        WHERE q.mode_id = ANY($1) AND q.quest_type = 'daily'
        AND q.id NOT IN (SELECT quest_id FROM quest_instances WHERE user_id = $2 AND instance_date = $3)
-       ORDER BY RANDOM() LIMIT $4`,
+       ${whereClause}
+       ${orderClause} LIMIT $4`,
       [modeIds, userId, today, questCount]
     );
   } else {
-    // Weekly: find templates not actively assigned in past 7 days
+    // Weekly: find templates not actively assigned in past 7 days, biased by fitness level
     const weekAgo = new Date(Date.now() - 7 * 86400000).toISOString().split('T')[0];
     available = await query<QuestTemplate>(
       `SELECT q.id, q.title, q.description, q.xp_reward, q.quest_type, q.difficulty, q.mode_id
@@ -89,7 +136,8 @@ router.post('/users/:userId/assign', authenticateTelegram, authorizeUser, mutati
          SELECT quest_id FROM quest_instances
          WHERE user_id = $2 AND instance_date >= $3 AND status IN ('pending', 'ready', 'in_progress')
        )
-       ORDER BY RANDOM() LIMIT $4`,
+       ${whereClause}
+       ${orderClause} LIMIT $4`,
       [modeIds, userId, weekAgo, questCount]
     );
   }

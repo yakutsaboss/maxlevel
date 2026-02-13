@@ -18,7 +18,53 @@ type ModeIdRow = {
   mode_id: number;
 };
 
+type QuizResponsesRow = {
+  quiz_responses: Record<string, unknown> | null;
+};
+
+type FitnessLevel = 'beginner' | 'intermediate' | 'advanced';
+
 const log = logger.child({ component: 'dailyQuestReset' });
+
+/**
+ * Get the user's fitness level from quiz_responses in mode_configs.
+ * Falls back to 'beginner' if not set.
+ */
+async function getUserFitnessLevel(userId: number, modeIds: number[]): Promise<FitnessLevel> {
+  const row = await query<QuizResponsesRow>(
+    'SELECT quiz_responses FROM mode_configs WHERE user_id = $1 AND mode_id = ANY($2) AND quiz_responses IS NOT NULL LIMIT 1',
+    [userId, modeIds]
+  );
+  if (row.length === 0 || !row[0].quiz_responses) return 'beginner';
+  const level = String((row[0].quiz_responses as Record<string, unknown>).fitness_level || 'beginner');
+  if (level === 'intermediate' || level === 'advanced') return level;
+  return 'beginner';
+}
+
+/**
+ * Build SQL ORDER BY clause that biases quest selection toward difficulties
+ * appropriate for the user's fitness level.
+ */
+function getDifficultyFilter(level: FitnessLevel): { whereClause: string; orderClause: string } {
+  switch (level) {
+    case 'beginner':
+      return {
+        whereClause: "AND q.difficulty IN ('easy','medium')",
+        orderClause: "ORDER BY CASE WHEN q.difficulty='easy' THEN 0 ELSE 1 END, RANDOM()",
+      };
+    case 'advanced':
+      return {
+        whereClause: "AND q.difficulty IN ('medium','hard')",
+        orderClause: "ORDER BY CASE WHEN q.difficulty='hard' THEN 0 ELSE 1 END, RANDOM()",
+      };
+    case 'intermediate':
+    default:
+      return {
+        whereClause: '',
+        orderClause: 'ORDER BY RANDOM()',
+      };
+  }
+}
 
 export const JOB_NAME = 'daily-quest-reset';
 export const CRON_SCHEDULE = '0 0 * * *';
@@ -39,12 +85,17 @@ async function assignDailyQuestsWithRetry(userId: number): Promise<boolean> {
       const modeIds = modes.map(m => m.mode_id);
       const today = new Date().toISOString().split('T')[0];
 
-      // 2. Find available daily templates not assigned today
+      // 2. Get fitness level and build difficulty bias
+      const fitnessLevel = await getUserFitnessLevel(userId, modeIds);
+      const { whereClause, orderClause } = getDifficultyFilter(fitnessLevel);
+
+      // 3. Find available daily templates not assigned today, biased by fitness level
       const templates = await query(
         `SELECT q.* FROM quests q
          WHERE q.mode_id = ANY($1) AND q.quest_type = 'daily'
          AND q.id NOT IN (SELECT quest_id FROM quest_instances WHERE user_id = $2 AND instance_date = $3)
-         ORDER BY RANDOM() LIMIT $4`,
+         ${whereClause}
+         ${orderClause} LIMIT $4`,
         [modeIds, userId, today, 3]
       );
 
@@ -78,7 +129,11 @@ async function assignWeeklyQuests(userId: number): Promise<boolean> {
     const modeIds = modes.map(m => m.mode_id);
     const weekAgo = new Date(Date.now() - 7 * 86400000).toISOString().split('T')[0];
 
-    // 2. Find available weekly templates not assigned in the last 7 days
+    // 2. Get fitness level and build difficulty bias
+    const fitnessLevel = await getUserFitnessLevel(userId, modeIds);
+    const { whereClause, orderClause } = getDifficultyFilter(fitnessLevel);
+
+    // 3. Find available weekly templates not assigned in the last 7 days, biased by fitness level
     const templates = await query(
       `SELECT q.* FROM quests q
        WHERE q.mode_id = ANY($1) AND q.quest_type = 'weekly'
@@ -87,7 +142,8 @@ async function assignWeeklyQuests(userId: number): Promise<boolean> {
          WHERE user_id = $2 AND instance_date >= $3
          AND status IN ('pending', 'ready', 'in_progress')
        )
-       ORDER BY RANDOM() LIMIT $4`,
+       ${whereClause}
+       ${orderClause} LIMIT $4`,
       [modeIds, userId, weekAgo, 2]
     );
 
