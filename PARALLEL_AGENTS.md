@@ -1098,7 +1098,14 @@ PGPASSWORD=postgres psql -h localhost -U postgres -d telegram_rpg -f /opt/wibeco
 - Agent G's tests (premiumGate-tiers.test.ts, modes-gating.test.ts) will need to mock both `subscriptions` and `channel_subscriptions` queries.
 
 #### Agent D Retrospective
-*(To be filled by Agent D)*
+**Task:** Update payments.ts — rename pro→subscriber in VALID_TIERS, block subscriber from Stars purchase, add GET /tiers endpoint.
+**Result:** All 4 tasks completed. Build passes clean (tsc, 0 errors).
+**Changes to `bot/src/api/routes/payments.ts`:**
+1. **VALID_TIERS**: `['free', 'pro', 'premium']` → `['free', 'subscriber', 'premium']`
+2. **Pro references updated**: Error messages now reference subscriber/premium correctly. Webhook fallback tier changed from `'pro'` to `'premium'` (since only premium can be purchased via Stars).
+3. **Subscriber blocked from Stars purchase**: Both `POST /create` and `POST /subscription/upgrade` now reject `tier === 'subscriber'` with message directing users to subscribe to @yakutsaway channel instead.
+4. **GET /tiers endpoint**: Returns array of 3 tiers with `name`, `modeLimit`, `price`, `purchasable`, `channelRequired`, `description` (and `channelUsername`/`currency` where applicable). Public endpoint (no auth), rate-limited.
+**No other files modified.** Single file change, fully contained.
 
 #### Agent E Retrospective
 *(To be filled by Agent E)*

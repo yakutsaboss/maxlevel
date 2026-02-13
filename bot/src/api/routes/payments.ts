@@ -17,7 +17,7 @@ const router = Router();
 const log = logger.child({ component: 'payments' });
 
 /** Valid subscription tiers */
-const VALID_TIERS = ['free', 'pro', 'premium'] as const;
+const VALID_TIERS = ['free', 'subscriber', 'premium'] as const;
 type Tier = typeof VALID_TIERS[number];
 
 function isValidTier(tier: string): tier is Tier {
@@ -66,8 +66,8 @@ router.post('/create', authenticateTelegram, mutationLimiter, asyncHandler(async
     throw new BadRequestError('userId must be a positive integer');
   }
 
-  if (!isValidTier(tier) || tier === 'free') {
-    throw new BadRequestError(`Invalid tier for payment: ${tier}. Must be one of: pro, premium`);
+  if (!isValidTier(tier) || tier === 'free' || tier === 'subscriber') {
+    throw new BadRequestError(`Invalid tier for payment: ${tier}. Only 'premium' can be purchased with Stars. Subscribe to @yakutsaway for 'subscriber' tier.`);
   }
 
   const numericAmount = parseFloat(amount);
@@ -141,7 +141,7 @@ router.post('/webhook', asyncHandler(async (req: Request, res: Response) => {
   }
 
   // Complete payment and activate subscription in a single transaction
-  const tier = (payment.metadata?.tier as string) || 'pro';
+  const tier = (payment.metadata?.tier as string) || 'premium';
 
   await transaction(async (client) => {
     // Mark payment as completed with provider charge IDs
@@ -269,8 +269,8 @@ router.post('/subscription/upgrade', authenticateTelegram, mutationLimiter, asyn
     throw new BadRequestError('userId must be a positive integer');
   }
 
-  if (!isValidTier(tier) || tier === 'free') {
-    throw new BadRequestError(`Cannot upgrade to tier: ${tier}. Use 'pro' or 'premium'.`);
+  if (!isValidTier(tier) || tier === 'free' || tier === 'subscriber') {
+    throw new BadRequestError(`Cannot upgrade to tier: ${tier}. Only 'premium' can be purchased with Stars. Subscribe to @yakutsaway for 'subscriber' tier.`);
   }
 
   // Verify user exists
@@ -340,6 +340,41 @@ router.post('/subscription/cancel', authenticateTelegram, mutationLimiter, async
     tier: 'free',
     auto_renew: false,
   }, 'Subscription cancelled'));
+}));
+
+// ─── GET /tiers ─────────────────────────────────────────────────────────────
+// Return tier info (public endpoint, no auth required)
+router.get('/tiers', readLimiter, asyncHandler(async (_req: Request, res: Response) => {
+  const tiers = [
+    {
+      name: 'free' as const,
+      modeLimit: 2,
+      price: 0,
+      purchasable: false,
+      channelRequired: false,
+      description: 'Default tier for all users',
+    },
+    {
+      name: 'subscriber' as const,
+      modeLimit: 3,
+      price: 0,
+      purchasable: false,
+      channelRequired: true,
+      channelUsername: 'yakutsaway',
+      description: 'Subscribe to @yakutsaway Telegram channel',
+    },
+    {
+      name: 'premium' as const,
+      modeLimit: 6,
+      price: 599,
+      currency: 'XTR',
+      purchasable: true,
+      channelRequired: false,
+      description: 'Premium via Telegram Stars (599/month)',
+    },
+  ];
+
+  res.json(successResponse({ tiers }));
 }));
 
 export { router as paymentsRouter };
