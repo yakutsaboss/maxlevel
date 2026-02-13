@@ -2391,4 +2391,17 @@ After completing work, write your retrospective in PARALLEL_AGENTS.md under "Run
 
 #### Agent 0 Retrospective
 *(To be filled by Agent 0 after merge)*
-<!-- Next run goes here. Agent 0 will append RUN 55 below this line. -->
+### Run 55 Retrospectives
+
+#### Agent D Retrospective
+**Task:** Write tests for 2 untested finance hooks: `useSavingsGoals` and `useBudget` (228 lines of untested logic).
+
+**Result:** 28 tests across 2 files, all passing. No source files modified (test-only agent).
+
+**Changes made:**
+1. **useSavingsGoals.test.ts** (NEW, 16 tests) — 6 tests for `getProjectedCompletion` pure function (completed goal, exceeds target, fewer than 2 deposits, empty deposits, valid projection, rate calculation). 10 tests for `useSavingsGoals` hook (initial loading state, fetch on mount, empty goals, null goals fallback, fetch error, createGoal POST + refetch, createGoal failure, addDeposit PATCH + refetch, addDeposit failure, setError clearing).
+2. **useBudget.test.ts** (NEW, 12 tests) — 2 tests for exported constants (EXPENSE_CATEGORIES, CATEGORY_COLORS). 10 tests for `useBudget` hook (initial loading state, fetch + derived values, spentPercent cap at 100, spentPercent 0 when no income, fetch error, addEntry income (category forced to "Income"), addEntry expense (uses provided category), addEntry failure, addEntry API returns false, setError clearing).
+
+**No issues encountered.** Both hooks use raw `fetch` (not apiClient), so mocked `global.fetch` with `vi.spyOn`. Clean run, all tests passed first try.
+
+<!-- Next run goes here. Agent 0 will append RUN 56 below this line. -->
