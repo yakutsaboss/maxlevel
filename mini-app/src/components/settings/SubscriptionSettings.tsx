@@ -4,14 +4,8 @@ import { motion } from 'framer-motion';
 import { Crown, Users, Star, RefreshCw, Loader2 } from 'lucide-react';
 import { useTelegram } from '@/hooks/useTelegram';
 import { apiClient } from '@/api/client';
-
-type SubscriptionTier = 'free' | 'subscriber' | 'premium';
-
-const MODE_LIMITS: Record<SubscriptionTier, number> = {
-  free: 2,
-  subscriber: 3,
-  premium: 6,
-};
+import { MODE_LIMITS } from '@/constants/tiers';
+import type { SubscriptionTier } from '@/types';
 
 const TIER_BADGE_STYLES: Record<SubscriptionTier, string> = {
   free: 'bg-gray-500',

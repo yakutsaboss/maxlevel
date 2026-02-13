@@ -35,7 +35,7 @@ export function LeaderboardRow({ entry, rank, isCurrentUser, timePeriod, index, 
         <RankIcon rank={rank} />
         <TrendArrow trend={trend} />
       </div>
-      <UserAvatar userId={entry.user_id} firstName={entry.first_name} username={entry.username} size="md" />
+      <UserAvatar userId={entry.user_id} firstName={entry.first_name} username={entry.username} avatarId={entry.avatar_id} size="md" />
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-1.5">
           <span className={`font-semibold text-sm truncate ${isCurrentUser ? 'text-telegram-link' : ''}`}>

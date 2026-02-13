@@ -71,7 +71,7 @@ export function TopThreeCard({ entry, rank, isCurrentUser, timePeriod, index, tr
         <RankIcon rank={rank} isTop />
         <TrendArrow trend={trend} />
       </div>
-      <UserAvatar userId={entry.user_id} firstName={entry.first_name} username={entry.username} size="lg" />
+      <UserAvatar userId={entry.user_id} firstName={entry.first_name} username={entry.username} avatarId={entry.avatar_id} size="lg" />
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-1.5">
           <span className={`font-bold text-sm truncate ${isCurrentUser ? 'text-telegram-link' : ''}`}>
