@@ -1653,7 +1653,7 @@ PGPASSWORD=postgres psql -h localhost -U postgres -d telegram_rpg -f /opt/wibeco
 *(To be filled by Agent D)*
 
 #### Agent E Retrospective
-*(To be filled by Agent E)*
+All 4 tasks completed cleanly. Added `u.avatar_id` to all 4 leaderboard SQL queries (mode-filtered, default, weekly, monthly), added `avatar_id: row.avatar_id ?? null` to all 4 response formatters, added `avatar_id?: number` to the `LeaderboardEntryRow` type. Updated `leaderboard_mv` in schema.sql with `u.avatar_id` in SELECT and GROUP BY. Created migration `run57_leaderboard_avatar.sql` that drops and recreates the view with indexes. Updated `LeaderboardEntry` interface in mini-app types. Bot build passes with zero errors. No conflicts with other agents' owned files.
 
 #### Agent F Retrospective
 *(To be filled by Agent F)*

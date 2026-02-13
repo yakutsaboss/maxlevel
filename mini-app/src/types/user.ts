@@ -27,6 +27,7 @@ export interface LeaderboardEntry {
   first_name: string;
   level: number;
   total_xp: number;
+  avatar_id?: number;
   weekly_xp?: number;
   monthly_xp?: number;
   current_streak: number;
