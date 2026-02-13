@@ -18,6 +18,7 @@ import { AboutSection } from '@/components/settings/AboutSection';
 import { ThemeSettings } from '@/components/settings/ThemeSettings';
 import { DangerZone } from '@/components/settings/DangerZone';
 import { SettingsSkeleton } from '@/components/settings/SettingsSkeleton';
+import { SubscriptionSettings } from '@/components/settings/SubscriptionSettings';
 
 export function Settings() {
   const { t } = useTranslation();
@@ -62,6 +63,7 @@ export function Settings() {
       </div>
 
       <div className="px-4 mt-6 space-y-4">
+        <SubscriptionSettings />
         <NotificationSettings prefs={prefs} onPrefsChange={setPrefs} haptic={haptic} />
         <DoNotDisturbSettings
           dnd={{ dnd_enabled: prefs.dnd_enabled, dnd_start: prefs.dnd_start, dnd_end: prefs.dnd_end }}

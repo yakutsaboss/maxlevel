@@ -1062,7 +1062,28 @@ PGPASSWORD=postgres psql -h localhost -U postgres -d telegram_rpg -f /opt/wibeco
 *(To be filled by Agent E)*
 
 #### Agent F Retrospective
-*(To be filled by Agent F)*
+**Status:** COMPLETE — SubscriptionSettings.tsx created, i18n keys added, integrated into Settings page. Build passes (tsc + vite).
+
+**What was done:**
+1. **Created `SubscriptionSettings.tsx`** (NEW) — Self-contained settings component showing:
+   - Tier badge (Free/Subscriber/Premium) with color-coded styling
+   - Mode usage progress bar (X / Y modes with animated fill)
+   - Channel subscribe CTA — opens @yakutsaway via `openTelegramLink`, with refresh button to re-check status
+   - Premium upgrade CTA — gradient card with Stars pricing (599/month)
+   - Loading state with spinner, graceful degradation when backend endpoints aren't available yet
+2. **Added 14 i18n keys** to `settings.subscription.*` namespace in all 3 language files (en, ru, zh)
+3. **Integrated into Settings.tsx** — ONE import + ONE `<SubscriptionSettings />` component placed as the first settings section
+
+**Design decisions:**
+- Component is fully self-contained — calls `useTelegram()` + `apiClient.getUserStats()` + raw `fetch()` for channel/subscription endpoints
+- No dependency on Agent E's `useSubscription` hook or `constants/tiers.ts` — avoids merge conflicts since those files don't exist in this branch
+- Channel/subscription fetch calls degrade gracefully with try/catch (returns defaults if endpoints aren't deployed yet)
+- MODE_LIMITS defined locally: `{ free: 2, subscriber: 3, premium: 6 }`
+
+**Notes for Agent 0:**
+- Agent E's `useSubscription` hook and `constants/tiers.ts` are not imported — this was intentional to avoid merge conflicts with Agent E's NEW files. Agent 0 may optionally refactor to use Agent E's hook after merge if desired.
+- The component fetches channel status from `/api/channel/:userId/status` and `/api/channel/:userId/refresh` (Agent B endpoints). It falls back to "free" tier if those endpoints aren't available.
+- Premium upgrade button has a TODO comment — needs Telegram Stars payment integration when the payment flow is connected.
 
 #### Agent G Retrospective
 *(To be filled by Agent G)*
