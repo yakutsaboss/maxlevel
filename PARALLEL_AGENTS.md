@@ -1699,4 +1699,16 @@ All 4 tasks completed cleanly. Added `u.avatar_id` to all 4 leaderboard SQL quer
 #### Agent 0 Retrospective
 *(To be filled by Agent 0 after merge)*
 
-<!-- Next run goes here. Agent 0 will append RUN 58 below this line. -->
+### Run 58 Retrospectives
+
+#### Agent C Retrospective
+**Task:** Wire avatar_id into Leaderboard UI + deduplicate MODE_LIMITS in SubscriptionSettings.
+**Result:** All 3 tasks completed. Build passes clean (tsc + vite build).
+- TopThreeCard.tsx: Added `avatarId={entry.avatar_id}` to UserAvatar (1-line change)
+- LeaderboardRow.tsx: Same — added `avatarId={entry.avatar_id}` to UserAvatar (1-line change)
+- SubscriptionSettings.tsx: Removed local `SubscriptionTier` type and `MODE_LIMITS` constant, imported both from `@/constants/tiers` and `@/types`
+- UserAvatar already had `avatarId?: number` prop with emoji lookup logic — no component changes needed
+- `@/constants/tiers` already exported matching MODE_LIMITS values (free:2, subscriber:3, premium:6)
+- Minimal, surgical changes — no risk of merge conflicts with other agents
+
+<!-- Next run goes here. Agent 0 will append RUN 59 below this line. -->
