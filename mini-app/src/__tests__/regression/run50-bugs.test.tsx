@@ -319,10 +319,12 @@ describe('Avatar centering (Agent E)', () => {
     const avatarImg = container.querySelector('[role="img"]');
     expect(avatarImg).not.toBeNull();
 
-    // The parent of the avatar circle is the motion.div wrapper
-    const avatarWrapper = avatarImg!.parentElement!;
-    expect(avatarWrapper.className).toContain('flex');
-    expect(avatarWrapper.className).toContain('justify-center');
+    // The grandparent of the avatar circle is the flex centering wrapper
+    // Structure: div.flex.justify-center > motion.div.relative > div[role="img"]
+    const motionWrapper = avatarImg!.parentElement!;
+    const flexWrapper = motionWrapper.parentElement!;
+    expect(flexWrapper.className).toContain('flex');
+    expect(flexWrapper.className).toContain('justify-center');
   });
 });
 
