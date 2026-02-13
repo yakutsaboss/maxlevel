@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback, useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useTelegram } from '@/hooks/useTelegram';
 import { usePullToRefresh, PullIndicator } from '@/hooks/usePullToRefresh';
 import { apiClient } from '@/api/client';
@@ -12,16 +13,17 @@ import { logger } from '@/utils/logger';
 
 const RARITY_ORDER = ['common', 'rare', 'epic', 'legendary'] as const;
 
-const CATEGORY_LABELS: Record<string, string> = {
-  all: 'All',
-  fitness: 'Fitness',
-  hydration: 'Hydration',
-  finance: 'Finance',
-  learning: 'Learning',
-  general: 'General',
+const CATEGORY_KEYS: Record<string, string> = {
+  all: 'achievements.categoryAll',
+  fitness: 'achievements.categoryFitness',
+  hydration: 'achievements.categoryHydration',
+  finance: 'achievements.categoryFinance',
+  learning: 'achievements.categoryLearning',
+  general: 'achievements.categoryGeneral',
 };
 
 export function Achievements() {
+  const { t } = useTranslation();
   const { user, haptic } = useTelegram();
   const [allAchievements, setAllAchievements] = useState<Achievement[]>([]);
   const [userAchievements, setUserAchievements] = useState<UserAchievement[]>([]);
@@ -90,7 +92,7 @@ export function Achievements() {
   })).filter(g => g.achievements.length > 0);
 
   if (loading) return <AchievementsSkeleton />;
-  if (error) return <ErrorSection message="Could not load achievements" onRetry={loadData} />;
+  if (error) return <ErrorSection message={t('achievements.couldNotLoad')} onRetry={loadData} />;
 
   return (
     <div
@@ -104,11 +106,11 @@ export function Achievements() {
       <div className="bg-gradient-to-br from-amber-500 to-orange-600 pt-8 pb-6 px-6 rounded-b-3xl shadow-lg safe-area-top">
         <div className="flex items-center gap-3 mb-3">
           <Trophy className="w-7 h-7 text-white" />
-          <h1 className="text-2xl font-bold text-white">Rewards</h1>
+          <h1 className="text-2xl font-bold text-white">{t('achievements.rewards')}</h1>
         </div>
         <div className="bg-white/20 backdrop-blur-sm rounded-2xl px-4 py-3">
           <div className="flex items-center justify-between mb-2">
-            <span className="text-white/90 text-sm font-medium">Progress</span>
+            <span className="text-white/90 text-sm font-medium">{t('achievements.progress')}</span>
             <span className="text-white font-bold">{unlockedCount} / {totalCount}</span>
           </div>
           <div className="bg-white/30 rounded-full h-2.5 overflow-hidden" role="progressbar" aria-valuenow={unlockedCount} aria-valuemin={0} aria-valuemax={totalCount} aria-label={`Achievement progress: ${unlockedCount} of ${totalCount} unlocked`}>
@@ -128,7 +130,7 @@ export function Achievements() {
           className="w-full mt-3 flex items-center justify-center gap-2 bg-white/20 hover:bg-white/30 active:scale-[0.98] backdrop-blur-sm rounded-xl px-4 py-2 text-white text-sm font-medium transition-all disabled:opacity-50"
         >
           <RefreshCw className={`w-4 h-4 ${checking ? 'animate-spin' : ''}`} />
-          {checking ? 'Checking...' : newCount > 0 ? `${newCount} new unlocked!` : 'Check for new achievements'}
+          {checking ? t('achievements.checking') : newCount > 0 ? t('achievements.newUnlocked', { count: newCount }) : t('achievements.checkForNewAchievements')}
         </button>
 
         {/* Category filter */}
@@ -139,7 +141,7 @@ export function Achievements() {
                 key={cat}
                 role="tab"
                 aria-selected={selectedCategory === cat}
-                aria-label={`Filter by ${CATEGORY_LABELS[cat] || cat}`}
+                aria-label={`Filter by ${CATEGORY_KEYS[cat] ? t(CATEGORY_KEYS[cat]) : cat}`}
                 onClick={() => { haptic.impact('light'); setSelectedCategory(cat); }}
                 className={`shrink-0 py-1.5 px-3 rounded-xl font-medium text-sm transition-all ${
                   selectedCategory === cat
@@ -147,7 +149,7 @@ export function Achievements() {
                     : 'bg-white/20 text-white/70'
                 }`}
               >
-                {CATEGORY_LABELS[cat] || cat}
+                {CATEGORY_KEYS[cat] ? t(CATEGORY_KEYS[cat]) : cat}
               </button>
             ))}
           </div>
@@ -171,7 +173,7 @@ export function Achievements() {
           <div className="text-center py-12 bg-telegram-secondaryBg rounded-2xl border border-telegram-hint/10">
             <Trophy className="w-12 h-12 text-telegram-hint mx-auto mb-3" />
             <p className="text-telegram-hint">
-              {selectedCategory === 'all' ? 'No achievements available yet' : `No ${CATEGORY_LABELS[selectedCategory] || selectedCategory} achievements`}
+              {selectedCategory === 'all' ? t('achievements.noAchievements') : t('achievements.noCategoryAchievements', { category: CATEGORY_KEYS[selectedCategory] ? t(CATEGORY_KEYS[selectedCategory]) : selectedCategory })}
             </p>
           </div>
         )}

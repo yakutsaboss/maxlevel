@@ -1,5 +1,6 @@
 import { useCallback, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { useQueryClient } from '@tanstack/react-query';
 import { useTelegram } from '@/hooks/useTelegram';
 import { useBackButton, isHapticEnabled } from '@/hooks/useTelegram';
@@ -19,6 +20,7 @@ import { DangerZone } from '@/components/settings/DangerZone';
 import { SettingsSkeleton } from '@/components/settings/SettingsSkeleton';
 
 export function Settings() {
+  const { t } = useTranslation();
   const { user, haptic, showConfirm, openTelegramLink, colorScheme, themeParams } = useTelegram();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -44,7 +46,7 @@ export function Settings() {
   }
 
   if (error) {
-    return <ErrorSection message="Could not load your settings" onRetry={loadPreferences} />;
+    return <ErrorSection message={t('settings.couldNotLoad')} onRetry={loadPreferences} />;
   }
 
   return (
@@ -55,8 +57,8 @@ export function Settings() {
     >
       <PullIndicator pullDistance={pullDistance} refreshing={refreshing} pullThreshold={pullThreshold} />
       <div className="bg-gradient-to-r from-gray-600 to-gray-700 p-6 rounded-b-3xl shadow-lg" style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 1.5rem)' }}>
-        <h1 className="text-2xl font-bold text-white">Settings</h1>
-        <p className="text-gray-200 text-sm mt-1">Configure your preferences</p>
+        <h1 className="text-2xl font-bold text-white">{t('settings.title')}</h1>
+        <p className="text-gray-200 text-sm mt-1">{t('settings.subtitle')}</p>
       </div>
 
       <div className="px-4 mt-6 space-y-4">
@@ -83,13 +85,13 @@ export function Settings() {
         <button
           onClick={handleSave}
           disabled={saving}
-          aria-label={saving ? 'Saving settings...' : 'Save settings'}
+          aria-label={saving ? t('settings.saving') : t('settings.saveSettings')}
           className="w-full py-3.5 rounded-2xl bg-telegram-link text-white font-semibold flex items-center justify-center gap-2 active:scale-[0.98] transition-transform disabled:opacity-60"
         >
           {saving ? (
-            <><Loader2 className="w-5 h-5 animate-spin" aria-hidden="true" />Saving...</>
+            <><Loader2 className="w-5 h-5 animate-spin" aria-hidden="true" />{t('settings.saving')}</>
           ) : (
-            'Save Settings'
+            t('settings.saveSettings')
           )}
         </button>
       </div>

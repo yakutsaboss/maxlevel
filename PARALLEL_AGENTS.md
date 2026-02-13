@@ -1502,7 +1502,20 @@ After completing work, write your retrospective in PARALLEL_AGENTS.md under "Run
 ### Run 52 Retrospectives
 
 #### Agent A Retrospective
-*(To be filled by Agent A)*
+**Task:** Migrate all hardcoded UI strings in 5 remaining pages + 2 components to use the i18n translation system.
+
+**Result:** All 7 components fully migrated. ~40+ hardcoded English strings replaced with `t()` calls. 50+ new i18n keys added across all 3 language files (en/ru/zh). Build passes cleanly.
+
+**Components migrated:**
+- **Quests.tsx** (12 strings) — title, subtitle, tab labels, progress text with interpolation, empty states, explore button
+- **Achievements.tsx** (8 strings) — rewards title, progress label, checking state, new unlocked count, category labels (refactored from CATEGORY_LABELS dict to CATEGORY_KEYS i18n lookup)
+- **Leaderboard.tsx** (6 strings) — title, subtitle, empty state, divider text with rank interpolation
+- **Profile.tsx** (6 strings) — error message, account info section, field labels, save success toast
+- **Settings.tsx** (5 strings) — title, subtitle, error message, save button states
+- **CheckInButton.tsx** (4 strings) — checking in state, remaining count with interpolation, last one, success toast
+- **LaunchScreen.tsx** (8 strings) — error/retry, loading state, level label, all set heading, achievement text, go to dashboard
+
+**Approach:** Added `useTranslation` import + `const { t } = useTranslation()` to each component. Used interpolation (`{{count}}`, `{{done}}`, `{{total}}`) for dynamic values. Category labels in Achievements refactored from a plain string map to i18n key references. Russian and Chinese translations provided for all new keys.
 
 #### Agent B Retrospective
 **Task:** Eliminate all `as any` casts from mini-app source files by adding proper TypeScript types for Telegram WebApp.

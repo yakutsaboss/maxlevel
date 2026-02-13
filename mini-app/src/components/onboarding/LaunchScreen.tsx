@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import { motion } from 'framer-motion';
 import { Trophy, Zap, Sparkles } from 'lucide-react';
 import { useTelegram } from '@/hooks/useTelegram';
@@ -13,6 +14,7 @@ interface LaunchScreenProps {
 }
 
 export function LaunchScreen({ data, telegramId, onLaunch }: LaunchScreenProps) {
+  const { t } = useTranslation();
   const { haptic } = useTelegram();
   const [xpCount, setXpCount] = useState(0);
   const [saving, setSaving] = useState(true);
@@ -53,7 +55,7 @@ export function LaunchScreen({ data, telegramId, onLaunch }: LaunchScreenProps) 
       haptic.notification('success');
     } catch (err) {
       logger.error('Failed to complete onboarding', { error: err });
-      setError('Failed to save. Please try again.');
+      setError(t('onboarding.failedToSave'));
       setSaving(false);
     }
   };
@@ -66,7 +68,7 @@ export function LaunchScreen({ data, telegramId, onLaunch }: LaunchScreenProps) 
           onClick={completeOnboarding}
           className="px-6 py-3 rounded-xl bg-telegram-link text-white font-semibold"
         >
-          Retry
+          {t('common.retry')}
         </button>
       </div>
     );
@@ -75,7 +77,7 @@ export function LaunchScreen({ data, telegramId, onLaunch }: LaunchScreenProps) 
   if (saving) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center px-6 bg-telegram-bg">
-        <div className="animate-pulse text-telegram-hint text-lg">Setting up your plan...</div>
+        <div className="animate-pulse text-telegram-hint text-lg">{t('onboarding.settingUpPlan')}</div>
       </div>
     );
   }
@@ -117,7 +119,7 @@ export function LaunchScreen({ data, telegramId, onLaunch }: LaunchScreenProps) 
         >
           <div className="text-center">
             <div className="text-white text-4xl font-bold">1</div>
-            <div className="text-white/80 text-xs font-medium">LEVEL</div>
+            <div className="text-white/80 text-xs font-medium">{t('onboarding.levelLabel')}</div>
           </div>
         </motion.div>
 
@@ -127,7 +129,7 @@ export function LaunchScreen({ data, telegramId, onLaunch }: LaunchScreenProps) 
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.4 }}
         >
-          You're All Set!
+          {t('onboarding.allSet')}
         </motion.h1>
 
         {/* XP animation */}
@@ -150,8 +152,8 @@ export function LaunchScreen({ data, telegramId, onLaunch }: LaunchScreenProps) 
         >
           <Trophy className="w-6 h-6 text-purple-400" />
           <div>
-            <p className="text-sm font-semibold text-telegram-text">Achievement Unlocked!</p>
-            <p className="text-xs text-telegram-hint">First Steps</p>
+            <p className="text-sm font-semibold text-telegram-text">{t('onboarding.achievementUnlocked')}</p>
+            <p className="text-xs text-telegram-hint">{t('onboarding.firstSteps')}</p>
           </div>
           <Sparkles className="w-4 h-4 text-yellow-400" />
         </motion.div>
@@ -162,7 +164,7 @@ export function LaunchScreen({ data, telegramId, onLaunch }: LaunchScreenProps) 
           animate={{ opacity: 1 }}
           transition={{ delay: 1 }}
         >
-          Your first tasks have been created!
+          {t('onboarding.tasksCreated')}
         </motion.p>
       </div>
 
@@ -174,7 +176,7 @@ export function LaunchScreen({ data, telegramId, onLaunch }: LaunchScreenProps) 
         transition={{ delay: 1.2 }}
         whileTap={{ scale: 0.97 }}
       >
-        Go to Dashboard
+        {t('onboarding.goToDashboard')}
       </motion.button>
     </div>
   );

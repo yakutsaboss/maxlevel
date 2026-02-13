@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback, useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useTelegram } from '@/hooks/useTelegram';
 import { usePullToRefresh, PullIndicator } from '@/hooks/usePullToRefresh';
 import { apiClient } from '@/api/client';
@@ -13,6 +14,7 @@ import { YourRankCard } from '@/components/leaderboard/YourRankCard';
 import { logger } from '@/utils/logger';
 
 export function Leaderboard() {
+  const { t } = useTranslation();
   const { user, haptic } = useTelegram();
   const [entries, setEntries] = useState<LeaderboardEntry[]>([]);
   const [loading, setLoading] = useState(true);
@@ -75,7 +77,7 @@ export function Leaderboard() {
   useEffect(() => { loadLeaderboard(); }, [timePeriod]);
 
   if (loading && !refreshing) return <LeaderboardSkeleton />;
-  if (error) return <ErrorSection message="Could not load the leaderboard" onRetry={loadLeaderboard} />;
+  if (error) return <ErrorSection message={t('leaderboard.couldNotLoad')} onRetry={loadLeaderboard} />;
 
   const isUserInList = currentUserEntry !== null;
 
@@ -92,8 +94,8 @@ export function Leaderboard() {
             <Trophy className="w-8 h-8 text-white" />
           </div>
           <div className="flex-1">
-            <h1 className="text-2xl font-bold text-white">Leaderboard</h1>
-            <p className="text-yellow-100 text-sm">Top adventurers ranked by XP</p>
+            <h1 className="text-2xl font-bold text-white">{t('leaderboard.title')}</h1>
+            <p className="text-yellow-100 text-sm">{t('leaderboard.subtitle')}</p>
           </div>
           <button
             onClick={handleShare}
@@ -110,7 +112,7 @@ export function Leaderboard() {
         {entries.length === 0 ? (
           <div className="text-center py-12">
             <Trophy className="w-12 h-12 text-telegram-hint mx-auto mb-3" />
-            <p className="text-telegram-hint">No rankings yet. Be the first!</p>
+            <p className="text-telegram-hint">{t('leaderboard.noRankings')}</p>
           </div>
         ) : (
           <>
@@ -130,7 +132,7 @@ export function Leaderboard() {
             {entries.length > 3 && (
               <div className="flex items-center gap-3 my-4 px-2">
                 <div className="flex-1 h-px bg-telegram-hint/20" />
-                <span className="text-xs text-telegram-hint">#{4} and below</span>
+                <span className="text-xs text-telegram-hint">{t('leaderboard.andBelow', { rank: 4 })}</span>
                 <div className="flex-1 h-px bg-telegram-hint/20" />
               </div>
             )}

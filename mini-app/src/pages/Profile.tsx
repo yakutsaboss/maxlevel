@@ -1,5 +1,6 @@
 import { useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { useTelegram } from '@/hooks/useTelegram';
 import { useProfileData } from '@/hooks/useProfileData';
 import { apiClient } from '@/api/client';
@@ -16,6 +17,7 @@ import { ErrorSection } from '@/components/ErrorSection';
 import { formatDate } from '@/utils/formatDate';
 
 export function Profile() {
+  const { t } = useTranslation();
   const { user, haptic } = useTelegram();
   const navigate = useNavigate();
   const {
@@ -35,7 +37,7 @@ export function Profile() {
   }
 
   if (error || !stats) {
-    return <ErrorSection message="Could not load your profile" onRetry={loadProfileData} />;
+    return <ErrorSection message={t('profile.couldNotLoad')} onRetry={loadProfileData} />;
   }
 
   return (
@@ -73,22 +75,22 @@ export function Profile() {
 
       <div className="px-4 mt-6 mb-6">
         <div className="bg-telegram-secondaryBg rounded-2xl p-4 border border-telegram-hint/10">
-          <h3 className="font-semibold mb-3 text-sm text-telegram-hint">Account Info</h3>
+          <h3 className="font-semibold mb-3 text-sm text-telegram-hint">{t('profile.accountInfo')}</h3>
           <div className="space-y-2 text-sm">
             <div className="flex justify-between">
-              <span className="text-telegram-hint">Telegram ID</span>
+              <span className="text-telegram-hint">{t('profile.telegramId')}</span>
               <span className="font-mono">{stats.user.telegram_id}</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-telegram-hint">Joined</span>
+              <span className="text-telegram-hint">{t('profile.joined')}</span>
               <span>{formatDate(stats.user.created_at)}</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-telegram-hint">Total XP</span>
+              <span className="text-telegram-hint">{t('profile.totalXp')}</span>
               <span className="font-semibold">{stats.user.xp}</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-telegram-hint">Level</span>
+              <span className="text-telegram-hint">{t('profile.level')}</span>
               <span className="font-semibold">{stats.user.level}</span>
             </div>
           </div>
@@ -101,7 +103,7 @@ export function Profile() {
         onSaved={() => {
           loadProfileData();
           apiClient.clearCache();
-          setToast({ message: 'Profile saved successfully!', variant: 'success' });
+          setToast({ message: t('profile.savedSuccessfully'), variant: 'success' });
         }}
         telegramId={user!.id}
         currentName={stats.user.first_name}

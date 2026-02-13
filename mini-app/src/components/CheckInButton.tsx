@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useTelegram } from '@/hooks/useTelegram';
 import { apiClient } from '@/api/client';
 import { CheckCircle, Loader2 } from 'lucide-react';
@@ -15,6 +16,7 @@ interface CheckInButtonProps {
 }
 
 export function CheckInButton({ questInstanceId, telegramId, onSuccess, disabled, currentProgress, target }: CheckInButtonProps) {
+  const { t } = useTranslation();
   const { haptic } = useTelegram();
   const [loading, setLoading] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
@@ -60,13 +62,13 @@ export function CheckInButton({ questInstanceId, telegramId, onSuccess, disabled
         ) : (
           <CheckCircle className="w-5 h-5" />
         )}
-        {loading ? 'Checking in...' : (() => {
+        {loading ? t('quests.checkingIn') : (() => {
           if (currentProgress !== undefined && target !== undefined && target > 1) {
             const remaining = target - currentProgress;
-            if (remaining <= 1) return 'Check In (last one!)';
-            return `Check In (${remaining} left)`;
+            if (remaining <= 1) return t('quests.checkInLastOne');
+            return t('quests.checkInRemaining', { count: remaining });
           }
-          return 'Check In';
+          return t('dashboard.checkIn');
         })()}
       </motion.button>
 
@@ -78,7 +80,7 @@ export function CheckInButton({ questInstanceId, telegramId, onSuccess, disabled
             exit={{ opacity: 0, y: -10 }}
             className="absolute -top-8 left-1/2 -translate-x-1/2 bg-green-500 text-white text-sm font-medium px-3 py-1 rounded-full whitespace-nowrap"
           >
-            Checked in!
+            {t('quests.checkedIn')}
           </motion.div>
         )}
       </AnimatePresence>
