@@ -1080,7 +1080,22 @@ PGPASSWORD=postgres psql -h localhost -U postgres -d telegram_rpg -f /opt/wibeco
 - The `subscriptions` table CHECK constraint must include 'subscriber' — also depends on Agent A.
 
 #### Agent C Retrospective
-*(To be filled by Agent C)*
+**Task:** Update premiumGate tier hierarchy (free/subscriber/premium), add getUserEffectiveTier(), MODE_LIMITS, enforce mode limit in POST /users/:userId/modes.
+**Result:** All tasks complete. Build passes clean (tsc 0 errors).
+
+**Files modified (2):**
+1. **premiumGate.ts** — Renamed `pro` → `subscriber` in TIER_LEVELS. Added exported `MODE_LIMITS` (`{ free: 2, subscriber: 3, premium: 6 }`). Added exported `getUserEffectiveTier(userId)` that checks subscriptions table for premium (with expiry handling), then channel_subscriptions cache for subscriber, falling back to free. Simplified `requirePremium` middleware to use `getUserEffectiveTier` instead of inline subscription query + expiry logic.
+2. **modes.ts** — Imported `getUserEffectiveTier` + `MODE_LIMITS` from premiumGate. Added tier-based mode limit check in POST handler: counts current active modes, compares `currentCount + requested` against tier limit, throws `BadRequestError` with tier/limit info if exceeded.
+
+**Design decisions:**
+- Premium tier takes priority over subscriber (Stars > channel subscription).
+- Expired premium falls through to channel check (user might still be a channel subscriber).
+- Channel_subscriptions cache is trusted as-is (Agent B's channel API handles refresh/TTL).
+- Mode limit check happens early (before resolving mode names) to fail fast.
+
+**Notes for Agent 0:**
+- `channel_subscriptions` table is created by Agent A's migration. My code queries it but doesn't create it.
+- Agent G's tests (premiumGate-tiers.test.ts, modes-gating.test.ts) will need to mock both `subscriptions` and `channel_subscriptions` queries.
 
 #### Agent D Retrospective
 *(To be filled by Agent D)*

@@ -9,6 +9,7 @@ import {
   NotFoundError,
 } from '../utils/errors.js';
 import { safeParseInt } from '../../utils/validation.js';
+import { getUserEffectiveTier, MODE_LIMITS } from '../middleware/premiumGate.js';
 
 const router = Router();
 
@@ -84,6 +85,23 @@ router.post('/users/:userId', authenticateTelegram, authorizeUser, asyncHandler(
 
   if (!modes || !Array.isArray(modes) || modes.length === 0) {
     throw new BadRequestError('Invalid modes array');
+  }
+
+  // Tier-based mode limit check
+  const userTier = await getUserEffectiveTier(userId);
+  const modeLimit = MODE_LIMITS[userTier] ?? MODE_LIMITS['free'];
+
+  const currentActive = await queryOne<{ count: number }>(
+    `SELECT COUNT(*)::int AS count FROM user_modes WHERE user_id = $1 AND is_active = true`,
+    [userId],
+  );
+  const currentCount = currentActive?.count ?? 0;
+
+  if (currentCount + modes.length > modeLimit) {
+    throw new BadRequestError(
+      `Mode limit reached. Your tier (${userTier}) allows ${modeLimit} modes. ` +
+      `You have ${currentCount} active, trying to add ${modes.length}.`
+    );
   }
 
   const added: { mode: string; user_mode_id: number }[] = [];
