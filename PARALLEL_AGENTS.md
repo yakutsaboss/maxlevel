@@ -1520,10 +1520,35 @@ After completing work, write your retrospective in PARALLEL_AGENTS.md under "Run
 **Note for Agent 0:** The existing `safeParseInt` in `leaderboard.ts` is still there (unchanged per FORBIDDEN rules). Future cleanup could import from `validation.ts` instead, but that's outside this run's scope.
 
 #### Agent D Retrospective
-*(To be filled by Agent D)*
+**Task:** Write tests for untested mini-app components in finance and social categories.
+
+**Result:** 33 new tests across 6 files, all passing.
+
+**Files created:**
+- `BudgetForm.test.tsx` — 6 tests (toggle, category select, disabled states, type labels)
+- `BudgetSummary.test.tsx` — 5 tests (totals, percentages, category breakdown, empty state)
+- `GoalForm.test.tsx` — 5 tests (toggle, input validation, disabled states, submitting text)
+- `ChallengeForm.test.tsx` — 6 tests (fields render, disable states, success/error/network messages)
+- `ChallengesList.test.tsx` — 4 tests (empty state, renders cards, descriptions)
+- `FriendRequestForm.test.tsx` — 7 tests (input/button, disable, success/error/network, validation)
+
+**Note:** `SavingsGoal.test.tsx` already existed with 8 tests from a previous run — left untouched.
+
+**BUILD VERIFY:** Full command ran 8 test files (6 new + 2 existing), 49 tests total — all green.
+
+**Issues:** None. All components had clear, testable interfaces. Followed existing patterns from ChallengeCard.test.tsx and FriendsList.test.tsx (vi.mock for framer-motion/lucide-react, @testing-library/react for rendering).
 
 #### Agent E Retrospective
-*(To be filled by Agent E)*
+**Task:** Write tests for untested bot utilities (achievementEngine, broadcast) and dailySummary job.
+
+**Results:** 22 tests across 3 new files, all passing:
+- `achievementEngine.test.ts` — 9 tests: criteria evaluation (level, xp, quest_count, streak, unknown type), unlock flow with XP bonus, ON CONFLICT dedup, cache invalidation, user-not-found path
+- `broadcast.test.ts` — 6 tests: successful batch sending, individual failure handling, network errors, empty array, batch sizing (20 per batch), all-fail scenario
+- `dailySummary.test.ts` — 7 tests: job name/cron, user selection with reminder_time, no-users skip, failed send counting, DB error propagation, null query result handling
+
+**Approach:** Followed existing patterns from streakCheck.test.ts (job mocking) and xpAward.test.ts (utility mocking). Used `vi.mock()` hoisting for db, logger, cache, xpAward, and fetch. Used `vi.useFakeTimers()` + `vi.runAllTimersAsync()` for broadcast rate-limit delays.
+
+**No source files modified** — test-only agent as required.
 
 #### Agent 0 Retrospective
 *(To be filled by Agent 0 after merge)*
