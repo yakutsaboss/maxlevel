@@ -11,6 +11,16 @@ import {
   NotFoundError,
 } from '../utils/errors.js';
 
+/** Row shape returned by friend_requests table queries (RETURNING *). */
+interface FriendRequestRow {
+  [key: string]: unknown;
+  id: number;
+  from_user_id: number;
+  to_user_id: number;
+  status: string;
+  created_at: string;
+}
+
 const router = Router();
 
 // POST /api/social/friends/request — send friend request
@@ -59,7 +69,7 @@ router.post('/friends/accept', authenticateTelegram, mutationLimiter, asyncHandl
     throw new BadRequestError('requestId must be a positive integer');
   }
 
-  const request = await queryOne(
+  const request = await queryOne<FriendRequestRow>(
     `UPDATE friend_requests SET status = 'accepted'
      WHERE id = $1 AND status = 'pending' RETURNING *`,
     [requestId]
@@ -69,8 +79,8 @@ router.post('/friends/accept', authenticateTelegram, mutationLimiter, asyncHandl
     throw new NotFoundError('Friend request not found or already processed');
   }
 
-  invalidate(`social:challenges:${(request as any).from_user_id}`);
-  invalidate(`social:challenges:${(request as any).to_user_id}`);
+  invalidate(`social:challenges:${request.from_user_id}`);
+  invalidate(`social:challenges:${request.to_user_id}`);
 
   res.json(successResponse(request, 'Friend request accepted'));
 }));

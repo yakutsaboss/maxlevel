@@ -896,7 +896,14 @@ After completing work, write your retrospective in PARALLEL_AGENTS.md under "Run
 *(To be filled by Agent B)*
 
 #### Agent C Retrospective
-*(To be filled by Agent C)*
+**Tasks completed:**
+1. **Fixed `as any` casts in social.ts** — Created `FriendRequestRow` interface with proper fields (`id`, `from_user_id`, `to_user_id`, `status`, `created_at`) and index signature to satisfy `Record<string, unknown>` constraint from `queryOne<T>`. Replaced `(request as any).from_user_id` / `to_user_id` with typed access.
+2. **Created `safeParseInt` helper in leaderboard.ts** — Handles `undefined`, empty string, and NaN correctly while preserving `0` as a valid value (unlike `parseInt(x) || default` which treats 0 as falsy). Applied to all 8 `parseInt` calls: 3 query-param limit parsers and 5 row-formatting parsers.
+3. **Added test scripts to bot/package.json** — `"test": "vitest --run"` and `"test:watch": "vitest"`.
+
+**Build:** `npm run build` passes cleanly.
+**Issues:** Initial build failed because `FriendRequestRow` as a plain interface doesn't satisfy `Record<string, unknown>` — needed `[key: string]: unknown` index signature. Fixed immediately.
+**Files modified:** `bot/src/api/routes/social.ts`, `bot/src/api/routes/leaderboard.ts`, `bot/package.json` (all within owned file list).
 
 #### Agent D Retrospective
 *(To be filled by Agent D)*

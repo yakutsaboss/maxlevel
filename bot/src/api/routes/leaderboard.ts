@@ -30,6 +30,17 @@ type LeaderboardEntryRow = {
   xp_rank?: string;
 };
 
+/**
+ * Safely parse an integer from a string query parameter.
+ * Unlike `parseInt(val) || default`, this correctly handles '0' as a valid value
+ * instead of falling through to the default.
+ */
+function safeParseInt(value: string | undefined, defaultVal: number): number {
+  if (value === undefined || value === '') return defaultVal;
+  const parsed = parseInt(value, 10);
+  return Number.isNaN(parsed) ? defaultVal : parsed;
+}
+
 const router = Router();
 
 /**
@@ -39,7 +50,7 @@ const router = Router();
  * Optional ?mode=fitness|hydration|finance|learning to filter by mode.
  */
 router.get('/', authenticateTelegram, asyncHandler(async (req: Request, res: Response) => {
-  const limit = Math.min(parseInt(req.query.limit as string) || 50, 100);
+  const limit = Math.min(safeParseInt(req.query.limit as string | undefined, 50), 100);
   const mode = req.query.mode as string | undefined;
 
   if (mode) {
@@ -88,7 +99,7 @@ router.get('/', authenticateTelegram, asyncHandler(async (req: Request, res: Res
       mode_xp: row.mode_xp,
       mode_streak: row.mode_streak,
       mode_quests_completed: row.mode_quests_completed,
-      xp_rank: parseInt(row.xp_rank as string) || 0,
+      xp_rank: safeParseInt(row.xp_rank as string | undefined, 0),
     }));
 
     res.json({ ...successResponse(formatted), mode });
@@ -128,10 +139,10 @@ router.get('/', authenticateTelegram, asyncHandler(async (req: Request, res: Res
     first_name: row.first_name,
     level: row.current_level,
     total_xp: row.total_xp,
-    current_streak: parseInt(row.best_current_streak as string) || 0,
-    total_quests_completed: parseInt(row.total_quests_completed as string) || 0,
-    xp_rank: parseInt(row.xp_rank as string) || 0,
-    level_rank: parseInt(row.level_rank as string) || 0,
+    current_streak: safeParseInt(row.best_current_streak as string | undefined, 0),
+    total_quests_completed: safeParseInt(row.total_quests_completed as string | undefined, 0),
+    xp_rank: safeParseInt(row.xp_rank as string | undefined, 0),
+    level_rank: safeParseInt(row.level_rank as string | undefined, 0),
   }));
 
   res.json(successResponse(formatted));
@@ -143,7 +154,7 @@ router.get('/', authenticateTelegram, asyncHandler(async (req: Request, res: Res
  * Cached for 5 minutes.
  */
 router.get('/weekly', authenticateTelegram, asyncHandler(async (req: Request, res: Response) => {
-  const limit = Math.min(parseInt(req.query.limit as string) || 50, 100);
+  const limit = Math.min(safeParseInt(req.query.limit as string | undefined, 50), 100);
 
   const entries = await cached(`leaderboard:weekly:${limit}`, 300, () =>
     query<LeaderboardEntryRow>(
@@ -184,7 +195,7 @@ router.get('/weekly', authenticateTelegram, asyncHandler(async (req: Request, re
  * Cached for 5 minutes.
  */
 router.get('/monthly', authenticateTelegram, asyncHandler(async (req: Request, res: Response) => {
-  const limit = Math.min(parseInt(req.query.limit as string) || 50, 100);
+  const limit = Math.min(safeParseInt(req.query.limit as string | undefined, 50), 100);
 
   const entries = await cached(`leaderboard:monthly:${limit}`, 300, () =>
     query<LeaderboardEntryRow>(

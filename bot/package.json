@@ -9,6 +9,8 @@
     "build": "tsc",
     "start": "node dist/index.js",
     "lint": "eslint src/**/*.ts",
+    "test": "vitest --run",
+    "test:watch": "vitest",
     "clean": "rm -rf dist"
   },
   "keywords": [
