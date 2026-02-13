@@ -2621,4 +2621,22 @@ After completing work, write your retrospective in PARALLEL_AGENTS.md under "Run
 #### Agent 0 Retrospective
 *(To be filled by Agent 0)*
 
+### Run 49 Retrospectives
+
+#### Agent B Retrospective
+**Finance Page + DB Tables — completed successfully.**
+
+Files created/modified:
+- `database/schema.sql` — added `finance_budget_entries` and `finance_savings_goals` tables with indexes at end of file
+- `database/migrations/003_finance_tables.sql` — standalone migration with same SQL using `IF NOT EXISTS` for idempotency
+- `mini-app/src/pages/Finance.tsx` — new page with Budget/Savings tab switcher, gradient header matching project style (Leaderboard/Quests pattern), delegates to existing `BudgetTracker` and `SavingsGoal` components which handle their own data fetching
+
+Design decisions:
+- Did NOT duplicate apiClient calls at page level since BudgetTracker and SavingsGoal already handle their own fetching, loading, and error states internally. Page provides tab structure + userId passthrough.
+- Used motion animations for tab content transitions consistent with other pages.
+- Shows Loader2 spinner while user context loads, ErrorSection if user.id missing.
+- Page is NOT routed yet — Agent A handles App.tsx routing.
+
+Build: `tsc --noEmit` and `npm run build` both pass clean.
+
 <!-- Next run goes here. Agent 0 will append RUN 49 below this line. -->
