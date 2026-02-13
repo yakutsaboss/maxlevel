@@ -52,12 +52,6 @@ export async function handleLeaderboard(ctx: Context) {
       msg += `${icon} *${name}* — Lv.${row.current_level} · ${row.total_xp} XP\n`;
     }
 
-    // Check if current user is in top 10
-    const userInTop = top10.find((r: LeaderboardRow) => {
-      // We need telegram_id — fetch it separately since leaderboard_mv has it
-      return false; // Will check below
-    });
-
     // Fetch current user's rank
     const myRank = await queryOne<LeaderboardRow>(
       `SELECT username, first_name, current_level, total_xp, xp_rank
