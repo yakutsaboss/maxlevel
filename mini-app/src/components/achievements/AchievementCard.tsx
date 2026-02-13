@@ -71,7 +71,7 @@ export function AchievementCard({ achievement: ach, userAchievement: userAch, is
       whileTap={{ scale: 0.95 }}
       onClick={() => haptic.impact('light')}
       aria-label={`Achievement: ${isUnlocked ? (ach.name || 'Unknown') : 'Locked'} — ${isUnlocked ? 'Unlocked' : 'Locked'}, ${ach.xp_reward ?? 0} XP reward`}
-      className={`rounded-2xl p-4 border relative text-left overflow-hidden ${
+      className={`rounded-2xl p-4 border relative text-left ${
         isUnlocked
           ? `bg-telegram-secondaryBg ${rarityStyle.border}`
           : 'bg-telegram-secondaryBg/60 border-telegram-hint/10 opacity-60'

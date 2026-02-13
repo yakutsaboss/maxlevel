@@ -3195,7 +3195,15 @@ After completing work, write your retrospective in PARALLEL_AGENTS.md under "Run
 *(To be filled by Agent C)*
 
 #### Agent D Retrospective
-*(To be filled by Agent D)*
+**Task**: Fix achievement badge clipping (NEW badge, checkmark, lock icon)
+**File modified**: `mini-app/src/components/achievements/AchievementCard.tsx`
+**Result**: SUCCESS — build passes clean
+
+**Root cause**: Line 74 had `overflow-hidden` on the card container (`motion.button`). Three badges were positioned outside the card boundaries with negative offsets (`-top-2 -left-2`, `-top-1.5 -right-1.5`) and were clipped by the overflow.
+
+**Fix applied**: Option 1 (recommended) — removed `overflow-hidden` from the card className. The card content is text and icons only — no images or content that needs clipping. `rounded-2xl` border-radius works independently of overflow. `line-clamp-2` on text elements handles text truncation via CSS line-clamp, not overflow. One-word change, minimal diff.
+
+**No conflicts**: Only touched owned file.
 
 #### Agent E Retrospective
 *(To be filled by Agent E)*
