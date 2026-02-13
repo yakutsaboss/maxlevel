@@ -1061,7 +1061,23 @@ PGPASSWORD=postgres psql -h localhost -U postgres -d telegram_rpg -f /opt/wibeco
 - No bot/ or mini-app/ files touched (as required).
 
 #### Agent B Retrospective
-*(To be filled by Agent B)*
+**Task:** Create channel subscription API with Telegram getChatMember, 1-hour caching, and auto tier sync.
+**Result:** All 3 tasks complete. Build passes clean (tsc, 0 errors).
+
+**Files created/modified:**
+1. **bot/src/utils/telegramApi.ts** (NEW, ~90 lines) — `checkChannelMembership(telegramId, channelUsername)` calls Telegram `getChatMember` API. Returns `{ isMember, status }` where isMember=true for creator/administrator/member. Graceful error handling (returns isMember=false on failure).
+2. **bot/src/api/routes/channel.ts** (NEW, ~205 lines) — Two endpoints:
+   - `GET /:userId/status` — checks `channel_subscriptions` cache (1hr TTL), calls Telegram API if stale, upserts cache, auto-upgrades/downgrades tier.
+   - `POST /:userId/refresh` — force re-check bypassing cache.
+   - Auto-tier logic: free→subscriber on join, subscriber→free on leave. Premium tier untouched.
+3. **bot/src/api/server.ts** (GRAY AREA) — Added 1 import + 1 `app.use('/api/channel', channelRouter)` line.
+
+**Issues encountered:**
+- TypeScript `Record<string, unknown>` constraint on `query<T>`/`queryOne<T>` generics requires index signatures on interfaces. Fixed by adding `[key: string]: unknown` to all row interfaces.
+
+**Notes for Agent 0:**
+- The `channel_subscriptions` table must exist before this code runs — depends on Agent A's migration.
+- The `subscriptions` table CHECK constraint must include 'subscriber' — also depends on Agent A.
 
 #### Agent C Retrospective
 *(To be filled by Agent C)*
