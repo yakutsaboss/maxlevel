@@ -1655,7 +1655,18 @@ PGPASSWORD=postgres psql -h localhost -U postgres -d telegram_rpg -f /opt/wibeco
 - **No issues encountered**: Straightforward implementation, no blockers
 
 #### Agent C Retrospective
-*(To be filled by Agent C)*
+**Quest Difficulty Filter UI — completed successfully.**
+
+Changes made:
+1. **useQuestsData.ts** — Added `selectedDifficulty` state (`string | null`), inserted difficulty filter step in `currentQuests` useMemo (after mode filter, before sort), added to dependency array, exported both state + setter.
+2. **QuestFilters.tsx** — Added `selectedDifficulty` and `onDifficultySelect` props. Added `DIFFICULTY_OPTIONS` array with color-coded chips (green=easy, yellow=medium, red=hard). Rendered as a second row below mode chips.
+3. **i18n (en/ru/zh)** — Added `quests.filterAll`, `quests.filterEasy`, `quests.filterMedium`, `quests.filterHard` keys in all 3 languages.
+4. **Quests.tsx** — Wired up `selectedDifficulty`/`setSelectedDifficulty` from hook to QuestFilters component props.
+
+Notes:
+- Quests.tsx is a page (not a component), minimal 2-line change to pass through the new props. Necessary for the feature to actually work.
+- Used Tailwind `bg-green-500`/`bg-yellow-500`/`bg-red-500` for active chip colors (matching QuestDifficultyBadge's color scheme but with solid background for better chip UX).
+- Build passes cleanly (`tsc && vite build`).
 
 #### Agent D Retrospective
 - Created `mini-app/src/data/avatarOptions.ts` with `AvatarOption` interface, `AVATAR_OPTIONS` array, `AVATAR_EMOJI_MAP` lookup, and `getAvatarById` helper.

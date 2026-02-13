@@ -18,6 +18,7 @@ export function useQuestsData(userId: number | undefined, haptic: HapticFeedback
   const [todayCheckinCount, setTodayCheckinCount] = useState(0);
   const [selectedModeId, setSelectedModeId] = useState<number | null>(null);
   const [sortBy, setSortBy] = useState<SortOption>('newest');
+  const [selectedDifficulty, setSelectedDifficulty] = useState<string | null>(null);
 
   const loadTodayCheckins = async () => {
     if (!userId) return;
@@ -114,9 +115,13 @@ export function useQuestsData(userId: number | undefined, haptic: HapticFeedback
   const currentQuests = useMemo(() => {
     const source = activeTab === 'active' ? activeQuests : completedQuests;
 
-    const filtered = selectedModeId !== null
+    const modeFiltered = selectedModeId !== null
       ? source.filter((q) => q.mode_id === selectedModeId)
       : source;
+
+    const filtered = selectedDifficulty
+      ? modeFiltered.filter((q) => q.difficulty === selectedDifficulty)
+      : modeFiltered;
 
     const sorted = [...filtered];
     switch (sortBy) {
@@ -137,7 +142,7 @@ export function useQuestsData(userId: number | undefined, haptic: HapticFeedback
     }
 
     return sorted;
-  }, [activeTab, activeQuests, completedQuests, selectedModeId, sortBy]);
+  }, [activeTab, activeQuests, completedQuests, selectedModeId, selectedDifficulty, sortBy]);
 
   // Completion stats for progress bar
   const completionStats = useMemo(() => {
@@ -174,6 +179,8 @@ export function useQuestsData(userId: number | undefined, haptic: HapticFeedback
     // Filters
     selectedModeId,
     setSelectedModeId,
+    selectedDifficulty,
+    setSelectedDifficulty,
     sortBy,
     setSortBy,
     // Handlers

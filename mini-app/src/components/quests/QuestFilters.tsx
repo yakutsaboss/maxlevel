@@ -8,6 +8,8 @@ interface QuestFiltersProps {
   modes: Mode[];
   selectedModeId: number | null;
   onModeSelect: (modeId: number | null) => void;
+  selectedDifficulty: string | null;
+  onDifficultySelect: (difficulty: string | null) => void;
   sortBy: SortOption;
   onSortChange: (sort: SortOption) => void;
   haptic: { selection: () => void };
@@ -21,7 +23,14 @@ const SORT_LABEL_KEYS: Record<SortOption, string> = {
 
 const SORT_OPTIONS: SortOption[] = ['newest', 'xp_reward', 'progress'];
 
-export function QuestFilters({ modes, selectedModeId, onModeSelect, sortBy, onSortChange, haptic }: QuestFiltersProps) {
+const DIFFICULTY_OPTIONS: { value: string | null; labelKey: string; activeColor: string }[] = [
+  { value: null, labelKey: 'quests.filterAll', activeColor: 'bg-telegram-link text-white shadow-sm' },
+  { value: 'easy', labelKey: 'quests.filterEasy', activeColor: 'bg-green-500 text-white shadow-sm' },
+  { value: 'medium', labelKey: 'quests.filterMedium', activeColor: 'bg-yellow-500 text-white shadow-sm' },
+  { value: 'hard', labelKey: 'quests.filterHard', activeColor: 'bg-red-500 text-white shadow-sm' },
+];
+
+export function QuestFilters({ modes, selectedModeId, onModeSelect, selectedDifficulty, onDifficultySelect, sortBy, onSortChange, haptic }: QuestFiltersProps) {
   const { t } = useTranslation();
   const cycleSortOption = () => {
     const currentIndex = SORT_OPTIONS.indexOf(sortBy);
@@ -32,7 +41,7 @@ export function QuestFilters({ modes, selectedModeId, onModeSelect, sortBy, onSo
 
   return (
     <div className="px-4 mt-4">
-      <div className="flex items-center gap-2 mb-3">
+      <div className="flex items-center gap-2 mb-2">
         <div className="flex-1 overflow-x-auto scrollbar-hide">
           <div className="flex gap-2 pb-1">
             <button
@@ -67,6 +76,21 @@ export function QuestFilters({ modes, selectedModeId, onModeSelect, sortBy, onSo
           <ArrowUpDown className="w-3.5 h-3.5" />
           <span>{t(SORT_LABEL_KEYS[sortBy])}</span>
         </button>
+      </div>
+      <div className="flex gap-2 pb-1">
+        {DIFFICULTY_OPTIONS.map((opt) => (
+          <button
+            key={opt.value ?? 'all'}
+            onClick={() => { haptic.selection(); onDifficultySelect(opt.value); }}
+            className={`flex-shrink-0 px-3 py-1.5 rounded-xl text-sm font-medium transition-all ${
+              selectedDifficulty === opt.value
+                ? opt.activeColor
+                : 'bg-telegram-secondaryBg text-telegram-hint'
+            }`}
+          >
+            {t(opt.labelKey)}
+          </button>
+        ))}
       </div>
     </div>
   );
