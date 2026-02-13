@@ -16,6 +16,7 @@ type LeaderboardEntryRow = {
   first_name: string;
   current_level: number;
   total_xp: number;
+  avatar_id?: number;
   // mode-filtered leaderboard
   mode_xp?: number;
   mode_streak?: number;
@@ -49,7 +50,7 @@ router.get('/', authenticateTelegram, asyncHandler(async (req: Request, res: Res
     const entries = await cached(cacheKey, TTL.SHORT, () =>
       query<LeaderboardEntryRow>(
         `SELECT u.id AS user_id, u.telegram_id, u.username, u.first_name,
-                u.current_level, u.total_xp,
+                u.current_level, u.total_xp, u.avatar_id,
                 COALESCE(s.current_streak, 0)::int AS mode_streak,
                 COALESCE(qi.mode_xp, 0)::int AS mode_xp,
                 COALESCE(qi.mode_quests, 0)::int AS mode_quests_completed,
@@ -86,6 +87,7 @@ router.get('/', authenticateTelegram, asyncHandler(async (req: Request, res: Res
       first_name: row.first_name,
       level: row.current_level,
       total_xp: row.total_xp,
+      avatar_id: row.avatar_id ?? null,
       mode_xp: row.mode_xp,
       mode_streak: row.mode_streak,
       mode_quests_completed: row.mode_quests_completed,
@@ -100,7 +102,7 @@ router.get('/', authenticateTelegram, asyncHandler(async (req: Request, res: Res
   const entries = await cached(`leaderboard:${limit}`, TTL.SHORT, () =>
     query<LeaderboardEntryRow>(
       `SELECT u.id AS user_id, u.telegram_id, u.username, u.first_name,
-              u.current_level, u.total_xp,
+              u.current_level, u.total_xp, u.avatar_id,
               COALESCE(s.best_streak, 0) AS best_current_streak,
               COALESCE(qi.total_completed, 0) AS total_quests_completed,
               ROW_NUMBER() OVER (ORDER BY u.total_xp DESC) AS xp_rank,
@@ -129,6 +131,7 @@ router.get('/', authenticateTelegram, asyncHandler(async (req: Request, res: Res
     first_name: row.first_name,
     level: row.current_level,
     total_xp: row.total_xp,
+    avatar_id: row.avatar_id ?? null,
     current_streak: safeParseInt(row.best_current_streak as string | undefined, 0),
     total_quests_completed: safeParseInt(row.total_quests_completed as string | undefined, 0),
     xp_rank: safeParseInt(row.xp_rank as string | undefined, 0),
@@ -149,7 +152,7 @@ router.get('/weekly', authenticateTelegram, asyncHandler(async (req: Request, re
   const entries = await cached(`leaderboard:weekly:${limit}`, 300, () =>
     query<LeaderboardEntryRow>(
       `SELECT u.id AS user_id, u.telegram_id, u.username, u.first_name,
-              u.current_level, u.total_xp,
+              u.current_level, u.total_xp, u.avatar_id,
               COALESCE(SUM(qi.xp_awarded), 0)::int AS weekly_xp
        FROM users u
        LEFT JOIN quest_instances qi
@@ -172,6 +175,7 @@ router.get('/weekly', authenticateTelegram, asyncHandler(async (req: Request, re
     first_name: row.first_name,
     level: row.current_level,
     total_xp: row.total_xp,
+    avatar_id: row.avatar_id ?? null,
     weekly_xp: row.weekly_xp,
     rank: index + 1,
   }));
@@ -190,7 +194,7 @@ router.get('/monthly', authenticateTelegram, asyncHandler(async (req: Request, r
   const entries = await cached(`leaderboard:monthly:${limit}`, 300, () =>
     query<LeaderboardEntryRow>(
       `SELECT u.id AS user_id, u.telegram_id, u.username, u.first_name,
-              u.current_level, u.total_xp,
+              u.current_level, u.total_xp, u.avatar_id,
               COALESCE(SUM(qi.xp_awarded), 0)::int AS monthly_xp
        FROM users u
        LEFT JOIN quest_instances qi
@@ -213,6 +217,7 @@ router.get('/monthly', authenticateTelegram, asyncHandler(async (req: Request, r
     first_name: row.first_name,
     level: row.current_level,
     total_xp: row.total_xp,
+    avatar_id: row.avatar_id ?? null,
     monthly_xp: row.monthly_xp,
     rank: index + 1,
   }));
