@@ -2673,19 +2673,13 @@ After completing work, write your retrospective in PARALLEL_AGENTS.md under "Run
 
 **Note**: Run 49 retros for agents B-H were lost during `--theirs` conflict resolution (only Agent A's survived as last merge). Retros exist in git reflog on deleted branches.
 
-### Run 50 Retrospectives
+## Run 50 Retrospectives
 
-#### Agent E Retrospective
-**Task**: Fix avatar off-center in Profile page header.
-
-**Root cause**: `motion.div` used `inline-block relative` — `inline-block` with `text-center` parent doesn't reliably center when absolute-positioned children (level badge at `-bottom-2 -right-2`) extend the element's visual bounds.
-
-**Fix**: Wrapped the `motion.div` in a `flex justify-center` container and removed `inline-block` from the motion wrapper (kept only `relative` for badge positioning). The flex container centers the avatar circle itself, while the badge remains absolute-positioned relative to the circle.
-
-**Changes**: 1 file modified (`ProfileHeader.tsx`), ~4 lines changed. Structure: `div.flex.justify-center` > `motion.div.relative` > avatar + badge.
-
-**Build**: Clean — `tsc && vite build` passed, zero errors. Profile chunk 21.78 KB (unchanged).
-
-**Time**: ~3 minutes. Straightforward CSS layout fix.
+#### Agent G Retrospective
+- **Task**: Add punishment transparency info to onboarding (PunishmentConfig + ConsentToggle)
+- **Changes**: Added blue info box in PunishmentConfig.tsx explaining XP depreciation happens regardless of accountability toggle. Added subtitle in ConsentToggle.tsx clarifying that skipped quests already reduce XP.
+- **Files modified**: `mini-app/src/components/onboarding/PunishmentConfig.tsx`, `mini-app/src/components/onboarding/punishment/ConsentToggle.tsx`
+- **Build**: Passed (tsc + vite build clean)
+- **Issues**: None — straightforward text additions, no logic changes
 
 <!-- Next run goes here. Agent 0 will append RUN 51 below this line. -->

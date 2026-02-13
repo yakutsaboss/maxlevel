@@ -70,6 +70,13 @@ export function PunishmentConfig({ progress, stepLabel, data, onUpdate, onNext }
           <p className="text-telegram-hint text-sm">
             Want extra motivation? Pick a real consequence for skipping tasks.
           </p>
+          <div className="bg-blue-500/10 border border-blue-500/20 rounded-xl p-3 mt-3 text-left">
+            <p className="text-xs text-telegram-hint">
+              <span className="text-blue-400 font-semibold">Note:</span> Even without accountability enabled,
+              your XP will gradually decrease when you skip assigned quests. Enabling this adds extra consequences
+              on top of that — like losing streak progress or custom punishments you choose.
+            </p>
+          </div>
         </motion.div>
 
         <ConsentToggle consent={consent} onToggle={toggleConsent} />
