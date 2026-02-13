@@ -3081,7 +3081,13 @@ After completing work, write your retrospective in PARALLEL_AGENTS.md under "Run
 *(To be filled by Agent F)*
 
 #### Agent G Retrospective
-*(To be filled by Agent G)*
+**Task**: API Documentation — complete rewrite of `docs/API.md` to cover all endpoints added in Runs 40-48.
+
+**What was done**: Rewrote API.md from 690 lines (covering only Users, Quests, Achievements, Modes) to 1447 lines covering all 26 route files and ~65 endpoints. Added 8 new sections: Check-ins, Onboarding, Punishment, Social, Finance, Analytics, Leaderboard, Payments. Expanded Admin section from zero to full coverage (Stats, Users, Quests, Jobs). Added dedicated Authentication section (Telegram WebApp HMAC validation, Admin Basic Auth with role hierarchy, Webhook secret verification). Added Rate Limiting section with all 4 limiter tiers and their exact limits.
+
+**Files modified**: `docs/API.md` only (as specified).
+
+**No issues encountered.** Documentation-only task with no code changes.
 
 #### Agent H Retrospective
 *(To be filled by Agent H)*
