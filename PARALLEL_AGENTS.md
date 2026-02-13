@@ -1047,7 +1047,18 @@ PGPASSWORD=postgres psql -h localhost -U postgres -d telegram_rpg -f /opt/wibeco
 ### Run 56 Retrospectives
 
 #### Agent A Retrospective
-*(To be filled by Agent A)*
+**Task:** Rename `pro` tier to `subscriber` across DB schema + seed data, create `channel_subscriptions` cache table.
+**Result:** All 3 files created/updated. Migration is transactional (BEGIN/COMMIT), idempotent (IF NOT EXISTS/IF EXISTS).
+
+**Files modified:**
+1. **database/migrations/run56_tier_rename.sql** (NEW) — DROP old CHECK, UPDATE pro→subscriber, ADD new CHECK, UPDATE payments metadata, CREATE channel_subscriptions table with indexes.
+2. **database/schema.sql** — Changed tier CHECK from `(free, pro, premium)` to `(free, subscriber, premium)`, added DROP + CREATE for `channel_subscriptions` table (user_id, telegram_id, channel_username, is_subscribed, checked_at), added COMMENT.
+3. **database/seed_data.sql** — Rewrote Premium Tier Reference section with new tier model (free=2 modes, subscriber=3 modes via @yakutsaway, premium=6 modes via Stars).
+
+**Notes for Agent 0:**
+- Migration uses `DROP CONSTRAINT IF EXISTS` + `ADD CONSTRAINT` pattern for CHECK rename (safe for re-run).
+- `channel_subscriptions` uses `UNIQUE(user_id, channel_username)` to support multiple channels in future.
+- No bot/ or mini-app/ files touched (as required).
 
 #### Agent B Retrospective
 *(To be filled by Agent B)*

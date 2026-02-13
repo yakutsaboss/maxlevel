@@ -4,6 +4,7 @@
 -- Drop existing tables and views (for fresh install)
 DROP VIEW IF EXISTS user_stats CASCADE;
 DROP MATERIALIZED VIEW IF EXISTS leaderboard_mv CASCADE;
+DROP TABLE IF EXISTS channel_subscriptions CASCADE;
 DROP TABLE IF EXISTS subscriptions CASCADE;
 DROP TABLE IF EXISTS payments CASCADE;
 DROP TABLE IF EXISTS user_activity_log CASCADE;
@@ -250,7 +251,7 @@ CREATE INDEX idx_payments_status ON payments(status);
 CREATE TABLE subscriptions (
     id SERIAL PRIMARY KEY,
     user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE UNIQUE,
-    tier VARCHAR(20) NOT NULL DEFAULT 'free' CHECK (tier IN ('free', 'pro', 'premium')),
+    tier VARCHAR(20) NOT NULL DEFAULT 'free' CHECK (tier IN ('free', 'subscriber', 'premium')),
     started_at TIMESTAMPTZ DEFAULT NOW(),
     expires_at TIMESTAMPTZ,
     auto_renew BOOLEAN DEFAULT true,
@@ -259,6 +260,20 @@ CREATE TABLE subscriptions (
 );
 CREATE INDEX idx_subscriptions_user_id ON subscriptions(user_id);
 CREATE INDEX idx_subscriptions_tier ON subscriptions(tier);
+
+-- Channel subscriptions cache (Telegram channel membership, 1-hour TTL, added in Run 56)
+CREATE TABLE channel_subscriptions (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    telegram_id BIGINT NOT NULL,
+    channel_username VARCHAR(100) NOT NULL,
+    is_subscribed BOOLEAN NOT NULL DEFAULT FALSE,
+    checked_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    UNIQUE(user_id, channel_username)
+);
+CREATE INDEX idx_channel_subscriptions_user_id ON channel_subscriptions(user_id);
+CREATE INDEX idx_channel_subscriptions_checked_at ON channel_subscriptions(checked_at);
 
 -- User stats view (used by achievement_manager.py check_and_unlock_achievements, added in Run 19)
 CREATE VIEW user_stats AS
@@ -319,7 +334,8 @@ COMMENT ON TABLE punishment_history IS 'Audit log of applied punishments';
 COMMENT ON TABLE onboarding_state IS 'State for resuming interrupted onboarding';
 COMMENT ON TABLE user_activity_log IS 'Tracks all user interactions for engagement analytics';
 COMMENT ON TABLE payments IS 'Telegram Stars payment records for premium subscriptions';
-COMMENT ON TABLE subscriptions IS 'User premium subscription tier and billing state';
+COMMENT ON TABLE subscriptions IS 'User subscription tier and billing state (free/subscriber/premium)';
+COMMENT ON TABLE channel_subscriptions IS 'Cache for Telegram channel membership checks (1-hour TTL, used by tier system)';
 COMMENT ON VIEW user_stats IS 'Aggregated user stats for achievement checking (level, XP, streaks, quest counts)';
 COMMENT ON MATERIALIZED VIEW leaderboard_mv IS 'Cached leaderboard rankings, refreshed every 30 minutes by pg-boss job';
 

@@ -158,18 +158,19 @@ END $$;
 -- ON CONFLICT (telegram_id) DO NOTHING;
 
 -- ========================================
--- PREMIUM TIERS (added in Run 44)
+-- TIER SYSTEM (updated in Run 56: pro → subscriber)
 -- ========================================
 
--- Premium Tier Reference (used by payment routes and subscription management):
---   Tier       | Price (Stars/month) | Currency | Features
---   -----------|---------------------|----------|-------------------------------------------
---   free       | 0                   | XTR      | Basic quests, standard modes, ads
---   pro        | 299                 | XTR      | Priority quests, analytics, no ads
---   premium    | 599                 | XTR      | All pro features + personalized plans, smart recommendations, advanced analytics
+-- Tier Model Reference:
+--   Tier       | How to get                       | Mode limit | Price         | Features
+--   -----------|----------------------------------|------------|---------------|-------------------------------------------
+--   free       | Default                          | 2 modes    | 0             | Basic quests, standard modes
+--   subscriber | Subscribe to @yakutsaway channel | 3 modes    | Free (channel)| +1 mode slot via channel subscription
+--   premium    | Telegram Stars (599/month)       | 6 modes    | 599 XTR/month | All features + personalized plans, analytics
 --
 -- Telegram Stars (XTR) is the payment currency via Telegram's built-in payment system.
 -- 1 Star ≈ $0.013 USD (approximate, set by Telegram).
+-- The 'subscriber' tier is verified via Telegram getChatMember API with 1-hour cache.
 
 -- ========================================
 -- VERIFICATION QUERIES
