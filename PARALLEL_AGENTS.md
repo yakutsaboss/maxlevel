@@ -902,7 +902,17 @@ After completing work, write your retrospective in PARALLEL_AGENTS.md under "Run
 *(To be filled by Agent D)*
 
 #### Agent E Retrospective
-*(To be filled by Agent E)*
+**Task:** Write tests for untested bot utility modules (cache, streak, queries).
+
+**What was done:**
+- Created `cache.test.ts` (13 tests): set+get, cache hit, TTL expiry edge cases, cache miss with null, invalidate, invalidatePrefix, invalidatePattern, invalidateUserCache, clearAll, size, TTL constants.
+- Created `streak.test.ts` (7 tests): SQL structure validation (consecutive day increment, gap reset to 1, GREATEST for longest_streak, IS DISTINCT FROM for same-day skip), parameter passing, null return handling.
+- Created `queries.test.ts` (7 tests): getUserByTelegramId (found + not found), listAllModes (populated + empty), getUserActiveModes (active modes + empty + param passing).
+- Total: 27 tests, all passing.
+
+**Approach:** Cache tests used `vi.useFakeTimers()` for precise TTL control — no DB mock needed since it's pure in-memory. Streak and queries tests mocked `../../utils/db.js` with `vi.mock()` to isolate from the database layer, following the existing xpAward.test.ts pattern.
+
+**Issues:** None. All tests passed on first run.
 
 #### Agent 0 Retrospective
 *(To be filled by Agent 0 after merge)*
