@@ -1658,7 +1658,10 @@ PGPASSWORD=postgres psql -h localhost -U postgres -d telegram_rpg -f /opt/wibeco
 *(To be filled by Agent C)*
 
 #### Agent D Retrospective
-*(To be filled by Agent D)*
+- Created `mini-app/src/data/avatarOptions.ts` with `AvatarOption` interface, `AVATAR_OPTIONS` array, `AVATAR_EMOJI_MAP` lookup, and `getAvatarById` helper.
+- Refactored `AvatarSelect.tsx` to import from the shared data file instead of hardcoding avatars. Changed `icon` references to `emoji` to match the new interface.
+- Upgraded `UserAvatar.tsx` with optional `avatarId` prop. When `avatarId` is provided and found in `AVATAR_EMOJI_MAP`, renders the emoji on a neutral background. Falls back to the existing color+initial behavior otherwise. Added `EMOJI_SIZE_CLASSES` for proper emoji sizing at sm/md/lg.
+- Build passes cleanly, no issues encountered.
 
 #### Agent E Retrospective
 All 4 tasks completed cleanly. Added `u.avatar_id` to all 4 leaderboard SQL queries (mode-filtered, default, weekly, monthly), added `avatar_id: row.avatar_id ?? null` to all 4 response formatters, added `avatar_id?: number` to the `LeaderboardEntryRow` type. Updated `leaderboard_mv` in schema.sql with `u.avatar_id` in SELECT and GROUP BY. Created migration `run57_leaderboard_avatar.sql` that drops and recreates the view with indexes. Updated `LeaderboardEntry` interface in mini-app types. Bot build passes with zero errors. No conflicts with other agents' owned files.
