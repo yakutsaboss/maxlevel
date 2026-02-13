@@ -1,4 +1,5 @@
 import { useLocation, useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { Home, Target, User, Trophy, Award, Users, DollarSign } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useTelegram } from '@/hooks/useTelegram';
@@ -6,17 +7,17 @@ import { useTelegram } from '@/hooks/useTelegram';
 interface NavItem {
   path: string;
   icon: React.ReactNode;
-  label: string;
+  labelKey: string;
 }
 
 const navItems: NavItem[] = [
-  { path: '/dashboard', icon: <Home className="w-5 h-5" />, label: 'Home' },
-  { path: '/quests', icon: <Target className="w-5 h-5" />, label: 'Quests' },
-  { path: '/achievements', icon: <Award className="w-5 h-5" />, label: 'Rewards' },
-  { path: '/leaderboard', icon: <Trophy className="w-5 h-5" />, label: 'Ranks' },
-  { path: '/social', icon: <Users className="w-5 h-5" />, label: 'Social' },
-  { path: '/finance', icon: <DollarSign className="w-5 h-5" />, label: 'Finance' },
-  { path: '/profile', icon: <User className="w-5 h-5" />, label: 'Profile' },
+  { path: '/dashboard', icon: <Home className="w-5 h-5" />, labelKey: 'nav.home' },
+  { path: '/quests', icon: <Target className="w-5 h-5" />, labelKey: 'nav.quests' },
+  { path: '/achievements', icon: <Award className="w-5 h-5" />, labelKey: 'nav.rewards' },
+  { path: '/leaderboard', icon: <Trophy className="w-5 h-5" />, labelKey: 'nav.ranks' },
+  { path: '/social', icon: <Users className="w-5 h-5" />, labelKey: 'nav.social' },
+  { path: '/finance', icon: <DollarSign className="w-5 h-5" />, labelKey: 'nav.finance' },
+  { path: '/profile', icon: <User className="w-5 h-5" />, labelKey: 'nav.profile' },
 ];
 
 interface NavigationProps {
@@ -24,6 +25,7 @@ interface NavigationProps {
 }
 
 export function Navigation({ questBadgeCount = 0 }: NavigationProps) {
+  const { t } = useTranslation();
   const location = useLocation();
   const navigate = useNavigate();
   const { haptic } = useTelegram();
@@ -41,12 +43,13 @@ export function Navigation({ questBadgeCount = 0 }: NavigationProps) {
       <div className="flex items-center justify-around px-4 py-2">
         {navItems.map((item) => {
           const isActive = location.pathname === item.path;
+          const label = t(item.labelKey);
 
           return (
             <button
               key={item.path}
               onClick={() => handleNavigate(item.path)}
-              aria-label={item.path === '/quests' && questBadgeCount > 0 ? `${item.label} (${questBadgeCount} new)` : item.label}
+              aria-label={item.path === '/quests' && questBadgeCount > 0 ? `${label} (${questBadgeCount} new)` : label}
               aria-current={isActive ? 'page' : undefined}
               className="relative flex flex-col items-center justify-center py-2 px-3 transition-colors"
             >
@@ -66,7 +69,7 @@ export function Navigation({ questBadgeCount = 0 }: NavigationProps) {
                 )}
               </div>
               <span className={`relative z-10 text-xs mt-1 transition-colors ${isActive ? 'text-telegram-link font-semibold' : 'text-telegram-hint'}`}>
-                {item.label}
+                {label}
               </span>
               {isActive && (
                 <motion.div

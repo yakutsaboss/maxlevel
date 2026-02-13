@@ -1,15 +1,16 @@
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { motion } from 'framer-motion';
 import { useTelegram } from '@/hooks/useTelegram';
 import { ProgressBar } from './ui/ProgressBar';
 import { ContinueButton } from './ui/ContinueButton';
 
 const AVATARS = [
-  { value: 'gym_warrior', label: 'Gym Warrior', icon: '💪', desc: 'Lives for the grind' },
-  { value: 'office_boss', label: 'Office Boss', icon: '👑', desc: 'Crushing goals 9 to 5' },
-  { value: 'magic_pet', label: 'Magic Pet', icon: '🐱', desc: 'Cute but deadly serious' },
-  { value: 'night_owl', label: 'Night Owl', icon: '🦉', desc: 'Peak performance after midnight' },
-  { value: 'couch_hero', label: 'Couch Hero', icon: '🥔', desc: 'Starting from zero, going to hero' },
+  { value: 'gym_warrior', labelKey: 'onboarding.avatarGymWarrior', icon: '💪', descKey: 'onboarding.avatarGymWarriorDesc' },
+  { value: 'office_boss', labelKey: 'onboarding.avatarOfficeBoss', icon: '👑', descKey: 'onboarding.avatarOfficeBossDesc' },
+  { value: 'magic_pet', labelKey: 'onboarding.avatarMagicPet', icon: '🐱', descKey: 'onboarding.avatarMagicPetDesc' },
+  { value: 'night_owl', labelKey: 'onboarding.avatarNightOwl', icon: '🦉', descKey: 'onboarding.avatarNightOwlDesc' },
+  { value: 'couch_hero', labelKey: 'onboarding.avatarCouchHero', icon: '🥔', descKey: 'onboarding.avatarCouchHeroDesc' },
 ];
 
 interface AvatarSelectProps {
@@ -21,6 +22,7 @@ interface AvatarSelectProps {
 }
 
 export function AvatarSelect({ progress, stepLabel, value, onSelect, onNext }: AvatarSelectProps) {
+  const { t } = useTranslation();
   const { haptic } = useTelegram();
   const [selected, setSelected] = useState(value || '');
 
@@ -40,10 +42,10 @@ export function AvatarSelect({ progress, stepLabel, value, onSelect, onNext }: A
           animate={{ opacity: 1, y: 0 }}
         >
           <h2 className="text-2xl font-bold text-telegram-text text-center mb-2">
-            Pick Your Character
+            {t('onboarding.pickCharacter')}
           </h2>
           <p className="text-telegram-hint text-center mb-6">
-            Which one sounds like you?
+            {t('onboarding.whichSoundsLikeYou')}
           </p>
         </motion.div>
 
@@ -70,9 +72,9 @@ export function AvatarSelect({ progress, stepLabel, value, onSelect, onNext }: A
                 <span className={`text-base font-semibold block ${
                   selected === avatar.value ? 'text-telegram-link' : 'text-telegram-text'
                 }`}>
-                  {avatar.label}
+                  {t(avatar.labelKey)}
                 </span>
-                <span className="text-xs text-telegram-hint">{avatar.desc}</span>
+                <span className="text-xs text-telegram-hint">{t(avatar.descKey)}</span>
               </div>
             </motion.button>
           ))}

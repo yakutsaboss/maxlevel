@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { motion } from 'framer-motion';
 import { Lock } from 'lucide-react';
 import { useTelegram } from '@/hooks/useTelegram';
@@ -8,32 +9,32 @@ import { ContinueButton } from './ui/ContinueButton';
 const MODES = [
   {
     id: 'fitness',
-    name: 'Fitness',
-    desc: 'Workouts, body goals & daily movement',
+    nameKey: 'onboarding.modeFitness',
+    descKey: 'onboarding.modeFitnessDesc',
     icon: '🏋️',
     color: 'border-red-500 bg-red-500/10',
     available: true,
   },
   {
     id: 'hydration',
-    name: 'Hydration',
-    desc: 'Track water intake & build the habit',
+    nameKey: 'onboarding.modeHydration',
+    descKey: 'onboarding.modeHydrationDesc',
     icon: '💧',
     color: 'border-blue-500 bg-blue-500/10',
     available: true,
   },
   {
     id: 'finance',
-    name: 'Finance',
-    desc: 'Budget tracking & saving goals',
+    nameKey: 'onboarding.modeFinance',
+    descKey: 'onboarding.modeFinanceDesc',
     icon: '💰',
     color: 'border-yellow-500 bg-yellow-500/10',
     available: true,
   },
   {
     id: 'learning',
-    name: 'Learning',
-    desc: 'New skills & daily learning habits',
+    nameKey: 'onboarding.modeLearning',
+    descKey: 'onboarding.modeLearningDesc',
     icon: '📚',
     color: 'border-green-500 bg-green-500/10',
     available: true,
@@ -49,6 +50,7 @@ interface PathSelectProps {
 }
 
 export function PathSelect({ progress, stepLabel, value, onSelect, onNext }: PathSelectProps) {
+  const { t } = useTranslation();
   const { haptic } = useTelegram();
   const [selected, setSelected] = useState<string[]>(value || []);
 
@@ -71,10 +73,10 @@ export function PathSelect({ progress, stepLabel, value, onSelect, onNext }: Pat
           animate={{ opacity: 1, y: 0 }}
         >
           <h2 className="text-2xl font-bold text-telegram-text text-center mb-2">
-            What Do You Want to Improve?
+            {t('onboarding.whatToImprove')}
           </h2>
           <p className="text-telegram-hint text-center mb-6">
-            Pick the areas you want to focus on
+            {t('onboarding.pickAreas')}
           </p>
         </motion.div>
 
@@ -103,12 +105,12 @@ export function PathSelect({ progress, stepLabel, value, onSelect, onNext }: Pat
                 {!mode.available && (
                   <div className="absolute top-2 right-2 bg-telegram-hint/30 rounded-full px-2 py-0.5 flex items-center gap-1">
                     <Lock className="w-3 h-3 text-telegram-hint" />
-                    <span className="text-[10px] text-telegram-hint font-medium">Soon</span>
+                    <span className="text-[10px] text-telegram-hint font-medium">{t('onboarding.soon')}</span>
                   </div>
                 )}
                 <span className="text-3xl block mb-2">{mode.icon}</span>
-                <h3 className="font-semibold text-sm text-telegram-text mb-1">{mode.name}</h3>
-                <p className="text-xs text-telegram-hint leading-snug">{mode.desc}</p>
+                <h3 className="font-semibold text-sm text-telegram-text mb-1">{t(mode.nameKey)}</h3>
+                <p className="text-xs text-telegram-hint leading-snug">{t(mode.descKey)}</p>
               </motion.button>
             );
           })}
@@ -119,7 +121,7 @@ export function PathSelect({ progress, stepLabel, value, onSelect, onNext }: Pat
         <ContinueButton
           onClick={onNext}
           disabled={selected.length === 0}
-          label={selected.length > 0 ? `Continue (${selected.length} selected)` : 'Select at least 1'}
+          label={selected.length > 0 ? t('onboarding.continueSelected', { count: selected.length }) : t('onboarding.selectAtLeast1')}
         />
       </div>
     </div>

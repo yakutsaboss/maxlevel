@@ -1,4 +1,5 @@
 import { useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { motion } from 'framer-motion';
 import { Achievement } from '@/types';
 import { Zap } from 'lucide-react';
@@ -9,6 +10,8 @@ interface AchievementToastProps {
 }
 
 export function AchievementToast({ achievement, onClose }: AchievementToastProps) {
+  const { t } = useTranslation();
+
   useEffect(() => {
     const timer = setTimeout(onClose, 4000);
     return () => clearTimeout(timer);
@@ -31,7 +34,7 @@ export function AchievementToast({ achievement, onClose }: AchievementToastProps
             {achievement.icon || '🏆'}
           </div>
           <div className="flex-1 min-w-0">
-            <div className="text-xs font-semibold text-amber-900/70 uppercase tracking-wider">Achievement Unlocked!</div>
+            <div className="text-xs font-semibold text-amber-900/70 uppercase tracking-wider">{t('achievements.achievementUnlocked')}</div>
             <div className="text-base font-bold text-white truncate mt-0.5">{achievement.name}</div>
             <div className="flex items-center gap-1 mt-1">
               <Zap className="w-3.5 h-3.5 text-white" />

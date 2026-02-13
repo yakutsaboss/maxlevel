@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { X, Check, Loader2, AlertCircle } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { apiClient } from '@/api/client';
@@ -17,35 +18,38 @@ interface ProfileEditModalProps {
   };
 }
 
-export const AVATAR_OPTIONS = [
-  { icon: '⚔️', color: 'bg-red-500', label: 'Warrior' },
-  { icon: '🧙', color: 'bg-purple-500', label: 'Mage' },
-  { icon: '🛡️', color: 'bg-blue-500', label: 'Guardian' },
-  { icon: '🏹', color: 'bg-green-500', label: 'Ranger' },
-  { icon: '🔥', color: 'bg-orange-500', label: 'Pyro' },
-  { icon: '💎', color: 'bg-cyan-500', label: 'Mystic' },
-  { icon: '🌟', color: 'bg-yellow-500', label: 'Star' },
-  { icon: '🦊', color: 'bg-amber-500', label: 'Fox' },
-  { icon: '🐉', color: 'bg-emerald-500', label: 'Dragon' },
-  { icon: '🦅', color: 'bg-sky-500', label: 'Eagle' },
-  { icon: '🐺', color: 'bg-slate-500', label: 'Wolf' },
-  { icon: '🎯', color: 'bg-rose-500', label: 'Hunter' },
-  { icon: '👑', color: 'bg-yellow-600', label: 'Royal' },
-  { icon: '🗡️', color: 'bg-zinc-500', label: 'Rogue' },
-  { icon: '🌙', color: 'bg-indigo-500', label: 'Night' },
-  { icon: '☀️', color: 'bg-orange-400', label: 'Dawn' },
+const AVATAR_KEYS = [
+  { icon: '⚔️', color: 'bg-red-500', labelKey: 'profile.avatarWarrior' },
+  { icon: '🧙', color: 'bg-purple-500', labelKey: 'profile.avatarMage' },
+  { icon: '🛡️', color: 'bg-blue-500', labelKey: 'profile.avatarGuardian' },
+  { icon: '🏹', color: 'bg-green-500', labelKey: 'profile.avatarRanger' },
+  { icon: '🔥', color: 'bg-orange-500', labelKey: 'profile.avatarPyro' },
+  { icon: '💎', color: 'bg-cyan-500', labelKey: 'profile.avatarMystic' },
+  { icon: '🌟', color: 'bg-yellow-500', labelKey: 'profile.avatarStar' },
+  { icon: '🦊', color: 'bg-amber-500', labelKey: 'profile.avatarFox' },
+  { icon: '🐉', color: 'bg-emerald-500', labelKey: 'profile.avatarDragon' },
+  { icon: '🦅', color: 'bg-sky-500', labelKey: 'profile.avatarEagle' },
+  { icon: '🐺', color: 'bg-slate-500', labelKey: 'profile.avatarWolf' },
+  { icon: '🎯', color: 'bg-rose-500', labelKey: 'profile.avatarHunter' },
+  { icon: '👑', color: 'bg-yellow-600', labelKey: 'profile.avatarRoyal' },
+  { icon: '🗡️', color: 'bg-zinc-500', labelKey: 'profile.avatarRogue' },
+  { icon: '🌙', color: 'bg-indigo-500', labelKey: 'profile.avatarNight' },
+  { icon: '☀️', color: 'bg-orange-400', labelKey: 'profile.avatarDawn' },
 ];
 
+export const AVATAR_OPTIONS = AVATAR_KEYS.map(a => ({ icon: a.icon, color: a.color, label: a.labelKey }));
+
 export function ProfileEditModal({ isOpen, onClose, onSaved, telegramId, currentName, currentAvatarId, haptic }: ProfileEditModalProps) {
+  const { t } = useTranslation();
   const [nickname, setNickname] = useState(currentName);
-  const [selectedAvatar, setSelectedAvatar] = useState(Math.min(Math.max(0, currentAvatarId - 1), AVATAR_OPTIONS.length - 1));
+  const [selectedAvatar, setSelectedAvatar] = useState(Math.min(Math.max(0, currentAvatarId - 1), AVATAR_KEYS.length - 1));
   const [saving, setSaving] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
 
   useEffect(() => {
     if (isOpen) {
       setNickname(currentName);
-      setSelectedAvatar(Math.min(Math.max(0, currentAvatarId - 1), AVATAR_OPTIONS.length - 1));
+      setSelectedAvatar(Math.min(Math.max(0, currentAvatarId - 1), AVATAR_KEYS.length - 1));
       setErrorMsg('');
       document.body.style.overflow = 'hidden';
     }
@@ -67,7 +71,7 @@ export function ProfileEditModal({ isOpen, onClose, onSaved, telegramId, current
       onSaved();
       onClose();
     } catch {
-      setErrorMsg('Failed to save profile. Tap Save to retry.');
+      setErrorMsg(t('profile.saveFailed'));
       haptic.notification('error');
     } finally {
       setSaving(false);
@@ -100,29 +104,29 @@ export function ProfileEditModal({ isOpen, onClose, onSaved, telegramId, current
           >
             <div className="w-12 h-1 bg-telegram-hint/30 rounded-full mx-auto mb-4" />
             <div className="flex items-center justify-between mb-6">
-              <h2 className="text-xl font-bold">Edit Profile</h2>
+              <h2 className="text-xl font-bold">{t('profile.editProfile')}</h2>
               <button onClick={handleCancel} className="p-2 rounded-xl bg-telegram-hint/10 active:scale-95 transition-transform">
                 <X className="w-5 h-5 text-telegram-hint" />
               </button>
             </div>
 
             <div className="mb-6">
-              <label className="text-sm text-telegram-hint mb-2 block">Nickname</label>
+              <label className="text-sm text-telegram-hint mb-2 block">{t('profile.nickname')}</label>
               <input
                 type="text"
                 value={nickname}
                 onChange={(e) => setNickname(e.target.value)}
                 maxLength={32}
                 className="w-full bg-telegram-bg border border-telegram-hint/20 rounded-xl px-4 py-3 text-telegram-text focus:outline-none focus:border-telegram-link transition-colors"
-                placeholder="Enter your nickname"
+                placeholder={t('profile.enterNickname')}
               />
               <span className="text-xs text-telegram-hint mt-1 block">{nickname.length}/32</span>
             </div>
 
             <div className="mb-6">
-              <label className="text-sm text-telegram-hint mb-3 block">Choose Avatar</label>
+              <label className="text-sm text-telegram-hint mb-3 block">{t('profile.chooseAvatar')}</label>
               <div className="grid grid-cols-4 gap-3">
-                {AVATAR_OPTIONS.map((avatar, index) => (
+                {AVATAR_KEYS.map((avatar, index) => (
                   <button
                     key={index}
                     onClick={() => { setSelectedAvatar(index); haptic.selection(); }}
@@ -135,7 +139,7 @@ export function ProfileEditModal({ isOpen, onClose, onSaved, telegramId, current
                     <div className={`w-10 h-10 rounded-full ${avatar.color} flex items-center justify-center mb-1`}>
                       <span className="text-xl">{avatar.icon}</span>
                     </div>
-                    <span className="text-xs text-telegram-hint">{avatar.label}</span>
+                    <span className="text-xs text-telegram-hint">{t(avatar.labelKey)}</span>
                   </button>
                 ))}
               </div>
@@ -154,7 +158,7 @@ export function ProfileEditModal({ isOpen, onClose, onSaved, telegramId, current
                 disabled={saving}
                 className="flex-1 py-3 rounded-xl border border-telegram-hint/20 text-telegram-hint font-medium active:scale-95 transition-transform disabled:opacity-50"
               >
-                Cancel
+                {t('common.cancel')}
               </button>
               <button
                 onClick={handleSave}
@@ -162,9 +166,9 @@ export function ProfileEditModal({ isOpen, onClose, onSaved, telegramId, current
                 className="flex-1 py-3 rounded-xl font-medium flex items-center justify-center gap-2 active:scale-95 transition-all disabled:opacity-70 bg-telegram-link text-white"
               >
                 {saving ? (
-                  <><Loader2 className="w-4 h-4 animate-spin" />Saving...</>
+                  <><Loader2 className="w-4 h-4 animate-spin" />{t('settings.saving')}</>
                 ) : (
-                  <><Check className="w-4 h-4" />Save</>
+                  <><Check className="w-4 h-4" />{t('common.save')}</>
                 )}
               </button>
             </div>

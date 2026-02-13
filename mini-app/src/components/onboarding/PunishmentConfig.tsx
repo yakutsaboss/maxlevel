@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Skull } from 'lucide-react';
 import { useTelegram } from '@/hooks/useTelegram';
@@ -18,6 +19,7 @@ interface PunishmentConfigProps {
 }
 
 export function PunishmentConfig({ progress, stepLabel, data, onUpdate, onNext }: PunishmentConfigProps) {
+  const { t } = useTranslation();
   const { haptic } = useTelegram();
   const existing = data.punishments || {};
 
@@ -66,15 +68,13 @@ export function PunishmentConfig({ progress, stepLabel, data, onUpdate, onNext }
           className="text-center mb-6"
         >
           <Skull className="w-10 h-10 text-red-400 mx-auto mb-3" />
-          <h2 className="text-2xl font-bold text-telegram-text mb-1">Accountability</h2>
+          <h2 className="text-2xl font-bold text-telegram-text mb-1">{t('onboarding.accountability')}</h2>
           <p className="text-telegram-hint text-sm">
-            Want extra motivation? Pick a real consequence for skipping tasks.
+            {t('onboarding.accountabilityDesc')}
           </p>
           <div className="bg-blue-500/10 border border-blue-500/20 rounded-xl p-3 mt-3 text-left">
             <p className="text-xs text-telegram-hint">
-              <span className="text-blue-400 font-semibold">Note:</span> Even without accountability enabled,
-              your XP will gradually decrease when you skip assigned quests. Enabling this adds extra consequences
-              on top of that — like losing streak progress or custom punishments you choose.
+              <span className="text-blue-400 font-semibold">{t('onboarding.accountabilityNote')}</span> {t('onboarding.accountabilityInfoText')}
             </p>
           </div>
         </motion.div>
@@ -109,7 +109,7 @@ export function PunishmentConfig({ progress, stepLabel, data, onUpdate, onNext }
             onClick={handleContinue}
             className="w-full py-4 rounded-2xl text-lg font-bold bg-gradient-to-r from-red-600 to-orange-600 text-white shadow-lg"
           >
-            Enable & Continue
+            {t('onboarding.enableAndContinue')}
           </button>
         ) : !consent ? (
           <button
@@ -120,7 +120,7 @@ export function PunishmentConfig({ progress, stepLabel, data, onUpdate, onNext }
             }}
             className="w-full py-4 rounded-2xl text-lg font-bold bg-gradient-to-r from-red-600 to-orange-600 text-white shadow-lg"
           >
-            Skip for Now
+            {t('onboarding.skipForNow')}
           </button>
         ) : null}
       </div>
