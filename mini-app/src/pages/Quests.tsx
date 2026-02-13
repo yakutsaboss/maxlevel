@@ -24,6 +24,7 @@ export function Quests() {
     availableModes, currentQuests, completionStats,
     selectedQuest, completing, todayCheckinCount,
     selectedModeId, setSelectedModeId,
+    selectedDifficulty, setSelectedDifficulty,
     sortBy, setSortBy,
     handleRefresh, handleQuestSelect, handleCompleteQuest,
     handleCheckinSuccess, closeSelectedQuest, loadQuests,
@@ -94,6 +95,8 @@ export function Quests() {
           modes={availableModes}
           selectedModeId={selectedModeId}
           onModeSelect={setSelectedModeId}
+          selectedDifficulty={selectedDifficulty}
+          onDifficultySelect={setSelectedDifficulty}
           sortBy={sortBy}
           onSortChange={setSortBy}
           haptic={haptic}
