@@ -3056,7 +3056,23 @@ After completing work, write your retrospective in PARALLEL_AGENTS.md under "Run
 *(To be filled by Agent C)*
 
 #### Agent D Retrospective
-*(To be filled by Agent D)*
+**Task**: Refactor ModeAnalytics.tsx (398 lines) and AnswerAnalytics.tsx (362 lines) into smaller sub-components.
+
+**Files created**:
+- `mini-app/src/components/analytics/useModeAnalytics.ts` — custom hook + all types (ModeStreak, ModeAnalyticsData, QuestHistoryItem, WeeklyXpItem, ModeDetailData)
+- `mini-app/src/components/analytics/ModeChart.tsx` — ProgressRing, WeeklyXpChart, QuestHistoryList display components
+- `mini-app/src/components/analytics/ModeStatsCard.tsx` — ModeDetailView (detail page) + ModeOverviewCard (list card)
+- `mini-app/src/components/admin/answer-analytics/useAnswerAnalytics.ts` — custom hook + types + ANSWER_LABELS/QUESTION_LABELS/MODE_TABS constants + helpers
+- `mini-app/src/components/admin/answer-analytics/AnswerChart.tsx` — single question distribution bar chart
+- `mini-app/src/components/admin/answer-analytics/AnswerTable.tsx` — respondent count card + questions list using AnswerChart
+
+**Files modified**:
+- `mini-app/src/components/analytics/ModeAnalytics.tsx` — 398 → 74 lines (thin orchestrator)
+- `mini-app/src/components/admin/AnswerAnalytics.tsx` — 362 → 112 lines (thin orchestrator)
+
+**Result**: SUCCESS — pure refactor, zero behavior changes. Build clean (`tsc && vite build`). All 108 test files / 487 tests pass including existing ModeAnalytics (8 tests) and AnswerAnalytics (7 tests).
+
+**Notes**: Both orchestrators now only handle loading/error states and delegate rendering to sub-components. All imports use `@/` path alias. No changes to public component API — existing test imports (`from '@/components/analytics/ModeAnalytics'` and `from '@/components/admin/AnswerAnalytics'`) work unchanged.
 
 #### Agent E Retrospective
 *(To be filled by Agent E)*
