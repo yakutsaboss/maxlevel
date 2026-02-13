@@ -284,13 +284,22 @@ Use this structure when creating a new run. Copy and adapt:
 
 ---
 
-## Known Issues (Updated after Run 28)
+## Known Issues (Updated after Run 56)
 
 ### Still Open
 1. **pg-boss Node.js mismatch** — Requires 22.12+, server has 20.20. Only triggers warnings, no functional impact yet.
-2. **Mode configs unused** — `mode_configs` table stores quiz responses + personalized plans, but data is never consumed.
+2. **Mode configs unused** — `mode_configs` table stores quiz responses + personalized plans, but data is never consumed. → **Addressed in Run 57** (quest assignment reads quiz_responses for fitness level).
 3. **Delete account e2e testing** — confirm soft delete flow works end-to-end in Telegram (Agent B Run 18 recommendation).
 4. **POST /analytics/export still uses executePythonTool** — Justified (Google Sheets OAuth integration), only remaining Python subprocess in ALL routes + jobs.
+5. **Leaderboard missing avatar_id** — materialized view doesn't include avatar_id. → **Addressed in Run 57**.
+6. **Avatar data not shared** — hardcoded in AvatarSelect.tsx only. → **Addressed in Run 57** (shared data file).
+7. **No celebration animations** — no confetti, level-up modal, or XP float effects. → **Addressed in Run 61**.
+8. **No shop/purchasable content** — no shop page, trophies, or purchasable achievements. → **Addressed in Runs 62–64**.
+9. **safeParseInt + isNaN pattern** — when followed by `isNaN()` check, default MUST be NaN, not 0. Audit all routes before next run (from Run 55).
+10. **SubscriptionSettings duplicates MODE_LIMITS** — Agent F's component defines limits locally instead of importing from constants/tiers.ts. Minor cleanup.
+
+### Resolved (Run 56)
+- ~~Tier system unused by mini-app~~ — Full tier backend (free/subscriber/premium), channel verification API (`@yakutsaway`), premiumGate + mode gating (2/3/6 limits), SubscriptionSettings UI, useSubscription hook, 28 new tier tests. DB tables created on server.
 
 ### Resolved (Run 28)
 - ~~logger.ts in wrong location~~ — Moved from `api/utils/logger.ts` to `utils/logger.ts`, updated 29 imports, exported `LEVEL_ORDER`/`minLevel`/`setLogLevel()` (Run 28 Agent B).
@@ -1167,6 +1176,483 @@ PGPASSWORD=postgres psql -h localhost -U postgres -d telegram_rpg -f /opt/wibeco
 - If Agent C's implementation differs from spec (e.g., different error messages, different query patterns), Agent 0 may need to adjust mock sequences.
 
 #### Agent 0 Retrospective
+**Run 56 merge — 7 agents, all 7 branches merged cleanly (zero conflicts in non-PARALLEL_AGENTS files).**
+**Merge:** All branches merged in order A→B→C→D→E→F→G. PARALLEL_AGENTS.md had expected auto-merge conflicts (retrospective sections) — all resolved automatically by git ort strategy.
+**Agent 0 fixes:** 14 test failures across 3 files:
+- `premiumGate.test.ts` (5 failures): Old tests referenced 'pro' tier which was renamed to 'subscriber'. Updated all `requirePremium('pro')` → `requirePremium('subscriber')`, fixed mock sequences for 2-query `getUserEffectiveTier` (subscriptions + channel_subscriptions), updated assertion messages.
+- `payments.http.test.ts` (3 failures): Tests sent `tier: 'pro'` in payment creation — but 'pro' is no longer a valid tier and subscriber can't be purchased with Stars. Changed to `tier: 'premium'`.
+- `useSubscription.test.ts` (6 failures): Hook takes `{ userId }` object but tests passed raw number `1`. Fixed calling convention, added `mockSubscriptionSubscriber` test data, fixed API call assertions for `{ signal }` arg.
+**DB:** Created 3 tables on server (payments, subscriptions, channel_subscriptions) — they existed in schema.sql but were never deployed. Migration script expected them to exist for ALTER.
+**Builds:** Bot (tsc) + Mini-app (tsc + vite) — both clean. 1617 tests pass (842 bot + 775 mini-app).
+**Deploy:** `7e380f3` — health check verified, notification sent.
+**Cleanup:** 7 worktrees removed, 7 feature branches deleted.
+**Issues carried forward:**
+- pg-boss Node.js 22.12+ requirement (server has 20.20)
+- SubscriptionSettings.tsx duplicates MODE_LIMITS locally instead of importing from Agent E's constants/tiers.ts (intentional to avoid merge conflicts — can refactor later)
+- safeParseInt + isNaN pattern audit still pending
+
+## Run 57: Quest Rebalancing + Avatar Shared Data (6 Agents + Agent 0)
+
+**Date**: 2026-02-13
+**Agents**: 6 (A-F) + Agent 0
+**Goal**: Rebalance quest templates (add easy/hard difficulties), make quest assignment respect fitness level, add difficulty filter UI, extract shared avatar data, add avatar_id to leaderboard.
+
+**Current state (from codebase audit):**
+- 25 quest templates across 6 modes — NO hard quests, fitness has NO easy quests
+- Quest assignment uses `ORDER BY RANDOM()` ignoring fitness level
+- `mode_configs.quiz_responses` stores user fitness data but nothing reads it
+- Avatar data hardcoded in AvatarSelect.tsx (5 options), UserAvatar.tsx shows color+initial only
+- Leaderboard queries don't include avatar_id
+- QuestFilters.tsx has mode filter + sort but NO difficulty filter
+
+---
+
+### Run 57 Copy-Paste Prompts
+
+**Agent A — Quest Template Rebalancing** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-a`):
+```
+Read c:\Users\Asus\Desktop\Wibecode-agent-a\PARALLEL_AGENTS.md — find "Run 57" and locate the "Agent A" section. You are Agent A.
+
+YOUR TASK: Rebalance quest templates — add easy/hard quests, ensure every mode has all 3 difficulty levels.
+
+OWNED FILES:
+- database/seed_data.sql
+- database/migrations/run57_quest_rebalance.sql (NEW)
+
+TASK 1 — Audit current quests in seed_data.sql (lines 88–147):
+Currently 25 quests: fitness has NO easy quests, hydration is 100% easy, NO hard quests exist anywhere.
+Goal: ~45 quests total with ~30% easy, ~50% medium, ~20% hard per mode.
+
+TASK 2 — Add missing difficulty tiers:
+For each mode (fitness, hydration, finance, learning, medication, habits):
+- Add 1-2 EASY quests (beginner-friendly, low XP: 15-30)
+- Keep existing MEDIUM quests (adjust XP if needed: 30-60)
+- Add 1-2 HARD quests (challenging, high XP: 80-150)
+- Add 1-2 weekly variants at each difficulty
+
+Fitness easy examples: "10-minute morning stretch", "Light 15-min walk"
+Fitness hard examples: "50 push-ups challenge", "1-hour HIIT workout"
+Hydration hard: "Drink 3L water in a day"
+Finance hard: "Complete weekly budget review with all categories"
+
+TASK 3 — Create migration file database/migrations/run57_quest_rebalance.sql:
+- INSERT new quest templates (use ON CONFLICT DO NOTHING for safety)
+- Do NOT delete existing quests (users may have active instances)
+- Wrap in BEGIN/COMMIT transaction
+
+FORBIDDEN: bot/ files, mini-app/ files.
+
+After completing work, write your retrospective in PARALLEL_AGENTS.md under "Run 57 Retrospectives" → "Agent A Retrospective", replacing the placeholder text. Then commit all changes.
+```
+
+**Agent B — Quest Assignment Fitness Filtering** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-b`):
+```
+Read c:\Users\Asus\Desktop\Wibecode-agent-b\PARALLEL_AGENTS.md — find "Run 57" and locate the "Agent B" section. You are Agent B.
+
+YOUR TASK: Make quest assignment respect user fitness level from quiz_responses.
+
+OWNED FILES:
+- bot/src/jobs/definitions/dailyQuestReset.ts
+- bot/src/api/routes/quest-assignment.ts
+
+CONTEXT: The mode_configs table has quiz_responses JSONB. During onboarding, users answer questions and their responses are stored (e.g., fitness_level: 'beginner'/'intermediate'/'advanced'). Currently both dailyQuestReset.ts and quest-assignment.ts pick quests randomly with ORDER BY RANDOM() — ignoring difficulty entirely.
+
+TASK 1 — Add fitness-level-aware quest selection to dailyQuestReset.ts:
+1. Before selecting templates, query mode_configs for the user's quiz_responses
+2. Extract fitness_level (default to 'beginner' if not set)
+3. Map fitness levels to difficulty preferences:
+   - beginner: 70% easy, 30% medium (WHERE difficulty IN ('easy','medium') ORDER BY CASE WHEN difficulty='easy' THEN 0 ELSE 1 END, RANDOM())
+   - intermediate: 20% easy, 60% medium, 20% hard (no filter, just RANDOM())
+   - advanced: 20% medium, 80% hard (WHERE difficulty IN ('medium','hard') ORDER BY CASE WHEN difficulty='hard' THEN 0 ELSE 1 END, RANDOM())
+4. Use a weighted approach: modify the SQL ORDER BY to prefer certain difficulties
+
+TASK 2 — Same for quest-assignment.ts POST route:
+Apply the same fitness-level filtering logic to the manual assignment endpoint.
+
+TASK 3 — Handle missing quiz_responses gracefully:
+- If mode_configs row doesn't exist → treat as beginner
+- If quiz_responses is empty or lacks fitness_level → treat as beginner
+- Use String(responses.fitness_level || 'beginner') pattern
+
+IMPORTANT: The difficulty column already exists on quests table. The target mapping (easy=1, medium=3, hard=5) already works. You just need to bias the template SELECTION toward appropriate difficulties.
+
+FORBIDDEN: database/ files, mini-app/ files, test files.
+
+BUILD VERIFY: cd bot && npm run build must pass.
+
+After completing work, write your retrospective in PARALLEL_AGENTS.md under "Run 57 Retrospectives" → "Agent B Retrospective", replacing the placeholder text. Then commit all changes.
+```
+
+**Agent C — Quest Difficulty Filter UI** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-c`):
+```
+Read c:\Users\Asus\Desktop\Wibecode-agent-c\PARALLEL_AGENTS.md — find "Run 57" and locate the "Agent C" section. You are Agent C.
+
+YOUR TASK: Add difficulty filter buttons (Easy/Medium/Hard) to the Quests page.
+
+OWNED FILES:
+- mini-app/src/components/quests/QuestFilters.tsx
+- mini-app/src/hooks/useQuestsData.ts
+
+GRAY AREA:
+- mini-app/src/i18n/en.ts, ru.ts, zh.ts — add difficulty filter keys ONLY
+
+CONTEXT: QuestFilters.tsx currently has mode filter chips + sort dropdown. useQuestsData.ts has filtering logic in a useMemo (filters by selectedModeId, sorts by sortBy). Quests have a 'difficulty' field ('easy'|'medium'|'hard').
+
+TASK 1 — Add selectedDifficulty state to useQuestsData.ts:
+1. Add state: `const [selectedDifficulty, setSelectedDifficulty] = useState<string | null>(null);`
+2. Add difficulty filter to the currentQuests useMemo (after mode filter):
+   ```
+   const diffFiltered = selectedDifficulty
+     ? filtered.filter(q => q.difficulty === selectedDifficulty)
+     : filtered;
+   ```
+3. Export selectedDifficulty + setSelectedDifficulty in the return object
+
+TASK 2 — Add difficulty chips to QuestFilters.tsx:
+1. Add new props: selectedDifficulty, onDifficultySelect
+2. Add a row of 4 chips: All / Easy / Medium / Hard (similar to mode chips)
+3. Use QuestDifficultyBadge colors (green=easy, yellow=medium, red=hard)
+4. Place BELOW the mode filter chips
+
+TASK 3 — Add i18n keys:
+- quests.filterAll, quests.filterEasy, quests.filterMedium, quests.filterHard
+- Add to all 3 language files (en, ru, zh)
+
+FORBIDDEN: bot/ files, database/ files, test files, other components.
+
+BUILD VERIFY: cd mini-app && npm run build must pass.
+
+After completing work, write your retrospective in PARALLEL_AGENTS.md under "Run 57 Retrospectives" → "Agent C Retrospective", replacing the placeholder text. Then commit all changes.
+```
+
+**Agent D — Shared Avatar Data + UserAvatar Upgrade** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-d`):
+```
+Read c:\Users\Asus\Desktop\Wibecode-agent-d\PARALLEL_AGENTS.md — find "Run 57" and locate the "Agent D" section. You are Agent D.
+
+YOUR TASK: Extract shared avatar data to a central file and upgrade UserAvatar to show emojis.
+
+OWNED FILES:
+- mini-app/src/data/avatarOptions.ts (NEW)
+- mini-app/src/components/leaderboard/UserAvatar.tsx
+
+GRAY AREA:
+- mini-app/src/components/onboarding/AvatarSelect.tsx — refactor to import from avatarOptions.ts
+
+TASK 1 — Create mini-app/src/data/avatarOptions.ts:
+Extract from AvatarSelect.tsx (currently has 5 hardcoded avatars):
+```typescript
+export interface AvatarOption {
+  id: number;       // 1-indexed, matches users.avatar_id
+  value: string;    // 'gym_warrior', etc.
+  emoji: string;    // '💪', etc.
+  labelKey: string; // i18n key
+  descKey: string;  // i18n key
+}
+
+export const AVATAR_OPTIONS: AvatarOption[] = [
+  { id: 1, value: 'gym_warrior', emoji: '💪', labelKey: 'onboarding.avatarGymWarrior', descKey: 'onboarding.avatarGymWarriorDesc' },
+  { id: 2, value: 'office_boss', emoji: '👑', labelKey: 'onboarding.avatarOfficeBoss', descKey: 'onboarding.avatarOfficeBossDesc' },
+  { id: 3, value: 'magic_pet', emoji: '🐱', labelKey: 'onboarding.avatarMagicPet', descKey: 'onboarding.avatarMagicPetDesc' },
+  { id: 4, value: 'night_owl', emoji: '🦉', labelKey: 'onboarding.avatarNightOwl', descKey: 'onboarding.avatarNightOwlDesc' },
+  { id: 5, value: 'couch_hero', emoji: '🥔', labelKey: 'onboarding.avatarCouchHero', descKey: 'onboarding.avatarCouchHeroDesc' },
+];
+
+export const AVATAR_EMOJI_MAP: Record<number, string> = Object.fromEntries(
+  AVATAR_OPTIONS.map(a => [a.id, a.emoji])
+);
+
+export function getAvatarById(id: number): AvatarOption | undefined {
+  return AVATAR_OPTIONS.find(a => a.id === id);
+}
+```
+
+TASK 2 — Refactor AvatarSelect.tsx:
+Replace the hardcoded AVATARS array with `import { AVATAR_OPTIONS } from '@/data/avatarOptions'`. Map the existing usage to work with the new structure (the component uses value/labelKey/icon/descKey — map icon→emoji).
+
+TASK 3 — Upgrade UserAvatar.tsx:
+Add optional `avatarId` prop. When provided, show the emoji from AVATAR_EMOJI_MAP instead of the color+initial:
+```typescript
+interface UserAvatarProps {
+  userId: number;
+  firstName?: string;
+  username?: string;
+  avatarId?: number;  // NEW
+  size?: 'sm' | 'md' | 'lg';
+}
+```
+If avatarId is set and found in AVATAR_EMOJI_MAP, render the emoji. Otherwise fall back to the current color+initial behavior.
+
+FORBIDDEN: bot/ files, database/ files, test files, pages/.
+
+BUILD VERIFY: cd mini-app && npm run build must pass.
+
+After completing work, write your retrospective in PARALLEL_AGENTS.md under "Run 57 Retrospectives" → "Agent D Retrospective", replacing the placeholder text. Then commit all changes.
+```
+
+**Agent E — Leaderboard avatar_id** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-e`):
+```
+Read c:\Users\Asus\Desktop\Wibecode-agent-e\PARALLEL_AGENTS.md — find "Run 57" and locate the "Agent E" section. You are Agent E.
+
+YOUR TASK: Add avatar_id to leaderboard API responses and types.
+
+OWNED FILES:
+- bot/src/api/routes/leaderboard.ts
+- database/schema.sql (leaderboard_mv view ONLY)
+- database/migrations/run57_leaderboard_avatar.sql (NEW)
+
+GRAY AREA:
+- mini-app/src/types/user.ts — add avatar_id to LeaderboardEntry ONLY
+
+TASK 1 — Update leaderboard.ts:
+The file has 3 endpoints that return leaderboard data. In EACH query, add `u.avatar_id` to the SELECT clause:
+1. Mode-filtered leaderboard (line ~51): Add `u.avatar_id` after `u.total_xp`
+2. Default leaderboard (line ~97): Add `u.avatar_id` after `u.total_xp`
+3. Weekly leaderboard (line ~151): Add `u.avatar_id`
+4. Monthly leaderboard (line ~192): Add `u.avatar_id`
+
+In EACH response formatter, add `avatar_id: row.avatar_id` to the mapped object.
+
+Also update the LeaderboardEntryRow interface (defined at top of file) to include `avatar_id?: number`.
+
+TASK 2 — Update leaderboard_mv in schema.sql:
+Add `u.avatar_id` to the SELECT, and add it to the GROUP BY clause:
+```sql
+SELECT ..., u.avatar_id, ...
+FROM users u ...
+GROUP BY u.id, u.telegram_id, u.username, u.first_name, u.current_level, u.total_xp, u.avatar_id
+```
+
+TASK 3 — Create migration file database/migrations/run57_leaderboard_avatar.sql:
+```sql
+-- Recreate leaderboard_mv with avatar_id
+DROP MATERIALIZED VIEW IF EXISTS leaderboard_mv;
+CREATE MATERIALIZED VIEW leaderboard_mv AS
+[updated query with avatar_id]
+;
+CREATE UNIQUE INDEX idx_leaderboard_mv_user_id ON leaderboard_mv(user_id);
+CREATE INDEX idx_leaderboard_mv_xp_rank ON leaderboard_mv(xp_rank);
+```
+
+TASK 4 — Update LeaderboardEntry type in mini-app/src/types/user.ts:
+Add `avatar_id?: number;` to the LeaderboardEntry interface.
+
+FORBIDDEN: mini-app components, hooks, test files, bot handlers/jobs.
+
+BUILD VERIFY: cd bot && npm run build must pass.
+
+After completing work, write your retrospective in PARALLEL_AGENTS.md under "Run 57 Retrospectives" → "Agent E Retrospective", replacing the placeholder text. Then commit all changes.
+```
+
+**Agent F — Tests for Run 57** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-f`):
+```
+Read c:\Users\Asus\Desktop\Wibecode-agent-f\PARALLEL_AGENTS.md — find "Run 57" and locate the "Agent F" section. You are Agent F.
+
+YOUR TASK: Write tests for quest assignment filtering, difficulty filter UI, avatar data, and leaderboard avatar_id.
+
+OWNED FILES (all NEW):
+- bot/src/__tests__/jobs/dailyQuestReset-fitness.test.ts
+- mini-app/src/__tests__/hooks/useQuestsData-difficulty.test.ts
+- mini-app/src/__tests__/data/avatarOptions.test.ts
+- bot/src/__tests__/routes/http/leaderboard-avatar.test.ts
+
+TASK 1 — dailyQuestReset-fitness.test.ts (~8-10 tests):
+Test quest assignment respects fitness level:
+- Beginner gets mostly easy quests
+- Intermediate gets mixed quests
+- Advanced gets mostly hard quests
+- Missing quiz_responses defaults to beginner
+- Empty fitness_level defaults to beginner
+Mock: db.query for mode_configs and quest selection
+
+TASK 2 — useQuestsData-difficulty.test.ts (~6-8 tests):
+Test difficulty filter state and filtering logic:
+- Initial state: selectedDifficulty is null (shows all)
+- Filter by 'easy' shows only easy quests
+- Filter by 'medium' shows only medium quests
+- Filter by 'hard' shows only hard quests
+- Combined mode + difficulty filter works
+- Resetting difficulty to null shows all again
+
+TASK 3 — avatarOptions.test.ts (~5-6 tests):
+- AVATAR_OPTIONS has 5 entries with all required fields
+- AVATAR_EMOJI_MAP maps all 5 IDs
+- getAvatarById returns correct avatar
+- getAvatarById returns undefined for invalid ID
+- All emoji values are non-empty strings
+
+TASK 4 — leaderboard-avatar.test.ts (~4-5 tests):
+Test leaderboard API includes avatar_id:
+- GET /api/leaderboard response includes avatar_id field
+- avatar_id is number or null
+- Mode-filtered leaderboard includes avatar_id
+- Weekly/monthly endpoints include avatar_id
+
+Use existing test patterns from the codebase. Mock db/cache as needed.
+
+FORBIDDEN: ALL source files (test-only agent).
+
+BUILD VERIFY: Run your test files with vitest.
+
+After completing work, write your retrospective in PARALLEL_AGENTS.md under "Run 57 Retrospectives" → "Agent F Retrospective", replacing the placeholder text. Then commit all changes.
+```
+
+---
+
+### Agent A — Quest Template Rebalancing
+
+**Branch:** `feature/r57-quest-rebalance`
+**Worktree:** `../Wibecode-agent-a`
+
+**OWNED files:**
+- `database/seed_data.sql`
+- `database/migrations/run57_quest_rebalance.sql` (NEW)
+
+**FORBIDDEN:**
+- All bot/ files, mini-app files
+
+---
+
+### Agent B — Quest Assignment Fitness Filtering
+
+**Branch:** `feature/r57-fitness-assignment`
+**Worktree:** `../Wibecode-agent-b`
+
+**OWNED files:**
+- `bot/src/jobs/definitions/dailyQuestReset.ts`
+- `bot/src/api/routes/quest-assignment.ts`
+
+**FORBIDDEN:**
+- All database/ files, mini-app files, test files
+
+---
+
+### Agent C — Quest Difficulty Filter UI
+
+**Branch:** `feature/r57-difficulty-filter`
+**Worktree:** `../Wibecode-agent-c`
+
+**OWNED files:**
+- `mini-app/src/components/quests/QuestFilters.tsx`
+- `mini-app/src/hooks/useQuestsData.ts`
+
+**GRAY AREA:**
+- `mini-app/src/i18n/en.ts`, `ru.ts`, `zh.ts` — add `quests.filter*` keys only
+
+**FORBIDDEN:**
+- All bot/ files, database/ files, test files, other components
+
+---
+
+### Agent D — Shared Avatar Data + UserAvatar Upgrade
+
+**Branch:** `feature/r57-avatar-shared`
+**Worktree:** `../Wibecode-agent-d`
+
+**OWNED files:**
+- `mini-app/src/data/avatarOptions.ts` (NEW)
+- `mini-app/src/components/leaderboard/UserAvatar.tsx`
+
+**GRAY AREA:**
+- `mini-app/src/components/onboarding/AvatarSelect.tsx` — refactor imports only
+
+**FORBIDDEN:**
+- All bot/ files, database/ files, test files, pages/
+
+---
+
+### Agent E — Leaderboard avatar_id
+
+**Branch:** `feature/r57-leaderboard-avatar`
+**Worktree:** `../Wibecode-agent-e`
+
+**OWNED files:**
+- `bot/src/api/routes/leaderboard.ts`
+- `database/schema.sql` (leaderboard_mv view ONLY)
+- `database/migrations/run57_leaderboard_avatar.sql` (NEW)
+
+**GRAY AREA:**
+- `mini-app/src/types/user.ts` — add `avatar_id` to LeaderboardEntry ONLY
+
+**FORBIDDEN:**
+- All mini-app components, hooks, test files, bot handlers/jobs
+
+---
+
+### Agent F — Tests for Run 57
+
+**Branch:** `feature/r57-tests`
+**Worktree:** `../Wibecode-agent-f`
+
+**OWNED files:**
+- `bot/src/__tests__/jobs/dailyQuestReset-fitness.test.ts` (NEW)
+- `mini-app/src/__tests__/hooks/useQuestsData-difficulty.test.ts` (NEW)
+- `mini-app/src/__tests__/data/avatarOptions.test.ts` (NEW)
+- `bot/src/__tests__/routes/http/leaderboard-avatar.test.ts` (NEW)
+
+**FORBIDDEN:**
+- ALL source files (test-only agent)
+
+---
+
+### Run 57 File Ownership Matrix
+
+| File / Directory | A | B | C | D | E | F |
+|---|---|---|---|---|---|---|
+| `database/seed_data.sql` | **OWNED** | - | - | - | - | - |
+| `database/migrations/run57_quest*.sql` | **NEW** | - | - | - | - | - |
+| `database/migrations/run57_leader*.sql` | - | - | - | - | **NEW** | - |
+| `database/schema.sql` (view only) | - | - | - | - | **OWNED** | - |
+| `bot/jobs/dailyQuestReset.ts` | - | **OWNED** | - | - | - | - |
+| `bot/routes/quest-assignment.ts` | - | **OWNED** | - | - | - | - |
+| `bot/routes/leaderboard.ts` | - | - | - | - | **OWNED** | - |
+| `quests/QuestFilters.tsx` | - | - | **OWNED** | - | - | - |
+| `hooks/useQuestsData.ts` | - | - | **OWNED** | - | - | - |
+| `data/avatarOptions.ts` | - | - | - | **NEW** | - | - |
+| `leaderboard/UserAvatar.tsx` | - | - | - | **OWNED** | - | - |
+| `onboarding/AvatarSelect.tsx` | - | - | - | **GRAY** | - | - |
+| `types/user.ts` | - | - | - | - | **GRAY** | - |
+| `i18n/en.ts, ru.ts, zh.ts` | - | - | **GRAY** | - | - | - |
+| Test files (4 new) | - | - | - | - | - | **NEW** |
+| `PARALLEL_AGENTS.md` | retro | retro | retro | retro | retro | retro |
+
+### Run 57 Merge Order
+
+1. Agent A (quest templates) — data first
+2. Agent E (leaderboard avatar_id) — backend, independent
+3. Agent B (fitness-based assignment) — backend, uses quest templates
+4. Agent D (shared avatar data) — frontend, independent
+5. Agent C (difficulty filter UI) — frontend, independent
+6. Agent F (tests) — test only, merge last
+
+### Run 57 DB Migrations
+
+After merge, run on server:
+```bash
+PGPASSWORD=postgres psql -h localhost -U postgres -d telegram_rpg -f /opt/wibecode-bot/database/migrations/run57_quest_rebalance.sql
+PGPASSWORD=postgres psql -h localhost -U postgres -d telegram_rpg -f /opt/wibecode-bot/database/migrations/run57_leaderboard_avatar.sql
+```
+
+### Run 57 Retrospectives
+
+#### Agent A Retrospective
+*(To be filled by Agent A)*
+
+#### Agent B Retrospective
+*(To be filled by Agent B)*
+
+#### Agent C Retrospective
+*(To be filled by Agent C)*
+
+#### Agent D Retrospective
+*(To be filled by Agent D)*
+
+#### Agent E Retrospective
+*(To be filled by Agent E)*
+
+#### Agent F Retrospective
+*(To be filled by Agent F)*
+
+#### Agent 0 Retrospective
 *(To be filled by Agent 0 after merge)*
 
-<!-- Next run goes here. Agent 0 will append RUN 57 below this line. -->
+<!-- Next run goes here. Agent 0 will append RUN 58 below this line. -->
