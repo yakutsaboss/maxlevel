@@ -2374,7 +2374,14 @@ After completing work, write your retrospective in PARALLEL_AGENTS.md under "Run
 **No issues encountered.** Clean run, all edits straightforward.
 
 #### Agent D Retrospective
-*(To be filled by Agent D)*
+**Task:** Remove dead code from leaderboard handler + create 2 new mini-app test files.
+
+**Result:** 11 new tests across 2 files, all passing. Dead code removed, bot builds clean.
+
+**Changes made:**
+1. **bot/src/handlers/leaderboard.ts** — Removed dead `userInTop` variable (always returned false, never used).
+2. **QuestDifficultyBadge.test.tsx** (NEW, 6 tests) — Easy/medium/hard badge colors, unknown difficulty fallback, sm/md size variants.
+3. **adminClient.test.tsx** (NEW, 5 tests) — URL construction, Authorization header, custom RequestInit, raw Response return, fetch error propagation.
 
 #### Agent 0 Retrospective
 *(To be filled by Agent 0 after merge)*
