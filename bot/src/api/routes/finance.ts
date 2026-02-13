@@ -166,7 +166,7 @@ router.post('/savings', authenticateTelegram, mutationLimiter, asyncHandler(asyn
 
 // PATCH /savings/:id — add a deposit to update savings progress
 router.patch('/savings/:id', authenticateTelegram, mutationLimiter, asyncHandler(async (req: Request, res: Response) => {
-  const goalId = safeParseInt(req.params.id, 0);
+  const goalId = safeParseInt(req.params.id, NaN);
   if (isNaN(goalId) || goalId <= 0) {
     throw new BadRequestError('Invalid savings goal ID');
   }

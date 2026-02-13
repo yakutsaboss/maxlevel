@@ -108,7 +108,7 @@ router.post('/', authenticateTelegram, mutationLimiter, asyncHandler(async (req:
  * Get today's check-ins for a user.
  */
 router.get('/:telegramId/today', authenticateTelegram, readLimiter, asyncHandler(async (req: Request, res: Response) => {
-  const telegramId = safeParseInt(req.params.telegramId, 0);
+  const telegramId = safeParseInt(req.params.telegramId, NaN);
   requireOwnership(req);
 
   if (isNaN(telegramId)) {
@@ -139,7 +139,7 @@ router.get('/:telegramId/today', authenticateTelegram, readLimiter, asyncHandler
  * Get paginated check-in history for a user.
  */
 router.get('/:telegramId/history', authenticateTelegram, readLimiter, asyncHandler(async (req: Request, res: Response) => {
-  const telegramId = safeParseInt(req.params.telegramId, 0);
+  const telegramId = safeParseInt(req.params.telegramId, NaN);
   requireOwnership(req);
 
   if (isNaN(telegramId)) {

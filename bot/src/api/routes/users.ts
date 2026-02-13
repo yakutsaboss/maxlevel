@@ -82,7 +82,7 @@ router.patch('/:userId/xp', authenticateTelegram, asyncHandler(async (req: Reque
  * PATCH /api/users/:userId/streak
  */
 router.patch('/:userId/streak', authenticateTelegram, asyncHandler(async (req: Request, res: Response) => {
-  const uid = safeParseInt(req.params.userId, 0);
+  const uid = safeParseInt(req.params.userId, NaN);
   if (isNaN(uid)) {
     throw new BadRequestError('Invalid user ID');
   }

@@ -61,7 +61,7 @@ interface ProgressSummaryRow {
  * This endpoint powers the mode analytics progress dashboard.
  */
 router.get('/:userId/modes', authenticateTelegram, authorizeUser, readLimiter, asyncHandler(async (req: Request, res: Response) => {
-  const userId = safeParseInt(req.params.userId, 0);
+  const userId = safeParseInt(req.params.userId, NaN);
   if (isNaN(userId)) throw new BadRequestError('Invalid userId');
 
   const modeAnalytics = await cached(`analytics:modes:${userId}`, TTL.MEDIUM, async () => {
@@ -114,7 +114,7 @@ router.get('/:userId/modes', authenticateTelegram, authorizeUser, readLimiter, a
  * The :mode param is the mode name (e.g. 'fitness', 'hydration').
  */
 router.get('/:userId/modes/:mode', authenticateTelegram, authorizeUser, readLimiter, asyncHandler(async (req: Request, res: Response) => {
-  const userId = safeParseInt(req.params.userId, 0);
+  const userId = safeParseInt(req.params.userId, NaN);
   const modeName = req.params.mode;
   if (isNaN(userId)) throw new BadRequestError('Invalid userId');
 
@@ -217,7 +217,7 @@ router.get('/:userId/modes/:mode', authenticateTelegram, authorizeUser, readLimi
  * Returns overall progress summary: total XP, level, quests completed, active streaks.
  */
 router.get('/:userId/summary', authenticateTelegram, authorizeUser, readLimiter, asyncHandler(async (req: Request, res: Response) => {
-  const userId = safeParseInt(req.params.userId, 0);
+  const userId = safeParseInt(req.params.userId, NaN);
   if (isNaN(userId)) throw new BadRequestError('Invalid userId');
 
   const summary = await cached(`analytics:summary:${userId}`, 2 * 60_000, async () => {
