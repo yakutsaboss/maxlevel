@@ -2621,4 +2621,30 @@ After completing work, write your retrospective in PARALLEL_AGENTS.md under "Run
 #### Agent 0 Retrospective
 *(To be filled by Agent 0)*
 
-<!-- Next run goes here. Agent 0 will append RUN 49 below this line. -->
+### Run 49 Retrospectives
+
+#### Agent E Retrospective
+**Status**: DONE
+**Task**: Refactor BudgetTracker.tsx (320 lines) and SavingsGoal.tsx (343 lines) into smaller sub-components.
+
+**Files created** (6 new):
+- `mini-app/src/components/finance/useBudget.ts` — custom hook for budget data fetching, state, and entry submission
+- `mini-app/src/components/finance/BudgetSummary.tsx` — summary cards (income/expense/balance), spending bar, category breakdown
+- `mini-app/src/components/finance/BudgetForm.tsx` — form for adding income/expense entries with type toggle and category select
+- `mini-app/src/components/finance/useSavingsGoals.ts` — custom hook for savings goals data fetching, goal creation, deposits
+- `mini-app/src/components/finance/GoalCard.tsx` — individual goal card with progress bar, projected completion, deposit history
+- `mini-app/src/components/finance/GoalForm.tsx` — form for creating new savings goals
+- `mini-app/src/components/finance/GoalContribution.tsx` — inline deposit form within goal cards
+
+**Files modified** (2):
+- `mini-app/src/components/finance/BudgetTracker.tsx` — 320 → 62 lines (thin orchestrator)
+- `mini-app/src/components/finance/SavingsGoal.tsx` — 343 → 87 lines (thin orchestrator)
+
+**Results**:
+- Build passes cleanly, all 108 test files / 487 tests pass
+- Pure refactor — all existing functionality and DOM structure preserved
+- Interfaces/types exported from hooks for reuse across sub-components
+- `getProjectedCompletion` extracted as a standalone pure function in `useSavingsGoals.ts`
+- No conflicts expected — only touched files in `mini-app/src/components/finance/`
+
+<!-- Next run goes here. Agent 0 will append RUN 50 below this line. -->
