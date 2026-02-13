@@ -38,14 +38,16 @@ export function ProfileHeader({ stats, achievementCount, onEdit, onSettingsClick
         <Settings className="w-5 h-5 text-white" aria-hidden="true" />
       </button>
       <div className="text-center">
-        <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ type: 'spring', stiffness: 200 }} className="inline-block relative mb-4">
-          <div className={`w-24 h-24 ${avatar.color} rounded-full flex items-center justify-center shadow-xl`} role="img" aria-label={`Avatar: ${avatar.icon}`}>
-            <span className="text-5xl" aria-hidden="true">{avatar.icon}</span>
-          </div>
-          <div className="absolute -bottom-2 -right-2 bg-yellow-400 rounded-full px-3 py-1 shadow-lg">
-            <span className="text-sm font-bold text-purple-900">Lv {stats.user.level}</span>
-          </div>
-        </motion.div>
+        <div className="flex justify-center mb-4">
+          <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ type: 'spring', stiffness: 200 }} className="relative">
+            <div className={`w-24 h-24 ${avatar.color} rounded-full flex items-center justify-center shadow-xl`} role="img" aria-label={`Avatar: ${avatar.icon}`}>
+              <span className="text-5xl" aria-hidden="true">{avatar.icon}</span>
+            </div>
+            <div className="absolute -bottom-2 -right-2 bg-yellow-400 rounded-full px-3 py-1 shadow-lg">
+              <span className="text-sm font-bold text-purple-900">Lv {stats.user.level}</span>
+            </div>
+          </motion.div>
+        </div>
         <div className="flex items-center justify-center gap-2 mb-1">
           <h1 className="text-2xl font-bold text-white">{stats.user.first_name} {stats.user.last_name || ''}</h1>
           <button

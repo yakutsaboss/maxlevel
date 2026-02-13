@@ -2673,4 +2673,19 @@ After completing work, write your retrospective in PARALLEL_AGENTS.md under "Run
 
 **Note**: Run 49 retros for agents B-H were lost during `--theirs` conflict resolution (only Agent A's survived as last merge). Retros exist in git reflog on deleted branches.
 
-<!-- Next run goes here. Agent 0 will append RUN 50 below this line. -->
+### Run 50 Retrospectives
+
+#### Agent E Retrospective
+**Task**: Fix avatar off-center in Profile page header.
+
+**Root cause**: `motion.div` used `inline-block relative` — `inline-block` with `text-center` parent doesn't reliably center when absolute-positioned children (level badge at `-bottom-2 -right-2`) extend the element's visual bounds.
+
+**Fix**: Wrapped the `motion.div` in a `flex justify-center` container and removed `inline-block` from the motion wrapper (kept only `relative` for badge positioning). The flex container centers the avatar circle itself, while the badge remains absolute-positioned relative to the circle.
+
+**Changes**: 1 file modified (`ProfileHeader.tsx`), ~4 lines changed. Structure: `div.flex.justify-center` > `motion.div.relative` > avatar + badge.
+
+**Build**: Clean — `tsc && vite build` passed, zero errors. Profile chunk 21.78 KB (unchanged).
+
+**Time**: ~3 minutes. Straightforward CSS layout fix.
+
+<!-- Next run goes here. Agent 0 will append RUN 51 below this line. -->
