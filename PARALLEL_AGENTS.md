@@ -492,4 +492,419 @@ Use this structure when creating a new run. Copy and adapt:
 - pg-boss Node.js 22.12+ requirement (server has 20.20)
 - BUILD_TIMESTAMP env var formatting on Windows deploy (minor — uses literal `%Y` instead of date format)
 
-<!-- Next run goes here. Agent 0 will append RUN 51 below this line. -->
+---
+
+## Run 51: Code Quality + i18n + Test Coverage (5 Agents + Agent 0)
+
+**Date**: 2026-02-13
+**Agents**: 5 (A-E) + Agent 0
+**Goal**: Fix Navigation missing Finance, split oversized Social.tsx, migrate hardcoded strings to i18n, eliminate `any` casts, add missing test coverage.
+
+**Key findings from codebase audit:**
+1. Finance page not accessible from navigation menu (critical UX bug)
+2. Social.tsx at 389 lines — needs splitting
+3. ~50+ hardcoded strings in Social/Finance/Dashboard components despite i18n keys existing
+4. 5 `as any` casts in source code (social.ts, Settings.tsx, ThemeSettings.tsx, Leaderboard.tsx)
+5. Missing page tests for Social.tsx and Finance.tsx
+6. 8 untested bot utilities (achievementEngine, queries, cache, streak, etc.)
+7. ErrorBoundary uses direct console.error instead of logger
+
+---
+
+### Run 51 Copy-Paste Prompts
+
+**Agent A — Navigation Fix + Social.tsx Split**
+```
+Read c:\Users\Asus\Desktop\Wibecode-agent-a\PARALLEL_AGENTS.md — find "Run 51" and locate the "Agent A" section. You are Agent A.
+
+YOUR TASK: Fix the Navigation component to include Finance page, and split Social.tsx (389 lines) into smaller components.
+
+OWNED FILES (only you modify these):
+- mini-app/src/components/Navigation.tsx
+- mini-app/src/pages/Social.tsx
+- mini-app/src/components/social/ (NEW directory — create components here)
+
+TASK 1 — Add Finance to Navigation:
+1. Open mini-app/src/components/Navigation.tsx
+2. Add `import { DollarSign } from 'lucide-react'` to the imports
+3. In the navItems array (line 12-19), add a Finance entry BEFORE Profile (last item):
+   `{ path: '/finance', icon: <DollarSign className="w-5 h-5" />, label: 'Finance' }`
+4. This makes Finance accessible from the bottom navigation bar (currently unreachable by users)
+
+TASK 2 — Split Social.tsx:
+Social.tsx is 389 lines with inline friend request form, challenge creation form, and list rendering. Split into:
+
+1. Extract `FriendRequestForm` component → `mini-app/src/components/social/FriendRequestForm.tsx`
+   - Props: `telegramId`, `onSubmit`, `loading`, `error`, `success` (or manage state internally)
+   - Contains the friend request input + submit button + success/error messages
+
+2. Extract `ChallengeForm` component → `mini-app/src/components/social/ChallengeForm.tsx`
+   - Props: the challenge creation form fields + submit handler
+   - Contains all challenge creation inputs
+
+3. Extract `FriendsList` component → `mini-app/src/components/social/FriendsList.tsx`
+   - Props: `friends` array, `onChallenge` callback
+   - Contains the friends grid rendering
+
+4. Extract `ChallengesList` component → `mini-app/src/components/social/ChallengesList.tsx`
+   - Props: `challenges` array
+   - Contains the challenges list rendering with ChallengeCard
+
+5. Keep Social.tsx as orchestrator importing these 4 components. Target: Social.tsx under 150 lines.
+
+6. Also fix ErrorBoundary.tsx — replace `console.error` on line 23 with the logger utility:
+   - Import logger: `import { logger } from '@/utils/logger'`
+   - Change: `console.error('ErrorBoundary caught:', error, info.componentStack)` → `logger.error('ErrorBoundary caught:', error, info.componentStack)`
+
+FORBIDDEN: Do NOT modify any bot/ files, other pages, or i18n files.
+
+BUILD VERIFY: cd mini-app && npm run build must pass.
+
+After completing work, write your retrospective in PARALLEL_AGENTS.md under "Run 51 Retrospectives" → "Agent A Retrospective", replacing the placeholder text. Then commit all changes.
+```
+
+**Agent B — i18n Migration (Social + Finance + Dashboard)**
+```
+Read c:\Users\Asus\Desktop\Wibecode-agent-b\PARALLEL_AGENTS.md — find "Run 51" and locate the "Agent B" section. You are Agent B.
+
+YOUR TASK: Migrate all hardcoded UI strings in Social, Finance, and Dashboard components to use the existing i18n translation system. The translation keys ALREADY EXIST in en.ts/ru.ts/zh.ts — the components just aren't using them.
+
+OWNED FILES (only you modify these):
+- mini-app/src/pages/Social.tsx
+- mini-app/src/pages/Finance.tsx
+- mini-app/src/pages/Dashboard.tsx
+- mini-app/src/components/social/ChallengeCard.tsx
+- mini-app/src/components/social/FriendsList.tsx
+- mini-app/src/components/finance/BudgetForm.tsx
+- mini-app/src/components/finance/BudgetSummary.tsx
+- mini-app/src/components/finance/GoalForm.tsx
+- mini-app/src/components/finance/SavingsGoal.tsx
+
+IMPORTANT: Agent A is splitting Social.tsx into sub-components. If you find that Social.tsx has already been split (components in mini-app/src/components/social/), work with the NEW file structure. If it hasn't been split yet, work with the current Social.tsx — Agent 0 will handle any conflicts.
+
+HOW TO DO IT:
+1. First, read the i18n keys in mini-app/src/i18n/en.ts — sections `social:`, `finance:`, and `dashboard:`
+2. In each component, add `import { useTranslation } from 'react-i18next'` and call `const { t } = useTranslation()`
+3. Replace every hardcoded string with the corresponding `t('key')` call
+
+SPECIFIC REPLACEMENTS:
+
+Social components:
+- 'No deadline' → t('social.noDeadline')
+- 'Ended' → t('social.ended')
+- 'd left' → t('social.daysLeft')
+- 'h left' → t('social.hoursLeft')
+- 'Completed' → t('social.completed')
+- 'participant'/'participants' → t('social.participants')/t('social.participantsPlural')
+- 'No friends yet...' → t('social.noFriends')
+- 'Lv.' → t('social.level')
+- 'Send Friend Request' → t('social.sendRequest')
+
+Finance components:
+- 'Monthly Budget Summary' → t('finance.budgetSummary')
+- 'Income' → t('finance.income')
+- 'Expenses' → t('finance.expenses')
+- 'Balance' → t('finance.balance')
+- 'Spent' → t('finance.spent')
+- 'Category Breakdown' → t('finance.categoryBreakdown')
+- 'Add Entry' → t('finance.addEntry')
+- 'Expense'/'Income' → t('finance.expense')/t('finance.income')
+- 'Saving...' → t('finance.saving')
+- 'Savings Goals' → t('finance.savingsGoals')
+- 'No savings goals yet' → t('finance.noSavingsGoals')
+- 'Create your first goal...' → t('finance.createFirstGoal')
+
+Dashboard:
+- getGreeting() function (lines 20-25) returns hardcoded English. Replace with i18n keys:
+  - Check if dashboard greeting keys exist in en.ts. If not, add them to ALL THREE language files (en.ts, ru.ts, zh.ts)
+  - Keys needed: 'dashboard.greetingMorning', 'dashboard.greetingAfternoon', 'dashboard.greetingEvening', 'dashboard.greetingNight'
+
+If any translation key is MISSING from en.ts, add it to ALL 3 files (en.ts, ru.ts, zh.ts) with appropriate translations.
+
+FORBIDDEN: Do NOT modify any bot/ files, Navigation.tsx (Agent A), or test files.
+
+BUILD VERIFY: cd mini-app && npm run build must pass.
+
+After completing work, write your retrospective in PARALLEL_AGENTS.md under "Run 51 Retrospectives" → "Agent B Retrospective", replacing the placeholder text. Then commit all changes.
+```
+
+**Agent C — Bot Code Quality (any casts + NaN validation)**
+```
+Read c:\Users\Asus\Desktop\Wibecode-agent-c\PARALLEL_AGENTS.md — find "Run 51" and locate the "Agent C" section. You are Agent C.
+
+YOUR TASK: Fix TypeScript `as any` casts in bot routes and add robust parseInt validation.
+
+OWNED FILES (only you modify these):
+- bot/src/api/routes/social.ts
+- bot/src/api/routes/leaderboard.ts
+- bot/package.json
+
+TASK 1 — Fix `as any` in social.ts (lines 72-73):
+```typescript
+// Current (bad):
+invalidate(`social:challenges:${(request as any).from_user_id}`);
+invalidate(`social:challenges:${(request as any).to_user_id}`);
+```
+Fix: Look at the type of `request` in the surrounding code. It's likely the result of a SQL query. Create a proper interface for the challenge request row and type `request` correctly.
+
+TASK 2 — Fix parseInt NaN risk in leaderboard.ts:
+Lines like:
+```typescript
+const limit = Math.min(parseInt(req.query.limit as string) || 50, 100);
+```
+The `||` operator doesn't catch NaN correctly because `NaN || 50` evaluates to `50` in JS (NaN is falsy). But `parseInt('abc')` returns NaN, and `NaN || 50` does give 50, so it actually works. HOWEVER, `parseInt('0') || 50` gives 50 when the user intended 0.
+
+Fix: Create a helper function `safeParseInt(value: string | undefined, defaultVal: number): number` that:
+1. Returns defaultVal if value is undefined/null/empty
+2. Returns the parsed number if valid
+3. Returns defaultVal if NaN
+4. Put this in the same file or in a shared location if it's useful in multiple routes
+
+Apply to all parseInt calls in leaderboard.ts.
+
+TASK 3 — Add test script to bot/package.json:
+Currently missing `"test"` script. Add:
+```json
+"test": "vitest --run",
+"test:watch": "vitest"
+```
+
+FORBIDDEN: Do NOT modify any mini-app files or other bot files outside your owned list.
+
+BUILD VERIFY: cd bot && npm run build must pass.
+
+After completing work, write your retrospective in PARALLEL_AGENTS.md under "Run 51 Retrospectives" → "Agent C Retrospective", replacing the placeholder text. Then commit all changes.
+```
+
+**Agent D — Mini-App Page Tests (Social + Finance)**
+```
+Read c:\Users\Asus\Desktop\Wibecode-agent-d\PARALLEL_AGENTS.md — find "Run 51" and locate the "Agent D" section. You are Agent D.
+
+YOUR TASK: Write tests for the Social.tsx and Finance.tsx pages — the only two pages without test coverage.
+
+OWNED FILES (only you create/modify these):
+- mini-app/src/__tests__/pages/Social.test.tsx (NEW)
+- mini-app/src/__tests__/pages/Finance.test.tsx (NEW)
+
+PATTERN: Read existing page tests for the testing pattern:
+- mini-app/src/__tests__/pages/Dashboard.test.tsx
+- mini-app/src/__tests__/pages/Achievements.test.tsx
+
+These use @testing-library/react with vi.mock for API calls and hooks.
+
+SOCIAL PAGE TESTS (Social.test.tsx):
+1. Renders loading skeleton initially
+2. Renders friends list when data loads
+3. Renders "no friends" message when friends array is empty
+4. Renders challenge list when challenges exist
+5. Shows friend request form
+6. Shows error section on API failure
+7. Pull-to-refresh triggers refetch
+
+FINANCE PAGE TESTS (Finance.test.tsx):
+1. Renders with Budget tab active by default
+2. Switches between Budget and Savings tabs
+3. Renders BudgetTracker component in budget tab
+4. Renders SavingsGoal component in savings tab
+5. Shows loading skeleton initially
+6. Shows error section on API failure
+
+Target: ~20-25 tests across both files.
+
+IMPORTANT: Agent A may be splitting Social.tsx into sub-components. Write tests against the PUBLIC API of Social.tsx (what it renders, not its internal structure). Use render() + screen queries for element content, not component implementation details.
+
+FORBIDDEN: Do NOT modify any source files (test-only agent).
+
+BUILD VERIFY: cd mini-app && npx vitest --run src/__tests__/pages/Social.test.tsx src/__tests__/pages/Finance.test.tsx
+
+After completing work, write your retrospective in PARALLEL_AGENTS.md under "Run 51 Retrospectives" → "Agent D Retrospective", replacing the placeholder text. Then commit all changes.
+```
+
+**Agent E — Bot Utility Tests**
+```
+Read c:\Users\Asus\Desktop\Wibecode-agent-e\PARALLEL_AGENTS.md — find "Run 51" and locate the "Agent E" section. You are Agent E.
+
+YOUR TASK: Write tests for untested bot utility modules. These are core utilities used throughout the codebase with zero test coverage.
+
+OWNED FILES (only you create these):
+- bot/src/__tests__/utils/cache.test.ts (NEW)
+- bot/src/__tests__/utils/streak.test.ts (NEW)
+- bot/src/__tests__/utils/queries.test.ts (NEW)
+
+PATTERN: Read existing utility tests for the testing pattern:
+- bot/src/__tests__/utils/xpAward.test.ts
+- bot/src/__tests__/utils/sqlBuilder.test.ts
+
+These mock the database (`utils/db.ts`) and test function behavior.
+
+CACHE TESTS (cache.test.ts):
+1. First read bot/src/utils/cache.ts to understand the API
+2. Test: set + get returns cached value
+3. Test: get with expired TTL returns null/undefined
+4. Test: invalidate removes cached entry
+5. Test: invalidatePattern removes matching entries
+6. Test: cache miss returns null/undefined
+
+STREAK TESTS (streak.test.ts):
+1. First read bot/src/utils/streak.ts to understand the API
+2. Test: updateStreak increments streak for consecutive day
+3. Test: updateStreak resets streak after gap
+4. Test: updateStreak handles first-ever completion
+
+QUERIES TESTS (queries.test.ts):
+1. First read bot/src/utils/queries.ts to understand the API
+2. Test: getUserByTelegramId returns user for valid ID
+3. Test: getUserByTelegramId returns null for unknown ID
+4. Test: listAllModes returns array of modes
+5. Test: getUserActiveModes returns only active modes for user
+
+Target: ~15-20 tests across 3 files. Mock the database layer — do NOT connect to a real DB.
+
+FORBIDDEN: Do NOT modify any source files or mini-app files (test-only agent).
+
+BUILD VERIFY: cd bot && npx vitest --run src/__tests__/utils/cache.test.ts src/__tests__/utils/streak.test.ts src/__tests__/utils/queries.test.ts
+
+After completing work, write your retrospective in PARALLEL_AGENTS.md under "Run 51 Retrospectives" → "Agent E Retrospective", replacing the placeholder text. Then commit all changes.
+```
+
+---
+
+### Agent A — Navigation Fix + Social Split + ErrorBoundary
+
+**Branch:** `feature/r51-nav-social-split`
+**Worktree:** `../Wibecode-agent-a`
+
+**OWNED files:**
+- `mini-app/src/components/Navigation.tsx`
+- `mini-app/src/pages/Social.tsx`
+- `mini-app/src/components/social/FriendRequestForm.tsx` (NEW)
+- `mini-app/src/components/social/ChallengeForm.tsx` (NEW)
+- `mini-app/src/components/social/FriendsList.tsx` (NEW)
+- `mini-app/src/components/social/ChallengesList.tsx` (NEW)
+- `mini-app/src/components/ErrorBoundary.tsx`
+
+**FORBIDDEN:**
+- All bot/ files, all other pages, Dashboard.tsx (Agent B), Finance.tsx (Agent B), i18n files (Agent B)
+
+---
+
+### Agent B — i18n Migration
+
+**Branch:** `feature/r51-i18n-migration`
+**Worktree:** `../Wibecode-agent-b`
+
+**OWNED files:**
+- `mini-app/src/pages/Social.tsx` (GRAY AREA — i18n changes only, no structural changes)
+- `mini-app/src/pages/Finance.tsx`
+- `mini-app/src/pages/Dashboard.tsx`
+- `mini-app/src/components/social/ChallengeCard.tsx`
+- `mini-app/src/components/social/FriendsList.tsx` (GRAY AREA — may conflict with Agent A)
+- `mini-app/src/components/finance/BudgetForm.tsx`
+- `mini-app/src/components/finance/BudgetSummary.tsx`
+- `mini-app/src/components/finance/GoalForm.tsx`
+- `mini-app/src/components/finance/SavingsGoal.tsx`
+- `mini-app/src/i18n/en.ts` (add missing keys only)
+- `mini-app/src/i18n/ru.ts` (add missing keys only)
+- `mini-app/src/i18n/zh.ts` (add missing keys only)
+
+**FORBIDDEN:**
+- All bot/ files, Navigation.tsx (Agent A), test files
+
+---
+
+### Agent C — Bot Code Quality
+
+**Branch:** `feature/r51-bot-quality`
+**Worktree:** `../Wibecode-agent-c`
+
+**OWNED files:**
+- `bot/src/api/routes/social.ts`
+- `bot/src/api/routes/leaderboard.ts`
+- `bot/package.json`
+
+**FORBIDDEN:**
+- All mini-app files, all other bot routes, all test files
+
+---
+
+### Agent D — Mini-App Page Tests
+
+**Branch:** `feature/r51-page-tests`
+**Worktree:** `../Wibecode-agent-d`
+
+**OWNED files:**
+- `mini-app/src/__tests__/pages/Social.test.tsx` (NEW)
+- `mini-app/src/__tests__/pages/Finance.test.tsx` (NEW)
+
+**FORBIDDEN:**
+- ALL source files (test-only agent)
+
+---
+
+### Agent E — Bot Utility Tests
+
+**Branch:** `feature/r51-bot-util-tests`
+**Worktree:** `../Wibecode-agent-e`
+
+**OWNED files:**
+- `bot/src/__tests__/utils/cache.test.ts` (NEW)
+- `bot/src/__tests__/utils/streak.test.ts` (NEW)
+- `bot/src/__tests__/utils/queries.test.ts` (NEW)
+
+**FORBIDDEN:**
+- ALL source files, all mini-app files (test-only agent)
+
+---
+
+### Run 51 File Ownership Matrix
+
+| File / Directory | A | B | C | D | E |
+|---|---|---|---|---|---|
+| `Navigation.tsx` | **OWNED** | - | - | - | - |
+| `Social.tsx` (page) | **OWNED** | GRAY | - | - | - |
+| `social/` components (NEW) | **OWNED** | GRAY | - | - | - |
+| `ErrorBoundary.tsx` | **OWNED** | - | - | - | - |
+| `Finance.tsx` | - | **OWNED** | - | - | - |
+| `Dashboard.tsx` | - | **OWNED** | - | - | - |
+| `ChallengeCard.tsx` | - | **OWNED** | - | - | - |
+| `finance/*.tsx` | - | **OWNED** | - | - | - |
+| `i18n/*.ts` | - | **OWNED** | - | - | - |
+| `bot/routes/social.ts` | - | - | **OWNED** | - | - |
+| `bot/routes/leaderboard.ts` | - | - | **OWNED** | - | - |
+| `bot/package.json` | - | - | **OWNED** | - | - |
+| `__tests__/pages/Social.test.tsx` | - | - | - | **NEW** | - |
+| `__tests__/pages/Finance.test.tsx` | - | - | - | **NEW** | - |
+| `__tests__/utils/cache.test.ts` | - | - | - | - | **NEW** |
+| `__tests__/utils/streak.test.ts` | - | - | - | - | **NEW** |
+| `__tests__/utils/queries.test.ts` | - | - | - | - | **NEW** |
+| `PARALLEL_AGENTS.md` | retro | retro | retro | retro | retro |
+
+### Run 51 Merge Order
+
+1. Agent C (bot code quality) — backend first
+2. Agent A (navigation + social split) — frontend structural changes
+3. Agent B (i18n migration) — frontend content changes (depends on A's structure)
+4. Agent E (bot utility tests) — test only
+5. Agent D (mini-app page tests) — test only, merge LAST (depends on A+B source changes)
+
+### Run 51 Retrospectives
+
+#### Agent A Retrospective
+*(To be filled by Agent A)*
+
+#### Agent B Retrospective
+*(To be filled by Agent B)*
+
+#### Agent C Retrospective
+*(To be filled by Agent C)*
+
+#### Agent D Retrospective
+*(To be filled by Agent D)*
+
+#### Agent E Retrospective
+*(To be filled by Agent E)*
+
+#### Agent 0 Retrospective
+*(To be filled by Agent 0 after merge)*
+
+<!-- Next run goes here. Agent 0 will append RUN 52 below this line. -->
