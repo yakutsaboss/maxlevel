@@ -1,4 +1,5 @@
 import { Info, BookOpen, Bug } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { motion } from 'framer-motion';
 
 const APP_VERSION = '1.0.0';
@@ -8,6 +9,7 @@ interface AboutSectionProps {
 }
 
 export function AboutSection({ onOpenTelegramLink }: AboutSectionProps) {
+  const { t } = useTranslation();
   return (
     <div className="px-4 mt-6 mb-6">
       <motion.div
@@ -21,8 +23,8 @@ export function AboutSection({ onOpenTelegramLink }: AboutSectionProps) {
             <Info className="w-5 h-5" />
           </div>
           <div>
-            <h3 className="font-semibold text-sm">About</h3>
-            <p className="text-xs text-telegram-hint">Version {APP_VERSION}</p>
+            <h3 className="font-semibold text-sm">{t('settings.about')}</h3>
+            <p className="text-xs text-telegram-hint">{t('settings.version', { version: APP_VERSION })}</p>
           </div>
         </div>
 
@@ -33,7 +35,7 @@ export function AboutSection({ onOpenTelegramLink }: AboutSectionProps) {
             className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl bg-telegram-bg border border-telegram-hint/10 active:scale-[0.98] transition-transform"
           >
             <BookOpen className="w-4 h-4 text-telegram-link flex-shrink-0" aria-hidden="true" />
-            <span className="text-sm text-telegram-text">How it works</span>
+            <span className="text-sm text-telegram-text">{t('settings.howItWorks')}</span>
             <span className="ml-auto text-telegram-hint text-xs" aria-hidden="true">&rsaquo;</span>
           </button>
 
@@ -43,7 +45,7 @@ export function AboutSection({ onOpenTelegramLink }: AboutSectionProps) {
             className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl bg-telegram-bg border border-telegram-hint/10 active:scale-[0.98] transition-transform"
           >
             <Bug className="w-4 h-4 text-red-400 flex-shrink-0" aria-hidden="true" />
-            <span className="text-sm text-telegram-text">Report a bug</span>
+            <span className="text-sm text-telegram-text">{t('settings.reportBug')}</span>
             <span className="ml-auto text-telegram-hint text-xs" aria-hidden="true">&rsaquo;</span>
           </button>
         </div>

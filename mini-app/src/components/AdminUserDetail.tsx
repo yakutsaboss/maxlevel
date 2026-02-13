@@ -1,4 +1,5 @@
 import { ArrowLeft, User } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { motion } from 'framer-motion';
 
 export interface UserDetail {
@@ -22,6 +23,7 @@ interface AdminUserDetailProps {
 }
 
 export function AdminUserDetail({ user, onBack }: AdminUserDetailProps) {
+  const { t } = useTranslation();
   return (
     <motion.div
       initial={{ opacity: 0, x: 20 }}
@@ -33,7 +35,7 @@ export function AdminUserDetail({ user, onBack }: AdminUserDetailProps) {
         className="flex items-center gap-1 text-sm text-telegram-link"
       >
         <ArrowLeft size={16} />
-        Back to list
+        {t('admin.backToList')}
       </button>
 
       <div className="bg-telegram-secondaryBg rounded-xl p-4 space-y-4">
@@ -51,12 +53,12 @@ export function AdminUserDetail({ user, onBack }: AdminUserDetailProps) {
 
         <div className="grid grid-cols-2 gap-3">
           {[
-            { label: 'Level', value: user.level },
-            { label: 'XP', value: user.xp.toLocaleString() },
-            { label: 'Streak', value: `${user.streak_days}d` },
-            { label: 'Quests Done', value: user.quests_completed },
-            { label: 'Achievements', value: user.achievements_unlocked },
-            { label: 'Telegram ID', value: user.telegram_id },
+            { label: t('admin.userLevel'), value: user.level },
+            { label: t('admin.userXp'), value: user.xp.toLocaleString() },
+            { label: t('admin.userStreak'), value: `${user.streak_days}d` },
+            { label: t('admin.userQuestsDone'), value: user.quests_completed },
+            { label: t('admin.userAchievements'), value: user.achievements_unlocked },
+            { label: t('admin.userTelegramId'), value: user.telegram_id },
           ].map((item) => (
             <div key={item.label} className="bg-telegram-bg rounded-lg p-3">
               <div className="text-xs text-telegram-hint">{item.label}</div>
@@ -66,7 +68,7 @@ export function AdminUserDetail({ user, onBack }: AdminUserDetailProps) {
         </div>
 
         <div className="space-y-2">
-          <div className="text-xs text-telegram-hint">Active Modes</div>
+          <div className="text-xs text-telegram-hint">{t('admin.activeModes')}</div>
           <div className="flex flex-wrap gap-1.5">
             {user.active_modes.length > 0 ? (
               user.active_modes.map((mode) => (
@@ -75,14 +77,14 @@ export function AdminUserDetail({ user, onBack }: AdminUserDetailProps) {
                 </span>
               ))
             ) : (
-              <span className="text-sm text-telegram-hint">No active modes</span>
+              <span className="text-sm text-telegram-hint">{t('admin.noActiveModes')}</span>
             )}
           </div>
         </div>
 
         <div className="flex justify-between text-xs text-telegram-hint pt-2 border-t border-telegram-hint/10">
-          <span>Joined: {new Date(user.created_at).toLocaleDateString()}</span>
-          <span>Last active: {new Date(user.last_active).toLocaleDateString()}</span>
+          <span>{t('admin.joined')}: {new Date(user.created_at).toLocaleDateString()}</span>
+          <span>{t('admin.lastActive')}: {new Date(user.last_active).toLocaleDateString()}</span>
         </div>
       </div>
     </motion.div>

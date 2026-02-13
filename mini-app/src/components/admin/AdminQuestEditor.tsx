@@ -1,4 +1,5 @@
 import { Plus, RefreshCw } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { Toast } from '@/components/Toast';
 import { useQuestEditor } from '@/components/admin/quest-editor/useQuestEditor';
 import { QuestForm } from '@/components/admin/quest-editor/QuestForm';
@@ -9,6 +10,7 @@ interface AdminQuestEditorProps {
 }
 
 export function AdminQuestEditor({ credentials }: AdminQuestEditorProps) {
+  const { t } = useTranslation();
   const {
     quests,
     modes,
@@ -34,7 +36,7 @@ export function AdminQuestEditor({ credentials }: AdminQuestEditorProps) {
     return (
       <div className="space-y-3">
         <div className="flex items-center justify-between">
-          <h3 className="text-sm font-semibold text-telegram-hint uppercase tracking-wide">Quest Templates</h3>
+          <h3 className="text-sm font-semibold text-telegram-hint uppercase tracking-wide">{t('admin.questTemplates')}</h3>
         </div>
         {Array.from({ length: 4 }).map((_, i) => (
           <div key={i} className="bg-telegram-secondaryBg rounded-xl p-4 h-20 skeleton" />
@@ -50,7 +52,7 @@ export function AdminQuestEditor({ credentials }: AdminQuestEditorProps) {
       {/* Header */}
       <div className="flex items-center justify-between">
         <h3 className="text-sm font-semibold text-telegram-hint uppercase tracking-wide">
-          Quest Templates ({quests.length})
+          {t('admin.questTemplates')} ({quests.length})
         </h3>
         <div className="flex items-center gap-2">
           <button
@@ -58,14 +60,14 @@ export function AdminQuestEditor({ credentials }: AdminQuestEditorProps) {
             className="flex items-center gap-1.5 px-3 py-1.5 bg-telegram-secondaryBg rounded-lg text-xs text-telegram-hint hover:text-telegram-text transition-colors"
           >
             <RefreshCw size={14} />
-            Refresh
+            {t('common.refresh')}
           </button>
           <button
             onClick={openAddForm}
             className="flex items-center gap-1.5 px-3 py-1.5 bg-telegram-button text-telegram-buttonText rounded-lg text-xs font-medium"
           >
             <Plus size={14} />
-            Add Quest
+            {t('admin.addQuest')}
           </button>
         </div>
       </div>

@@ -1938,4 +1938,44 @@ After completing work, write your retrospective in PARALLEL_AGENTS.md under "Run
 #### Agent 0 Retrospective
 *(To be filled by Agent 0 after merge)*
 
-<!-- Next run goes here. Agent 0 will append RUN 54 below this line. -->
+### Run 54 Retrospectives
+
+#### Agent B Retrospective
+**Task:** Migrate all remaining hardcoded English strings to i18n in 21 component files.
+
+**Result:** All 21 component files migrated to `useTranslation()`. Build passes clean.
+
+**Files modified (21 components):**
+- `AdminLoginForm.tsx` — 6 strings: panel title, subtitle, username/password placeholders, login button, error messages (invalid credentials, server error, connection failed)
+- `AdminQuestEditor.tsx` — 3 strings: "Quest Templates" header, "Refresh", "Add Quest"
+- `AnswerAnalytics.tsx` — 3 strings: "Answer Analytics" (x3 occurrences), "Retry", "Refresh"
+- `QuestForm.tsx` — 16 strings: all form labels (Title, Description, Mode, Type, XP Reward, Difficulty), options (Daily/Weekly, Easy/Medium/Hard, None), toggle label, timer window labels, save button text
+- `QuestList.tsx` — 1 string: "No quest templates yet"
+- `AdminBroadcast.tsx` — 8 strings: header, placeholder, button labels (Sending.../Send Broadcast), error/success toasts, warning section
+- `AdminJobs.tsx` — 7 strings: header, Refresh, Trigger, empty state, confirm dialog, error/success toasts
+- `AdminLogs.tsx` — 4 strings: "System Logs" header, "Auto", "Refresh", empty state
+- `AdminUserList.tsx` — 2 strings: "No users found" / "No users yet"
+- `AdminUserSearch.tsx` — 1 string: search placeholder
+- `AdminUserDetail.tsx` — 10 strings: "Back to list", 6 stat labels (Level, XP, Streak, Quests Done, Achievements, Telegram ID), "Active Modes", "No active modes", "Joined"/"Last active"
+- `AdminStatsCard.tsx` — 5 strings: "Overview" header, 4 stat card labels (converted `label` → `labelKey` + `t()`)
+- `AdminPagination.tsx` — 1 string: "Page X of Y" with interpolation
+- `AnswerChart.tsx` — 4 strings: "answers", "Most common", "Show less" / "Show all N options"
+- `AnswerTable.tsx` — 3 strings: "No analytics data", "respondents", "No response data yet"
+- `AboutSection.tsx` — 3 strings: "About", "Version X", "How it works", "Report a bug"
+- `DangerZone.tsx` — 3 strings: "Delete Account" (title + button), warning text, "Deleting..."
+- `NotificationSettings.tsx` — 7 strings: section headers + descriptions (Notifications, Reminder Time, Timezone), placeholder, auto-detect button
+- `ErrorSection.tsx` — 2 strings: "Something went wrong", "Retry"
+- `ErrorBoundary.tsx` — 3 strings: "Something went wrong", "An unexpected error occurred", "Try Again" (used `<Translation>` render prop for class component)
+- `QuestFilters.tsx` — 4 strings: "All" filter button, sort labels (Newest, XP Reward, Progress) via `SORT_LABEL_KEYS`
+
+**i18n files updated:**
+- `en.ts` — 43 new keys (25 admin, 14 settings, 3 errors, 4 quests filter)
+- `ru.ts` — 43 new keys (Russian translations)
+- `zh.ts` — 43 new keys (Simplified Chinese translations)
+
+**Notable patterns:**
+- `ErrorBoundary` is a class component — used `<Translation>` render prop from react-i18next instead of `useTranslation()` hook
+- `AdminStatsCard` and `QuestFilters` had module-level label arrays — converted `label` → `labelKey` and translate at render time via `t(card.labelKey)`
+- Many admin keys already existed from Run 53 — reused 30+ existing keys, only added truly new ones
+
+<!-- Next run goes here. Agent 0 will append RUN 55 below this line. -->

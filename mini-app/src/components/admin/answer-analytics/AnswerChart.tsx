@@ -1,5 +1,6 @@
 import { motion } from 'framer-motion';
 import { ChevronDown } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { formatLabel, getBarColor } from '@/components/admin/answer-analytics/useAnswerAnalytics';
 import type { QuestionStat } from '@/components/admin/answer-analytics/useAnswerAnalytics';
 
@@ -10,6 +11,7 @@ interface AnswerChartProps {
 }
 
 export function AnswerChart({ question, isExpanded, onToggle }: AnswerChartProps) {
+  const { t } = useTranslation();
   const totalResponses = Object.values(question.responses).reduce((a, b) => a + b, 0);
   const entries = Object.entries(question.responses).sort(([, a], [, b]) => b - a);
   const topEntries = isExpanded ? entries : entries.slice(0, 4);
@@ -23,14 +25,14 @@ export function AnswerChart({ question, isExpanded, onToggle }: AnswerChartProps
           {question.label || formatLabel(question.key)}
         </div>
         <div className="text-[10px] text-telegram-hint px-2 py-0.5 bg-telegram-bg rounded-full">
-          {totalResponses} answers
+          {totalResponses} {t('admin.answers')}
         </div>
       </div>
 
       {/* Most common answer */}
       {question.most_common && (
         <div className="text-xs text-telegram-hint">
-          Most common: <span className="text-telegram-link font-medium">{formatLabel(question.most_common)}</span>
+          {t('admin.mostCommon')}: <span className="text-telegram-link font-medium">{formatLabel(question.most_common)}</span>
         </div>
       )}
 
@@ -71,7 +73,7 @@ export function AnswerChart({ question, isExpanded, onToggle }: AnswerChartProps
             size={12}
             className={`transition-transform ${isExpanded ? 'rotate-180' : ''}`}
           />
-          {isExpanded ? 'Show less' : `Show all ${entries.length} options`}
+          {isExpanded ? t('admin.showLess') : t('admin.showAll', { count: entries.length })}
         </button>
       )}
     </div>

@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import { RefreshCw, ToggleLeft, ToggleRight } from 'lucide-react';
 import { API_BASE_URL } from '@/api/adminClient';
 
@@ -19,6 +20,7 @@ const LEVEL_COLORS: Record<string, string> = {
 };
 
 export function AdminLogs({ credentials }: AdminLogsProps) {
+  const { t } = useTranslation();
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [autoRefresh, setAutoRefresh] = useState(false);
@@ -83,7 +85,7 @@ export function AdminLogs({ credentials }: AdminLogsProps) {
     return (
       <div className="space-y-3">
         <div className="flex items-center justify-between">
-          <h3 className="text-sm font-semibold text-telegram-hint uppercase tracking-wide">System Logs</h3>
+          <h3 className="text-sm font-semibold text-telegram-hint uppercase tracking-wide">{t('admin.systemLogs')}</h3>
         </div>
         {Array.from({ length: 6 }).map((_, i) => (
           <div key={i} className="bg-telegram-secondaryBg rounded-xl p-3 space-y-2">
@@ -104,7 +106,7 @@ export function AdminLogs({ credentials }: AdminLogsProps) {
       {/* Controls */}
       <div className="flex items-center justify-between">
         <h3 className="text-sm font-semibold text-telegram-hint uppercase tracking-wide">
-          System Logs ({logs.length})
+          {t('admin.systemLogs')} ({logs.length})
         </h3>
         <div className="flex items-center gap-3">
           <button
@@ -117,7 +119,7 @@ export function AdminLogs({ credentials }: AdminLogsProps) {
             ) : (
               <ToggleLeft size={20} />
             )}
-            Auto
+            {t('admin.auto')}
           </button>
           <button
             onClick={handleRefresh}
@@ -125,7 +127,7 @@ export function AdminLogs({ credentials }: AdminLogsProps) {
             className="flex items-center gap-1.5 px-3 py-1.5 bg-telegram-secondaryBg rounded-lg text-xs text-telegram-hint hover:text-telegram-text transition-colors disabled:opacity-50"
           >
             <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
-            Refresh
+            {t('common.refresh')}
           </button>
         </div>
       </div>
@@ -133,7 +135,7 @@ export function AdminLogs({ credentials }: AdminLogsProps) {
       {/* Log entries */}
       {logs.length === 0 ? (
         <div className="bg-telegram-secondaryBg rounded-xl p-8 text-center">
-          <p className="text-telegram-hint text-sm">No log entries found</p>
+          <p className="text-telegram-hint text-sm">{t('admin.noLogEntries')}</p>
         </div>
       ) : (
         <div className="space-y-2 max-h-[70vh] overflow-y-auto hide-scrollbar">
