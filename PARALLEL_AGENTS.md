@@ -1699,4 +1699,18 @@ All 4 tasks completed cleanly. Added `u.avatar_id` to all 4 leaderboard SQL quer
 #### Agent 0 Retrospective
 *(To be filled by Agent 0 after merge)*
 
-<!-- Next run goes here. Agent 0 will append RUN 58 below this line. -->
+### Run 58 Retrospectives
+
+#### Agent B Retrospective
+- **Files created**: `bot/src/utils/planTypes.ts`, `bot/src/utils/fitnessPlanGenerator.ts`, `bot/src/utils/hydrationPlanGenerator.ts`
+- **Files modified**: `bot/src/utils/planGenerator.ts` (400→48 lines)
+- **What was done**: Split the monolithic planGenerator.ts into 3 focused modules:
+  - `planTypes.ts` (52 lines) — all shared type definitions (FitnessPlan, HydrationPlan, QuizResponses, ModeConfig, etc.)
+  - `fitnessPlanGenerator.ts` (180 lines) — EXERCISE_POOL constant, pickExercises, durationForLevel, buildFocusRotation, buildFitnessRecommendations, and the main generateFitnessPlan function
+  - `hydrationPlanGenerator.ts` (116 lines) — ML_PER_GLASS, CONTAINER_ML, REMINDER_MINUTES constants, buildHydrationRecommendations, and generateHydrationPlan
+  - `planGenerator.ts` (48 lines) — slim orchestrator that imports from the two generators, delegates via mode switch, and re-exports all types for backward compatibility
+- **Backward compatibility**: All types are re-exported from planGenerator.ts via `export type {...} from './planTypes.js'`, so the existing test file (`planGenerator.test.ts`) continues to work with zero import changes
+- **Build**: `npm run build` passes cleanly with zero errors
+- **No issues encountered**: Straightforward extraction, no logic changes, no blockers
+
+<!-- Next run goes here. Agent 0 will append RUN 59 below this line. -->
