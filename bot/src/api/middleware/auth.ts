@@ -4,6 +4,7 @@ import { TelegramUser, TelegramInitData } from '../../types/telegram.js';
 import { queryOne } from '../../utils/db.js';
 import { ForbiddenError } from '../utils/errors.js';
 import { logger } from '../../utils/logger.js';
+import { safeParseInt } from '../../utils/validation.js';
 
 const authLog = logger.child({ component: 'auth' });
 
@@ -60,7 +61,7 @@ export function parseTelegramInitData(initData: string): TelegramInitData | null
     return {
       query_id: urlParams.get('query_id') || undefined,
       user: userData ? JSON.parse(userData) : undefined,
-      auth_date: parseInt(urlParams.get('auth_date') || '0'),
+      auth_date: safeParseInt(urlParams.get('auth_date') || '0', 0),
       hash: urlParams.get('hash') || '',
     };
   } catch (error) {
@@ -209,7 +210,7 @@ export async function authorizeUser(req: Request, res: Response, next: NextFunct
     const telegramId = req.params.telegramId;
 
     // If route has userId parameter, verify it matches
-    if (userId && parseInt(userId) !== dbUser.id) {
+    if (userId && safeParseInt(userId, -1) !== dbUser.id) {
       authLog.warn('Resource ownership mismatch', {
         telegramUserId: telegramUser.id, requestedUser: userId, actualUser: dbUser.id, requestId: req.requestId,
       });
@@ -221,7 +222,7 @@ export async function authorizeUser(req: Request, res: Response, next: NextFunct
     }
 
     // If route has telegramId parameter, verify it matches
-    if (telegramId && parseInt(telegramId) !== telegramUser.id) {
+    if (telegramId && safeParseInt(telegramId, -1) !== telegramUser.id) {
       authLog.warn('Telegram ID mismatch', {
         authenticatedId: telegramUser.id, requestedId: telegramId, requestId: req.requestId,
       });
@@ -252,7 +253,7 @@ export async function authorizeUser(req: Request, res: Response, next: NextFunct
  * Call as the FIRST line inside a handler after parsing the param.
  */
 export function requireOwnership(req: Request): void {
-  const paramId = parseInt(req.params.telegramId);
+  const paramId = safeParseInt(req.params.telegramId, 0);
   const authId = req.telegramUser?.id;
   if (!authId || paramId !== authId) {
     throw new ForbiddenError('You do not have permission to access this resource');

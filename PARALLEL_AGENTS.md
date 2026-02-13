@@ -2391,4 +2391,18 @@ After completing work, write your retrospective in PARALLEL_AGENTS.md under "Run
 
 #### Agent 0 Retrospective
 *(To be filled by Agent 0 after merge)*
-<!-- Next run goes here. Agent 0 will append RUN 55 below this line. -->
+### Run 55 Retrospectives
+
+#### Agent A Retrospective
+**Task:** Replace 6 bare `parseInt()` in middleware (auth.ts + premiumGate.ts) and eliminate 3 `Record<string, any>` in planGenerator.ts.
+
+**Result:** All 6 `parseInt()` replaced with `safeParseInt()`. All 3 `Record<string, any>` replaced with `QuizResponses` interface (`[key: string]: unknown`). Build passes clean.
+
+**Changes made:**
+1. **auth.ts** (4 replacements): `safeParseInt` import added. Line 63 auth_date (default 0), line 212 userId (default -1), line 224 telegramId (default -1), line 255 requireOwnership paramId (default 0).
+2. **premiumGate.ts** (2 replacements): `safeParseInt` import added. Lines 31-32 userId from params/body (default 0). Changed `isNaN(userId)` to `userId === 0` since safeParseInt returns default on invalid input. Used `String()` wrapper for `req.body.userId` (may be number).
+3. **planGenerator.ts** (3 type fixes): Created `QuizResponses` interface with `[key: string]: unknown`. Replaced `Record<string, any>` in `ModeConfig`, `generateFitnessPlan`, `generateHydrationPlan`. Added type narrowing: `String()` for scalar values, `Array.isArray()` checks + `as string[]` for arrays, nested object cast for `wake_time` dual-time field.
+
+**Verification:** Zero remaining bare `parseInt(` in auth.ts and premiumGate.ts. Zero remaining `Record<string, any>` in planGenerator.ts. Two `parseInt(String(...), 10)` calls remain in planGenerator.ts (workout_frequency, daily_target) — these have explicit radix + fallback defaults, acceptable.
+
+<!-- Next run goes here. Agent 0 will append RUN 56 below this line. -->

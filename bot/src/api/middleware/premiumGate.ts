@@ -7,6 +7,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { queryOne } from '../../utils/db.js';
 import { logger } from '../../utils/logger.js';
+import { safeParseInt } from '../../utils/validation.js';
 
 const log = logger.child({ component: 'premiumGate' });
 
@@ -28,10 +29,10 @@ export function requirePremium(minTier: string) {
 
   return async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     const userId = req.params.userId
-      ? parseInt(req.params.userId)
-      : (req.body?.userId ? parseInt(req.body.userId) : null);
+      ? safeParseInt(req.params.userId, 0)
+      : (req.body?.userId ? safeParseInt(String(req.body.userId), 0) : null);
 
-    if (!userId || isNaN(userId)) {
+    if (!userId || userId === 0) {
       res.status(400).json({
         success: false,
         error: 'Bad Request',
