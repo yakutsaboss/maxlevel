@@ -1699,4 +1699,27 @@ All 4 tasks completed cleanly. Added `u.avatar_id` to all 4 leaderboard SQL quer
 #### Agent 0 Retrospective
 *(To be filled by Agent 0 after merge)*
 
-<!-- Next run goes here. Agent 0 will append RUN 58 below this line. -->
+### Run 58 Retrospectives
+
+#### Agent A Retrospective
+*(To be filled by Agent A)*
+
+#### Agent B Retrospective
+*(To be filled by Agent B)*
+
+#### Agent C Retrospective
+*(To be filled by Agent C)*
+
+#### Agent D Retrospective
+- **Files changed**: `bot/src/__tests__/utils/planGenerator.test.ts` (rewritten), `bot/src/__tests__/utils/fitnessPlanGenerator.test.ts` (NEW), `bot/src/__tests__/utils/hydrationPlanGenerator.test.ts` (NEW)
+- **Test counts**: 6 orchestrator tests + 21 fitness tests + 13 hydration tests = 40 total (target was ~20-24, exceeded for better coverage)
+- **planGenerator.test.ts**: Rewritten to test only the orchestrator — delegation to fitness/hydration generators, null-safety for missing/invalid quiz_responses, unsupported mode returns null, QuizResponses type narrowing. Imports `generatePlan` from `planGenerator.js`, types from `planTypes.js`.
+- **fitnessPlanGenerator.test.ts**: Tests `generateFitnessPlan` (9 tests: defaults, level/frequency respect, day code resolution, focus rotation, recommendations), `durationForLevel` (5 tests: all 4 levels + unknown fallback), `buildFocusRotation` (4 tests: full_body only, cycling, mixed filtering, empty), `pickExercises` (3 tests: matching, fallback pool, no duplicates).
+- **hydrationPlanGenerator.test.ts**: Tests `generateHydrationPlan` (6 tests: defaults, target/container, reminder interval, nested wake_time, string wake_time, different targets → different ml), `buildHydrationRecommendations` (7 tests: non-empty, low-intake ramp-up, electrolyte threshold, goal-based, refill counts for jug/bottle).
+- **Pre-merge results**: planGenerator.test.ts 6/6 pass (orchestrator still exists in original file). fitnessPlanGenerator.test.ts and hydrationPlanGenerator.test.ts fail on import (expected — Agent B's split files don't exist yet). All tests will pass after Agent B's merge.
+- **No issues encountered**. Matched existing test patterns (logger mock, vi.clearAllMocks in beforeEach, .js import extensions).
+
+#### Agent 0 Retrospective
+*(To be filled by Agent 0 after merge)*
+
+<!-- Next run goes here. Agent 0 will append RUN 59 below this line. -->
