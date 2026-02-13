@@ -2621,4 +2621,27 @@ After completing work, write your retrospective in PARALLEL_AGENTS.md under "Run
 #### Agent 0 Retrospective
 *(To be filled by Agent 0)*
 
-<!-- Next run goes here. Agent 0 will append RUN 49 below this line. -->
+### Run 49 Retrospectives
+
+#### Agent H Retrospective
+**Created (4 new test files):**
+- `mini-app/src/__tests__/components/onboarding/summary/SectionCard.test.tsx` (4 tests)
+- `mini-app/src/__tests__/components/onboarding/summary/SummaryModeCard.test.tsx` (15 tests)
+- `mini-app/src/__tests__/components/onboarding/summary/SummarySchedule.test.tsx` (14 tests)
+- `mini-app/src/__tests__/components/onboarding/summary/SummaryStats.test.tsx` (11 tests)
+
+**Enhanced (2 existing test files):**
+- `mini-app/src/__tests__/components/ErrorBoundary.test.tsx` — added icon rendering and console.error logging tests (+2 tests)
+- `mini-app/src/__tests__/components/LazyPageWrapper.test.tsx` — added multiple children and nested elements tests (+2 tests)
+
+**Total: 48 new tests, all passing. Full suite: 112 files, 535 tests, 0 failures.**
+
+**Coverage highlights:**
+- SectionCard: title rendering, Edit button click, multiple children
+- SummaryModeCard: SummaryFocusAreas (mode badges, empty/undefined modes, unknown mode fallback, edit callback) + SummaryModeCards (all 4 modes with data, conditional rendering, edit step mapping, focus_areas truncation to 3 items)
+- SummarySchedule: punishment consent states, all 3 punishment types with difficulty labels, safe_mode indicator, intensity_level fallback, notification preference counting (0/4, 2/4, 4/4, all enabled default)
+- SummaryStats: all avatar labels (5 new + 3 legacy), undefined/empty gender fallback, unknown gender pass-through
+
+**No issues — all tests passed on first run, no conflicts with other agents' files.**
+
+<!-- Next run goes here. Agent 0 will append RUN 50 below this line. -->

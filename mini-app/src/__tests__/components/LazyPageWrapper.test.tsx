@@ -23,4 +23,30 @@ describe('LazyPageWrapper', () => {
 
     expect(screen.getByText('Loaded Content')).toBeInTheDocument();
   });
+
+  it('renders multiple children', () => {
+    render(
+      <LazyPageWrapper>
+        <div>First child</div>
+        <div>Second child</div>
+      </LazyPageWrapper>
+    );
+
+    expect(screen.getByText('First child')).toBeInTheDocument();
+    expect(screen.getByText('Second child')).toBeInTheDocument();
+  });
+
+  it('renders nested elements correctly', () => {
+    render(
+      <LazyPageWrapper>
+        <div>
+          <h1>Title</h1>
+          <p>Description</p>
+        </div>
+      </LazyPageWrapper>
+    );
+
+    expect(screen.getByText('Title')).toBeInTheDocument();
+    expect(screen.getByText('Description')).toBeInTheDocument();
+  });
 });

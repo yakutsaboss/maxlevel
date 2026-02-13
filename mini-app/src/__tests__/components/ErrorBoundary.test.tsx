@@ -59,4 +59,31 @@ describe('ErrorBoundary', () => {
     fireEvent.click(screen.getByText('Try Again'));
     expect(mockReload).toHaveBeenCalled();
   });
+
+  it('renders alert and refresh icons in error state', () => {
+    render(
+      <ErrorBoundary>
+        <ThrowingChild shouldThrow={true} />
+      </ErrorBoundary>
+    );
+
+    expect(screen.getByTestId('alert-icon')).toBeInTheDocument();
+    expect(screen.getByTestId('refresh-icon')).toBeInTheDocument();
+  });
+
+  it('logs error to console when catching', () => {
+    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+    render(
+      <ErrorBoundary>
+        <ThrowingChild shouldThrow={true} />
+      </ErrorBoundary>
+    );
+
+    expect(consoleSpy).toHaveBeenCalled();
+    const args = consoleSpy.mock.calls.find(call =>
+      call[0] === 'ErrorBoundary caught:'
+    );
+    expect(args).toBeTruthy();
+  });
 });
