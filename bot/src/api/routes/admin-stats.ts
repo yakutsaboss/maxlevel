@@ -16,6 +16,7 @@ import {
 } from '../utils/errors.js';
 import { logger } from '../../utils/logger.js';
 import { broadcastMessage } from '../../utils/broadcast.js';
+import { safeParseInt } from '../../utils/validation.js';
 
 /** Shape returned by sheets_analytics_export Python tool */
 interface AnalyticsExportResult {
@@ -132,7 +133,7 @@ router.post('/broadcast', requireRole('admin'), asyncHandler(async (req: Request
  * Get recent system logs
  */
 router.get('/logs', requireRole('admin'), asyncHandler(async (req: Request, res: Response) => {
-  const limit = Math.min(parseInt(req.query.limit as string) || 50, 200);
+  const limit = Math.max(1, Math.min(safeParseInt(req.query.limit as string, 50), 200));
 
   // Query pg-boss job history for completed/failed jobs
   const jobs = await query<{

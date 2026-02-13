@@ -1508,7 +1508,16 @@ After completing work, write your retrospective in PARALLEL_AGENTS.md under "Run
 *(To be filled by Agent B)*
 
 #### Agent C Retrospective
-*(To be filled by Agent C)*
+**Completed all 4 tasks. Build passes.**
+
+1. **Created `bot/src/utils/validation.ts`** — shared `safeParseInt()` and `clampPagination()` utilities. `safeParseInt` correctly handles `'0'` (unlike `parseInt(x) || default`). `clampPagination` enforces `limit ∈ [1, maxLimit]` and `offset ≥ 0`.
+2. **Fixed `admin-users.ts`** — replaced `parseInt(x) || default` pagination with `safeParseInt` + `clampPagination` (maxLimit=200).
+3. **Fixed `admin-stats.ts`** — replaced `parseInt(x) || 50` in logs route with `safeParseInt`, kept existing Math.min(200) bound, added Math.max(1) floor.
+4. **Fixed `admin-quests.ts`** — replaced 3 bare `parseInt()` calls (mode_id filter, questId in PATCH, questId in DELETE) with `safeParseInt`.
+5. **Fixed `punishment.ts`** — replaced `parseInt || default` in history pagination with `safeParseInt`; added array type check + length limit (max 20) for `custom_punishments` before `JSON.stringify`.
+6. **`admin-jobs.ts`** — no parseInt calls for pagination/query params, only job name string param. No changes needed.
+
+**Note for Agent 0:** The existing `safeParseInt` in `leaderboard.ts` is still there (unchanged per FORBIDDEN rules). Future cleanup could import from `validation.ts` instead, but that's outside this run's scope.
 
 #### Agent D Retrospective
 *(To be filled by Agent D)*

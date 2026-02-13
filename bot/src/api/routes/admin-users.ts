@@ -14,6 +14,7 @@ import {
 } from '../utils/errors.js';
 import { logger } from '../../utils/logger.js';
 import { buildDynamicUpdate } from '../../utils/sqlBuilder.js';
+import { safeParseInt, clampPagination } from '../../utils/validation.js';
 
 const log = logger.child({ component: 'adminUsers' });
 
@@ -24,8 +25,10 @@ const router = Router();
  * List all users with pagination
  */
 router.get('/', requirePermission('users:read'), asyncHandler(async (req: Request, res: Response) => {
-  const limit = parseInt(req.query.limit as string) || 50;
-  const offset = parseInt(req.query.offset as string) || 0;
+  const { limit, offset } = clampPagination(
+    safeParseInt(req.query.limit as string, 50),
+    safeParseInt(req.query.offset as string, 0),
+  );
   const activeOnly = req.query.active === 'true';
 
   const users = await query(

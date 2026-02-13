@@ -19,6 +19,7 @@ import {
 } from '../utils/errors.js';
 import { PUNISHMENT_INTENSITY } from '../utils/constants.js';
 import { buildDynamicUpdate } from '../../utils/sqlBuilder.js';
+import { safeParseInt } from '../../utils/validation.js';
 
 const router = Router();
 
@@ -95,6 +96,12 @@ router.patch('/:telegramId/settings', authenticateTelegram, asyncHandler(async (
   }
 
   if (custom_punishments !== undefined) {
+    if (!Array.isArray(custom_punishments)) {
+      throw new BadRequestError('custom_punishments must be an array');
+    }
+    if (custom_punishments.length > 20) {
+      throw new BadRequestError('Maximum 20 custom punishments allowed');
+    }
     fields.custom_punishments = JSON.stringify(custom_punishments);
   }
 
@@ -149,8 +156,8 @@ router.get('/:telegramId/history', authenticateTelegram, asyncHandler(async (req
     throw new BadRequestError('Invalid telegram ID');
   }
 
-  const page = Math.max(1, parseInt(req.query.page as string) || 1);
-  const limit = Math.min(100, Math.max(1, parseInt(req.query.limit as string) || 20));
+  const page = Math.max(1, safeParseInt(req.query.page as string, 1));
+  const limit = Math.min(100, Math.max(1, safeParseInt(req.query.limit as string, 20)));
   const offset = (page - 1) * limit;
 
   // Get user_id

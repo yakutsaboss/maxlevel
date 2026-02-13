@@ -14,6 +14,7 @@ import {
 } from '../utils/errors.js';
 import { logger } from '../../utils/logger.js';
 import { buildDynamicUpdate } from '../../utils/sqlBuilder.js';
+import { safeParseInt } from '../../utils/validation.js';
 
 const log = logger.child({ component: 'adminQuests' });
 
@@ -24,7 +25,7 @@ const router = Router();
  * List all quest templates with mode info
  */
 router.get('/', requirePermission('quests:read'), asyncHandler(async (req: Request, res: Response) => {
-  const modeId = req.query.mode_id ? parseInt(req.query.mode_id as string) : null;
+  const modeId = req.query.mode_id ? safeParseInt(req.query.mode_id as string, 0) || null : null;
   const questType = req.query.quest_type as string | undefined;
 
   let sql = `
@@ -127,7 +128,7 @@ router.post('/', requirePermission('quests:create'), asyncHandler(async (req: Re
  * Update a quest template
  */
 router.patch('/:id', requirePermission('quests:update'), asyncHandler(async (req: Request, res: Response) => {
-  const questId = parseInt(req.params.id);
+  const questId = safeParseInt(req.params.id, 0);
   const updates = req.body;
 
   const allowedFields = [
@@ -177,7 +178,7 @@ router.patch('/:id', requirePermission('quests:update'), asyncHandler(async (req
  * Delete a quest template (only if no instances reference it)
  */
 router.delete('/:id', requirePermission('quests:delete'), asyncHandler(async (req: Request, res: Response) => {
-  const questId = parseInt(req.params.id);
+  const questId = safeParseInt(req.params.id, 0);
 
   const quest = await queryOne('SELECT id, title FROM quests WHERE id = $1', [questId]);
   if (!quest) {
