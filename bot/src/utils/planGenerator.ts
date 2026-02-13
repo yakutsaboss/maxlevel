@@ -48,9 +48,14 @@ export interface HydrationPlan {
 
 export type PlanType = FitnessPlan | HydrationPlan;
 
+/** Generic quiz response map — values are unknown, narrowed at point of use. */
+export interface QuizResponses {
+  [key: string]: unknown;
+}
+
 export interface ModeConfig {
   mode: string;
-  quiz_responses: Record<string, any>;
+  quiz_responses: QuizResponses;
 }
 
 // ---------------------------------------------------------------------------
@@ -177,15 +182,15 @@ function durationForLevel(level: string): number {
   }
 }
 
-function generateFitnessPlan(responses: Record<string, any>): FitnessPlan {
+function generateFitnessPlan(responses: QuizResponses): FitnessPlan {
   const log = logger.child({ component: 'planGenerator', mode: 'fitness' });
 
-  const level: string = responses.fitness_level || 'beginner';
-  const frequency: number = parseInt(responses.workout_frequency, 10) || 3;
-  const focusAreas: string[] = responses.focus_areas || ['full_body'];
-  const equipment: string[] = responses.equipment || ['bodyweight'];
-  const motivation: string[] = responses.motivation || ['stay_healthy'];
-  const workoutDays: string[] = responses.workout_days || [];
+  const level: string = String(responses.fitness_level || 'beginner');
+  const frequency: number = parseInt(String(responses.workout_frequency ?? ''), 10) || 3;
+  const focusAreas: string[] = (Array.isArray(responses.focus_areas) ? responses.focus_areas : ['full_body']) as string[];
+  const equipment: string[] = (Array.isArray(responses.equipment) ? responses.equipment : ['bodyweight']) as string[];
+  const motivation: string[] = (Array.isArray(responses.motivation) ? responses.motivation : ['stay_healthy']) as string[];
+  const workoutDays: string[] = (Array.isArray(responses.workout_days) ? responses.workout_days : []) as string[];
 
   // Resolve which days to train
   let selectedDays: string[];
@@ -313,18 +318,20 @@ const REMINDER_MINUTES: Record<string, number> = {
   '3h': 180,
 };
 
-function generateHydrationPlan(responses: Record<string, any>): HydrationPlan {
+function generateHydrationPlan(responses: QuizResponses): HydrationPlan {
   const log = logger.child({ component: 'planGenerator', mode: 'hydration' });
 
-  const dailyTarget: number = parseInt(responses.daily_target, 10) || 8;
-  const container: string = responses.container || 'glass';
-  const reminderFreq: string = responses.reminder_frequency || '2h';
-  const goals: string[] = responses.goals || ['health'];
-  const currentIntake: string = responses.current_intake || 'low';
+  const dailyTarget: number = parseInt(String(responses.daily_target ?? ''), 10) || 8;
+  const container: string = String(responses.container || 'glass');
+  const reminderFreq: string = String(responses.reminder_frequency || '2h');
+  const goals: string[] = (Array.isArray(responses.goals) ? responses.goals : ['health']) as string[];
+  const currentIntake: string = String(responses.current_intake || 'low');
 
   // Wake/sleep from dual-time quiz step (stored as { wake_time, sleep_time })
-  const wakeTime: string = responses.wake_time?.wake_time || responses.wake_time || '08:00';
-  const sleepTime: string = responses.wake_time?.sleep_time || responses.sleep_time || '23:00';
+  const wakeTimeObj = responses.wake_time as Record<string, unknown> | string | undefined;
+  const wakeTime: string = (typeof wakeTimeObj === 'object' && wakeTimeObj !== null ? String(wakeTimeObj.wake_time || '08:00') : String(wakeTimeObj || '08:00'));
+  const sleepTimeVal = typeof wakeTimeObj === 'object' && wakeTimeObj !== null ? wakeTimeObj.sleep_time : responses.sleep_time;
+  const sleepTime: string = String(sleepTimeVal || '23:00');
 
   const dailyMl = dailyTarget * ML_PER_GLASS;
   const reminderIntervalMinutes = REMINDER_MINUTES[reminderFreq] || 120;
