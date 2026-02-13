@@ -1,5 +1,5 @@
 import axios, { AxiosError, AxiosInstance, InternalAxiosRequestConfig } from 'axios';
-import type { ApiResponse, UserStats, User, Mode, Quest, Achievement, UserAchievement, QuestCompleteResponse, CheckinResponse, CheckinListResponse, UserPreferences, PunishmentSettings, PunishmentHistoryResponse, OnboardingState, LeaderboardEntry } from '@/types';
+import type { ApiResponse, UserStats, User, Mode, Quest, Achievement, UserAchievement, QuestCompleteResponse, CheckinResponse, CheckinListResponse, UserPreferences, PunishmentSettings, PunishmentHistoryResponse, OnboardingState, LeaderboardEntry, Subscription, ChannelStatus, TierInfo, PaymentHistoryEntry } from '@/types';
 import { ApiError } from '@/types/errors';
 
 interface RetryableAxiosConfig extends InternalAxiosRequestConfig {
@@ -223,6 +223,38 @@ class ApiClient {
     const response = await this.client.post(`/onboarding/${telegramId}/complete`, {
       quiz_data: quizData,
     });
+    return response.data;
+  }
+
+  // Subscription endpoints
+  async getSubscription(userId: number, config?: { signal?: AbortSignal }): Promise<ApiResponse<Subscription>> {
+    return this.deduplicatedGet(`/payments/subscription/${userId}`, undefined, { ...withTimeout(TIMEOUT_FAST), ...config });
+  }
+
+  async getChannelStatus(userId: number, config?: { signal?: AbortSignal }): Promise<ApiResponse<ChannelStatus>> {
+    return this.deduplicatedGet(`/channel/${userId}/status`, undefined, { ...withTimeout(TIMEOUT_FAST), ...config });
+  }
+
+  async refreshChannelStatus(userId: number): Promise<ApiResponse<ChannelStatus>> {
+    const response = await this.client.post(`/channel/${userId}/refresh`);
+    return response.data;
+  }
+
+  async getTiers(config?: { signal?: AbortSignal }): Promise<ApiResponse<TierInfo[]>> {
+    return this.deduplicatedGet('/payments/tiers', undefined, config);
+  }
+
+  async getPaymentHistory(userId: number, limit = 50, offset = 0, config?: { signal?: AbortSignal }): Promise<ApiResponse<{ payments: PaymentHistoryEntry[]; count: number }>> {
+    return this.deduplicatedGet(`/payments/history/${userId}`, { limit, offset }, config);
+  }
+
+  async upgradeSubscription(userId: number, tier: string): Promise<ApiResponse<{ subscription_id: number; tier: string; expires_at: string }>> {
+    const response = await this.client.post('/payments/subscription/upgrade', { userId, tier });
+    return response.data;
+  }
+
+  async cancelSubscription(userId: number): Promise<ApiResponse<{ previous_tier: string; tier: string; auto_renew: boolean }>> {
+    const response = await this.client.post('/payments/subscription/cancel', { userId });
     return response.data;
   }
 

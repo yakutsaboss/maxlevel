@@ -1108,7 +1108,22 @@ PGPASSWORD=postgres psql -h localhost -U postgres -d telegram_rpg -f /opt/wibeco
 **No other files modified.** Single file change, fully contained.
 
 #### Agent E Retrospective
-*(To be filled by Agent E)*
+**Task:** Add subscription/payment types, 7 API methods, useSubscription hook, and constants/tiers.ts.
+**Result:** All 4 tasks completed. Build passes clean (tsc + vite).
+
+**Files created (2):**
+1. **mini-app/src/types/subscription.ts** — 5 types: `SubscriptionTier` (union), `Subscription`, `ChannelStatus`, `TierInfo`, `PaymentHistoryEntry`
+2. **mini-app/src/hooks/useSubscription.ts** — Hook with `effectiveTier`, `modeLimit`, `isSubscriber`, `isPremium`, channel refresh, abort handling
+3. **mini-app/src/constants/tiers.ts** — `MODE_LIMITS` (free:2, subscriber:3, premium:6), `TIER_LABELS`, `TIER_COLORS`, `TIER_ORDER`, `CHANNEL_USERNAME`
+
+**Files modified (2):**
+1. **mini-app/src/types/index.ts** — Added barrel export for subscription types
+2. **mini-app/src/api/client.ts** — Added 7 methods: `getSubscription`, `getChannelStatus`, `refreshChannelStatus`, `getTiers`, `getPaymentHistory`, `upgradeSubscription`, `cancelSubscription`
+
+**Notes for Agent 0:**
+- API routes align with existing backend: `/payments/subscription/:userId`, `/payments/history/:userId`, `/payments/tiers`, `/channel/:userId/status`, `/channel/:userId/refresh`. Agent B's new channel routes + Agent D's tiers endpoint must be merged first.
+- The `useSubscription` hook follows the same pattern as `useSettingsData` (AbortController, error handling, loading states).
+- `SubscriptionTier` uses the new `'subscriber'` value (not `'pro'`), matching Agent A's tier rename.
 
 #### Agent F Retrospective
 *(To be filled by Agent F)*
