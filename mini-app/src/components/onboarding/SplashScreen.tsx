@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { motion } from 'framer-motion';
 import { TrendingUp } from 'lucide-react';
 import { useTelegram } from '@/hooks/useTelegram';
@@ -43,6 +44,7 @@ function RisingStars() {
 }
 
 export function SplashScreen({ onNext }: SplashScreenProps) {
+  const { t } = useTranslation();
   const { haptic } = useTelegram();
   const [selectedLang, setSelectedLang] = useState<string | null>(null);
 
@@ -82,7 +84,7 @@ export function SplashScreen({ onNext }: SplashScreenProps) {
           MaxLevel
         </h1>
         <p className="text-telegram-hint text-center text-lg mb-8">
-          Level up your real life
+          {t('onboarding.tagline')}
         </p>
 
         {/* Language selection */}
@@ -106,10 +108,10 @@ export function SplashScreen({ onNext }: SplashScreenProps) {
             >
               {!lang.available && (
                 <span className="text-[10px] text-telegram-hint font-medium mb-0.5">
-                  soon
+                  {t('onboarding.soon')}
                 </span>
               )}
-              {lang.available && <span className="text-[10px] mb-0.5 invisible">soon</span>}
+              {lang.available && <span className="text-[10px] mb-0.5 invisible">{t('onboarding.soon')}</span>}
               <span
                 className={`text-3xl transition-all duration-200 ${
                   !lang.available ? 'grayscale opacity-40' : ''
@@ -139,7 +141,7 @@ export function SplashScreen({ onNext }: SplashScreenProps) {
         transition={{ delay: 0.4, duration: 0.5 }}
         whileTap={selectedLang ? { scale: 0.97 } : {}}
       >
-        Get Started
+        {t('onboarding.getStarted')}
       </motion.button>
     </div>
   );

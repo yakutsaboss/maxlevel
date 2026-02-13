@@ -1,4 +1,5 @@
 import { motion } from 'framer-motion';
+import { useTranslation } from 'react-i18next';
 import { useTelegram } from '@/hooks/useTelegram';
 import { ProgressBar } from './ui/ProgressBar';
 import { SummaryStats } from './summary/SummaryStats';
@@ -15,8 +16,9 @@ interface SummaryProps {
 }
 
 export function Summary({ progress, stepLabel, data, onEdit, onNext }: SummaryProps) {
+  const { t } = useTranslation();
   const { user, haptic } = useTelegram();
-  const name = data.nickname || user?.first_name || 'Friend';
+  const name = data.nickname || user?.first_name || t('onboarding.friend');
 
   return (
     <div className="min-h-screen flex flex-col bg-telegram-bg">
@@ -28,8 +30,8 @@ export function Summary({ progress, stepLabel, data, onEdit, onNext }: SummaryPr
           animate={{ opacity: 1, y: 0 }}
           className="text-center mb-6"
         >
-          <h2 className="text-2xl font-bold text-telegram-text mb-1">Almost Done!</h2>
-          <p className="text-telegram-hint text-sm">Review your setup before we begin</p>
+          <h2 className="text-2xl font-bold text-telegram-text mb-1">{t('onboarding.almostDone')}</h2>
+          <p className="text-telegram-hint text-sm">{t('onboarding.reviewSetup')}</p>
         </motion.div>
 
         <SummaryStats name={name} gender={data.gender} />
@@ -52,7 +54,7 @@ export function Summary({ progress, stepLabel, data, onEdit, onNext }: SummaryPr
           }}
           transition={{ duration: 2, repeat: Infinity }}
         >
-          Let's Start!
+          {t('onboarding.letsStart')}
         </motion.button>
       </div>
     </div>

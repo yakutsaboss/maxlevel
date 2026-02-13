@@ -1,4 +1,5 @@
 import { useState, useCallback, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Shield, LogOut, Users, BarChart3, Megaphone, Briefcase, ScrollText } from 'lucide-react';
 import { Toast } from '@/components/Toast';
 import { AdminLoginForm } from '@/components/admin/AdminLoginForm';
@@ -18,15 +19,16 @@ interface AdminStats {
   total_achievements_unlocked: number;
 }
 
-const tabs: { id: AdminTab; label: string; icon: React.ReactNode }[] = [
-  { id: 'stats', label: 'Overview', icon: <BarChart3 size={18} /> },
-  { id: 'users', label: 'Users', icon: <Users size={18} /> },
-  { id: 'broadcast', label: 'Broadcast', icon: <Megaphone size={18} /> },
-  { id: 'jobs', label: 'Jobs', icon: <Briefcase size={18} /> },
-  { id: 'logs', label: 'Logs', icon: <ScrollText size={18} /> },
+const tabs: { id: AdminTab; labelKey: string; icon: React.ReactNode }[] = [
+  { id: 'stats', labelKey: 'admin.overview', icon: <BarChart3 size={18} /> },
+  { id: 'users', labelKey: 'admin.users', icon: <Users size={18} /> },
+  { id: 'broadcast', labelKey: 'admin.broadcast', icon: <Megaphone size={18} /> },
+  { id: 'jobs', labelKey: 'admin.jobs', icon: <Briefcase size={18} /> },
+  { id: 'logs', labelKey: 'admin.logs', icon: <ScrollText size={18} /> },
 ];
 
 export function Admin() {
+  const { t } = useTranslation();
   const [authenticated, setAuthenticated] = useState(false);
   const [credentials, setCredentials] = useState('');
   const [stats, setStats] = useState<AdminStats | null>(null);
@@ -60,7 +62,7 @@ export function Admin() {
     setStats(loginStats);
     setAuthenticated(true);
     sessionStorage.setItem('admin_credentials', creds);
-    setToast({ message: 'Logged in successfully', variant: 'success' });
+    setToast({ message: t('admin.loggedIn'), variant: 'success' });
   }, []);
 
   const handleLogout = useCallback(() => {
@@ -81,14 +83,14 @@ export function Admin() {
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2">
             <Shield size={22} className="text-telegram-button" />
-            <h1 className="text-lg font-bold">Admin Dashboard</h1>
+            <h1 className="text-lg font-bold">{t('admin.dashboard')}</h1>
           </div>
           <button
             onClick={handleLogout}
             className="flex items-center gap-1 text-sm text-telegram-hint hover:text-red-400 transition-colors"
           >
             <LogOut size={16} />
-            Logout
+            {t('admin.logout')}
           </button>
         </div>
 
@@ -105,7 +107,7 @@ export function Admin() {
               }`}
             >
               {tab.icon}
-              {tab.label}
+              {t(tab.labelKey)}
             </button>
           ))}
         </div>
