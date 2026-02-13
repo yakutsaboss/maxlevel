@@ -2347,7 +2347,31 @@ After completing work, write your retrospective in PARALLEL_AGENTS.md under "Run
 *(To be filled by Agent B)*
 
 #### Agent C Retrospective
-*(To be filled by Agent C)*
+**Task:** Replace all bare `parseInt()` calls with `safeParseInt` in 14 route files.
+
+**Result:** 30 bare `parseInt` calls replaced across 14 files. Zero remaining. Build passes clean.
+
+**Files modified (10 new safeParseInt imports + replacements):**
+- `onboarding.ts` — 3 replacements (telegramId params)
+- `user-preferences.ts` — 4 replacements (telegramId + reminder_time validation + assignment)
+- `quest-progress.ts` — 1 replacement (questId + simplified isNaN check)
+- `quest-completion.ts` — 1 replacement (questId)
+- `quest-assignment.ts` — 2 replacements (userId + requestedCount)
+- `quests.ts` — 4 replacements (3 userId params + 1 query limit)
+- `payments.ts` — 7 replacements (3 userId body fields + 2 userId params + limit + offset)
+- `social.ts` — 2 replacements (userId params)
+- `user-account.ts` — 4 replacements (2 telegramId + 2 avatar_id validation/assignment)
+- `user-helpers.ts` — 1 replacement (telegramId + simplified isNaN)
+
+**Files modified (cleanup — already had safeParseInt import):**
+- `admin-users.ts` — 5 replacements (all `parseInt(req.params.userId)`)
+- `admin-quests.ts` — 0 (already fully migrated)
+- `admin-stats.ts` — 0 (already fully migrated)
+- `punishment.ts` — 3 replacements (telegramId params + simplified isNaN checks)
+
+**Pattern used:** For parseInt+isNaN combos, replaced with `safeParseInt(val, 0)` and changed `isNaN(x)` to `x === 0`. For `parseInt(x) || default`, replaced with `safeParseInt(x, default)`. For body fields that may be numbers, used `String(val)` wrapper.
+
+**No issues encountered.** Clean run, all edits straightforward.
 
 #### Agent D Retrospective
 *(To be filled by Agent D)*

@@ -15,6 +15,7 @@ import {
   logger,
 } from './quest-helpers.js';
 import { awardXp } from '../../utils/xpAward.js';
+import { safeParseInt } from '../../utils/validation.js';
 
 const log = logger.child({ component: 'quests' });
 
@@ -25,7 +26,7 @@ const router = Router();
  * Mark a quest as completed
  */
 router.post('/:questId/complete', authenticateTelegram, mutationLimiter, asyncHandler(async (req: Request, res: Response) => {
-  const questId = parseInt(req.params.questId);
+  const questId = safeParseInt(req.params.questId, 0);
 
   // Transaction: fetch with row lock, validate, mark completed, award XP
   const result = await transaction(async (client) => {

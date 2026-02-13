@@ -49,7 +49,7 @@ router.get('/', requirePermission('users:read'), asyncHandler(async (req: Reques
  * Get detailed user information
  */
 router.get('/:userId', requirePermission('users:read'), asyncHandler(async (req: Request, res: Response) => {
-  const userId = parseInt(req.params.userId);
+  const userId = safeParseInt(req.params.userId, 0);
 
   const user = await queryOne('SELECT * FROM users WHERE id = $1', [userId]);
   if (!user) {
@@ -70,7 +70,7 @@ router.get('/:userId', requirePermission('users:read'), asyncHandler(async (req:
  * Update user details
  */
 router.patch('/:userId', requirePermission('users:update'), asyncHandler(async (req: Request, res: Response) => {
-  const userId = parseInt(req.params.userId);
+  const userId = safeParseInt(req.params.userId, 0);
   const updates = req.body;
 
   const allowedFields = ['username', 'first_name', 'timezone', 'is_active'];
@@ -111,7 +111,7 @@ router.patch('/:userId', requirePermission('users:update'), asyncHandler(async (
  * Delete user (hard delete - use with caution!)
  */
 router.delete('/:userId', requireRole('super_admin'), asyncHandler(async (req: Request, res: Response) => {
-  const userId = parseInt(req.params.userId);
+  const userId = safeParseInt(req.params.userId, 0);
 
   const user = await queryOne('SELECT id, telegram_id, username FROM users WHERE id = $1', [userId]);
   if (!user) {
@@ -138,7 +138,7 @@ router.delete('/:userId', requireRole('super_admin'), asyncHandler(async (req: R
  * Deactivate user (soft delete - preferred)
  */
 router.post('/:userId/deactivate', requirePermission('users:update'), asyncHandler(async (req: Request, res: Response) => {
-  const userId = parseInt(req.params.userId);
+  const userId = safeParseInt(req.params.userId, 0);
 
   const user = await queryOne('UPDATE users SET is_active = false WHERE id = $1 RETURNING *', [userId]);
   if (!user) {
@@ -159,7 +159,7 @@ router.post('/:userId/deactivate', requirePermission('users:update'), asyncHandl
  * Reactivate a deactivated user
  */
 router.post('/:userId/reactivate', requirePermission('users:update'), asyncHandler(async (req: Request, res: Response) => {
-  const userId = parseInt(req.params.userId);
+  const userId = safeParseInt(req.params.userId, 0);
 
   const user = await queryOne('UPDATE users SET is_active = true WHERE id = $1 RETURNING *', [userId]);
   if (!user) {

@@ -9,6 +9,7 @@ import {
   BadRequestError,
   NotFoundError,
 } from '../utils/errors.js';
+import { safeParseInt } from '../../utils/validation.js';
 
 const router = Router();
 
@@ -17,7 +18,7 @@ const router = Router();
  * Get onboarding state for a user
  */
 router.get('/:telegramId', authenticateTelegram, asyncHandler(async (req: Request, res: Response) => {
-  const telegramId = parseInt(req.params.telegramId);
+  const telegramId = safeParseInt(req.params.telegramId, 0);
   requireOwnership(req);
 
   const state = await queryOne(
@@ -37,7 +38,7 @@ router.get('/:telegramId', authenticateTelegram, asyncHandler(async (req: Reques
  * Save/update onboarding state
  */
 router.put('/:telegramId', authenticateTelegram, asyncHandler(async (req: Request, res: Response) => {
-  const telegramId = parseInt(req.params.telegramId);
+  const telegramId = safeParseInt(req.params.telegramId, 0);
   requireOwnership(req);
 
   validateRequired(req.body, ['current_step']);
@@ -66,7 +67,7 @@ router.put('/:telegramId', authenticateTelegram, asyncHandler(async (req: Reques
  * Complete onboarding — commits all data in a single transaction.
  */
 router.post('/:telegramId/complete', authenticateTelegram, asyncHandler(async (req: Request, res: Response) => {
-  const tid = parseInt(req.params.telegramId);
+  const tid = safeParseInt(req.params.telegramId, 0);
   requireOwnership(req);
   const { quiz_data } = req.body;
 

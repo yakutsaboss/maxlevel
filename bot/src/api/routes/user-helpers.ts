@@ -1,5 +1,6 @@
 import { queryOne } from '../../utils/db.js';
 import { LEVEL_XP_DIVISOR } from '../../utils/xpAward.js';
+import { safeParseInt } from '../../utils/validation.js';
 
 /**
  * Helper: look up user by telegram_id with streak + quest count in ONE query.
@@ -7,8 +8,8 @@ import { LEVEL_XP_DIVISOR } from '../../utils/xpAward.js';
  * Shared by users.ts and user-stats.ts.
  */
 export async function resolveUser(telegramId: string) {
-  const tid = parseInt(telegramId);
-  if (isNaN(tid)) return null;
+  const tid = safeParseInt(telegramId, 0);
+  if (tid === 0) return null;
 
   const u = await queryOne<{ id: number; telegram_id: number; username: string | null; first_name: string | null; avatar_id: number | null; current_level: number; total_xp: number; is_active: boolean; timezone: string; created_at: string; current_streak: number; longest_streak: number; total_quests_completed: number }>(
     `SELECT u.id, u.telegram_id, u.username, u.first_name, u.avatar_id,

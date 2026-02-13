@@ -18,6 +18,7 @@ import {
   logger,
 } from './quest-helpers.js';
 import { awardXp } from '../../utils/xpAward.js';
+import { safeParseInt } from '../../utils/validation.js';
 
 const log = logger.child({ component: 'quests' });
 
@@ -28,10 +29,10 @@ const router = Router();
  * Update quest progress. Auto-completes if progress reaches target.
  */
 router.patch('/:questId/progress', authenticateTelegram, authorizeUser, mutationLimiter, asyncHandler(async (req: Request, res: Response) => {
-  const questId = parseInt(req.params.questId);
+  const questId = safeParseInt(req.params.questId, 0);
   const { progress } = req.body;
 
-  if (isNaN(questId)) {
+  if (questId === 0) {
     throw new BadRequestError('Invalid quest ID');
   }
   if (progress === undefined || typeof progress !== 'number' || progress < 0) {

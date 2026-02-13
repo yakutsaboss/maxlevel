@@ -28,9 +28,9 @@ const router = Router();
  * Returns the user's punishment settings (consent, intensity, safe mode, max penalties).
  */
 router.get('/:telegramId/settings', authenticateTelegram, asyncHandler(async (req: Request, res: Response) => {
-  const telegramId = parseInt(req.params.telegramId);
+  const telegramId = safeParseInt(req.params.telegramId, 0);
   requireOwnership(req);
-  if (isNaN(telegramId)) {
+  if (telegramId === 0) {
     throw new BadRequestError('Invalid telegram ID');
   }
 
@@ -55,9 +55,9 @@ router.get('/:telegramId/settings', authenticateTelegram, asyncHandler(async (re
  * Update punishment settings. Only provided fields are updated.
  */
 router.patch('/:telegramId/settings', authenticateTelegram, asyncHandler(async (req: Request, res: Response) => {
-  const telegramId = parseInt(req.params.telegramId);
+  const telegramId = safeParseInt(req.params.telegramId, 0);
   requireOwnership(req);
-  if (isNaN(telegramId)) {
+  if (telegramId === 0) {
     throw new BadRequestError('Invalid telegram ID');
   }
 
@@ -150,9 +150,9 @@ router.patch('/:telegramId/settings', authenticateTelegram, asyncHandler(async (
  * Query params: page (default 1), limit (default 20, max 100).
  */
 router.get('/:telegramId/history', authenticateTelegram, asyncHandler(async (req: Request, res: Response) => {
-  const telegramId = parseInt(req.params.telegramId);
+  const telegramId = safeParseInt(req.params.telegramId, 0);
   requireOwnership(req);
-  if (isNaN(telegramId)) {
+  if (telegramId === 0) {
     throw new BadRequestError('Invalid telegram ID');
   }
 

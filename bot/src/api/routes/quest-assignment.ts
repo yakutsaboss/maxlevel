@@ -10,6 +10,7 @@ import {
   successResponse,
   BadRequestError,
 } from './quest-helpers.js';
+import { safeParseInt } from '../../utils/validation.js';
 
 /** Shape returned by the SELECT on the `quests` table for available templates. */
 type QuestTemplate = {
@@ -43,7 +44,7 @@ const router = Router();
  * Assign new quests to user (daily/weekly)
  */
 router.post('/users/:userId/assign', authenticateTelegram, authorizeUser, mutationLimiter, asyncHandler(async (req: Request, res: Response) => {
-  const userId = parseInt(req.params.userId);
+  const userId = safeParseInt(req.params.userId, 0);
   const { frequency, count: requestedCount } = req.body;
   const isDaily = frequency === QUEST_FREQUENCY.DAILY;
 
@@ -52,7 +53,7 @@ router.post('/users/:userId/assign', authenticateTelegram, authorizeUser, mutati
   }
 
   const defaultCount = isDaily ? 3 : 2;
-  const questCount = requestedCount ? parseInt(requestedCount) : defaultCount;
+  const questCount = requestedCount ? safeParseInt(String(requestedCount), defaultCount) : defaultCount;
 
   // Get user's active modes
   const modeRows = await query<{ mode_id: number }>(

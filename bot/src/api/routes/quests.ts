@@ -6,6 +6,7 @@ import { asyncHandler, successResponse } from '../utils/errors.js';
 import { questCompletionRouter } from './quest-completion.js';
 import { questProgressRouter } from './quest-progress.js';
 import { questAssignmentRouter } from './quest-assignment.js';
+import { safeParseInt } from '../../utils/validation.js';
 
 const router = Router();
 
@@ -19,7 +20,7 @@ router.use('/', questAssignmentRouter);
  * Get all active quests for a user
  */
 router.get('/users/:userId/active', authenticateTelegram, authorizeUser, readLimiter, asyncHandler(async (req: Request, res: Response) => {
-  const userId = parseInt(req.params.userId);
+  const userId = safeParseInt(req.params.userId, 0);
 
   const quests = await query(
     `SELECT qi.id, qi.quest_id, q.title AS name, q.description, q.xp_reward,
@@ -42,8 +43,8 @@ router.get('/users/:userId/active', authenticateTelegram, authorizeUser, readLim
  * Get completed quests for a user
  */
 router.get('/users/:userId/completed', authenticateTelegram, authorizeUser, readLimiter, asyncHandler(async (req: Request, res: Response) => {
-  const userId = parseInt(req.params.userId);
-  const limit = req.query.limit ? parseInt(req.query.limit as string) : 50;
+  const userId = safeParseInt(req.params.userId, 0);
+  const limit = safeParseInt(req.query.limit as string, 50);
 
   const quests = await query(
     `SELECT qi.id, q.title AS name, q.xp_reward, q.quest_type, q.difficulty,
@@ -65,7 +66,7 @@ router.get('/users/:userId/completed', authenticateTelegram, authorizeUser, read
  * Get quest statistics for a user
  */
 router.get('/users/:userId/stats', authenticateTelegram, authorizeUser, readLimiter, asyncHandler(async (req: Request, res: Response) => {
-  const userId = parseInt(req.params.userId);
+  const userId = safeParseInt(req.params.userId, 0);
 
   const [totalRow, activeRow, dailyRow, weeklyRow] = await Promise.all([
     queryOne<{ total: number }>(`SELECT COUNT(*)::int AS total FROM quest_instances WHERE user_id = $1 AND status = 'completed'`, [userId]),
