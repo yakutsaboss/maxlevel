@@ -890,7 +890,22 @@ After completing work, write your retrospective in PARALLEL_AGENTS.md under "Run
 ### Run 51 Retrospectives
 
 #### Agent A Retrospective
-*(To be filled by Agent A)*
+**Task**: Navigation + Social.tsx split + ErrorBoundary logger fix
+
+**Changes made**:
+1. **Navigation.tsx**: Added `DollarSign` import from lucide-react and Finance nav item (`/finance`) before Profile — Finance page is now accessible from the bottom nav bar.
+2. **Social.tsx split** (389 → 196 lines):
+   - Created `FriendRequestForm.tsx` — self-contained form with internal state for friend request input, validation, API call, success/error display.
+   - Created `ChallengeForm.tsx` — self-contained form with internal state for challenge creation (title, description, mode fields + submit).
+   - Created `ChallengesList.tsx` — memoized component rendering challenge cards or empty state.
+   - `FriendsList.tsx` and `ChallengeCard.tsx` already existed from prior runs — reused as-is.
+   - Social.tsx now acts as orchestrator: data fetching, pull-to-refresh, section headers + toggle buttons, delegates rendering to extracted components.
+3. **ErrorBoundary.tsx**: Replaced `console.error` with `logger.error` from `@/utils/logger`, passing error and componentStack as structured context.
+
+**Issues encountered**:
+- TypeScript strict mode rejected `haptic: { notification: (type: string) => void }` because the actual haptic type uses union `'error' | 'success' | 'warning'`. Fixed by using the exact union type in both form component props.
+
+**Build**: `npm run build` passes cleanly. No warnings.
 
 #### Agent B Retrospective
 *(To be filled by Agent B)*
