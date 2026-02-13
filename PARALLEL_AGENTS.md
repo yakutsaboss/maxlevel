@@ -970,6 +970,23 @@ After completing work, write your retrospective in PARALLEL_AGENTS.md under "Run
 **Issues:** None. All tests passed on first run.
 
 #### Agent 0 Retrospective
-*(To be filled by Agent 0 after merge)*
+
+**Merge summary:** All 5 agents committed directly to main (same pattern as Runs 47/49 — agents ignore worktree isolation). No merge conflicts since no feature branches were used.
+
+**Post-merge test results:**
+- Bot: 798/798 pass (66 files) — includes 27 new tests from Agent E
+- Mini-app: Initially 37 failures across 8 files, then 571/571 pass after fixes
+
+**Agent 0 fixes (2):**
+1. **i18n test setup** — Agent B migrated hardcoded strings to `t('key')` but didn't initialize i18n in the test environment. `useTranslation()` returned raw keys instead of English text, breaking 36 tests. Fixed by adding `import '@/i18n'` to `mini-app/src/test/setup.ts`.
+2. **ErrorBoundary logger assertion** — Agent A replaced `console.error` with `logger.error` which prepends `[ERROR]` prefix. Test used exact string match `=== 'ErrorBoundary caught:'`. Fixed by using `.includes()` instead.
+
+**Deploy status:** Code pushed to GitHub (`ba963b8`). SSH deploy BLOCKED — no SSH keys on local machine (ssh-agent disabled, no keys in `~/.ssh/`). Server is alive (health endpoint responds with Run 50 version `8f3c251`). Manual deploy required.
+
+**Recurring issue — agents committing to main:** This is the 3rd consecutive run where agents commit to main instead of feature branches. The worktree setup provides isolation but agents bypass it. Need to add explicit instructions in agent prompts to commit to the feature branch, not main.
+
+**Cleanup:** 5 worktrees removed, 5 feature branches deleted.
+
+**Final counts:** Bot 798 tests (66 files), Mini-app 571 tests (115 files) — total 1369 tests passing.
 
 <!-- Next run goes here. Agent 0 will append RUN 52 below this line. -->
