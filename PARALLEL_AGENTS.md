@@ -1938,4 +1938,27 @@ After completing work, write your retrospective in PARALLEL_AGENTS.md under "Run
 #### Agent 0 Retrospective
 *(To be filled by Agent 0 after merge)*
 
-<!-- Next run goes here. Agent 0 will append RUN 54 below this line. -->
+### Run 54 Retrospectives
+
+#### Agent A Retrospective
+**Task:** Replace all bare `parseInt()` calls with `safeParseInt` in 7 core route files.
+
+**Result:** 34 `parseInt()` calls replaced across 7 files. Build passes cleanly.
+
+**Changes made:**
+1. **finance.ts** (5 calls): 2x `parseInt(req.params.userId)`, 2x `typeof userId === 'string' ? parseInt(userId) : userId`, 1x `parseInt(req.params.id)`. All replaced with `safeParseInt()`.
+2. **achievements.ts** (7 calls): 5x `parseInt(req.params.userId)`, 1x `parseInt(req.params.achievementId)`, 1x `parseInt(req.query.limit as string) || 5` → `safeParseInt(..., 5)`.
+3. **modes.ts** (8 calls): 5x `parseInt(req.params.userId)`, 3x `parseInt(req.params.modeId)`.
+4. **analytics.ts** (3 calls): 3x `parseInt(req.params.userId)`. Kept existing `isNaN(userId)` guard checks (now redundant but harmless).
+5. **checkins.ts** (5 calls): 1x `parseInt(telegram_id)` from body, 2x `parseInt(req.params.telegramId)`, 1x `parseInt(req.query.page) || 1` → `safeParseInt(..., 1)`, 1x `parseInt(req.query.limit) || 20` → `safeParseInt(..., 20)`.
+6. **users.ts** (2 calls): 2x `parseInt(req.params.userId)`.
+7. **user-stats.ts** (4 calls): 3x `parseInt(telegramId)`, 1x `parseInt(req.query.limit) || 50` → `safeParseInt(..., 50)`.
+
+**Key patterns fixed:**
+- `parseInt(x) || defaultVal` → `safeParseInt(x, defaultVal)` — prevents `0` from being treated as falsy
+- `typeof x === 'string' ? parseInt(x) : x` → `typeof x === 'string' ? safeParseInt(x, 0) : x` — adds radix 10 safety
+- Bare `parseInt(req.params.xxx)` → `safeParseInt(req.params.xxx, 0)` — NaN protection
+
+**Verification:** Zero remaining `parseInt(` calls in all 7 owned files. `npm run build` passes with no errors.
+
+<!-- Next run goes here. Agent 0 will append RUN 55 below this line. -->

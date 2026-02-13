@@ -13,6 +13,7 @@ import {
 } from '../utils/errors.js';
 import { awardXp } from '../../utils/xpAward.js';
 import { checkAndUnlockAchievements } from '../../utils/achievementEngine.js';
+import { safeParseInt } from '../../utils/validation.js';
 
 const router = Router();
 
@@ -27,7 +28,7 @@ router.post('/', authenticateTelegram, mutationLimiter, asyncHandler(async (req:
   validateRequired(req.body, ['telegram_id', 'quest_instance_id']);
 
   // Verify the authenticated user owns this telegram_id
-  if (parseInt(telegram_id) !== req.telegramUser?.id) {
+  if (safeParseInt(telegram_id, 0) !== req.telegramUser?.id) {
     throw new ForbiddenError('You do not have permission to access this resource');
   }
 
@@ -107,7 +108,7 @@ router.post('/', authenticateTelegram, mutationLimiter, asyncHandler(async (req:
  * Get today's check-ins for a user.
  */
 router.get('/:telegramId/today', authenticateTelegram, readLimiter, asyncHandler(async (req: Request, res: Response) => {
-  const telegramId = parseInt(req.params.telegramId);
+  const telegramId = safeParseInt(req.params.telegramId, 0);
   requireOwnership(req);
 
   if (isNaN(telegramId)) {
@@ -138,15 +139,15 @@ router.get('/:telegramId/today', authenticateTelegram, readLimiter, asyncHandler
  * Get paginated check-in history for a user.
  */
 router.get('/:telegramId/history', authenticateTelegram, readLimiter, asyncHandler(async (req: Request, res: Response) => {
-  const telegramId = parseInt(req.params.telegramId);
+  const telegramId = safeParseInt(req.params.telegramId, 0);
   requireOwnership(req);
 
   if (isNaN(telegramId)) {
     throw new BadRequestError('Invalid telegram ID');
   }
 
-  const page = Math.max(1, parseInt(req.query.page as string) || 1);
-  const limit = Math.min(100, Math.max(1, parseInt(req.query.limit as string) || 20));
+  const page = Math.max(1, safeParseInt(req.query.page as string, 1));
+  const limit = Math.min(100, Math.max(1, safeParseInt(req.query.limit as string, 20)));
   const offset = (page - 1) * limit;
 
   const rows = await query(

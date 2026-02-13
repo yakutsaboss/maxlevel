@@ -3,6 +3,7 @@ import { query, queryOne, execute } from '../../utils/db.js';
 import { authenticateTelegram, authorizeUser } from '../middleware/auth.js';
 import { mutationLimiter, readLimiter } from '../middleware/rateLimiter.js';
 import { asyncHandler, successResponse, BadRequestError, NotFoundError } from '../utils/errors.js';
+import { safeParseInt } from '../../utils/validation.js';
 
 const router = Router();
 
@@ -17,7 +18,7 @@ const VALID_BUDGET_TYPES = ['income', 'expense'] as const;
 
 // GET /budget/:userId — get budget summary for the current month
 router.get('/budget/:userId', authenticateTelegram, authorizeUser, readLimiter, asyncHandler(async (req: Request, res: Response) => {
-  const userId = parseInt(req.params.userId);
+  const userId = safeParseInt(req.params.userId, 0);
 
   const entries = await query<{
     id: number;
@@ -64,7 +65,7 @@ router.post('/budget', authenticateTelegram, mutationLimiter, asyncHandler(async
     throw new BadRequestError('Missing required fields: userId, category, amount, type');
   }
 
-  const numericUserId = typeof userId === 'string' ? parseInt(userId) : userId;
+  const numericUserId = typeof userId === 'string' ? safeParseInt(userId, 0) : userId;
   if (!Number.isInteger(numericUserId) || numericUserId <= 0) {
     throw new BadRequestError('userId must be a positive integer');
   }
@@ -93,7 +94,7 @@ router.post('/budget', authenticateTelegram, mutationLimiter, asyncHandler(async
 
 // GET /savings/:userId — get all savings goals for a user
 router.get('/savings/:userId', authenticateTelegram, authorizeUser, readLimiter, asyncHandler(async (req: Request, res: Response) => {
-  const userId = parseInt(req.params.userId);
+  const userId = safeParseInt(req.params.userId, 0);
 
   const goals = await query<{
     id: number;
@@ -139,7 +140,7 @@ router.post('/savings', authenticateTelegram, mutationLimiter, asyncHandler(asyn
     throw new BadRequestError('Missing required fields: userId, name, targetAmount');
   }
 
-  const numericUserId = typeof userId === 'string' ? parseInt(userId) : userId;
+  const numericUserId = typeof userId === 'string' ? safeParseInt(userId, 0) : userId;
   if (!Number.isInteger(numericUserId) || numericUserId <= 0) {
     throw new BadRequestError('userId must be a positive integer');
   }
@@ -165,7 +166,7 @@ router.post('/savings', authenticateTelegram, mutationLimiter, asyncHandler(asyn
 
 // PATCH /savings/:id — add a deposit to update savings progress
 router.patch('/savings/:id', authenticateTelegram, mutationLimiter, asyncHandler(async (req: Request, res: Response) => {
-  const goalId = parseInt(req.params.id);
+  const goalId = safeParseInt(req.params.id, 0);
   if (isNaN(goalId) || goalId <= 0) {
     throw new BadRequestError('Invalid savings goal ID');
   }
