@@ -908,7 +908,28 @@ After completing work, write your retrospective in PARALLEL_AGENTS.md under "Run
 **Build**: `npm run build` passes cleanly. No warnings.
 
 #### Agent B Retrospective
-*(To be filled by Agent B)*
+**Status:** COMPLETE — all hardcoded UI strings in Social, Finance, and Dashboard migrated to i18n. Build passes.
+
+**What was done:**
+1. **Added 4 dashboard greeting keys** (`greetingMorning`, `greetingAfternoon`, `greetingEvening`, `greetingNight`) to en.ts, ru.ts, zh.ts
+2. **Added 18 new dashboard keys** for all remaining hardcoded strings (couldNotLoad, questsDone, activeModes, etc.) in all 3 language files
+3. **Added 7 new social keys** (title, subtitle, friends, addFriend, challenges, newChallenge, couldNotLoad) in all 3 language files
+4. **Added 5 new finance keys** (title, subtitle, budget, savings, couldNotIdentify) in all 3 language files
+5. **Migrated 9 component files** to use `useTranslation()`:
+   - `ChallengeCard.tsx` — refactored `getTimeRemaining()` to accept `t` parameter for i18n strings (noDeadline, ended, daysLeft, hoursLeft, participants, completed, progress)
+   - `FriendsList.tsx` — noFriends, level
+   - `Social.tsx` — title, subtitle, friends, addFriend, challenges, newChallenge, couldNotLoad, cancel
+   - `BudgetForm.tsx` — addEntry, expense, income, saving, amount, addIncome, addExpense, cancel
+   - `BudgetSummary.tsx` — budgetSummary, income, expenses, balance, spent, categoryBreakdown
+   - `GoalForm.tsx` — newSavingsGoal, goalName, targetAmount, creating, createGoal, cancel
+   - `SavingsGoal.tsx` — savingsGoals, goal/goals, noSavingsGoals, createFirstGoal
+   - `Dashboard.tsx` — refactored `getGreeting()` → `getGreetingKey()` returning i18n keys with 4-way time split (night < 5, morning < 12, afternoon < 18, evening), plus all stat labels, section titles, empty states
+   - `Finance.tsx` — title, subtitle, budget tab, savings tab, couldNotIdentify
+
+**Adaptation to Agent A's work:** Social.tsx had already been split into sub-components by Agent A (FriendRequestForm, ChallengeForm, ChallengesList). Worked with the refactored structure without conflicts.
+
+**Files modified:** 12 (9 components + 3 i18n files)
+**Build:** `npm run build` passes cleanly.
 
 #### Agent C Retrospective
 **Tasks completed:**

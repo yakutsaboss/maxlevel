@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { motion, AnimatePresence } from 'framer-motion';
 import { PlusCircle } from 'lucide-react';
 
@@ -8,6 +9,7 @@ interface GoalFormProps {
 }
 
 export function GoalForm({ submitting, onCreateGoal }: GoalFormProps) {
+  const { t } = useTranslation();
   const [showNewGoal, setShowNewGoal] = useState(false);
   const [goalName, setGoalName] = useState('');
   const [targetAmount, setTargetAmount] = useState('');
@@ -34,7 +36,7 @@ export function GoalForm({ submitting, onCreateGoal }: GoalFormProps) {
         className="w-full flex items-center justify-center gap-2 py-3 bg-telegram-button text-telegram-buttonText rounded-xl font-medium text-sm"
       >
         <PlusCircle size={16} />
-        {showNewGoal ? 'Cancel' : 'New Savings Goal'}
+        {showNewGoal ? t('common.cancel') : t('finance.newSavingsGoal')}
       </motion.button>
 
       {/* New Goal Form */}
@@ -49,7 +51,7 @@ export function GoalForm({ submitting, onCreateGoal }: GoalFormProps) {
           >
             <input
               type="text"
-              placeholder="Goal name (e.g., Emergency Fund)"
+              placeholder={t('finance.goalName')}
               value={goalName}
               onChange={(e) => setGoalName(e.target.value)}
               maxLength={100}
@@ -57,7 +59,7 @@ export function GoalForm({ submitting, onCreateGoal }: GoalFormProps) {
             />
             <input
               type="number"
-              placeholder="Target amount"
+              placeholder={t('finance.targetAmount')}
               value={targetAmount}
               onChange={(e) => setTargetAmount(e.target.value)}
               min="0"
@@ -70,7 +72,7 @@ export function GoalForm({ submitting, onCreateGoal }: GoalFormProps) {
               whileTap={{ scale: 0.97 }}
               className="w-full py-2.5 bg-telegram-button text-telegram-buttonText rounded-lg font-medium text-sm disabled:opacity-50"
             >
-              {submitting ? 'Creating...' : 'Create Goal'}
+              {submitting ? t('finance.creating') : t('finance.createGoal')}
             </motion.button>
           </motion.form>
         )}

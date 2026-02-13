@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Users, Swords, UserPlus, PlusCircle, X } from 'lucide-react';
 import { useTelegram } from '@/hooks/useTelegram';
 import { usePullToRefresh, PullIndicator } from '@/hooks/usePullToRefresh';
@@ -66,6 +67,7 @@ function SocialSkeleton() {
 }
 
 export function Social() {
+  const { t } = useTranslation();
   const { user, haptic } = useTelegram();
   const [friends, setFriends] = useState<Friend[]>([]);
   const [challenges, setChallenges] = useState<Challenge[]>([]);
@@ -113,7 +115,7 @@ export function Social() {
   const { containerRef, pullDistance, refreshing, pullThreshold, touchHandlers } = usePullToRefresh(handleRefresh, haptic);
 
   if (loading) return <SocialSkeleton />;
-  if (error) return <ErrorSection message="Could not load social data" onRetry={loadData} />;
+  if (error) return <ErrorSection message={t('social.couldNotLoad')} onRetry={loadData} />;
 
   return (
     <div
@@ -129,8 +131,8 @@ export function Social() {
             <Users className="w-8 h-8 text-white" />
           </div>
           <div>
-            <h1 className="text-2xl font-bold text-white">Social</h1>
-            <p className="text-blue-100 text-sm">Friends & challenges</p>
+            <h1 className="text-2xl font-bold text-white">{t('social.title')}</h1>
+            <p className="text-blue-100 text-sm">{t('social.subtitle')}</p>
           </div>
         </div>
       </div>
@@ -141,14 +143,14 @@ export function Social() {
           <div className="flex items-center justify-between mb-3">
             <h2 className="text-lg font-semibold flex items-center gap-2">
               <Users className="w-5 h-5 text-telegram-link" aria-hidden="true" />
-              Friends
+              {t('social.friends')}
             </h2>
             <button
               onClick={() => { haptic.impact('light'); setShowFriendForm(!showFriendForm); }}
               className="flex items-center gap-1 text-sm text-telegram-link font-medium px-3 py-1.5 rounded-xl bg-telegram-link/10 active:scale-95 transition-transform"
             >
               {showFriendForm ? <X className="w-4 h-4" /> : <UserPlus className="w-4 h-4" />}
-              {showFriendForm ? 'Cancel' : 'Add Friend'}
+              {showFriendForm ? t('common.cancel') : t('social.addFriend')}
             </button>
           </div>
 
@@ -168,14 +170,14 @@ export function Social() {
           <div className="flex items-center justify-between mb-3">
             <h2 className="text-lg font-semibold flex items-center gap-2">
               <Swords className="w-5 h-5 text-telegram-link" aria-hidden="true" />
-              Challenges
+              {t('social.challenges')}
             </h2>
             <button
               onClick={() => { haptic.impact('light'); setShowChallengeForm(!showChallengeForm); }}
               className="flex items-center gap-1 text-sm text-telegram-link font-medium px-3 py-1.5 rounded-xl bg-telegram-link/10 active:scale-95 transition-transform"
             >
               {showChallengeForm ? <X className="w-4 h-4" /> : <PlusCircle className="w-4 h-4" />}
-              {showChallengeForm ? 'Cancel' : 'New Challenge'}
+              {showChallengeForm ? t('common.cancel') : t('social.newChallenge')}
             </button>
           </div>
 

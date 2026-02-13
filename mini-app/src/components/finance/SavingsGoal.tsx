@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Target, Loader2 } from 'lucide-react';
 import { useSavingsGoals } from '@/components/finance/useSavingsGoals';
@@ -11,6 +12,7 @@ interface SavingsGoalProps {
 
 /** Savings goal dashboard component for tracking progress toward financial goals */
 export function SavingsGoal({ userId }: SavingsGoalProps) {
+  const { t } = useTranslation();
   const { goals, loading, submitting, error, setError, createGoal, addDeposit } = useSavingsGoals(userId);
   const [depositGoalId, setDepositGoalId] = useState<number | null>(null);
 
@@ -39,17 +41,17 @@ export function SavingsGoal({ userId }: SavingsGoalProps) {
       {/* Header */}
       <div className="flex items-center justify-between">
         <h2 className="text-sm font-semibold text-telegram-hint uppercase tracking-wide">
-          Savings Goals
+          {t('finance.savingsGoals')}
         </h2>
-        <span className="text-xs text-telegram-hint">{goals.length} goal{goals.length !== 1 ? 's' : ''}</span>
+        <span className="text-xs text-telegram-hint">{goals.length} {goals.length !== 1 ? t('finance.goals') : t('finance.goal')}</span>
       </div>
 
       {/* Empty State */}
       {goals.length === 0 && (
         <div className="bg-telegram-secondaryBg rounded-xl p-6 text-center">
           <Target size={32} className="mx-auto text-telegram-hint mb-2" />
-          <p className="text-sm text-telegram-hint">No savings goals yet</p>
-          <p className="text-xs text-telegram-hint mt-1">Create your first goal to start saving!</p>
+          <p className="text-sm text-telegram-hint">{t('finance.noSavingsGoals')}</p>
+          <p className="text-xs text-telegram-hint mt-1">{t('finance.createFirstGoal')}</p>
         </div>
       )}
 

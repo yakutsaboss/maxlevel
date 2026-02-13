@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { motion, AnimatePresence } from 'framer-motion';
 import { PlusCircle } from 'lucide-react';
 import { EXPENSE_CATEGORIES } from '@/components/finance/useBudget';
@@ -9,6 +10,7 @@ interface BudgetFormProps {
 }
 
 export function BudgetForm({ submitting, onSubmit }: BudgetFormProps) {
+  const { t } = useTranslation();
   const [showForm, setShowForm] = useState(false);
   const [formType, setFormType] = useState<'income' | 'expense'>('expense');
   const [category, setCategory] = useState(EXPENSE_CATEGORIES[0]);
@@ -35,7 +37,7 @@ export function BudgetForm({ submitting, onSubmit }: BudgetFormProps) {
         className="w-full flex items-center justify-center gap-2 py-3 bg-telegram-button text-telegram-buttonText rounded-xl font-medium text-sm"
       >
         <PlusCircle size={16} />
-        {showForm ? 'Cancel' : 'Add Entry'}
+        {showForm ? t('common.cancel') : t('finance.addEntry')}
       </motion.button>
 
       {/* Input Form */}
@@ -59,7 +61,7 @@ export function BudgetForm({ submitting, onSubmit }: BudgetFormProps) {
                     : 'bg-telegram-bg text-telegram-hint'
                 }`}
               >
-                Expense
+                {t('finance.expense')}
               </button>
               <button
                 type="button"
@@ -70,7 +72,7 @@ export function BudgetForm({ submitting, onSubmit }: BudgetFormProps) {
                     : 'bg-telegram-bg text-telegram-hint'
                 }`}
               >
-                Income
+                {t('finance.income')}
               </button>
             </div>
 
@@ -90,7 +92,7 @@ export function BudgetForm({ submitting, onSubmit }: BudgetFormProps) {
             {/* Amount Input */}
             <input
               type="number"
-              placeholder="Amount"
+              placeholder={t('finance.amount')}
               value={amount}
               onChange={(e) => setAmount(e.target.value)}
               min="0"
@@ -104,7 +106,7 @@ export function BudgetForm({ submitting, onSubmit }: BudgetFormProps) {
               whileTap={{ scale: 0.97 }}
               className="w-full py-2.5 bg-telegram-button text-telegram-buttonText rounded-lg font-medium text-sm disabled:opacity-50"
             >
-              {submitting ? 'Saving...' : `Add ${formType === 'income' ? 'Income' : 'Expense'}`}
+              {submitting ? t('finance.saving') : formType === 'income' ? t('finance.addIncome') : t('finance.addExpense')}
             </motion.button>
           </motion.form>
         )}

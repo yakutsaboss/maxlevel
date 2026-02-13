@@ -1,4 +1,5 @@
 import { useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import { useTelegram } from '@/hooks/useTelegram';
 import { useDashboardData } from '@/hooks/useDashboardData';
@@ -17,14 +18,16 @@ import { DashboardAchievementCard } from '@/components/dashboard/DashboardAchiev
 import { DashboardSkeleton } from '@/components/dashboard/DashboardSkeleton';
 import { getDailyQuote } from '@/data/motivationalQuotes';
 
-function getGreeting(): string {
+function getGreetingKey(): string {
   const hour = new Date().getHours();
-  if (hour < 12) return 'Good morning';
-  if (hour < 18) return 'Good afternoon';
-  return 'Good evening';
+  if (hour < 5) return 'dashboard.greetingNight';
+  if (hour < 12) return 'dashboard.greetingMorning';
+  if (hour < 18) return 'dashboard.greetingAfternoon';
+  return 'dashboard.greetingEvening';
 }
 
 export function Dashboard() {
+  const { t } = useTranslation();
   const { user, haptic } = useTelegram();
   const navigate = useNavigate();
   const {
@@ -42,7 +45,7 @@ export function Dashboard() {
   }
 
   if (error || !stats) {
-    return <ErrorSection message="Could not load your dashboard data" onRetry={() => loadUserStats()} />;
+    return <ErrorSection message={t('dashboard.couldNotLoad')} onRetry={() => loadUserStats()} />;
   }
 
   const xpPercentage = stats.user.xp_to_next_level > 0 ? Math.min((stats.user.xp / stats.user.xp_to_next_level) * 100, 100) : 0;
@@ -59,13 +62,13 @@ export function Dashboard() {
       <div className="bg-gradient-to-br from-purple-600 to-blue-600 p-6 rounded-b-3xl shadow-lg safe-area-top">
         <div className="flex items-center justify-between mb-4">
           <div className="min-w-0 flex-1 mr-3">
-            <h1 className="text-2xl font-bold text-white truncate">{getGreeting()}, {stats.user.first_name}!</h1>
-            <p className="text-purple-100 text-sm truncate">{stats.user.username ? `@${stats.user.username}` : 'RPG Adventurer'}</p>
+            <h1 className="text-2xl font-bold text-white truncate">{t(getGreetingKey())}, {stats.user.first_name}!</h1>
+            <p className="text-purple-100 text-sm truncate">{stats.user.username ? `@${stats.user.username}` : t('dashboard.rpgAdventurer')}</p>
           </div>
           <motion.div className="bg-white/20 backdrop-blur-sm rounded-2xl px-4 py-2 flex-shrink-0" whileHover={{ scale: 1.05 }}>
             <div className="text-center">
               <div className="text-3xl font-bold text-white">{stats.user.level}</div>
-              <div className="text-xs text-purple-100">Level</div>
+              <div className="text-xs text-purple-100">{t('dashboard.level')}</div>
             </div>
           </motion.div>
         </div>
@@ -79,7 +82,7 @@ export function Dashboard() {
         </div>
         <div className="flex items-center justify-center gap-1 mt-2">
           <Sparkles className="w-3.5 h-3.5 text-yellow-300" />
-          <span className="text-purple-100 text-xs font-medium">{xpNeeded} XP to Level {nextLevel}</span>
+          <span className="text-purple-100 text-xs font-medium">{xpNeeded} {t('dashboard.xpToLevel')} {nextLevel}</span>
         </div>
       </div>
 
@@ -97,10 +100,10 @@ export function Dashboard() {
       </div>
 
       <div className="grid grid-cols-2 gap-3 px-4 mt-4">
-        <StatCard icon={<Target className="w-5 h-5" />} label="Quests Done" value={stats.user.total_quests_completed} color="bg-blue-500" />
-        <StatCard icon={<Flame className="w-5 h-5" />} label="Longest Streak" value={`${stats.streakData.longest} days`} color="bg-orange-500" />
-        <StatCard icon={<Zap className="w-5 h-5" />} label="Total XP" value={stats.user.xp} color="bg-yellow-500" />
-        <StatCard icon={<Trophy className="w-5 h-5" />} label="Achievements" value={stats.recentAchievements.length} color="bg-purple-500" />
+        <StatCard icon={<Target className="w-5 h-5" />} label={t('dashboard.questsDone')} value={stats.user.total_quests_completed} color="bg-blue-500" />
+        <StatCard icon={<Flame className="w-5 h-5" />} label={t('dashboard.longestStreak')} value={`${stats.streakData.longest} ${t('dashboard.days')}`} color="bg-orange-500" />
+        <StatCard icon={<Zap className="w-5 h-5" />} label={t('dashboard.totalXp')} value={stats.user.xp} color="bg-yellow-500" />
+        <StatCard icon={<Trophy className="w-5 h-5" />} label={t('dashboard.achievements')} value={stats.recentAchievements.length} color="bg-purple-500" />
       </div>
 
       <DailyGoalRing completedToday={stats.completedQuestsToday} totalDaily={stats.activeQuests.length + stats.completedQuestsToday} />
@@ -108,17 +111,17 @@ export function Dashboard() {
       <TodaysProgress completedToday={stats.completedQuestsToday} xpGainedToday={stats.xpGainedToday} activeQuestsCount={stats.activeQuests.length} />
 
       <div className="px-4 mt-6" role="region" aria-label="Active modes">
-        <h2 className="text-lg font-semibold mb-3 flex items-center gap-2"><TrendingUp className="w-5 h-5 text-telegram-link" aria-hidden="true" />Active Modes</h2>
+        <h2 className="text-lg font-semibold mb-3 flex items-center gap-2"><TrendingUp className="w-5 h-5 text-telegram-link" aria-hidden="true" />{t('dashboard.activeModes')}</h2>
         {stats.modes.length === 0 ? (
           <div className="text-center py-8 bg-telegram-secondaryBg rounded-2xl border border-telegram-hint/10">
             <Compass className="w-12 h-12 text-telegram-hint mx-auto mb-3" />
-            <p className="text-telegram-text font-medium mb-1">Your adventure awaits!</p>
-            <p className="text-telegram-hint text-sm mb-4">Choose a mode to unlock quests and start leveling up</p>
+            <p className="text-telegram-text font-medium mb-1">{t('dashboard.adventureAwaits')}</p>
+            <p className="text-telegram-hint text-sm mb-4">{t('dashboard.chooseModeDesc')}</p>
             <button
               onClick={() => navigate('/settings')}
               className="inline-flex items-center gap-1.5 bg-gradient-to-r from-purple-600 to-blue-600 text-white text-sm font-medium px-4 py-2 rounded-full"
             >
-              Choose a Mode <ArrowRight className="w-4 h-4" />
+              {t('dashboard.chooseModeButton')} <ArrowRight className="w-4 h-4" />
             </button>
           </div>
         ) : (
@@ -133,18 +136,18 @@ export function Dashboard() {
       <StreakSection streakData={stats.streakData} perModeStreaks={stats.perModeStreaks} />
 
       <div className="px-4 mt-6" role="region" aria-label="Active quests">
-        <h2 className="text-lg font-semibold mb-3 flex items-center gap-2"><Target className="w-5 h-5 text-telegram-link" aria-hidden="true" />Active Quests</h2>
+        <h2 className="text-lg font-semibold mb-3 flex items-center gap-2"><Target className="w-5 h-5 text-telegram-link" aria-hidden="true" />{t('dashboard.activeQuests')}</h2>
         <div className="space-y-3">
           {stats.activeQuests.length === 0 ? (
             <div className="text-center py-8 bg-telegram-secondaryBg rounded-2xl border border-telegram-hint/10">
               <Scroll className="w-12 h-12 text-telegram-hint mx-auto mb-3" />
-              <p className="text-telegram-text font-medium mb-1">No active quests right now</p>
-              <p className="text-telegram-hint text-sm mb-4">Complete your daily goals or check in tomorrow for fresh challenges</p>
+              <p className="text-telegram-text font-medium mb-1">{t('dashboard.noActiveQuests')}</p>
+              <p className="text-telegram-hint text-sm mb-4">{t('dashboard.checkInTomorrow')}</p>
               <button
                 onClick={() => navigate('/quests')}
                 className="inline-flex items-center gap-1.5 bg-gradient-to-r from-purple-600 to-blue-600 text-white text-sm font-medium px-4 py-2 rounded-full"
               >
-                View Quests <ArrowRight className="w-4 h-4" />
+                {t('dashboard.viewQuests')} <ArrowRight className="w-4 h-4" />
               </button>
             </div>
           ) : (
@@ -157,7 +160,7 @@ export function Dashboard() {
 
       {stats.recentAchievements.length > 0 && (
         <div className="px-4 mt-6 mb-6" role="region" aria-label="Recent achievements">
-          <h2 className="text-lg font-semibold mb-3 flex items-center gap-2"><Trophy className="w-5 h-5 text-telegram-link" aria-hidden="true" />Recent Achievements</h2>
+          <h2 className="text-lg font-semibold mb-3 flex items-center gap-2"><Trophy className="w-5 h-5 text-telegram-link" aria-hidden="true" />{t('dashboard.recentAchievements')}</h2>
           <div className="grid grid-cols-2 gap-3">
             {stats.recentAchievements.slice(0, 4).map((userAch) => (
               <DashboardAchievementCard key={userAch.achievement_id} userAch={userAch} />

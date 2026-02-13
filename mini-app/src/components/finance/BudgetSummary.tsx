@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import { motion } from 'framer-motion';
 import { DollarSign, TrendingUp, TrendingDown, PieChart } from 'lucide-react';
 import { CATEGORY_COLORS } from '@/components/finance/useBudget';
@@ -17,12 +18,14 @@ export function BudgetSummary({
   spentPercent,
   byCategory,
 }: BudgetSummaryProps) {
+  const { t } = useTranslation();
+
   return (
     <>
       {/* Monthly Summary */}
       <div className="bg-telegram-secondaryBg rounded-xl p-4 space-y-3">
         <h2 className="text-sm font-semibold text-telegram-hint uppercase tracking-wide">
-          Monthly Budget Summary
+          {t('finance.budgetSummary')}
         </h2>
 
         <div className="grid grid-cols-3 gap-3">
@@ -35,7 +38,7 @@ export function BudgetSummary({
               <TrendingUp size={16} className="text-emerald-500" />
             </div>
             <div className="text-lg font-bold text-telegram-text">{totalIncome.toLocaleString()}</div>
-            <div className="text-[10px] text-telegram-hint">Income</div>
+            <div className="text-[10px] text-telegram-hint">{t('finance.income')}</div>
           </motion.div>
 
           <motion.div
@@ -48,7 +51,7 @@ export function BudgetSummary({
               <TrendingDown size={16} className="text-red-500" />
             </div>
             <div className="text-lg font-bold text-telegram-text">{totalExpense.toLocaleString()}</div>
-            <div className="text-[10px] text-telegram-hint">Expenses</div>
+            <div className="text-[10px] text-telegram-hint">{t('finance.expenses')}</div>
           </motion.div>
 
           <motion.div
@@ -63,14 +66,14 @@ export function BudgetSummary({
             <div className={`text-lg font-bold ${balance >= 0 ? 'text-emerald-500' : 'text-red-500'}`}>
               {balance.toLocaleString()}
             </div>
-            <div className="text-[10px] text-telegram-hint">Balance</div>
+            <div className="text-[10px] text-telegram-hint">{t('finance.balance')}</div>
           </motion.div>
         </div>
 
         {/* Spending progress bar */}
         <div className="space-y-1">
           <div className="flex justify-between text-xs text-telegram-hint">
-            <span>Spent</span>
+            <span>{t('finance.spent')}</span>
             <span>{spentPercent.toFixed(0)}%</span>
           </div>
           <div className="h-2 bg-telegram-bg rounded-full overflow-hidden">
@@ -92,7 +95,7 @@ export function BudgetSummary({
           <div className="flex items-center gap-2">
             <PieChart size={14} className="text-telegram-hint" />
             <h3 className="text-sm font-semibold text-telegram-hint uppercase tracking-wide">
-              Category Breakdown
+              {t('finance.categoryBreakdown')}
             </h3>
           </div>
 

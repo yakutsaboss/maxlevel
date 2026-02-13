@@ -1,4 +1,5 @@
 import { memo } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Target, Clock, Users } from 'lucide-react';
 
 interface Challenge {
@@ -18,23 +19,24 @@ interface ChallengeCardProps {
   challenge: Challenge;
 }
 
-function getTimeRemaining(endDate: string | null): string {
-  if (!endDate) return 'No deadline';
+function getTimeRemaining(endDate: string | null, t: (key: string) => string): string {
+  if (!endDate) return t('social.noDeadline');
   const now = new Date();
   const end = new Date(endDate);
   const diff = end.getTime() - now.getTime();
-  if (diff <= 0) return 'Ended';
+  if (diff <= 0) return t('social.ended');
   const days = Math.floor(diff / (1000 * 60 * 60 * 24));
   const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
-  if (days > 0) return `${days}d ${hours}h left`;
-  return `${hours}h left`;
+  if (days > 0) return `${days}${t('social.daysLeft')}`;
+  return `${hours}${t('social.hoursLeft')}`;
 }
 
 export const ChallengeCard = memo(function ChallengeCard({ challenge }: ChallengeCardProps) {
+  const { t } = useTranslation();
   const progressPercent = challenge.target_value
     ? Math.min(100, Math.round((challenge.progress / challenge.target_value) * 100))
     : 0;
-  const timeRemaining = getTimeRemaining(challenge.end_date);
+  const timeRemaining = getTimeRemaining(challenge.end_date, t);
   const isCompleted = challenge.target_value ? challenge.progress >= challenge.target_value : false;
 
   return (
@@ -56,7 +58,7 @@ export const ChallengeCard = memo(function ChallengeCard({ challenge }: Challeng
       {challenge.target_value && (
         <div className="mb-3">
           <div className="flex items-center justify-between text-xs mb-1">
-            <span className="text-telegram-hint">Progress</span>
+            <span className="text-telegram-hint">{t('social.progress')}</span>
             <span className="text-telegram-text font-medium">
               {challenge.progress}/{challenge.target_value} ({progressPercent}%)
             </span>
@@ -73,7 +75,7 @@ export const ChallengeCard = memo(function ChallengeCard({ challenge }: Challeng
       <div className="flex items-center gap-4 text-xs text-telegram-hint">
         <span className="flex items-center gap-1">
           <Users className="w-3 h-3" />
-          {challenge.participant_count} participant{challenge.participant_count !== 1 ? 's' : ''}
+          {challenge.participant_count} {challenge.participant_count !== 1 ? t('social.participantsPlural') : t('social.participants')}
         </span>
         <span className="flex items-center gap-1">
           <Clock className="w-3 h-3" />
@@ -82,7 +84,7 @@ export const ChallengeCard = memo(function ChallengeCard({ challenge }: Challeng
         {isCompleted && (
           <span className="flex items-center gap-1 text-green-400">
             <Target className="w-3 h-3" />
-            Completed
+            {t('social.completed')}
           </span>
         )}
       </div>

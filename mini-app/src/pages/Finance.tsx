@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useTelegram } from '@/hooks/useTelegram';
 import { DollarSign, Wallet, PiggyBank, Loader2 } from 'lucide-react';
 import { motion } from 'framer-motion';
@@ -9,6 +10,7 @@ import { SavingsGoal } from '@/components/finance/SavingsGoal';
 type FinanceTab = 'budget' | 'savings';
 
 export function Finance() {
+  const { t } = useTranslation();
   const { user } = useTelegram();
   const [activeTab, setActiveTab] = useState<FinanceTab>('budget');
 
@@ -21,7 +23,7 @@ export function Finance() {
   }
 
   if (!user.id) {
-    return <ErrorSection message="Could not identify your account" onRetry={() => window.location.reload()} />;
+    return <ErrorSection message={t('finance.couldNotIdentify')} onRetry={() => window.location.reload()} />;
   }
 
   return (
@@ -33,8 +35,8 @@ export function Finance() {
             <DollarSign className="w-8 h-8 text-white" />
           </div>
           <div>
-            <h1 className="text-2xl font-bold text-white">Finance</h1>
-            <p className="text-emerald-100 text-sm">Track your budget & savings</p>
+            <h1 className="text-2xl font-bold text-white">{t('finance.title')}</h1>
+            <p className="text-emerald-100 text-sm">{t('finance.subtitle')}</p>
           </div>
         </div>
 
@@ -49,7 +51,7 @@ export function Finance() {
             }`}
           >
             <Wallet className="w-4 h-4" />
-            Budget
+            {t('finance.budget')}
           </button>
           <button
             onClick={() => setActiveTab('savings')}
@@ -60,7 +62,7 @@ export function Finance() {
             }`}
           >
             <PiggyBank className="w-4 h-4" />
-            Savings
+            {t('finance.savings')}
           </button>
         </div>
       </div>

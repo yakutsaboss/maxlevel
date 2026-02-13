@@ -1,4 +1,5 @@
 import { memo } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Users, Star, Zap } from 'lucide-react';
 
 interface Friend {
@@ -16,11 +17,13 @@ interface FriendsListProps {
 }
 
 export const FriendsList = memo(function FriendsList({ friends }: FriendsListProps) {
+  const { t } = useTranslation();
+
   if (friends.length === 0) {
     return (
       <div className="text-center py-12">
         <Users className="w-12 h-12 text-telegram-hint mx-auto mb-3" />
-        <p className="text-telegram-hint text-sm">No friends yet. Send a friend request!</p>
+        <p className="text-telegram-hint text-sm">{t('social.noFriends')}</p>
       </div>
     );
   }
@@ -48,7 +51,7 @@ export const FriendsList = memo(function FriendsList({ friends }: FriendsListPro
             <div className="flex items-center gap-3 text-xs text-telegram-hint mt-0.5">
               <span className="flex items-center gap-1">
                 <Star className="w-3 h-3" />
-                Lv.{friend.current_level}
+                {t('social.level')}{friend.current_level}
               </span>
               <span className="flex items-center gap-1">
                 <Zap className="w-3 h-3" />
