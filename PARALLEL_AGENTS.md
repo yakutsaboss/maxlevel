@@ -2041,4 +2041,15 @@ After completing work, write your retrospective in PARALLEL_AGENTS.md under "Run
 #### Agent 0 Retrospective
 *(To be filled by Agent 0 after merge)*
 
-<!-- Next run goes here. Agent 0 will append RUN 59 below this line. -->
+## Run 59 Retrospectives
+
+#### Agent A Retrospective
+- **Task**: Split `bot/src/api/routes/payments.ts` (380 lines) into focused modules.
+- **Files created**: `bot/src/utils/paymentHelpers.ts` (47 lines), `bot/src/api/routes/payment-webhook.ts` (97 lines)
+- **Files modified**: `bot/src/api/routes/payments.ts` (380→269 lines)
+- **What was done**: Extracted 3 helper functions (`isValidTier`, `verifyWebhookSecret`, `isPositiveInteger`) + `VALID_TIERS` constant + `Tier` type into `paymentHelpers.ts`. Moved the entire POST `/webhook` handler into `payment-webhook.ts` as a standalone Router. Refactored `payments.ts` to import helpers and mount webhook sub-router via `router.use('/webhook', webhookRouter)`.
+- **Backward compatibility**: `paymentsRouter` export unchanged, server.ts requires zero changes. Webhook endpoint still responds at same path `/api/payments/webhook` because sub-router is mounted at `/webhook` relative to payments prefix.
+- **All exports from paymentHelpers.ts are named exports** — Agent D can import `isValidTier`, `isPositiveInteger`, `verifyWebhookSecret`, `VALID_TIERS`, `Tier` for testing.
+- **Build**: `tsc` passes clean, no errors.
+
+<!-- Next run goes here. Agent 0 will append RUN 60 below this line. -->
