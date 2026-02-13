@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { motion } from 'framer-motion';
 import { Pencil, Check } from 'lucide-react';
 import { useTelegram } from '@/hooks/useTelegram';
@@ -13,8 +14,9 @@ interface HeroIntroProps {
 }
 
 export function HeroIntro({ progress, stepLabel, nickname, onNicknameChange, onNext }: HeroIntroProps) {
+  const { t } = useTranslation();
   const { user, haptic } = useTelegram();
-  const displayName = nickname || user?.first_name || 'Friend';
+  const displayName = nickname || user?.first_name || t('onboarding.friend');
   const [isEditing, setIsEditing] = useState(false);
   const [editValue, setEditValue] = useState(displayName);
 
@@ -57,7 +59,7 @@ export function HeroIntro({ progress, stepLabel, nickname, onNicknameChange, onN
             }}
           >
             <div className="bg-telegram-bg rounded-2xl p-5 text-center">
-              <p className="text-sm text-telegram-hint mb-1">Your Name</p>
+              <p className="text-sm text-telegram-hint mb-1">{t('onboarding.yourName')}</p>
 
               {isEditing ? (
                 <div className="flex items-center gap-2 justify-center mb-4">
@@ -90,7 +92,7 @@ export function HeroIntro({ progress, stepLabel, nickname, onNicknameChange, onN
               )}
 
               <p className="text-telegram-text leading-relaxed">
-                Ready to improve your life? Let's set up your personal plan!
+                {t('onboarding.heroTagline')}
               </p>
             </div>
           </div>
@@ -106,7 +108,7 @@ export function HeroIntro({ progress, stepLabel, nickname, onNicknameChange, onN
           transition={{ delay: 0.3 }}
           whileTap={{ scale: 0.97 }}
         >
-          Let's Go!
+          {t('onboarding.letsGo')}
         </motion.button>
       </div>
     </div>

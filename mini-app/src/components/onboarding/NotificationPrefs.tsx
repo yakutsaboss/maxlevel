@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { motion } from 'framer-motion';
 import { Bell } from 'lucide-react';
 import { useTelegram } from '@/hooks/useTelegram';
@@ -44,6 +45,7 @@ interface NotificationPrefsProps {
 }
 
 export function NotificationPrefs({ progress, stepLabel, data, onUpdate, onNext }: NotificationPrefsProps) {
+  const { t } = useTranslation();
   const { haptic } = useTelegram();
   const existing = data.notification_preferences || {};
 
@@ -72,39 +74,39 @@ export function NotificationPrefs({ progress, stepLabel, data, onUpdate, onNext 
           className="text-center mb-6"
         >
           <Bell className="w-10 h-10 text-telegram-link mx-auto mb-3" />
-          <h2 className="text-2xl font-bold text-telegram-text mb-1">Notifications</h2>
-          <p className="text-telegram-hint text-sm">Stay on track with reminders</p>
+          <h2 className="text-2xl font-bold text-telegram-text mb-1">{t('onboarding.notifications')}</h2>
+          <p className="text-telegram-hint text-sm">{t('onboarding.stayOnTrack')}</p>
         </motion.div>
 
         <div className="bg-telegram-secondaryBg rounded-2xl px-4 divide-y divide-telegram-hint/10">
           <ToggleRow
-            label="Task reminders"
-            description="Get notified before deadlines"
+            label={t('onboarding.taskReminders')}
+            description={t('onboarding.taskRemindersDesc')}
             value={prefs.quest_reminders}
             onChange={(v) => update('quest_reminders', v)}
           />
           <ToggleRow
-            label="Daily summary"
-            description="Receive a daily recap of your progress"
+            label={t('onboarding.dailySummary')}
+            description={t('onboarding.dailySummaryDesc')}
             value={prefs.daily_summary}
             onChange={(v) => update('daily_summary', v)}
           />
           <ToggleRow
-            label="Achievement alerts"
-            description="Celebrate when you hit milestones"
+            label={t('onboarding.achievementAlerts')}
+            description={t('onboarding.achievementAlertsDesc')}
             value={prefs.achievement_alerts}
             onChange={(v) => update('achievement_alerts', v)}
           />
           <ToggleRow
-            label="Streak warnings"
-            description="Get warned before losing your streak"
+            label={t('onboarding.streakWarnings')}
+            description={t('onboarding.streakWarningsDesc')}
             value={prefs.streak_warnings}
             onChange={(v) => update('streak_warnings', v)}
           />
         </div>
 
         <p className="text-xs text-telegram-hint text-center mt-4">
-          You can change these anytime in Settings
+          {t('onboarding.changeInSettings')}
         </p>
       </div>
 
@@ -113,7 +115,7 @@ export function NotificationPrefs({ progress, stepLabel, data, onUpdate, onNext 
           onClick={() => { haptic.impact('medium'); onNext(); }}
           className="w-full py-4 rounded-2xl text-lg font-bold bg-gradient-to-r from-purple-600 to-blue-600 text-white shadow-lg"
         >
-          Continue
+          {t('onboarding.continue')}
         </button>
       </div>
     </div>

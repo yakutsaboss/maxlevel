@@ -59,9 +59,9 @@ export function Leaderboard() {
   }, [entries, currentUserEntry]);
 
   const handleShare = useCallback(() => {
-    const rankText = currentUserRank ? `I'm ranked #${currentUserRank}` : 'Check out the leaderboard';
-    const xpText = currentUserEntry ? ` with ${currentUserEntry.total_xp.toLocaleString()} XP` : '';
-    const shareText = `${rankText}${xpText} on MaxLevel RPG! Can you beat me?`;
+    const shareText = currentUserRank && currentUserEntry
+      ? t('leaderboard.shareRank', { rank: currentUserRank, xp: currentUserEntry.total_xp.toLocaleString() })
+      : t('leaderboard.shareMessage');
     const botLink = 'https://t.me/maxlevel_rpg_bot/app';
 
     const tgWebApp = window.Telegram?.WebApp;

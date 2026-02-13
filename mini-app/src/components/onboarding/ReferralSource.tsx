@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { motion } from 'framer-motion';
 import { useTelegram } from '@/hooks/useTelegram';
 import { ProgressBar } from './ui/ProgressBar';
@@ -15,6 +16,7 @@ interface ReferralSourceProps {
 }
 
 export function ReferralSource({ progress, stepLabel, value, otherValue, onSelect, onNext }: ReferralSourceProps) {
+  const { t } = useTranslation();
   const { haptic } = useTelegram();
   const [selected, setSelected] = useState(value || '');
   const [otherText, setOtherText] = useState(otherValue || '');
@@ -42,10 +44,10 @@ export function ReferralSource({ progress, stepLabel, value, otherValue, onSelec
           animate={{ opacity: 1, y: 0 }}
         >
           <h2 className="text-2xl font-bold text-telegram-text text-center mb-2">
-            How Did You Find Us?
+            {t('onboarding.howDidYouFind')}
           </h2>
           <p className="text-telegram-hint text-center mb-6">
-            Where did you hear about MaxLevel?
+            {t('onboarding.whereHeardAbout')}
           </p>
         </motion.div>
 
@@ -84,7 +86,7 @@ export function ReferralSource({ progress, stepLabel, value, otherValue, onSelec
                 type="text"
                 value={otherText}
                 onChange={(e) => handleOtherChange(e.target.value)}
-                placeholder="Tell us where..."
+                placeholder={t('onboarding.tellUsWhere')}
                 className="w-full py-3 px-4 rounded-xl bg-telegram-secondaryBg border-2 border-telegram-hint/30 text-telegram-text placeholder:text-telegram-hint/50 focus:border-telegram-link focus:outline-none mt-2"
                 autoFocus
               />

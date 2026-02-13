@@ -1,4 +1,5 @@
 import { useState, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import { motion } from 'framer-motion';
 
 interface ContinueButtonProps {
@@ -15,9 +16,10 @@ const shakeKeyframes = {
 export function ContinueButton({
   onClick,
   disabled = false,
-  label = 'Continue',
+  label,
   className,
 }: ContinueButtonProps) {
+  const { t } = useTranslation();
   const [shaking, setShaking] = useState(false);
   const [showHint, setShowHint] = useState(false);
 
@@ -47,7 +49,7 @@ export function ContinueButton({
           }`
         }
       >
-        {label}
+        {label || t('onboarding.continue')}
       </motion.button>
       {showHint && (
         <motion.p
@@ -56,7 +58,7 @@ export function ContinueButton({
           exit={{ opacity: 0 }}
           className="text-xs text-red-400 text-center mt-2"
         >
-          Please make a selection
+          {t('onboarding.pleaseSelectHint')}
         </motion.p>
       )}
     </div>
