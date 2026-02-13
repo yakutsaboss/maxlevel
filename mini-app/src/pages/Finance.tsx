@@ -27,7 +27,7 @@ export function Finance() {
   return (
     <div className="min-h-screen bg-telegram-bg text-telegram-text pb-20">
       {/* Header */}
-      <div className="bg-gradient-to-r from-emerald-600 to-teal-600 p-6 rounded-b-3xl shadow-lg safe-area-top">
+      <div className="bg-gradient-to-r from-emerald-600 to-teal-600 pt-8 pb-6 px-6 rounded-b-3xl shadow-lg safe-area-top">
         <div className="flex items-center gap-3 mb-4">
           <div className="bg-white/20 backdrop-blur-sm rounded-2xl p-3">
             <DollarSign className="w-8 h-8 text-white" />

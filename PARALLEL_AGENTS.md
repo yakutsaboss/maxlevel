@@ -2673,4 +2673,16 @@ After completing work, write your retrospective in PARALLEL_AGENTS.md under "Run
 
 **Note**: Run 49 retros for agents B-H were lost during `--theirs` conflict resolution (only Agent A's survived as last merge). Retros exist in git reflog on deleted branches.
 
-<!-- Next run goes here. Agent 0 will append RUN 50 below this line. -->
+### Run 50 Retrospectives
+
+#### Agent C Retrospective
+**Task**: Fix header spacing across all pages — titles too close to top edge.
+**Files changed**: Quests.tsx, Achievements.tsx, Leaderboard.tsx, Finance.tsx, Social.tsx (5 files).
+**What was done**:
+- Changed `p-6` to `pt-8 pb-6 px-6` on gradient header divs in Quests, Achievements, Leaderboard, and Finance pages. This adds extra top padding beyond what `safe-area-top` provides, giving title text breathing room from the top edge.
+- Social.tsx had NO gradient header at all — just a plain `<div className="p-4">` wrapping everything. Added a proper gradient header (`from-indigo-600 to-blue-600`) with `safe-area-top`, matching the style of all other pages (icon in backdrop-blur container, white h1, subtitle, `rounded-b-3xl shadow-lg`).
+- The `.safe-area-top` CSS class in index.css (`padding-top: env(safe-area-inset-top, 0px)`) was already correct — it handles device safe area. The issue was insufficient additional padding within Tailwind classes.
+**Build**: `tsc` + `vite build` clean. All chunks produced, no errors.
+**Issues**: None. Straightforward CSS/layout task.
+
+<!-- Next run goes here. Agent 0 will append RUN 51 below this line. -->

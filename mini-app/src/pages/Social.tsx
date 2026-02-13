@@ -219,12 +219,20 @@ export function Social() {
     >
       <PullIndicator pullDistance={pullDistance} refreshing={refreshing} pullThreshold={pullThreshold} />
 
-      <div className="p-4">
-        <h1 className="text-2xl font-bold mb-6 flex items-center gap-2">
-          <Users className="w-6 h-6 text-telegram-link" />
-          Social
-        </h1>
+      {/* Header */}
+      <div className="bg-gradient-to-r from-indigo-600 to-blue-600 pt-8 pb-6 px-6 rounded-b-3xl shadow-lg safe-area-top">
+        <div className="flex items-center gap-3">
+          <div className="bg-white/20 backdrop-blur-sm rounded-2xl p-3">
+            <Users className="w-8 h-8 text-white" />
+          </div>
+          <div>
+            <h1 className="text-2xl font-bold text-white">Social</h1>
+            <p className="text-blue-100 text-sm">Friends & challenges</p>
+          </div>
+        </div>
+      </div>
 
+      <div className="p-4">
         {/* Friends Section */}
         <section className="mb-8" role="region" aria-label="Friends">
           <div className="flex items-center justify-between mb-3">
