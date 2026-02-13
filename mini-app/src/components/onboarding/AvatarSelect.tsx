@@ -2,16 +2,9 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { motion } from 'framer-motion';
 import { useTelegram } from '@/hooks/useTelegram';
+import { AVATAR_OPTIONS } from '@/data/avatarOptions';
 import { ProgressBar } from './ui/ProgressBar';
 import { ContinueButton } from './ui/ContinueButton';
-
-const AVATARS = [
-  { value: 'gym_warrior', labelKey: 'onboarding.avatarGymWarrior', icon: '💪', descKey: 'onboarding.avatarGymWarriorDesc' },
-  { value: 'office_boss', labelKey: 'onboarding.avatarOfficeBoss', icon: '👑', descKey: 'onboarding.avatarOfficeBossDesc' },
-  { value: 'magic_pet', labelKey: 'onboarding.avatarMagicPet', icon: '🐱', descKey: 'onboarding.avatarMagicPetDesc' },
-  { value: 'night_owl', labelKey: 'onboarding.avatarNightOwl', icon: '🦉', descKey: 'onboarding.avatarNightOwlDesc' },
-  { value: 'couch_hero', labelKey: 'onboarding.avatarCouchHero', icon: '🥔', descKey: 'onboarding.avatarCouchHeroDesc' },
-];
 
 interface AvatarSelectProps {
   progress: number;
@@ -50,7 +43,7 @@ export function AvatarSelect({ progress, stepLabel, value, onSelect, onNext }: A
         </motion.div>
 
         <div className="space-y-2.5">
-          {AVATARS.map((avatar, i) => (
+          {AVATAR_OPTIONS.map((avatar, i) => (
             <motion.button
               key={avatar.value}
               onClick={() => handleSelect(avatar.value)}
@@ -67,7 +60,7 @@ export function AvatarSelect({ progress, stepLabel, value, onSelect, onNext }: A
               transition={{ delay: i * 0.08 }}
               whileTap={{ scale: 0.98 }}
             >
-              <span className="text-3xl">{avatar.icon}</span>
+              <span className="text-3xl">{avatar.emoji}</span>
               <div className="text-left">
                 <span className={`text-base font-semibold block ${
                   selected === avatar.value ? 'text-telegram-link' : 'text-telegram-text'
