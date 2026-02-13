@@ -1576,6 +1576,319 @@ After completing work, write your retrospective in PARALLEL_AGENTS.md under "Run
 **No source files modified** — test-only agent as required.
 
 #### Agent 0 Retrospective
+
+**Merge summary:** All 5 agents committed directly to main (4th consecutive run). No merge conflicts. 5 agent commits + 1 Agent 0 fix.
+
+**Post-merge test results:**
+- Bot: Initially 819/820 (1 failure), then 820/820 after fix
+- Mini-app: 604/604 pass (121 files) — clean
+
+**Agent 0 fix (1):**
+- **Punishment test — array validation**: Agent C added validation requiring `custom_punishments` to be an array. Existing test sent an object `{ no_sweets: true }`. Fixed by changing test data to `['no_sweets', 'extra_pushups']`.
+
+**Deploy:** `d26221d` verified, notification sent.
+
+**Cleanup:** 5 worktrees removed, 5 branches deleted.
+
+**Final counts:** Bot 820 tests (69 files), Mini-app 604 tests (121 files) — total 1424 tests passing.
+
+---
+
+## Run 53: Bot Consolidation + i18n Gaps + Component Tests (4 Agents + Agent 0)
+
+**Date**: 2026-02-13
+**Agents**: 4 (A-D) + Agent 0
+**Goal**: Consolidate duplicate safeParseInt, fix last `as any` in bot, complete i18n for Admin+Onboarding, test 9 remaining untested components.
+
+**Key findings from codebase audit:**
+1. Duplicate `safeParseInt` in leaderboard.ts (local) vs validation.ts (shared) — needs consolidation
+2. Handler leaderboard.ts uses unsafe `parseInt(x) || 0` pattern (not using safeParseInt)
+3. analyticsExport.ts:25 — last `as any` in bot source
+4. Admin.tsx + Onboarding.tsx lack useTranslation (hardcoded English strings)
+5. 9 untested mini-app components: admin (5), analytics (2), finance (2)
+
+---
+
+### Run 53 Copy-Paste Prompts
+
+**Agent A — Bot Code Consolidation**
+```
+Read c:\Users\Asus\Desktop\Wibecode-agent-a\PARALLEL_AGENTS.md — find "Run 53" and locate the "Agent A" section. You are Agent A.
+
+YOUR TASK: Consolidate duplicate code and fix the last `as any` cast in bot source.
+
+OWNED FILES (only you modify these):
+- bot/src/api/routes/leaderboard.ts
+- bot/src/handlers/leaderboard.ts
+- bot/src/jobs/definitions/analyticsExport.ts
+
+TASK 1 — Remove duplicate safeParseInt from leaderboard route:
+Run 51 Agent C created a local `safeParseInt` function inside `bot/src/api/routes/leaderboard.ts` (~line 38-42). Run 52 Agent C created a shared version in `bot/src/utils/validation.ts`.
+
+Fix:
+1. Delete the local `safeParseInt` function from leaderboard.ts
+2. Add import: `import { safeParseInt } from '../../utils/validation.js';`
+3. Verify all existing `safeParseInt()` calls in the file still work (there should be ~8 calls)
+
+TASK 2 — Fix handler leaderboard.ts unsafe parseInt:
+In `bot/src/handlers/leaderboard.ts`, look for patterns like:
+```typescript
+parseInt(val) || 0
+```
+Replace with `safeParseInt` from validation.ts:
+```typescript
+import { safeParseInt } from '../utils/validation.js';
+```
+
+TASK 3 — Fix analyticsExport.ts `as any`:
+In `bot/src/jobs/definitions/analyticsExport.ts:25`:
+```typescript
+const data = result.data as any;
+```
+Fix: Create a proper interface for the Python tool result and use it instead:
+```typescript
+interface AnalyticsExportData {
+  [key: string]: unknown;
+}
+const data = result.data as AnalyticsExportData;
+```
+Or check what properties are actually accessed on `data` and type accordingly.
+
+FORBIDDEN: Do NOT modify mini-app files, validation.ts (already correct), or test files.
+
+BUILD VERIFY: cd bot && npm run build must pass.
+
+After completing work, write your retrospective in PARALLEL_AGENTS.md under "Run 53 Retrospectives" → "Agent A Retrospective", replacing the placeholder text. Then commit all changes.
+```
+
+**Agent B — Admin + Onboarding i18n**
+```
+Read c:\Users\Asus\Desktop\Wibecode-agent-b\PARALLEL_AGENTS.md — find "Run 53" and locate the "Agent B" section. You are Agent B.
+
+YOUR TASK: Complete i18n migration for the last 2 pages without useTranslation: Admin.tsx and Onboarding.tsx (+ sub-components).
+
+OWNED FILES (only you modify these):
+- mini-app/src/pages/Admin.tsx
+- mini-app/src/pages/Onboarding.tsx
+- mini-app/src/components/onboarding/SplashScreen.tsx
+- mini-app/src/components/onboarding/Summary.tsx
+- mini-app/src/components/onboarding/DrumRoller.tsx
+- mini-app/src/i18n/en.ts (add missing keys)
+- mini-app/src/i18n/ru.ts (add missing keys)
+- mini-app/src/i18n/zh.ts (add missing keys)
+
+TASK 1 — Add i18n to Admin.tsx:
+1. Import `useTranslation` and add `const { t } = useTranslation()`
+2. Replace hardcoded strings: tab labels ("Overview", "Users", "Quests", "Analytics", "Broadcast", "Jobs", "Logs"), "Logout" button, any section headers
+3. Add keys to all 3 language files under `admin:` namespace
+
+TASK 2 — Audit Onboarding.tsx + sub-components:
+1. Read Onboarding.tsx — check for any hardcoded strings (section titles, button labels, error messages)
+2. Check SplashScreen.tsx, Summary.tsx, DrumRoller.tsx for hardcoded text
+3. Note: QuizScreen and LaunchScreen were already migrated in Run 52. Focus on the remaining components.
+4. Add `useTranslation()` and replace hardcoded strings
+5. Add missing keys to all 3 language files
+
+IMPORTANT: The `data/onboardingQuestions.ts` file contains quiz question text. This is a DATA file (718 lines) — do NOT attempt to migrate it to i18n in this run. Focus only on UI chrome (buttons, headers, labels).
+
+FORBIDDEN: Do NOT modify bot/ files, LaunchScreen.tsx (already done), QuizScreen.tsx, CheckInButton.tsx, or test files.
+
+BUILD VERIFY: cd mini-app && npm run build must pass.
+
+After completing work, write your retrospective in PARALLEL_AGENTS.md under "Run 53 Retrospectives" → "Agent B Retrospective", replacing the placeholder text. Then commit all changes.
+```
+
+**Agent C — Admin + Analytics Component Tests**
+```
+Read c:\Users\Asus\Desktop\Wibecode-agent-c\PARALLEL_AGENTS.md — find "Run 53" and locate the "Agent C" section. You are Agent C.
+
+YOUR TASK: Write tests for untested admin and analytics mini-app components.
+
+OWNED FILES (only you create these):
+- mini-app/src/__tests__/components/admin/quest-editor/QuestForm.test.tsx (NEW)
+- mini-app/src/__tests__/components/admin/quest-editor/QuestList.test.tsx (NEW)
+- mini-app/src/__tests__/components/admin/quest-editor/QuestPreview.test.tsx (NEW)
+- mini-app/src/__tests__/components/admin/answer-analytics/AnswerChart.test.tsx (NEW)
+- mini-app/src/__tests__/components/admin/answer-analytics/AnswerTable.test.tsx (NEW)
+- mini-app/src/__tests__/components/analytics/ModeChart.test.tsx (NEW)
+- mini-app/src/__tests__/components/analytics/ModeStatsCard.test.tsx (NEW)
+
+PATTERN: Read existing admin tests for patterns:
+- mini-app/src/__tests__/components/admin/AdminQuestEditor.test.tsx
+- mini-app/src/__tests__/components/admin/AnswerAnalytics.test.tsx
+- mini-app/src/__tests__/components/analytics/ModeAnalytics.test.tsx
+
+For chart components (AnswerChart, ModeChart), mock recharts:
+```typescript
+vi.mock('recharts', () => ({
+  BarChart: (props: any) => <div data-testid="bar-chart" {...props} />,
+  Bar: (props: any) => <div data-testid="bar" {...props} />,
+  // ... other recharts components as needed
+}));
+```
+
+Target: ~25-30 tests across 7 files.
+
+FORBIDDEN: Do NOT modify any source files (test-only agent).
+
+BUILD VERIFY: cd mini-app && npx vitest --run src/__tests__/components/admin/quest-editor/ src/__tests__/components/admin/answer-analytics/ src/__tests__/components/analytics/ModeChart.test.tsx src/__tests__/components/analytics/ModeStatsCard.test.tsx
+
+After completing work, write your retrospective in PARALLEL_AGENTS.md under "Run 53 Retrospectives" → "Agent C Retrospective", replacing the placeholder text. Then commit all changes.
+```
+
+**Agent D — Finance Component Tests**
+```
+Read c:\Users\Asus\Desktop\Wibecode-agent-d\PARALLEL_AGENTS.md — find "Run 53" and locate the "Agent D" section. You are Agent D.
+
+YOUR TASK: Write tests for the last 2 untested finance components: GoalCard and GoalContribution.
+
+OWNED FILES (only you create these):
+- mini-app/src/__tests__/components/finance/GoalCard.test.tsx (NEW)
+- mini-app/src/__tests__/components/finance/GoalContribution.test.tsx (NEW)
+
+PATTERN: Read existing finance tests for patterns:
+- mini-app/src/__tests__/components/finance/BudgetForm.test.tsx
+- mini-app/src/__tests__/components/finance/BudgetSummary.test.tsx
+- mini-app/src/__tests__/components/finance/SavingsGoal.test.tsx
+
+GoalCard.test.tsx (~5-6 tests):
+1. Read mini-app/src/components/finance/GoalCard.tsx first
+2. Renders goal name and target amount
+3. Shows progress bar with correct percentage
+4. Displays current savings amount
+5. Handles zero target gracefully
+6. Shows completion state when goal is reached
+
+GoalContribution.test.tsx (~5-6 tests):
+1. Read mini-app/src/components/finance/GoalContribution.tsx first
+2. Renders contribution input field
+3. Validates amount (positive numbers only)
+4. Calls onSubmit with correct data
+5. Shows loading state while saving
+6. Handles error state
+
+Target: ~10-12 tests across 2 files.
+
+FORBIDDEN: Do NOT modify any source files (test-only agent).
+
+BUILD VERIFY: cd mini-app && npx vitest --run src/__tests__/components/finance/GoalCard.test.tsx src/__tests__/components/finance/GoalContribution.test.tsx
+
+After completing work, write your retrospective in PARALLEL_AGENTS.md under "Run 53 Retrospectives" → "Agent D Retrospective", replacing the placeholder text. Then commit all changes.
+```
+
+---
+
+### Agent A — Bot Code Consolidation
+
+**Branch:** `feature/r53-bot-consolidation`
+**Worktree:** `../Wibecode-agent-a`
+
+**OWNED files:**
+- `bot/src/api/routes/leaderboard.ts`
+- `bot/src/handlers/leaderboard.ts`
+- `bot/src/jobs/definitions/analyticsExport.ts`
+
+**FORBIDDEN:**
+- All mini-app files, validation.ts, test files, other routes
+
+---
+
+### Agent B — Admin + Onboarding i18n
+
+**Branch:** `feature/r53-admin-i18n`
+**Worktree:** `../Wibecode-agent-b`
+
+**OWNED files:**
+- `mini-app/src/pages/Admin.tsx`
+- `mini-app/src/pages/Onboarding.tsx`
+- `mini-app/src/components/onboarding/SplashScreen.tsx`
+- `mini-app/src/components/onboarding/Summary.tsx`
+- `mini-app/src/components/onboarding/DrumRoller.tsx`
+- `mini-app/src/i18n/en.ts`
+- `mini-app/src/i18n/ru.ts`
+- `mini-app/src/i18n/zh.ts`
+
+**FORBIDDEN:**
+- All bot/ files, LaunchScreen.tsx, QuizScreen.tsx, CheckInButton.tsx, test files
+
+---
+
+### Agent C — Admin + Analytics Component Tests
+
+**Branch:** `feature/r53-admin-tests`
+**Worktree:** `../Wibecode-agent-c`
+
+**OWNED files:**
+- `mini-app/src/__tests__/components/admin/quest-editor/QuestForm.test.tsx` (NEW)
+- `mini-app/src/__tests__/components/admin/quest-editor/QuestList.test.tsx` (NEW)
+- `mini-app/src/__tests__/components/admin/quest-editor/QuestPreview.test.tsx` (NEW)
+- `mini-app/src/__tests__/components/admin/answer-analytics/AnswerChart.test.tsx` (NEW)
+- `mini-app/src/__tests__/components/admin/answer-analytics/AnswerTable.test.tsx` (NEW)
+- `mini-app/src/__tests__/components/analytics/ModeChart.test.tsx` (NEW)
+- `mini-app/src/__tests__/components/analytics/ModeStatsCard.test.tsx` (NEW)
+
+**FORBIDDEN:**
+- ALL source files (test-only agent)
+
+---
+
+### Agent D — Finance Component Tests
+
+**Branch:** `feature/r53-finance-tests`
+**Worktree:** `../Wibecode-agent-d`
+
+**OWNED files:**
+- `mini-app/src/__tests__/components/finance/GoalCard.test.tsx` (NEW)
+- `mini-app/src/__tests__/components/finance/GoalContribution.test.tsx` (NEW)
+
+**FORBIDDEN:**
+- ALL source files (test-only agent)
+
+---
+
+### Run 53 File Ownership Matrix
+
+| File / Directory | A | B | C | D |
+|---|---|---|---|---|
+| `bot/routes/leaderboard.ts` | **OWNED** | - | - | - |
+| `bot/handlers/leaderboard.ts` | **OWNED** | - | - | - |
+| `bot/jobs/analyticsExport.ts` | **OWNED** | - | - | - |
+| `Admin.tsx` | - | **OWNED** | - | - |
+| `Onboarding.tsx` | - | **OWNED** | - | - |
+| `onboarding/SplashScreen.tsx` | - | **OWNED** | - | - |
+| `onboarding/Summary.tsx` | - | **OWNED** | - | - |
+| `onboarding/DrumRoller.tsx` | - | **OWNED** | - | - |
+| `i18n/en.ts, ru.ts, zh.ts` | - | **OWNED** | - | - |
+| `__tests__/admin/quest-editor/*.test.tsx` | - | - | **NEW** | - |
+| `__tests__/admin/answer-analytics/*.test.tsx` | - | - | **NEW** | - |
+| `__tests__/analytics/ModeChart.test.tsx` | - | - | **NEW** | - |
+| `__tests__/analytics/ModeStatsCard.test.tsx` | - | - | **NEW** | - |
+| `__tests__/finance/GoalCard.test.tsx` | - | - | - | **NEW** |
+| `__tests__/finance/GoalContribution.test.tsx` | - | - | - | **NEW** |
+| `PARALLEL_AGENTS.md` | retro | retro | retro | retro |
+
+### Run 53 Merge Order
+
+1. Agent A (bot consolidation) — backend first
+2. Agent B (i18n) — frontend content changes
+3. Agent C (admin/analytics tests) — test only
+4. Agent D (finance tests) — test only
+
+### Run 53 Retrospectives
+
+#### Agent A Retrospective
+*(To be filled by Agent A)*
+
+#### Agent B Retrospective
+*(To be filled by Agent B)*
+
+#### Agent C Retrospective
+*(To be filled by Agent C)*
+
+#### Agent D Retrospective
+*(To be filled by Agent D)*
+
+#### Agent 0 Retrospective
 *(To be filled by Agent 0 after merge)*
 
-<!-- Next run goes here. Agent 0 will append RUN 53 below this line. -->
+<!-- Next run goes here. Agent 0 will append RUN 54 below this line. -->
