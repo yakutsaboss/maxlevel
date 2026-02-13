@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Sun, Moon, Monitor, Palette } from 'lucide-react';
 import { motion } from 'framer-motion';
+import type { ThemeParams } from '@twa-dev/types';
 
 const THEME_PREF_KEY = 'theme_preference';
 
@@ -29,7 +30,7 @@ function detectCurrentTheme(colorScheme: string | undefined): 'light' | 'dark' {
 
 interface ThemeSettingsProps {
   colorScheme: string | undefined;
-  themeParams: Record<string, string> | undefined;
+  themeParams: ThemeParams | undefined;
   haptic?: { selection: () => void };
 }
 
@@ -52,11 +53,11 @@ export function ThemeSettings({ colorScheme, themeParams, haptic }: ThemeSetting
   };
 
   // Extract a few themeParams colors for the preview
-  const bgColor = (themeParams as any)?.bg_color ?? (themeParams as any)?.bgColor;
-  const textColor = (themeParams as any)?.text_color ?? (themeParams as any)?.textColor;
-  const hintColor = (themeParams as any)?.hint_color ?? (themeParams as any)?.hintColor;
-  const linkColor = (themeParams as any)?.link_color ?? (themeParams as any)?.linkColor;
-  const buttonColor = (themeParams as any)?.button_color ?? (themeParams as any)?.buttonColor;
+  const bgColor = themeParams?.bg_color;
+  const textColor = themeParams?.text_color;
+  const hintColor = themeParams?.hint_color;
+  const linkColor = themeParams?.link_color;
+  const buttonColor = themeParams?.button_color;
 
   return (
     <motion.div

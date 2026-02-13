@@ -67,7 +67,7 @@ export function Settings() {
           haptic={haptic}
         />
         <HapticFeedbackSettings enabled={hapticEnabled} onChange={setHapticEnabled} />
-        <ThemeSettings colorScheme={colorScheme} themeParams={themeParams as any} haptic={haptic} />
+        <ThemeSettings colorScheme={colorScheme} themeParams={themeParams} haptic={haptic} />
         <AccountabilitySettings
           punishment={punishment}
           punishmentAvailable={punishmentAvailable}

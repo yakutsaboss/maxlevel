@@ -1505,7 +1505,19 @@ After completing work, write your retrospective in PARALLEL_AGENTS.md under "Run
 *(To be filled by Agent A)*
 
 #### Agent B Retrospective
-*(To be filled by Agent B)*
+**Task:** Eliminate all `as any` casts from mini-app source files by adding proper TypeScript types for Telegram WebApp.
+
+**Result:** All 8 `as any` casts removed from 4 source files. Zero `as any` remaining in non-test source code. Build passes cleanly.
+
+**Approach:** Discovered the existing `types/telegram.ts` already had a global `Window` augmentation (`window.Telegram?.WebApp`) and `TelegramWebApp` interface. The `@twa-dev/types` package (transitive dep of `@twa-dev/sdk`) also provides a `ThemeParams` interface with all snake_case color properties (`bg_color`, `text_color`, etc.). No new `.d.ts` file was needed — just proper use of existing types.
+
+**Changes:**
+- **ThemeSettings.tsx** (5 casts removed) — Imported `ThemeParams` from `@twa-dev/types`, changed prop type from `Record<string, string> | undefined` to `ThemeParams | undefined`. Removed `as any` casts and unnecessary camelCase fallbacks (`?? bgColor` etc.) since the Telegram API only uses snake_case.
+- **Settings.tsx** (1 cast removed) — Removed `themeParams as any` since `useTelegram().themeParams` is now assignable to the corrected `ThemeParams` prop type.
+- **i18n/index.ts** (1 cast removed) — Changed `(window as any).Telegram` to `window.Telegram` — global augmentation from `types/telegram.ts` already declares this.
+- **Leaderboard.tsx** (1 cast removed) — Same `window.Telegram` fix.
+
+**Note for Agent 0:** The existing `types/telegram.ts` file's `declare global { interface Window { Telegram?: ... } }` block was already correct and just underutilized. No merge conflicts expected with Agent A (their i18n changes are on different lines).
 
 #### Agent C Retrospective
 **Completed all 4 tasks. Build passes.**

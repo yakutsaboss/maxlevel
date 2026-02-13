@@ -62,7 +62,7 @@ export function Leaderboard() {
     const shareText = `${rankText}${xpText} on MaxLevel RPG! Can you beat me?`;
     const botLink = 'https://t.me/maxlevel_rpg_bot/app';
 
-    const tgWebApp = (window as any).Telegram?.WebApp;
+    const tgWebApp = window.Telegram?.WebApp;
     if (tgWebApp?.openTelegramLink) {
       const encoded = encodeURIComponent(`${shareText}\n${botLink}`);
       tgWebApp.openTelegramLink(`https://t.me/share/url?url=${encodeURIComponent(botLink)}&text=${encoded}`);

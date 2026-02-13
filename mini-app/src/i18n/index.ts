@@ -6,7 +6,7 @@ import ru from './ru';
 import zh from './zh';
 
 // Try to detect language from Telegram WebApp
-const tgLang = (window as any).Telegram?.WebApp?.initDataUnsafe?.user?.language_code;
+const tgLang = window.Telegram?.WebApp?.initDataUnsafe?.user?.language_code;
 
 i18n
   .use(LanguageDetector)
