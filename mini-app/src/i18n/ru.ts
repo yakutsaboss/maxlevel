@@ -220,6 +220,8 @@ export default {
       premiumCta: "Перейти на Премиум",
       premiumCtaDesc: "6 режимов, анимированные аватары и эксклюзивные награды",
       upgradePremium: "599 Stars / месяц",
+      processing: "Обработка...",
+      paymentSuccess: "Премиум активирован! Доступны все 6 режимов.",
     },
   },
   achievements: {

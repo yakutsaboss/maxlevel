@@ -1,10 +1,11 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { motion } from 'framer-motion';
-import { Crown, Users, Star, RefreshCw, Loader2 } from 'lucide-react';
+import { Crown, Users, Star, RefreshCw, Loader2, CheckCircle2, AlertCircle } from 'lucide-react';
 import { useTelegram } from '@/hooks/useTelegram';
 import { apiClient } from '@/api/client';
 import { MODE_LIMITS } from '@/constants/tiers';
+import { usePayment } from '@/hooks/usePayment';
 import type { SubscriptionTier } from '@/types';
 
 const TIER_BADGE_STYLES: Record<SubscriptionTier, string> = {
@@ -30,16 +31,36 @@ export function SubscriptionSettings() {
   const [channelSubscribed, setChannelSubscribed] = useState(false);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [internalUserId, setInternalUserId] = useState<number | undefined>(undefined);
+  const [paymentSuccess, setPaymentSuccess] = useState(false);
 
   const modeLimit = MODE_LIMITS[tier];
+
+  const { initiatePayment, isLoading: paymentLoading, error: paymentError } = usePayment({
+    userId: internalUserId,
+    onSuccess: (result) => {
+      haptic.notification('success');
+      setPaymentSuccess(true);
+      if (result.tier && result.tier in MODE_LIMITS) {
+        setTier(result.tier as SubscriptionTier);
+      }
+      setTimeout(() => setPaymentSuccess(false), 5000);
+    },
+    onError: () => {
+      haptic.notification('error');
+    },
+  });
 
   const fetchData = useCallback(async () => {
     if (!telegramId) return;
 
     try {
-      // Fetch user stats (existing endpoint) for mode count
+      // Fetch user stats (existing endpoint) for mode count + internal userId
       const stats = await apiClient.getUserStats(telegramId);
       setModeCount(stats.data?.modes?.length ?? 0);
+      if (stats.data?.user?.id) {
+        setInternalUserId(stats.data.user.id);
+      }
 
       // Fetch channel subscription status (Agent B endpoint)
       try {
@@ -213,6 +234,26 @@ export function SubscriptionSettings() {
         </div>
       )}
 
+      {/* Payment Success */}
+      {paymentSuccess && (
+        <div className="bg-green-500/10 rounded-xl p-3 border border-green-500/20">
+          <div className="flex items-center gap-2">
+            <CheckCircle2 className="w-4 h-4 text-green-500" />
+            <span className="text-xs font-medium text-green-500">{t('settings.subscription.paymentSuccess')}</span>
+          </div>
+        </div>
+      )}
+
+      {/* Payment Error */}
+      {paymentError && !paymentSuccess && (
+        <div className="bg-red-500/10 rounded-xl p-3 border border-red-500/20">
+          <div className="flex items-center gap-2">
+            <AlertCircle className="w-4 h-4 text-red-400" />
+            <span className="text-xs font-medium text-red-400">{paymentError}</span>
+          </div>
+        </div>
+      )}
+
       {/* Premium Upgrade CTA */}
       {tier !== 'premium' && (
         <div className="bg-gradient-to-r from-amber-500/10 to-orange-500/10 rounded-xl p-3 border border-amber-500/20">
@@ -226,12 +267,19 @@ export function SubscriptionSettings() {
               <button
                 onClick={() => {
                   haptic.impact('medium');
-                  // TODO: Integrate with Telegram Stars payment when available
+                  initiatePayment('premium', 599);
                 }}
-                className="mt-2 text-xs font-semibold text-white bg-gradient-to-r from-amber-500 to-orange-500 px-4 py-1.5 rounded-lg active:scale-95 transition-transform flex items-center gap-1"
+                disabled={paymentLoading}
+                className="mt-2 text-xs font-semibold text-white bg-gradient-to-r from-amber-500 to-orange-500 px-4 py-1.5 rounded-lg active:scale-95 transition-transform flex items-center gap-1 disabled:opacity-50"
               >
-                <Star className="w-3 h-3" />
-                {t('settings.subscription.upgradePremium')}
+                {paymentLoading ? (
+                  <Loader2 className="w-3 h-3 animate-spin" />
+                ) : (
+                  <Star className="w-3 h-3" />
+                )}
+                {paymentLoading
+                  ? t('settings.subscription.processing')
+                  : t('settings.subscription.upgradePremium')}
               </button>
             </div>
           </div>

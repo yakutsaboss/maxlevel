@@ -220,6 +220,8 @@ export default {
       premiumCta: "Upgrade to Premium",
       premiumCtaDesc: "6 modes, animated avatars, and exclusive rewards",
       upgradePremium: "599 Stars / month",
+      processing: "Processing...",
+      paymentSuccess: "Premium activated! Enjoy all 6 modes.",
     },
   },
   achievements: {
