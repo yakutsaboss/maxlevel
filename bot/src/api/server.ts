@@ -22,6 +22,7 @@ import { paymentsRouter } from './routes/payments.js';
 import { socialRouter } from './routes/social.js';
 import { analyticsRouter } from './routes/analytics.js';
 import { financeRouter } from './routes/finance.js';
+import { channelRouter } from './routes/channel.js';
 import { apiLimiter } from './middleware/rateLimiter.js';
 import { requestTimeout } from './middleware/timeout.js';
 import { errorReporter } from './middleware/errorReporter.js';
@@ -117,6 +118,7 @@ app.use('/api/payments', paymentsRouter);
 app.use('/api/social', socialRouter);
 app.use('/api/analytics', analyticsRouter);
 app.use('/api/finance', financeRouter);
+app.use('/api/channel', channelRouter);
 
 // Webhook route (mounted dynamically when webhook handler is provided)
 let _webhookMounted = false;
