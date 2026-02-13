@@ -17,6 +17,7 @@ const mockModes: Mode[] = [
 describe('QuestFilters', () => {
   const mockOnModeSelect = vi.fn();
   const mockOnSortChange = vi.fn();
+  const mockOnDifficultySelect = vi.fn();
   const mockHaptic = { selection: vi.fn() };
 
   beforeEach(() => {
@@ -29,13 +30,16 @@ describe('QuestFilters', () => {
         modes={mockModes}
         selectedModeId={null}
         onModeSelect={mockOnModeSelect}
+        selectedDifficulty={null}
+        onDifficultySelect={mockOnDifficultySelect}
         sortBy="newest"
         onSortChange={mockOnSortChange}
         haptic={mockHaptic}
       />
     );
 
-    expect(screen.getByText('All')).toBeInTheDocument();
+    // Two "All" buttons: mode filter + difficulty filter
+    expect(screen.getAllByText('All')).toHaveLength(2);
     expect(screen.getByText(/Fitness/)).toBeInTheDocument();
     expect(screen.getByText(/Learning/)).toBeInTheDocument();
   });
@@ -46,6 +50,8 @@ describe('QuestFilters', () => {
         modes={mockModes}
         selectedModeId={null}
         onModeSelect={mockOnModeSelect}
+        selectedDifficulty={null}
+        onDifficultySelect={mockOnDifficultySelect}
         sortBy="newest"
         onSortChange={mockOnSortChange}
         haptic={mockHaptic}
@@ -63,6 +69,8 @@ describe('QuestFilters', () => {
         modes={mockModes}
         selectedModeId={null}
         onModeSelect={mockOnModeSelect}
+        selectedDifficulty={null}
+        onDifficultySelect={mockOnDifficultySelect}
         sortBy="newest"
         onSortChange={mockOnSortChange}
         haptic={mockHaptic}
@@ -79,14 +87,16 @@ describe('QuestFilters', () => {
         modes={mockModes}
         selectedModeId={null}
         onModeSelect={mockOnModeSelect}
+        selectedDifficulty={null}
+        onDifficultySelect={mockOnDifficultySelect}
         sortBy="newest"
         onSortChange={mockOnSortChange}
         haptic={mockHaptic}
       />
     );
 
-    const allButton = screen.getByText('All');
-    // Active chip has bg-telegram-link class
-    expect(allButton.className).toContain('bg-telegram-link');
+    // First "All" is mode filter (active by default), second is difficulty filter
+    const allButtons = screen.getAllByText('All');
+    expect(allButtons[0].className).toContain('bg-telegram-link');
   });
 });

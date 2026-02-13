@@ -223,7 +223,9 @@ describe('POST /api/quests/users/:userId/assign', () => {
   it('should return 200 when assigning daily quests', async () => {
     // query 1: user active modes
     db.query.mockResolvedValueOnce([{ mode_id: 1 }]);
-    // query 2: available quests
+    // query 2: fitness level from mode_configs (empty → beginner default)
+    db.query.mockResolvedValueOnce([]);
+    // query 3: available quests
     db.query.mockResolvedValueOnce([
       { id: 1, title: 'Run', description: 'Go run', xp_reward: 50, quest_type: 'daily', difficulty: 'easy', mode_id: 1 },
       { id: 2, title: 'Stretch', description: 'Stretch out', xp_reward: 30, quest_type: 'daily', difficulty: 'easy', mode_id: 1 },

@@ -82,7 +82,9 @@ describe('POST /api/quests/users/:userId/assign', () => {
     it('should assign 3 daily quests by default', async () => {
       // query 1: user active modes
       db.query.mockResolvedValueOnce([{ mode_id: 1 }]);
-      // query 2: available daily quests
+      // query 2: fitness level from mode_configs (empty → beginner default)
+      db.query.mockResolvedValueOnce([]);
+      // query 3: available daily quests
       db.query.mockResolvedValueOnce([
         DAILY_QUEST(1), DAILY_QUEST(2), DAILY_QUEST(3),
       ]);
@@ -111,6 +113,7 @@ describe('POST /api/quests/users/:userId/assign', () => {
 
     it('should use custom count when provided', async () => {
       db.query.mockResolvedValueOnce([{ mode_id: 1 }]);
+      db.query.mockResolvedValueOnce([]); // fitness level
       db.query.mockResolvedValueOnce([DAILY_QUEST(1)]);
       db.query.mockResolvedValueOnce([{ id: 201, quest_id: 1 }]);
 
@@ -125,6 +128,7 @@ describe('POST /api/quests/users/:userId/assign', () => {
 
     it('should set target based on difficulty', async () => {
       db.query.mockResolvedValueOnce([{ mode_id: 1 }]);
+      db.query.mockResolvedValueOnce([]); // fitness level
       db.query.mockResolvedValueOnce([
         DAILY_QUEST(1, 'easy'),
         DAILY_QUEST(2, 'medium'),
@@ -149,6 +153,7 @@ describe('POST /api/quests/users/:userId/assign', () => {
   describe('weekly quest assignment', () => {
     it('should assign 2 weekly quests by default', async () => {
       db.query.mockResolvedValueOnce([{ mode_id: 1 }]);
+      db.query.mockResolvedValueOnce([]); // fitness level
       db.query.mockResolvedValueOnce([WEEKLY_QUEST(10), WEEKLY_QUEST(11)]);
       db.query.mockResolvedValueOnce([
         { id: 401, quest_id: 10 }, { id: 402, quest_id: 11 },
@@ -169,6 +174,7 @@ describe('POST /api/quests/users/:userId/assign', () => {
 
     it('should use weekly SQL filter (past 7 days, active statuses)', async () => {
       db.query.mockResolvedValueOnce([{ mode_id: 2 }]);
+      db.query.mockResolvedValueOnce([]); // fitness level
       db.query.mockResolvedValueOnce([WEEKLY_QUEST(20)]);
       db.query.mockResolvedValueOnce([{ id: 501, quest_id: 20 }]);
 
@@ -177,18 +183,19 @@ describe('POST /api/quests/users/:userId/assign', () => {
         .send({ frequency: 'weekly' })
         .expect(200);
 
-      // Verify the second query call used mode_id from first call
-      const secondQueryCall = db.query.mock.calls[1];
-      expect(secondQueryCall[1][0]).toEqual([2]); // modeIds
-      expect(secondQueryCall[1][1]).toBe(42);      // userId
+      // Verify the third query call (quest selection, after modes + fitness level)
+      const questQueryCall = db.query.mock.calls[2];
+      expect(questQueryCall[1][0]).toEqual([2]); // modeIds
+      expect(questQueryCall[1][1]).toBe(42);      // userId
       // 3rd param is weekAgo date string
-      expect(secondQueryCall[1][2]).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+      expect(questQueryCall[1][2]).toMatch(/^\d{4}-\d{2}-\d{2}$/);
     });
   });
 
   describe('no available quests', () => {
     it('should return 400 when no quests available for user modes', async () => {
       db.query.mockResolvedValueOnce([{ mode_id: 1 }]);
+      db.query.mockResolvedValueOnce([]); // fitness level
       db.query.mockResolvedValueOnce([]); // no available quests
 
       const res = await request(buildApp())
@@ -215,6 +222,7 @@ describe('POST /api/quests/users/:userId/assign', () => {
 
     it('should pass all active mode IDs to the quest query', async () => {
       db.query.mockResolvedValueOnce([{ mode_id: 1 }, { mode_id: 3 }, { mode_id: 5 }]);
+      db.query.mockResolvedValueOnce([]); // fitness level
       db.query.mockResolvedValueOnce([DAILY_QUEST(1)]);
       db.query.mockResolvedValueOnce([{ id: 601, quest_id: 1 }]);
 
@@ -223,9 +231,9 @@ describe('POST /api/quests/users/:userId/assign', () => {
         .send({ frequency: 'daily' })
         .expect(200);
 
-      // Verify modeIds array passed to the available-quests query
-      const secondQueryCall = db.query.mock.calls[1];
-      expect(secondQueryCall[1][0]).toEqual([1, 3, 5]);
+      // Verify modeIds array passed to the available-quests query (3rd call, after modes + fitness)
+      const questQueryCall = db.query.mock.calls[2];
+      expect(questQueryCall[1][0]).toEqual([1, 3, 5]);
     });
   });
 
@@ -263,6 +271,7 @@ describe('POST /api/quests/users/:userId/assign', () => {
 
     it('should return 500 when database throws on quest query', async () => {
       db.query.mockResolvedValueOnce([{ mode_id: 1 }]);
+      db.query.mockResolvedValueOnce([]); // fitness level
       db.query.mockRejectedValueOnce(new Error('Query timeout'));
 
       const res = await request(buildApp())
