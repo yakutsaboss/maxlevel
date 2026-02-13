@@ -2675,25 +2675,89 @@ After completing work, write your retrospective in PARALLEL_AGENTS.md under "Run
 
 ### Run 50 Retrospectives
 
+#### Agent A Retrospective
+**Task**: Fix onboarding blink/reload bug — page visually blinks between step transitions.
+
+**Root cause confirmed**: `AnimatePresence mode="wait"` forces sequential exit→enter animations. The old step fades out (opacity 0, x -20) over 0.2s, creating a visible gap before the new step fades in (opacity 0→1, x 20→0). The x-axis movement made the flash even more noticeable.
+
+**Fix applied**: Changed `mode="wait"` to `mode="sync"` and replaced x+opacity transition with opacity-only crossfade at 0.15s. Now old/new steps cross-fade simultaneously — no gap, no blink.
+
+**Files modified**: `mini-app/src/pages/Onboarding.tsx` (lines 198-208 only)
+
+**Child component check**: Reviewed all `useEffect` hooks in onboarding sub-components (LaunchScreen, QuizScreen/useQuizState, DrumRoller). None flash loading states on step change — the blink was purely from AnimatePresence.
+
+**Build**: Passed cleanly.
+
+#### Agent B Retrospective
+**Fixed**: Dashboard quote-overlaps-stats bug by replacing two negative margins with positive ones.
+
+**Changes** (1 file, 2 lines):
+- `mini-app/src/pages/Dashboard.tsx` line 87: `-mt-4` → `mt-3` (quote section)
+- `mini-app/src/pages/Dashboard.tsx` line 99: `-mt-8` → `mt-4` (stat grid)
+
+**Root cause**: The quote used `-mt-4` to overlap the header gradient bottom (decorative), and the stat grid used `-mt-8` to pull up into the quote area (bug). Together they stacked, causing stats to visually overlap the quote text.
+
+**Design note**: The `-mt-4` on the quote was intentional (card-over-gradient pattern) but contributed to the overlap chain. Changing to `mt-3` gives clean separation: header → 0.75rem gap → quote → 1rem gap → stats. The gradient `rounded-b-3xl` still provides a clean visual edge without needing overlap.
+
+**Build**: tsc clean, Vite build passes.
+
+#### Agent C Retrospective
+**Task**: Fix header spacing across all pages — titles too close to top edge.
+**Files changed**: Quests.tsx, Achievements.tsx, Leaderboard.tsx, Finance.tsx, Social.tsx (5 files).
+
+**What was done**:
+- Changed `p-6` to `pt-8 pb-6 px-6` on gradient header divs in Quests, Achievements, Leaderboard, and Finance pages.
+- Social.tsx had NO gradient header — added a proper gradient header (`from-indigo-600 to-blue-600`) with `safe-area-top`, matching other pages.
+- The `.safe-area-top` CSS class in index.css was already correct — issue was insufficient Tailwind padding.
+
+**Build**: `tsc` + `vite build` clean.
+
+#### Agent D Retrospective
+**Task**: Fix achievement badge clipping (NEW badge, checkmark, lock icon)
+**File modified**: `mini-app/src/components/achievements/AchievementCard.tsx`
+**Result**: SUCCESS — build passes clean
+
+**Root cause**: Line 74 had `overflow-hidden` on the card container (`motion.button`). Three badges were positioned outside the card boundaries with negative offsets and were clipped by the overflow.
+
+**Fix applied**: Option 1 (recommended) — removed `overflow-hidden` from the card className. The card content is text and icons only — no images or content that needs clipping. `rounded-2xl` border-radius works independently of overflow. `line-clamp-2` on text elements handles text truncation via CSS line-clamp, not overflow. One-word change, minimal diff.
+
+#### Agent E Retrospective
+**Task**: Fix avatar off-center in Profile page header.
+
+**Root cause**: `motion.div` used `inline-block relative` — `inline-block` with `text-center` parent doesn't reliably center when absolute-positioned children (level badge at `-bottom-2 -right-2`) extend the element's visual bounds.
+
+**Fix**: Wrapped the `motion.div` in a `flex justify-center` container and removed `inline-block` from the motion wrapper (kept only `relative` for badge positioning). Structure: `div.flex.justify-center` > `motion.div.relative` > avatar + badge.
+
+**Build**: Clean — `tsc && vite build` passed, zero errors.
+
+#### Agent F Retrospective
+**Task:** Save avatar selection and nickname from onboarding to the users table.
+**Status**: DONE
+
+**Changes made (1 file, 2 fixes):**
+1. `bot/src/api/routes/onboarding.ts` — Added avatar persistence: maps `quiz_data.gender` string to integer `avatar_id` (1-5) via lookup map, then `UPDATE users SET avatar_id` within the existing transaction.
+2. Same file — Added nickname persistence: if `quiz_data.nickname` is present, saves it to `users.first_name` (trimmed, max 100 chars).
+
+**Build:** `tsc` passes clean, zero errors.
+
+#### Agent G Retrospective
+- **Task**: Add punishment transparency info to onboarding (PunishmentConfig + ConsentToggle)
+- **Changes**: Added blue info box in PunishmentConfig.tsx explaining XP depreciation happens regardless of accountability toggle. Added subtitle in ConsentToggle.tsx clarifying that skipped quests already reduce XP.
+- **Files modified**: `mini-app/src/components/onboarding/PunishmentConfig.tsx`, `mini-app/src/components/onboarding/punishment/ConsentToggle.tsx`
+- **Build**: Passed (tsc + vite build clean)
+
 #### Agent H Retrospective
 **Task**: Write regression tests verifying Run 50 bug fixes (test-only agent).
 **File created**: `mini-app/src/__tests__/regression/run50-bugs.test.tsx` (NEW, ~370 lines)
-**Result**: SUCCESS — file compiles and runs; 12 tests across 6 describe blocks.
+**Result**: SUCCESS — 12 tests across 6 describe blocks.
 
-**Test structure (6 describe blocks, 12 tests)**:
-1. **Onboarding no-blink (Agent A)** — 3 source-level tests: AnimatePresence mode != "wait", no `x` in initial/exit props
-2. **Dashboard no-overlap (Agent B)** — 2 source-level tests: stat grid className has no `-mt-8` or negative top margin
-3. **Social header spacing (Agent C)** — 1 source-level test: Social.tsx contains `safe-area-top`
-4. **Achievement badge visibility (Agent D)** — 3 render tests: outer button has no `overflow-hidden`, NEW badge renders, NEW badge parent not clipped
-5. **Avatar centering (Agent E)** — 1 render test: avatar wrapper has `flex` + `justify-center`
-6. **Punishment transparency (Agent G)** — 2 render tests: XP-related info text present in rendered output
+**Test structure**: Onboarding no-blink (3), Dashboard no-overlap (2), Social header spacing (1), Achievement badge visibility (3), Avatar centering (1), Punishment transparency (2).
 
-**Approach**: Hybrid strategy — source-level `readFileSync` assertions for page components (Onboarding, Dashboard, Social) to avoid extensive hook/dependency mocking, and `render()` + `screen` queries for isolated components (AchievementCard, ProfileHeader, PunishmentConfig).
+**Approach**: Hybrid — source-level `readFileSync` assertions for pages, `render()` + `screen` queries for isolated components.
 
-**Pre-merge status**: 11/12 tests fail (expected — source files in this worktree are pre-fix). 1 test passes (NEW badge renders — existing behavior not broken). All 12 will pass after Agent 0 merges agents A-G first.
+**Pre-merge status**: 11/12 tests fail (expected — source files pre-fix). All 12 will pass after merge.
 
-**Mocking**: @twa-dev/sdk, framer-motion (AnimatePresence + motion.div/button), lucide-react (explicit icon stubs), ProfileEditModal, ProgressBar. No Proxy patterns (caused hang in first attempt).
-
-**No conflicts expected**: Only created a new file in `__tests__/regression/` — no existing file modifications.
+#### Agent 0 Retrospective
+*(To be filled by Agent 0 after merge)*
 
 <!-- Next run goes here. Agent 0 will append RUN 51 below this line. -->
