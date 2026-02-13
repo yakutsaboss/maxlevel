@@ -24,6 +24,7 @@ import {
 import { handleSettings, handleSettingsCallback } from './handlers/settings.js';
 import { handleStats, handleStatsCallback } from './handlers/stats.js';
 import { handleLeaderboard } from './handlers/leaderboard.js';
+import { handlePreCheckoutQuery, handleSuccessfulPayment } from './handlers/payments.js';
 import { startApiServer } from './api/server.js';
 import { startJobQueue, stopJobQueue } from './jobs/boss.js';
 import { registerAllJobs } from './jobs/registerJobs.js';
@@ -52,6 +53,10 @@ bot.callbackQuery('mode_summary', handleModeSummary);
 bot.callbackQuery(/^(open_app|view_quests|view_profile)$/, handleQuickAction);
 bot.callbackQuery(/^settings:/, handleSettingsCallback);
 bot.callbackQuery(/^stats:/, handleStatsCallback);
+
+// Payment event handlers (Telegram Stars)
+bot.on('pre_checkout_query', handlePreCheckoutQuery);
+bot.on('message:successful_payment', handleSuccessfulPayment);
 
 // Menu command
 bot.command('menu', async (ctx) => {

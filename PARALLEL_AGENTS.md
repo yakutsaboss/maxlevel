@@ -2422,3 +2422,21 @@ After completing work, write your retrospective in PARALLEL_AGENTS.md under "Run
 *(To be filled by Agent 0 after merge)*
 
 <!-- Next run goes here. Agent 0 will append RUN 60 below this line. -->
+
+### Run 60 Retrospectives
+
+#### Agent A Retrospective
+- **Task**: Complete Telegram Stars payment backend — create real invoices via Bot API and handle payment events.
+- **Files created (1)**: `bot/src/handlers/payments.ts` (190 lines) — Grammy handlers for `pre_checkout_query` and `message:successful_payment` events.
+- **Files modified (3)**:
+  1. `bot/src/utils/paymentHelpers.ts` — Added `TIER_PRICES` constant (`Record<Tier, number>`) mapping each tier to its Stars price (free=0, subscriber=0, premium=599).
+  2. `bot/src/api/routes/payments.ts` — POST `/create` now calls `bot.api.createInvoiceLink()` to generate a real Telegram Stars invoice after creating the pending payment record. Returns `invoice_url` in response. On invoice creation failure, marks payment as `failed`. Added imports for `bot`, `TIER_PRICES`, `Tier`.
+  3. `bot/src/index.ts` — Added import for `handlePreCheckoutQuery` and `handleSuccessfulPayment`, registered `bot.on('pre_checkout_query', ...)` and `bot.on('message:successful_payment', ...)` handlers (3 lines total, GRAY AREA).
+- **Payment flow**: Mini-app calls POST `/create` → gets `invoice_url` → user opens invoice in Telegram → Telegram sends `pre_checkout_query` (we verify payment_id, amount, currency, status) → approve → Telegram charges user → `successful_payment` event → we complete payment + upsert subscription in a single DB transaction → send confirmation message.
+- **Design decisions**:
+  - `parsePayload()` helper validates JSON payload structure (requires `payment_id: number` + `tier`), used by both handlers.
+  - Pre-checkout verifies 4 things: valid payload, payment exists & pending, amount matches, currency is XTR.
+  - Successful payment is idempotent — if already completed, sends friendly confirmation instead of erroring.
+  - Transaction pattern matches existing `payment-webhook.ts` (same UPDATE payments + UPSERT subscriptions).
+  - `provider_token` is empty string for Telegram Stars (no external payment provider).
+- **Build**: `tsc` passes clean, 0 errors.

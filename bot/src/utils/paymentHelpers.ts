@@ -14,6 +14,13 @@ const log = logger.child({ component: 'payments' });
 export const VALID_TIERS = ['free', 'subscriber', 'premium'] as const;
 export type Tier = typeof VALID_TIERS[number];
 
+/** Prices in Telegram Stars (XTR) for each purchasable tier */
+export const TIER_PRICES: Record<Tier, number> = {
+  free: 0,
+  subscriber: 0,
+  premium: 599,
+} as const;
+
 export function isValidTier(tier: string): tier is Tier {
   return VALID_TIERS.includes(tier as Tier);
 }
