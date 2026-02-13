@@ -493,4 +493,8 @@ export default {
     unexpectedError: "Произошла непредвиденная ошибка",
     tryAgain: "Попробовать снова",
   },
+  celebrations: {
+    levelUp: "Новый уровень!",
+    tapToDismiss: "Нажмите, чтобы закрыть",
+  },
 };

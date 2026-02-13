@@ -493,4 +493,8 @@ export default {
     unexpectedError: "An unexpected error occurred",
     tryAgain: "Try Again",
   },
+  celebrations: {
+    levelUp: "Level Up!",
+    tapToDismiss: "Tap to dismiss",
+  },
 };

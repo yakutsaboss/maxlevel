@@ -493,4 +493,8 @@ export default {
     unexpectedError: "发生了意外错误",
     tryAgain: "重试",
   },
+  celebrations: {
+    levelUp: "升级了！",
+    tapToDismiss: "点击关闭",
+  },
 };

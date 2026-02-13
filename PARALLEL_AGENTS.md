@@ -2041,4 +2041,23 @@ After completing work, write your retrospective in PARALLEL_AGENTS.md under "Run
 #### Agent 0 Retrospective
 *(To be filled by Agent 0 after merge)*
 
-<!-- Next run goes here. Agent 0 will append RUN 59 below this line. -->
+## Run 59: Stars Payment Integration + Celebration Animations (4 Agents + Agent 0)
+
+**Date**: 2026-02-14
+
+### Run 59 Retrospectives
+
+#### Agent C Retrospective
+- **Task**: Add celebration animations — confetti burst, level-up modal, XP float effect, useCelebration hook, and confetti integration in AchievementToast.
+- **Files created**: `Confetti.tsx` (70 lines), `LevelUpModal.tsx` (82 lines), `XpFloat.tsx` (42 lines), `useCelebration.ts` (133 lines)
+- **Files modified**: `AchievementToast.tsx` (added Confetti import + render, +6 lines)
+- **i18n**: Added `celebrations` namespace to `en.ts`, `ru.ts`, `zh.ts` with `levelUp` and `tapToDismiss` keys.
+- **Design choices**:
+  - Confetti: 40 particles with 8 colors, random shapes (circle/square), GPU-accelerated transforms, auto-dismiss 2.5s
+  - LevelUpModal: Purple gradient bg, pulsing glow ring, spring animation, auto-dismiss 3s or tap
+  - XpFloat: Teal color with text-shadow, float up -60px + fade out over 1.5s
+  - useCelebration: localStorage-backed level/XP tracking, first-call baseline init, separate dismiss callbacks for each effect
+- **Note for integration**: useCelebration exposes `onDashboardData(level, xp)` — caller should invoke this when dashboard stats load. Haptic feedback (heavy on level-up, light on XP) should be triggered by the page that uses the hook (not inside the hook itself, since hooks shouldn't depend on useTelegram).
+- **Build**: `tsc + vite build` passes clean, 0 errors.
+
+<!-- Next run goes here. Agent 0 will append RUN 60 below this line. -->
