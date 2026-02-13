@@ -3,8 +3,8 @@
  *
  * Tests:
  * - Allows access for premium users
- * - Blocks access for free users when pro required
- * - Blocks access for pro users when premium required
+ * - Blocks access for free users when subscriber required
+ * - Blocks access for subscriber users when premium required
  * - Returns 400 when userId is missing
  * - Returns 400 when userId is NaN
  * - Treats expired subscription as free
@@ -48,7 +48,7 @@ beforeEach(() => {
 describe('requirePremium middleware', () => {
   describe('userId extraction', () => {
     it('should return 400 when userId is missing', async () => {
-      const middleware = requirePremium('pro');
+      const middleware = requirePremium('subscriber');
       const req = mockRequest({ params: {}, body: {} });
       const res = mockResponse();
       const next = mockNext();
@@ -62,7 +62,7 @@ describe('requirePremium middleware', () => {
     });
 
     it('should return 400 when userId is NaN', async () => {
-      const middleware = requirePremium('pro');
+      const middleware = requirePremium('subscriber');
       const req = mockRequest({ params: { userId: 'abc' } as any });
       const res = mockResponse();
       const next = mockNext();
@@ -109,7 +109,7 @@ describe('requirePremium middleware', () => {
 
   describe('tier access control', () => {
     it('should allow premium user for pro-required endpoint', async () => {
-      const middleware = requirePremium('pro');
+      const middleware = requirePremium('subscriber');
       mockQueryOne.mockResolvedValue({ tier: 'premium', expires_at: null });
       const req = mockRequest({ params: { userId: '1' } as any });
       const res = mockResponse();
@@ -121,9 +121,12 @@ describe('requirePremium middleware', () => {
       expect(res._status).toBe(200);
     });
 
-    it('should allow pro user for pro-required endpoint', async () => {
-      const middleware = requirePremium('pro');
-      mockQueryOne.mockResolvedValue({ tier: 'pro', expires_at: null });
+    it('should allow subscriber user for subscriber-required endpoint', async () => {
+      const middleware = requirePremium('subscriber');
+      // 1st query: subscriptions → no premium sub
+      mockQueryOne.mockResolvedValueOnce(null);
+      // 2nd query: channel_subscriptions → subscribed
+      mockQueryOne.mockResolvedValueOnce({ is_subscribed: true, checked_at: new Date().toISOString() });
       const req = mockRequest({ params: { userId: '1' } as any });
       const res = mockResponse();
       const next = mockNext();
@@ -133,8 +136,8 @@ describe('requirePremium middleware', () => {
       expect(next.called).toBe(true);
     });
 
-    it('should block free user for pro-required endpoint', async () => {
-      const middleware = requirePremium('pro');
+    it('should block free user for subscriber-required endpoint', async () => {
+      const middleware = requirePremium('subscriber');
       mockQueryOne.mockResolvedValue({ tier: 'free', expires_at: null });
       const req = mockRequest({ params: { userId: '1' } as any });
       const res = mockResponse();
@@ -144,14 +147,17 @@ describe('requirePremium middleware', () => {
 
       expect(res._status).toBe(403);
       expect(res._json.success).toBe(false);
-      expect(res._json.message).toContain('pro');
+      expect(res._json.message).toContain('subscriber');
       expect(res._json.message).toContain('free');
       expect(next.called).toBe(false);
     });
 
-    it('should block pro user for premium-required endpoint', async () => {
+    it('should block subscriber user for premium-required endpoint', async () => {
       const middleware = requirePremium('premium');
-      mockQueryOne.mockResolvedValue({ tier: 'pro', expires_at: null });
+      // 1st query: subscriptions → no premium sub
+      mockQueryOne.mockResolvedValueOnce(null);
+      // 2nd query: channel_subscriptions → subscribed (subscriber tier)
+      mockQueryOne.mockResolvedValueOnce({ is_subscribed: true, checked_at: new Date().toISOString() });
       const req = mockRequest({ params: { userId: '1' } as any });
       const res = mockResponse();
       const next = mockNext();
@@ -160,12 +166,12 @@ describe('requirePremium middleware', () => {
 
       expect(res._status).toBe(403);
       expect(res._json.message).toContain('premium');
-      expect(res._json.message).toContain('pro');
+      expect(res._json.message).toContain('subscriber');
       expect(next.called).toBe(false);
     });
 
     it('should treat no subscription as free tier', async () => {
-      const middleware = requirePremium('pro');
+      const middleware = requirePremium('subscriber');
       mockQueryOne.mockResolvedValue(null);
       const req = mockRequest({ params: { userId: '1' } as any });
       const res = mockResponse();
@@ -191,8 +197,8 @@ describe('requirePremium middleware', () => {
   });
 
   describe('subscription expiry', () => {
-    it('should treat expired subscription as free and block for pro', async () => {
-      const middleware = requirePremium('pro');
+    it('should treat expired subscription as free and block for subscriber', async () => {
+      const middleware = requirePremium('subscriber');
       const pastDate = new Date(Date.now() - 86400_000).toISOString(); // 1 day ago
       mockQueryOne.mockResolvedValue({ tier: 'premium', expires_at: pastDate });
       const req = mockRequest({ params: { userId: '1' } as any });
@@ -202,14 +208,15 @@ describe('requirePremium middleware', () => {
       await middleware(req, res, next);
 
       expect(res._status).toBe(403);
-      expect(res._json.message).toContain('expired');
+      expect(res._json.message).toContain('subscriber');
+      expect(res._json.message).toContain('free');
       expect(next.called).toBe(false);
     });
 
     it('should allow expired subscription when minTier is free', async () => {
       const middleware = requirePremium('free');
       const pastDate = new Date(Date.now() - 86400_000).toISOString();
-      mockQueryOne.mockResolvedValue({ tier: 'pro', expires_at: pastDate });
+      mockQueryOne.mockResolvedValue({ tier: 'subscriber', expires_at: pastDate });
       const req = mockRequest({ params: { userId: '1' } as any });
       const res = mockResponse();
       const next = mockNext();
@@ -235,7 +242,7 @@ describe('requirePremium middleware', () => {
 
   describe('error handling', () => {
     it('should pass DB errors to next()', async () => {
-      const middleware = requirePremium('pro');
+      const middleware = requirePremium('subscriber');
       const dbError = new Error('DB connection failed');
       mockQueryOne.mockRejectedValue(dbError);
       const req = mockRequest({ params: { userId: '1' } as any });
@@ -263,7 +270,7 @@ describe('requirePremium middleware', () => {
     });
 
     it('should treat unknown user tier as free', async () => {
-      const middleware = requirePremium('pro');
+      const middleware = requirePremium('subscriber');
       mockQueryOne.mockResolvedValue({ tier: 'unknown_tier', expires_at: null });
       const req = mockRequest({ params: { userId: '1' } as any });
       const res = mockResponse();

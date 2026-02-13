@@ -64,7 +64,7 @@ describe('POST /api/payments/create', () => {
 
     const res = await request(buildApp())
       .post('/api/payments/create')
-      .send({ userId: 1, amount: 100, tier: 'pro' })
+      .send({ userId: 1, amount: 100, tier: 'premium' })
       .expect(201);
 
     expect(res.body.success).toBe(true);
@@ -73,7 +73,7 @@ describe('POST /api/payments/create', () => {
     expect(res.body.data.amount).toBe(100);
     expect(res.body.data.currency).toBe('XTR');
     expect(res.body.data.provider).toBe('telegram_stars');
-    expect(res.body.data.tier).toBe('pro');
+    expect(res.body.data.tier).toBe('premium');
   });
 
   it('should return 400 when required fields are missing', async () => {
@@ -99,7 +99,7 @@ describe('POST /api/payments/create', () => {
   it('should return 400 for negative amount', async () => {
     const res = await request(buildApp())
       .post('/api/payments/create')
-      .send({ userId: 1, amount: -5, tier: 'pro' })
+      .send({ userId: 1, amount: -5, tier: 'premium' })
       .expect(400);
 
     expect(res.body.success).toBe(false);
@@ -347,7 +347,7 @@ describe('POST /api/payments/subscription/upgrade', () => {
 
     const res = await request(buildApp())
       .post('/api/payments/subscription/upgrade')
-      .send({ userId: 999, tier: 'pro' })
+      .send({ userId: 999, tier: 'premium' })
       .expect(404);
 
     expect(res.body.success).toBe(false);

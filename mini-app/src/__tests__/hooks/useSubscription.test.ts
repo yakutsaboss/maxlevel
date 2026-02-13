@@ -39,6 +39,11 @@ const mockSubscriptionFree = {
   data: { tier: 'free', is_active: true, is_expired: false, expires_at: null },
 };
 
+const mockSubscriptionSubscriber = {
+  success: true,
+  data: { tier: 'subscriber', is_active: true, is_expired: false, expires_at: null },
+};
+
 const mockSubscriptionPremium = {
   success: true,
   data: {
@@ -61,13 +66,11 @@ const mockChannelNotSubscribed = {
 
 const mockTiers = {
   success: true,
-  data: {
-    tiers: [
-      { name: 'free', modeLimit: 2, price: 0, purchasable: false, channelRequired: false },
-      { name: 'subscriber', modeLimit: 3, price: 0, purchasable: false, channelRequired: true },
-      { name: 'premium', modeLimit: 6, price: 599, purchasable: true, channelRequired: false },
-    ],
-  },
+  data: [
+    { name: 'free', modeLimit: 2, price: 0, purchasable: false, channelRequired: false },
+    { name: 'subscriber', modeLimit: 3, price: 0, purchasable: false, channelRequired: true },
+    { name: 'premium', modeLimit: 6, price: 599, purchasable: true, channelRequired: false },
+  ],
 };
 
 // ─── Setup ──────────────────────────────────────────────────────────
@@ -84,7 +87,7 @@ describe('useSubscription', () => {
     mockGetChannelStatus.mockReturnValue(new Promise(() => {}));
     mockGetTiers.mockReturnValue(new Promise(() => {}));
 
-    const { result } = renderHook(() => useSubscription(1));
+    const { result } = renderHook(() => useSubscription({ userId: 1 }));
 
     expect(result.current.loading).toBe(true);
     expect(result.current.error).toBeFalsy();
@@ -95,23 +98,23 @@ describe('useSubscription', () => {
     mockGetChannelStatus.mockResolvedValue(mockChannelNotSubscribed as any);
     mockGetTiers.mockResolvedValue(mockTiers as any);
 
-    const { result } = renderHook(() => useSubscription(1));
+    const { result } = renderHook(() => useSubscription({ userId: 1 }));
 
     await waitFor(() => {
       expect(result.current.loading).toBe(false);
     });
 
-    expect(mockGetSubscription).toHaveBeenCalledWith(1);
-    expect(mockGetChannelStatus).toHaveBeenCalledWith(1);
+    expect(mockGetSubscription).toHaveBeenCalledWith(1, expect.any(Object));
+    expect(mockGetChannelStatus).toHaveBeenCalledWith(1, expect.any(Object));
     expect(result.current.error).toBeFalsy();
   });
 
-  it('computes effectiveTier as free when no subscriptions', async () => {
+  it('computes effectiveTier as free when subscription is free', async () => {
     mockGetSubscription.mockResolvedValue(mockSubscriptionFree as any);
     mockGetChannelStatus.mockResolvedValue(mockChannelNotSubscribed as any);
     mockGetTiers.mockResolvedValue(mockTiers as any);
 
-    const { result } = renderHook(() => useSubscription(1));
+    const { result } = renderHook(() => useSubscription({ userId: 1 }));
 
     await waitFor(() => {
       expect(result.current.loading).toBe(false);
@@ -121,12 +124,13 @@ describe('useSubscription', () => {
     expect(result.current.modeLimit).toBe(2);
   });
 
-  it('computes effectiveTier as subscriber when channel is subscribed', async () => {
-    mockGetSubscription.mockResolvedValue(mockSubscriptionFree as any);
+  it('computes effectiveTier as subscriber when backend returns subscriber tier', async () => {
+    // Backend auto-upgrades tier when channel subscription is active
+    mockGetSubscription.mockResolvedValue(mockSubscriptionSubscriber as any);
     mockGetChannelStatus.mockResolvedValue(mockChannelSubscribed as any);
     mockGetTiers.mockResolvedValue(mockTiers as any);
 
-    const { result } = renderHook(() => useSubscription(1));
+    const { result } = renderHook(() => useSubscription({ userId: 1 }));
 
     await waitFor(() => {
       expect(result.current.loading).toBe(false);
@@ -141,7 +145,7 @@ describe('useSubscription', () => {
     mockGetChannelStatus.mockResolvedValue(mockChannelSubscribed as any);
     mockGetTiers.mockResolvedValue(mockTiers as any);
 
-    const { result } = renderHook(() => useSubscription(1));
+    const { result } = renderHook(() => useSubscription({ userId: 1 }));
 
     await waitFor(() => {
       expect(result.current.loading).toBe(false);
@@ -156,7 +160,7 @@ describe('useSubscription', () => {
     mockGetChannelStatus.mockRejectedValue(new Error('Network error'));
     mockGetTiers.mockResolvedValue(mockTiers as any);
 
-    const { result } = renderHook(() => useSubscription(1));
+    const { result } = renderHook(() => useSubscription({ userId: 1 }));
 
     await waitFor(() => {
       expect(result.current.loading).toBe(false);
@@ -174,7 +178,7 @@ describe('useSubscription', () => {
       data: { is_subscribed: true, channel: '@yakutsaway', checked_at: new Date().toISOString() },
     } as any);
 
-    const { result } = renderHook(() => useSubscription(1));
+    const { result } = renderHook(() => useSubscription({ userId: 1 }));
 
     await waitFor(() => {
       expect(result.current.loading).toBe(false);
