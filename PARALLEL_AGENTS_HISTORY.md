@@ -1,6 +1,6 @@
 # Parallel Agents — Run History (Archive)
 
-This file contains completed run logs from Runs 2–53 (retrospectives, task descriptions, file matrices, merge results).
+This file contains completed run logs from Runs 2–54 (retrospectives, task descriptions, file matrices, merge results).
 For the active protocol and current run, see `PARALLEL_AGENTS.md`.
 
 ---
@@ -22027,3 +22027,561 @@ After completing work, write your retrospective in PARALLEL_AGENTS.md under "Run
 
 **Run 53 totals**: +1523 lines added across 20 files. 3 bot files refactored + 7 mini-app source files i18n'd + 9 new test files (87 new tests).
 
+### Run 50 Retrospectives
+
+#### Agent A Retrospective
+**Task**: Fix onboarding blink/reload bug — page visually blinks between step transitions.
+
+**Root cause confirmed**: `AnimatePresence mode="wait"` forces sequential exit→enter animations. The old step fades out (opacity 0, x -20) over 0.2s, creating a visible gap before the new step fades in (opacity 0→1, x 20→0). The x-axis movement made the flash even more noticeable.
+
+**Fix applied**: Changed `mode="wait"` to `mode="sync"` and replaced x+opacity transition with opacity-only crossfade at 0.15s. Now old/new steps cross-fade simultaneously — no gap, no blink.
+
+**Files modified**: `mini-app/src/pages/Onboarding.tsx` (lines 198-208 only)
+
+**Child component check**: Reviewed all `useEffect` hooks in onboarding sub-components (LaunchScreen, QuizScreen/useQuizState, DrumRoller). None flash loading states on step change — the blink was purely from AnimatePresence.
+
+**Build**: Passed cleanly.
+
+#### Agent B Retrospective
+**Fixed**: Dashboard quote-overlaps-stats bug by replacing two negative margins with positive ones.
+
+**Changes** (1 file, 2 lines):
+- `mini-app/src/pages/Dashboard.tsx` line 87: `-mt-4` → `mt-3` (quote section)
+- `mini-app/src/pages/Dashboard.tsx` line 99: `-mt-8` → `mt-4` (stat grid)
+
+**Root cause**: The quote used `-mt-4` to overlap the header gradient bottom (decorative), and the stat grid used `-mt-8` to pull up into the quote area (bug). Together they stacked, causing stats to visually overlap the quote text.
+
+**Design note**: The `-mt-4` on the quote was intentional (card-over-gradient pattern) but contributed to the overlap chain. Changing to `mt-3` gives clean separation: header → 0.75rem gap → quote → 1rem gap → stats. The gradient `rounded-b-3xl` still provides a clean visual edge without needing overlap.
+
+**Build**: tsc clean, Vite build passes.
+
+#### Agent C Retrospective
+**Task**: Fix header spacing across all pages — titles too close to top edge.
+**Files changed**: Quests.tsx, Achievements.tsx, Leaderboard.tsx, Finance.tsx, Social.tsx (5 files).
+
+**What was done**:
+- Changed `p-6` to `pt-8 pb-6 px-6` on gradient header divs in Quests, Achievements, Leaderboard, and Finance pages.
+- Social.tsx had NO gradient header — added a proper gradient header (`from-indigo-600 to-blue-600`) with `safe-area-top`, matching other pages.
+- The `.safe-area-top` CSS class in index.css was already correct — issue was insufficient Tailwind padding.
+
+**Build**: `tsc` + `vite build` clean.
+
+#### Agent D Retrospective
+**Task**: Fix achievement badge clipping (NEW badge, checkmark, lock icon)
+**File modified**: `mini-app/src/components/achievements/AchievementCard.tsx`
+**Result**: SUCCESS — build passes clean
+
+**Root cause**: Line 74 had `overflow-hidden` on the card container (`motion.button`). Three badges were positioned outside the card boundaries with negative offsets and were clipped by the overflow.
+
+**Fix applied**: Option 1 (recommended) — removed `overflow-hidden` from the card className. The card content is text and icons only — no images or content that needs clipping. `rounded-2xl` border-radius works independently of overflow. `line-clamp-2` on text elements handles text truncation via CSS line-clamp, not overflow. One-word change, minimal diff.
+
+#### Agent E Retrospective
+**Task**: Fix avatar off-center in Profile page header.
+
+**Root cause**: `motion.div` used `inline-block relative` — `inline-block` with `text-center` parent doesn't reliably center when absolute-positioned children (level badge at `-bottom-2 -right-2`) extend the element's visual bounds.
+
+**Fix**: Wrapped the `motion.div` in a `flex justify-center` container and removed `inline-block` from the motion wrapper (kept only `relative` for badge positioning). Structure: `div.flex.justify-center` > `motion.div.relative` > avatar + badge.
+
+**Build**: Clean — `tsc && vite build` passed, zero errors.
+
+#### Agent F Retrospective
+**Task:** Save avatar selection and nickname from onboarding to the users table.
+**Status**: DONE
+
+**Changes made (1 file, 2 fixes):**
+1. `bot/src/api/routes/onboarding.ts` — Added avatar persistence: maps `quiz_data.gender` string to integer `avatar_id` (1-5) via lookup map, then `UPDATE users SET avatar_id` within the existing transaction.
+2. Same file — Added nickname persistence: if `quiz_data.nickname` is present, saves it to `users.first_name` (trimmed, max 100 chars).
+
+**Build:** `tsc` passes clean, zero errors.
+
+#### Agent G Retrospective
+- **Task**: Add punishment transparency info to onboarding (PunishmentConfig + ConsentToggle)
+- **Changes**: Added blue info box in PunishmentConfig.tsx explaining XP depreciation happens regardless of accountability toggle. Added subtitle in ConsentToggle.tsx clarifying that skipped quests already reduce XP.
+- **Files modified**: `mini-app/src/components/onboarding/PunishmentConfig.tsx`, `mini-app/src/components/onboarding/punishment/ConsentToggle.tsx`
+- **Build**: Passed (tsc + vite build clean)
+
+#### Agent H Retrospective
+**Task**: Write regression tests verifying Run 50 bug fixes (test-only agent).
+**File created**: `mini-app/src/__tests__/regression/run50-bugs.test.tsx` (NEW, ~370 lines)
+**Result**: SUCCESS — 12 tests across 6 describe blocks.
+
+**Test structure**: Onboarding no-blink (3), Dashboard no-overlap (2), Social header spacing (1), Achievement badge visibility (3), Avatar centering (1), Punishment transparency (2).
+
+**Approach**: Hybrid — source-level `readFileSync` assertions for pages, `render()` + `screen` queries for isolated components.
+
+**Pre-merge status**: 11/12 tests fail (expected — source files pre-fix). All 12 will pass after merge.
+
+#### Agent 0 Retrospective
+**Run 50 merge — 8 agents, 7 unmerged branches + 1 pre-merged (Agent D).**
+
+**Merge results**: All 7 branches merged cleanly for source files. PARALLEL_AGENTS.md had expected conflicts on every merge (retrospective sections). Used `--theirs` strategy then restored all retrospectives manually.
+
+**Agent 0 fix**: Agent H's regression test for avatar centering failed (11/12 passing). The test checked `parentElement` of `[role="img"]` for `flex justify-center`, but Agent E's fix added the flex wrapper as grandparent (structure: `div.flex.justify-center` > `motion.div.relative` > `div[role="img"]`). Fixed by navigating one more level up.
+
+**Build**: Bot (tsc) + Mini-app (tsc + vite) — both clean. 547/547 tests pass (113 files).
+
+**Deploy**: `8f3c251` — health check verified, notification sent.
+
+**Cleanup**: 8 worktrees removed, 8 feature branches deleted.
+
+**What went well**: Clean run — all 8 agents completed their single-file tasks. No cross-agent conflicts in source files. Agent H's test-only approach works well for regression validation.
+
+**Issues carried forward**:
+- pg-boss Node.js 22.12+ requirement (server has 20.20)
+- BUILD_TIMESTAMP env var formatting on Windows deploy (minor — uses literal `%Y` instead of date format)
+
+---
+
+## Run 54: parseInt Safety Sweep + Component i18n + Cleanup (4 Agents + Agent 0)
+
+**Date**: 2026-02-13
+**Agents**: 4 (A-D) + Agent 0
+**Goal**: Replace all bare `parseInt()` with `safeParseInt` across 19 route files (71 calls), complete component-level i18n for 21 remaining files, clean up dead code, add missing tests.
+
+**Key findings from codebase audit:**
+1. 71 bare `parseInt()` calls across 19 route files — `safeParseInt` from `utils/validation.ts` only used in 5 files so far
+2. 21 component files still have hardcoded English strings (mostly admin + settings + shared components)
+3. Dead code: `userInTop` in `handlers/leaderboard.ts` (always returns false, never used)
+4. Missing tests: `QuestDifficultyBadge.tsx`, `adminClient.ts`
+
+---
+
+### Run 54 Copy-Paste Prompts
+
+**Agent A — Bot parseInt Safety (Core Routes)**
+```
+Read c:\Users\Asus\Desktop\Wibecode-agent-a\PARALLEL_AGENTS.md — find "Run 54" and locate the "Agent A" section. You are Agent A.
+
+YOUR TASK: Replace all bare `parseInt()` calls with `safeParseInt` from validation.ts in 7 core route files.
+
+OWNED FILES (only you modify these):
+- bot/src/api/routes/finance.ts
+- bot/src/api/routes/achievements.ts
+- bot/src/api/routes/modes.ts
+- bot/src/api/routes/analytics.ts
+- bot/src/api/routes/checkins.ts
+- bot/src/api/routes/users.ts
+- bot/src/api/routes/user-stats.ts
+
+WHAT TO DO for each file:
+1. Add import at top: `import { safeParseInt } from '../../utils/validation.js';`
+2. Replace ALL `parseInt(req.params.userId)` with `safeParseInt(req.params.userId, 0)`
+3. Replace ALL `parseInt(req.params.XXX)` with `safeParseInt(req.params.XXX, 0)`
+4. Replace ALL `parseInt(req.query.XXX as string)` with `safeParseInt(req.query.XXX as string, DEFAULT)` where DEFAULT is the existing fallback value
+5. Replace ALL `parseInt(X) || Y` patterns with `safeParseInt(X, Y)`
+6. For `typeof userId === 'string' ? parseInt(userId) : userId` patterns, use `typeof userId === 'string' ? safeParseInt(userId, 0) : userId`
+
+REFERENCE: Read `bot/src/utils/validation.ts` first to understand safeParseInt signature:
+```typescript
+export function safeParseInt(value: string | undefined, defaultValue: number): number
+```
+
+IMPORTANT: Do NOT change any logic or behavior. Only replace parseInt calls. Keep all existing NaN checks, Math.min/max bounds, and fallback values.
+
+COUNTS by file:
+- finance.ts: ~5 parseInt calls
+- achievements.ts: ~7 parseInt calls
+- modes.ts: ~8 parseInt calls
+- analytics.ts: ~3 parseInt calls
+- checkins.ts: ~5 parseInt calls
+- users.ts: ~2 parseInt calls
+- user-stats.ts: ~4 parseInt calls
+
+FORBIDDEN: Do NOT modify mini-app files, validation.ts itself, test files, or any other route files.
+
+BUILD VERIFY: cd bot && npm run build must pass.
+
+After completing work, write your retrospective in PARALLEL_AGENTS.md under "Run 54 Retrospectives" → "Agent A Retrospective", replacing the placeholder text. Then commit all changes.
+```
+
+**Agent B — Component i18n Migration**
+```
+Read c:\Users\Asus\Desktop\Wibecode-agent-b\PARALLEL_AGENTS.md — find "Run 54" and locate the "Agent B" section. You are Agent B.
+
+YOUR TASK: Migrate all remaining hardcoded English strings to i18n in 21 component files.
+
+OWNED FILES (only you modify these):
+- mini-app/src/components/admin/AdminLoginForm.tsx
+- mini-app/src/components/admin/AdminQuestEditor.tsx
+- mini-app/src/components/admin/answer-analytics/AnswerAnalytics.tsx
+- mini-app/src/components/admin/quest-editor/QuestForm.tsx
+- mini-app/src/components/admin/quest-editor/QuestList.tsx
+- mini-app/src/components/AdminBroadcast.tsx
+- mini-app/src/components/AdminJobs.tsx
+- mini-app/src/components/AdminLogs.tsx
+- mini-app/src/components/AdminUserList.tsx
+- mini-app/src/components/AdminUserSearch.tsx
+- mini-app/src/components/AdminUserDetail.tsx
+- mini-app/src/components/AdminStatsCard.tsx
+- mini-app/src/components/AdminPagination.tsx
+- mini-app/src/components/admin/answer-analytics/AnswerChart.tsx
+- mini-app/src/components/admin/answer-analytics/AnswerTable.tsx
+- mini-app/src/components/settings/AboutSection.tsx
+- mini-app/src/components/settings/DangerZone.tsx
+- mini-app/src/components/settings/NotificationSettings.tsx
+- mini-app/src/components/ErrorSection.tsx
+- mini-app/src/components/ErrorBoundary.tsx
+- mini-app/src/components/quests/QuestFilters.tsx
+- mini-app/src/i18n/en.ts (add new keys)
+- mini-app/src/i18n/ru.ts (add new keys)
+- mini-app/src/i18n/zh.ts (add new keys)
+
+PATTERN: Follow the existing i18n patterns — read any already-translated component for reference (e.g. mini-app/src/pages/Admin.tsx or mini-app/src/components/social/FriendsList.tsx).
+
+For each component file:
+1. Add `import { useTranslation } from 'react-i18next';`
+2. Add `const { t } = useTranslation();` inside the component function
+3. Replace hardcoded strings with `t('namespace.keyName')`
+4. Add the corresponding keys to all 3 language files (en.ts, ru.ts, zh.ts)
+
+NAMESPACE CONVENTIONS:
+- Admin components: `admin.loginForm.*`, `admin.questEditor.*`, `admin.broadcast.*`, `admin.jobs.*`, `admin.logs.*`, `admin.users.*`, `admin.stats.*`, `admin.pagination.*`, `admin.answerAnalytics.*`, `admin.answerChart.*`
+- Settings: `settings.about.*`, `settings.dangerZone.*`, `settings.notifications.*`
+- Shared: `errors.somethingWentWrong`, `errors.retry`, `errors.unexpectedError`, `errors.tryAgain`
+- Quests: `quests.filters.*`
+
+RUSSIAN TRANSLATIONS: Provide proper Russian translations (not just transliterations). For Chinese, provide simplified Chinese translations.
+
+IMPORTANT: For dynamic strings like "Page {page} of {totalPages}", use i18next interpolation: `t('admin.pagination.pageOf', { page, totalPages })` with key `"pageOf": "Page {{page}} of {{totalPages}}"`.
+
+FORBIDDEN: Do NOT modify bot/ files, page files (already translated), test files, or any component NOT in the owned list above.
+
+BUILD VERIFY: cd mini-app && npm run build must pass.
+
+After completing work, write your retrospective in PARALLEL_AGENTS.md under "Run 54 Retrospectives" → "Agent B Retrospective", replacing the placeholder text. Then commit all changes.
+```
+
+**Agent C — Bot parseInt Safety (Remaining Routes)**
+```
+Read c:\Users\Asus\Desktop\Wibecode-agent-c\PARALLEL_AGENTS.md — find "Run 54" and locate the "Agent C" section. You are Agent C.
+
+YOUR TASK: Replace all bare `parseInt()` with `safeParseInt` in the remaining 12 route files, and clean up the 5 files that partially use safeParseInt already.
+
+OWNED FILES (only you modify these):
+- bot/src/api/routes/onboarding.ts
+- bot/src/api/routes/user-preferences.ts
+- bot/src/api/routes/quest-progress.ts
+- bot/src/api/routes/quest-completion.ts
+- bot/src/api/routes/quest-assignment.ts
+- bot/src/api/routes/quests.ts
+- bot/src/api/routes/payments.ts
+- bot/src/api/routes/social.ts
+- bot/src/api/routes/user-account.ts
+- bot/src/api/routes/user-helpers.ts
+- bot/src/api/routes/admin-users.ts (cleanup: 5 remaining bare parseInt)
+- bot/src/api/routes/admin-quests.ts (cleanup: check for remaining bare parseInt)
+- bot/src/api/routes/admin-stats.ts (cleanup: check for remaining bare parseInt)
+- bot/src/api/routes/punishment.ts (cleanup: check for remaining bare parseInt)
+
+WHAT TO DO for each file:
+1. If the file doesn't import safeParseInt yet, add: `import { safeParseInt } from '../../utils/validation.js';`
+2. Replace ALL `parseInt(req.params.XXX)` with `safeParseInt(req.params.XXX, 0)`
+3. Replace ALL `parseInt(req.query.XXX as string)` with `safeParseInt(req.query.XXX as string, DEFAULT)`
+4. Replace ALL `parseInt(X) || Y` patterns with `safeParseInt(X, Y)`
+
+REFERENCE: Read `bot/src/utils/validation.ts` first to understand the safeParseInt signature.
+
+COUNTS by file:
+- onboarding.ts: ~3 parseInt calls
+- user-preferences.ts: ~4 parseInt calls
+- quest-progress.ts: ~1 parseInt call (may already have isNaN check)
+- quest-completion.ts: ~1 parseInt call
+- quest-assignment.ts: ~2 parseInt calls
+- quests.ts: ~4 parseInt calls
+- payments.ts: ~7 parseInt calls
+- social.ts: ~2 parseInt calls
+- user-account.ts: ~4 parseInt calls
+- user-helpers.ts: ~1 parseInt call
+- admin-users.ts: ~5 remaining parseInt calls (already imports safeParseInt)
+
+NOTE: For files that already have `isNaN()` checks after parseInt, you can simplify by replacing the parseInt+isNaN combo with safeParseInt (which handles NaN internally).
+
+FORBIDDEN: Do NOT modify mini-app files, validation.ts itself, test files, finance.ts, achievements.ts, modes.ts, analytics.ts, checkins.ts, users.ts, user-stats.ts (those belong to Agent A).
+
+BUILD VERIFY: cd bot && npm run build must pass.
+
+After completing work, write your retrospective in PARALLEL_AGENTS.md under "Run 54 Retrospectives" → "Agent C Retrospective", replacing the placeholder text. Then commit all changes.
+```
+
+**Agent D — Bot Cleanup + Mini-App Tests**
+```
+Read c:\Users\Asus\Desktop\Wibecode-agent-d\PARALLEL_AGENTS.md — find "Run 54" and locate the "Agent D" section. You are Agent D.
+
+YOUR TASK: Clean up dead code in bot handlers and add 2 missing mini-app test files.
+
+OWNED FILES (only you modify/create these):
+- bot/src/handlers/leaderboard.ts (cleanup dead code)
+- mini-app/src/__tests__/components/quests/QuestDifficultyBadge.test.tsx (NEW)
+- mini-app/src/__tests__/api/adminClient.test.tsx (NEW)
+
+TASK 1 — Remove dead code from leaderboard handler:
+In `bot/src/handlers/leaderboard.ts`, find and remove the dead `userInTop` variable:
+```typescript
+const userInTop = top10.find((r: LeaderboardRow) => {
+  // We need telegram_id — fetch it separately since leaderboard_mv has it
+  return false; // Will check below
+});
+```
+This always returns false and is never used. Remove it entirely.
+
+TASK 2 — Create QuestDifficultyBadge test:
+1. Read `mini-app/src/components/quests/QuestDifficultyBadge.tsx` first
+2. Create `mini-app/src/__tests__/components/quests/QuestDifficultyBadge.test.tsx`
+3. Test cases (~4-5 tests):
+   - Renders "Easy" badge with correct styling
+   - Renders "Medium" badge with correct styling
+   - Renders "Hard" badge with correct styling
+   - Handles unknown difficulty gracefully
+   - Applies correct CSS classes for each difficulty
+
+TASK 3 — Create adminClient test:
+1. Read `mini-app/src/api/adminClient.ts` first
+2. Create `mini-app/src/__tests__/api/adminClient.test.tsx`
+3. Test cases (~3-5 tests):
+   - Creates axios instance with correct baseURL
+   - Sets authorization header correctly
+   - Handles API errors
+
+PATTERN: Read existing tests for patterns:
+- mini-app/src/__tests__/components/quests/QuestCard.test.tsx
+- mini-app/src/__tests__/api/client.test.ts
+
+FORBIDDEN: Do NOT modify mini-app source files (except leaderboard.ts), route files, i18n files, or other test files.
+
+BUILD VERIFY:
+- cd bot && npm run build (for leaderboard fix)
+- cd mini-app && npx vitest --run src/__tests__/components/quests/QuestDifficultyBadge.test.tsx src/__tests__/api/adminClient.test.tsx
+
+After completing work, write your retrospective in PARALLEL_AGENTS.md under "Run 54 Retrospectives" → "Agent D Retrospective", replacing the placeholder text. Then commit all changes.
+```
+
+---
+
+### Agent A — Bot parseInt Safety (Core Routes)
+
+**Branch:** `feature/r54-parseint-core`
+**Worktree:** `../Wibecode-agent-a`
+
+**OWNED files:**
+- `bot/src/api/routes/finance.ts`
+- `bot/src/api/routes/achievements.ts`
+- `bot/src/api/routes/modes.ts`
+- `bot/src/api/routes/analytics.ts`
+- `bot/src/api/routes/checkins.ts`
+- `bot/src/api/routes/users.ts`
+- `bot/src/api/routes/user-stats.ts`
+
+**FORBIDDEN:**
+- All mini-app files, validation.ts, test files, other route files
+
+---
+
+### Agent B — Component i18n Migration
+
+**Branch:** `feature/r54-component-i18n`
+**Worktree:** `../Wibecode-agent-b`
+
+**OWNED files:**
+- `mini-app/src/components/admin/AdminLoginForm.tsx`
+- `mini-app/src/components/admin/AdminQuestEditor.tsx`
+- `mini-app/src/components/admin/answer-analytics/AnswerAnalytics.tsx`
+- `mini-app/src/components/admin/quest-editor/QuestForm.tsx`
+- `mini-app/src/components/admin/quest-editor/QuestList.tsx`
+- `mini-app/src/components/AdminBroadcast.tsx`
+- `mini-app/src/components/AdminJobs.tsx`
+- `mini-app/src/components/AdminLogs.tsx`
+- `mini-app/src/components/AdminUserList.tsx`
+- `mini-app/src/components/AdminUserSearch.tsx`
+- `mini-app/src/components/AdminUserDetail.tsx`
+- `mini-app/src/components/AdminStatsCard.tsx`
+- `mini-app/src/components/AdminPagination.tsx`
+- `mini-app/src/components/admin/answer-analytics/AnswerChart.tsx`
+- `mini-app/src/components/admin/answer-analytics/AnswerTable.tsx`
+- `mini-app/src/components/settings/AboutSection.tsx`
+- `mini-app/src/components/settings/DangerZone.tsx`
+- `mini-app/src/components/settings/NotificationSettings.tsx`
+- `mini-app/src/components/ErrorSection.tsx`
+- `mini-app/src/components/ErrorBoundary.tsx`
+- `mini-app/src/components/quests/QuestFilters.tsx`
+- `mini-app/src/i18n/en.ts`
+- `mini-app/src/i18n/ru.ts`
+- `mini-app/src/i18n/zh.ts`
+
+**FORBIDDEN:**
+- All bot/ files, page files, LaunchScreen.tsx, test files
+
+---
+
+### Agent C — Bot parseInt Safety (Remaining Routes)
+
+**Branch:** `feature/r54-parseint-rest`
+**Worktree:** `../Wibecode-agent-c`
+
+**OWNED files:**
+- `bot/src/api/routes/onboarding.ts`
+- `bot/src/api/routes/user-preferences.ts`
+- `bot/src/api/routes/quest-progress.ts`
+- `bot/src/api/routes/quest-completion.ts`
+- `bot/src/api/routes/quest-assignment.ts`
+- `bot/src/api/routes/quests.ts`
+- `bot/src/api/routes/payments.ts`
+- `bot/src/api/routes/social.ts`
+- `bot/src/api/routes/user-account.ts`
+- `bot/src/api/routes/user-helpers.ts`
+- `bot/src/api/routes/admin-users.ts`
+- `bot/src/api/routes/admin-quests.ts`
+- `bot/src/api/routes/admin-stats.ts`
+- `bot/src/api/routes/punishment.ts`
+
+**FORBIDDEN:**
+- All mini-app files, validation.ts, test files, finance.ts, achievements.ts, modes.ts, analytics.ts, checkins.ts, users.ts, user-stats.ts
+
+---
+
+### Agent D — Bot Cleanup + Mini-App Tests
+
+**Branch:** `feature/r54-cleanup-tests`
+**Worktree:** `../Wibecode-agent-d`
+
+**OWNED files:**
+- `bot/src/handlers/leaderboard.ts` (modify: remove dead code)
+- `mini-app/src/__tests__/components/quests/QuestDifficultyBadge.test.tsx` (NEW)
+- `mini-app/src/__tests__/api/adminClient.test.tsx` (NEW)
+
+**FORBIDDEN:**
+- All route files, i18n files, source component files
+
+---
+
+### Run 54 File Ownership Matrix
+
+| File / Directory | A | B | C | D |
+|---|---|---|---|---|
+| `bot/routes/finance.ts` | **OWNED** | - | - | - |
+| `bot/routes/achievements.ts` | **OWNED** | - | - | - |
+| `bot/routes/modes.ts` | **OWNED** | - | - | - |
+| `bot/routes/analytics.ts` | **OWNED** | - | - | - |
+| `bot/routes/checkins.ts` | **OWNED** | - | - | - |
+| `bot/routes/users.ts` | **OWNED** | - | - | - |
+| `bot/routes/user-stats.ts` | **OWNED** | - | - | - |
+| `AdminLoginForm.tsx` | - | **OWNED** | - | - |
+| `AdminQuestEditor.tsx` | - | **OWNED** | - | - |
+| `AnswerAnalytics.tsx` | - | **OWNED** | - | - |
+| `QuestForm.tsx` | - | **OWNED** | - | - |
+| `QuestList.tsx` | - | **OWNED** | - | - |
+| `AdminBroadcast.tsx` | - | **OWNED** | - | - |
+| `AdminJobs.tsx` | - | **OWNED** | - | - |
+| `AdminLogs.tsx` | - | **OWNED** | - | - |
+| `AdminUserList.tsx` | - | **OWNED** | - | - |
+| `AdminUserSearch.tsx` | - | **OWNED** | - | - |
+| `AdminUserDetail.tsx` | - | **OWNED** | - | - |
+| `AdminStatsCard.tsx` | - | **OWNED** | - | - |
+| `AdminPagination.tsx` | - | **OWNED** | - | - |
+| `AnswerChart.tsx` | - | **OWNED** | - | - |
+| `AnswerTable.tsx` | - | **OWNED** | - | - |
+| `AboutSection.tsx` | - | **OWNED** | - | - |
+| `DangerZone.tsx` | - | **OWNED** | - | - |
+| `NotificationSettings.tsx` | - | **OWNED** | - | - |
+| `ErrorSection.tsx` | - | **OWNED** | - | - |
+| `ErrorBoundary.tsx` | - | **OWNED** | - | - |
+| `QuestFilters.tsx` | - | **OWNED** | - | - |
+| `i18n/en.ts, ru.ts, zh.ts` | - | **OWNED** | - | - |
+| `bot/routes/onboarding.ts` | - | - | **OWNED** | - |
+| `bot/routes/user-preferences.ts` | - | - | **OWNED** | - |
+| `bot/routes/quest-progress.ts` | - | - | **OWNED** | - |
+| `bot/routes/quest-completion.ts` | - | - | **OWNED** | - |
+| `bot/routes/quest-assignment.ts` | - | - | **OWNED** | - |
+| `bot/routes/quests.ts` | - | - | **OWNED** | - |
+| `bot/routes/payments.ts` | - | - | **OWNED** | - |
+| `bot/routes/social.ts` | - | - | **OWNED** | - |
+| `bot/routes/user-account.ts` | - | - | **OWNED** | - |
+| `bot/routes/user-helpers.ts` | - | - | **OWNED** | - |
+| `bot/routes/admin-users.ts` | - | - | **OWNED** | - |
+| `bot/routes/admin-quests.ts` | - | - | **OWNED** | - |
+| `bot/routes/admin-stats.ts` | - | - | **OWNED** | - |
+| `bot/routes/punishment.ts` | - | - | **OWNED** | - |
+| `bot/handlers/leaderboard.ts` | - | - | - | **OWNED** |
+| `__tests__/quests/QuestDifficultyBadge.test.tsx` | - | - | - | **NEW** |
+| `__tests__/api/adminClient.test.tsx` | - | - | - | **NEW** |
+| `PARALLEL_AGENTS.md` | retro | retro | retro | retro |
+
+### Run 54 Merge Order
+
+1. Agent A (parseInt core routes) — backend first
+2. Agent C (parseInt remaining routes) — backend second
+3. Agent D (cleanup + tests) — bot handler fix + tests
+4. Agent B (component i18n) — frontend last
+
+### Run 54 Retrospectives
+
+#### Agent A Retrospective
+**Task:** Replace all bare `parseInt()` calls with `safeParseInt` in 7 core route files.
+
+**Result:** 34 `parseInt()` calls replaced across 7 files. Build passes cleanly.
+
+**Changes made:**
+1. **finance.ts** (5 calls): 2x `parseInt(req.params.userId)`, 2x `typeof userId === 'string' ? parseInt(userId) : userId`, 1x `parseInt(req.params.id)`.
+2. **achievements.ts** (7 calls): 5x userId, 1x achievementId, 1x query limit.
+3. **modes.ts** (8 calls): 5x userId, 3x modeId.
+4. **analytics.ts** (3 calls): 3x userId.
+5. **checkins.ts** (5 calls): telegramId + page/limit pagination.
+6. **users.ts** (2 calls): 2x userId.
+7. **user-stats.ts** (4 calls): 3x telegramId + query limit.
+
+**Verification:** Zero remaining `parseInt(` calls in all 7 owned files.
+
+#### Agent B Retrospective
+**Task:** Migrate all remaining hardcoded English strings to i18n in 21 component files.
+
+**Result:** All 21 component files migrated. 43 new i18n keys added to all 3 language files. Build passes clean.
+
+**Files modified:** AdminLoginForm (6), AdminQuestEditor (3), AnswerAnalytics (3), QuestForm (16), QuestList (1), AdminBroadcast (8), AdminJobs (7), AdminLogs (4), AdminUserList (2), AdminUserSearch (1), AdminUserDetail (10), AdminStatsCard (5), AdminPagination (1), AnswerChart (4), AnswerTable (3), AboutSection (3), DangerZone (3), NotificationSettings (7), ErrorSection (2), ErrorBoundary (3), QuestFilters (4).
+
+**Notable:** ErrorBoundary used `<Translation>` render prop (class component). AdminStatsCard/QuestFilters converted static label arrays to labelKey + `t()` at render time.
+
+#### Agent C Retrospective
+**Task:** Replace all bare `parseInt()` calls with `safeParseInt` in 14 route files.
+
+**Result:** 30 bare `parseInt` calls replaced across 14 files. Zero remaining. Build passes clean.
+
+**Files modified (10 new safeParseInt imports + replacements):**
+- `onboarding.ts` — 3 replacements (telegramId params)
+- `user-preferences.ts` — 4 replacements (telegramId + reminder_time validation + assignment)
+- `quest-progress.ts` — 1 replacement (questId + simplified isNaN check)
+- `quest-completion.ts` — 1 replacement (questId)
+- `quest-assignment.ts` — 2 replacements (userId + requestedCount)
+- `quests.ts` — 4 replacements (3 userId params + 1 query limit)
+- `payments.ts` — 7 replacements (3 userId body fields + 2 userId params + limit + offset)
+- `social.ts` — 2 replacements (userId params)
+- `user-account.ts` — 4 replacements (2 telegramId + 2 avatar_id validation/assignment)
+- `user-helpers.ts` — 1 replacement (telegramId + simplified isNaN)
+
+**Files modified (cleanup — already had safeParseInt import):**
+- `admin-users.ts` — 5 replacements (all `parseInt(req.params.userId)`)
+- `admin-quests.ts` — 0 (already fully migrated)
+- `admin-stats.ts` — 0 (already fully migrated)
+- `punishment.ts` — 3 replacements (telegramId params + simplified isNaN checks)
+
+**Pattern used:** For parseInt+isNaN combos, replaced with `safeParseInt(val, 0)` and changed `isNaN(x)` to `x === 0`. For `parseInt(x) || default`, replaced with `safeParseInt(x, default)`. For body fields that may be numbers, used `String(val)` wrapper.
+
+**No issues encountered.** Clean run, all edits straightforward.
+
+#### Agent D Retrospective
+**Task:** Remove dead code from leaderboard handler + create 2 new mini-app test files.
+
+**Result:** 11 new tests across 2 files, all passing. Dead code removed, bot builds clean.
+
+**Changes made:**
+1. **bot/src/handlers/leaderboard.ts** — Removed dead `userInTop` variable (always returned false, never used).
+2. **QuestDifficultyBadge.test.tsx** (NEW, 6 tests) — Easy/medium/hard badge colors, unknown difficulty fallback, sm/md size variants.
+3. **adminClient.test.tsx** (NEW, 5 tests) — URL construction, Authorization header, custom RequestInit, raw Response return, fetch error propagation.
+
+#### Agent 0 Retrospective
+**Merge**: All 4 agents merged. A/C (bot routes, no overlap) + D (handler + tests) merged cleanly or with trivial PARALLEL_AGENTS.md retro conflicts. B (21 i18n component files + 3 language files) merged cleanly.
+
+**Builds**: Bot `tsc` + mini-app `vite build` pass clean.
+**Tests**: 132 files, 702 tests, all passing. No cross-agent issues.
+**Deploy**: Pushed → server pulled → rebuilt → PM2 restarted.
+**Archive**: Moved Runs 51-53 to PARALLEL_AGENTS_HISTORY.md (archive point at Run 55). Updated both headers.
+
+**Run 54 totals**: +984 lines added, -217 removed across 47 files. 64 parseInt calls replaced across 21 route files. 21 components i18n'd. 11 new tests. 1 dead code block removed.
