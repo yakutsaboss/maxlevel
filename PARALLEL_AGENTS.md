@@ -1579,3 +1579,23 @@ After completing work, write your retrospective in PARALLEL_AGENTS.md under "Run
 *(To be filled by Agent 0 after merge)*
 
 <!-- Next run goes here. Agent 0 will append RUN 53 below this line. -->
+
+### Run 53 Retrospectives
+
+#### Agent B Retrospective
+**Task:** Complete i18n migration for Admin.tsx, Onboarding.tsx, SplashScreen.tsx, and Summary.tsx + add translations to all 3 language files.
+
+**Result:** All hardcoded UI strings migrated to `useTranslation()`. Build passes clean.
+
+**Files modified:**
+- `mini-app/src/pages/Admin.tsx` — Added `useTranslation`, converted tab labels to i18n keys (`admin.overview`, `admin.users`, `admin.broadcast`, `admin.jobs`, `admin.logs`), header (`admin.dashboard`), logout button (`admin.logout`), login toast (`admin.loggedIn`)
+- `mini-app/src/pages/Onboarding.tsx` — Added `useTranslation`, replaced "Not Available"/"Please open from Telegram" error screen, "Saved ✓"/"Save failed" status indicators
+- `mini-app/src/components/onboarding/SplashScreen.tsx` — Added `useTranslation`, replaced tagline, "soon" label, "Get Started" button
+- `mini-app/src/components/onboarding/Summary.tsx` — Added `useTranslation`, replaced "Almost Done!", "Review your setup", "Let's Start!", and "Friend" fallback name
+- `mini-app/src/i18n/en.ts` — 18 new keys (11 onboarding + 7 admin)
+- `mini-app/src/i18n/ru.ts` — 18 new keys (Russian translations)
+- `mini-app/src/i18n/zh.ts` — 18 new keys (Chinese translations)
+
+**DrumRoller.tsx** — No changes needed. Pure interaction component with no user-visible text strings (uses `formatLabel` prop).
+
+**Issues:** None. Clean implementation following existing patterns.

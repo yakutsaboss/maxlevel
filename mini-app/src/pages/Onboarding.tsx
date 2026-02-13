@@ -5,6 +5,7 @@
  */
 
 import { AnimatePresence, motion } from 'framer-motion';
+import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import { useOnboardingFlow } from '@/hooks/useOnboardingFlow';
 import { getQuestionForStep } from '@/data/onboardingQuestions';
@@ -157,6 +158,7 @@ function StepRenderer({
 }
 
 export function Onboarding() {
+  const { t } = useTranslation();
   const flow = useOnboardingFlow();
   const { mounted, telegramId, saveStatus, store } = flow;
 
@@ -164,8 +166,8 @@ export function Onboarding() {
   if (mounted && !telegramId) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center px-6 bg-telegram-bg">
-        <p className="text-xl font-semibold text-telegram-text mb-2">Not Available</p>
-        <p className="text-telegram-hint text-center">Please open this app from Telegram.</p>
+        <p className="text-xl font-semibold text-telegram-text mb-2">{t('onboarding.notAvailable')}</p>
+        <p className="text-telegram-hint text-center">{t('onboarding.openFromTelegram')}</p>
       </div>
     );
   }
@@ -189,7 +191,7 @@ export function Onboarding() {
                   : 'bg-amber-500/15 text-amber-400'
               }`}
             >
-              {saveStatus === 'saved' ? 'Saved \u2713' : 'Save failed \u2014 will retry'}
+              {saveStatus === 'saved' ? t('onboarding.saved') : t('onboarding.saveFailed')}
             </span>
           </motion.div>
         )}
