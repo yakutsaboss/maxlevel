@@ -2,7 +2,7 @@
 
 This file is the single source of truth for running parallel Claude Code agents on the Wibecode RPG bot project. Each "Run" launches 2-6 agents (A, B, C, D, E, F) in separate git worktrees, plus Agent 0 (orchestrator) in the main repo.
 
-For completed run history (Runs 2–54), see `PARALLEL_AGENTS_HISTORY.md`.
+For completed run history (Runs 2–58), see `PARALLEL_AGENTS_HISTORY.md`.
 
 ---
 
@@ -284,17 +284,15 @@ Use this structure when creating a new run. Copy and adapt:
 
 ---
 
-## Known Issues (Updated after Run 56)
+## Known Issues (Updated after Run 59)
 
 ### Still Open
 1. **pg-boss Node.js mismatch** — Requires 22.12+, server has 20.20. Only triggers warnings, no functional impact yet.
-2. **Mode configs unused** — `mode_configs` table stores quiz responses + personalized plans, but data is never consumed. → **Addressed in Run 57** (quest assignment reads quiz_responses for fitness level).
 3. **Delete account e2e testing** — confirm soft delete flow works end-to-end in Telegram (Agent B Run 18 recommendation).
 4. **POST /analytics/export still uses executePythonTool** — Justified (Google Sheets OAuth integration), only remaining Python subprocess in ALL routes + jobs.
-5. **Leaderboard missing avatar_id** — materialized view doesn't include avatar_id. → **Addressed in Run 57**.
-6. **Avatar data not shared** — hardcoded in AvatarSelect.tsx only. → **Addressed in Run 57** (shared data file).
-7. **No celebration animations** — no confetti, level-up modal, or XP float effects. → **Addressed in Run 61**.
-8. **No shop/purchasable content** — no shop page, trophies, or purchasable achievements. → **Addressed in Runs 62–64**.
+8. **No shop/purchasable content** — no shop page, trophies, or purchasable achievements.
+11. **Celebrations not integrated into pages** — Confetti, LevelUpModal, XpFloat components built (Run 59) but not wired into Dashboard or Achievements pages.
+12. **Stars payment invoice URL may need adjustment** — usePayment constructs URL as `https://t.me/$BOT_USERNAME?startattach=pay_ID` but may need the actual Telegram Stars invoice link format. Needs testing with real Stars.
 ### Resolved (Run 58)
 - ~~safeParseInt + isNaN pattern~~ — Agent A audited all 4 route files; all already patched correctly. Issue #9 resolved.
 - ~~SubscriptionSettings duplicates MODE_LIMITS~~ — Agent C imported from constants/tiers.ts, removed local copy. Issue #10 resolved.
@@ -398,1657 +396,6 @@ Use this structure when creating a new run. Copy and adapt:
 - ~~Dashboard.tsx 407 lines~~ — Extracted DailyGoalRing/TodaysProgress/StreakSection in Run 21 Agent A (→275 lines)
 - ~~Quests.tsx 363 lines~~ — Extracted QuestCard/QuestDetailModal/TabButton in Run 21 Agent C (→203 lines)
 - ~~Hardcoded punishment validLevels~~ — Replaced with `PUNISHMENT_INTENSITY` constants in Run 21 Agent E
-
-## Run 55: Middleware Safety + Final i18n + Hook Tests (4 Agents + Agent 0)
-
-**Date**: 2026-02-13
-**Agents**: 4 (A-D) + Agent 0
-**Goal**: Fix last 6 unsafe parseInt in middleware, type 3 remaining `Record<string, any>`, complete i18n for last 11 component files, test 5 untested hooks (751 lines of untested logic).
-
-**Key findings from codebase audit:**
-1. 6 bare `parseInt()` in auth.ts (4) + premiumGate.ts (2) — missed by Run 54 route sweep
-2. 3 `Record<string, any>` in planGenerator.ts — last type safety gap in bot
-3. ~23 hardcoded English strings across 11 component files (onboarding, Navigation, ProfileEditModal, AchievementToast)
-4. 5 untested hooks: useQuestEditor (197), useAnswerAnalytics (175), useModeAnalytics (151), useSavingsGoals (117), useBudget (111)
-
----
-
-### Run 55 Copy-Paste Prompts
-
-**Agent A — Bot Middleware parseInt + planGenerator Types**
-```
-Read c:\Users\Asus\Desktop\Wibecode-agent-a\PARALLEL_AGENTS.md — find "Run 55" and locate the "Agent A" section. You are Agent A.
-
-YOUR TASK: Fix last 6 bare parseInt() in middleware files and replace 3 Record<string, any> in planGenerator.ts.
-
-OWNED FILES (only you modify these):
-- bot/src/api/middleware/auth.ts
-- bot/src/api/middleware/premiumGate.ts
-- bot/src/utils/planGenerator.ts
-
-TASK 1 — Fix parseInt in auth.ts:
-Read bot/src/api/middleware/auth.ts and replace these 4 bare parseInt() calls:
-- Line ~63: `parseInt(urlParams.get('auth_date') || '0')` → `safeParseInt(urlParams.get('auth_date') || '0', 0)`
-- Line ~212: `parseInt(userId)` → `safeParseInt(userId, -1)` (use -1 so it never accidentally matches a real user)
-- Line ~224: `parseInt(telegramId)` → `safeParseInt(telegramId, -1)`
-- Line ~255: `parseInt(req.params.telegramId)` → `safeParseInt(req.params.telegramId, 0)`
-Add import: `import { safeParseInt } from '../../utils/validation.js';`
-
-TASK 2 — Fix parseInt in premiumGate.ts:
-Read bot/src/api/middleware/premiumGate.ts and replace these 2 bare parseInt() calls:
-- Line ~31: `parseInt(req.params.userId)` → `safeParseInt(req.params.userId, 0)`
-- Line ~32: `parseInt(req.body.userId)` → `safeParseInt(req.body.userId, 0)`
-Add import: `import { safeParseInt } from '../../utils/validation.js';`
-
-TASK 3 — Type planGenerator.ts responses:
-Read bot/src/utils/planGenerator.ts. The `quiz_responses` field and two function parameters use `Record<string, any>`.
-1. Create a `QuizResponses` interface with `[key: string]: unknown` (not `any`)
-2. Replace `quiz_responses: Record<string, any>` in `ModeConfig` with `quiz_responses: QuizResponses`
-3. Replace `responses: Record<string, any>` in `generateFitnessPlan` and `generateHydrationPlan` with `responses: QuizResponses`
-4. Add type narrowing where properties are accessed: cast or check before use (e.g., `String(responses.fitness_level || 'beginner')`)
-
-FORBIDDEN: Do NOT modify mini-app files, route files, test files, or validation.ts.
-
-BUILD VERIFY: cd bot && npm run build must pass.
-
-After completing work, write your retrospective in PARALLEL_AGENTS.md under "Run 55 Retrospectives" → "Agent A Retrospective", replacing the placeholder text. Then commit all changes.
-```
-
-**Agent B — Final Component i18n**
-```
-Read c:\Users\Asus\Desktop\Wibecode-agent-b\PARALLEL_AGENTS.md — find "Run 55" and locate the "Agent B" section. You are Agent B.
-
-YOUR TASK: Complete i18n migration for the last 11 component files with hardcoded English strings.
-
-OWNED FILES (only you modify these):
-- mini-app/src/components/onboarding/HeroIntro.tsx
-- mini-app/src/components/onboarding/PathSelect.tsx
-- mini-app/src/components/onboarding/AvatarSelect.tsx
-- mini-app/src/components/onboarding/NotificationPrefs.tsx
-- mini-app/src/components/onboarding/ReferralSource.tsx
-- mini-app/src/components/onboarding/PunishmentConfig.tsx
-- mini-app/src/components/onboarding/ContinueButton.tsx
-- mini-app/src/components/Navigation.tsx
-- mini-app/src/components/ProfileEditModal.tsx
-- mini-app/src/components/AchievementToast.tsx
-- mini-app/src/pages/Leaderboard.tsx (share text only)
-- mini-app/src/i18n/en.ts (add new keys)
-- mini-app/src/i18n/ru.ts (add new keys)
-- mini-app/src/i18n/zh.ts (add new keys)
-
-For each file:
-1. Add `import { useTranslation } from 'react-i18next';` (or use existing)
-2. Add `const { t } = useTranslation();`
-3. Replace hardcoded strings with `t('namespace.key')`
-4. Add keys to all 3 language files
-
-SPECIFIC STRINGS TO TRANSLATE:
-
-Navigation.tsx — 7 nav labels: Home, Quests, Rewards, Ranks, Social, Finance, Profile
-Use namespace: `nav.home`, `nav.quests`, `nav.rewards`, `nav.ranks`, `nav.social`, `nav.finance`, `nav.profile`
-
-HeroIntro.tsx — "Your Name" placeholder, tagline text
-PathSelect.tsx — "What Do You Want to Improve?" heading, subtitle
-AvatarSelect.tsx — "Pick Your Character" heading, subtitle
-NotificationPrefs.tsx — heading, subtitle, 4 toggle labels+descriptions, footer note, Continue button
-ReferralSource.tsx — "How Did You Find Us?" heading, subtitle
-PunishmentConfig.tsx — "Accountability" heading, subtitle, info box text
-ContinueButton.tsx — default "Continue" label, "Please make a selection" hint
-Use namespace: `onboarding.*`
-
-ProfileEditModal.tsx — avatar labels (Warrior, Mage, etc.), error message
-Use namespace: `profile.avatars.*`, `profile.saveFailed`
-
-AchievementToast.tsx — "Achievement Unlocked!"
-Use namespace: `achievements.unlocked`
-
-Leaderboard.tsx — share text template
-Use namespace: `leaderboard.shareRank`, `leaderboard.shareMessage`
-
-IMPORTANT: For ContinueButton's default label prop, use `t('onboarding.continue')` as the default value. For Navigation labels that are in a static array, convert to use translation keys and translate at render time.
-
-FORBIDDEN: Do NOT modify bot/ files, test files, or any component NOT in the owned list.
-
-BUILD VERIFY: cd mini-app && npm run build must pass.
-
-After completing work, write your retrospective in PARALLEL_AGENTS.md under "Run 55 Retrospectives" → "Agent B Retrospective", replacing the placeholder text. Then commit all changes.
-```
-
-**Agent C — Admin/Analytics Hook Tests**
-```
-Read c:\Users\Asus\Desktop\Wibecode-agent-c\PARALLEL_AGENTS.md — find "Run 55" and locate the "Agent C" section. You are Agent C.
-
-YOUR TASK: Write tests for 3 untested admin/analytics hooks (523 lines of untested logic).
-
-OWNED FILES (only you create these):
-- mini-app/src/__tests__/components/admin/quest-editor/useQuestEditor.test.ts (NEW)
-- mini-app/src/__tests__/components/admin/answer-analytics/useAnswerAnalytics.test.ts (NEW)
-- mini-app/src/__tests__/components/analytics/useModeAnalytics.test.ts (NEW)
-
-TASK 1 — useQuestEditor.test.ts:
-1. Read `mini-app/src/components/admin/quest-editor/useQuestEditor.ts` first (197 lines)
-2. This hook manages quest form state, CRUD operations via admin API
-3. Test cases (~8-10 tests):
-   - Initial state (empty quest list, no selected quest)
-   - Fetching quests from API
-   - Selecting a quest for editing
-   - Creating a new quest
-   - Updating quest fields
-   - Deleting a quest
-   - Error handling on API failure
-   - Loading states
-
-TASK 2 — useAnswerAnalytics.test.ts:
-1. Read `mini-app/src/components/admin/answer-analytics/useAnswerAnalytics.ts` first (175 lines)
-2. This hook fetches and processes answer analytics data
-3. Test cases (~6-8 tests):
-   - Initial state
-   - Data fetching and transformation
-   - formatLabel utility function
-   - getBarColor utility function
-   - Mode selection
-   - Empty data handling
-   - Error state
-
-TASK 3 — useModeAnalytics.test.ts:
-1. Read `mini-app/src/components/analytics/useModeAnalytics.ts` first (151 lines)
-2. This hook manages mode analytics state
-3. Test cases (~6-8 tests):
-   - Initial state
-   - Fetching mode data
-   - Mode selection
-   - Weekly XP data processing
-   - Quest history
-   - Error handling
-
-PATTERN: Read existing hook tests for patterns:
-- mini-app/src/__tests__/hooks/useSettingsData.test.ts
-- mini-app/src/__tests__/hooks/useQuestsData.test.ts
-
-Use `renderHook` from `@testing-library/react` and wrap with QueryClientProvider if hooks use react-query.
-
-Target: ~20-26 tests across 3 files.
-
-FORBIDDEN: Do NOT modify any source files (test-only agent).
-
-BUILD VERIFY: cd mini-app && npx vitest --run src/__tests__/components/admin/quest-editor/useQuestEditor.test.ts src/__tests__/components/admin/answer-analytics/useAnswerAnalytics.test.ts src/__tests__/components/analytics/useModeAnalytics.test.ts
-
-After completing work, write your retrospective in PARALLEL_AGENTS.md under "Run 55 Retrospectives" → "Agent C Retrospective", replacing the placeholder text. Then commit all changes.
-```
-
-**Agent D — Finance Hook Tests**
-```
-Read c:\Users\Asus\Desktop\Wibecode-agent-d\PARALLEL_AGENTS.md — find "Run 55" and locate the "Agent D" section. You are Agent D.
-
-YOUR TASK: Write tests for 2 untested finance hooks (228 lines of untested logic).
-
-OWNED FILES (only you create these):
-- mini-app/src/__tests__/components/finance/useSavingsGoals.test.ts (NEW)
-- mini-app/src/__tests__/components/finance/useBudget.test.ts (NEW)
-
-TASK 1 — useSavingsGoals.test.ts:
-1. Read `mini-app/src/components/finance/useSavingsGoals.ts` first (117 lines)
-2. This hook manages savings goals state, deposits, and projected completion
-3. Test cases (~8-10 tests):
-   - Initial state (empty goals)
-   - Fetching goals from API
-   - Adding a new goal
-   - Making a deposit to a goal
-   - Projected completion date calculation
-   - Deleting a goal
-   - Goal completion detection (current >= target)
-   - Error handling on API failure
-   - Loading states
-
-TASK 2 — useBudget.test.ts:
-1. Read `mini-app/src/components/finance/useBudget.ts` first (111 lines)
-2. This hook manages budget entries, income/expense tracking
-3. Test cases (~8-10 tests):
-   - Initial state (empty entries)
-   - Fetching budget entries
-   - Adding income entry
-   - Adding expense entry
-   - Budget summary calculation (total income, expenses, balance)
-   - Category breakdown
-   - Deleting an entry
-   - Error handling
-   - Loading states
-
-PATTERN: Read existing finance tests:
-- mini-app/src/__tests__/components/finance/BudgetForm.test.tsx
-- mini-app/src/__tests__/components/finance/SavingsGoal.test.tsx
-- mini-app/src/__tests__/components/finance/GoalCard.test.tsx
-
-Use `renderHook` from `@testing-library/react` and wrap with QueryClientProvider if hooks use react-query. Mock the API client.
-
-Target: ~16-20 tests across 2 files.
-
-FORBIDDEN: Do NOT modify any source files (test-only agent).
-
-BUILD VERIFY: cd mini-app && npx vitest --run src/__tests__/components/finance/useSavingsGoals.test.ts src/__tests__/components/finance/useBudget.test.ts
-
-After completing work, write your retrospective in PARALLEL_AGENTS.md under "Run 55 Retrospectives" → "Agent D Retrospective", replacing the placeholder text. Then commit all changes.
-```
-
----
-
-### Agent A — Bot Middleware parseInt + planGenerator Types
-
-**Branch:** `feature/r55-middleware-types`
-**Worktree:** `../Wibecode-agent-a`
-
-**OWNED files:**
-- `bot/src/api/middleware/auth.ts`
-- `bot/src/api/middleware/premiumGate.ts`
-- `bot/src/utils/planGenerator.ts`
-
-**FORBIDDEN:**
-- All mini-app files, route files, validation.ts, test files
-
----
-
-### Agent B — Final Component i18n
-
-**Branch:** `feature/r55-final-i18n`
-**Worktree:** `../Wibecode-agent-b`
-
-**OWNED files:**
-- `mini-app/src/components/onboarding/HeroIntro.tsx`
-- `mini-app/src/components/onboarding/PathSelect.tsx`
-- `mini-app/src/components/onboarding/AvatarSelect.tsx`
-- `mini-app/src/components/onboarding/NotificationPrefs.tsx`
-- `mini-app/src/components/onboarding/ReferralSource.tsx`
-- `mini-app/src/components/onboarding/PunishmentConfig.tsx`
-- `mini-app/src/components/onboarding/ContinueButton.tsx`
-- `mini-app/src/components/Navigation.tsx`
-- `mini-app/src/components/ProfileEditModal.tsx`
-- `mini-app/src/components/AchievementToast.tsx`
-- `mini-app/src/pages/Leaderboard.tsx`
-- `mini-app/src/i18n/en.ts`
-- `mini-app/src/i18n/ru.ts`
-- `mini-app/src/i18n/zh.ts`
-
-**FORBIDDEN:**
-- All bot/ files, test files, admin components, settings components
-
----
-
-### Agent C — Admin/Analytics Hook Tests
-
-**Branch:** `feature/r55-admin-hook-tests`
-**Worktree:** `../Wibecode-agent-c`
-
-**OWNED files:**
-- `mini-app/src/__tests__/components/admin/quest-editor/useQuestEditor.test.ts` (NEW)
-- `mini-app/src/__tests__/components/admin/answer-analytics/useAnswerAnalytics.test.ts` (NEW)
-- `mini-app/src/__tests__/components/analytics/useModeAnalytics.test.ts` (NEW)
-
-**FORBIDDEN:**
-- ALL source files (test-only agent)
-
----
-
-### Agent D — Finance Hook Tests
-
-**Branch:** `feature/r55-finance-hook-tests`
-**Worktree:** `../Wibecode-agent-d`
-
-**OWNED files:**
-- `mini-app/src/__tests__/components/finance/useSavingsGoals.test.ts` (NEW)
-- `mini-app/src/__tests__/components/finance/useBudget.test.ts` (NEW)
-
-**FORBIDDEN:**
-- ALL source files (test-only agent)
-
----
-
-### Run 55 File Ownership Matrix
-
-| File / Directory | A | B | C | D |
-|---|---|---|---|---|
-| `bot/middleware/auth.ts` | **OWNED** | - | - | - |
-| `bot/middleware/premiumGate.ts` | **OWNED** | - | - | - |
-| `bot/utils/planGenerator.ts` | **OWNED** | - | - | - |
-| `onboarding/HeroIntro.tsx` | - | **OWNED** | - | - |
-| `onboarding/PathSelect.tsx` | - | **OWNED** | - | - |
-| `onboarding/AvatarSelect.tsx` | - | **OWNED** | - | - |
-| `onboarding/NotificationPrefs.tsx` | - | **OWNED** | - | - |
-| `onboarding/ReferralSource.tsx` | - | **OWNED** | - | - |
-| `onboarding/PunishmentConfig.tsx` | - | **OWNED** | - | - |
-| `onboarding/ContinueButton.tsx` | - | **OWNED** | - | - |
-| `Navigation.tsx` | - | **OWNED** | - | - |
-| `ProfileEditModal.tsx` | - | **OWNED** | - | - |
-| `AchievementToast.tsx` | - | **OWNED** | - | - |
-| `Leaderboard.tsx` | - | **OWNED** | - | - |
-| `i18n/en.ts, ru.ts, zh.ts` | - | **OWNED** | - | - |
-| `__tests__/admin/quest-editor/useQuestEditor.test.ts` | - | - | **NEW** | - |
-| `__tests__/admin/answer-analytics/useAnswerAnalytics.test.ts` | - | - | **NEW** | - |
-| `__tests__/analytics/useModeAnalytics.test.ts` | - | - | **NEW** | - |
-| `__tests__/finance/useSavingsGoals.test.ts` | - | - | - | **NEW** |
-| `__tests__/finance/useBudget.test.ts` | - | - | - | **NEW** |
-| `PARALLEL_AGENTS.md` | retro | retro | retro | retro |
-
-### Run 55 Merge Order
-
-1. Agent A (middleware + types) — backend first
-2. Agent B (i18n) — frontend content
-3. Agent C (admin hook tests) — test only
-4. Agent D (finance hook tests) — test only
-
-### Run 55 Retrospectives
-
-#### Agent A Retrospective
-**Task:** Replace 6 bare parseInt() in auth.ts + premiumGate.ts middleware, type 3 Record<string, any> in planGenerator.ts.
-**Result:** All 6 parseInt calls replaced with safeParseInt, 3 Record<string, any> replaced with QuizResponses interface. Build passes clean.
-**Files modified:** auth.ts (4 parseInt → safeParseInt), premiumGate.ts (2 parseInt → safeParseInt), planGenerator.ts (new QuizResponses interface with `[key: string]: unknown`, type narrowing with String() casts).
-**Note:** Agent did not fill in retrospective — written by Agent 0 based on commit diff.
-
-#### Agent B Retrospective
-**Task:** Complete i18n migration for the last 11 component files with hardcoded English strings.
-**Result:** All 11 component files migrated. ~60 new i18n keys added to all 3 language files (en, ru, zh). Build passes clean.
-**Files modified (11 components):**
-1. **Navigation.tsx** — 7 nav labels converted from static `label` to `labelKey` with `t()` at render time.
-2. **HeroIntro.tsx** — 3 strings: "Your Name" placeholder, tagline, "Let's Go!" button.
-3. **PathSelect.tsx** — 10 strings: heading, subtitle, 4 mode names, 4 mode descriptions.
-4. **AvatarSelect.tsx** — 12 strings: heading, subtitle, 5 avatar labels, 5 avatar descriptions.
-5. **NotificationPrefs.tsx** — 11 strings: heading, subtitle, 4 toggle labels, 4 toggle descriptions, footer note.
-6. **ReferralSource.tsx** — 3 strings: heading, subtitle, placeholder.
-7. **PunishmentConfig.tsx** — 6 strings: heading, subtitle, note label, info box text, buttons.
-8. **ContinueButton.tsx** — 2 strings: default label, hint.
-9. **ProfileEditModal.tsx** — 22 strings: 16 avatar labels, error message, modal labels.
-10. **AchievementToast.tsx** — 1 string: "Achievement Unlocked!".
-11. **Leaderboard.tsx** — 2 strings: share text with interpolation.
-**i18n files:** Added `nav.*` (7 keys), ~33 `onboarding.*` keys, 19 `profile.*` keys, 1 `achievements.achievementUnlocked`, 2 `leaderboard.share*` keys.
-
-#### Agent C Retrospective
-**Task:** Write tests for 3 untested admin/analytics hooks (useQuestEditor, useAnswerAnalytics, useModeAnalytics).
-**Result:** 20 tests across 3 files, all passing. No source files modified (test-only agent).
-**Files created:** useQuestEditor.test.ts, useAnswerAnalytics.test.ts, useModeAnalytics.test.ts.
-**Note:** Agent did not fill in retrospective — written by Agent 0 based on commit diff.
-
-#### Agent D Retrospective
-**Task:** Write tests for 2 untested finance hooks: useSavingsGoals and useBudget (228 lines of untested logic).
-**Result:** 28 tests across 2 files, all passing. No source files modified (test-only agent).
-**Files created:**
-1. **useSavingsGoals.test.ts** (16 tests) — getProjectedCompletion pure function (6), useSavingsGoals hook (10: loading, fetch, empty goals, null fallback, errors, CRUD).
-2. **useBudget.test.ts** (12 tests) — constants (2), useBudget hook (10: loading, fetch, derived values, spentPercent, errors, addEntry).
-**Note:** Both hooks use raw `fetch` (not apiClient), so mocked `global.fetch` with `vi.spyOn`.
-
-#### Agent 0 Retrospective
-**Run 55 merge — 4 agents, 3 unmerged branches + 1 pre-merged (Agent C).**
-**Merge:** All branches merged. PARALLEL_AGENTS.md had expected conflicts (retrospective sections). Agent A and B had `--theirs` strategy; Agent D had `--ours`.
-**Agent 0 fix:** 5 bot tests failing — `safeParseInt("abc", 0)` returns 0 instead of NaN, bypassing `isNaN()` validation in analytics.ts (3 endpoints), checkins.ts (2 endpoints), users.ts (1), finance.ts (1). Fixed by changing default from `0` to `NaN` where `isNaN()` check follows.
-**Post-merge cleanup:** PARALLEL_AGENTS.md was bloated (2420 lines) due to `--theirs` merges restoring archived Runs 51-53. Rebuilt file from pre-merge version + archive.
-**Builds:** Bot (tsc) + Mini-app (tsc + vite) — both clean. 1588 tests pass (820 bot + 768 mini-app).
-**Deploy:** `b297e6d` — health check verified, notification sent.
-**Archive:** Moved Runs 50+54 to PARALLEL_AGENTS_HISTORY.md (archive point at Run 55). Updated both headers: main file "Runs 2–54", history "Runs 2–54".
-**Cleanup:** 4 worktrees removed, 4 feature branches deleted.
-**Issues carried forward:**
-- pg-boss Node.js 22.12+ requirement (server has 20.20)
-- safeParseInt pattern: when followed by isNaN() check, default MUST be NaN, not 0. Audit all routes before next run.
-
-## Run 56: Tier System — Channel Verification + Mode Gating + Payment UI (7 Agents + Agent 0)
-
-**Date**: 2026-02-13
-**Agents**: 7 (A-G) + Agent 0
-**Goal**: Implement the full tier system — rename `pro` → `subscriber`, add Telegram channel subscription check for @yakutsaway, enforce mode limits per tier (free=2, subscriber=3, premium=4+), build mini-app payment/subscription UI.
-
-**Current state (from codebase audit):**
-- Backend ~70% done: `subscriptions` table (free/pro/premium), `payments` table, `premiumGate` middleware, full payment CRUD routes — but NONE of this is used by the mini-app
-- Mini-app has ZERO payment/subscription integration
-- Tier names need renaming: `pro` → `subscriber` (channel-based, not Stars-based)
-- Mode POST route has NO tier check — all users can add unlimited modes
-- premiumGate middleware exists but no routes use it
-
-**Tier model:**
-| Tier | How to get | Mode limit | Extras |
-|------|-----------|------------|--------|
-| `free` | Default | 2 modes | — |
-| `subscriber` | Subscribe to @yakutsaway channel | 3 modes | — |
-| `premium` | Telegram Stars (599/month) | 6 modes | Animated avatars, trophies, purchasable achievements (future runs) |
-
----
-
-### Run 56 Copy-Paste Prompts
-
-**Agent A — DB Migration + Tier Rename** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-a`):
-```
-Read c:\Users\Asus\Desktop\Wibecode-agent-a\PARALLEL_AGENTS.md — find "Run 56" and locate the "Agent A" section. You are Agent A. YOUR TASK: Rename the pro tier to subscriber across DB schema + seed data, and create a channel_subscriptions cache table. Create migration file database/migrations/run56_tier_rename.sql with: ALTER subscriptions tier CHECK (free/subscriber/premium), UPDATE existing pro rows, CREATE channel_subscriptions table. Update schema.sql and seed_data.sql. FORBIDDEN: bot/ and mini-app/ files.
-```
-
-**Agent B — Channel Subscription API** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-b`):
-```
-Read c:\Users\Asus\Desktop\Wibecode-agent-b\PARALLEL_AGENTS.md — find "Run 56" and locate the "Agent B" section. You are Agent B. YOUR TASK: Create channel subscription API that checks @yakutsaway membership via Telegram getChatMember, with 1-hour caching. Create bot/src/utils/telegramApi.ts + bot/src/api/routes/channel.ts (GET /:userId/status, POST /:userId/refresh). Register in server.ts. Auto-upgrade/downgrade tier based on subscription status. FORBIDDEN: database/ files, mini-app, payments.ts, premiumGate.ts, modes.ts, tests.
-```
-
-**Agent C — premiumGate + Mode Gating** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-c`):
-```
-Read c:\Users\Asus\Desktop\Wibecode-agent-c\PARALLEL_AGENTS.md — find "Run 56" and locate the "Agent C" section. You are Agent C. YOUR TASK: Update premiumGate tier hierarchy (free/subscriber/premium), add getUserEffectiveTier() that checks both subscriptions + channel cache, add MODE_LIMITS, enforce mode limit in POST /users/:userId/modes. FORBIDDEN: database/ files, mini-app, payments.ts, channel.ts, server.ts, tests.
-```
-
-**Agent D — Payment Routes Update** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-d`):
-```
-Read c:\Users\Asus\Desktop\Wibecode-agent-d\PARALLEL_AGENTS.md — find "Run 56" and locate the "Agent D" section. You are Agent D. YOUR TASK: Update payments.ts — rename pro to subscriber in VALID_TIERS, block subscriber tier from Stars purchase (it's channel-based), add GET /tiers endpoint returning tier info. FORBIDDEN: database/ files, mini-app, premiumGate.ts, modes.ts, channel.ts, server.ts, tests.
-```
-
-**Agent E — Mini-App API + Hooks + Types** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-e`):
-```
-Read c:\Users\Asus\Desktop\Wibecode-agent-e\PARALLEL_AGENTS.md — find "Run 56" and locate the "Agent E" section. You are Agent E. YOUR TASK: Add subscription/payment types to types/index.ts, add 7 API methods to client.ts, create useSubscription hook + constants/tiers.ts. FORBIDDEN: bot/ files, database/ files, page files, component files.
-```
-
-**Agent F — Settings SubscriptionSettings UI** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-f`):
-```
-Read c:\Users\Asus\Desktop\Wibecode-agent-f\PARALLEL_AGENTS.md — find "Run 56" and locate the "Agent F" section. You are Agent F. YOUR TASK: Create SubscriptionSettings.tsx showing tier badge, mode usage bar, channel subscribe CTA, premium upgrade CTA. Add to Settings page. Add i18n keys to en/ru/zh. FORBIDDEN: bot/ files, database/ files, client.ts, types/index.ts.
-```
-
-**Agent G — Tier System Tests** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-g`):
-```
-Read c:\Users\Asus\Desktop\Wibecode-agent-g\PARALLEL_AGENTS.md — find "Run 56" and locate the "Agent G" section. You are Agent G. YOUR TASK: Write tests for channel API, updated premiumGate, mode gating, and useSubscription hook. 4 new test files, ~26-34 tests total. FORBIDDEN: all source files (test-only).
-```
-
----
-
-### Agent A — DB Migration + Tier Rename
-
-**Branch:** `feature/r56-tier-migration`
-**Worktree:** `../Wibecode-agent-a`
-
-**OWNED files:**
-- `database/schema.sql`
-- `database/seed_data.sql`
-- `database/migrations/run56_tier_rename.sql` (NEW)
-
-**FORBIDDEN:**
-- All bot/ files, mini-app files
-
-**Tasks:**
-1. Create `database/migrations/run56_tier_rename.sql`:
-   - ALTER subscriptions DROP old CHECK, UPDATE pro→subscriber, ADD new CHECK (free/subscriber/premium)
-   - UPDATE payments metadata tier 'pro'→'subscriber'
-   - CREATE channel_subscriptions table (user_id, telegram_id, channel_username, is_subscribed, checked_at, UNIQUE(user_id, channel_username))
-2. Update `database/schema.sql`: Change tier CHECK, add channel_subscriptions table definition
-3. Update `database/seed_data.sql`: Rename pro→subscriber, add tier model comment
-
----
-
-### Agent B — Channel Subscription API
-
-**Branch:** `feature/r56-channel-api`
-**Worktree:** `../Wibecode-agent-b`
-
-**OWNED files:**
-- `bot/src/api/routes/channel.ts` (NEW)
-- `bot/src/utils/telegramApi.ts` (NEW)
-
-**GRAY AREA:**
-- `bot/src/api/server.ts` — add ONE import + ONE app.use line ONLY
-
-**FORBIDDEN:**
-- All database/ files, mini-app files, payments.ts, premiumGate.ts, modes.ts, test files
-
-**Tasks:**
-1. Create `bot/src/utils/telegramApi.ts`:
-   - `checkChannelMembership(telegramId, channelUsername='yakutsaway')` → calls `getChatMember` API
-   - Returns `{ isMember, status }` where isMember = true for creator/administrator/member
-   - Handles errors gracefully (returns isMember=false on failure)
-2. Create `bot/src/api/routes/channel.ts`:
-   - `GET /:userId/status` — check cache (1hr TTL), call Telegram API if stale, upsert cache, auto-upgrade/downgrade tier
-   - `POST /:userId/refresh` — force re-check bypassing cache
-   - Export as `channelRouter`
-3. Register in `server.ts`: import + `app.use('/api/channel', channelRouter)`
-
----
-
-### Agent C — premiumGate Update + Mode Gating
-
-**Branch:** `feature/r56-tier-gating`
-**Worktree:** `../Wibecode-agent-c`
-
-**OWNED files:**
-- `bot/src/api/middleware/premiumGate.ts`
-- `bot/src/api/routes/modes.ts`
-
-**FORBIDDEN:**
-- All database/ files, mini-app files, payments.ts, channel.ts, server.ts, test files
-
-**Tasks:**
-1. Update premiumGate.ts:
-   - Change TIER_LEVELS: `{ free: 0, pro: 1, premium: 2 }` → `{ free: 0, subscriber: 1, premium: 2 }`
-   - Add `MODE_LIMITS` export: `{ free: 2, subscriber: 3, premium: 6 }`
-   - Add `getUserEffectiveTier(userId)` — checks subscriptions table + channel_subscriptions cache
-   - Update `requirePremium` to use `getUserEffectiveTier`
-2. Update modes.ts POST handler:
-   - Import getUserEffectiveTier + MODE_LIMITS
-   - Before processing modes, check `currentCount + requestedCount <= modeLimit`
-   - Return 400 with tier/limit info if exceeded
-
----
-
-### Agent D — Payment Routes Update
-
-**Branch:** `feature/r56-payment-tiers`
-**Worktree:** `../Wibecode-agent-d`
-
-**OWNED files:**
-- `bot/src/api/routes/payments.ts`
-
-**FORBIDDEN:**
-- All database/ files, mini-app files, premiumGate.ts, modes.ts, channel.ts, server.ts, test files
-
-**Tasks:**
-1. Change VALID_TIERS from `['free', 'pro', 'premium']` to `['free', 'subscriber', 'premium']`
-2. Update all 'pro' references → 'subscriber'
-3. Block subscriber tier from Stars purchase in `/subscription/upgrade`
-4. Add `GET /tiers` endpoint returning tier info (name, modeLimit, price, purchasable, channelRequired)
-
----
-
-### Agent E — Mini-App API Client + Hooks + Types
-
-**Branch:** `feature/r56-miniapp-subscription`
-**Worktree:** `../Wibecode-agent-e`
-
-**OWNED files:**
-- `mini-app/src/hooks/useSubscription.ts` (NEW)
-- `mini-app/src/constants/tiers.ts` (NEW)
-
-**GRAY AREA:**
-- `mini-app/src/api/client.ts` — add methods only
-- `mini-app/src/types/index.ts` — add types only
-
-**FORBIDDEN:**
-- All bot/ files, database/ files, page files, existing hooks, component files
-
-**Tasks:**
-1. Add types: SubscriptionTier, Subscription, ChannelStatus, TierInfo, PaymentHistoryEntry
-2. Add 7 API methods: getSubscription, getChannelStatus, refreshChannelStatus, getTiers, getPaymentHistory, upgradeSubscription, cancelSubscription
-3. Create useSubscription hook with effectiveTier + modeLimit computation
-4. Create constants/tiers.ts with MODE_LIMITS, TIER_LABELS, TIER_COLORS
-
----
-
-### Agent F — Settings SubscriptionSettings Component
-
-**Branch:** `feature/r56-subscription-ui`
-**Worktree:** `../Wibecode-agent-f`
-
-**OWNED files:**
-- `mini-app/src/components/settings/SubscriptionSettings.tsx` (NEW)
-
-**GRAY AREA:**
-- `mini-app/src/pages/Settings.tsx` — add ONE import + ONE component
-- `mini-app/src/i18n/en.ts`, `ru.ts`, `zh.ts` — add `settings.subscription.*` keys only
-
-**FORBIDDEN:**
-- All bot/ files, database/ files, client.ts, types/index.ts, other components
-
-**Tasks:**
-1. Create SubscriptionSettings.tsx: tier badge, mode usage bar, channel CTA, premium CTA, channel refresh
-2. Add i18n keys to all 3 language files
-3. Integrate into Settings.tsx (first settings section)
-
----
-
-### Agent G — Tests for Tier System
-
-**Branch:** `feature/r56-tier-tests`
-**Worktree:** `../Wibecode-agent-g`
-
-**OWNED files:**
-- `bot/src/__tests__/routes/http/channel.http.test.ts` (NEW)
-- `bot/src/__tests__/middleware/premiumGate-tiers.test.ts` (NEW)
-- `bot/src/__tests__/routes/http/modes-gating.test.ts` (NEW)
-- `mini-app/src/__tests__/hooks/useSubscription.test.ts` (NEW)
-
-**FORBIDDEN:**
-- ALL source files (test-only agent)
-
-**Tasks:**
-1. Channel API tests: cache hit, cache miss, auto-upgrade, auto-downgrade, force refresh, error handling (~8 tests)
-2. premiumGate tests: getUserEffectiveTier for each tier, channel cache stale, expired subscription (~7 tests)
-3. Mode gating tests: under limit, at limit, over limit, per-tier limits (~6 tests)
-4. useSubscription hook tests: loading, fetch, effectiveTier, modeLimit, errors, refreshChannel (~7 tests)
-
----
-
-### Run 56 File Ownership Matrix
-
-| File / Directory | A | B | C | D | E | F | G |
-|---|---|---|---|---|---|---|---|
-| `database/schema.sql` | **OWNED** | - | - | - | - | - | - |
-| `database/seed_data.sql` | **OWNED** | - | - | - | - | - | - |
-| `database/migrations/run56*.sql` | **NEW** | - | - | - | - | - | - |
-| `bot/routes/channel.ts` | - | **NEW** | - | - | - | - | - |
-| `bot/utils/telegramApi.ts` | - | **NEW** | - | - | - | - | - |
-| `bot/api/server.ts` | - | **GRAY** | - | - | - | - | - |
-| `bot/middleware/premiumGate.ts` | - | - | **OWNED** | - | - | - | - |
-| `bot/routes/modes.ts` | - | - | **OWNED** | - | - | - | - |
-| `bot/routes/payments.ts` | - | - | - | **OWNED** | - | - | - |
-| `mini-app/api/client.ts` | - | - | - | - | **GRAY** | - | - |
-| `mini-app/types/index.ts` | - | - | - | - | **GRAY** | - | - |
-| `hooks/useSubscription.ts` | - | - | - | - | **NEW** | - | - |
-| `constants/tiers.ts` | - | - | - | - | **NEW** | - | - |
-| `SubscriptionSettings.tsx` | - | - | - | - | - | **NEW** | - |
-| `Settings.tsx` | - | - | - | - | - | **GRAY** | - |
-| `i18n/en.ts, ru.ts, zh.ts` | - | - | - | - | - | **GRAY** | - |
-| `channel.http.test.ts` | - | - | - | - | - | - | **NEW** |
-| `premiumGate-tiers.test.ts` | - | - | - | - | - | - | **NEW** |
-| `modes-gating.test.ts` | - | - | - | - | - | - | **NEW** |
-| `useSubscription.test.ts` | - | - | - | - | - | - | **NEW** |
-| `PARALLEL_AGENTS.md` | retro | retro | retro | retro | retro | retro | retro |
-
-### Run 56 Merge Order
-
-1. Agent A (DB migration) — schema changes first
-2. Agent B (channel API) — new backend route
-3. Agent C (premiumGate + mode gating) — depends on channel_subscriptions table
-4. Agent D (payment routes) — independent backend update
-5. Agent E (mini-app API + hooks) — frontend types/client
-6. Agent F (subscription UI) — depends on E's hooks
-7. Agent G (tests) — test only, merge last
-
-### Run 56 DB Migration
-
-After merge, run on server:
-```bash
-PGPASSWORD=postgres psql -h localhost -U postgres -d telegram_rpg -f /opt/wibecode-bot/database/migrations/run56_tier_rename.sql
-```
-
-### Run 56 Retrospectives
-
-#### Agent A Retrospective
-**Task:** Rename `pro` tier to `subscriber` across DB schema + seed data, create `channel_subscriptions` cache table.
-**Result:** All 3 files created/updated. Migration is transactional (BEGIN/COMMIT), idempotent (IF NOT EXISTS/IF EXISTS).
-
-**Files modified:**
-1. **database/migrations/run56_tier_rename.sql** (NEW) — DROP old CHECK, UPDATE pro→subscriber, ADD new CHECK, UPDATE payments metadata, CREATE channel_subscriptions table with indexes.
-2. **database/schema.sql** — Changed tier CHECK from `(free, pro, premium)` to `(free, subscriber, premium)`, added DROP + CREATE for `channel_subscriptions` table (user_id, telegram_id, channel_username, is_subscribed, checked_at), added COMMENT.
-3. **database/seed_data.sql** — Rewrote Premium Tier Reference section with new tier model (free=2 modes, subscriber=3 modes via @yakutsaway, premium=6 modes via Stars).
-
-**Notes for Agent 0:**
-- Migration uses `DROP CONSTRAINT IF EXISTS` + `ADD CONSTRAINT` pattern for CHECK rename (safe for re-run).
-- `channel_subscriptions` uses `UNIQUE(user_id, channel_username)` to support multiple channels in future.
-- No bot/ or mini-app/ files touched (as required).
-
-#### Agent B Retrospective
-**Task:** Create channel subscription API with Telegram getChatMember, 1-hour caching, and auto tier sync.
-**Result:** All 3 tasks complete. Build passes clean (tsc, 0 errors).
-
-**Files created/modified:**
-1. **bot/src/utils/telegramApi.ts** (NEW, ~90 lines) — `checkChannelMembership(telegramId, channelUsername)` calls Telegram `getChatMember` API. Returns `{ isMember, status }` where isMember=true for creator/administrator/member. Graceful error handling (returns isMember=false on failure).
-2. **bot/src/api/routes/channel.ts** (NEW, ~205 lines) — Two endpoints:
-   - `GET /:userId/status` — checks `channel_subscriptions` cache (1hr TTL), calls Telegram API if stale, upserts cache, auto-upgrades/downgrades tier.
-   - `POST /:userId/refresh` — force re-check bypassing cache.
-   - Auto-tier logic: free→subscriber on join, subscriber→free on leave. Premium tier untouched.
-3. **bot/src/api/server.ts** (GRAY AREA) — Added 1 import + 1 `app.use('/api/channel', channelRouter)` line.
-
-**Issues encountered:**
-- TypeScript `Record<string, unknown>` constraint on `query<T>`/`queryOne<T>` generics requires index signatures on interfaces. Fixed by adding `[key: string]: unknown` to all row interfaces.
-
-**Notes for Agent 0:**
-- The `channel_subscriptions` table must exist before this code runs — depends on Agent A's migration.
-- The `subscriptions` table CHECK constraint must include 'subscriber' — also depends on Agent A.
-
-#### Agent C Retrospective
-**Task:** Update premiumGate tier hierarchy (free/subscriber/premium), add getUserEffectiveTier(), MODE_LIMITS, enforce mode limit in POST /users/:userId/modes.
-**Result:** All tasks complete. Build passes clean (tsc 0 errors).
-
-**Files modified (2):**
-1. **premiumGate.ts** — Renamed `pro` → `subscriber` in TIER_LEVELS. Added exported `MODE_LIMITS` (`{ free: 2, subscriber: 3, premium: 6 }`). Added exported `getUserEffectiveTier(userId)` that checks subscriptions table for premium (with expiry handling), then channel_subscriptions cache for subscriber, falling back to free. Simplified `requirePremium` middleware to use `getUserEffectiveTier` instead of inline subscription query + expiry logic.
-2. **modes.ts** — Imported `getUserEffectiveTier` + `MODE_LIMITS` from premiumGate. Added tier-based mode limit check in POST handler: counts current active modes, compares `currentCount + requested` against tier limit, throws `BadRequestError` with tier/limit info if exceeded.
-
-**Design decisions:**
-- Premium tier takes priority over subscriber (Stars > channel subscription).
-- Expired premium falls through to channel check (user might still be a channel subscriber).
-- Channel_subscriptions cache is trusted as-is (Agent B's channel API handles refresh/TTL).
-- Mode limit check happens early (before resolving mode names) to fail fast.
-
-**Notes for Agent 0:**
-- `channel_subscriptions` table is created by Agent A's migration. My code queries it but doesn't create it.
-- Agent G's tests (premiumGate-tiers.test.ts, modes-gating.test.ts) will need to mock both `subscriptions` and `channel_subscriptions` queries.
-
-#### Agent D Retrospective
-**Task:** Update payments.ts — rename pro→subscriber in VALID_TIERS, block subscriber from Stars purchase, add GET /tiers endpoint.
-**Result:** All 4 tasks completed. Build passes clean (tsc, 0 errors).
-**Changes to `bot/src/api/routes/payments.ts`:**
-1. **VALID_TIERS**: `['free', 'pro', 'premium']` → `['free', 'subscriber', 'premium']`
-2. **Pro references updated**: Error messages now reference subscriber/premium correctly. Webhook fallback tier changed from `'pro'` to `'premium'` (since only premium can be purchased via Stars).
-3. **Subscriber blocked from Stars purchase**: Both `POST /create` and `POST /subscription/upgrade` now reject `tier === 'subscriber'` with message directing users to subscribe to @yakutsaway channel instead.
-4. **GET /tiers endpoint**: Returns array of 3 tiers with `name`, `modeLimit`, `price`, `purchasable`, `channelRequired`, `description` (and `channelUsername`/`currency` where applicable). Public endpoint (no auth), rate-limited.
-**No other files modified.** Single file change, fully contained.
-
-#### Agent E Retrospective
-**Task:** Add subscription/payment types, 7 API methods, useSubscription hook, and constants/tiers.ts.
-**Result:** All 4 tasks completed. Build passes clean (tsc + vite).
-
-**Files created (2):**
-1. **mini-app/src/types/subscription.ts** — 5 types: `SubscriptionTier` (union), `Subscription`, `ChannelStatus`, `TierInfo`, `PaymentHistoryEntry`
-2. **mini-app/src/hooks/useSubscription.ts** — Hook with `effectiveTier`, `modeLimit`, `isSubscriber`, `isPremium`, channel refresh, abort handling
-3. **mini-app/src/constants/tiers.ts** — `MODE_LIMITS` (free:2, subscriber:3, premium:6), `TIER_LABELS`, `TIER_COLORS`, `TIER_ORDER`, `CHANNEL_USERNAME`
-
-**Files modified (2):**
-1. **mini-app/src/types/index.ts** — Added barrel export for subscription types
-2. **mini-app/src/api/client.ts** — Added 7 methods: `getSubscription`, `getChannelStatus`, `refreshChannelStatus`, `getTiers`, `getPaymentHistory`, `upgradeSubscription`, `cancelSubscription`
-
-**Notes for Agent 0:**
-- API routes align with existing backend: `/payments/subscription/:userId`, `/payments/history/:userId`, `/payments/tiers`, `/channel/:userId/status`, `/channel/:userId/refresh`. Agent B's new channel routes + Agent D's tiers endpoint must be merged first.
-- The `useSubscription` hook follows the same pattern as `useSettingsData` (AbortController, error handling, loading states).
-- `SubscriptionTier` uses the new `'subscriber'` value (not `'pro'`), matching Agent A's tier rename.
-
-#### Agent F Retrospective
-**Status:** COMPLETE — SubscriptionSettings.tsx created, i18n keys added, integrated into Settings page. Build passes (tsc + vite).
-
-**What was done:**
-1. **Created `SubscriptionSettings.tsx`** (NEW) — Self-contained settings component showing:
-   - Tier badge (Free/Subscriber/Premium) with color-coded styling
-   - Mode usage progress bar (X / Y modes with animated fill)
-   - Channel subscribe CTA — opens @yakutsaway via `openTelegramLink`, with refresh button to re-check status
-   - Premium upgrade CTA — gradient card with Stars pricing (599/month)
-   - Loading state with spinner, graceful degradation when backend endpoints aren't available yet
-2. **Added 14 i18n keys** to `settings.subscription.*` namespace in all 3 language files (en, ru, zh)
-3. **Integrated into Settings.tsx** — ONE import + ONE `<SubscriptionSettings />` component placed as the first settings section
-
-**Design decisions:**
-- Component is fully self-contained — calls `useTelegram()` + `apiClient.getUserStats()` + raw `fetch()` for channel/subscription endpoints
-- No dependency on Agent E's `useSubscription` hook or `constants/tiers.ts` — avoids merge conflicts since those files don't exist in this branch
-- Channel/subscription fetch calls degrade gracefully with try/catch (returns defaults if endpoints aren't deployed yet)
-- MODE_LIMITS defined locally: `{ free: 2, subscriber: 3, premium: 6 }`
-
-**Notes for Agent 0:**
-- Agent E's `useSubscription` hook and `constants/tiers.ts` are not imported — this was intentional to avoid merge conflicts with Agent E's NEW files. Agent 0 may optionally refactor to use Agent E's hook after merge if desired.
-- The component fetches channel status from `/api/channel/:userId/status` and `/api/channel/:userId/refresh` (Agent B endpoints). It falls back to "free" tier if those endpoints aren't available.
-- Premium upgrade button has a TODO comment — needs Telegram Stars payment integration when the payment flow is connected.
-
-#### Agent G Retrospective
-**Task:** Write tests for channel API, updated premiumGate, mode gating, and useSubscription hook.
-**Result:** 28 tests across 4 files. No source files modified (test-only agent).
-
-**Files created:**
-1. **channel.http.test.ts** (8 tests) — cache hit (skip Telegram API), cache miss (call API), no cache (call API), auto-upgrade (free→subscriber), auto-downgrade (subscriber→free), user not found (404), Telegram API error handling, force refresh bypass.
-2. **premiumGate-tiers.test.ts** (7 tests) — MODE_LIMITS constant validation, getUserEffectiveTier: free (no sub), subscriber (channel cache), premium (active sub), expired premium→free, expired premium + channel→subscriber; requirePremium: allow when tier meets requirement, deny when below.
-3. **modes-gating.test.ts** (6 tests) — under limit (free 0/2), at limit (free 2/2 blocked), over limit (free 1/2 + 2 blocked), subscriber 3-mode limit, premium 6-mode limit, tier info in error message.
-4. **useSubscription.test.ts** (7 tests) — loading state, fetch on mount, effectiveTier=free, effectiveTier=subscriber (channel), effectiveTier=premium, error state, refreshChannel API call.
-
-**Notes for Agent 0:**
-- Tests cannot be run in isolation because they import source files created by Agents B (channel.ts, telegramApi.ts), C (updated premiumGate.ts, modes.ts), and E (useSubscription.ts). Tests will pass after merge.
-- Used exact same mock patterns as existing test suite: `httpMocks.js` helpers for bot HTTP tests, `vi.mock('@/api/client')` for mini-app hook tests.
-- premiumGate-tiers.test.ts imports `getUserEffectiveTier` and `MODE_LIMITS` — these exports must exist in Agent C's updated premiumGate.ts.
-- modes-gating.test.ts mocks `premiumGate.js` to control `getUserEffectiveTier` return value per test case.
-- If Agent C's implementation differs from spec (e.g., different error messages, different query patterns), Agent 0 may need to adjust mock sequences.
-
-#### Agent 0 Retrospective
-**Run 56 merge — 7 agents, all 7 branches merged cleanly (zero conflicts in non-PARALLEL_AGENTS files).**
-**Merge:** All branches merged in order A→B→C→D→E→F→G. PARALLEL_AGENTS.md had expected auto-merge conflicts (retrospective sections) — all resolved automatically by git ort strategy.
-**Agent 0 fixes:** 14 test failures across 3 files:
-- `premiumGate.test.ts` (5 failures): Old tests referenced 'pro' tier which was renamed to 'subscriber'. Updated all `requirePremium('pro')` → `requirePremium('subscriber')`, fixed mock sequences for 2-query `getUserEffectiveTier` (subscriptions + channel_subscriptions), updated assertion messages.
-- `payments.http.test.ts` (3 failures): Tests sent `tier: 'pro'` in payment creation — but 'pro' is no longer a valid tier and subscriber can't be purchased with Stars. Changed to `tier: 'premium'`.
-- `useSubscription.test.ts` (6 failures): Hook takes `{ userId }` object but tests passed raw number `1`. Fixed calling convention, added `mockSubscriptionSubscriber` test data, fixed API call assertions for `{ signal }` arg.
-**DB:** Created 3 tables on server (payments, subscriptions, channel_subscriptions) — they existed in schema.sql but were never deployed. Migration script expected them to exist for ALTER.
-**Builds:** Bot (tsc) + Mini-app (tsc + vite) — both clean. 1617 tests pass (842 bot + 775 mini-app).
-**Deploy:** `7e380f3` — health check verified, notification sent.
-**Cleanup:** 7 worktrees removed, 7 feature branches deleted.
-**Issues carried forward:**
-- pg-boss Node.js 22.12+ requirement (server has 20.20)
-- SubscriptionSettings.tsx duplicates MODE_LIMITS locally instead of importing from Agent E's constants/tiers.ts (intentional to avoid merge conflicts — can refactor later)
-- safeParseInt + isNaN pattern audit still pending
-
-## Run 57: Quest Rebalancing + Avatar Shared Data (6 Agents + Agent 0)
-
-**Date**: 2026-02-13
-**Agents**: 6 (A-F) + Agent 0
-**Goal**: Rebalance quest templates (add easy/hard difficulties), make quest assignment respect fitness level, add difficulty filter UI, extract shared avatar data, add avatar_id to leaderboard.
-
-**Current state (from codebase audit):**
-- 25 quest templates across 6 modes — NO hard quests, fitness has NO easy quests
-- Quest assignment uses `ORDER BY RANDOM()` ignoring fitness level
-- `mode_configs.quiz_responses` stores user fitness data but nothing reads it
-- Avatar data hardcoded in AvatarSelect.tsx (5 options), UserAvatar.tsx shows color+initial only
-- Leaderboard queries don't include avatar_id
-- QuestFilters.tsx has mode filter + sort but NO difficulty filter
-
----
-
-### Run 57 Copy-Paste Prompts
-
-**Agent A — Quest Template Rebalancing** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-a`):
-```
-Read c:\Users\Asus\Desktop\Wibecode-agent-a\PARALLEL_AGENTS.md — find "Run 57" and locate the "Agent A" section. You are Agent A.
-
-YOUR TASK: Rebalance quest templates — add easy/hard quests, ensure every mode has all 3 difficulty levels.
-
-OWNED FILES:
-- database/seed_data.sql
-- database/migrations/run57_quest_rebalance.sql (NEW)
-
-TASK 1 — Audit current quests in seed_data.sql (lines 88–147):
-Currently 25 quests: fitness has NO easy quests, hydration is 100% easy, NO hard quests exist anywhere.
-Goal: ~45 quests total with ~30% easy, ~50% medium, ~20% hard per mode.
-
-TASK 2 — Add missing difficulty tiers:
-For each mode (fitness, hydration, finance, learning, medication, habits):
-- Add 1-2 EASY quests (beginner-friendly, low XP: 15-30)
-- Keep existing MEDIUM quests (adjust XP if needed: 30-60)
-- Add 1-2 HARD quests (challenging, high XP: 80-150)
-- Add 1-2 weekly variants at each difficulty
-
-Fitness easy examples: "10-minute morning stretch", "Light 15-min walk"
-Fitness hard examples: "50 push-ups challenge", "1-hour HIIT workout"
-Hydration hard: "Drink 3L water in a day"
-Finance hard: "Complete weekly budget review with all categories"
-
-TASK 3 — Create migration file database/migrations/run57_quest_rebalance.sql:
-- INSERT new quest templates (use ON CONFLICT DO NOTHING for safety)
-- Do NOT delete existing quests (users may have active instances)
-- Wrap in BEGIN/COMMIT transaction
-
-FORBIDDEN: bot/ files, mini-app/ files.
-
-After completing work, write your retrospective in PARALLEL_AGENTS.md under "Run 57 Retrospectives" → "Agent A Retrospective", replacing the placeholder text. Then commit all changes.
-```
-
-**Agent B — Quest Assignment Fitness Filtering** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-b`):
-```
-Read c:\Users\Asus\Desktop\Wibecode-agent-b\PARALLEL_AGENTS.md — find "Run 57" and locate the "Agent B" section. You are Agent B.
-
-YOUR TASK: Make quest assignment respect user fitness level from quiz_responses.
-
-OWNED FILES:
-- bot/src/jobs/definitions/dailyQuestReset.ts
-- bot/src/api/routes/quest-assignment.ts
-
-CONTEXT: The mode_configs table has quiz_responses JSONB. During onboarding, users answer questions and their responses are stored (e.g., fitness_level: 'beginner'/'intermediate'/'advanced'). Currently both dailyQuestReset.ts and quest-assignment.ts pick quests randomly with ORDER BY RANDOM() — ignoring difficulty entirely.
-
-TASK 1 — Add fitness-level-aware quest selection to dailyQuestReset.ts:
-1. Before selecting templates, query mode_configs for the user's quiz_responses
-2. Extract fitness_level (default to 'beginner' if not set)
-3. Map fitness levels to difficulty preferences:
-   - beginner: 70% easy, 30% medium (WHERE difficulty IN ('easy','medium') ORDER BY CASE WHEN difficulty='easy' THEN 0 ELSE 1 END, RANDOM())
-   - intermediate: 20% easy, 60% medium, 20% hard (no filter, just RANDOM())
-   - advanced: 20% medium, 80% hard (WHERE difficulty IN ('medium','hard') ORDER BY CASE WHEN difficulty='hard' THEN 0 ELSE 1 END, RANDOM())
-4. Use a weighted approach: modify the SQL ORDER BY to prefer certain difficulties
-
-TASK 2 — Same for quest-assignment.ts POST route:
-Apply the same fitness-level filtering logic to the manual assignment endpoint.
-
-TASK 3 — Handle missing quiz_responses gracefully:
-- If mode_configs row doesn't exist → treat as beginner
-- If quiz_responses is empty or lacks fitness_level → treat as beginner
-- Use String(responses.fitness_level || 'beginner') pattern
-
-IMPORTANT: The difficulty column already exists on quests table. The target mapping (easy=1, medium=3, hard=5) already works. You just need to bias the template SELECTION toward appropriate difficulties.
-
-FORBIDDEN: database/ files, mini-app/ files, test files.
-
-BUILD VERIFY: cd bot && npm run build must pass.
-
-After completing work, write your retrospective in PARALLEL_AGENTS.md under "Run 57 Retrospectives" → "Agent B Retrospective", replacing the placeholder text. Then commit all changes.
-```
-
-**Agent C — Quest Difficulty Filter UI** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-c`):
-```
-Read c:\Users\Asus\Desktop\Wibecode-agent-c\PARALLEL_AGENTS.md — find "Run 57" and locate the "Agent C" section. You are Agent C.
-
-YOUR TASK: Add difficulty filter buttons (Easy/Medium/Hard) to the Quests page.
-
-OWNED FILES:
-- mini-app/src/components/quests/QuestFilters.tsx
-- mini-app/src/hooks/useQuestsData.ts
-
-GRAY AREA:
-- mini-app/src/i18n/en.ts, ru.ts, zh.ts — add difficulty filter keys ONLY
-
-CONTEXT: QuestFilters.tsx currently has mode filter chips + sort dropdown. useQuestsData.ts has filtering logic in a useMemo (filters by selectedModeId, sorts by sortBy). Quests have a 'difficulty' field ('easy'|'medium'|'hard').
-
-TASK 1 — Add selectedDifficulty state to useQuestsData.ts:
-1. Add state: `const [selectedDifficulty, setSelectedDifficulty] = useState<string | null>(null);`
-2. Add difficulty filter to the currentQuests useMemo (after mode filter):
-   ```
-   const diffFiltered = selectedDifficulty
-     ? filtered.filter(q => q.difficulty === selectedDifficulty)
-     : filtered;
-   ```
-3. Export selectedDifficulty + setSelectedDifficulty in the return object
-
-TASK 2 — Add difficulty chips to QuestFilters.tsx:
-1. Add new props: selectedDifficulty, onDifficultySelect
-2. Add a row of 4 chips: All / Easy / Medium / Hard (similar to mode chips)
-3. Use QuestDifficultyBadge colors (green=easy, yellow=medium, red=hard)
-4. Place BELOW the mode filter chips
-
-TASK 3 — Add i18n keys:
-- quests.filterAll, quests.filterEasy, quests.filterMedium, quests.filterHard
-- Add to all 3 language files (en, ru, zh)
-
-FORBIDDEN: bot/ files, database/ files, test files, other components.
-
-BUILD VERIFY: cd mini-app && npm run build must pass.
-
-After completing work, write your retrospective in PARALLEL_AGENTS.md under "Run 57 Retrospectives" → "Agent C Retrospective", replacing the placeholder text. Then commit all changes.
-```
-
-**Agent D — Shared Avatar Data + UserAvatar Upgrade** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-d`):
-```
-Read c:\Users\Asus\Desktop\Wibecode-agent-d\PARALLEL_AGENTS.md — find "Run 57" and locate the "Agent D" section. You are Agent D.
-
-YOUR TASK: Extract shared avatar data to a central file and upgrade UserAvatar to show emojis.
-
-OWNED FILES:
-- mini-app/src/data/avatarOptions.ts (NEW)
-- mini-app/src/components/leaderboard/UserAvatar.tsx
-
-GRAY AREA:
-- mini-app/src/components/onboarding/AvatarSelect.tsx — refactor to import from avatarOptions.ts
-
-TASK 1 — Create mini-app/src/data/avatarOptions.ts:
-Extract from AvatarSelect.tsx (currently has 5 hardcoded avatars):
-```typescript
-export interface AvatarOption {
-  id: number;       // 1-indexed, matches users.avatar_id
-  value: string;    // 'gym_warrior', etc.
-  emoji: string;    // '💪', etc.
-  labelKey: string; // i18n key
-  descKey: string;  // i18n key
-}
-
-export const AVATAR_OPTIONS: AvatarOption[] = [
-  { id: 1, value: 'gym_warrior', emoji: '💪', labelKey: 'onboarding.avatarGymWarrior', descKey: 'onboarding.avatarGymWarriorDesc' },
-  { id: 2, value: 'office_boss', emoji: '👑', labelKey: 'onboarding.avatarOfficeBoss', descKey: 'onboarding.avatarOfficeBossDesc' },
-  { id: 3, value: 'magic_pet', emoji: '🐱', labelKey: 'onboarding.avatarMagicPet', descKey: 'onboarding.avatarMagicPetDesc' },
-  { id: 4, value: 'night_owl', emoji: '🦉', labelKey: 'onboarding.avatarNightOwl', descKey: 'onboarding.avatarNightOwlDesc' },
-  { id: 5, value: 'couch_hero', emoji: '🥔', labelKey: 'onboarding.avatarCouchHero', descKey: 'onboarding.avatarCouchHeroDesc' },
-];
-
-export const AVATAR_EMOJI_MAP: Record<number, string> = Object.fromEntries(
-  AVATAR_OPTIONS.map(a => [a.id, a.emoji])
-);
-
-export function getAvatarById(id: number): AvatarOption | undefined {
-  return AVATAR_OPTIONS.find(a => a.id === id);
-}
-```
-
-TASK 2 — Refactor AvatarSelect.tsx:
-Replace the hardcoded AVATARS array with `import { AVATAR_OPTIONS } from '@/data/avatarOptions'`. Map the existing usage to work with the new structure (the component uses value/labelKey/icon/descKey — map icon→emoji).
-
-TASK 3 — Upgrade UserAvatar.tsx:
-Add optional `avatarId` prop. When provided, show the emoji from AVATAR_EMOJI_MAP instead of the color+initial:
-```typescript
-interface UserAvatarProps {
-  userId: number;
-  firstName?: string;
-  username?: string;
-  avatarId?: number;  // NEW
-  size?: 'sm' | 'md' | 'lg';
-}
-```
-If avatarId is set and found in AVATAR_EMOJI_MAP, render the emoji. Otherwise fall back to the current color+initial behavior.
-
-FORBIDDEN: bot/ files, database/ files, test files, pages/.
-
-BUILD VERIFY: cd mini-app && npm run build must pass.
-
-After completing work, write your retrospective in PARALLEL_AGENTS.md under "Run 57 Retrospectives" → "Agent D Retrospective", replacing the placeholder text. Then commit all changes.
-```
-
-**Agent E — Leaderboard avatar_id** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-e`):
-```
-Read c:\Users\Asus\Desktop\Wibecode-agent-e\PARALLEL_AGENTS.md — find "Run 57" and locate the "Agent E" section. You are Agent E.
-
-YOUR TASK: Add avatar_id to leaderboard API responses and types.
-
-OWNED FILES:
-- bot/src/api/routes/leaderboard.ts
-- database/schema.sql (leaderboard_mv view ONLY)
-- database/migrations/run57_leaderboard_avatar.sql (NEW)
-
-GRAY AREA:
-- mini-app/src/types/user.ts — add avatar_id to LeaderboardEntry ONLY
-
-TASK 1 — Update leaderboard.ts:
-The file has 3 endpoints that return leaderboard data. In EACH query, add `u.avatar_id` to the SELECT clause:
-1. Mode-filtered leaderboard (line ~51): Add `u.avatar_id` after `u.total_xp`
-2. Default leaderboard (line ~97): Add `u.avatar_id` after `u.total_xp`
-3. Weekly leaderboard (line ~151): Add `u.avatar_id`
-4. Monthly leaderboard (line ~192): Add `u.avatar_id`
-
-In EACH response formatter, add `avatar_id: row.avatar_id` to the mapped object.
-
-Also update the LeaderboardEntryRow interface (defined at top of file) to include `avatar_id?: number`.
-
-TASK 2 — Update leaderboard_mv in schema.sql:
-Add `u.avatar_id` to the SELECT, and add it to the GROUP BY clause:
-```sql
-SELECT ..., u.avatar_id, ...
-FROM users u ...
-GROUP BY u.id, u.telegram_id, u.username, u.first_name, u.current_level, u.total_xp, u.avatar_id
-```
-
-TASK 3 — Create migration file database/migrations/run57_leaderboard_avatar.sql:
-```sql
--- Recreate leaderboard_mv with avatar_id
-DROP MATERIALIZED VIEW IF EXISTS leaderboard_mv;
-CREATE MATERIALIZED VIEW leaderboard_mv AS
-[updated query with avatar_id]
-;
-CREATE UNIQUE INDEX idx_leaderboard_mv_user_id ON leaderboard_mv(user_id);
-CREATE INDEX idx_leaderboard_mv_xp_rank ON leaderboard_mv(xp_rank);
-```
-
-TASK 4 — Update LeaderboardEntry type in mini-app/src/types/user.ts:
-Add `avatar_id?: number;` to the LeaderboardEntry interface.
-
-FORBIDDEN: mini-app components, hooks, test files, bot handlers/jobs.
-
-BUILD VERIFY: cd bot && npm run build must pass.
-
-After completing work, write your retrospective in PARALLEL_AGENTS.md under "Run 57 Retrospectives" → "Agent E Retrospective", replacing the placeholder text. Then commit all changes.
-```
-
-**Agent F — Tests for Run 57** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-f`):
-```
-Read c:\Users\Asus\Desktop\Wibecode-agent-f\PARALLEL_AGENTS.md — find "Run 57" and locate the "Agent F" section. You are Agent F.
-
-YOUR TASK: Write tests for quest assignment filtering, difficulty filter UI, avatar data, and leaderboard avatar_id.
-
-OWNED FILES (all NEW):
-- bot/src/__tests__/jobs/dailyQuestReset-fitness.test.ts
-- mini-app/src/__tests__/hooks/useQuestsData-difficulty.test.ts
-- mini-app/src/__tests__/data/avatarOptions.test.ts
-- bot/src/__tests__/routes/http/leaderboard-avatar.test.ts
-
-TASK 1 — dailyQuestReset-fitness.test.ts (~8-10 tests):
-Test quest assignment respects fitness level:
-- Beginner gets mostly easy quests
-- Intermediate gets mixed quests
-- Advanced gets mostly hard quests
-- Missing quiz_responses defaults to beginner
-- Empty fitness_level defaults to beginner
-Mock: db.query for mode_configs and quest selection
-
-TASK 2 — useQuestsData-difficulty.test.ts (~6-8 tests):
-Test difficulty filter state and filtering logic:
-- Initial state: selectedDifficulty is null (shows all)
-- Filter by 'easy' shows only easy quests
-- Filter by 'medium' shows only medium quests
-- Filter by 'hard' shows only hard quests
-- Combined mode + difficulty filter works
-- Resetting difficulty to null shows all again
-
-TASK 3 — avatarOptions.test.ts (~5-6 tests):
-- AVATAR_OPTIONS has 5 entries with all required fields
-- AVATAR_EMOJI_MAP maps all 5 IDs
-- getAvatarById returns correct avatar
-- getAvatarById returns undefined for invalid ID
-- All emoji values are non-empty strings
-
-TASK 4 — leaderboard-avatar.test.ts (~4-5 tests):
-Test leaderboard API includes avatar_id:
-- GET /api/leaderboard response includes avatar_id field
-- avatar_id is number or null
-- Mode-filtered leaderboard includes avatar_id
-- Weekly/monthly endpoints include avatar_id
-
-Use existing test patterns from the codebase. Mock db/cache as needed.
-
-FORBIDDEN: ALL source files (test-only agent).
-
-BUILD VERIFY: Run your test files with vitest.
-
-After completing work, write your retrospective in PARALLEL_AGENTS.md under "Run 57 Retrospectives" → "Agent F Retrospective", replacing the placeholder text. Then commit all changes.
-```
-
----
-
-### Agent A — Quest Template Rebalancing
-
-**Branch:** `feature/r57-quest-rebalance`
-**Worktree:** `../Wibecode-agent-a`
-
-**OWNED files:**
-- `database/seed_data.sql`
-- `database/migrations/run57_quest_rebalance.sql` (NEW)
-
-**FORBIDDEN:**
-- All bot/ files, mini-app files
-
----
-
-### Agent B — Quest Assignment Fitness Filtering
-
-**Branch:** `feature/r57-fitness-assignment`
-**Worktree:** `../Wibecode-agent-b`
-
-**OWNED files:**
-- `bot/src/jobs/definitions/dailyQuestReset.ts`
-- `bot/src/api/routes/quest-assignment.ts`
-
-**FORBIDDEN:**
-- All database/ files, mini-app files, test files
-
----
-
-### Agent C — Quest Difficulty Filter UI
-
-**Branch:** `feature/r57-difficulty-filter`
-**Worktree:** `../Wibecode-agent-c`
-
-**OWNED files:**
-- `mini-app/src/components/quests/QuestFilters.tsx`
-- `mini-app/src/hooks/useQuestsData.ts`
-
-**GRAY AREA:**
-- `mini-app/src/i18n/en.ts`, `ru.ts`, `zh.ts` — add `quests.filter*` keys only
-
-**FORBIDDEN:**
-- All bot/ files, database/ files, test files, other components
-
----
-
-### Agent D — Shared Avatar Data + UserAvatar Upgrade
-
-**Branch:** `feature/r57-avatar-shared`
-**Worktree:** `../Wibecode-agent-d`
-
-**OWNED files:**
-- `mini-app/src/data/avatarOptions.ts` (NEW)
-- `mini-app/src/components/leaderboard/UserAvatar.tsx`
-
-**GRAY AREA:**
-- `mini-app/src/components/onboarding/AvatarSelect.tsx` — refactor imports only
-
-**FORBIDDEN:**
-- All bot/ files, database/ files, test files, pages/
-
----
-
-### Agent E — Leaderboard avatar_id
-
-**Branch:** `feature/r57-leaderboard-avatar`
-**Worktree:** `../Wibecode-agent-e`
-
-**OWNED files:**
-- `bot/src/api/routes/leaderboard.ts`
-- `database/schema.sql` (leaderboard_mv view ONLY)
-- `database/migrations/run57_leaderboard_avatar.sql` (NEW)
-
-**GRAY AREA:**
-- `mini-app/src/types/user.ts` — add `avatar_id` to LeaderboardEntry ONLY
-
-**FORBIDDEN:**
-- All mini-app components, hooks, test files, bot handlers/jobs
-
----
-
-### Agent F — Tests for Run 57
-
-**Branch:** `feature/r57-tests`
-**Worktree:** `../Wibecode-agent-f`
-
-**OWNED files:**
-- `bot/src/__tests__/jobs/dailyQuestReset-fitness.test.ts` (NEW)
-- `mini-app/src/__tests__/hooks/useQuestsData-difficulty.test.ts` (NEW)
-- `mini-app/src/__tests__/data/avatarOptions.test.ts` (NEW)
-- `bot/src/__tests__/routes/http/leaderboard-avatar.test.ts` (NEW)
-
-**FORBIDDEN:**
-- ALL source files (test-only agent)
-
----
-
-### Run 57 File Ownership Matrix
-
-| File / Directory | A | B | C | D | E | F |
-|---|---|---|---|---|---|---|
-| `database/seed_data.sql` | **OWNED** | - | - | - | - | - |
-| `database/migrations/run57_quest*.sql` | **NEW** | - | - | - | - | - |
-| `database/migrations/run57_leader*.sql` | - | - | - | - | **NEW** | - |
-| `database/schema.sql` (view only) | - | - | - | - | **OWNED** | - |
-| `bot/jobs/dailyQuestReset.ts` | - | **OWNED** | - | - | - | - |
-| `bot/routes/quest-assignment.ts` | - | **OWNED** | - | - | - | - |
-| `bot/routes/leaderboard.ts` | - | - | - | - | **OWNED** | - |
-| `quests/QuestFilters.tsx` | - | - | **OWNED** | - | - | - |
-| `hooks/useQuestsData.ts` | - | - | **OWNED** | - | - | - |
-| `data/avatarOptions.ts` | - | - | - | **NEW** | - | - |
-| `leaderboard/UserAvatar.tsx` | - | - | - | **OWNED** | - | - |
-| `onboarding/AvatarSelect.tsx` | - | - | - | **GRAY** | - | - |
-| `types/user.ts` | - | - | - | - | **GRAY** | - |
-| `i18n/en.ts, ru.ts, zh.ts` | - | - | **GRAY** | - | - | - |
-| Test files (4 new) | - | - | - | - | - | **NEW** |
-| `PARALLEL_AGENTS.md` | retro | retro | retro | retro | retro | retro |
-
-### Run 57 Merge Order
-
-1. Agent A (quest templates) — data first
-2. Agent E (leaderboard avatar_id) — backend, independent
-3. Agent B (fitness-based assignment) — backend, uses quest templates
-4. Agent D (shared avatar data) — frontend, independent
-5. Agent C (difficulty filter UI) — frontend, independent
-6. Agent F (tests) — test only, merge last
-
-### Run 57 DB Migrations
-
-After merge, run on server:
-```bash
-PGPASSWORD=postgres psql -h localhost -U postgres -d telegram_rpg -f /opt/wibecode-bot/database/migrations/run57_quest_rebalance.sql
-PGPASSWORD=postgres psql -h localhost -U postgres -d telegram_rpg -f /opt/wibecode-bot/database/migrations/run57_leaderboard_avatar.sql
-```
-
-### Run 57 Retrospectives
-
-#### Agent A Retrospective
-- **Files changed**: `database/seed_data.sql` (updated quest templates), `database/migrations/run57_quest_rebalance.sql` (NEW)
-- **Before**: 20 quest templates — 9 easy, 11 medium, 0 hard. Fitness had no easy quests, hydration was 100% easy, learning was 100% medium, no hard quests anywhere.
-- **After**: 46 quest templates — 15 easy (33%), 18 medium (39%), 13 hard (28%). Every mode now has all 3 difficulty levels.
-- **New quests added (26)**: Fitness +6 (3 easy, 3 hard), Hydration +5 (3 medium, 2 hard), Finance +3 (1 medium, 2 hard), Learning +5 (3 easy, 2 hard), Medication +3 (1 medium, 2 hard), Habits +4 (2 medium, 2 hard).
-- **XP ranges**: Easy 15–40, Medium 30–50, Hard 80–300. Weekly quests have higher XP across all difficulties.
-- **Migration**: Uses `ON CONFLICT DO NOTHING` for safety, wrapped in transaction. Includes verification queries to confirm distribution after run.
-- **No issues encountered**. Straightforward data work.
-
-#### Agent B Retrospective
-- **Files modified**: `bot/src/jobs/definitions/dailyQuestReset.ts`, `bot/src/api/routes/quest-assignment.ts`
-- **What was done**: Added fitness-level-aware quest selection to both the daily quest reset job and the manual quest assignment API endpoint. Both now query `mode_configs.quiz_responses` for the user's `fitness_level` and bias template selection accordingly:
-  - **Beginner**: only easy+medium quests, easy preferred (70/30 bias via ORDER BY CASE)
-  - **Intermediate**: all difficulties, fully random
-  - **Advanced**: only medium+hard quests, hard preferred (80/20 bias via ORDER BY CASE)
-- **Graceful fallback**: Missing `mode_configs` row, NULL `quiz_responses`, or absent `fitness_level` key all default to 'beginner'
-- **Shared pattern**: Both files use identical `getUserFitnessLevel()` + `getDifficultyFilter()` helper functions (duplicated intentionally to avoid cross-file dependencies between jobs and routes)
-- **Build**: `npm run build` passes cleanly with no errors
-- **No issues encountered**: Straightforward implementation, no blockers
-
-#### Agent C Retrospective
-**Quest Difficulty Filter UI — completed successfully.**
-
-Changes made:
-1. **useQuestsData.ts** — Added `selectedDifficulty` state (`string | null`), inserted difficulty filter step in `currentQuests` useMemo (after mode filter, before sort), added to dependency array, exported both state + setter.
-2. **QuestFilters.tsx** — Added `selectedDifficulty` and `onDifficultySelect` props. Added `DIFFICULTY_OPTIONS` array with color-coded chips (green=easy, yellow=medium, red=hard). Rendered as a second row below mode chips.
-3. **i18n (en/ru/zh)** — Added `quests.filterAll`, `quests.filterEasy`, `quests.filterMedium`, `quests.filterHard` keys in all 3 languages.
-4. **Quests.tsx** — Wired up `selectedDifficulty`/`setSelectedDifficulty` from hook to QuestFilters component props.
-
-Notes:
-- Quests.tsx is a page (not a component), minimal 2-line change to pass through the new props. Necessary for the feature to actually work.
-- Used Tailwind `bg-green-500`/`bg-yellow-500`/`bg-red-500` for active chip colors (matching QuestDifficultyBadge's color scheme but with solid background for better chip UX).
-- Build passes cleanly (`tsc && vite build`).
-
-#### Agent D Retrospective
-- Created `mini-app/src/data/avatarOptions.ts` with `AvatarOption` interface, `AVATAR_OPTIONS` array, `AVATAR_EMOJI_MAP` lookup, and `getAvatarById` helper.
-- Refactored `AvatarSelect.tsx` to import from the shared data file instead of hardcoding avatars. Changed `icon` references to `emoji` to match the new interface.
-- Upgraded `UserAvatar.tsx` with optional `avatarId` prop. When `avatarId` is provided and found in `AVATAR_EMOJI_MAP`, renders the emoji on a neutral background. Falls back to the existing color+initial behavior otherwise. Added `EMOJI_SIZE_CLASSES` for proper emoji sizing at sm/md/lg.
-- Build passes cleanly, no issues encountered.
-
-#### Agent E Retrospective
-All 4 tasks completed cleanly. Added `u.avatar_id` to all 4 leaderboard SQL queries (mode-filtered, default, weekly, monthly), added `avatar_id: row.avatar_id ?? null` to all 4 response formatters, added `avatar_id?: number` to the `LeaderboardEntryRow` type. Updated `leaderboard_mv` in schema.sql with `u.avatar_id` in SELECT and GROUP BY. Created migration `run57_leaderboard_avatar.sql` that drops and recreates the view with indexes. Updated `LeaderboardEntry` interface in mini-app types. Bot build passes with zero errors. No conflicts with other agents' owned files.
-
-#### Agent F Retrospective
-**Status**: Complete — 4 test files written, 33 test cases total.
-
-**Files created**:
-- `bot/src/__tests__/jobs/dailyQuestReset-fitness.test.ts` — 10 tests for fitness-level-aware quest assignment
-- `mini-app/src/__tests__/hooks/useQuestsData-difficulty.test.ts` — 8 tests for difficulty filter state & filtering
-- `mini-app/src/__tests__/data/avatarOptions.test.ts` — 11 tests for AVATAR_OPTIONS, AVATAR_EMOJI_MAP, getAvatarById
-- `bot/src/__tests__/routes/http/leaderboard-avatar.test.ts` — 6 tests for avatar_id in all leaderboard endpoints
-
-**Pre-merge test results** (expected — other agents' code not yet merged):
-- dailyQuestReset-fitness: 7/10 pass (3 fail awaiting Agent B's mode_configs query logic)
-- useQuestsData-difficulty: 0/8 pass (all fail awaiting Agent C's selectedDifficulty state)
-- avatarOptions: 0/11 (import fails — awaiting Agent D's avatarOptions.ts file)
-- leaderboard-avatar: 0/6 pass (all fail awaiting Agent E's avatar_id in formatters)
-
-**Patterns followed**: Matched existing test conventions exactly — httpMocks.ts factories for bot HTTP tests, renderHook+act+waitFor for mini-app hook tests, vi.useFakeTimers for job tests. Used makeQuest factory and setupMocks helper consistent with existing useQuestsData.test.ts.
-
-**Notes for merge**: Tests should all pass after merging Agents B→E. If Agent B changes the mock sequence (e.g., queries mode_configs at a different point), the dailyQuestReset-fitness mocks may need reordering.
-
-#### Agent 0 Retrospective
-**Run 57 merge — 6 agents, all 6 branches merged cleanly (zero conflicts in source files).**
-**Merge:** All branches merged in order A→E→B→D→C→F. PARALLEL_AGENTS.md had expected auto-merge conflicts (retrospective sections) — all resolved automatically by git ort strategy.
-**Agent 0 fixes:** 10 test failures across 3 files:
-- `quest-assignment.http.test.ts` (7 failures): Agent B added `getUserFitnessLevel()` query between "get modes" and "get quests" — all 7 tests needed an extra `db.query.mockResolvedValueOnce([])` for the fitness level query. Also updated `mock.calls[1]` → `mock.calls[2]` in assertion tests.
-- `quests.http.test.ts` (1 failure): Same issue — assign test needed fitness level query mock.
-- `QuestFilters.test.tsx` (2 failures): Agent C added `selectedDifficulty`/`onDifficultySelect` required props + difficulty "All" chip duplicated mode "All" text. Fixed by adding new props + using `getAllByText('All')`.
-**Builds:** Bot (tsc) + Mini-app (tsc + vite) — both clean. 1652 tests pass (858 bot + 794 mini-app).
-**Deploy:** `fbc7ddb` — health check verified, notification sent.
-**DB migrations:** Pending — SSH key cache expired mid-session. User must run manually:
-- `run57_quest_rebalance.sql` — adds 26 new quest templates
-- `run57_leaderboard_avatar.sql` — recreates leaderboard_mv with avatar_id
-**Cleanup:** 6 worktrees removed, 6 feature branches deleted.
-**Issues carried forward:**
-- pg-boss Node.js 22.12+ requirement (server has 20.20)
-- safeParseInt + isNaN pattern audit still pending (Known Issue #9)
-- SubscriptionSettings.tsx duplicates MODE_LIMITS (Known Issue #10)
-- Leaderboard UI doesn't pass avatar_id to UserAvatar (backend returns it, frontend ignores it)
-
-## Run 58: Security Audit + Code Quality + Leaderboard Polish (4 Agents + Agent 0)
-
-**Date**: 2026-02-13
-**Agents**: 4 (A-D) + Agent 0
-**Goal**: Fix safeParseInt+isNaN security gap, refactor 400-line planGenerator, wire avatar emojis into leaderboard UI, deduplicate MODE_LIMITS.
-
-**Current state (from codebase audit):**
-- safeParseInt + isNaN pattern: when followed by isNaN() check, default MUST be NaN, not 0. Multiple routes use `safeParseInt(x, 0)` then `isNaN()` → validation bypassed for garbage input
-- planGenerator.ts is 400 lines — largest bot utility file, can split into 3 modules
-- Leaderboard API returns avatar_id (Run 57 Agent E) but TopThreeCard + LeaderboardRow don't pass it to UserAvatar
-- SubscriptionSettings.tsx defines MODE_LIMITS locally instead of importing from constants/tiers.ts
-
----
-
-### Run 58 Copy-Paste Prompts
-
-**Agent A — safeParseInt + isNaN Security Audit** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-a`):
-```
-Read c:\Users\Asus\Desktop\Wibecode-agent-a\PARALLEL_AGENTS.md — find "Run 58" and locate the "Agent A" section. You are Agent A.
-
-YOUR TASK: Audit ALL routes for the safeParseInt + isNaN pattern. Where safeParseInt is followed by isNaN() check, change the default from 0 to NaN.
-
-OWNED FILES:
-- bot/src/api/routes/analytics.ts
-- bot/src/api/routes/checkins.ts
-- bot/src/api/routes/users.ts
-- bot/src/api/routes/finance.ts
-
-CONTEXT: safeParseInt("abc", 0) returns 0. If code then checks isNaN(result), the check passes (0 is not NaN) and garbage input is treated as userId=0. Fix: use NaN as default when isNaN() validation follows.
-
-TASK 1 — Grep for the pattern:
-Search for `safeParseInt` in all route files. For EACH occurrence, check if it's followed by an `isNaN()` check. If yes, change the default to NaN.
-
-Pattern to fix:
-```typescript
-// BEFORE (broken):
-const userId = safeParseInt(req.params.userId, 0);
-if (isNaN(userId)) throw new BadRequestError('Invalid userId');
-
-// AFTER (correct):
-const userId = safeParseInt(req.params.userId, NaN);
-if (isNaN(userId)) throw new BadRequestError('Invalid userId');
-```
-
-Pattern to LEAVE ALONE (these are correct as-is):
-```typescript
-// No isNaN check follows — 0 is a valid fallback:
-const page = safeParseInt(req.query.page, 1);
-const limit = safeParseInt(req.query.limit, 20);
-```
-
-TASK 2 — Verify no regressions:
-After fixing, run `cd bot && npm run build` to ensure TypeScript compiles.
-
-FORBIDDEN: Do NOT modify mini-app files, middleware files, test files, or validation.ts itself.
-
-BUILD VERIFY: cd bot && npm run build must pass.
-
-After completing work, write your retrospective in PARALLEL_AGENTS.md under "Run 58 Retrospectives" → "Agent A Retrospective", replacing the placeholder text. Then commit all changes.
-```
-
-**Agent B — Split planGenerator.ts** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-b`):
-```
-Read c:\Users\Asus\Desktop\Wibecode-agent-b\PARALLEL_AGENTS.md — find "Run 58" and locate the "Agent B" section. You are Agent B.
-
-YOUR TASK: Split bot/src/utils/planGenerator.ts (400 lines) into 3 focused modules.
-
-OWNED FILES:
-- bot/src/utils/planGenerator.ts (refactor into orchestrator)
-- bot/src/utils/fitnessPlanGenerator.ts (NEW)
-- bot/src/utils/hydrationPlanGenerator.ts (NEW)
-- bot/src/utils/planTypes.ts (NEW)
-
-TASK 1 — Create planTypes.ts:
-Extract ALL type definitions from planGenerator.ts:
-- QuizResponses interface
-- ModeConfig interface
-- FitnessPlan, FitnessScheduleDay, HydrationPlan, HydrationTargets
-- EXERCISE_POOL constant (if it's a type-adjacent constant)
-
-TASK 2 — Create fitnessPlanGenerator.ts:
-Move these functions from planGenerator.ts:
-- generateFitnessPlan()
-- pickExercises()
-- durationForLevel()
-- buildFocusRotation()
-- buildFitnessRecommendations()
-- EXERCISE_POOL constant
-Import types from planTypes.ts. Export generateFitnessPlan as the main entry point.
-
-TASK 3 — Create hydrationPlanGenerator.ts:
-Move these functions:
-- generateHydrationPlan()
-- buildHydrationRecommendations()
-Import types from planTypes.ts. Export generateHydrationPlan as the main entry point.
-
-TASK 4 — Slim down planGenerator.ts:
-Keep ONLY the orchestrator function: generatePlan(modeConfig). It should:
-1. Import generateFitnessPlan from './fitnessPlanGenerator.js'
-2. Import generateHydrationPlan from './hydrationPlanGenerator.js'
-3. Import types from './planTypes.js'
-4. Switch on modeConfig.mode_name and delegate to the right generator
-Target: ~50-80 lines max.
-
-IMPORTANT: Use .js extensions in all import paths (ESM project).
-
-FORBIDDEN: Do NOT modify mini-app files, route files, test files, or any other utility files.
-
-BUILD VERIFY: cd bot && npm run build must pass.
-
-After completing work, write your retrospective in PARALLEL_AGENTS.md under "Run 58 Retrospectives" → "Agent B Retrospective", replacing the placeholder text. Then commit all changes.
-```
-
-**Agent C — Leaderboard Avatar Integration + SubscriptionSettings Cleanup** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-c`):
-```
-Read c:\Users\Asus\Desktop\Wibecode-agent-c\PARALLEL_AGENTS.md — find "Run 58" and locate the "Agent C" section. You are Agent C.
-
-YOUR TASK: Wire avatar_id into Leaderboard UI components + deduplicate MODE_LIMITS in SubscriptionSettings.
-
-OWNED FILES:
-- mini-app/src/components/leaderboard/TopThreeCard.tsx
-- mini-app/src/components/leaderboard/LeaderboardRow.tsx
-- mini-app/src/components/settings/SubscriptionSettings.tsx
-
-TASK 1 — TopThreeCard.tsx:
-The leaderboard API now returns avatar_id (Run 57). The LeaderboardEntry type already has `avatar_id?: number`.
-1. Pass `avatarId={entry.avatar_id}` to the UserAvatar component (currently only passes userId, firstName, username, size)
-2. This is a 1-line change per UserAvatar call
-
-TASK 2 — LeaderboardRow.tsx:
-Same as above:
-1. Pass `avatarId={entry.avatar_id}` to UserAvatar
-2. 1-line change
-
-TASK 3 — SubscriptionSettings.tsx:
-1. Remove the local MODE_LIMITS definition (lines ~10-14)
-2. Import MODE_LIMITS from '@/constants/tiers'
-3. Import useSubscription from '@/hooks/useSubscription' if it simplifies the component's data fetching
-4. Verify the imported MODE_LIMITS matches the local values (free:2, subscriber:3, premium:6)
-
-FORBIDDEN: bot/ files, database/ files, test files, hooks/ (except importing), types/.
-
-BUILD VERIFY: cd mini-app && npm run build must pass.
-
-After completing work, write your retrospective in PARALLEL_AGENTS.md under "Run 58 Retrospectives" → "Agent C Retrospective", replacing the placeholder text. Then commit all changes.
-```
-
-**Agent D — Tests for Run 58 Changes** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-d`):
-```
-Read c:\Users\Asus\Desktop\Wibecode-agent-d\PARALLEL_AGENTS.md — find "Run 58" and locate the "Agent D" section. You are Agent D.
-
-YOUR TASK: Write tests for the planGenerator split and safeParseInt fixes.
-
-OWNED FILES (all NEW):
-- bot/src/__tests__/utils/planGenerator.test.ts (NEW or update if exists)
-- bot/src/__tests__/utils/fitnessPlanGenerator.test.ts (NEW)
-- bot/src/__tests__/utils/hydrationPlanGenerator.test.ts (NEW)
-
-TASK 1 — planGenerator.test.ts (~5-6 tests):
-Test the orchestrator function:
-- generatePlan with mode_name='fitness' delegates to fitness generator
-- generatePlan with mode_name='hydration' delegates to hydration generator
-- generatePlan with unknown mode returns null/undefined
-- QuizResponses type narrowing works correctly
-
-TASK 2 — fitnessPlanGenerator.test.ts (~8-10 tests):
-Test fitness plan generation:
-- generateFitnessPlan with beginner level
-- generateFitnessPlan with intermediate level
-- generateFitnessPlan with advanced level
-- Plan includes weekly schedule (7 days)
-- Plan includes recommendations
-- pickExercises returns correct count
-- durationForLevel returns expected values per level
-- buildFocusRotation returns 7-day rotation
-- Missing/empty quiz responses defaults to beginner
-
-TASK 3 — hydrationPlanGenerator.test.ts (~6-8 tests):
-Test hydration plan generation:
-- generateHydrationPlan with default responses
-- Plan includes daily target
-- Plan includes recommendations
-- buildHydrationRecommendations returns non-empty array
-- Different weight inputs produce different targets
-- Missing quiz responses use defaults
-
-PATTERN: Read existing util tests for patterns:
-- bot/src/__tests__/utils/validation.test.ts
-- bot/src/__tests__/utils/streak.test.ts
-
-NOTE: Agent B is splitting planGenerator.ts into 3 files. Your tests should import from the NEW file locations (fitnessPlanGenerator.ts, hydrationPlanGenerator.ts, planTypes.ts). If the imports fail because Agent B hasn't merged yet, that's expected — tests will pass after merge.
-
-Target: ~20-24 tests across 3 files.
-
-FORBIDDEN: ALL source files (test-only agent).
-
-BUILD VERIFY: cd bot && npx vitest --run src/__tests__/utils/planGenerator.test.ts src/__tests__/utils/fitnessPlanGenerator.test.ts src/__tests__/utils/hydrationPlanGenerator.test.ts
-
-After completing work, write your retrospective in PARALLEL_AGENTS.md under "Run 58 Retrospectives" → "Agent D Retrospective", replacing the placeholder text. Then commit all changes.
-```
-
----
-
-### Agent A — safeParseInt + isNaN Security Audit
-
-**Branch:** `feature/r58-parseint-audit`
-**Worktree:** `../Wibecode-agent-a`
-
-**OWNED files:**
-- `bot/src/api/routes/analytics.ts`
-- `bot/src/api/routes/checkins.ts`
-- `bot/src/api/routes/users.ts`
-- `bot/src/api/routes/finance.ts`
-
-**FORBIDDEN:**
-- All mini-app files, middleware files, test files, validation.ts
-
----
-
-### Agent B — Split planGenerator.ts
-
-**Branch:** `feature/r58-plan-generator-split`
-**Worktree:** `../Wibecode-agent-b`
-
-**OWNED files:**
-- `bot/src/utils/planGenerator.ts` (refactor)
-- `bot/src/utils/fitnessPlanGenerator.ts` (NEW)
-- `bot/src/utils/hydrationPlanGenerator.ts` (NEW)
-- `bot/src/utils/planTypes.ts` (NEW)
-
-**FORBIDDEN:**
-- All mini-app files, route files, test files
-
----
-
-### Agent C — Leaderboard Avatar Integration + SubscriptionSettings Cleanup
-
-**Branch:** `feature/r58-leaderboard-avatars`
-**Worktree:** `../Wibecode-agent-c`
-
-**OWNED files:**
-- `mini-app/src/components/leaderboard/TopThreeCard.tsx`
-- `mini-app/src/components/leaderboard/LeaderboardRow.tsx`
-- `mini-app/src/components/settings/SubscriptionSettings.tsx`
-
-**FORBIDDEN:**
-- All bot/ files, database/ files, test files, hooks/, types/
-
----
-
-### Agent D — Tests for Run 58 Changes
-
-**Branch:** `feature/r58-tests`
-**Worktree:** `../Wibecode-agent-d`
-
-**OWNED files:**
-- `bot/src/__tests__/utils/planGenerator.test.ts` (NEW or update)
-- `bot/src/__tests__/utils/fitnessPlanGenerator.test.ts` (NEW)
-- `bot/src/__tests__/utils/hydrationPlanGenerator.test.ts` (NEW)
-
-**FORBIDDEN:**
-- ALL source files (test-only agent)
-
----
-
-### Run 58 File Ownership Matrix
-
-| File / Directory | A | B | C | D |
-|---|---|---|---|---|
-| `bot/routes/analytics.ts` | **OWNED** | - | - | - |
-| `bot/routes/checkins.ts` | **OWNED** | - | - | - |
-| `bot/routes/users.ts` | **OWNED** | - | - | - |
-| `bot/routes/finance.ts` | **OWNED** | - | - | - |
-| `bot/utils/planGenerator.ts` | - | **OWNED** | - | - |
-| `bot/utils/fitnessPlanGenerator.ts` | - | **NEW** | - | - |
-| `bot/utils/hydrationPlanGenerator.ts` | - | **NEW** | - | - |
-| `bot/utils/planTypes.ts` | - | **NEW** | - | - |
-| `leaderboard/TopThreeCard.tsx` | - | - | **OWNED** | - |
-| `leaderboard/LeaderboardRow.tsx` | - | - | **OWNED** | - |
-| `settings/SubscriptionSettings.tsx` | - | - | **OWNED** | - |
-| `__tests__/utils/planGenerator.test.ts` | - | - | - | **NEW** |
-| `__tests__/utils/fitnessPlanGenerator.test.ts` | - | - | - | **NEW** |
-| `__tests__/utils/hydrationPlanGenerator.test.ts` | - | - | - | **NEW** |
-| `PARALLEL_AGENTS.md` | retro | retro | retro | retro |
-
-### Run 58 Merge Order
-
-1. Agent A (safeParseInt audit) — security fix first
-2. Agent B (planGenerator split) — backend refactoring
-3. Agent C (leaderboard avatars + subscription cleanup) — frontend
-4. Agent D (tests) — test only, merge last
-
-### Run 58 Retrospectives
-
-#### Agent A Retrospective
-- **Task**: Audit all safeParseInt + isNaN patterns in owned route files (analytics.ts, checkins.ts, users.ts, finance.ts).
-- **Files changed**: None — all 4 owned files were already correct.
-- **Audit results**:
-  - `analytics.ts`: 3 safeParseInt calls, all already use `NaN` default with `isNaN()`. No changes needed.
-  - `checkins.ts`: 5 safeParseInt calls — 2 with `isNaN()` already use `NaN`, 1 direct comparison, 2 pagination. No changes needed.
-  - `users.ts`: 2 safeParseInt calls — 1 already uses `NaN` + `isNaN()`, 1 uses `0` with no isNaN check. No changes needed.
-  - `finance.ts`: 5 safeParseInt calls — 1 already uses `NaN` + `isNaN()`, 2 use `0` with `Number.isInteger + <= 0` check, 2 use `0` with no isNaN. No changes needed.
-- **Conclusion**: The safeParseInt + isNaN vulnerability was already fully patched across all route files. Known Issue #9 can be marked as resolved.
-
-#### Agent B Retrospective
-- **Files created**: `bot/src/utils/planTypes.ts` (52 lines), `bot/src/utils/fitnessPlanGenerator.ts` (180 lines), `bot/src/utils/hydrationPlanGenerator.ts` (116 lines)
-- **Files modified**: `bot/src/utils/planGenerator.ts` (400→48 lines)
-- **What was done**: Split the monolithic planGenerator.ts into 3 focused modules + slim orchestrator.
-- **Backward compatibility**: All types re-exported from planGenerator.ts via `export type {...} from './planTypes.js'`, so existing imports still work.
-- **Build**: passes cleanly, no issues.
-
-#### Agent C Retrospective
-- **Task**: Wire avatar_id into Leaderboard UI + deduplicate MODE_LIMITS in SubscriptionSettings.
-- **Result**: All 3 tasks completed. Build passes clean (tsc + vite build).
-- TopThreeCard.tsx: Added `avatarId={entry.avatar_id}` to UserAvatar (1-line change)
-- LeaderboardRow.tsx: Same — added `avatarId={entry.avatar_id}` to UserAvatar (1-line change)
-- SubscriptionSettings.tsx: Removed local `SubscriptionTier` type and `MODE_LIMITS` constant, imported both from `@/constants/tiers` and `@/types`
-
-#### Agent D Retrospective
-- **Files changed**: `planGenerator.test.ts` (rewritten), `fitnessPlanGenerator.test.ts` (NEW), `hydrationPlanGenerator.test.ts` (NEW)
-- **Test counts**: 6 orchestrator + 21 fitness + 13 hydration = 40 total (target was ~20-24, exceeded for better coverage)
-- **Pre-merge results**: planGenerator.test.ts 6/6 pass. fitnessPlanGenerator/hydrationPlanGenerator tests fail on import (expected — Agent B's split files don't exist yet). All tests will pass after Agent B's merge.
-
-#### Agent 0 Retrospective
-- **Merge order**: Skipped Agent A (no source changes — all routes already patched), merged B→C→D.
-- **PARALLEL_AGENTS.md conflicts**: All 3 merges conflicted on this file (agents branched before Run 58 section was committed). Used `git checkout --ours` then manually spliced agent retros.
-- **Post-merge test failures (19)**: Agent D's tests imported helper functions (`pickExercises`, `durationForLevel`, `buildFocusRotation`, `buildHydrationRecommendations`) that Agent B left as private. Fix: added `export` to 4 helper functions in fitnessPlanGenerator.ts (3) and hydrationPlanGenerator.ts (1).
-- **Test results**: 1668 passed (874 bot + 794 mini-app). Zero failures.
-- **Deploy**: Server `tsc: not found` on first attempt due to `--omit=dev`. Fixed with full `npm install`. Code live at `9f74ea9`.
-- **Known Issues resolved**: #9 (safeParseInt+isNaN — Agent A confirmed all already patched), #10 (MODE_LIMITS dedup — Agent C imported from constants/tiers).
-- **Lesson**: When designing prompts for split + test agents, explicitly tell the split agent to export helpers that tests will need. Agent B's prompt said "Export generateFitnessPlan as the main entry point" — should have said "Export all public functions including helpers".
-
----
 
 ## Run 59: Stars Payment Integration + Celebration Animations (4 Agents + Agent 0)
 
@@ -2419,6 +766,328 @@ After completing work, write your retrospective in PARALLEL_AGENTS.md under "Run
 - **IMPORTANT**: paymentHelpers.test.ts imports `isValidTier`, `isPositiveInteger`, `verifyWebhookSecret` — Agent A must export all 3.
 
 #### Agent 0 Retrospective
-*(To be filled by Agent 0 after merge)*
+**Merge**: All 4 branches merged in order A→B→C→D. Only PARALLEL_AGENTS.md conflicted (expected — resolved with `--ours` + manual retro splice). i18n files (en/ru/zh.ts) auto-merged cleanly between Agent B (subscription keys) and Agent C (celebrations namespace).
 
-<!-- Next run goes here. Agent 0 will append RUN 60 below this line. -->
+**Post-merge test failures (15 total, all fixed):**
+- **usePayment.test.ts (7)** — Agent D wrote tests against assumed API but Agent B's actual hook had different signature: `usePayment({ userId })` not `usePayment()`, `initiatePayment(tier, amount)` not `initiatePayment(id, tier, amount)`, snake_case `payment_id` not camelCase. Also missing logger mock and real `setTimeout(1500)` caused 5s timeout. Fixed: updated all call signatures, added logger mock, used `vi.useFakeTimers()` + `vi.advanceTimersByTimeAsync(2000)`, added `is_active: true` for polling exit.
+- **LevelUpModal.test.tsx (1)** — Test clicked level number (inner div with `stopPropagation`), but `onClose` is on backdrop. Fixed: click `container.querySelector('.fixed')`.
+- **AchievementToast.test.tsx (3)** — Agent C added Confetti import to source but existing test had no mock. Fixed: added `vi.mock` for Confetti + AnimatePresence.
+
+**Result**: 1707 tests pass (892 bot + 815 mini-app). Deployed commit `52c0048`. Archived Runs 55-58 to history (main file: 2424→773 lines).
+
+**Lessons**: Agent D (test agent) needs the exact function signatures from source agents. Consider having test agents read the actual source files rather than guessing from prompts. Alternatively, merge source agents first, then let the test agent work on merged code.
+
+<!-- Next run goes here. Agent 0 will append RUN 61 below this line. -->
+
+## Run 60: Stars Payment Flow + Dashboard Celebrations (3 Agents + Agent 0)
+
+**Date**: 2026-02-14
+**Agents**: 3 (A-C) + Agent 0
+**Goal**: Complete the Telegram Stars payment end-to-end flow (backend invoice creation + bot payment handlers + mini-app fix), and wire celebration animations (built in Run 59) into the Dashboard page.
+
+**Current state (from codebase audit):**
+- Backend `POST /payments/create` creates a DB record but does NOT generate a Telegram Stars invoice — no `createInvoiceLink` call (Known Issue #12)
+- Bot has NO `pre_checkout_query` or `successful_payment` handlers — Telegram Stars payments cannot complete
+- Mini-app `usePayment.ts` constructs a fake URL `https://t.me/$BOT?startattach=pay_ID` — this won't open a Stars payment dialog
+- Celebration components (Confetti, LevelUpModal, XpFloat, useCelebration) are built but NOT rendered in any page (Known Issue #11)
+- 1707 tests currently passing
+
+---
+
+### Run 60 Copy-Paste Prompts
+
+**Agent A — Stars Payment Backend** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-a`):
+```
+Read c:\Users\Asus\Desktop\Wibecode-agent-a\PARALLEL_AGENTS.md — find "Run 60" and locate the "Agent A" section. You are Agent A.
+
+YOUR TASK: Complete the Telegram Stars payment backend — create real invoices via Bot API and handle payment events.
+
+OWNED FILES:
+- bot/src/handlers/payments.ts (NEW — Grammy payment handlers)
+- bot/src/api/routes/payments.ts (modify — create real invoice in POST /create)
+- bot/src/utils/paymentHelpers.ts (modify — add TIER_PRICES constant)
+
+GRAY AREA:
+- bot/src/index.ts — ONLY add handler import + registration lines (2-3 lines max)
+
+TASK 1 — Create bot/src/handlers/payments.ts:
+Grammy handlers for the Telegram Stars payment flow:
+a) pre_checkout_query handler:
+   - Verify the payment: check that the payload contains a valid payment_id, the amount matches
+   - Call ctx.answerPreCheckoutQuery(true) to approve, or false with error message to reject
+   - Log the pre-checkout event
+b) successful_payment handler (on 'message:successful_payment'):
+   - Extract payment details from ctx.message.successful_payment
+   - Update the payments table: SET status='completed', telegram_payment_charge_id=..., provider_payment_charge_id=...
+   - Upgrade the user's subscription tier (upsert into subscriptions table)
+   - Send a confirmation message to the user
+   - Log the success
+
+Import the bot type from bot.ts: `import type { MyContext } from '../bot.js'`
+Use the database utilities: `import { query, queryOne, execute } from '../utils/db.js'`
+
+TASK 2 — Modify bot/src/api/routes/payments.ts:
+In the POST /create handler, AFTER creating the pending payment record:
+- Import the bot instance: `import { bot } from '../../bot.js'`
+- Use `bot.api.createInvoiceLink()` to generate a real Telegram Stars invoice:
+  ```typescript
+  const invoiceUrl = await bot.api.createInvoiceLink(
+    'Premium Subscription',           // title
+    'Upgrade to Premium tier (6 modes, all features)', // description
+    JSON.stringify({ payment_id: payment.id, tier }), // payload
+    '',                                // provider_token (empty for Stars)
+    'XTR',                            // currency (Telegram Stars)
+    [{ label: 'Premium', amount: numericAmount }], // prices (LabeledPrice[])
+  );
+  ```
+- Return `invoice_url` in the response alongside other fields
+
+TASK 3 — Add TIER_PRICES to paymentHelpers.ts:
+Add a constant mapping tier names to their Star prices:
+```typescript
+export const TIER_PRICES: Record<string, number> = {
+  premium: 599,
+};
+```
+This is used by the pre_checkout_query handler to verify amounts.
+
+TASK 4 — Register handlers in index.ts (GRAY AREA):
+Add these lines after the existing handler registrations:
+```typescript
+import { handlePreCheckout, handleSuccessfulPayment } from './handlers/payments.js';
+bot.on('pre_checkout_query', handlePreCheckout);
+bot.on('message:successful_payment', handleSuccessfulPayment);
+```
+
+IMPORTANT: Use .js extensions in all import paths (ESM project).
+IMPORTANT: The bot instance is exported as `export const bot = new Bot<MyContext>(botToken)` from bot.ts. You can import it in payments.ts route.
+
+FORBIDDEN: Do NOT modify mini-app files, test files, celebration components, or other route files.
+
+BUILD VERIFY: cd bot && npm run build must pass.
+
+After completing work, write your retrospective in PARALLEL_AGENTS.md under "Run 60 Retrospectives" → "Agent A Retrospective", replacing the placeholder text. Then commit all changes.
+```
+
+**Agent B — Dashboard Celebrations + Stars Mini-App Fix** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-b`):
+```
+Read c:\Users\Asus\Desktop\Wibecode-agent-b\PARALLEL_AGENTS.md — find "Run 60" and locate the "Agent B" section. You are Agent B.
+
+YOUR TASK: Wire celebration animations into the Dashboard page and fix the Stars payment mini-app to use real invoice URLs.
+
+OWNED FILES:
+- mini-app/src/pages/Dashboard.tsx (modify — render celebration components)
+- mini-app/src/hooks/useDashboardData.ts (modify — call onDashboardData for celebrations)
+- mini-app/src/hooks/usePayment.ts (modify — use invoice_url from API response)
+- mini-app/src/api/payments.ts (modify — add invoice_url to response type)
+
+TASK 1 — Wire celebrations into Dashboard.tsx:
+Import and render the celebration components:
+```tsx
+import { useCelebration } from '@/hooks/useCelebration';
+import { Confetti } from '@/components/celebrations/Confetti';
+import { LevelUpModal } from '@/components/celebrations/LevelUpModal';
+import { XpFloat } from '@/components/celebrations/XpFloat';
+```
+
+In the Dashboard component:
+a) Call useCelebration hook:
+   ```tsx
+   const {
+     showConfetti, showLevelUp, showXpFloat,
+     levelUpData, xpGained,
+     dismissConfetti, dismissLevelUp, dismissXpFloat,
+   } = useCelebration();
+   ```
+b) Render celebration components at the BOTTOM of the JSX (before closing </div>), after the AchievementToast:
+   ```tsx
+   <Confetti show={showConfetti} onComplete={dismissConfetti} />
+   <LevelUpModal level={levelUpData} show={showLevelUp} onClose={dismissLevelUp} />
+   <XpFloat amount={xpGained} show={showXpFloat} onComplete={dismissXpFloat} />
+   ```
+c) Add haptic feedback: when showLevelUp becomes true, call haptic.impact('heavy'). When showXpFloat becomes true, call haptic.impact('light'). Use a useEffect for this.
+
+TASK 2 — Connect dashboard data to celebrations in useDashboardData.ts:
+The useCelebration hook exposes `onDashboardData(level, xp)`. Call it whenever stats are loaded:
+a) Accept `onDashboardData` as an optional callback in the hook params
+b) After stats are successfully loaded (inside `loadUserStats`), call:
+   ```typescript
+   onDashboardData?.(response.data.user.level, response.data.user.xp);
+   ```
+c) In Dashboard.tsx, pass `onDashboardData` from useCelebration to useDashboardData:
+   ```tsx
+   const { onDashboardData, ... } = useCelebration();
+   const { stats, ... } = useDashboardData({ userId: user?.id, haptic, onDashboardData });
+   ```
+
+TASK 3 — Fix usePayment.ts to use real invoice URL:
+The backend (Agent A) will now return `invoice_url` in the POST /create response. Update:
+a) In `mini-app/src/api/payments.ts`: Add `invoice_url: string` to `CreatePaymentResponse` interface
+b) In `mini-app/src/hooks/usePayment.ts`:
+   - Remove the fake URL construction: `const invoiceUrl = \`https://t.me/$\${...}\``
+   - Instead, use the real URL from the response: `const invoiceUrl = payment.invoice_url`
+   - Keep the rest of the flow (openInvoice, polling) as-is
+
+CONTEXT:
+- useCelebration hook (Run 59): tracks level/xp in localStorage, compares on each call. Returns show* booleans + dismiss callbacks.
+- Confetti renders 40 particles, auto-dismisses. LevelUpModal shows level number, auto-closes 3s. XpFloat shows "+X XP" floating up.
+- Dashboard currently gets stats from useDashboardData which returns stats.user.level and stats.user.xp.
+
+Read the existing celebration files to understand their props:
+- mini-app/src/hooks/useCelebration.ts
+- mini-app/src/components/celebrations/Confetti.tsx
+- mini-app/src/components/celebrations/LevelUpModal.tsx
+- mini-app/src/components/celebrations/XpFloat.tsx
+
+FORBIDDEN: bot/ files, database/ files, test files, celebration component source files (don't modify Confetti/LevelUpModal/XpFloat/useCelebration).
+
+BUILD VERIFY: cd mini-app && npm run build must pass.
+
+After completing work, write your retrospective in PARALLEL_AGENTS.md under "Run 60 Retrospectives" → "Agent B Retrospective", replacing the placeholder text. Then commit all changes.
+```
+
+**Agent C — Tests for Run 60 Changes** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-c`):
+```
+Read c:\Users\Asus\Desktop\Wibecode-agent-c\PARALLEL_AGENTS.md — find "Run 60" and locate the "Agent C" section. You are Agent C.
+
+YOUR TASK: Write tests for the Stars payment handlers and Dashboard celebration integration.
+
+OWNED FILES (all NEW or update):
+- bot/src/__tests__/handlers/payments.test.ts (NEW)
+- mini-app/src/__tests__/hooks/usePayment.test.ts (UPDATE — add invoice URL tests)
+- mini-app/src/__tests__/pages/DashboardCelebrations.test.tsx (NEW)
+
+TASK 1 — bot/src/__tests__/handlers/payments.test.ts (~10-12 tests):
+Test the Grammy payment event handlers:
+a) pre_checkout_query handler:
+   - Approves valid payment with correct amount
+   - Rejects payment with invalid payload
+   - Rejects payment with mismatched amount
+   - Calls ctx.answerPreCheckoutQuery with correct arguments
+b) successful_payment handler:
+   - Updates payment status to 'completed' in DB
+   - Upserts subscription with correct tier
+   - Sends confirmation message to user
+   - Handles missing payment record gracefully
+
+PATTERN: Read existing handler test files for conventions:
+- bot/src/__tests__/handlers/settings.test.ts
+- bot/src/__tests__/handlers/stats.test.ts
+Grammy handler tests typically mock ctx with: ctx.answerPreCheckoutQuery, ctx.reply, ctx.message, ctx.preCheckoutQuery, etc.
+
+TASK 2 — Update mini-app/src/__tests__/hooks/usePayment.test.ts (~3-4 new tests):
+Add tests for the updated invoice URL behavior:
+- Verify initiatePayment uses invoice_url from API response (not a constructed URL)
+- Mock createPayment to return { ..., invoice_url: 'https://example.com/invoice' }
+- Verify WebApp.openInvoice is called with the response URL
+- Keep existing tests working (they should still pass with the updated mock shape)
+
+IMPORTANT: Read the CURRENT usePayment.test.ts first — it was heavily rewritten by Agent 0 in Run 59 merge. Match the existing patterns (vi.useFakeTimers, renderHook with { userId: 42 }, etc.).
+
+TASK 3 — mini-app/src/__tests__/pages/DashboardCelebrations.test.tsx (~6-8 tests):
+Test that the Dashboard renders celebration components:
+- Level up: when stats.user.level increases, LevelUpModal appears
+- XP gain: when stats.user.xp increases, XpFloat appears
+- Confetti: shows alongside LevelUpModal on level up
+- Dismiss: celebrations disappear after timeout
+- No celebration on first load (baseline initialization)
+
+PATTERN: Read the existing Dashboard test approach. Mock useDashboardData to return controlled stats. Mock useCelebration to control show* flags. Render Dashboard and assert celebration components are present.
+You'll need to mock: useDashboardData, useCelebration, useTelegram, react-router-dom, framer-motion, celebration components.
+
+NOTE: Agent A is modifying backend payment handlers, Agent B is wiring celebrations into Dashboard. Your tests import from the NEW/MODIFIED locations. If imports fail because other agents haven't merged yet, that's expected — tests will pass after merge.
+
+FORBIDDEN: ALL source files (test-only agent).
+
+BUILD VERIFY: Run your tests after Agent A/B merge: cd bot && npx vitest --run src/__tests__/handlers/payments.test.ts && cd ../mini-app && npx vitest --run src/__tests__/hooks/usePayment.test.ts src/__tests__/pages/DashboardCelebrations.test.tsx
+
+After completing work, write your retrospective in PARALLEL_AGENTS.md under "Run 60 Retrospectives" → "Agent C Retrospective", replacing the placeholder text. Then commit all changes.
+```
+
+---
+
+### Agent A — Stars Payment Backend
+
+**Branch:** `feature/r60-stars-backend`
+**Worktree:** `../Wibecode-agent-a`
+
+**OWNED files:**
+- `bot/src/handlers/payments.ts` (NEW)
+- `bot/src/api/routes/payments.ts` (modify)
+- `bot/src/utils/paymentHelpers.ts` (modify)
+
+**GRAY AREA:**
+- `bot/src/index.ts` — ONLY add 3 lines: import + 2 handler registrations
+
+**FORBIDDEN:**
+- All mini-app files, test files, other route files, celebration components
+
+---
+
+### Agent B — Dashboard Celebrations + Stars Mini-App Fix
+
+**Branch:** `feature/r60-celebrations-dashboard`
+**Worktree:** `../Wibecode-agent-b`
+
+**OWNED files:**
+- `mini-app/src/pages/Dashboard.tsx` (modify)
+- `mini-app/src/hooks/useDashboardData.ts` (modify)
+- `mini-app/src/hooks/usePayment.ts` (modify)
+- `mini-app/src/api/payments.ts` (modify)
+
+**FORBIDDEN:**
+- All bot/ files, database/ files, test files, celebration component source files (Confetti.tsx, LevelUpModal.tsx, XpFloat.tsx, useCelebration.ts)
+
+---
+
+### Agent C — Tests for Run 60
+
+**Branch:** `feature/r60-tests`
+**Worktree:** `../Wibecode-agent-c`
+
+**OWNED files:**
+- `bot/src/__tests__/handlers/payments.test.ts` (NEW)
+- `mini-app/src/__tests__/hooks/usePayment.test.ts` (UPDATE)
+- `mini-app/src/__tests__/pages/DashboardCelebrations.test.tsx` (NEW)
+
+**FORBIDDEN:**
+- ALL source files (test-only agent)
+
+---
+
+### Run 60 File Ownership Matrix
+
+| File / Directory | A | B | C |
+|---|---|---|---|
+| `bot/handlers/payments.ts` | **NEW** | - | - |
+| `bot/routes/payments.ts` | **OWNED** | - | - |
+| `bot/utils/paymentHelpers.ts` | **OWNED** | - | - |
+| `bot/index.ts` | **GRAY** | - | - |
+| `pages/Dashboard.tsx` | - | **OWNED** | - |
+| `hooks/useDashboardData.ts` | - | **OWNED** | - |
+| `hooks/usePayment.ts` | - | **OWNED** | - |
+| `api/payments.ts` (mini-app) | - | **OWNED** | - |
+| `__tests__/handlers/payments.test.ts` | - | - | **NEW** |
+| `__tests__/hooks/usePayment.test.ts` | - | - | **UPDATE** |
+| `__tests__/pages/DashboardCelebrations.test.tsx` | - | - | **NEW** |
+| `PARALLEL_AGENTS.md` | retro | retro | retro |
+
+### Run 60 Merge Order
+
+1. Agent A (Stars payment backend) — backend must be in place first
+2. Agent B (Dashboard celebrations + mini-app payment fix) — depends on API response shape
+3. Agent C (tests) — test only, merge last
+
+### Run 60 Retrospectives
+
+#### Agent A Retrospective
+*(To be filled by Agent A)*
+
+#### Agent B Retrospective
+*(To be filled by Agent B)*
+
+#### Agent C Retrospective
+*(To be filled by Agent C)*
+
+#### Agent 0 Retrospective
+*(To be filled by Agent 0 after merge)*
