@@ -10,6 +10,7 @@ import {
   NotFoundError,
 } from '../utils/errors.js';
 import { awardXp } from '../../utils/xpAward.js';
+import { safeParseInt } from '../../utils/validation.js';
 
 const router = Router();
 
@@ -56,7 +57,7 @@ router.get('/categories', authenticateTelegram, asyncHandler(async (req: Request
  * Get user's unlocked achievements
  */
 router.get('/users/:userId', authenticateTelegram, authorizeUser, asyncHandler(async (req: Request, res: Response) => {
-  const userId = parseInt(req.params.userId);
+  const userId = safeParseInt(req.params.userId, 0);
 
   const rows = await query(
     `SELECT ua.id, ua.achievement_id, a.name, a.description,
@@ -89,7 +90,7 @@ router.get('/users/:userId', authenticateTelegram, authorizeUser, asyncHandler(a
  * Uses LEFT JOIN instead of NOT IN for better performance.
  */
 router.get('/users/:userId/available', authenticateTelegram, authorizeUser, asyncHandler(async (req: Request, res: Response) => {
-  const userId = parseInt(req.params.userId);
+  const userId = safeParseInt(req.params.userId, 0);
 
   const rows = await query(
     `SELECT a.id, a.name, a.description, a.badge_icon AS icon,
@@ -109,8 +110,8 @@ router.get('/users/:userId/available', authenticateTelegram, authorizeUser, asyn
  * Uses INSERT ON CONFLICT to avoid separate check query + race conditions.
  */
 router.post('/users/:userId/:achievementId/unlock', authenticateTelegram, authorizeUser, asyncHandler(async (req: Request, res: Response) => {
-  const userId = parseInt(req.params.userId);
-  const achievementId = parseInt(req.params.achievementId);
+  const userId = safeParseInt(req.params.userId, 0);
+  const achievementId = safeParseInt(req.params.achievementId, 0);
 
   const result = await transaction(async (client) => {
     const achResult = await client.query(
@@ -158,8 +159,8 @@ router.post('/users/:userId/:achievementId/unlock', authenticateTelegram, author
  * GET /api/users/:userId/achievements/recent
  */
 router.get('/users/:userId/recent', authenticateTelegram, authorizeUser, asyncHandler(async (req: Request, res: Response) => {
-  const userId = parseInt(req.params.userId);
-  const limit = Math.min(parseInt(req.query.limit as string) || 5, 50);
+  const userId = safeParseInt(req.params.userId, 0);
+  const limit = Math.min(safeParseInt(req.query.limit as string, 5), 50);
 
   const rows = await query(
     `SELECT ua.id, ua.achievement_id, a.name, a.description,
@@ -181,7 +182,7 @@ router.get('/users/:userId/recent', authenticateTelegram, authorizeUser, asyncHa
  * Delegates to achievementEngine for criteria checking and unlocking.
  */
 router.post('/users/:userId/check', authenticateTelegram, authorizeUser, asyncHandler(async (req: Request, res: Response) => {
-  const userId = parseInt(req.params.userId);
+  const userId = safeParseInt(req.params.userId, 0);
 
   const newAchievements = await checkAndUnlockAchievements(userId);
 

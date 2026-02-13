@@ -6,6 +6,7 @@ import {
   successResponse,
   NotFoundError,
 } from '../utils/errors.js';
+import { safeParseInt } from '../../utils/validation.js';
 import { resolveUser } from './user-helpers.js';
 import {
   UserModeRow,
@@ -119,7 +120,7 @@ router.get('/:telegramId/stats', authenticateTelegram, asyncHandler(async (req: 
  */
 router.get('/:telegramId/quests/active', authenticateTelegram, asyncHandler(async (req: Request, res: Response) => {
   const { telegramId } = req.params;
-  const tid = parseInt(telegramId);
+  const tid = safeParseInt(telegramId, 0);
   requireOwnership(req);
 
   const rows = await query<ActiveQuestRow>(
@@ -145,9 +146,9 @@ router.get('/:telegramId/quests/active', authenticateTelegram, asyncHandler(asyn
  */
 router.get('/:telegramId/quests/completed', authenticateTelegram, asyncHandler(async (req: Request, res: Response) => {
   const { telegramId } = req.params;
-  const tid = parseInt(telegramId);
+  const tid = safeParseInt(telegramId, 0);
   requireOwnership(req);
-  const limit = Math.min(parseInt(req.query.limit as string) || 50, 100);
+  const limit = Math.min(safeParseInt(req.query.limit as string, 50), 100);
 
   const rows = await query<ActiveQuestRow>(
     `SELECT qi.id, qi.user_id, q.mode_id, q.title, q.description, q.xp_reward,
@@ -172,7 +173,7 @@ router.get('/:telegramId/quests/completed', authenticateTelegram, asyncHandler(a
  */
 router.get('/:telegramId/achievements', authenticateTelegram, asyncHandler(async (req: Request, res: Response) => {
   const { telegramId } = req.params;
-  const tid = parseInt(telegramId);
+  const tid = safeParseInt(telegramId, 0);
   requireOwnership(req);
 
   const rows = await query<RecentAchievementRow>(

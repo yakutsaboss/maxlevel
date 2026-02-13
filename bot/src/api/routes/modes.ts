@@ -8,6 +8,7 @@ import {
   BadRequestError,
   NotFoundError,
 } from '../utils/errors.js';
+import { safeParseInt } from '../../utils/validation.js';
 
 const router = Router();
 
@@ -28,7 +29,7 @@ router.get('/', authenticateTelegram, asyncHandler(async (req: Request, res: Res
  * Get user's active modes
  */
 router.get('/users/:userId', authenticateTelegram, authorizeUser, asyncHandler(async (req: Request, res: Response) => {
-  const userId = parseInt(req.params.userId);
+  const userId = safeParseInt(req.params.userId, 0);
 
   const rows = await query(
     `SELECT um.id, um.user_id, um.mode_id, um.is_active, um.enabled_at,
@@ -47,7 +48,7 @@ router.get('/users/:userId', authenticateTelegram, authorizeUser, asyncHandler(a
  * Get mode summary with quest counts
  */
 router.get('/users/:userId/summary', authenticateTelegram, authorizeUser, asyncHandler(async (req: Request, res: Response) => {
-  const userId = parseInt(req.params.userId);
+  const userId = safeParseInt(req.params.userId, 0);
 
   const rows = await query(
     `SELECT m.id, m.name, m.display_name, m.icon_emoji AS icon,
@@ -78,7 +79,7 @@ router.get('/users/:userId/summary', authenticateTelegram, authorizeUser, asyncH
  * Add modes to user
  */
 router.post('/users/:userId', authenticateTelegram, authorizeUser, asyncHandler(async (req: Request, res: Response) => {
-  const userId = parseInt(req.params.userId);
+  const userId = safeParseInt(req.params.userId, 0);
   const { modes } = req.body;
 
   if (!modes || !Array.isArray(modes) || modes.length === 0) {
@@ -192,8 +193,8 @@ router.post('/users/:userId', authenticateTelegram, authorizeUser, asyncHandler(
  * DELETE /api/users/:userId/modes/:modeId
  */
 router.delete('/users/:userId/:modeId', authenticateTelegram, authorizeUser, asyncHandler(async (req: Request, res: Response) => {
-  const userId = parseInt(req.params.userId);
-  const modeId = parseInt(req.params.modeId);
+  const userId = safeParseInt(req.params.userId, 0);
+  const modeId = safeParseInt(req.params.modeId, 0);
 
   const affected = await execute(
     `UPDATE user_modes SET is_active = false WHERE user_id = $1 AND mode_id = $2`,
@@ -211,8 +212,8 @@ router.delete('/users/:userId/:modeId', authenticateTelegram, authorizeUser, asy
  * PATCH /api/users/:userId/modes/:modeId
  */
 router.patch('/users/:userId/:modeId', authenticateTelegram, authorizeUser, asyncHandler(async (req: Request, res: Response) => {
-  const userId = parseInt(req.params.userId);
-  const modeId = parseInt(req.params.modeId);
+  const userId = safeParseInt(req.params.userId, 0);
+  const modeId = safeParseInt(req.params.modeId, 0);
   const { settings } = req.body;
 
   if (!settings) {
@@ -239,7 +240,7 @@ router.patch('/users/:userId/:modeId', authenticateTelegram, authorizeUser, asyn
  * Get quest templates for a mode. Cached.
  */
 router.get('/:modeId/quests', authenticateTelegram, asyncHandler(async (req: Request, res: Response) => {
-  const modeId = parseInt(req.params.modeId);
+  const modeId = safeParseInt(req.params.modeId, 0);
 
   const quests = await cached(`mode_quests:${modeId}`, TTL.MEDIUM, () =>
     query(

@@ -2328,7 +2328,20 @@ After completing work, write your retrospective in PARALLEL_AGENTS.md under "Run
 ### Run 54 Retrospectives
 
 #### Agent A Retrospective
-*(To be filled by Agent A)*
+**Task:** Replace all bare `parseInt()` calls with `safeParseInt` in 7 core route files.
+
+**Result:** 34 `parseInt()` calls replaced across 7 files. Build passes cleanly.
+
+**Changes made:**
+1. **finance.ts** (5 calls): 2x `parseInt(req.params.userId)`, 2x `typeof userId === 'string' ? parseInt(userId) : userId`, 1x `parseInt(req.params.id)`.
+2. **achievements.ts** (7 calls): 5x userId, 1x achievementId, 1x query limit.
+3. **modes.ts** (8 calls): 5x userId, 3x modeId.
+4. **analytics.ts** (3 calls): 3x userId.
+5. **checkins.ts** (5 calls): telegramId + page/limit pagination.
+6. **users.ts** (2 calls): 2x userId.
+7. **user-stats.ts** (4 calls): 3x telegramId + query limit.
+
+**Verification:** Zero remaining `parseInt(` calls in all 7 owned files.
 
 #### Agent B Retrospective
 *(To be filled by Agent B)*
@@ -2341,5 +2354,4 @@ After completing work, write your retrospective in PARALLEL_AGENTS.md under "Run
 
 #### Agent 0 Retrospective
 *(To be filled by Agent 0 after merge)*
-
 <!-- Next run goes here. Agent 0 will append RUN 55 below this line. -->

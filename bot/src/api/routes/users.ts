@@ -9,6 +9,7 @@ import {
   BadRequestError,
   NotFoundError,
 } from '../utils/errors.js';
+import { safeParseInt } from '../../utils/validation.js';
 import { preferencesRouter } from './user-preferences.js';
 import { statsRouter } from './user-stats.js';
 import { accountRouter } from './user-account.js';
@@ -49,7 +50,7 @@ router.post('/', asyncHandler(async (req: Request, res: Response) => {
  * PATCH /api/users/:userId/xp
  */
 router.patch('/:userId/xp', authenticateTelegram, asyncHandler(async (req: Request, res: Response) => {
-  const userId = parseInt(req.params.userId);
+  const userId = safeParseInt(req.params.userId, 0);
   const { amount } = req.body;
 
   if (!amount || amount <= 0) {
@@ -81,7 +82,7 @@ router.patch('/:userId/xp', authenticateTelegram, asyncHandler(async (req: Reque
  * PATCH /api/users/:userId/streak
  */
 router.patch('/:userId/streak', authenticateTelegram, asyncHandler(async (req: Request, res: Response) => {
-  const uid = parseInt(req.params.userId);
+  const uid = safeParseInt(req.params.userId, 0);
   if (isNaN(uid)) {
     throw new BadRequestError('Invalid user ID');
   }
