@@ -35,7 +35,7 @@ const REMINDER_MINUTES: Record<string, number> = {
 // Helpers
 // ---------------------------------------------------------------------------
 
-function buildHydrationRecommendations(
+export function buildHydrationRecommendations(
   dailyTarget: number,
   currentIntake: string,
   goals: string[],

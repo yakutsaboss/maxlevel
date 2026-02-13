@@ -70,7 +70,7 @@ const EXERCISE_POOL: ExercisePool[] = [
 // Helpers
 // ---------------------------------------------------------------------------
 
-function pickExercises(
+export function pickExercises(
   focusAreas: string[],
   equipment: string[],
   level: string,
@@ -100,7 +100,7 @@ function pickExercises(
   return selected;
 }
 
-function durationForLevel(level: string): number {
+export function durationForLevel(level: string): number {
   switch (level) {
     case 'beginner': return 30;
     case 'intermediate': return 45;
@@ -110,7 +110,7 @@ function durationForLevel(level: string): number {
   }
 }
 
-function buildFocusRotation(focusAreas: string[], dayCount: number): string[] {
+export function buildFocusRotation(focusAreas: string[], dayCount: number): string[] {
   if (focusAreas.includes('full_body') && focusAreas.length === 1) {
     return Array(dayCount).fill('full_body');
   }
