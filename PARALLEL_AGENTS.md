@@ -906,7 +906,19 @@ After completing work, write your retrospective in PARALLEL_AGENTS.md under "Run
 **Files modified:** `bot/src/api/routes/social.ts`, `bot/src/api/routes/leaderboard.ts`, `bot/package.json` (all within owned file list).
 
 #### Agent D Retrospective
-*(To be filled by Agent D)*
+**Task:** Write tests for Social.tsx and Finance.tsx pages — the only two pages without test coverage.
+
+**What was done:**
+- Created `mini-app/src/__tests__/pages/Social.test.tsx` (13 tests): loading skeleton, friends list rendering, no-friends message, challenge cards, no-challenges message, error/retry flow, header rendering, friend request form toggle/submit/validation, challenge form toggle, ARIA regions.
+- Created `mini-app/src/__tests__/pages/Finance.test.tsx` (11 tests): header, default Budget tab, userId prop passing, tab switching (Budget↔Savings), tab buttons, loading spinner (no user), ErrorSection (no user.id), content isolation between tabs.
+
+**Result:** SUCCESS — 24/24 tests pass, all green.
+
+**Issues encountered:**
+1. `vi.mock` hoisting: Finance test initially declared `mockWebApp` as a `const` and referenced it inside `vi.mock()` factory. Because `vi.mock` is hoisted to the top of the file, the variable wasn't initialized yet → `ReferenceError`. Fixed by using `vi.hoisted()` to declare the mock object before the hoist boundary.
+2. `window.Telegram` redefinition: Social test tried to set `window.Telegram` via `Object.defineProperty` in `beforeEach`, but the `@twa-dev/sdk` mock had already defined it as non-configurable. Removed the redundant property — the SDK mock's `initData` is sufficient.
+
+**Files created:** `mini-app/src/__tests__/pages/Social.test.tsx`, `mini-app/src/__tests__/pages/Finance.test.tsx`
 
 #### Agent E Retrospective
 **Task:** Write tests for untested bot utility modules (cache, streak, queries).
