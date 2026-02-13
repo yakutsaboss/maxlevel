@@ -220,6 +220,8 @@ export default {
       premiumCta: "升级到高级版",
       premiumCtaDesc: "6 个模式、动画头像和专属奖励",
       upgradePremium: "599 Stars / 月",
+      processing: "处理中...",
+      paymentSuccess: "高级版已激活！享受全部 6 个模式。",
     },
   },
   achievements: {

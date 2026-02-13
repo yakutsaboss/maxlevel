@@ -2373,7 +2373,29 @@ After completing work, write your retrospective in PARALLEL_AGENTS.md under "Run
 *(To be filled by Agent A)*
 
 #### Agent B Retrospective
-*(To be filled by Agent B)*
+**Task:** Wire Telegram Stars payment flow from mini-app SubscriptionSettings to backend payments API.
+**Result:** All 3 tasks completed. Build passes clean (tsc + vite build, 0 errors).
+
+**Files created (2):**
+1. **mini-app/src/api/payments.ts** (~110 lines) — Dedicated payments API client with 3 functions: `createPayment(userId, tier, amount)` calls POST `/api/payments/create`, `getPaymentStatus(userId)` calls GET `/api/payments/subscription/:userId`, `getPaymentHistory(userId)` calls GET `/api/payments/history/:userId`. Uses same auth header pattern (`X-Telegram-Init-Data`) as main apiClient. Exports response types for each function.
+2. **mini-app/src/hooks/usePayment.ts** (~115 lines) — Hook managing full Stars payment flow: (1) call backend to create pending payment, (2) open Telegram Stars invoice via `WebApp.openInvoice()`, (3) handle invoice callback (paid/cancelled/failed), (4) poll `getPaymentStatus()` up to 5 times with 1.5s delay to confirm tier upgrade. Exposes `{ initiatePayment, isLoading, error, paymentResult }`. Takes `{ userId, onSuccess, onError }` params.
+
+**Files modified (4):**
+1. **mini-app/src/components/settings/SubscriptionSettings.tsx** — Replaced TODO comment on premium upgrade button with actual payment flow. Added `usePayment` hook integration, `internalUserId` state (fetched from getUserStats), payment loading/success/error states. Button now calls `initiatePayment('premium', 599)`, shows Loader2 spinner during processing, disabled while loading. Added success banner (green, CheckCircle2) and error banner (red, AlertCircle) above the premium CTA.
+2. **mini-app/src/i18n/en.ts** — Added 2 keys: `settings.subscription.processing`, `settings.subscription.paymentSuccess`
+3. **mini-app/src/i18n/ru.ts** — Same 2 keys in Russian
+4. **mini-app/src/i18n/zh.ts** — Same 2 keys in Chinese
+
+**Design decisions:**
+- Used standalone `api/payments.ts` with raw `fetch()` instead of adding to main `apiClient` class — keeps the new code isolated from the existing singleton and avoids touching GRAY AREA files.
+- Invoice URL constructed as `https://t.me/$BOT_USERNAME?startattach=pay_PAYMENT_ID` — this may need adjustment based on actual Telegram Stars invoice URL format. The backend currently creates a payment record but doesn't return an invoice URL, so the flow assumes the bot handles invoice creation separately.
+- Polling loop (5 attempts × 1.5s) for status confirmation — handles the async nature of webhook processing.
+- `internalUserId` (DB id, not telegram_id) is needed for payment API calls and is extracted from `getUserStats` response.
+
+**Notes for Agent 0:**
+- The i18n files are GRAY AREA for Agent C (celebration animations may add keys too). Merge Agent B before Agent C to avoid conflicts.
+- The invoice URL construction in `usePayment.ts` uses `VITE_BOT_USERNAME` env var (fallback: `yakutsa_bot`). This env var may need to be added to `.env` files.
+- `api/payments.ts` is a separate module from `api/client.ts` — some payment methods already exist in `apiClient` (from Run 56 Agent E). Agent 0 may optionally consolidate later.
 
 #### Agent C Retrospective
 *(To be filled by Agent C)*
