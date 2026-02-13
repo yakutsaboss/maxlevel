@@ -255,7 +255,7 @@ describe('PATCH /api/punishment/:telegramId/settings', () => {
   });
 
   it('should handle custom_punishments as JSON', async () => {
-    const customPunishments = { no_sweets: true, extra_pushups: 10 };
+    const customPunishments = ['no_sweets', 'extra_pushups'];
     db.queryOne.mockResolvedValueOnce(dbUser);
     db.queryOne.mockResolvedValueOnce({ ...updatedSettings, custom_punishments: customPunishments });
 
