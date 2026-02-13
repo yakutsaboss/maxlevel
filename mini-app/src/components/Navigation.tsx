@@ -1,5 +1,5 @@
 import { useLocation, useNavigate } from 'react-router-dom';
-import { Home, Target, User, Trophy, Award } from 'lucide-react';
+import { Home, Target, User, Trophy, Award, Users } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useTelegram } from '@/hooks/useTelegram';
 
@@ -14,6 +14,7 @@ const navItems: NavItem[] = [
   { path: '/quests', icon: <Target className="w-5 h-5" />, label: 'Quests' },
   { path: '/achievements', icon: <Award className="w-5 h-5" />, label: 'Rewards' },
   { path: '/leaderboard', icon: <Trophy className="w-5 h-5" />, label: 'Ranks' },
+  { path: '/social', icon: <Users className="w-5 h-5" />, label: 'Social' },
   { path: '/profile', icon: <User className="w-5 h-5" />, label: 'Profile' },
 ];
 
