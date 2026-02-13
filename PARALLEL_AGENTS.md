@@ -981,7 +981,7 @@ After completing work, write your retrospective in PARALLEL_AGENTS.md under "Run
 1. **i18n test setup** — Agent B migrated hardcoded strings to `t('key')` but didn't initialize i18n in the test environment. `useTranslation()` returned raw keys instead of English text, breaking 36 tests. Fixed by adding `import '@/i18n'` to `mini-app/src/test/setup.ts`.
 2. **ErrorBoundary logger assertion** — Agent A replaced `console.error` with `logger.error` which prepends `[ERROR]` prefix. Test used exact string match `=== 'ErrorBoundary caught:'`. Fixed by using `.includes()` instead.
 
-**Deploy status:** Code pushed to GitHub (`ba963b8`). SSH deploy BLOCKED — no SSH keys on local machine (ssh-agent disabled, no keys in `~/.ssh/`). Server is alive (health endpoint responds with Run 50 version `8f3c251`). Manual deploy required.
+**Deploy status:** `31a1205` deployed and verified. Health check confirmed version match, uptime 3s. Notification sent.
 
 **Recurring issue — agents committing to main:** This is the 3rd consecutive run where agents commit to main instead of feature branches. The worktree setup provides isolation but agents bypass it. Need to add explicit instructions in agent prompts to commit to the feature branch, not main.
 
@@ -989,4 +989,534 @@ After completing work, write your retrospective in PARALLEL_AGENTS.md under "Run
 
 **Final counts:** Bot 798 tests (66 files), Mini-app 571 tests (115 files) — total 1369 tests passing.
 
-<!-- Next run goes here. Agent 0 will append RUN 52 below this line. -->
+---
+
+## Run 52: i18n Completion + Type Safety + Security Hardening + Tests (5 Agents + Agent 0)
+
+**Date**: 2026-02-13
+**Agents**: 5 (A-E) + Agent 0
+**Goal**: Complete i18n migration for all remaining pages, eliminate all `as any` casts in mini-app source, harden bot security (parseInt/pagination), add tests for untested components and utilities.
+
+**Key findings from codebase audit:**
+1. 50+ hardcoded English strings in Quests, Achievements, Leaderboard, Profile, Settings (i18n not applied)
+2. 8 `as any` casts in mini-app source — all due to missing Telegram WebApp type declarations
+3. Bot parseInt NaN issues in admin-users.ts (no pagination bounds) and other admin routes
+4. 18 untested mini-app components (finance: 5, social: 3, admin: 5, etc.)
+5. 6 untested bot utilities + 1 untested job (dailySummary)
+
+---
+
+### Run 52 Copy-Paste Prompts
+
+**Agent A — i18n Migration for Remaining Pages**
+```
+Read c:\Users\Asus\Desktop\Wibecode-agent-a\PARALLEL_AGENTS.md — find "Run 52" and locate the "Agent A" section. You are Agent A.
+
+YOUR TASK: Migrate all hardcoded UI strings in the remaining 5 pages + 2 components to use the i18n translation system. Run 51 migrated Social, Finance, Dashboard — you're finishing the rest.
+
+OWNED FILES (only you modify these):
+- mini-app/src/pages/Quests.tsx
+- mini-app/src/pages/Achievements.tsx
+- mini-app/src/pages/Leaderboard.tsx
+- mini-app/src/pages/Profile.tsx
+- mini-app/src/pages/Settings.tsx
+- mini-app/src/components/CheckInButton.tsx
+- mini-app/src/components/onboarding/LaunchScreen.tsx
+- mini-app/src/i18n/en.ts (add missing keys)
+- mini-app/src/i18n/ru.ts (add missing keys)
+- mini-app/src/i18n/zh.ts (add missing keys)
+
+HOW TO DO IT:
+1. First read mini-app/src/i18n/en.ts to see which keys already exist
+2. In each component, add `import { useTranslation } from 'react-i18next'` and call `const { t } = useTranslation()`
+3. Replace every hardcoded English string with the corresponding `t('key')` call
+4. For ANY missing key, add it to ALL 3 language files (en.ts, ru.ts, zh.ts)
+
+SPECIFIC STRINGS TO MIGRATE:
+
+Quests.tsx (~12 strings):
+- 'Quests' (title), 'Complete quests to level up' (subtitle)
+- 'Active' / 'Completed' (tab labels)
+- 'quests', 'ready to claim', 'completed' (progress text)
+- 'check-in', 's', 'today' (checkin display)
+- 'No Active Quests', 'No quests found...', 'Start your journey...'
+- 'Explore Modes' (button), 'No Victories Yet', 'Your victories will appear here...'
+
+Achievements.tsx (~8 strings):
+- 'Rewards' (title)
+- 'Progress' (label)
+- 'Checking...', 'new unlocked!', 'Check for new achievements'
+- 'No achievements available yet', category-specific empty states
+
+Leaderboard.tsx (~6 strings):
+- 'Leaderboard' (title), 'Top adventurers ranked by XP' (subtitle)
+- 'No rankings yet. Be the first!' (empty state)
+- '#{4} and below' (divider text)
+
+Profile.tsx (~6 strings):
+- 'Account Info' (section title)
+- 'Telegram ID', 'Joined', 'Total XP', 'Level' (labels)
+
+Settings.tsx (~2 strings):
+- 'Settings' (title), 'Configure your preferences' (subtitle)
+
+CheckInButton.tsx (~4 strings):
+- 'Check In (last one!)' / 'Check In (N left)' / 'Check In' / 'Checked in!'
+
+LaunchScreen.tsx (~3 strings):
+- 'Failed to save. Please try again.' / 'Retry' / 'Setting up your plan...'
+
+IMPORTANT: Check which i18n keys ALREADY EXIST before adding new ones. Many quests/achievements/leaderboard keys may already be defined. Only add what's missing.
+
+For Russian (ru.ts) and Chinese (zh.ts), provide reasonable translations. For complex phrases, use English as placeholder and add a comment `// TODO: verify translation`.
+
+FORBIDDEN: Do NOT modify bot/ files, Social.tsx, Finance.tsx, Dashboard.tsx (already migrated), or test files.
+
+BUILD VERIFY: cd mini-app && npm run build must pass.
+
+After completing work, write your retrospective in PARALLEL_AGENTS.md under "Run 52 Retrospectives" → "Agent A Retrospective", replacing the placeholder text. Then commit all changes.
+```
+
+**Agent B — Telegram Type Safety + `as any` Elimination**
+```
+Read c:\Users\Asus\Desktop\Wibecode-agent-b\PARALLEL_AGENTS.md — find "Run 52" and locate the "Agent B" section. You are Agent B.
+
+YOUR TASK: Eliminate ALL `as any` casts from mini-app source files by creating proper TypeScript type declarations for Telegram WebApp.
+
+OWNED FILES (only you modify these):
+- mini-app/src/types/telegram.d.ts (NEW — create this file)
+- mini-app/src/i18n/index.ts
+- mini-app/src/components/settings/ThemeSettings.tsx
+- mini-app/src/pages/Settings.tsx
+- mini-app/src/pages/Leaderboard.tsx
+
+CURRENT `as any` CASTS (8 total in source files):
+
+1. i18n/index.ts:9 — `(window as any).Telegram?.WebApp?.initDataUnsafe?.user?.language_code`
+2. Settings.tsx:70 — `themeParams as any`
+3. ThemeSettings.tsx:55 — `(themeParams as any)?.bg_color ?? (themeParams as any)?.bgColor`
+4. ThemeSettings.tsx:56 — `(themeParams as any)?.text_color ?? (themeParams as any)?.textColor`
+5. ThemeSettings.tsx:57 — `(themeParams as any)?.hint_color ?? (themeParams as any)?.hintColor`
+6. ThemeSettings.tsx:58 — `(themeParams as any)?.link_color ?? (themeParams as any)?.linkColor`
+7. ThemeSettings.tsx:59 — `(themeParams as any)?.button_color ?? (themeParams as any)?.buttonColor`
+8. Leaderboard.tsx:65 — `(window as any).Telegram?.WebApp`
+
+HOW TO FIX:
+
+STEP 1 — Create `mini-app/src/types/telegram.d.ts`:
+```typescript
+// Global type augmentation for Telegram WebApp
+interface TelegramWebApp {
+  initData: string;
+  initDataUnsafe: {
+    user?: {
+      id: number;
+      first_name: string;
+      last_name?: string;
+      username?: string;
+      language_code?: string;
+    };
+    [key: string]: unknown;
+  };
+  colorScheme: 'light' | 'dark';
+  themeParams: TelegramThemeParams;
+  ready: () => void;
+  expand: () => void;
+  close: () => void;
+  // Add other methods as needed from @twa-dev/sdk
+}
+
+interface TelegramThemeParams {
+  bg_color?: string;
+  bgColor?: string;
+  text_color?: string;
+  textColor?: string;
+  hint_color?: string;
+  hintColor?: string;
+  link_color?: string;
+  linkColor?: string;
+  button_color?: string;
+  buttonColor?: string;
+  button_text_color?: string;
+  buttonTextColor?: string;
+  secondary_bg_color?: string;
+  secondaryBgColor?: string;
+  [key: string]: string | undefined;
+}
+
+interface TelegramGlobal {
+  WebApp: TelegramWebApp;
+}
+
+declare global {
+  interface Window {
+    Telegram?: TelegramGlobal;
+  }
+}
+
+export {};
+```
+
+STEP 2 — Fix each file:
+- i18n/index.ts: Remove `as any`, use `window.Telegram?.WebApp?.initDataUnsafe?.user?.language_code`
+- ThemeSettings.tsx: Change prop type from `any` to `TelegramThemeParams`, remove all 10 `as any` casts. Access `themeParams?.bg_color ?? themeParams?.bgColor` directly.
+- Settings.tsx: Pass `themeParams` without `as any` cast (it should now match TelegramThemeParams)
+- Leaderboard.tsx: Remove `as any`, use `window.Telegram?.WebApp` directly
+
+STEP 3 — Verify: Search for `as any` in all mini-app source files (excluding __tests__). Count should be ZERO.
+
+IMPORTANT: Agent A is also modifying Leaderboard.tsx and Settings.tsx (for i18n). Your changes are on DIFFERENT LINES (type casts vs string replacements). These should merge cleanly.
+
+FORBIDDEN: Do NOT modify bot/ files, test files, or any files not listed above.
+
+BUILD VERIFY: cd mini-app && npm run build must pass.
+
+After completing work, write your retrospective in PARALLEL_AGENTS.md under "Run 52 Retrospectives" → "Agent B Retrospective", replacing the placeholder text. Then commit all changes.
+```
+
+**Agent C — Bot Security Hardening**
+```
+Read c:\Users\Asus\Desktop\Wibecode-agent-c\PARALLEL_AGENTS.md — find "Run 52" and locate the "Agent C" section. You are Agent C.
+
+YOUR TASK: Fix security and validation gaps in bot API routes — pagination bounds, parseInt safety, input validation.
+
+OWNED FILES (only you modify these):
+- bot/src/api/routes/admin-users.ts
+- bot/src/api/routes/admin-stats.ts
+- bot/src/api/routes/admin-jobs.ts
+- bot/src/api/routes/admin-quests.ts
+- bot/src/api/routes/punishment.ts
+
+TASK 1 — Fix pagination in admin-users.ts (lines 27-28):
+Current code:
+```typescript
+const limit = parseInt(req.query.limit as string) || 50;
+const offset = parseInt(req.query.offset as string) || 0;
+```
+Issues: (a) `parseInt('0') || 50` returns 50 when user wanted 0; (b) No upper bound on limit; (c) Negative values not blocked.
+
+Fix: Import `safeParseInt` from leaderboard.ts (Agent C from Run 51 created it there) OR create a shared utility. Then:
+```typescript
+const limit = Math.min(safeParseInt(req.query.limit as string, 50), 200);
+const offset = Math.max(0, safeParseInt(req.query.offset as string, 0));
+```
+
+TASK 2 — Apply same safeParseInt pattern to ANY other parseInt calls in admin routes:
+- Check admin-stats.ts, admin-jobs.ts, admin-quests.ts for similar patterns
+- Replace all `parseInt(x) || default` with `safeParseInt(x, default)` + bounds
+
+TASK 3 — Validate custom_punishments in punishment.ts:
+Current code (line ~98): `fields.custom_punishments = JSON.stringify(custom_punishments);`
+Issue: No validation that custom_punishments is a valid array, within size limits, etc.
+
+Add validation:
+```typescript
+if (custom_punishments !== undefined) {
+  if (!Array.isArray(custom_punishments)) {
+    throw new BadRequestError('custom_punishments must be an array');
+  }
+  if (custom_punishments.length > 20) {
+    throw new BadRequestError('Maximum 20 custom punishments allowed');
+  }
+  fields.custom_punishments = JSON.stringify(custom_punishments);
+}
+```
+
+TASK 4 — If `safeParseInt` is only in leaderboard.ts, extract it to a shared location:
+Create `bot/src/utils/validation.ts` (NEW) with:
+- `safeParseInt(value: string | undefined, defaultVal: number): number`
+- `clampPagination(limit: number, offset: number, maxLimit?: number): { limit: number; offset: number }`
+Then import from all admin route files.
+
+FORBIDDEN: Do NOT modify mini-app files, non-admin routes, or test files.
+
+BUILD VERIFY: cd bot && npm run build must pass.
+
+After completing work, write your retrospective in PARALLEL_AGENTS.md under "Run 52 Retrospectives" → "Agent C Retrospective", replacing the placeholder text. Then commit all changes.
+```
+
+**Agent D — Finance + Social Component Tests**
+```
+Read c:\Users\Asus\Desktop\Wibecode-agent-d\PARALLEL_AGENTS.md — find "Run 52" and locate the "Agent D" section. You are Agent D.
+
+YOUR TASK: Write tests for untested mini-app components in the finance and social categories. These are the largest gaps in component test coverage.
+
+OWNED FILES (only you create these):
+- mini-app/src/__tests__/components/finance/BudgetForm.test.tsx (NEW)
+- mini-app/src/__tests__/components/finance/BudgetSummary.test.tsx (NEW)
+- mini-app/src/__tests__/components/finance/GoalForm.test.tsx (NEW)
+- mini-app/src/__tests__/components/finance/SavingsGoal.test.tsx (NEW)
+- mini-app/src/__tests__/components/social/ChallengeForm.test.tsx (NEW)
+- mini-app/src/__tests__/components/social/ChallengesList.test.tsx (NEW)
+- mini-app/src/__tests__/components/social/FriendRequestForm.test.tsx (NEW)
+
+PATTERN: Read existing component tests for patterns:
+- mini-app/src/__tests__/components/social/ChallengeCard.test.tsx
+- mini-app/src/__tests__/components/social/FriendsList.test.tsx
+- mini-app/src/__tests__/components/finance/BudgetTracker.test.tsx (if it exists)
+
+These use @testing-library/react with vi.mock for API calls.
+
+FINANCE TESTS:
+1. **BudgetForm.test.tsx** (~5 tests):
+   - Read mini-app/src/components/finance/BudgetForm.tsx first
+   - Renders form with type selector (expense/income)
+   - Validates amount input (numeric only)
+   - Calls onSubmit with correct data
+   - Shows loading state while saving
+   - Cancel button hides the form
+
+2. **BudgetSummary.test.tsx** (~4 tests):
+   - Read mini-app/src/components/finance/BudgetSummary.tsx first
+   - Renders income, expenses, balance
+   - Shows category breakdown
+   - Handles empty data gracefully
+   - Formats currency values correctly
+
+3. **GoalForm.test.tsx** (~4 tests):
+   - Read mini-app/src/components/finance/GoalForm.tsx first
+   - Renders form fields (name, target amount)
+   - Validates required fields
+   - Calls onSubmit with correct data
+   - Cancel button works
+
+4. **SavingsGoal.test.tsx** (~4 tests):
+   - Read mini-app/src/components/finance/SavingsGoal.tsx first
+   - Renders goals list
+   - Shows progress for each goal
+   - Shows empty state when no goals
+   - "Create first goal" prompt shown when empty
+
+SOCIAL TESTS (for new components from Run 51):
+5. **ChallengeForm.test.tsx** (~3 tests):
+   - Read mini-app/src/components/social/ChallengeForm.tsx first
+   - Renders form fields
+   - Validates input
+   - Calls onSubmit
+
+6. **ChallengesList.test.tsx** (~3 tests):
+   - Read mini-app/src/components/social/ChallengesList.tsx first
+   - Renders challenge cards
+   - Shows empty state
+   - Memoization works (React.memo)
+
+7. **FriendRequestForm.test.tsx** (~3 tests):
+   - Read mini-app/src/components/social/FriendRequestForm.tsx first
+   - Renders input + submit button
+   - Shows success/error messages
+   - Validates input before submission
+
+Target: ~25-30 tests across 7 files.
+
+IMPORTANT: Components may use `useTranslation()` for i18n. Make sure tests either:
+- Import '@/i18n' in the test file to initialize translations, OR
+- The test setup already handles this (check mini-app/src/test/setup.ts — it should have `import '@/i18n'`)
+
+FORBIDDEN: Do NOT modify any source files (test-only agent).
+
+BUILD VERIFY: cd mini-app && npx vitest --run src/__tests__/components/finance/ src/__tests__/components/social/ChallengeForm.test.tsx src/__tests__/components/social/ChallengesList.test.tsx src/__tests__/components/social/FriendRequestForm.test.tsx
+
+After completing work, write your retrospective in PARALLEL_AGENTS.md under "Run 52 Retrospectives" → "Agent D Retrospective", replacing the placeholder text. Then commit all changes.
+```
+
+**Agent E — Bot Utility + Job Tests**
+```
+Read c:\Users\Asus\Desktop\Wibecode-agent-e\PARALLEL_AGENTS.md — find "Run 52" and locate the "Agent E" section. You are Agent E.
+
+YOUR TASK: Write tests for untested bot utilities and the dailySummary job. These are core modules with zero test coverage.
+
+OWNED FILES (only you create these):
+- bot/src/__tests__/utils/achievementEngine.test.ts (NEW)
+- bot/src/__tests__/utils/broadcast.test.ts (NEW)
+- bot/src/__tests__/jobs/dailySummary.test.ts (NEW)
+
+PATTERN: Read existing tests for patterns:
+- bot/src/__tests__/utils/xpAward.test.ts (utility test pattern)
+- bot/src/__tests__/utils/cache.test.ts (Run 51 — pure function testing)
+- bot/src/__tests__/jobs/streakCheck.test.ts (job test pattern)
+
+ACHIEVEMENT ENGINE TESTS (achievementEngine.test.ts — ~8 tests):
+1. First read bot/src/utils/achievementEngine.ts to understand the API
+2. Test: checkAndUnlockAchievements returns unlocked achievements for qualifying user
+3. Test: returns empty array when no achievements qualify
+4. Test: doesn't re-unlock already earned achievements
+5. Test: handles multiple achievement types (streak-based, xp-based, quest-count-based)
+6. Test: handles database errors gracefully (doesn't throw, logs error)
+7. Test: correctly evaluates threshold conditions
+8. Mock the database layer — do NOT connect to a real DB
+
+BROADCAST TESTS (broadcast.test.ts — ~5 tests):
+1. First read bot/src/utils/broadcast.ts to understand the API
+2. Test: sends message to all active users
+3. Test: handles send failures for individual users gracefully
+4. Test: respects rate limiting (if implemented)
+5. Test: returns summary of sent/failed counts
+6. Mock the bot API — do NOT send real messages
+
+DAILY SUMMARY JOB TESTS (dailySummary.test.ts — ~5 tests):
+1. First read bot/src/jobs/definitions/dailySummary.ts to understand the job
+2. Test: generates summary for users with activity
+3. Test: skips users with no activity
+4. Test: handles database errors gracefully
+5. Test: sends formatted messages via bot
+6. Follow the same pattern as streakCheck.test.ts for job setup/teardown
+
+Target: ~18-20 tests across 3 files. Mock ALL external dependencies (database, bot API).
+
+FORBIDDEN: Do NOT modify any source files or mini-app files (test-only agent).
+
+BUILD VERIFY: cd bot && npx vitest --run src/__tests__/utils/achievementEngine.test.ts src/__tests__/utils/broadcast.test.ts src/__tests__/jobs/dailySummary.test.ts
+
+After completing work, write your retrospective in PARALLEL_AGENTS.md under "Run 52 Retrospectives" → "Agent E Retrospective", replacing the placeholder text. Then commit all changes.
+```
+
+---
+
+### Agent A — i18n Migration for Remaining Pages
+
+**Branch:** `feature/r52-i18n-remaining`
+**Worktree:** `../Wibecode-agent-a`
+
+**OWNED files:**
+- `mini-app/src/pages/Quests.tsx`
+- `mini-app/src/pages/Achievements.tsx`
+- `mini-app/src/pages/Leaderboard.tsx`
+- `mini-app/src/pages/Profile.tsx`
+- `mini-app/src/pages/Settings.tsx`
+- `mini-app/src/components/CheckInButton.tsx`
+- `mini-app/src/components/onboarding/LaunchScreen.tsx`
+- `mini-app/src/i18n/en.ts`
+- `mini-app/src/i18n/ru.ts`
+- `mini-app/src/i18n/zh.ts`
+
+**FORBIDDEN:**
+- All bot/ files, Social.tsx, Finance.tsx, Dashboard.tsx (already migrated), ThemeSettings.tsx (Agent B), i18n/index.ts (Agent B), test files
+
+---
+
+### Agent B — Telegram Type Safety
+
+**Branch:** `feature/r52-telegram-types`
+**Worktree:** `../Wibecode-agent-b`
+
+**OWNED files:**
+- `mini-app/src/types/telegram.d.ts` (NEW)
+- `mini-app/src/i18n/index.ts`
+- `mini-app/src/components/settings/ThemeSettings.tsx`
+- `mini-app/src/pages/Settings.tsx` (GRAY AREA — type cast fix only, Agent A does i18n)
+- `mini-app/src/pages/Leaderboard.tsx` (GRAY AREA — type cast fix only, Agent A does i18n)
+
+**FORBIDDEN:**
+- All bot/ files, Quests.tsx, Achievements.tsx, Profile.tsx (Agent A), CheckInButton.tsx, LaunchScreen.tsx, i18n/en.ts/ru.ts/zh.ts (Agent A), test files
+
+---
+
+### Agent C — Bot Security Hardening
+
+**Branch:** `feature/r52-bot-security`
+**Worktree:** `../Wibecode-agent-c`
+
+**OWNED files:**
+- `bot/src/api/routes/admin-users.ts`
+- `bot/src/api/routes/admin-stats.ts`
+- `bot/src/api/routes/admin-jobs.ts`
+- `bot/src/api/routes/admin-quests.ts`
+- `bot/src/api/routes/punishment.ts`
+- `bot/src/utils/validation.ts` (NEW — shared safeParseInt)
+
+**FORBIDDEN:**
+- All mini-app files, non-admin routes, leaderboard.ts (has safeParseInt already), test files
+
+---
+
+### Agent D — Finance + Social Component Tests
+
+**Branch:** `feature/r52-component-tests`
+**Worktree:** `../Wibecode-agent-d`
+
+**OWNED files:**
+- `mini-app/src/__tests__/components/finance/BudgetForm.test.tsx` (NEW)
+- `mini-app/src/__tests__/components/finance/BudgetSummary.test.tsx` (NEW)
+- `mini-app/src/__tests__/components/finance/GoalForm.test.tsx` (NEW)
+- `mini-app/src/__tests__/components/finance/SavingsGoal.test.tsx` (NEW)
+- `mini-app/src/__tests__/components/social/ChallengeForm.test.tsx` (NEW)
+- `mini-app/src/__tests__/components/social/ChallengesList.test.tsx` (NEW)
+- `mini-app/src/__tests__/components/social/FriendRequestForm.test.tsx` (NEW)
+
+**FORBIDDEN:**
+- ALL source files (test-only agent)
+
+---
+
+### Agent E — Bot Utility + Job Tests
+
+**Branch:** `feature/r52-bot-tests`
+**Worktree:** `../Wibecode-agent-e`
+
+**OWNED files:**
+- `bot/src/__tests__/utils/achievementEngine.test.ts` (NEW)
+- `bot/src/__tests__/utils/broadcast.test.ts` (NEW)
+- `bot/src/__tests__/jobs/dailySummary.test.ts` (NEW)
+
+**FORBIDDEN:**
+- ALL source files, all mini-app files (test-only agent)
+
+---
+
+### Run 52 File Ownership Matrix
+
+| File / Directory | A | B | C | D | E |
+|---|---|---|---|---|---|
+| `Quests.tsx` | **OWNED** | - | - | - | - |
+| `Achievements.tsx` | **OWNED** | - | - | - | - |
+| `Leaderboard.tsx` | **OWNED** | GRAY | - | - | - |
+| `Profile.tsx` | **OWNED** | - | - | - | - |
+| `Settings.tsx` | **OWNED** | GRAY | - | - | - |
+| `CheckInButton.tsx` | **OWNED** | - | - | - | - |
+| `LaunchScreen.tsx` | **OWNED** | - | - | - | - |
+| `i18n/en.ts, ru.ts, zh.ts` | **OWNED** | - | - | - | - |
+| `types/telegram.d.ts` (NEW) | - | **OWNED** | - | - | - |
+| `i18n/index.ts` | - | **OWNED** | - | - | - |
+| `ThemeSettings.tsx` | - | **OWNED** | - | - | - |
+| `admin-users.ts` | - | - | **OWNED** | - | - |
+| `admin-stats.ts` | - | - | **OWNED** | - | - |
+| `admin-jobs.ts` | - | - | **OWNED** | - | - |
+| `admin-quests.ts` | - | - | **OWNED** | - | - |
+| `punishment.ts` | - | - | **OWNED** | - | - |
+| `utils/validation.ts` (NEW) | - | - | **OWNED** | - | - |
+| `__tests__/components/finance/*.test.tsx` | - | - | - | **NEW** | - |
+| `__tests__/components/social/*.test.tsx` | - | - | - | **NEW** | - |
+| `__tests__/utils/achievementEngine.test.ts` | - | - | - | - | **NEW** |
+| `__tests__/utils/broadcast.test.ts` | - | - | - | - | **NEW** |
+| `__tests__/jobs/dailySummary.test.ts` | - | - | - | - | **NEW** |
+| `PARALLEL_AGENTS.md` | retro | retro | retro | retro | retro |
+
+### Run 52 Merge Order
+
+1. Agent C (bot security) — backend first
+2. Agent B (Telegram types) — mini-app structural/type changes
+3. Agent A (i18n migration) — mini-app content changes (GRAY AREA with B on Leaderboard/Settings)
+4. Agent E (bot tests) — test only
+5. Agent D (mini-app component tests) — test only, merge LAST
+
+### Run 52 Retrospectives
+
+#### Agent A Retrospective
+*(To be filled by Agent A)*
+
+#### Agent B Retrospective
+*(To be filled by Agent B)*
+
+#### Agent C Retrospective
+*(To be filled by Agent C)*
+
+#### Agent D Retrospective
+*(To be filled by Agent D)*
+
+#### Agent E Retrospective
+*(To be filled by Agent E)*
+
+#### Agent 0 Retrospective
+*(To be filled by Agent 0 after merge)*
+
+<!-- Next run goes here. Agent 0 will append RUN 53 below this line. -->
