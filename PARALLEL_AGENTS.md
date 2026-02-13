@@ -1886,7 +1886,17 @@ After completing work, write your retrospective in PARALLEL_AGENTS.md under "Run
 *(To be filled by Agent C)*
 
 #### Agent D Retrospective
-*(To be filled by Agent D)*
+**Task**: Write tests for GoalCard and GoalContribution finance components.
+
+**Result**: 20 tests passing (11 GoalCard + 9 GoalContribution). All green on first run.
+
+**Files created**:
+- `mini-app/src/__tests__/components/finance/GoalCard.test.tsx` — 11 tests covering: name/date rendering, progress calculation (45%, 100% cap), deposit button visibility for complete/incomplete goals, onToggleDeposit callback, projected completion text, deposit history rendering, empty deposits, and GoalContribution prop forwarding.
+- `mini-app/src/__tests__/components/finance/GoalContribution.test.tsx` — 9 tests covering: open/closed rendering, disabled button when empty, enabled when filled, onDeposit call with parsed amount, input clearing on success, input retention on failure, zero/negative amount rejection, and submitting state UI.
+
+**Approach**: Mocked framer-motion, lucide-react, and GoalContribution (in GoalCard tests) to isolate unit boundaries. Used `vi.mock` for `useSavingsGoals` to control `getProjectedCompletion` output. Followed existing patterns from BudgetForm.test.tsx and SavingsGoal.test.tsx.
+
+**Issues**: None. Both components are well-structured and testable.
 
 #### Agent 0 Retrospective
 *(To be filled by Agent 0 after merge)*
