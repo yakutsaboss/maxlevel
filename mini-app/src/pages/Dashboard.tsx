@@ -84,7 +84,7 @@ export function Dashboard() {
       </div>
 
       {/* Motivational Quote */}
-      <div className="mx-4 -mt-4 relative z-10" role="complementary" aria-label="Daily motivational quote">
+      <div className="mx-4 mt-3 relative z-10" role="complementary" aria-label="Daily motivational quote">
         <div className="bg-telegram-secondaryBg/80 backdrop-blur-sm rounded-2xl px-4 py-3 border border-telegram-hint/10">
           <div className="flex items-start gap-2">
             <Quote className="w-4 h-4 text-purple-400 flex-shrink-0 mt-0.5" aria-hidden="true" />
@@ -96,7 +96,7 @@ export function Dashboard() {
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-3 px-4 -mt-8">
+      <div className="grid grid-cols-2 gap-3 px-4 mt-4">
         <StatCard icon={<Target className="w-5 h-5" />} label="Quests Done" value={stats.user.total_quests_completed} color="bg-blue-500" />
         <StatCard icon={<Flame className="w-5 h-5" />} label="Longest Streak" value={`${stats.streakData.longest} days`} color="bg-orange-500" />
         <StatCard icon={<Zap className="w-5 h-5" />} label="Total XP" value={stats.user.xp} color="bg-yellow-500" />
