@@ -2673,4 +2673,27 @@ After completing work, write your retrospective in PARALLEL_AGENTS.md under "Run
 
 **Note**: Run 49 retros for agents B-H were lost during `--theirs` conflict resolution (only Agent A's survived as last merge). Retros exist in git reflog on deleted branches.
 
-<!-- Next run goes here. Agent 0 will append RUN 50 below this line. -->
+### Run 50 Retrospectives
+
+#### Agent H Retrospective
+**Task**: Write regression tests verifying Run 50 bug fixes (test-only agent).
+**File created**: `mini-app/src/__tests__/regression/run50-bugs.test.tsx` (NEW, ~370 lines)
+**Result**: SUCCESS — file compiles and runs; 12 tests across 6 describe blocks.
+
+**Test structure (6 describe blocks, 12 tests)**:
+1. **Onboarding no-blink (Agent A)** — 3 source-level tests: AnimatePresence mode != "wait", no `x` in initial/exit props
+2. **Dashboard no-overlap (Agent B)** — 2 source-level tests: stat grid className has no `-mt-8` or negative top margin
+3. **Social header spacing (Agent C)** — 1 source-level test: Social.tsx contains `safe-area-top`
+4. **Achievement badge visibility (Agent D)** — 3 render tests: outer button has no `overflow-hidden`, NEW badge renders, NEW badge parent not clipped
+5. **Avatar centering (Agent E)** — 1 render test: avatar wrapper has `flex` + `justify-center`
+6. **Punishment transparency (Agent G)** — 2 render tests: XP-related info text present in rendered output
+
+**Approach**: Hybrid strategy — source-level `readFileSync` assertions for page components (Onboarding, Dashboard, Social) to avoid extensive hook/dependency mocking, and `render()` + `screen` queries for isolated components (AchievementCard, ProfileHeader, PunishmentConfig).
+
+**Pre-merge status**: 11/12 tests fail (expected — source files in this worktree are pre-fix). 1 test passes (NEW badge renders — existing behavior not broken). All 12 will pass after Agent 0 merges agents A-G first.
+
+**Mocking**: @twa-dev/sdk, framer-motion (AnimatePresence + motion.div/button), lucide-react (explicit icon stubs), ProfileEditModal, ProgressBar. No Proxy patterns (caused hang in first attempt).
+
+**No conflicts expected**: Only created a new file in `__tests__/regression/` — no existing file modifications.
+
+<!-- Next run goes here. Agent 0 will append RUN 51 below this line. -->
