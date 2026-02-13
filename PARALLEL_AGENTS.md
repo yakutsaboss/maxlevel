@@ -2370,7 +2370,12 @@ After completing work, write your retrospective in PARALLEL_AGENTS.md under "Run
 ### Run 59 Retrospectives
 
 #### Agent A Retrospective
-*(To be filled by Agent A)*
+- **Task**: Split `bot/src/api/routes/payments.ts` (380 lines) into focused modules.
+- **Files created**: `bot/src/utils/paymentHelpers.ts` (47 lines), `bot/src/api/routes/payment-webhook.ts` (97 lines)
+- **Files modified**: `bot/src/api/routes/payments.ts` (380→269 lines)
+- **What was done**: Extracted 3 helper functions (`isValidTier`, `verifyWebhookSecret`, `isPositiveInteger`) + `VALID_TIERS` constant + `Tier` type into `paymentHelpers.ts`. Moved POST `/webhook` handler into `payment-webhook.ts`. Refactored `payments.ts` to import helpers and mount webhook sub-router.
+- **Backward compatibility**: `paymentsRouter` export unchanged, server.ts requires zero changes.
+- **Build**: `tsc` passes clean, no errors.
 
 #### Agent B Retrospective
 **Task:** Wire Telegram Stars payment flow from mini-app SubscriptionSettings to backend payments API.
@@ -2398,10 +2403,20 @@ After completing work, write your retrospective in PARALLEL_AGENTS.md under "Run
 - `api/payments.ts` is a separate module from `api/client.ts` — some payment methods already exist in `apiClient` (from Run 56 Agent E). Agent 0 may optionally consolidate later.
 
 #### Agent C Retrospective
-*(To be filled by Agent C)*
+- **Task**: Add celebration animations — confetti burst, level-up modal, XP float effect, useCelebration hook, and confetti integration in AchievementToast.
+- **Files created**: `Confetti.tsx` (70 lines), `LevelUpModal.tsx` (82 lines), `XpFloat.tsx` (42 lines), `useCelebration.ts` (133 lines)
+- **Files modified**: `AchievementToast.tsx` (added Confetti import + render, +6 lines)
+- **i18n**: Added `celebrations` namespace to en/ru/zh.ts with `levelUp` and `tapToDismiss` keys.
+- **Design**: 40 confetti particles (8 colors, GPU-accelerated), purple gradient level-up modal with spring animation, teal XP float (+60px fade). useCelebration uses localStorage-backed level/XP tracking.
+- **Note**: useCelebration exposes `onDashboardData(level, xp)` — caller should invoke this when dashboard stats load. Haptic feedback should be triggered by the consuming page.
+- **Build**: `tsc + vite build` passes clean.
 
 #### Agent D Retrospective
-*(To be filled by Agent D)*
+- **Task**: Write tests for payments split, Stars payment hook, and celebration components.
+- **Files created (5)**: `paymentHelpers.test.ts` (18 tests), `usePayment.test.ts` (7 tests), `Confetti.test.tsx` (4 tests), `LevelUpModal.test.tsx` (5 tests), `XpFloat.test.tsx` (5 tests)
+- **Total**: 39 tests across 5 files (target was ~24-30, exceeded for better coverage).
+- **Patterns**: Bot tests use vi.mock + mockRequest; mini-app hook tests use renderHook/act/waitFor; component tests mock framer-motion to plain divs + vi.useFakeTimers.
+- **IMPORTANT**: paymentHelpers.test.ts imports `isValidTier`, `isPositiveInteger`, `verifyWebhookSecret` — Agent A must export all 3.
 
 #### Agent 0 Retrospective
 *(To be filled by Agent 0 after merge)*

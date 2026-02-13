@@ -64,13 +64,14 @@ describe('LevelUpModal', () => {
     expect(onClose).toHaveBeenCalled();
   });
 
-  it('calls onClose when clicked/tapped', () => {
+  it('calls onClose when backdrop is clicked', () => {
     const onClose = vi.fn();
-    render(<LevelUpModal level={3} show={true} onClose={onClose} />);
+    const { container } = render(<LevelUpModal level={3} show={true} onClose={onClose} />);
 
-    // Find the level number and click on or near it
-    const levelText = screen.getByText('3');
-    fireEvent.click(levelText);
+    // The outer backdrop div has onClick={onClose}; inner content has stopPropagation
+    // AnimatePresence is mocked to fragment, so first child is the backdrop div
+    const backdrop = container.querySelector('.fixed');
+    fireEvent.click(backdrop!);
 
     expect(onClose).toHaveBeenCalled();
   });

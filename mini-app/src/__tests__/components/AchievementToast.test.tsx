@@ -7,6 +7,12 @@ vi.mock('framer-motion', () => ({
   motion: {
     div: ({ children, className, ...rest }: any) => <div className={className}>{children}</div>,
   },
+  AnimatePresence: ({ children }: any) => <>{children}</>,
+}));
+
+// Mock Confetti (added by Run 59 Agent C)
+vi.mock('@/components/celebrations/Confetti', () => ({
+  Confetti: () => null,
 }));
 
 // Mock lucide-react
