@@ -2,55 +2,26 @@
  * Payment API Routes
  * Handles Telegram Stars payments, subscription management, and payment history.
  * Provider: Telegram Stars (XTR currency)
+ *
+ * Webhook handler lives in payment-webhook.ts.
+ * Shared helpers in utils/paymentHelpers.ts.
  */
 
 import { Router, Request, Response } from 'express';
-import crypto from 'crypto';
-import { query, queryOne, execute, transaction } from '../../utils/db.js';
+import { query, queryOne, execute } from '../../utils/db.js';
 import { authenticateTelegram, authorizeUser } from '../middleware/auth.js';
 import { mutationLimiter, readLimiter } from '../middleware/rateLimiter.js';
-import { asyncHandler, successResponse, BadRequestError, NotFoundError, UnauthorizedError } from '../utils/errors.js';
+import { asyncHandler, successResponse, BadRequestError, NotFoundError } from '../utils/errors.js';
 import { logger } from '../../utils/logger.js';
 import { safeParseInt } from '../../utils/validation.js';
+import { isValidTier, isPositiveInteger } from '../../utils/paymentHelpers.js';
+import { webhookRouter } from './payment-webhook.js';
 
 const router = Router();
 const log = logger.child({ component: 'payments' });
 
-/** Valid subscription tiers */
-const VALID_TIERS = ['free', 'subscriber', 'premium'] as const;
-type Tier = typeof VALID_TIERS[number];
-
-function isValidTier(tier: string): tier is Tier {
-  return VALID_TIERS.includes(tier as Tier);
-}
-
-/** Verify Telegram webhook secret token */
-function verifyWebhookSecret(req: Request): void {
-  const secret = req.headers['x-telegram-bot-api-secret-token'] as string | undefined;
-  const expectedSecret = process.env.TELEGRAM_WEBHOOK_SECRET || process.env.TELEGRAM_BOT_TOKEN;
-
-  if (!expectedSecret) {
-    log.error('Webhook secret not configured');
-    throw new UnauthorizedError('Webhook verification not configured');
-  }
-
-  if (!secret) {
-    log.warn('Webhook call missing secret token', { ip: req.ip });
-    throw new UnauthorizedError('Missing webhook secret token');
-  }
-
-  // Constant-time comparison to prevent timing attacks
-  const secretBuf = Buffer.from(secret);
-  const expectedBuf = Buffer.from(expectedSecret);
-  if (secretBuf.length !== expectedBuf.length || !crypto.timingSafeEqual(secretBuf, expectedBuf)) {
-    log.warn('Webhook call with invalid secret token', { ip: req.ip });
-    throw new UnauthorizedError('Invalid webhook secret token');
-  }
-}
-
-function isPositiveInteger(value: unknown): value is number {
-  return typeof value === 'number' && Number.isInteger(value) && value > 0;
-}
+// Mount webhook sub-router
+router.use('/webhook', webhookRouter);
 
 // ─── POST /create ────────────────────────────────────────────────────────────
 // Initiate a new payment via Telegram Stars provider
@@ -100,88 +71,6 @@ router.post('/create', authenticateTelegram, mutationLimiter, asyncHandler(async
     tier,
     created_at: payment?.created_at,
   }, 'Payment initiated'));
-}));
-
-// ─── POST /webhook ───────────────────────────────────────────────────────────
-// Handle Telegram Stars payment callback (provider webhook)
-// NOTE: No authenticateTelegram — webhooks come from Telegram servers, not Mini App.
-// Instead, uses secret token verification.
-router.post('/webhook', asyncHandler(async (req: Request, res: Response) => {
-  // Verify webhook authenticity via secret token
-  verifyWebhookSecret(req);
-
-  const { telegram_payment_charge_id, provider_payment_charge_id, payment_id } = req.body;
-
-  if (!telegram_payment_charge_id) {
-    throw new BadRequestError('Missing telegram_payment_charge_id');
-  }
-
-  if (!payment_id) {
-    throw new BadRequestError('Missing payment_id');
-  }
-
-  // Look up the pending payment
-  const payment = await queryOne<{ id: number; user_id: number; amount: string; status: string; metadata: { tier?: string } }>(
-    `SELECT id, user_id, amount, status, metadata FROM payments WHERE id = $1`,
-    [payment_id],
-  );
-
-  if (!payment) {
-    throw new NotFoundError(`Payment ${payment_id} not found`);
-  }
-
-  if (payment.status === 'completed') {
-    // Idempotent: already processed
-    res.json(successResponse({ payment_id: payment.id, status: 'completed' }, 'Payment already processed'));
-    return;
-  }
-
-  if (payment.status !== 'pending') {
-    throw new BadRequestError(`Payment ${payment_id} is in ${payment.status} state, cannot complete`);
-  }
-
-  // Complete payment and activate subscription in a single transaction
-  const tier = (payment.metadata?.tier as string) || 'premium';
-
-  await transaction(async (client) => {
-    // Mark payment as completed with provider charge IDs
-    await client.query(
-      `UPDATE payments
-       SET status = 'completed',
-           telegram_payment_charge_id = $1,
-           provider_payment_charge_id = $2,
-           updated_at = NOW()
-       WHERE id = $3`,
-      [telegram_payment_charge_id, provider_payment_charge_id || null, payment_id],
-    );
-
-    // Upsert subscription — activate or upgrade
-    await client.query(
-      `INSERT INTO subscriptions (user_id, tier, started_at, expires_at, auto_renew)
-       VALUES ($1, $2, NOW(), NOW() + INTERVAL '30 days', true)
-       ON CONFLICT (user_id) DO UPDATE
-       SET tier = $2,
-           started_at = NOW(),
-           expires_at = NOW() + INTERVAL '30 days',
-           auto_renew = true,
-           updated_at = NOW()`,
-      [payment.user_id, tier],
-    );
-  });
-
-  log.info('Payment webhook processed', {
-    paymentId: payment_id,
-    userId: payment.user_id,
-    telegram_payment_charge_id,
-    tier,
-  });
-
-  res.json(successResponse({
-    payment_id: payment.id,
-    status: 'completed',
-    subscription_tier: tier,
-    expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
-  }, 'Payment confirmed, subscription activated'));
 }));
 
 // ─── GET /history/:userId ────────────────────────────────────────────────────
