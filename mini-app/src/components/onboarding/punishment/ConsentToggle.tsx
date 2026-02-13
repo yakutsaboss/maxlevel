@@ -10,6 +10,9 @@ export function ConsentToggle({ consent, onToggle }: ConsentToggleProps) {
         <div>
           <p className="font-semibold text-telegram-text text-sm">Enable accountability</p>
           <p className="text-xs text-telegram-hint mt-0.5">Choose a real punishment you'll actually do</p>
+          <p className="text-xs text-telegram-hint/70 mt-0.5">
+            Skipped quests already reduce your XP. This adds stronger consequences.
+          </p>
         </div>
         <button
           onClick={onToggle}

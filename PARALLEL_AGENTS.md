@@ -2673,4 +2673,13 @@ After completing work, write your retrospective in PARALLEL_AGENTS.md under "Run
 
 **Note**: Run 49 retros for agents B-H were lost during `--theirs` conflict resolution (only Agent A's survived as last merge). Retros exist in git reflog on deleted branches.
 
-<!-- Next run goes here. Agent 0 will append RUN 50 below this line. -->
+## Run 50 Retrospectives
+
+#### Agent G Retrospective
+- **Task**: Add punishment transparency info to onboarding (PunishmentConfig + ConsentToggle)
+- **Changes**: Added blue info box in PunishmentConfig.tsx explaining XP depreciation happens regardless of accountability toggle. Added subtitle in ConsentToggle.tsx clarifying that skipped quests already reduce XP.
+- **Files modified**: `mini-app/src/components/onboarding/PunishmentConfig.tsx`, `mini-app/src/components/onboarding/punishment/ConsentToggle.tsx`
+- **Build**: Passed (tsc + vite build clean)
+- **Issues**: None — straightforward text additions, no logic changes
+
+<!-- Next run goes here. Agent 0 will append RUN 51 below this line. -->
