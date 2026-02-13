@@ -1,6 +1,9 @@
 import '@testing-library/jest-dom';
 import { setupTWAMock } from './mocks/twa-sdk';
 
+// Initialize i18n for tests (provides English translations to useTranslation())
+import '@/i18n';
+
 // Mock window.Telegram.WebApp using the shared TWA SDK mock
 setupTWAMock();
 
