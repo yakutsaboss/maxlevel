@@ -1697,6 +1697,331 @@ All 4 tasks completed cleanly. Added `u.avatar_id` to all 4 leaderboard SQL quer
 **Notes for merge**: Tests should all pass after merging Agents B→E. If Agent B changes the mock sequence (e.g., queries mode_configs at a different point), the dailyQuestReset-fitness mocks may need reordering.
 
 #### Agent 0 Retrospective
+**Run 57 merge — 6 agents, all 6 branches merged cleanly (zero conflicts in source files).**
+**Merge:** All branches merged in order A→E→B→D→C→F. PARALLEL_AGENTS.md had expected auto-merge conflicts (retrospective sections) — all resolved automatically by git ort strategy.
+**Agent 0 fixes:** 10 test failures across 3 files:
+- `quest-assignment.http.test.ts` (7 failures): Agent B added `getUserFitnessLevel()` query between "get modes" and "get quests" — all 7 tests needed an extra `db.query.mockResolvedValueOnce([])` for the fitness level query. Also updated `mock.calls[1]` → `mock.calls[2]` in assertion tests.
+- `quests.http.test.ts` (1 failure): Same issue — assign test needed fitness level query mock.
+- `QuestFilters.test.tsx` (2 failures): Agent C added `selectedDifficulty`/`onDifficultySelect` required props + difficulty "All" chip duplicated mode "All" text. Fixed by adding new props + using `getAllByText('All')`.
+**Builds:** Bot (tsc) + Mini-app (tsc + vite) — both clean. 1652 tests pass (858 bot + 794 mini-app).
+**Deploy:** `fbc7ddb` — health check verified, notification sent.
+**DB migrations:** Pending — SSH key cache expired mid-session. User must run manually:
+- `run57_quest_rebalance.sql` — adds 26 new quest templates
+- `run57_leaderboard_avatar.sql` — recreates leaderboard_mv with avatar_id
+**Cleanup:** 6 worktrees removed, 6 feature branches deleted.
+**Issues carried forward:**
+- pg-boss Node.js 22.12+ requirement (server has 20.20)
+- safeParseInt + isNaN pattern audit still pending (Known Issue #9)
+- SubscriptionSettings.tsx duplicates MODE_LIMITS (Known Issue #10)
+- Leaderboard UI doesn't pass avatar_id to UserAvatar (backend returns it, frontend ignores it)
+
+## Run 58: Security Audit + Code Quality + Leaderboard Polish (4 Agents + Agent 0)
+
+**Date**: 2026-02-13
+**Agents**: 4 (A-D) + Agent 0
+**Goal**: Fix safeParseInt+isNaN security gap, refactor 400-line planGenerator, wire avatar emojis into leaderboard UI, deduplicate MODE_LIMITS.
+
+**Current state (from codebase audit):**
+- safeParseInt + isNaN pattern: when followed by isNaN() check, default MUST be NaN, not 0. Multiple routes use `safeParseInt(x, 0)` then `isNaN()` → validation bypassed for garbage input
+- planGenerator.ts is 400 lines — largest bot utility file, can split into 3 modules
+- Leaderboard API returns avatar_id (Run 57 Agent E) but TopThreeCard + LeaderboardRow don't pass it to UserAvatar
+- SubscriptionSettings.tsx defines MODE_LIMITS locally instead of importing from constants/tiers.ts
+
+---
+
+### Run 58 Copy-Paste Prompts
+
+**Agent A — safeParseInt + isNaN Security Audit** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-a`):
+```
+Read c:\Users\Asus\Desktop\Wibecode-agent-a\PARALLEL_AGENTS.md — find "Run 58" and locate the "Agent A" section. You are Agent A.
+
+YOUR TASK: Audit ALL routes for the safeParseInt + isNaN pattern. Where safeParseInt is followed by isNaN() check, change the default from 0 to NaN.
+
+OWNED FILES:
+- bot/src/api/routes/analytics.ts
+- bot/src/api/routes/checkins.ts
+- bot/src/api/routes/users.ts
+- bot/src/api/routes/finance.ts
+
+CONTEXT: safeParseInt("abc", 0) returns 0. If code then checks isNaN(result), the check passes (0 is not NaN) and garbage input is treated as userId=0. Fix: use NaN as default when isNaN() validation follows.
+
+TASK 1 — Grep for the pattern:
+Search for `safeParseInt` in all route files. For EACH occurrence, check if it's followed by an `isNaN()` check. If yes, change the default to NaN.
+
+Pattern to fix:
+```typescript
+// BEFORE (broken):
+const userId = safeParseInt(req.params.userId, 0);
+if (isNaN(userId)) throw new BadRequestError('Invalid userId');
+
+// AFTER (correct):
+const userId = safeParseInt(req.params.userId, NaN);
+if (isNaN(userId)) throw new BadRequestError('Invalid userId');
+```
+
+Pattern to LEAVE ALONE (these are correct as-is):
+```typescript
+// No isNaN check follows — 0 is a valid fallback:
+const page = safeParseInt(req.query.page, 1);
+const limit = safeParseInt(req.query.limit, 20);
+```
+
+TASK 2 — Verify no regressions:
+After fixing, run `cd bot && npm run build` to ensure TypeScript compiles.
+
+FORBIDDEN: Do NOT modify mini-app files, middleware files, test files, or validation.ts itself.
+
+BUILD VERIFY: cd bot && npm run build must pass.
+
+After completing work, write your retrospective in PARALLEL_AGENTS.md under "Run 58 Retrospectives" → "Agent A Retrospective", replacing the placeholder text. Then commit all changes.
+```
+
+**Agent B — Split planGenerator.ts** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-b`):
+```
+Read c:\Users\Asus\Desktop\Wibecode-agent-b\PARALLEL_AGENTS.md — find "Run 58" and locate the "Agent B" section. You are Agent B.
+
+YOUR TASK: Split bot/src/utils/planGenerator.ts (400 lines) into 3 focused modules.
+
+OWNED FILES:
+- bot/src/utils/planGenerator.ts (refactor into orchestrator)
+- bot/src/utils/fitnessPlanGenerator.ts (NEW)
+- bot/src/utils/hydrationPlanGenerator.ts (NEW)
+- bot/src/utils/planTypes.ts (NEW)
+
+TASK 1 — Create planTypes.ts:
+Extract ALL type definitions from planGenerator.ts:
+- QuizResponses interface
+- ModeConfig interface
+- FitnessPlan, FitnessScheduleDay, HydrationPlan, HydrationTargets
+- EXERCISE_POOL constant (if it's a type-adjacent constant)
+
+TASK 2 — Create fitnessPlanGenerator.ts:
+Move these functions from planGenerator.ts:
+- generateFitnessPlan()
+- pickExercises()
+- durationForLevel()
+- buildFocusRotation()
+- buildFitnessRecommendations()
+- EXERCISE_POOL constant
+Import types from planTypes.ts. Export generateFitnessPlan as the main entry point.
+
+TASK 3 — Create hydrationPlanGenerator.ts:
+Move these functions:
+- generateHydrationPlan()
+- buildHydrationRecommendations()
+Import types from planTypes.ts. Export generateHydrationPlan as the main entry point.
+
+TASK 4 — Slim down planGenerator.ts:
+Keep ONLY the orchestrator function: generatePlan(modeConfig). It should:
+1. Import generateFitnessPlan from './fitnessPlanGenerator.js'
+2. Import generateHydrationPlan from './hydrationPlanGenerator.js'
+3. Import types from './planTypes.js'
+4. Switch on modeConfig.mode_name and delegate to the right generator
+Target: ~50-80 lines max.
+
+IMPORTANT: Use .js extensions in all import paths (ESM project).
+
+FORBIDDEN: Do NOT modify mini-app files, route files, test files, or any other utility files.
+
+BUILD VERIFY: cd bot && npm run build must pass.
+
+After completing work, write your retrospective in PARALLEL_AGENTS.md under "Run 58 Retrospectives" → "Agent B Retrospective", replacing the placeholder text. Then commit all changes.
+```
+
+**Agent C — Leaderboard Avatar Integration + SubscriptionSettings Cleanup** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-c`):
+```
+Read c:\Users\Asus\Desktop\Wibecode-agent-c\PARALLEL_AGENTS.md — find "Run 58" and locate the "Agent C" section. You are Agent C.
+
+YOUR TASK: Wire avatar_id into Leaderboard UI components + deduplicate MODE_LIMITS in SubscriptionSettings.
+
+OWNED FILES:
+- mini-app/src/components/leaderboard/TopThreeCard.tsx
+- mini-app/src/components/leaderboard/LeaderboardRow.tsx
+- mini-app/src/components/settings/SubscriptionSettings.tsx
+
+TASK 1 — TopThreeCard.tsx:
+The leaderboard API now returns avatar_id (Run 57). The LeaderboardEntry type already has `avatar_id?: number`.
+1. Pass `avatarId={entry.avatar_id}` to the UserAvatar component (currently only passes userId, firstName, username, size)
+2. This is a 1-line change per UserAvatar call
+
+TASK 2 — LeaderboardRow.tsx:
+Same as above:
+1. Pass `avatarId={entry.avatar_id}` to UserAvatar
+2. 1-line change
+
+TASK 3 — SubscriptionSettings.tsx:
+1. Remove the local MODE_LIMITS definition (lines ~10-14)
+2. Import MODE_LIMITS from '@/constants/tiers'
+3. Import useSubscription from '@/hooks/useSubscription' if it simplifies the component's data fetching
+4. Verify the imported MODE_LIMITS matches the local values (free:2, subscriber:3, premium:6)
+
+FORBIDDEN: bot/ files, database/ files, test files, hooks/ (except importing), types/.
+
+BUILD VERIFY: cd mini-app && npm run build must pass.
+
+After completing work, write your retrospective in PARALLEL_AGENTS.md under "Run 58 Retrospectives" → "Agent C Retrospective", replacing the placeholder text. Then commit all changes.
+```
+
+**Agent D — Tests for Run 58 Changes** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-d`):
+```
+Read c:\Users\Asus\Desktop\Wibecode-agent-d\PARALLEL_AGENTS.md — find "Run 58" and locate the "Agent D" section. You are Agent D.
+
+YOUR TASK: Write tests for the planGenerator split and safeParseInt fixes.
+
+OWNED FILES (all NEW):
+- bot/src/__tests__/utils/planGenerator.test.ts (NEW or update if exists)
+- bot/src/__tests__/utils/fitnessPlanGenerator.test.ts (NEW)
+- bot/src/__tests__/utils/hydrationPlanGenerator.test.ts (NEW)
+
+TASK 1 — planGenerator.test.ts (~5-6 tests):
+Test the orchestrator function:
+- generatePlan with mode_name='fitness' delegates to fitness generator
+- generatePlan with mode_name='hydration' delegates to hydration generator
+- generatePlan with unknown mode returns null/undefined
+- QuizResponses type narrowing works correctly
+
+TASK 2 — fitnessPlanGenerator.test.ts (~8-10 tests):
+Test fitness plan generation:
+- generateFitnessPlan with beginner level
+- generateFitnessPlan with intermediate level
+- generateFitnessPlan with advanced level
+- Plan includes weekly schedule (7 days)
+- Plan includes recommendations
+- pickExercises returns correct count
+- durationForLevel returns expected values per level
+- buildFocusRotation returns 7-day rotation
+- Missing/empty quiz responses defaults to beginner
+
+TASK 3 — hydrationPlanGenerator.test.ts (~6-8 tests):
+Test hydration plan generation:
+- generateHydrationPlan with default responses
+- Plan includes daily target
+- Plan includes recommendations
+- buildHydrationRecommendations returns non-empty array
+- Different weight inputs produce different targets
+- Missing quiz responses use defaults
+
+PATTERN: Read existing util tests for patterns:
+- bot/src/__tests__/utils/validation.test.ts
+- bot/src/__tests__/utils/streak.test.ts
+
+NOTE: Agent B is splitting planGenerator.ts into 3 files. Your tests should import from the NEW file locations (fitnessPlanGenerator.ts, hydrationPlanGenerator.ts, planTypes.ts). If the imports fail because Agent B hasn't merged yet, that's expected — tests will pass after merge.
+
+Target: ~20-24 tests across 3 files.
+
+FORBIDDEN: ALL source files (test-only agent).
+
+BUILD VERIFY: cd bot && npx vitest --run src/__tests__/utils/planGenerator.test.ts src/__tests__/utils/fitnessPlanGenerator.test.ts src/__tests__/utils/hydrationPlanGenerator.test.ts
+
+After completing work, write your retrospective in PARALLEL_AGENTS.md under "Run 58 Retrospectives" → "Agent D Retrospective", replacing the placeholder text. Then commit all changes.
+```
+
+---
+
+### Agent A — safeParseInt + isNaN Security Audit
+
+**Branch:** `feature/r58-parseint-audit`
+**Worktree:** `../Wibecode-agent-a`
+
+**OWNED files:**
+- `bot/src/api/routes/analytics.ts`
+- `bot/src/api/routes/checkins.ts`
+- `bot/src/api/routes/users.ts`
+- `bot/src/api/routes/finance.ts`
+
+**FORBIDDEN:**
+- All mini-app files, middleware files, test files, validation.ts
+
+---
+
+### Agent B — Split planGenerator.ts
+
+**Branch:** `feature/r58-plan-generator-split`
+**Worktree:** `../Wibecode-agent-b`
+
+**OWNED files:**
+- `bot/src/utils/planGenerator.ts` (refactor)
+- `bot/src/utils/fitnessPlanGenerator.ts` (NEW)
+- `bot/src/utils/hydrationPlanGenerator.ts` (NEW)
+- `bot/src/utils/planTypes.ts` (NEW)
+
+**FORBIDDEN:**
+- All mini-app files, route files, test files
+
+---
+
+### Agent C — Leaderboard Avatar Integration + SubscriptionSettings Cleanup
+
+**Branch:** `feature/r58-leaderboard-avatars`
+**Worktree:** `../Wibecode-agent-c`
+
+**OWNED files:**
+- `mini-app/src/components/leaderboard/TopThreeCard.tsx`
+- `mini-app/src/components/leaderboard/LeaderboardRow.tsx`
+- `mini-app/src/components/settings/SubscriptionSettings.tsx`
+
+**FORBIDDEN:**
+- All bot/ files, database/ files, test files, hooks/, types/
+
+---
+
+### Agent D — Tests for Run 58 Changes
+
+**Branch:** `feature/r58-tests`
+**Worktree:** `../Wibecode-agent-d`
+
+**OWNED files:**
+- `bot/src/__tests__/utils/planGenerator.test.ts` (NEW or update)
+- `bot/src/__tests__/utils/fitnessPlanGenerator.test.ts` (NEW)
+- `bot/src/__tests__/utils/hydrationPlanGenerator.test.ts` (NEW)
+
+**FORBIDDEN:**
+- ALL source files (test-only agent)
+
+---
+
+### Run 58 File Ownership Matrix
+
+| File / Directory | A | B | C | D |
+|---|---|---|---|---|
+| `bot/routes/analytics.ts` | **OWNED** | - | - | - |
+| `bot/routes/checkins.ts` | **OWNED** | - | - | - |
+| `bot/routes/users.ts` | **OWNED** | - | - | - |
+| `bot/routes/finance.ts` | **OWNED** | - | - | - |
+| `bot/utils/planGenerator.ts` | - | **OWNED** | - | - |
+| `bot/utils/fitnessPlanGenerator.ts` | - | **NEW** | - | - |
+| `bot/utils/hydrationPlanGenerator.ts` | - | **NEW** | - | - |
+| `bot/utils/planTypes.ts` | - | **NEW** | - | - |
+| `leaderboard/TopThreeCard.tsx` | - | - | **OWNED** | - |
+| `leaderboard/LeaderboardRow.tsx` | - | - | **OWNED** | - |
+| `settings/SubscriptionSettings.tsx` | - | - | **OWNED** | - |
+| `__tests__/utils/planGenerator.test.ts` | - | - | - | **NEW** |
+| `__tests__/utils/fitnessPlanGenerator.test.ts` | - | - | - | **NEW** |
+| `__tests__/utils/hydrationPlanGenerator.test.ts` | - | - | - | **NEW** |
+| `PARALLEL_AGENTS.md` | retro | retro | retro | retro |
+
+### Run 58 Merge Order
+
+1. Agent A (safeParseInt audit) — security fix first
+2. Agent B (planGenerator split) — backend refactoring
+3. Agent C (leaderboard avatars + subscription cleanup) — frontend
+4. Agent D (tests) — test only, merge last
+
+### Run 58 Retrospectives
+
+#### Agent A Retrospective
+*(To be filled by Agent A)*
+
+#### Agent B Retrospective
+*(To be filled by Agent B)*
+
+#### Agent C Retrospective
+*(To be filled by Agent C)*
+
+#### Agent D Retrospective
+*(To be filled by Agent D)*
+
+#### Agent 0 Retrospective
 *(To be filled by Agent 0 after merge)*
 
-<!-- Next run goes here. Agent 0 will append RUN 58 below this line. -->
+<!-- Next run goes here. Agent 0 will append RUN 59 below this line. -->
