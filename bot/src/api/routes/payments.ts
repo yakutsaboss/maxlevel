@@ -11,6 +11,7 @@ import { authenticateTelegram, authorizeUser } from '../middleware/auth.js';
 import { mutationLimiter, readLimiter } from '../middleware/rateLimiter.js';
 import { asyncHandler, successResponse, BadRequestError, NotFoundError, UnauthorizedError } from '../utils/errors.js';
 import { logger } from '../../utils/logger.js';
+import { safeParseInt } from '../../utils/validation.js';
 
 const router = Router();
 const log = logger.child({ component: 'payments' });
@@ -60,7 +61,7 @@ router.post('/create', authenticateTelegram, mutationLimiter, asyncHandler(async
     throw new BadRequestError('Missing required fields: userId, amount, tier');
   }
 
-  const numericUserId = typeof userId === 'string' ? parseInt(userId) : userId;
+  const numericUserId = typeof userId === 'string' ? safeParseInt(userId, 0) : userId;
   if (!isPositiveInteger(numericUserId)) {
     throw new BadRequestError('userId must be a positive integer');
   }
@@ -186,13 +187,13 @@ router.post('/webhook', asyncHandler(async (req: Request, res: Response) => {
 // ─── GET /history/:userId ────────────────────────────────────────────────────
 // List payment history for a user
 router.get('/history/:userId', authenticateTelegram, authorizeUser, readLimiter, asyncHandler(async (req: Request, res: Response) => {
-  const userId = parseInt(req.params.userId);
-  if (isNaN(userId)) {
+  const userId = safeParseInt(req.params.userId, 0);
+  if (userId === 0) {
     throw new BadRequestError('Invalid userId');
   }
 
-  const limit = req.query.limit ? parseInt(req.query.limit as string) : 50;
-  const offset = req.query.offset ? parseInt(req.query.offset as string) : 0;
+  const limit = safeParseInt(req.query.limit as string, 50);
+  const offset = safeParseInt(req.query.offset as string, 0);
 
   const payments = await query(
     `SELECT id, amount, currency, status, provider,
@@ -210,8 +211,8 @@ router.get('/history/:userId', authenticateTelegram, authorizeUser, readLimiter,
 // ─── GET /subscription/:userId ───────────────────────────────────────────────
 // Get current subscription status for a user
 router.get('/subscription/:userId', authenticateTelegram, authorizeUser, readLimiter, asyncHandler(async (req: Request, res: Response) => {
-  const userId = parseInt(req.params.userId);
-  if (isNaN(userId)) {
+  const userId = safeParseInt(req.params.userId, 0);
+  if (userId === 0) {
     throw new BadRequestError('Invalid userId');
   }
 
@@ -263,7 +264,7 @@ router.post('/subscription/upgrade', authenticateTelegram, mutationLimiter, asyn
     throw new BadRequestError('Missing required fields: userId, tier');
   }
 
-  const numericUserId = typeof userId === 'string' ? parseInt(userId) : userId;
+  const numericUserId = typeof userId === 'string' ? safeParseInt(userId, 0) : userId;
   if (!isPositiveInteger(numericUserId)) {
     throw new BadRequestError('userId must be a positive integer');
   }
@@ -310,7 +311,7 @@ router.post('/subscription/cancel', authenticateTelegram, mutationLimiter, async
     throw new BadRequestError('Missing required field: userId');
   }
 
-  const numericUserId = typeof userId === 'string' ? parseInt(userId) : userId;
+  const numericUserId = typeof userId === 'string' ? safeParseInt(userId, 0) : userId;
   if (!isPositiveInteger(numericUserId)) {
     throw new BadRequestError('userId must be a positive integer');
   }

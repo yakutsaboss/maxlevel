@@ -9,6 +9,7 @@ import {
   NotFoundError,
 } from '../utils/errors.js';
 import { buildDynamicUpdate } from '../../utils/sqlBuilder.js';
+import { safeParseInt } from '../../utils/validation.js';
 
 const router = Router();
 
@@ -17,9 +18,9 @@ const router = Router();
  * Update user profile (first_name, avatar_id).
  */
 router.patch('/:telegramId/profile', authenticateTelegram, asyncHandler(async (req: Request, res: Response) => {
-  const tid = parseInt(req.params.telegramId);
+  const tid = safeParseInt(req.params.telegramId, 0);
   requireOwnership(req);
-  if (isNaN(tid)) {
+  if (tid === 0) {
     throw new BadRequestError('Invalid telegram ID');
   }
 
@@ -32,8 +33,8 @@ router.patch('/:telegramId/profile', authenticateTelegram, asyncHandler(async (r
     }
   }
   if (avatar_id !== undefined) {
-    const aid = parseInt(avatar_id);
-    if (isNaN(aid) || aid < 1 || aid > 16) {
+    const aid = safeParseInt(String(avatar_id), 0);
+    if (aid < 1 || aid > 16) {
       throw new BadRequestError('avatar_id must be an integer 1-16');
     }
   }
@@ -44,7 +45,7 @@ router.patch('/:telegramId/profile', authenticateTelegram, asyncHandler(async (r
     fields.first_name = first_name.trim();
   }
   if (avatar_id !== undefined) {
-    fields.avatar_id = parseInt(avatar_id);
+    fields.avatar_id = safeParseInt(String(avatar_id), 1);
   }
 
   if (Object.keys(fields).length === 0) {
@@ -82,9 +83,9 @@ router.patch('/:telegramId/profile', authenticateTelegram, asyncHandler(async (r
  * so re-opening the mini app starts fresh onboarding.
  */
 router.delete('/:telegramId/account', authenticateTelegram, asyncHandler(async (req: Request, res: Response) => {
-  const tid = parseInt(req.params.telegramId);
+  const tid = safeParseInt(req.params.telegramId, 0);
   requireOwnership(req);
-  if (isNaN(tid)) {
+  if (tid === 0) {
     throw new BadRequestError('Invalid telegram ID');
   }
 

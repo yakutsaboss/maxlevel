@@ -8,6 +8,7 @@ import {
   NotFoundError,
 } from '../utils/errors.js';
 import { buildDynamicUpdate } from '../../utils/sqlBuilder.js';
+import { safeParseInt } from '../../utils/validation.js';
 
 const router = Router();
 
@@ -16,9 +17,9 @@ const router = Router();
  * Returns user notification/timezone preferences.
  */
 router.get('/:telegramId/preferences', authenticateTelegram, asyncHandler(async (req: Request, res: Response) => {
-  const tid = parseInt(req.params.telegramId);
+  const tid = safeParseInt(req.params.telegramId, 0);
   requireOwnership(req);
-  if (isNaN(tid)) {
+  if (tid === 0) {
     throw new BadRequestError('Invalid telegram ID');
   }
 
@@ -43,9 +44,9 @@ router.get('/:telegramId/preferences', authenticateTelegram, asyncHandler(async 
  * Update user notification/timezone preferences.
  */
 router.patch('/:telegramId/preferences', authenticateTelegram, asyncHandler(async (req: Request, res: Response) => {
-  const tid = parseInt(req.params.telegramId);
+  const tid = safeParseInt(req.params.telegramId, 0);
   requireOwnership(req);
-  if (isNaN(tid)) {
+  if (tid === 0) {
     throw new BadRequestError('Invalid telegram ID');
   }
 
@@ -56,8 +57,8 @@ router.patch('/:telegramId/preferences', authenticateTelegram, asyncHandler(asyn
     throw new BadRequestError('notification_enabled must be a boolean');
   }
   if (reminder_time !== undefined) {
-    const rt = parseInt(reminder_time);
-    if (isNaN(rt) || rt < 0 || rt > 23) {
+    const rt = safeParseInt(String(reminder_time), -1);
+    if (rt < 0 || rt > 23) {
       throw new BadRequestError('reminder_time must be an integer 0-23');
     }
   }
@@ -71,7 +72,7 @@ router.patch('/:telegramId/preferences', authenticateTelegram, asyncHandler(asyn
     fields.notification_enabled = notification_enabled;
   }
   if (reminder_time !== undefined) {
-    fields.reminder_time = parseInt(reminder_time);
+    fields.reminder_time = safeParseInt(String(reminder_time), 0);
   }
   if (timezone !== undefined) {
     fields.timezone = timezone;

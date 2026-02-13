@@ -10,6 +10,7 @@ import {
   BadRequestError,
   NotFoundError,
 } from '../utils/errors.js';
+import { safeParseInt } from '../../utils/validation.js';
 
 /** Row shape returned by friend_requests table queries (RETURNING *). */
 interface FriendRequestRow {
@@ -87,7 +88,7 @@ router.post('/friends/accept', authenticateTelegram, mutationLimiter, asyncHandl
 
 // GET /api/social/friends/:userId — list friends
 router.get('/friends/:userId', authenticateTelegram, authorizeUser, readLimiter, asyncHandler(async (req: Request, res: Response) => {
-  const userId = parseInt(req.params.userId);
+  const userId = safeParseInt(req.params.userId, 0);
 
   const friends = await query(
     `SELECT u.id, u.username, u.first_name, u.current_level, u.total_xp, u.is_active,
@@ -140,7 +141,7 @@ router.post('/challenges/create', authenticateTelegram, mutationLimiter, asyncHa
 
 // GET /api/social/challenges/:userId — list user's challenges
 router.get('/challenges/:userId', authenticateTelegram, authorizeUser, readLimiter, asyncHandler(async (req: Request, res: Response) => {
-  const userId = parseInt(req.params.userId);
+  const userId = safeParseInt(req.params.userId, 0);
 
   const challenges = await cached(`social:challenges:${userId}`, 2 * 60_000, () =>
     query(
