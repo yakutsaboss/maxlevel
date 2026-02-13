@@ -1150,7 +1150,21 @@ PGPASSWORD=postgres psql -h localhost -U postgres -d telegram_rpg -f /opt/wibeco
 - Premium upgrade button has a TODO comment — needs Telegram Stars payment integration when the payment flow is connected.
 
 #### Agent G Retrospective
-*(To be filled by Agent G)*
+**Task:** Write tests for channel API, updated premiumGate, mode gating, and useSubscription hook.
+**Result:** 28 tests across 4 files. No source files modified (test-only agent).
+
+**Files created:**
+1. **channel.http.test.ts** (8 tests) — cache hit (skip Telegram API), cache miss (call API), no cache (call API), auto-upgrade (free→subscriber), auto-downgrade (subscriber→free), user not found (404), Telegram API error handling, force refresh bypass.
+2. **premiumGate-tiers.test.ts** (7 tests) — MODE_LIMITS constant validation, getUserEffectiveTier: free (no sub), subscriber (channel cache), premium (active sub), expired premium→free, expired premium + channel→subscriber; requirePremium: allow when tier meets requirement, deny when below.
+3. **modes-gating.test.ts** (6 tests) — under limit (free 0/2), at limit (free 2/2 blocked), over limit (free 1/2 + 2 blocked), subscriber 3-mode limit, premium 6-mode limit, tier info in error message.
+4. **useSubscription.test.ts** (7 tests) — loading state, fetch on mount, effectiveTier=free, effectiveTier=subscriber (channel), effectiveTier=premium, error state, refreshChannel API call.
+
+**Notes for Agent 0:**
+- Tests cannot be run in isolation because they import source files created by Agents B (channel.ts, telegramApi.ts), C (updated premiumGate.ts, modes.ts), and E (useSubscription.ts). Tests will pass after merge.
+- Used exact same mock patterns as existing test suite: `httpMocks.js` helpers for bot HTTP tests, `vi.mock('@/api/client')` for mini-app hook tests.
+- premiumGate-tiers.test.ts imports `getUserEffectiveTier` and `MODE_LIMITS` — these exports must exist in Agent C's updated premiumGate.ts.
+- modes-gating.test.ts mocks `premiumGate.js` to control `getUserEffectiveTier` return value per test case.
+- If Agent C's implementation differs from spec (e.g., different error messages, different query patterns), Agent 0 may need to adjust mock sequences.
 
 #### Agent 0 Retrospective
 *(To be filled by Agent 0 after merge)*
