@@ -295,8 +295,9 @@ Use this structure when creating a new run. Copy and adapt:
 6. **Avatar data not shared** — hardcoded in AvatarSelect.tsx only. → **Addressed in Run 57** (shared data file).
 7. **No celebration animations** — no confetti, level-up modal, or XP float effects. → **Addressed in Run 61**.
 8. **No shop/purchasable content** — no shop page, trophies, or purchasable achievements. → **Addressed in Runs 62–64**.
-9. **safeParseInt + isNaN pattern** — when followed by `isNaN()` check, default MUST be NaN, not 0. Audit all routes before next run (from Run 55).
-10. **SubscriptionSettings duplicates MODE_LIMITS** — Agent F's component defines limits locally instead of importing from constants/tiers.ts. Minor cleanup.
+### Resolved (Run 58)
+- ~~safeParseInt + isNaN pattern~~ — Agent A audited all 4 route files; all already patched correctly. Issue #9 resolved.
+- ~~SubscriptionSettings duplicates MODE_LIMITS~~ — Agent C imported from constants/tiers.ts, removed local copy. Issue #10 resolved.
 
 ### Resolved (Run 56)
 - ~~Tier system unused by mini-app~~ — Full tier backend (free/subscriber/premium), channel verification API (`@yakutsaway`), premiumGate + mode gating (2/3/6 limits), SubscriptionSettings UI, useSubscription hook, 28 new tier tests. DB tables created on server.
@@ -2039,6 +2040,348 @@ After completing work, write your retrospective in PARALLEL_AGENTS.md under "Run
 - **Pre-merge results**: planGenerator.test.ts 6/6 pass. fitnessPlanGenerator/hydrationPlanGenerator tests fail on import (expected — Agent B's split files don't exist yet). All tests will pass after Agent B's merge.
 
 #### Agent 0 Retrospective
+- **Merge order**: Skipped Agent A (no source changes — all routes already patched), merged B→C→D.
+- **PARALLEL_AGENTS.md conflicts**: All 3 merges conflicted on this file (agents branched before Run 58 section was committed). Used `git checkout --ours` then manually spliced agent retros.
+- **Post-merge test failures (19)**: Agent D's tests imported helper functions (`pickExercises`, `durationForLevel`, `buildFocusRotation`, `buildHydrationRecommendations`) that Agent B left as private. Fix: added `export` to 4 helper functions in fitnessPlanGenerator.ts (3) and hydrationPlanGenerator.ts (1).
+- **Test results**: 1668 passed (874 bot + 794 mini-app). Zero failures.
+- **Deploy**: Server `tsc: not found` on first attempt due to `--omit=dev`. Fixed with full `npm install`. Code live at `9f74ea9`.
+- **Known Issues resolved**: #9 (safeParseInt+isNaN — Agent A confirmed all already patched), #10 (MODE_LIMITS dedup — Agent C imported from constants/tiers).
+- **Lesson**: When designing prompts for split + test agents, explicitly tell the split agent to export helpers that tests will need. Agent B's prompt said "Export generateFitnessPlan as the main entry point" — should have said "Export all public functions including helpers".
+
+---
+
+## Run 59: Stars Payment Integration + Celebration Animations (4 Agents + Agent 0)
+
+**Date**: 2026-02-14
+**Agents**: 4 (A-D) + Agent 0
+**Goal**: Wire Telegram Stars payment flow end-to-end, add celebration animations (confetti, level-up modal, XP floats), split payments.ts (380 lines), and test the new features.
+
+**Current state (from codebase audit):**
+- Backend payments API complete (`bot/src/api/routes/payments.ts`, 380 lines): POST /create, POST /webhook, GET /history, GET /status, POST /upgrade-tier
+- Mini-app SubscriptionSettings has Stars upgrade button with empty TODO handler (line 229)
+- Mini-app has Framer Motion installed, already used in Dashboard — ready for animations
+- No celebration animations exist (no confetti, level-up modal, or XP float effects)
+- `@twa-dev/sdk` provides `WebApp.openInvoice()` for Stars payment flow
+- 1668 tests currently passing
+
+---
+
+### Run 59 Copy-Paste Prompts
+
+**Agent A — Split payments.ts** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-a`):
+```
+Read c:\Users\Asus\Desktop\Wibecode-agent-a\PARALLEL_AGENTS.md — find "Run 59" and locate the "Agent A" section. You are Agent A.
+
+YOUR TASK: Split bot/src/api/routes/payments.ts (380 lines) into focused modules.
+
+OWNED FILES:
+- bot/src/api/routes/payments.ts (refactor into slim router)
+- bot/src/api/routes/payment-webhook.ts (NEW)
+- bot/src/utils/paymentHelpers.ts (NEW)
+
+TASK 1 — Create paymentHelpers.ts:
+Extract these from payments.ts:
+- VALID_TIERS constant + Tier type + isValidTier()
+- verifyWebhookSecret()
+- isPositiveInteger()
+- Any other pure validation/helper functions
+
+TASK 2 — Create payment-webhook.ts:
+Move the webhook handler endpoint (POST /webhook) to its own file:
+- Import helpers from paymentHelpers.ts
+- Export a Router that handles POST /webhook
+- Keep the crypto.timingSafeEqual logic intact
+
+TASK 3 — Slim down payments.ts:
+Keep only the user-facing endpoints:
+- POST /create (create payment)
+- GET /history (payment history)
+- GET /status (payment status)
+- POST /upgrade-tier (tier upgrade)
+- Mount the webhook sub-router: router.use('/webhook', webhookRouter)
+Import helpers from paymentHelpers.ts.
+Target: ~200 lines max.
+
+IMPORTANT: Use .js extensions in all import paths (ESM project).
+
+FORBIDDEN: Do NOT modify mini-app files, test files, other route files, or middleware.
+
+BUILD VERIFY: cd bot && npm run build must pass.
+
+After completing work, write your retrospective in PARALLEL_AGENTS.md under "Run 59 Retrospectives" → "Agent A Retrospective", replacing the placeholder text. Then commit all changes.
+```
+
+**Agent B — Wire Stars Payment in Mini-App** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-b`):
+```
+Read c:\Users\Asus\Desktop\Wibecode-agent-b\PARALLEL_AGENTS.md — find "Run 59" and locate the "Agent B" section. You are Agent B.
+
+YOUR TASK: Wire Telegram Stars payment flow from mini-app SubscriptionSettings to the backend payments API.
+
+OWNED FILES:
+- mini-app/src/components/settings/SubscriptionSettings.tsx (modify)
+- mini-app/src/hooks/usePayment.ts (NEW)
+- mini-app/src/api/payments.ts (NEW — API client functions)
+
+TASK 1 — Create payments API client (mini-app/src/api/payments.ts):
+Add functions to call the backend payments API:
+- createPayment(userId: number, tier: string, amount: number): Promise<{invoiceUrl: string, paymentId: number}>
+- getPaymentStatus(paymentId: number): Promise<{status: string, tier: string}>
+- getPaymentHistory(userId: number): Promise<Payment[]>
+Use the existing API pattern — check mini-app/src/api/ for conventions (base URL from VITE_API_URL, auth headers, error handling).
+
+TASK 2 — Create usePayment hook (mini-app/src/hooks/usePayment.ts):
+Hook that manages the Stars payment flow:
+1. Call createPayment() to get an invoice URL
+2. Use WebApp.openInvoice(invoiceUrl, callback) from @twa-dev/sdk to open Stars dialog
+3. Handle callback: 'paid' → poll getPaymentStatus() → update local state, 'cancelled'/'failed' → show error
+4. Expose: { initiatePayment, isLoading, error, paymentResult }
+
+TASK 3 — Wire into SubscriptionSettings.tsx:
+Replace the TODO comment (line 229) with the actual payment flow:
+1. Import and use usePayment hook
+2. On button click: call initiatePayment('premium', 599)
+3. Show loading state while payment processes
+4. On success: show success message, refetch subscription data
+5. On failure: show error toast
+
+CONTEXT:
+- Backend POST /api/payments/create expects: { userId, amount, tier }
+- Backend returns: { data: { invoiceUrl, paymentId } }
+- WebApp.openInvoice(url, (status) => { ... }) — status is 'paid' | 'cancelled' | 'failed' | 'pending'
+- The existing useTelegram hook provides access to WebApp via tg = WebApp
+
+Check mini-app/src/api/ for existing API call patterns. Check mini-app/src/hooks/ for hook conventions.
+
+FORBIDDEN: bot/ files, database/ files, test files, other settings components.
+
+BUILD VERIFY: cd mini-app && npm run build must pass.
+
+After completing work, write your retrospective in PARALLEL_AGENTS.md under "Run 59 Retrospectives" → "Agent B Retrospective", replacing the placeholder text. Then commit all changes.
+```
+
+**Agent C — Celebration Animations** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-c`):
+```
+Read c:\Users\Asus\Desktop\Wibecode-agent-c\PARALLEL_AGENTS.md — find "Run 59" and locate the "Agent C" section. You are Agent C.
+
+YOUR TASK: Add celebration animations to the mini-app: confetti burst, level-up modal, and XP float effect.
+
+OWNED FILES:
+- mini-app/src/components/celebrations/Confetti.tsx (NEW)
+- mini-app/src/components/celebrations/LevelUpModal.tsx (NEW)
+- mini-app/src/components/celebrations/XpFloat.tsx (NEW)
+- mini-app/src/hooks/useCelebration.ts (NEW)
+- mini-app/src/components/AchievementToast.tsx (modify — add confetti trigger)
+
+TASK 1 — Create Confetti.tsx:
+A full-screen confetti burst component using Framer Motion (already installed):
+- 30-50 particles with random colors, sizes, and trajectories
+- Auto-dismiss after 2-3 seconds
+- Props: { show: boolean; onComplete?: () => void }
+- Use CSS transforms + Framer Motion animate for performance
+- DO NOT add new npm dependencies — use only Framer Motion + CSS
+
+TASK 2 — Create LevelUpModal.tsx:
+A celebration modal for level-up events:
+- Shows when user gains a level (detect from dashboard data)
+- Displays: new level number, "Level Up!" text, glow/scale animation
+- Auto-dismiss after 3 seconds or on tap
+- Props: { level: number; show: boolean; onClose: () => void }
+- Use Framer Motion AnimatePresence for enter/exit
+
+TASK 3 — Create XpFloat.tsx:
+A floating "+X XP" indicator:
+- Small text that floats upward and fades out
+- Props: { amount: number; show: boolean; onComplete?: () => void }
+- Use Framer Motion for the float animation (y: 0 → -60, opacity: 1 → 0)
+- Duration: ~1.5 seconds
+
+TASK 4 — Create useCelebration.ts hook:
+Central hook for triggering celebrations:
+- Tracks: lastKnownLevel, lastKnownXp (from localStorage)
+- On dashboard data change: compare current vs stored values
+- If level increased: trigger LevelUpModal + Confetti
+- If XP increased: trigger XpFloat
+- Expose: { showConfetti, showLevelUp, showXpFloat, levelUpData, xpGained, dismiss }
+
+TASK 5 — Integrate into AchievementToast.tsx:
+Add a mini confetti burst when an achievement toast appears:
+- Import Confetti component
+- Render Confetti with show={true} when toast is visible
+- Keep existing toast functionality intact
+
+DESIGN GUIDELINES:
+- Match the existing dark theme (bg-telegram-bg, text-telegram-text colors)
+- Keep animations smooth — use GPU-accelerated properties (transform, opacity)
+- Respect haptic feedback: trigger haptic.impact('heavy') on level-up, haptic.impact('light') on XP gain
+- All text must use i18n translations — add keys to en.ts, ru.ts, zh.ts under a new 'celebrations' namespace
+
+FORBIDDEN: bot/ files, database/ files, test files, hooks/useTelegram.ts, pages/ files (integration into pages will be done in a later run).
+
+BUILD VERIFY: cd mini-app && npm run build must pass.
+
+After completing work, write your retrospective in PARALLEL_AGENTS.md under "Run 59 Retrospectives" → "Agent C Retrospective", replacing the placeholder text. Then commit all changes.
+```
+
+**Agent D — Tests for Run 59 Changes** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-d`):
+```
+Read c:\Users\Asus\Desktop\Wibecode-agent-d\PARALLEL_AGENTS.md — find "Run 59" and locate the "Agent D" section. You are Agent D.
+
+YOUR TASK: Write tests for the payments split, Stars payment hook, and celebration components.
+
+OWNED FILES (all NEW or update):
+- bot/src/__tests__/utils/paymentHelpers.test.ts (NEW)
+- mini-app/src/__tests__/hooks/usePayment.test.ts (NEW)
+- mini-app/src/__tests__/components/celebrations/Confetti.test.tsx (NEW)
+- mini-app/src/__tests__/components/celebrations/LevelUpModal.test.tsx (NEW)
+- mini-app/src/__tests__/components/celebrations/XpFloat.test.tsx (NEW)
+
+TASK 1 — paymentHelpers.test.ts (~8-10 tests):
+Test the extracted payment helper functions:
+- isValidTier returns true for 'free', 'subscriber', 'premium'
+- isValidTier returns false for invalid strings
+- isPositiveInteger accepts positive integers, rejects 0, -1, floats, strings
+- verifyWebhookSecret throws on missing secret
+- verifyWebhookSecret throws on wrong secret
+- verifyWebhookSecret passes on correct secret
+
+TASK 2 — usePayment.test.ts (~6-8 tests):
+Test the Stars payment hook:
+- initiatePayment calls API with correct params
+- handles 'paid' status from openInvoice callback
+- handles 'cancelled' status
+- handles 'failed' status
+- sets isLoading during payment flow
+- clears error on new attempt
+
+TASK 3 — Celebration component tests (~10-12 tests):
+- Confetti.test.tsx: renders particles when show=true, calls onComplete, doesn't render when show=false
+- LevelUpModal.test.tsx: shows level number, auto-dismiss, click to close
+- XpFloat.test.tsx: shows XP amount, animates out
+
+PATTERN: Read existing test files for patterns:
+- Bot utils: bot/src/__tests__/utils/validation.test.ts
+- Mini-app hooks: mini-app/src/__tests__/hooks/useSubscription.test.ts
+- Mini-app components: mini-app/src/__tests__/components/ (any .test.tsx)
+
+NOTE: Agent A is splitting payments.ts, Agent B is creating usePayment hook, Agent C is creating celebration components. Your tests import from the NEW file locations. If imports fail because other agents haven't merged yet, that's expected — tests will pass after merge.
+
+IMPORTANT: Export ALL helper functions you plan to test. If Agent A's paymentHelpers.ts has private functions you want to test, note that in your retro and Agent 0 will add exports (like Run 58).
+
+FORBIDDEN: ALL source files (test-only agent).
+
+BUILD VERIFY: Run your tests after Agent A/B/C merge: cd bot && npx vitest --run src/__tests__/utils/paymentHelpers.test.ts && cd ../mini-app && npx vitest --run src/__tests__/hooks/usePayment.test.ts src/__tests__/components/celebrations/
+
+After completing work, write your retrospective in PARALLEL_AGENTS.md under "Run 59 Retrospectives" → "Agent D Retrospective", replacing the placeholder text. Then commit all changes.
+```
+
+---
+
+### Agent A — Split payments.ts
+
+**Branch:** `feature/r59-payments-split`
+**Worktree:** `../Wibecode-agent-a`
+
+**OWNED files:**
+- `bot/src/api/routes/payments.ts` (refactor)
+- `bot/src/api/routes/payment-webhook.ts` (NEW)
+- `bot/src/utils/paymentHelpers.ts` (NEW)
+
+**FORBIDDEN:**
+- All mini-app files, test files, other route files, middleware
+
+---
+
+### Agent B — Wire Stars Payment in Mini-App
+
+**Branch:** `feature/r59-stars-payment`
+**Worktree:** `../Wibecode-agent-b`
+
+**OWNED files:**
+- `mini-app/src/components/settings/SubscriptionSettings.tsx` (modify)
+- `mini-app/src/hooks/usePayment.ts` (NEW)
+- `mini-app/src/api/payments.ts` (NEW)
+
+**FORBIDDEN:**
+- All bot/ files, database/ files, test files, other settings components
+
+---
+
+### Agent C — Celebration Animations
+
+**Branch:** `feature/r59-celebrations`
+**Worktree:** `../Wibecode-agent-c`
+
+**OWNED files:**
+- `mini-app/src/components/celebrations/Confetti.tsx` (NEW)
+- `mini-app/src/components/celebrations/LevelUpModal.tsx` (NEW)
+- `mini-app/src/components/celebrations/XpFloat.tsx` (NEW)
+- `mini-app/src/hooks/useCelebration.ts` (NEW)
+- `mini-app/src/components/AchievementToast.tsx` (modify)
+
+**FORBIDDEN:**
+- All bot/ files, database/ files, test files, hooks/useTelegram.ts, pages/
+
+---
+
+### Agent D — Tests for Run 59 Changes
+
+**Branch:** `feature/r59-tests`
+**Worktree:** `../Wibecode-agent-d`
+
+**OWNED files:**
+- `bot/src/__tests__/utils/paymentHelpers.test.ts` (NEW)
+- `mini-app/src/__tests__/hooks/usePayment.test.ts` (NEW)
+- `mini-app/src/__tests__/components/celebrations/Confetti.test.tsx` (NEW)
+- `mini-app/src/__tests__/components/celebrations/LevelUpModal.test.tsx` (NEW)
+- `mini-app/src/__tests__/components/celebrations/XpFloat.test.tsx` (NEW)
+
+**FORBIDDEN:**
+- ALL source files (test-only agent)
+
+---
+
+### Run 59 File Ownership Matrix
+
+| File / Directory | A | B | C | D |
+|---|---|---|---|---|
+| `bot/routes/payments.ts` | **OWNED** | - | - | - |
+| `bot/routes/payment-webhook.ts` | **NEW** | - | - | - |
+| `bot/utils/paymentHelpers.ts` | **NEW** | - | - | - |
+| `settings/SubscriptionSettings.tsx` | - | **OWNED** | - | - |
+| `hooks/usePayment.ts` | - | **NEW** | - | - |
+| `api/payments.ts` (mini-app) | - | **NEW** | - | - |
+| `celebrations/Confetti.tsx` | - | - | **NEW** | - |
+| `celebrations/LevelUpModal.tsx` | - | - | **NEW** | - |
+| `celebrations/XpFloat.tsx` | - | - | **NEW** | - |
+| `hooks/useCelebration.ts` | - | - | **NEW** | - |
+| `AchievementToast.tsx` | - | - | **OWNED** | - |
+| `__tests__/utils/paymentHelpers.test.ts` | - | - | - | **NEW** |
+| `__tests__/hooks/usePayment.test.ts` | - | - | - | **NEW** |
+| `__tests__/celebrations/*.test.tsx` | - | - | - | **NEW** |
+| `PARALLEL_AGENTS.md` | retro | retro | retro | retro |
+
+### Run 59 Merge Order
+
+1. Agent A (payments.ts split) — backend refactoring first
+2. Agent B (Stars payment wiring) — depends on API structure
+3. Agent C (celebration animations) — independent frontend
+4. Agent D (tests) — test only, merge last
+
+### Run 59 Retrospectives
+
+#### Agent A Retrospective
+*(To be filled by Agent A)*
+
+#### Agent B Retrospective
+*(To be filled by Agent B)*
+
+#### Agent C Retrospective
+*(To be filled by Agent C)*
+
+#### Agent D Retrospective
+*(To be filled by Agent D)*
+
+#### Agent 0 Retrospective
 *(To be filled by Agent 0 after merge)*
 
-<!-- Next run goes here. Agent 0 will append RUN 59 below this line. -->
+<!-- Next run goes here. Agent 0 will append RUN 60 below this line. -->
