@@ -1,4 +1,5 @@
 import { Bell, Clock, Globe } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { motion } from 'framer-motion';
 import type { HapticWithSelection } from '@/types/telegram';
 
@@ -40,6 +41,7 @@ interface NotificationSettingsProps {
 }
 
 export function NotificationSettings({ prefs, onPrefsChange, haptic }: NotificationSettingsProps) {
+  const { t } = useTranslation();
   return (
     <>
       {/* Notifications Toggle */}
@@ -54,8 +56,8 @@ export function NotificationSettings({ prefs, onPrefsChange, haptic }: Notificat
               <Bell className="w-5 h-5" />
             </div>
             <div>
-              <h3 className="font-semibold text-sm">Notifications</h3>
-              <p className="text-xs text-telegram-hint">Daily reminders & updates</p>
+              <h3 className="font-semibold text-sm">{t('settings.notifications')}</h3>
+              <p className="text-xs text-telegram-hint">{t('settings.notificationDesc')}</p>
             </div>
           </div>
           <button
@@ -89,8 +91,8 @@ export function NotificationSettings({ prefs, onPrefsChange, haptic }: Notificat
             <Clock className="w-5 h-5" />
           </div>
           <div>
-            <h3 className="font-semibold text-sm">Reminder Time</h3>
-            <p className="text-xs text-telegram-hint">When to send daily reminder</p>
+            <h3 className="font-semibold text-sm">{t('settings.reminderTime')}</h3>
+            <p className="text-xs text-telegram-hint">{t('settings.reminderTimeDesc')}</p>
           </div>
         </div>
         <div className="flex gap-2 overflow-x-auto pb-2 hide-scrollbar">
@@ -128,8 +130,8 @@ export function NotificationSettings({ prefs, onPrefsChange, haptic }: Notificat
             <Globe className="w-5 h-5" />
           </div>
           <div>
-            <h3 className="font-semibold text-sm">Timezone</h3>
-            <p className="text-xs text-telegram-hint">Auto-detected from browser</p>
+            <h3 className="font-semibold text-sm">{t('settings.timezone')}</h3>
+            <p className="text-xs text-telegram-hint">{t('settings.timezoneDesc')}</p>
           </div>
         </div>
         <input
@@ -137,7 +139,7 @@ export function NotificationSettings({ prefs, onPrefsChange, haptic }: Notificat
           value={prefs.timezone}
           onChange={(e) => onPrefsChange({ ...prefs, timezone: e.target.value })}
           className="w-full bg-telegram-bg border border-telegram-hint/20 rounded-xl px-4 py-2.5 text-sm text-telegram-text focus:outline-none focus:border-telegram-link transition-colors"
-          placeholder="e.g. Europe/Moscow"
+          placeholder={t('settings.timezonePlaceholder')}
           aria-label="Timezone"
         />
         <button
@@ -147,7 +149,7 @@ export function NotificationSettings({ prefs, onPrefsChange, haptic }: Notificat
           }}
           className="text-xs text-telegram-link mt-2 active:opacity-70"
         >
-          Auto-detect timezone
+          {t('settings.autoDetectTimezone')}
         </button>
       </motion.div>
     </>

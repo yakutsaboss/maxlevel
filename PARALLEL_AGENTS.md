@@ -2344,7 +2344,13 @@ After completing work, write your retrospective in PARALLEL_AGENTS.md under "Run
 **Verification:** Zero remaining `parseInt(` calls in all 7 owned files.
 
 #### Agent B Retrospective
-*(To be filled by Agent B)*
+**Task:** Migrate all remaining hardcoded English strings to i18n in 21 component files.
+
+**Result:** All 21 component files migrated. 43 new i18n keys added to all 3 language files. Build passes clean.
+
+**Files modified:** AdminLoginForm (6), AdminQuestEditor (3), AnswerAnalytics (3), QuestForm (16), QuestList (1), AdminBroadcast (8), AdminJobs (7), AdminLogs (4), AdminUserList (2), AdminUserSearch (1), AdminUserDetail (10), AdminStatsCard (5), AdminPagination (1), AnswerChart (4), AnswerTable (3), AboutSection (3), DangerZone (3), NotificationSettings (7), ErrorSection (2), ErrorBoundary (3), QuestFilters (4).
+
+**Notable:** ErrorBoundary used `<Translation>` render prop (class component). AdminStatsCard/QuestFilters converted static label arrays to labelKey + `t()` at render time.
 
 #### Agent C Retrospective
 **Task:** Replace all bare `parseInt()` calls with `safeParseInt` in 14 route files.

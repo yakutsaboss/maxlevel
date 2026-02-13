@@ -1,5 +1,6 @@
 import { Mode } from '@/types';
 import { ArrowUpDown } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 export type SortOption = 'newest' | 'xp_reward' | 'progress';
 
@@ -12,15 +13,16 @@ interface QuestFiltersProps {
   haptic: { selection: () => void };
 }
 
-const SORT_LABELS: Record<SortOption, string> = {
-  newest: 'Newest',
-  xp_reward: 'XP Reward',
-  progress: 'Progress',
+const SORT_LABEL_KEYS: Record<SortOption, string> = {
+  newest: 'quests.sortNewest',
+  xp_reward: 'quests.sortXpReward',
+  progress: 'quests.sortProgress',
 };
 
 const SORT_OPTIONS: SortOption[] = ['newest', 'xp_reward', 'progress'];
 
 export function QuestFilters({ modes, selectedModeId, onModeSelect, sortBy, onSortChange, haptic }: QuestFiltersProps) {
+  const { t } = useTranslation();
   const cycleSortOption = () => {
     const currentIndex = SORT_OPTIONS.indexOf(sortBy);
     const nextIndex = (currentIndex + 1) % SORT_OPTIONS.length;
@@ -41,7 +43,7 @@ export function QuestFilters({ modes, selectedModeId, onModeSelect, sortBy, onSo
                   : 'bg-telegram-secondaryBg text-telegram-hint'
               }`}
             >
-              All
+              {t('quests.filtersAll')}
             </button>
             {modes.map((mode) => (
               <button
@@ -63,7 +65,7 @@ export function QuestFilters({ modes, selectedModeId, onModeSelect, sortBy, onSo
           className="flex-shrink-0 flex items-center gap-1 px-3 py-1.5 rounded-xl text-sm font-medium bg-telegram-secondaryBg text-telegram-hint transition-all active:scale-95"
         >
           <ArrowUpDown className="w-3.5 h-3.5" />
-          <span>{SORT_LABELS[sortBy]}</span>
+          <span>{t(SORT_LABEL_KEYS[sortBy])}</span>
         </button>
       </div>
     </div>

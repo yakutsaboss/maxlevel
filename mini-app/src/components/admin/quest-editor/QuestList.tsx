@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import { QuestPreview } from '@/components/admin/quest-editor/QuestPreview';
 import type { QuestTemplate } from '@/components/admin/quest-editor/types';
 
@@ -8,10 +9,11 @@ interface QuestListProps {
 }
 
 export function QuestList({ quests, onEdit, onDelete }: QuestListProps) {
+  const { t } = useTranslation();
   if (quests.length === 0) {
     return (
       <div className="bg-telegram-secondaryBg rounded-xl p-8 text-center">
-        <p className="text-telegram-hint text-sm">No quest templates yet</p>
+        <p className="text-telegram-hint text-sm">{t('admin.noQuestTemplates')}</p>
       </div>
     );
   }

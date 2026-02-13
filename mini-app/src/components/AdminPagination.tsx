@@ -1,4 +1,5 @@
 import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 interface AdminPaginationProps {
   page: number;
@@ -7,6 +8,7 @@ interface AdminPaginationProps {
 }
 
 export function AdminPagination({ page, totalPages, onPageChange }: AdminPaginationProps) {
+  const { t } = useTranslation();
   return (
     <div className="flex items-center justify-center gap-4 pt-2">
       <button
@@ -17,7 +19,7 @@ export function AdminPagination({ page, totalPages, onPageChange }: AdminPaginat
         <ChevronLeft size={18} />
       </button>
       <span className="text-sm text-telegram-hint">
-        Page {page} of {totalPages}
+        {t('admin.pageOf', { page, totalPages })}
       </span>
       <button
         onClick={() => onPageChange(Math.min(totalPages, page + 1))}

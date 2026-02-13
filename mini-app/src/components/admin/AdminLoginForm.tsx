@@ -1,4 +1,5 @@
 import { useState, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Shield, LogIn } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { Toast } from '@/components/Toast';
@@ -16,6 +17,7 @@ interface AdminLoginFormProps {
 }
 
 export function AdminLoginForm({ onLoginSuccess }: AdminLoginFormProps) {
+  const { t } = useTranslation();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [loginLoading, setLoginLoading] = useState(false);
@@ -30,15 +32,15 @@ export function AdminLoginForm({ onLoginSuccess }: AdminLoginFormProps) {
     try {
       const res = await adminFetch('/stats', creds);
       if (res.status === 401) {
-        setToast({ message: 'Invalid credentials', variant: 'error' });
+        setToast({ message: t('admin.invalidCredentials'), variant: 'error' });
       } else if (res.ok) {
         const data = await res.json();
         onLoginSuccess(creds, data.data || data);
       } else {
-        setToast({ message: `Server error: ${res.status}`, variant: 'error' });
+        setToast({ message: t('admin.serverErrorStatus', { status: res.status }), variant: 'error' });
       }
     } catch {
-      setToast({ message: 'Connection failed', variant: 'error' });
+      setToast({ message: t('admin.connectionFailed'), variant: 'error' });
     } finally {
       setLoginLoading(false);
     }
@@ -56,14 +58,14 @@ export function AdminLoginForm({ onLoginSuccess }: AdminLoginFormProps) {
             <div className="w-14 h-14 bg-telegram-button/10 rounded-full flex items-center justify-center mx-auto">
               <Shield size={28} className="text-telegram-button" />
             </div>
-            <h1 className="text-xl font-bold text-telegram-text">Admin Panel</h1>
-            <p className="text-sm text-telegram-hint">Enter your admin credentials</p>
+            <h1 className="text-xl font-bold text-telegram-text">{t('admin.panel')}</h1>
+            <p className="text-sm text-telegram-hint">{t('admin.enterCredentials')}</p>
           </div>
 
           <div className="space-y-3">
             <input
               type="text"
-              placeholder="Username"
+              placeholder={t('admin.username')}
               value={username}
               onChange={(e) => setUsername(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && handleLogin()}
@@ -72,7 +74,7 @@ export function AdminLoginForm({ onLoginSuccess }: AdminLoginFormProps) {
             />
             <input
               type="password"
-              placeholder="Password"
+              placeholder={t('admin.password')}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && handleLogin()}
@@ -91,7 +93,7 @@ export function AdminLoginForm({ onLoginSuccess }: AdminLoginFormProps) {
             ) : (
               <>
                 <LogIn size={18} />
-                Login
+                {t('admin.login')}
               </>
             )}
           </button>

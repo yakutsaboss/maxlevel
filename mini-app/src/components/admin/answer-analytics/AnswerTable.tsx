@@ -1,5 +1,6 @@
 import { motion } from 'framer-motion';
 import { BarChart3, Users } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { AnswerChart } from '@/components/admin/answer-analytics/AnswerChart';
 import type { ModeAnalyticsData } from '@/components/admin/answer-analytics/useAnswerAnalytics';
 
@@ -10,12 +11,13 @@ interface AnswerTableProps {
 }
 
 export function AnswerTable({ currentMode, expandedQ, onToggleQuestion }: AnswerTableProps) {
+  const { t } = useTranslation();
   if (!currentMode) {
     return (
       <div className="bg-telegram-secondaryBg rounded-xl p-6 text-center space-y-2">
         <BarChart3 size={28} className="text-telegram-hint mx-auto" />
         <p className="text-sm text-telegram-hint">
-          No analytics data for this mode
+          {t('admin.noAnalyticsData')}
         </p>
       </div>
     );
@@ -39,7 +41,7 @@ export function AnswerTable({ currentMode, expandedQ, onToggleQuestion }: Answer
             {currentMode.respondent_count.toLocaleString()}
           </div>
           <div className="text-xs text-telegram-hint">
-            {currentMode.icon} {currentMode.display_name} respondents
+            {currentMode.icon} {currentMode.display_name} {t('admin.respondents')}
           </div>
         </div>
       </div>
@@ -47,7 +49,7 @@ export function AnswerTable({ currentMode, expandedQ, onToggleQuestion }: Answer
       {/* Questions */}
       {currentMode.questions.length === 0 ? (
         <div className="bg-telegram-secondaryBg rounded-xl p-6 text-center">
-          <p className="text-sm text-telegram-hint">No response data yet</p>
+          <p className="text-sm text-telegram-hint">{t('admin.noResponseData')}</p>
         </div>
       ) : (
         currentMode.questions.map((q) => (

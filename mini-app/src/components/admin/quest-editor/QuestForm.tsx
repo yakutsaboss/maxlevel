@@ -1,4 +1,5 @@
 import { X, Save, Timer } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import type { QuestFormData, ModeOption } from '@/components/admin/quest-editor/types';
 
 interface QuestFormProps {
@@ -12,11 +13,12 @@ interface QuestFormProps {
 }
 
 export function QuestForm({ form, modes, editingId, saving, onClose, onSave, onUpdateField }: QuestFormProps) {
+  const { t } = useTranslation();
   return (
     <div className="bg-telegram-secondaryBg rounded-xl p-4 space-y-3 border border-telegram-button/30">
       <div className="flex items-center justify-between">
         <h4 className="text-sm font-semibold text-telegram-text">
-          {editingId ? 'Edit Quest' : 'New Quest'}
+          {editingId ? t('admin.editQuest') : t('admin.newQuest')}
         </h4>
         <button onClick={onClose} className="text-telegram-hint hover:text-telegram-text">
           <X size={18} />
@@ -25,23 +27,23 @@ export function QuestForm({ form, modes, editingId, saving, onClose, onSave, onU
 
       {/* Title */}
       <div>
-        <label className="text-xs text-telegram-hint block mb-1">Title *</label>
+        <label className="text-xs text-telegram-hint block mb-1">{t('admin.title')} *</label>
         <input
           type="text"
           value={form.title}
           onChange={(e) => onUpdateField('title', e.target.value)}
-          placeholder="e.g. Morning Workout"
+          placeholder={t('admin.titlePlaceholder')}
           className="w-full bg-telegram-bg text-telegram-text text-sm rounded-lg px-3 py-2 border border-white/10 focus:border-telegram-button outline-none"
         />
       </div>
 
       {/* Description */}
       <div>
-        <label className="text-xs text-telegram-hint block mb-1">Description</label>
+        <label className="text-xs text-telegram-hint block mb-1">{t('admin.description')}</label>
         <textarea
           value={form.description}
           onChange={(e) => onUpdateField('description', e.target.value)}
-          placeholder="What the user needs to do..."
+          placeholder={t('admin.descriptionPlaceholder')}
           rows={2}
           className="w-full bg-telegram-bg text-telegram-text text-sm rounded-lg px-3 py-2 border border-white/10 focus:border-telegram-button outline-none resize-none"
         />
@@ -50,13 +52,13 @@ export function QuestForm({ form, modes, editingId, saving, onClose, onSave, onU
       {/* Mode + Type row */}
       <div className="grid grid-cols-2 gap-3">
         <div>
-          <label className="text-xs text-telegram-hint block mb-1">Mode</label>
+          <label className="text-xs text-telegram-hint block mb-1">{t('admin.mode')}</label>
           <select
             value={form.mode_id ?? ''}
             onChange={(e) => onUpdateField('mode_id', e.target.value ? parseInt(e.target.value) : null)}
             className="w-full bg-telegram-bg text-telegram-text text-sm rounded-lg px-3 py-2 border border-white/10 focus:border-telegram-button outline-none"
           >
-            <option value="">— None —</option>
+            <option value="">{t('admin.modeNone')}</option>
             {modes.map((m) => (
               <option key={m.id} value={m.id}>
                 {m.icon_emoji} {m.display_name || m.name}
@@ -65,14 +67,14 @@ export function QuestForm({ form, modes, editingId, saving, onClose, onSave, onU
           </select>
         </div>
         <div>
-          <label className="text-xs text-telegram-hint block mb-1">Type</label>
+          <label className="text-xs text-telegram-hint block mb-1">{t('admin.type')}</label>
           <select
             value={form.quest_type}
             onChange={(e) => onUpdateField('quest_type', e.target.value as 'daily' | 'weekly')}
             className="w-full bg-telegram-bg text-telegram-text text-sm rounded-lg px-3 py-2 border border-white/10 focus:border-telegram-button outline-none"
           >
-            <option value="daily">Daily</option>
-            <option value="weekly">Weekly</option>
+            <option value="daily">{t('admin.daily')}</option>
+            <option value="weekly">{t('admin.weekly')}</option>
           </select>
         </div>
       </div>
@@ -80,7 +82,7 @@ export function QuestForm({ form, modes, editingId, saving, onClose, onSave, onU
       {/* XP + Difficulty row */}
       <div className="grid grid-cols-2 gap-3">
         <div>
-          <label className="text-xs text-telegram-hint block mb-1">XP Reward</label>
+          <label className="text-xs text-telegram-hint block mb-1">{t('admin.xpReward')}</label>
           <input
             type="number"
             min={0}
@@ -90,15 +92,15 @@ export function QuestForm({ form, modes, editingId, saving, onClose, onSave, onU
           />
         </div>
         <div>
-          <label className="text-xs text-telegram-hint block mb-1">Difficulty</label>
+          <label className="text-xs text-telegram-hint block mb-1">{t('admin.difficulty')}</label>
           <select
             value={form.difficulty}
             onChange={(e) => onUpdateField('difficulty', e.target.value as 'easy' | 'medium' | 'hard')}
             className="w-full bg-telegram-bg text-telegram-text text-sm rounded-lg px-3 py-2 border border-white/10 focus:border-telegram-button outline-none"
           >
-            <option value="easy">Easy</option>
-            <option value="medium">Medium</option>
-            <option value="hard">Hard</option>
+            <option value="easy">{t('admin.easy')}</option>
+            <option value="medium">{t('admin.medium')}</option>
+            <option value="hard">{t('admin.hard')}</option>
           </select>
         </div>
       </div>
@@ -107,7 +109,7 @@ export function QuestForm({ form, modes, editingId, saving, onClose, onSave, onU
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Timer size={14} className="text-telegram-hint" />
-          <span className="text-sm text-telegram-text">Requires Timer</span>
+          <span className="text-sm text-telegram-text">{t('admin.requiresTimer')}</span>
         </div>
         <button
           onClick={() => onUpdateField('requires_timer', !form.requires_timer)}
@@ -127,7 +129,7 @@ export function QuestForm({ form, modes, editingId, saving, onClose, onSave, onU
       {form.requires_timer && (
         <div className="grid grid-cols-2 gap-3">
           <div>
-            <label className="text-xs text-telegram-hint block mb-1">Window Start</label>
+            <label className="text-xs text-telegram-hint block mb-1">{t('admin.windowStart')}</label>
             <input
               type="time"
               value={form.timer_window_start}
@@ -136,7 +138,7 @@ export function QuestForm({ form, modes, editingId, saving, onClose, onSave, onU
             />
           </div>
           <div>
-            <label className="text-xs text-telegram-hint block mb-1">Window End</label>
+            <label className="text-xs text-telegram-hint block mb-1">{t('admin.windowEnd')}</label>
             <input
               type="time"
               value={form.timer_window_end}
@@ -158,7 +160,7 @@ export function QuestForm({ form, modes, editingId, saving, onClose, onSave, onU
         ) : (
           <Save size={16} />
         )}
-        {editingId ? 'Update Quest' : 'Create Quest'}
+        {editingId ? t('admin.updateQuest') : t('admin.createQuest')}
       </button>
     </div>
   );

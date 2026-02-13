@@ -1,4 +1,5 @@
 import { Trash2, Loader2 } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { motion } from 'framer-motion';
 
 interface DangerZoneProps {
@@ -7,6 +8,7 @@ interface DangerZoneProps {
 }
 
 export function DangerZone({ deleting, onDelete }: DangerZoneProps) {
+  const { t } = useTranslation();
   return (
     <div className="px-4 mt-10 mb-6">
       <motion.div
@@ -20,8 +22,8 @@ export function DangerZone({ deleting, onDelete }: DangerZoneProps) {
             <Trash2 className="w-5 h-5" />
           </div>
           <div>
-            <h3 className="font-semibold text-sm text-red-500">Delete Account</h3>
-            <p className="text-xs text-telegram-hint" id="delete-account-warning">Permanently remove your account and all data</p>
+            <h3 className="font-semibold text-sm text-red-500">{t('settings.deleteAccount')}</h3>
+            <p className="text-xs text-telegram-hint" id="delete-account-warning">{t('settings.deleteAccountWarning')}</p>
           </div>
         </div>
         <button
@@ -31,9 +33,9 @@ export function DangerZone({ deleting, onDelete }: DangerZoneProps) {
           className="w-full py-3 rounded-xl border-2 border-red-500 text-red-500 font-semibold flex items-center justify-center gap-2 active:scale-[0.98] transition-transform disabled:opacity-60"
         >
           {deleting ? (
-            <><Loader2 className="w-4 h-4 animate-spin" />Deleting...</>
+            <><Loader2 className="w-4 h-4 animate-spin" />{t('settings.deleting')}</>
           ) : (
-            <><Trash2 className="w-4 h-4" />Delete Account</>
+            <><Trash2 className="w-4 h-4" />{t('settings.deleteAccount')}</>
           )}
         </button>
       </motion.div>

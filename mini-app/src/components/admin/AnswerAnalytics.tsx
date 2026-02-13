@@ -1,4 +1,5 @@
 import { BarChart3, RefreshCw } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { useAnswerAnalytics, MODE_TABS } from '@/components/admin/answer-analytics/useAnswerAnalytics';
 import { AnswerTable } from '@/components/admin/answer-analytics/AnswerTable';
 
@@ -7,6 +8,7 @@ interface AnswerAnalyticsProps {
 }
 
 export function AnswerAnalytics({ credentials }: AnswerAnalyticsProps) {
+  const { t } = useTranslation();
   const {
     data,
     loading,
@@ -24,7 +26,7 @@ export function AnswerAnalytics({ credentials }: AnswerAnalyticsProps) {
       <div className="space-y-3">
         <div className="flex items-center justify-between">
           <h3 className="text-sm font-semibold text-telegram-hint uppercase tracking-wide">
-            Answer Analytics
+            {t('admin.answerAnalytics')}
           </h3>
         </div>
         {Array.from({ length: 3 }).map((_, i) => (
@@ -39,14 +41,14 @@ export function AnswerAnalytics({ credentials }: AnswerAnalyticsProps) {
       <div className="space-y-3">
         <div className="flex items-center justify-between">
           <h3 className="text-sm font-semibold text-telegram-hint uppercase tracking-wide">
-            Answer Analytics
+            {t('admin.answerAnalytics')}
           </h3>
           <button
             onClick={fetchData}
             className="flex items-center gap-1.5 px-3 py-1.5 bg-telegram-secondaryBg rounded-lg text-xs text-telegram-hint hover:text-telegram-text transition-colors"
           >
             <RefreshCw size={14} />
-            Retry
+            {t('common.retry')}
           </button>
         </div>
         <div className="bg-telegram-secondaryBg rounded-xl p-6 text-center space-y-2">
@@ -69,7 +71,7 @@ export function AnswerAnalytics({ credentials }: AnswerAnalyticsProps) {
           className="flex items-center gap-1.5 px-3 py-1.5 bg-telegram-secondaryBg rounded-lg text-xs text-telegram-hint hover:text-telegram-text transition-colors"
         >
           <RefreshCw size={14} />
-          Refresh
+          {t('common.refresh')}
         </button>
       </div>
 

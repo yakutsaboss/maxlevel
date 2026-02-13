@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Play, RefreshCw, Clock } from 'lucide-react';
 import { Toast } from '@/components/Toast';
 import { API_BASE_URL } from '@/api/adminClient';
@@ -13,6 +14,7 @@ interface AdminJobsProps {
 }
 
 export function AdminJobs({ credentials }: AdminJobsProps) {
+  const { t } = useTranslation();
   const [jobs, setJobs] = useState<Job[]>([]);
   const [loading, setLoading] = useState(true);
   const [triggeringJob, setTriggeringJob] = useState<string | null>(null);
@@ -41,7 +43,7 @@ export function AdminJobs({ credentials }: AdminJobsProps) {
   }, [fetchJobs]);
 
   const handleTrigger = useCallback(async (jobName: string) => {
-    const confirmed = window.confirm(`Trigger job "${jobName}" now?`);
+    const confirmed = window.confirm(t('admin.triggerConfirm', { name: jobName }));
     if (!confirmed) return;
 
     setTriggeringJob(jobName);
@@ -57,18 +59,18 @@ export function AdminJobs({ credentials }: AdminJobsProps) {
       if (res.ok) {
         const data = await res.json();
         setToast({
-          message: data.message || `Job "${jobName}" triggered`,
+          message: data.message || t('admin.jobTriggered', { name: jobName }),
           variant: 'success',
         });
       } else if (res.status === 404) {
-        setToast({ message: `Job "${jobName}" not found`, variant: 'error' });
+        setToast({ message: t('admin.jobNotFound', { name: jobName }), variant: 'error' });
       } else if (res.status === 503) {
-        setToast({ message: 'Job queue is not running', variant: 'error' });
+        setToast({ message: t('admin.jobQueueNotRunning'), variant: 'error' });
       } else {
-        setToast({ message: `Failed to trigger: ${res.status}`, variant: 'error' });
+        setToast({ message: t('admin.failedToTrigger', { status: res.status }), variant: 'error' });
       }
     } catch {
-      setToast({ message: 'Connection failed', variant: 'error' });
+      setToast({ message: t('admin.connectionFailed'), variant: 'error' });
     } finally {
       setTriggeringJob(null);
     }
@@ -93,7 +95,7 @@ export function AdminJobs({ credentials }: AdminJobsProps) {
     return (
       <div className="space-y-3">
         <div className="flex items-center justify-between">
-          <h3 className="text-sm font-semibold text-telegram-hint uppercase tracking-wide">Background Jobs</h3>
+          <h3 className="text-sm font-semibold text-telegram-hint uppercase tracking-wide">{t('admin.backgroundJobs')}</h3>
         </div>
         {Array.from({ length: 4 }).map((_, i) => (
           <div key={i} className="bg-telegram-secondaryBg rounded-xl p-4 flex items-center justify-between">
@@ -113,21 +115,21 @@ export function AdminJobs({ credentials }: AdminJobsProps) {
       {/* Header */}
       <div className="flex items-center justify-between">
         <h3 className="text-sm font-semibold text-telegram-hint uppercase tracking-wide">
-          Background Jobs ({jobs.length})
+          {t('admin.backgroundJobs')} ({jobs.length})
         </h3>
         <button
           onClick={() => { setLoading(true); fetchJobs(); }}
           className="flex items-center gap-1.5 px-3 py-1.5 bg-telegram-secondaryBg rounded-lg text-xs text-telegram-hint hover:text-telegram-text transition-colors"
         >
           <RefreshCw size={14} />
-          Refresh
+          {t('common.refresh')}
         </button>
       </div>
 
       {/* Job list */}
       {jobs.length === 0 ? (
         <div className="bg-telegram-secondaryBg rounded-xl p-8 text-center">
-          <p className="text-telegram-hint text-sm">No registered jobs</p>
+          <p className="text-telegram-hint text-sm">{t('admin.noRegisteredJobs')}</p>
         </div>
       ) : (
         <div className="space-y-2">
@@ -155,7 +157,7 @@ export function AdminJobs({ credentials }: AdminJobsProps) {
                 ) : (
                   <Play size={14} />
                 )}
-                Trigger
+                {t('admin.trigger')}
               </button>
             </div>
           ))}

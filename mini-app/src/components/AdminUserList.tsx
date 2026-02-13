@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import { API_BASE_URL } from '@/api/adminClient';
 import { AdminUserSearch } from './AdminUserSearch';
 import { AdminUserRow } from './AdminUserRow';
@@ -20,6 +21,7 @@ interface AdminUserListProps {
 }
 
 export function AdminUserList({ credentials }: AdminUserListProps) {
+  const { t } = useTranslation();
   const [users, setUsers] = useState<UserSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
@@ -102,7 +104,7 @@ export function AdminUserList({ credentials }: AdminUserListProps) {
         ))}
         {filteredUsers.length === 0 && (
           <div className="text-center py-8 text-telegram-hint text-sm">
-            {searchQuery ? 'No users found' : 'No users yet'}
+            {searchQuery ? t('admin.noUsersFound') : t('admin.noUsersYet')}
           </div>
         )}
       </div>

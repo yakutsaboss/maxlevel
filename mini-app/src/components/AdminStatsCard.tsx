@@ -1,4 +1,5 @@
 import { Users, UserCheck, ScrollText, Trophy, RefreshCw } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { motion } from 'framer-motion';
 
 interface AdminStats {
@@ -15,13 +16,14 @@ interface AdminStatsCardProps {
 }
 
 const statCards = [
-  { key: 'total_users' as const, label: 'Total Users', icon: Users, color: 'text-blue-500 bg-blue-500/10' },
-  { key: 'active_users_7d' as const, label: 'Active (7d)', icon: UserCheck, color: 'text-green-500 bg-green-500/10' },
-  { key: 'total_quests_completed' as const, label: 'Quests Done', icon: ScrollText, color: 'text-purple-500 bg-purple-500/10' },
-  { key: 'total_achievements_unlocked' as const, label: 'Achievements', icon: Trophy, color: 'text-yellow-500 bg-yellow-500/10' },
+  { key: 'total_users' as const, labelKey: 'admin.totalUsers', icon: Users, color: 'text-blue-500 bg-blue-500/10' },
+  { key: 'active_users_7d' as const, labelKey: 'admin.active7d', icon: UserCheck, color: 'text-green-500 bg-green-500/10' },
+  { key: 'total_quests_completed' as const, labelKey: 'admin.questsDone', icon: ScrollText, color: 'text-purple-500 bg-purple-500/10' },
+  { key: 'total_achievements_unlocked' as const, labelKey: 'admin.achievements', icon: Trophy, color: 'text-yellow-500 bg-yellow-500/10' },
 ];
 
 export function AdminStatsCard({ stats, credentials, onRefresh }: AdminStatsCardProps) {
+  const { t } = useTranslation();
   if (!stats) {
     return (
       <div className="grid grid-cols-2 gap-3">
@@ -35,7 +37,7 @@ export function AdminStatsCard({ stats, credentials, onRefresh }: AdminStatsCard
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between">
-        <h2 className="text-sm font-semibold text-telegram-hint uppercase tracking-wide">Overview</h2>
+        <h2 className="text-sm font-semibold text-telegram-hint uppercase tracking-wide">{t('admin.overview')}</h2>
         <button
           onClick={() => onRefresh(credentials)}
           className="text-telegram-hint hover:text-telegram-link transition-colors"
@@ -61,7 +63,7 @@ export function AdminStatsCard({ stats, credentials, onRefresh }: AdminStatsCard
               </div>
               <div>
                 <div className="text-2xl font-bold text-telegram-text">{value.toLocaleString()}</div>
-                <div className="text-xs text-telegram-hint">{card.label}</div>
+                <div className="text-xs text-telegram-hint">{t(card.labelKey)}</div>
               </div>
             </motion.div>
           );
