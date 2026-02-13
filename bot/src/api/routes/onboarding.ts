@@ -184,6 +184,30 @@ router.post('/:telegramId/complete', authenticateTelegram, asyncHandler(async (r
       );
     }
 
+    // 4b. Save avatar selection from onboarding
+    if (quiz_data.gender) {
+      const avatarMap: Record<string, number> = {
+        'gym_warrior': 1,
+        'office_boss': 2,
+        'magic_pet': 3,
+        'night_owl': 4,
+        'couch_hero': 5,
+      };
+      const avatarId = avatarMap[quiz_data.gender] || 1;
+      await client.query(
+        'UPDATE users SET avatar_id = $1 WHERE id = $2',
+        [avatarId, userId]
+      );
+    }
+
+    // 4c. Save nickname if provided during onboarding
+    if (quiz_data.nickname) {
+      await client.query(
+        'UPDATE users SET first_name = $1 WHERE id = $2',
+        [quiz_data.nickname.trim().substring(0, 100), userId]
+      );
+    }
+
     // 5. Mark onboarding as completed (UPSERT handles missing row)
     await client.query(
       `INSERT INTO onboarding_state (user_id, current_step, last_updated)

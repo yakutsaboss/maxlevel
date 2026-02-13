@@ -3209,7 +3209,18 @@ After completing work, write your retrospective in PARALLEL_AGENTS.md under "Run
 *(To be filled by Agent E)*
 
 #### Agent F Retrospective
-*(To be filled by Agent F)*
+**Task:** Save avatar selection and nickname from onboarding to the users table.
+**Status**: DONE
+
+**Changes made (1 file, 2 fixes):**
+1. `bot/src/api/routes/onboarding.ts` — Added section 4b (avatar persistence): maps `quiz_data.gender` string (e.g. `'gym_warrior'`) to integer `avatar_id` (1-5) via lookup map, then `UPDATE users SET avatar_id` within the existing transaction.
+2. Same file — Added section 4c (nickname persistence): if `quiz_data.nickname` is present, saves it to `users.first_name` (trimmed, max 100 chars). This overwrites the conditional restore from section 4 which only updated `first_name` when it was `'Deleted User'`.
+
+**Placement:** Both queries added between the XP award block (section 4, line 185) and the onboarding state completion (section 5, line 211). Both use `client.query()` so they participate in the existing `transaction()` wrapper — atomic with all other onboarding writes.
+
+**Build:** `tsc` passes clean, zero errors.
+
+**No conflicts expected:** Only touched `bot/src/api/routes/onboarding.ts`, which is exclusively owned by Agent F.
 
 #### Agent G Retrospective
 *(To be filled by Agent G)*
