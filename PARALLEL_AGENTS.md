@@ -2621,4 +2621,22 @@ After completing work, write your retrospective in PARALLEL_AGENTS.md under "Run
 #### Agent 0 Retrospective
 *(To be filled by Agent 0)*
 
-<!-- Next run goes here. Agent 0 will append RUN 49 below this line. -->
+### Run 49 Retrospectives
+
+#### Agent C Retrospective
+Refactored `AdminQuestEditor.tsx` from 511 lines into a clean component architecture:
+
+**New files created in `mini-app/src/components/admin/quest-editor/`:**
+- `types.ts` (56 lines) — shared types (`QuestTemplate`, `ModeOption`, `QuestFormData`) and constants (`EMPTY_FORM`, `DIFFICULTY_COLORS`)
+- `useQuestEditor.ts` (170 lines) — custom hook with all state management, data fetching, form helpers, and API actions
+- `QuestForm.tsx` (155 lines) — form component for creating/editing quests (title, description, mode, type, XP, difficulty, timer)
+- `QuestPreview.tsx` (82 lines) — individual quest card showing title, description, and tag badges
+- `QuestList.tsx` (31 lines) — list container using `QuestPreview` for each quest
+
+**Orchestrator:** `AdminQuestEditor.tsx` reduced from 511 → 98 lines. Imports hook + sub-components, renders header/loading skeleton/form/list/toast.
+
+**Verification:** `npm run build` passes (tsc + vite). All 108 test files (487 tests) pass with `npx vitest --run`.
+
+**No issues encountered.** Pure refactor — zero behavior changes, all functionality preserved.
+
+<!-- Next run goes here. Agent 0 will append RUN 50 below this line. -->
