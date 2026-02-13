@@ -3189,7 +3189,17 @@ After completing work, write your retrospective in PARALLEL_AGENTS.md under "Run
 *(To be filled by Agent A)*
 
 #### Agent B Retrospective
-*(To be filled by Agent B)*
+**Fixed**: Dashboard quote-overlaps-stats bug by replacing two negative margins with positive ones.
+
+**Changes** (1 file, 2 lines):
+- `mini-app/src/pages/Dashboard.tsx` line 87: `-mt-4` → `mt-3` (quote section)
+- `mini-app/src/pages/Dashboard.tsx` line 99: `-mt-8` → `mt-4` (stat grid)
+
+**Root cause**: The quote used `-mt-4` to overlap the header gradient bottom (decorative), and the stat grid used `-mt-8` to pull up into the quote area (bug). Together they stacked, causing stats to visually overlap the quote text.
+
+**Design note**: The `-mt-4` on the quote was intentional (card-over-gradient pattern) but contributed to the overlap chain. Changing to `mt-3` gives clean separation: header → 0.75rem gap → quote → 1rem gap → stats. The gradient `rounded-b-3xl` still provides a clean visual edge without needing overlap.
+
+**Build**: tsc clean, Vite build passes. Dashboard chunk 24.09 KB (unchanged size).
 
 #### Agent C Retrospective
 *(To be filled by Agent C)*
