@@ -2621,4 +2621,36 @@ After completing work, write your retrospective in PARALLEL_AGENTS.md under "Run
 #### Agent 0 Retrospective
 *(To be filled by Agent 0)*
 
-<!-- Next run goes here. Agent 0 will append RUN 49 below this line. -->
+---
+
+### Run 49 Retrospectives
+
+#### Agent A Retrospective
+**Task**: Create Social page and integrate into app routing/navigation.
+**Result**: SUCCESS — build passes, Social page renders with friends list + challenges.
+
+**Files created/modified (3):**
+1. `mini-app/src/pages/Social.tsx` (NEW, ~280 lines) — Full social page with:
+   - Friends list using existing `FriendsList` component
+   - Challenges list using existing `ChallengeCard` component
+   - "Send Friend Request" form (telegram_id input + submit)
+   - "Create Challenge" form (title, description, mode)
+   - Loading skeleton (`SocialSkeleton` inline component)
+   - `ErrorSection` on API errors
+   - Pull-to-refresh support via `usePullToRefresh` hook
+   - Haptic feedback on actions
+   - Tailwind styling with Telegram theme variables
+
+2. `mini-app/src/App.tsx` (MODIFIED) — Added lazy import for Social page + route after `/leaderboard`
+
+3. `mini-app/src/components/Navigation.tsx` (MODIFIED) — Added `Users` icon import from lucide-react + Social nav item between "Ranks" and "Profile"
+
+**Design decisions:**
+- Used `fetch()` directly with `API_BASE_URL` + `X-Telegram-Init-Data` header (same pattern as admin/analytics components) since `apiClient` doesn't have social methods and `api/client.ts` is not in owned files
+- Social page is lazy-loaded and code-split into its own chunk (11.98 KB gzipped to 3.17 KB)
+- Both forms (friend request + challenge) use inline toggle pattern with loading/error/success states
+- Empty state for challenges shows Swords icon with CTA text
+
+**Build output:** Main chunk 165.71 KB (unchanged), new Social chunk 11.98 KB. Zero TypeScript errors.
+
+<!-- Next run goes here. Agent 0 will append RUN 50 below this line. -->
