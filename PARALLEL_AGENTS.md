@@ -2640,3 +2640,28 @@ Design decisions:
 Build: `tsc --noEmit` and `npm run build` both pass clean.
 
 <!-- Next run goes here. Agent 0 will append RUN 49 below this line. -->
+
+### Run 49 Retrospectives
+
+#### Agent F Retrospective
+**Task:** Expand i18n translation files to cover social, finance, admin, analytics, habits, and errors sections.
+
+**Files modified (3):**
+- `mini-app/src/i18n/en.ts` — Added 6 new sections (social, finance, admin, analytics, habits, errors) with 130+ new keys
+- `mini-app/src/i18n/ru.ts` — Same structure, natural Russian translations
+- `mini-app/src/i18n/zh.ts` — Same structure, Simplified Chinese translations
+
+**New translation sections:**
+1. **`common`** — Extended with 9 new keys: add, delete, edit, refresh, confirm, create, close, search, noData
+2. **`social`** (15 keys) — Friends list, challenges, participants, deadlines, progress
+3. **`finance`** (39 keys) — Budget tracker, savings goals, categories, deposits, error messages
+4. **`admin`** (47 keys) — Login, quest editor, analytics, broadcast, background jobs, user stats
+5. **`analytics`** (13 keys) — Mode analytics, streaks, XP charts, quest history
+6. **`habits`** (15 keys) — Habit builder, frequency options, streak display
+7. **`errors`** (10 keys) — Network, server, auth, validation, timeout, permission errors
+
+**Approach:** Read all 11 component files (FriendsList, ChallengeCard, BudgetTracker, SavingsGoal, AdminQuestEditor, AnswerAnalytics, ModeAnalytics, HabitBuilder, HabitStreak, AdminBroadcast, AdminJobs) to extract every hardcoded English string. Organized translations by feature area matching the component directory structure.
+
+**Issue encountered:** Chinese quotation marks (`\u201C\u201D`) inside double-quoted TypeScript strings caused parse errors. Fixed by wrapping those specific strings in single quotes.
+
+**Build:** `tsc && vite build` passes clean.
