@@ -1650,7 +1650,23 @@ PGPASSWORD=postgres psql -h localhost -U postgres -d telegram_rpg -f /opt/wibeco
 *(To be filled by Agent E)*
 
 #### Agent F Retrospective
-*(To be filled by Agent F)*
+**Status**: Complete — 4 test files written, 33 test cases total.
+
+**Files created**:
+- `bot/src/__tests__/jobs/dailyQuestReset-fitness.test.ts` — 10 tests for fitness-level-aware quest assignment
+- `mini-app/src/__tests__/hooks/useQuestsData-difficulty.test.ts` — 8 tests for difficulty filter state & filtering
+- `mini-app/src/__tests__/data/avatarOptions.test.ts` — 11 tests for AVATAR_OPTIONS, AVATAR_EMOJI_MAP, getAvatarById
+- `bot/src/__tests__/routes/http/leaderboard-avatar.test.ts` — 6 tests for avatar_id in all leaderboard endpoints
+
+**Pre-merge test results** (expected — other agents' code not yet merged):
+- dailyQuestReset-fitness: 7/10 pass (3 fail awaiting Agent B's mode_configs query logic)
+- useQuestsData-difficulty: 0/8 pass (all fail awaiting Agent C's selectedDifficulty state)
+- avatarOptions: 0/11 (import fails — awaiting Agent D's avatarOptions.ts file)
+- leaderboard-avatar: 0/6 pass (all fail awaiting Agent E's avatar_id in formatters)
+
+**Patterns followed**: Matched existing test conventions exactly — httpMocks.ts factories for bot HTTP tests, renderHook+act+waitFor for mini-app hook tests, vi.useFakeTimers for job tests. Used makeQuest factory and setupMocks helper consistent with existing useQuestsData.test.ts.
+
+**Notes for merge**: Tests should all pass after merging Agents B→E. If Agent B changes the mock sequence (e.g., queries mode_configs at a different point), the dailyQuestReset-fitness mocks may need reordering.
 
 #### Agent 0 Retrospective
 *(To be filled by Agent 0 after merge)*
