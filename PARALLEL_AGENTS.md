@@ -2673,4 +2673,19 @@ After completing work, write your retrospective in PARALLEL_AGENTS.md under "Run
 
 **Note**: Run 49 retros for agents B-H were lost during `--theirs` conflict resolution (only Agent A's survived as last merge). Retros exist in git reflog on deleted branches.
 
-<!-- Next run goes here. Agent 0 will append RUN 50 below this line. -->
+### Run 50 Retrospectives
+
+#### Agent A Retrospective
+**Task**: Fix onboarding blink/reload bug — page visually blinks between step transitions.
+
+**Root cause confirmed**: `AnimatePresence mode="wait"` forces sequential exit→enter animations. The old step fades out (opacity 0, x -20) over 0.2s, creating a visible gap before the new step fades in (opacity 0→1, x 20→0). The x-axis movement made the flash even more noticeable.
+
+**Fix applied**: Changed `mode="wait"` to `mode="sync"` and replaced x+opacity transition with opacity-only crossfade at 0.15s. Now old/new steps cross-fade simultaneously — no gap, no blink.
+
+**Files modified**: `mini-app/src/pages/Onboarding.tsx` (lines 198-208 only)
+
+**Child component check**: Reviewed all `useEffect` hooks in onboarding sub-components (LaunchScreen, QuizScreen/useQuizState, DrumRoller). None flash loading states on step change — the blink was purely from AnimatePresence.
+
+**Build**: Passed cleanly.
+
+<!-- Next run goes here. Agent 0 will append RUN 51 below this line. -->
