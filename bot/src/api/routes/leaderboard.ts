@@ -2,6 +2,7 @@ import { Router, Request, Response } from 'express';
 import { authenticateTelegram } from '../middleware/auth.js';
 import { query } from '../../utils/db.js';
 import { cached, TTL } from '../../utils/cache.js';
+import { safeParseInt } from '../../utils/validation.js';
 import {
   asyncHandler,
   successResponse,
@@ -29,17 +30,6 @@ type LeaderboardEntryRow = {
   // common rank (ROW_NUMBER returns string from pg)
   xp_rank?: string;
 };
-
-/**
- * Safely parse an integer from a string query parameter.
- * Unlike `parseInt(val) || default`, this correctly handles '0' as a valid value
- * instead of falling through to the default.
- */
-function safeParseInt(value: string | undefined, defaultVal: number): number {
-  if (value === undefined || value === '') return defaultVal;
-  const parsed = parseInt(value, 10);
-  return Number.isNaN(parsed) ? defaultVal : parsed;
-}
 
 const router = Router();
 

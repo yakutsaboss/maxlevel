@@ -6,6 +6,7 @@
 import { Context } from 'grammy';
 import { query, queryOne } from '../utils/db.js';
 import { logger } from '../utils/logger.js';
+import { safeParseInt } from '../utils/validation.js';
 
 /** A row from leaderboard_mv materialized view. */
 type LeaderboardRow = {
@@ -45,7 +46,7 @@ export async function handleLeaderboard(ctx: Context) {
     let msg = '🏆 *Leaderboard — Top 10*\n\n';
 
     for (const row of top10) {
-      const rank = parseInt(row.xp_rank) || 0;
+      const rank = safeParseInt(row.xp_rank, 0);
       const icon = rank <= 3 ? medals[rank - 1] : `${rank}.`;
       const name = row.first_name || row.username || 'Anonymous';
       msg += `${icon} *${name}* — Lv.${row.current_level} · ${row.total_xp} XP\n`;
@@ -66,7 +67,7 @@ export async function handleLeaderboard(ctx: Context) {
     );
 
     if (myRank) {
-      const rank = parseInt(myRank.xp_rank) || 0;
+      const rank = safeParseInt(myRank.xp_rank, 0);
       if (rank > 10) {
         const name = myRank.first_name || myRank.username || 'You';
         msg += `\n---\n${rank}. *${name}* — Lv.${myRank.current_level} · ${myRank.total_xp} XP`;

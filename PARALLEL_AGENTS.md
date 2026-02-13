@@ -1877,7 +1877,14 @@ After completing work, write your retrospective in PARALLEL_AGENTS.md under "Run
 ### Run 53 Retrospectives
 
 #### Agent A Retrospective
-*(To be filled by Agent A)*
+**Task:** Consolidate duplicate code and fix the last `as any` cast in bot source.
+
+**Changes made:**
+1. **leaderboard route** (`bot/src/api/routes/leaderboard.ts`): Removed duplicate `safeParseInt` function (lines 34-42), added import from `../../utils/validation.js`. All 6 call sites continue to work via the shared utility.
+2. **leaderboard handler** (`bot/src/handlers/leaderboard.ts`): Replaced 2 instances of `parseInt(val) || 0` with `safeParseInt(val, 0)` imported from `../utils/validation.js`. This fixes the '0' edge case where `parseInt('0') || 0` would fall through to default.
+3. **analyticsExport job** (`bot/src/jobs/definitions/analyticsExport.ts`): Created `AnalyticsExportResult` interface with `total_rows: number` and `sheets_updated: string[]`. Used it as the generic parameter `executePythonTool<AnalyticsExportResult>(...)` to eliminate the `as any` cast. Accessed `result.data?.total_rows` and `result.data?.sheets_updated` directly.
+
+**Build:** `npm run build` passes cleanly with zero errors.
 
 #### Agent B Retrospective
 *(To be filled by Agent B)*
