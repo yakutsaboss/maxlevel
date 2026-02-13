@@ -10,9 +10,10 @@ import { logger } from '@/utils/logger';
 interface UseDashboardDataParams {
   userId: number | undefined;
   haptic: HapticWithNotification;
+  onDashboardData?: (level: number, xp: number) => void;
 }
 
-export function useDashboardData({ userId, haptic }: UseDashboardDataParams) {
+export function useDashboardData({ userId, haptic, onDashboardData }: UseDashboardDataParams) {
   const navigate = useNavigate();
   const [stats, setStats] = useState<UserStats | null>(null);
   const [loading, setLoading] = useState(true);
@@ -56,6 +57,7 @@ export function useDashboardData({ userId, haptic }: UseDashboardDataParams) {
       const response = await apiClient.getUserStats(userId, { signal: controller.signal });
       if (response.success && response.data) {
         setStats(response.data);
+        onDashboardData?.(response.data.user.level, response.data.user.xp);
         if (checkAchievements && response.data.user.id) {
           checkForNewAchievements(response.data.user.id).catch((err) => logger.error('Achievement check failed', { error: err }));
         }

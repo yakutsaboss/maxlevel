@@ -2421,4 +2421,24 @@ After completing work, write your retrospective in PARALLEL_AGENTS.md under "Run
 #### Agent 0 Retrospective
 *(To be filled by Agent 0 after merge)*
 
-<!-- Next run goes here. Agent 0 will append RUN 60 below this line. -->
+### Run 60 Retrospectives
+
+#### Agent B Retrospective
+**Task:** Wire celebration animations into Dashboard page and fix Stars payment mini-app to use real invoice URLs.
+**Result:** All 3 tasks completed. Build passes clean (tsc + vite build, 0 errors).
+
+**Files modified (4):**
+1. **mini-app/src/pages/Dashboard.tsx** — Imported useCelebration hook + Confetti, LevelUpModal, XpFloat components. Added celebration hook call, passed `onDashboardData` to useDashboardData. Rendered all 3 celebration components at the bottom of the JSX. Added useEffect hooks for haptic feedback: `haptic.impact('heavy')` on level-up, `haptic.impact('light')` on XP gain.
+2. **mini-app/src/hooks/useDashboardData.ts** — Added optional `onDashboardData?: (level: number, xp: number) => void` parameter. After successful stats load, calls `onDashboardData?.(response.data.user.level, response.data.user.xp)` to feed level/xp into the celebration system.
+3. **mini-app/src/hooks/usePayment.ts** — Removed the fake URL construction (`https://t.me/$BOT?startattach=pay_ID`). Now uses `payment.invoice_url` from the backend API response, which will contain the real Telegram Stars invoice URL generated via `bot.api.createInvoiceLink()`.
+4. **mini-app/src/api/payments.ts** — Added `invoice_url: string` field to `CreatePaymentResponse` interface to match the updated backend response.
+
+**Design decisions:**
+- Haptic feedback is triggered via useEffect in Dashboard.tsx (as the consuming page), not inside useCelebration — matching Agent C's recommendation from Run 59 retro.
+- `onDashboardData` is passed as a hook param (not a global event) to keep data flow explicit and testable.
+
+**Notes for Agent 0:**
+- The `onDashboardData` callback in useDashboardData is called on EVERY successful stat load (initial + refresh). The useCelebration hook handles deduplication via its internal localStorage tracking.
+- No i18n changes needed — celebration text keys were already added by Agent C in Run 59.
+
+<!-- Next run goes here. Agent 0 will append RUN 61 below this line. -->
