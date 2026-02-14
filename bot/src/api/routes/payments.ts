@@ -14,8 +14,9 @@ import { mutationLimiter, readLimiter } from '../middleware/rateLimiter.js';
 import { asyncHandler, successResponse, BadRequestError, NotFoundError } from '../utils/errors.js';
 import { logger } from '../../utils/logger.js';
 import { safeParseInt } from '../../utils/validation.js';
-import { isValidTier, isPositiveInteger } from '../../utils/paymentHelpers.js';
+import { isValidTier, isPositiveInteger, TIER_PRICES, type Tier } from '../../utils/paymentHelpers.js';
 import { webhookRouter } from './payment-webhook.js';
+import { bot } from '../../bot.js';
 
 const router = Router();
 const log = logger.child({ component: 'payments' });
@@ -62,13 +63,37 @@ router.post('/create', authenticateTelegram, mutationLimiter, asyncHandler(async
 
   log.info('Payment created', { paymentId: payment?.id, userId, amount: numericAmount, tier });
 
+  // Create a real Telegram Stars invoice link via Bot API
+  const starsAmount = Math.round(numericAmount);
+  const tierLabel = tier.charAt(0).toUpperCase() + tier.slice(1);
+
+  let invoiceUrl: string;
+  try {
+    invoiceUrl = await bot.api.createInvoiceLink(
+      `${tierLabel} Subscription`,
+      `Upgrade to ${tierLabel} tier — 6 modes, all features, 30 days`,
+      JSON.stringify({ payment_id: payment!.id, tier }),
+      '',       // provider_token: empty for Telegram Stars
+      'XTR',    // currency: Telegram Stars
+      [{ label: tierLabel, amount: starsAmount }],
+    );
+  } catch (err) {
+    log.error('Failed to create invoice link', { paymentId: payment?.id, error: err });
+    // Mark payment as failed since we can't generate the invoice
+    await execute(`UPDATE payments SET status = 'failed', updated_at = NOW() WHERE id = $1`, [payment!.id]);
+    throw new BadRequestError('Failed to create Telegram Stars invoice. Please try again.');
+  }
+
+  log.info('Invoice link created', { paymentId: payment?.id, invoiceUrl });
+
   res.status(201).json(successResponse({
     payment_id: payment?.id,
     status: payment?.status,
-    amount: numericAmount,
+    amount: starsAmount,
     currency: 'XTR',
     provider: 'telegram_stars',
     tier,
+    invoice_url: invoiceUrl,
     created_at: payment?.created_at,
   }, 'Payment initiated'));
 }));
