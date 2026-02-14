@@ -22,6 +22,9 @@ interface FriendRequestRow {
   created_at: string;
 }
 
+/** Known mode names for validation. */
+const KNOWN_MODES = ['fitness', 'hydration', 'finance', 'learning', 'medication', 'habits'];
+
 const router = Router();
 
 // POST /api/social/friends/request — send friend request
@@ -207,6 +210,9 @@ router.post('/challenges/create', authenticateTelegram, mutationLimiter, asyncHa
   if (description !== undefined && description !== null && (typeof description !== 'string' || description.length > 2000)) {
     throw new BadRequestError('description must be a string with max 2000 characters');
   }
+  if (mode !== undefined && mode !== null && !KNOWN_MODES.includes(mode)) {
+    throw new BadRequestError(`mode must be one of: ${KNOWN_MODES.join(', ')}`);
+  }
   if (targetValue !== undefined && targetValue !== null && (!Number.isInteger(targetValue) || targetValue <= 0)) {
     throw new BadRequestError('target_value must be a positive integer');
   }
@@ -226,6 +232,124 @@ router.post('/challenges/create', authenticateTelegram, mutationLimiter, asyncHa
   invalidate(`social:challenges:${creatorId}`);
 
   res.status(201).json(successResponse(challenge, 'Challenge created'));
+}));
+
+// GET /api/social/challenges/discover — browse active public challenges
+router.get('/challenges/discover', readLimiter, asyncHandler(async (req: Request, res: Response) => {
+  const limit = safeParseInt(req.query.limit as string, 20);
+  const offset = safeParseInt(req.query.offset as string, 0);
+  const mode = req.query.mode as string | undefined;
+
+  if (limit <= 0 || limit > 100) {
+    throw new BadRequestError('limit must be between 1 and 100');
+  }
+  if (offset < 0) {
+    throw new BadRequestError('offset must be non-negative');
+  }
+  if (mode && !KNOWN_MODES.includes(mode)) {
+    throw new BadRequestError(`mode must be one of: ${KNOWN_MODES.join(', ')}`);
+  }
+
+  const params: (string | number)[] = [];
+  let whereClause = `WHERE c.status = 'active'`;
+  if (mode) {
+    params.push(mode);
+    whereClause += ` AND c.mode = $${params.length}`;
+  }
+
+  params.push(limit);
+  const limitParam = `$${params.length}`;
+  params.push(offset);
+  const offsetParam = `$${params.length}`;
+
+  const challenges = await query(
+    `SELECT c.id, c.title, c.description, c.mode, c.target_value, c.start_date, c.end_date,
+            c.status, c.created_at,
+            u.username AS creator_username, u.first_name AS creator_first_name,
+            (SELECT COUNT(*) FROM challenge_participants WHERE challenge_id = c.id) AS participant_count
+     FROM challenges c
+     JOIN users u ON u.id = c.creator_id
+     ${whereClause}
+     ORDER BY c.created_at DESC
+     LIMIT ${limitParam} OFFSET ${offsetParam}`,
+    params
+  );
+
+  const result = challenges.map((row) => ({
+    id: row.id as number,
+    title: row.title as string,
+    description: row.description as string | null,
+    mode: row.mode as string | null,
+    target_value: row.target_value as number | null,
+    start_date: row.start_date as string,
+    end_date: row.end_date as string | null,
+    status: row.status as string,
+    created_at: row.created_at as string,
+    creator: {
+      username: row.creator_username as string,
+      first_name: row.creator_first_name as string,
+    },
+    participant_count: Number(row.participant_count),
+  }));
+
+  res.json(successResponse(result));
+}));
+
+// GET /api/social/challenges/:challengeId/details — full challenge detail with participants
+router.get('/challenges/:challengeId/details', authenticateTelegram, readLimiter, asyncHandler(async (req: Request, res: Response) => {
+  const challengeId = safeParseInt(req.params.challengeId, 0);
+  if (challengeId <= 0) {
+    throw new BadRequestError('challengeId must be a positive integer');
+  }
+
+  const challenge = await queryOne(
+    `SELECT c.*, u.username AS creator_username, u.first_name AS creator_first_name,
+            (SELECT COUNT(*) FROM challenge_participants WHERE challenge_id = c.id) AS participant_count
+     FROM challenges c
+     JOIN users u ON u.id = c.creator_id
+     WHERE c.id = $1`,
+    [challengeId]
+  );
+
+  if (!challenge) {
+    throw new NotFoundError('Challenge not found');
+  }
+
+  const participants = await query(
+    `SELECT cp.user_id, u.username, u.first_name, u.current_level, cp.progress, cp.joined_at
+     FROM challenge_participants cp
+     JOIN users u ON u.id = cp.user_id
+     WHERE cp.challenge_id = $1
+     ORDER BY cp.joined_at ASC`,
+    [challengeId]
+  );
+
+  const result = {
+    id: challenge.id as number,
+    title: challenge.title as string,
+    description: challenge.description as string | null,
+    mode: challenge.mode as string | null,
+    target_value: challenge.target_value as number | null,
+    start_date: challenge.start_date as string,
+    end_date: challenge.end_date as string | null,
+    status: challenge.status as string,
+    created_at: challenge.created_at as string,
+    creator: {
+      username: challenge.creator_username as string,
+      first_name: challenge.creator_first_name as string,
+    },
+    participant_count: Number(challenge.participant_count),
+    participants: participants.map((p) => ({
+      user_id: p.user_id as number,
+      username: p.username as string,
+      first_name: p.first_name as string,
+      current_level: p.current_level as number,
+      progress: p.progress as number,
+      joined_at: p.joined_at as string,
+    })),
+  };
+
+  res.json(successResponse(result));
 }));
 
 // GET /api/social/challenges/:userId — list user's challenges

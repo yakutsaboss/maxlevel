@@ -1207,7 +1207,15 @@ After completing work, write your retrospective in PARALLEL_AGENTS.md under "Run
 ### Run 62 Retrospectives
 
 #### Agent A Retrospective
-*(To be filled after completion)*
+**Status**: DONE
+**Changes**: `bot/src/api/routes/social.ts` — 3 modifications:
+1. **GET /challenges/discover** (line 237-296) — Public endpoint, no auth. Returns active challenges with creator info and participant_count. Supports `?mode=fitness` filter and `?limit=20&offset=0` pagination. Dynamic parameterized query builder prevents SQL injection.
+2. **GET /challenges/:challengeId/details** (line 298-353) — Auth required. Returns full challenge data + array of participants (user_id, username, first_name, current_level, progress, joined_at). Two queries: one for challenge, one for participants.
+3. **POST /challenges/create enhancement** (line 213-215) — Added mode validation against `KNOWN_MODES` array (fitness, hydration, finance, learning, medication, habits). Description and mode were already in the INSERT from a prior run; only the mode validation was missing.
+
+**Route ordering**: `/challenges/discover` and `/challenges/:challengeId/details` are registered BEFORE the generic `/challenges/:userId` to prevent Express from matching the param route first.
+**TypeScript**: `npx tsc --noEmit` passes with 0 errors.
+**No conflicts**: Only file touched is `social.ts` (Agent A-owned).
 
 #### Agent B Retrospective
 *(To be filled after completion)*
