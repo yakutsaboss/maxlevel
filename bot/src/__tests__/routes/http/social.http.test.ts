@@ -194,12 +194,12 @@ describe('GET /api/social/friends/:userId', () => {
 
 describe('POST /api/social/challenges/create', () => {
   it('should return 201 and create a challenge', async () => {
-    db.queryOne.mockResolvedValueOnce({ id: 10, creator_id: 1, title: 'Daily Steps', description: 'Walk 10k steps', mode: 'solo', target_value: 10000 });
+    db.queryOne.mockResolvedValueOnce({ id: 10, creator_id: 1, title: 'Daily Steps', description: 'Walk 10k steps', mode: 'fitness', target_value: 10000 });
     db.execute.mockResolvedValueOnce(undefined); // auto-join participant
 
     const res = await request(buildApp())
       .post('/api/social/challenges/create')
-      .send({ creatorId: 1, title: 'Daily Steps', description: 'Walk 10k steps', mode: 'solo', targetValue: 10000 })
+      .send({ creatorId: 1, title: 'Daily Steps', description: 'Walk 10k steps', mode: 'fitness', targetValue: 10000 })
       .expect(201);
 
     expect(res.body.success).toBe(true);
