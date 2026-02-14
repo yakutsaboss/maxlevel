@@ -198,6 +198,34 @@ router.delete('/friends/:userId/:friendId', authenticateTelegram, authorizeUser,
   res.json(successResponse(null, 'Friend removed'));
 }));
 
+// GET /api/social/users/search — search users by username
+router.get('/users/search', authenticateTelegram, readLimiter, asyncHandler(async (req: Request, res: Response) => {
+  const q = (req.query.q as string || '').trim();
+  const excludeUserId = safeParseInt(req.query.excludeUserId as string, 0);
+
+  if (q.length < 2) {
+    throw new BadRequestError('Search query must be at least 2 characters');
+  }
+
+  const params: (string | number)[] = [`%${q}%`];
+  let excludeClause = '';
+  if (excludeUserId > 0) {
+    params.push(excludeUserId);
+    excludeClause = ` AND u.id != $${params.length}`;
+  }
+
+  const users = await query(
+    `SELECT u.id, u.username, u.first_name, u.current_level, u.total_xp
+     FROM users u
+     WHERE u.username ILIKE $1${excludeClause}
+     ORDER BY u.username ASC
+     LIMIT 10`,
+    params
+  );
+
+  res.json(successResponse(users));
+}));
+
 // POST /api/social/challenges/create — create challenge
 router.post('/challenges/create', authenticateTelegram, mutationLimiter, asyncHandler(async (req: Request, res: Response) => {
   const { creatorId, title, description, mode, targetValue, endDate } = req.body;

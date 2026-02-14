@@ -1443,7 +1443,11 @@ Add tests to `mini-app/src/__tests__/pages/Social.test.tsx`:
 ### Run 63 Retrospectives
 
 #### Agent A Retrospective
-*(To be filled by Agent A)*
+**Task 1 — User search endpoint**: Added `GET /api/social/users/search` to `social.ts` with ILIKE username search, `excludeUserId` query param to omit the caller, 10-result limit, `readLimiter` + `authenticateTelegram`. Placed before parameterized `/challenges/:userId` route to avoid Express path conflicts.
+
+**Task 2 — Payment webhook HTTP tests**: Created `payment-webhook.http.test.ts` with 13 test cases covering: auth (missing/wrong secret → 401), validation (missing charge ID → 400, missing payment_id → 400), lookup (non-existent → 404), idempotency (already completed → 200 with no transaction), invalid state (failed/refunded → 400), successful processing (pending → completed with correct tier + subscription), transaction verification (2 client.query calls: UPDATE payments + INSERT subscriptions), tier from metadata vs default, and missing provider_payment_charge_id. All 948 tests pass (79 files).
+
+**Issues**: None. Clean run.
 
 #### Agent B Retrospective
 *(To be filled by Agent B)*
