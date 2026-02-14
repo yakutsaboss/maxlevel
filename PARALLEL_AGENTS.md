@@ -1087,7 +1087,22 @@ After completing work, write your retrospective in PARALLEL_AGENTS.md under "Run
 *(To be filled by Agent B)*
 
 #### Agent C Retrospective
-*(To be filled by Agent C)*
+**Files created/modified:**
+- `bot/src/__tests__/handlers/payments.test.ts` (NEW — 14 tests: 7 pre_checkout + 7 successful_payment)
+- `mini-app/src/__tests__/hooks/usePayment.test.ts` (UPDATED — added 3 invoice URL tests)
+- `mini-app/src/__tests__/pages/DashboardCelebrations.test.tsx` (NEW — 8 tests for celebration integration)
+
+**Total: 25 new tests across 3 files.**
+
+**Approach:**
+- TASK 1: Payment handler tests follow the existing convention from settings.test.ts and stats.test.ts — mock db (queryOne/execute), create context helpers, test both happy path and error cases. Tests cover pre_checkout_query approval/rejection (valid payload, invalid JSON, missing payment_id, missing DB record, amount mismatch, DB errors) and successful_payment flow (DB update to 'completed', subscription upsert, confirmation message, missing record handling, charge ID extraction, invalid payload, DB errors).
+- TASK 2: Added a new `describe('usePayment — invoice URL from API')` block with 3 tests verifying that after Agent B's changes, `openInvoice` receives the exact `invoice_url` from the API response instead of a constructed URL. Preserved all existing tests unchanged. Matched existing patterns (vi.useFakeTimers, renderHook with { userId: 42 }, flushPolling).
+- TASK 3: Created DashboardCelebrations.test.tsx mocking useCelebration to control show* flags and celebration components as simple test-visible elements. Tests: no celebrations on normal load, LevelUpModal appears with correct level, Confetti + LevelUpModal together on level up, XpFloat with correct amount, no XpFloat when hidden, no celebrations during loading/error states, onDashboardData passed to useDashboardData.
+
+**Notes:**
+- Tests import from locations that Agent A (handlers/payments.ts) and Agent B (useCelebration in Dashboard) are creating/modifying. Tests won't pass until after merge.
+- Used the shared `framerMotionMock` from `@/test/mocks/framer-motion` for the Dashboard test to match project conventions.
+- No issues encountered during test writing.
 
 #### Agent 0 Retrospective
 *(To be filled by Agent 0 after merge)*

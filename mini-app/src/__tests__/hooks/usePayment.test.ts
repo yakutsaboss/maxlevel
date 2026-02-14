@@ -216,3 +216,107 @@ describe('usePayment', () => {
     expect(mockOpenInvoice).not.toHaveBeenCalled();
   });
 });
+
+// ─── Tests: Invoice URL from API response (Run 60) ─────────────────
+// Agent B modifies usePayment to use invoice_url from createPayment response
+// instead of constructing a fake URL from payment_id.
+
+describe('usePayment — invoice URL from API', () => {
+  it('should use invoice_url from createPayment response for openInvoice', async () => {
+    const realInvoiceUrl = 'https://t.me/$premium_invoice_abc123';
+
+    mockCreatePayment.mockResolvedValue({
+      payment_id: 200,
+      status: 'pending',
+      invoice_url: realInvoiceUrl,
+    } as any);
+    mockOpenInvoice.mockImplementation((_url: string, callback?: (status: string) => void) => {
+      callback?.('paid');
+    });
+    mockGetPaymentStatus.mockResolvedValue({
+      tier: 'premium',
+      is_active: true,
+    } as any);
+
+    const { result } = renderHook(() => usePayment({ userId: 42 }));
+
+    act(() => {
+      result.current.initiatePayment('premium', 599);
+    });
+
+    await act(async () => {
+      await flushPolling();
+    });
+
+    // openInvoice should be called with the exact URL from the API, not a constructed one
+    expect(mockOpenInvoice).toHaveBeenCalledWith(
+      realInvoiceUrl,
+      expect.any(Function),
+    );
+  });
+
+  it('should not construct URL from payment_id when invoice_url is provided', async () => {
+    const apiInvoiceUrl = 'https://t.me/$stars_invoice_xyz';
+
+    mockCreatePayment.mockResolvedValue({
+      payment_id: 300,
+      status: 'pending',
+      invoice_url: apiInvoiceUrl,
+    } as any);
+    mockOpenInvoice.mockImplementation((_url: string, callback?: (status: string) => void) => {
+      callback?.('paid');
+    });
+    mockGetPaymentStatus.mockResolvedValue({
+      tier: 'premium',
+      is_active: true,
+    } as any);
+
+    const { result } = renderHook(() => usePayment({ userId: 42 }));
+
+    act(() => {
+      result.current.initiatePayment('premium', 599);
+    });
+
+    await act(async () => {
+      await flushPolling();
+    });
+
+    // Should NOT contain the old constructed pattern (pay_300 or startattach)
+    const invoiceUrlArg = mockOpenInvoice.mock.calls[0][0];
+    expect(invoiceUrlArg).toBe(apiInvoiceUrl);
+    expect(invoiceUrlArg).not.toContain('startattach');
+    expect(invoiceUrlArg).not.toContain('pay_300');
+  });
+
+  it('should complete full payment flow with API-provided invoice URL', async () => {
+    mockCreatePayment.mockResolvedValue({
+      payment_id: 400,
+      status: 'pending',
+      invoice_url: 'https://t.me/$invoice_flow_test',
+    } as any);
+    mockOpenInvoice.mockImplementation((_url: string, callback?: (status: string) => void) => {
+      callback?.('paid');
+    });
+    mockGetPaymentStatus.mockResolvedValue({
+      tier: 'premium',
+      is_active: true,
+    } as any);
+
+    const onSuccess = vi.fn();
+    const { result } = renderHook(() => usePayment({ userId: 42, onSuccess }));
+
+    act(() => {
+      result.current.initiatePayment('premium', 599);
+    });
+
+    await act(async () => {
+      await flushPolling();
+    });
+
+    // Payment should succeed and call onSuccess
+    expect(result.current.isLoading).toBe(false);
+    expect(result.current.error).toBeFalsy();
+    expect(result.current.paymentResult).toBeTruthy();
+    expect(result.current.paymentResult?.tier).toBe('premium');
+  });
+});
