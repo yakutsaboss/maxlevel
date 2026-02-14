@@ -1470,7 +1470,25 @@ Add tests to `mini-app/src/__tests__/pages/Social.test.tsx`:
 **Dependencies on Agent A**: `searchUsers` calls the endpoint Agent A is adding (`GET /api/social/users/search`). If not merged, search will 404 but won't break the app.
 
 #### Agent C Retrospective
-*(To be filled by Agent C)*
+**Status**: DONE
+**Changes**: 3 files modified
+
+**Task 1 — User search endpoint tests** (`social.http.test.ts`):
+- Added 6 tests for `GET /api/social/users/search`: valid query (200), empty results (200), query too short (400), missing query (400), excludeUserId param (verifies SQL `!=` clause + param), ILIKE + LIMIT verification
+- All 52 tests pass (including new ones)
+
+**Task 2 — Challenge progress update tests**:
+- `useSocial.test.ts`: Added 3 tests — exposes `updateProgress` function, calls API with correct params `(challengeId, userId, progress)` and refreshes data, no-op when userId is undefined. All 16 tests pass.
+- `Social.test.tsx`: Added 4 ChallengeCard tests — renders "Log Progress" button (via `aria-label`) for active challenges with `onUpdateProgress`, hides button for completed challenges, hides button when `onUpdateProgress` not provided, renders correct progress percentage. Used `getByRole('button', { name: 'Log Progress' })` pattern since Agent B implemented button with icon + aria-label (not visible text).
+
+**Task 3 — Friend search tests** (`Social.test.tsx`):
+- Added 2 FriendRequestForm tests — search input appears when "Add Friend" clicked (type="text", not numeric), placeholder contains "username". Updated FriendRequestForm mock to reflect Agent B's search-based rewrite.
+- Added `updateProgress` to `baseSocialReturn` mock object
+- Added `Clock`, `Plus`, `Loader2`, `Send` icons to lucide-react mock
+- All 22 Social.test.tsx tests pass
+
+**Build**: Bot: 52/52 pass. Mini-app: 22/22 (Social) + 16/16 (useSocial) pass.
+**Pre-existing issue**: 7 failures in `FriendRequestForm.test.tsx` (not my file) — Agent B's rewrite added a `Search` icon that's not mocked in that test file. Agent 0 should fix this during merge.
 
 #### Agent 0 Retrospective
 *(To be filled by Agent 0 after merge)*

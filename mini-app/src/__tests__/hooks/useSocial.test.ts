@@ -308,4 +308,56 @@ describe('useSocial', () => {
     expect(result.current.availableChallenges).toHaveLength(1);
     expect(result.current.availableChallenges[0].mode).toBe('fitness');
   });
+
+  // ── Update Progress (Run 63 — Agent B adds updateProgress to hook) ──
+
+  it('exposes updateProgress function', async () => {
+    const { result } = renderHook(() => useSocial({ userId: 1 }));
+
+    await waitFor(() => {
+      expect(result.current.loading).toBe(false);
+    });
+
+    expect(typeof result.current.updateProgress).toBe('function');
+  });
+
+  it('updateProgress calls API with correct params and refreshes data', async () => {
+    mockUpdateChallengeProgress.mockResolvedValue(undefined);
+
+    const { result } = renderHook(() => useSocial({ userId: 1 }));
+
+    await waitFor(() => {
+      expect(result.current.loading).toBe(false);
+    });
+
+    // Clear mocks to track refresh calls
+    mockGetFriends.mockClear();
+    mockGetPendingRequests.mockClear();
+    mockGetChallenges.mockClear();
+    mockGetFriends.mockResolvedValue(mockFriendsData);
+    mockGetPendingRequests.mockResolvedValue(mockPendingData);
+    mockGetChallenges.mockResolvedValue(mockChallengesData);
+
+    await act(async () => {
+      await result.current.updateProgress(20, 75);
+    });
+
+    expect(mockUpdateChallengeProgress).toHaveBeenCalledWith(20, 1, 75);
+    // Should have refreshed the data
+    expect(mockGetChallenges).toHaveBeenCalled();
+  });
+
+  it('updateProgress is a no-op when userId is undefined', async () => {
+    const { result } = renderHook(() => useSocial({ userId: undefined }));
+
+    // userId is falsy so loadData returns early — loading stays at initial true
+    // Just give a tick to settle
+    await act(async () => {});
+
+    await act(async () => {
+      await result.current.updateProgress(20, 75);
+    });
+
+    expect(mockUpdateChallengeProgress).not.toHaveBeenCalled();
+  });
 });

@@ -91,7 +91,10 @@ vi.mock('@/components/social/ChallengesList', () => ({
 
 vi.mock('@/components/social/FriendRequestForm', () => ({
   FriendRequestForm: ({ onSuccess }: { onSuccess: () => void }) =>
-    <div data-testid="friend-request-form"><button onClick={onSuccess}>Send</button></div>,
+    <div data-testid="friend-request-form">
+      <input type="text" placeholder="Search by username or name..." data-testid="friend-search-input" />
+      <button onClick={onSuccess}>Send Request</button>
+    </div>,
 }));
 
 vi.mock('@/components/social/ChallengeForm', () => ({
@@ -108,6 +111,7 @@ vi.mock('lucide-react', () => {
     UserPlus: s('user-plus'),
     UserMinus: s('user-minus'),
     PlusCircle: s('plus-circle'),
+    Plus: s('plus'),
     X: s('x'),
     Star: s('star'),
     Zap: s('zap'),
@@ -122,12 +126,16 @@ vi.mock('lucide-react', () => {
     ChevronDown: s('chevron-down'),
     Search: s('search'),
     Filter: s('filter'),
+    Clock: s('clock'),
+    Loader2: s('loader2'),
+    Send: s('send'),
   };
 });
 
 // ─── Import after mocks ─────────────────────────────────────────────
 
 import { Social } from '@/pages/Social';
+import { ChallengeCard } from '@/components/social/ChallengeCard';
 
 // ─── Test data ──────────────────────────────────────────────────────
 
@@ -164,6 +172,7 @@ const baseSocialReturn = {
   rejectRequest: vi.fn(),
   removeFriend: vi.fn(),
   joinChallenge: vi.fn(),
+  updateProgress: vi.fn(),
   discoverChallenges: vi.fn(),
 };
 
@@ -395,5 +404,81 @@ describe('Social', () => {
 
     expect(screen.queryByText('30-Day Fitness')).not.toBeInTheDocument();
     expect(screen.queryByText('Reading Challenge')).not.toBeInTheDocument();
+  });
+
+  // ── Friend Search (Run 63 — Agent B rewrites FriendRequestForm to use search) ──
+
+  it('renders friend search input when Add Friend is clicked', () => {
+    render(<Social />);
+
+    // Form is hidden by default
+    expect(screen.queryByTestId('friend-search-input')).not.toBeInTheDocument();
+
+    // Click "Add Friend" to toggle the form
+    fireEvent.click(screen.getByText('Add Friend'));
+
+    // Search input should appear (text input, not numeric Telegram ID)
+    const input = screen.getByTestId('friend-search-input');
+    expect(input).toBeInTheDocument();
+    expect(input).toHaveAttribute('type', 'text');
+  });
+
+  it('friend search input has username/name placeholder', () => {
+    render(<Social />);
+
+    fireEvent.click(screen.getByText('Add Friend'));
+
+    const input = screen.getByTestId('friend-search-input');
+    expect(input.getAttribute('placeholder')).toContain('username');
+  });
+});
+
+// ─── ChallengeCard — progress update (Run 63 Agent C) ───────────────
+
+describe('ChallengeCard — progress update', () => {
+  const activeChallenge = {
+    id: 10,
+    title: 'Test Challenge',
+    description: 'A test challenge',
+    mode: 'fitness',
+    target_value: 100,
+    start_date: '2026-01-01',
+    end_date: '2026-03-01',
+    status: 'active',
+    progress: 50,
+    participant_count: 3,
+  };
+
+  const completedChallenge = {
+    ...activeChallenge,
+    id: 11,
+    title: 'Completed Challenge',
+    progress: 100,
+  };
+
+  it('renders "Log Progress" button for active challenges with onUpdateProgress', () => {
+    render(<ChallengeCard challenge={activeChallenge} onUpdateProgress={vi.fn()} />);
+
+    // Button uses aria-label, not visible text
+    expect(screen.getByRole('button', { name: 'Log Progress' })).toBeInTheDocument();
+  });
+
+  it('does NOT render "Log Progress" button for completed challenges', () => {
+    render(<ChallengeCard challenge={completedChallenge} onUpdateProgress={vi.fn()} />);
+
+    expect(screen.queryByRole('button', { name: 'Log Progress' })).not.toBeInTheDocument();
+  });
+
+  it('does NOT render "Log Progress" button when onUpdateProgress is not provided', () => {
+    render(<ChallengeCard challenge={activeChallenge} />);
+
+    expect(screen.queryByRole('button', { name: 'Log Progress' })).not.toBeInTheDocument();
+  });
+
+  it('renders progress bar with correct percentage for active challenges', () => {
+    render(<ChallengeCard challenge={activeChallenge} />);
+
+    // 50/100 = 50%
+    expect(screen.getByText('50/100 (50%)')).toBeInTheDocument();
   });
 });

@@ -651,3 +651,77 @@ describe('POST /api/social/challenges/create — description and mode (Run 62)',
     expect(res.body.data.mode).toBeNull();
   });
 });
+
+// ─── Run 63: User search endpoint tests (Agent C) ────────────────────
+
+describe('GET /api/social/users/search', () => {
+  it('should return 200 with matching users for valid query', async () => {
+    db.query.mockResolvedValueOnce([
+      { id: 2, username: 'alice', first_name: 'Alice', current_level: 5, total_xp: 2500 },
+      { id: 3, username: 'alice_wonder', first_name: 'Alice W', current_level: 8, total_xp: 4000 },
+    ]);
+
+    const res = await request(buildApp())
+      .get('/api/social/users/search?q=alice')
+      .expect(200);
+
+    expect(res.body.success).toBe(true);
+    expect(res.body.data).toHaveLength(2);
+    expect(res.body.data[0].username).toBe('alice');
+    expect(res.body.data[1].username).toBe('alice_wonder');
+  });
+
+  it('should return 200 with empty array for no matches', async () => {
+    db.query.mockResolvedValueOnce([]);
+
+    const res = await request(buildApp())
+      .get('/api/social/users/search?q=zzzzz')
+      .expect(200);
+
+    expect(res.body.success).toBe(true);
+    expect(res.body.data).toHaveLength(0);
+  });
+
+  it('should return 400 when query is too short (< 2 chars)', async () => {
+    const res = await request(buildApp())
+      .get('/api/social/users/search?q=a')
+      .expect(400);
+
+    expect(res.body.success).toBe(false);
+  });
+
+  it('should return 400 when query param is missing', async () => {
+    const res = await request(buildApp())
+      .get('/api/social/users/search')
+      .expect(400);
+
+    expect(res.body.success).toBe(false);
+  });
+
+  it('should exclude the searching user from results', async () => {
+    db.query.mockResolvedValueOnce([
+      { id: 2, username: 'test_user', first_name: 'Test', current_level: 1, total_xp: 100 },
+    ]);
+
+    await request(buildApp())
+      .get('/api/social/users/search?q=test&excludeUserId=111')
+      .expect(200);
+
+    // Agent A uses excludeUserId query param for exclusion
+    const [sql, params] = db.query.mock.calls[0];
+    expect(sql).toMatch(/!=|<>/); // exclusion clause
+    expect(params).toContain(111);
+  });
+
+  it('should use ILIKE for case-insensitive search with LIMIT', async () => {
+    db.query.mockResolvedValueOnce([]);
+
+    await request(buildApp())
+      .get('/api/social/users/search?q=test')
+      .expect(200);
+
+    const [sql] = db.query.mock.calls[0];
+    expect(sql.toUpperCase()).toContain('ILIKE');
+    expect(sql.toUpperCase()).toContain('LIMIT');
+  });
+});
