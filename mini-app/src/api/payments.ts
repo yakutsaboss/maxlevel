@@ -14,6 +14,7 @@ function getAuthHeaders(): Record<string, string> {
 
 export interface CreatePaymentResponse {
   payment_id: number;
+  invoice_url: string;
   status: string;
   amount: number;
   currency: string;

@@ -51,11 +51,8 @@ export function usePayment({ userId, onSuccess, onError }: UsePaymentParams): Us
       const payment = await createPayment(userId, tier, amount);
       logger.info('Payment created', { paymentId: payment.payment_id, tier, amount });
 
-      // Step 2: Open Telegram Stars invoice
-      // WebApp.openInvoice expects the invoice URL and a callback
-      // For Telegram Stars, we use the Bot API createInvoiceLink or a direct stars:// URL
-      // The backend returns payment_id — we construct the invoice slug
-      const invoiceUrl = `https://t.me/$${import.meta.env.VITE_BOT_USERNAME || 'yakutsa_bot'}?startattach=pay_${payment.payment_id}`;
+      // Step 2: Open Telegram Stars invoice using the real URL from the backend
+      const invoiceUrl = payment.invoice_url;
 
       await new Promise<void>((resolve, reject) => {
         try {

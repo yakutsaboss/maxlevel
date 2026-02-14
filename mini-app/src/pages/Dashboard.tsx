@@ -1,12 +1,16 @@
-import { useMemo } from 'react';
+import { useMemo, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import { useTelegram } from '@/hooks/useTelegram';
 import { useDashboardData } from '@/hooks/useDashboardData';
+import { useCelebration } from '@/hooks/useCelebration';
 import { PullIndicator } from '@/hooks/usePullToRefresh';
 import { Trophy, Zap, Target, Flame, TrendingUp, Compass, Scroll, Sparkles, ArrowRight, Quote } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { AchievementToast } from '@/components/AchievementToast';
+import { Confetti } from '@/components/celebrations/Confetti';
+import { LevelUpModal } from '@/components/celebrations/LevelUpModal';
+import { XpFloat } from '@/components/celebrations/XpFloat';
 import { ErrorSection } from '@/components/ErrorSection';
 import { DailyGoalRing } from '@/components/dashboard/DailyGoalRing';
 import { TodaysProgress } from '@/components/dashboard/TodaysProgress';
@@ -31,12 +35,27 @@ export function Dashboard() {
   const { user, haptic } = useTelegram();
   const navigate = useNavigate();
   const {
+    showConfetti, showLevelUp, showXpFloat,
+    levelUpData, xpGained,
+    onDashboardData,
+    dismissConfetti, dismissLevelUp, dismissXpFloat,
+  } = useCelebration();
+  const {
     stats, loading, error,
     toastAchievement, setToastAchievement,
     loadUserStats,
     containerRef, pullDistance, refreshing, pullThreshold, touchHandlers,
     handleQuestClick,
-  } = useDashboardData({ userId: user?.id, haptic });
+  } = useDashboardData({ userId: user?.id, haptic, onDashboardData });
+
+  // Haptic feedback for celebrations
+  useEffect(() => {
+    if (showLevelUp) haptic.impact('heavy');
+  }, [showLevelUp, haptic]);
+
+  useEffect(() => {
+    if (showXpFloat) haptic.impact('light');
+  }, [showXpFloat, haptic]);
 
   const dailyQuote = useMemo(() => getDailyQuote(), []);
 
@@ -177,6 +196,10 @@ export function Dashboard() {
           />
         )}
       </AnimatePresence>
+
+      <Confetti show={showConfetti} onComplete={dismissConfetti} />
+      <LevelUpModal level={levelUpData} show={showLevelUp} onClose={dismissLevelUp} />
+      <XpFloat amount={xpGained} show={showXpFloat} onComplete={dismissXpFloat} />
     </div>
   );
 }
