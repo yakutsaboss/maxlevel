@@ -33,6 +33,14 @@ For completed run history (Runs 2–59), see `PARALLEL_AGENTS_HISTORY.md`.
 11. **Archive completed runs (every 5 runs)** — after Runs 30, 35, 40, etc., move all completed runs except the latest to `PARALLEL_AGENTS_HISTORY.md`. Update both file headers (line 5 here + line 3 in history) with the new run range. Between archive points, completed runs stay in the main file. **Do this FIRST in Phase B so it's never forgotten.**
 12. **Write retrospective** for the current run (merge results, what went right, issues carried forward).
 13. **Design next run's tasks** — analyze the codebase, read "Known Issues" and agent recommendations, and write the next Run section with full agent prompts.
+13.5. **⚠️ CHECK THE MANDATORY ROADMAP — DO NOT SKIP.** Before designing ANY new run, scroll to the `## MANDATORY ROADMAP` section. If a roadmap exists:
+    - Find the NEXT unexecuted run in the roadmap table (first row without a ✅ in the Status column)
+    - Design the next run EXACTLY as specified — use the listed focus, agent count, and task breakdown
+    - Do NOT deviate, improvise, or substitute different features
+    - Do NOT skip runs or reorder them
+    - If a roadmap run is partially obsolete (feature already built), note it in the retro and execute remaining tasks. If ALL tasks are done, mark it ✅ and move to the next run
+    - Only design a run from scratch if ALL roadmap runs are marked ✅
+    - **VIOLATING THIS RULE IS A CRITICAL FAILURE** — the roadmap is the user's explicit priority list. Improvising "more important" work is NOT your call. The user already decided what matters.
 14. **Pre-allocate retrospective sections** — create a named placeholder for each agent (see Run Template below). This prevents merge conflicts.
 15. **Write copy-paste prompts** — at the top of the next Run section, include a "Copy-Paste Prompts" block with the exact text the user should paste into each Claude Code session.
 16. **Set up worktrees** for the next run: create branches, `git worktree add`, install deps.
@@ -211,6 +219,7 @@ When deploying after a merge:
 14. **Agent 0 MUST pre-allocate ALL retrospective placeholders** — Run 26 Agent 0 forgot Agent D's placeholder. Agent D wrote their retro after the `<!-- Next run -->` marker. Always count: N agents = N+1 placeholders (agents + Agent 0).
 15. **Agent 0 MUST run tests post-merge** — Run 26 had 9 residual failures because Agent D's logger migration broke job test spies on console.log. Always run `npx vitest --run` after all merges and fix failures before deploying.
 16. **NEVER delete worktrees/branches before verifying they're merged** — Run 28 Agent 0 deleted all 3 worktrees + force-deleted an unmerged branch (`feature/r28-logger-relocation` with 4 commits) because it assumed they were empty. Always run `git log main..feature/BRANCH --oneline` BEFORE any cleanup. Even if you "just created" the branches, agents may have already finished.
+17. **Agent 0 MUST follow the MANDATORY ROADMAP if one exists** — Runs 56-64 deviated from a user-planned roadmap because (a) it was never written into the file, and (b) Agent 0's checklist didn't require checking it. The user lost 9 runs of planned features (avatars, trophies, shop, achievements) because Agent 0 kept improvising social/challenge features. NEVER design runs from scratch when a roadmap is present. The roadmap overrides codebase analysis.
 
 ---
 
@@ -281,6 +290,294 @@ Use this structure when creating a new run. Copy and adapt:
 
 **Recommendation for next run:** Fix QuizScreen.tsx and Onboarding.tsx to use `QuizAnswerValue` for full any-elimination in source files.
 ```
+
+---
+
+## MANDATORY ROADMAP (Runs 65-74) — Agent 0 MUST Follow This
+
+⚠️ **This roadmap is NON-NEGOTIABLE. Agent 0 must execute these runs IN ORDER.**
+⚠️ **Do NOT skip, reorder, or replace runs with "more important" work.**
+⚠️ **If you are Agent 0 and you are about to design a new run, the NEXT unexecuted run below is your ONLY option.**
+
+### Background
+Runs 56-64 were supposed to deliver avatars, trophies, shop, and 30+ achievements. Instead, Agent 0 improvised social features, challenge discovery, and test hardening. This roadmap corrects course.
+
+### Current State (after Run 64)
+- 1817+ tests (954 bot + 863 mini-app)
+- Tier system: free/subscriber/premium with channel verification + mode gating
+- Payment: Telegram Stars end-to-end (createInvoiceLink → pre_checkout → successful_payment)
+- Celebrations: Confetti, LevelUpModal, XpFloat wired into Dashboard
+- Social: friends (request/accept/reject/unfriend), challenges (create/discover/join/progress/leave/detail), user search
+- Achievements: basic system exists, ~15 achievements seeded, achievement checking on quest completion
+- Avatars: shared avatar data file exists, leaderboard shows avatar_id, but NO visual avatar system
+- Shop: nothing exists (no shop page, no purchasable items, no inventory)
+
+### The Roadmap
+
+| Run | Focus | Agents | Status |
+|-----|-------|--------|--------|
+| **65** | Achievement Expansion — 30+ New Achievements | 5 | ⬜ |
+| **66** | Pixel Art Avatar System | 5 | ⬜ |
+| **67** | Animated Avatars + Trophy System | 5 | ⬜ |
+| **68** | Purchasable Achievements + Stars Punishment | 5 | ⬜ |
+| **69** | Shop Page + Content Polish | 5 | ⬜ |
+| **70** | Final QA + Performance Optimization | 4 | ⬜ |
+| **71** | Accessibility + PWA + Dark Mode | 4 | ⬜ |
+| **72** | Advanced Analytics + Data Export | 4 | ⬜ |
+| **73** | Notification System + Smart Reminders | 4 | ⬜ |
+| **74** | Integration Testing + Launch Prep | 3 | ⬜ |
+
+---
+
+#### Run 65: Achievement Expansion — 30+ New Achievements (5 Agents)
+
+**Goal**: Expand the achievement system from ~15 to 45+ achievements across all categories.
+
+**Agent A — Achievement Seed Data**
+- OWNED: `database/seed_data.sql`
+- Add 30+ new achievements across categories:
+  - Social achievements (5): First Friend, Social Butterfly (10 friends), Challenge Creator, Challenge Champion, Helping Hand
+  - Streak achievements (5): 7-day, 14-day, 30-day, 60-day, 100-day streaks
+  - Mode mastery (6): Master of each mode (fitness, hydration, finance, medication, habits, learning)
+  - Quest achievements (5): First Quest, 10 Quests, 50 Quests, 100 Quests, Quest Perfectionist (all daily)
+  - XP milestones (5): Level 5, 10, 25, 50, 100
+  - Special achievements (4): Early Adopter, Premium Member, Night Owl (complete after 10pm), Weekend Warrior
+- Each achievement: name, description, icon_emoji, criteria JSONB, xp_reward, rarity (common/rare/epic/legendary)
+
+**Agent B — Achievement Checking Service Refactor**
+- OWNED: `bot/src/api/routes/achievements.ts`, `bot/src/utils/achievementChecker.ts` (NEW)
+- Extract achievement checking logic into a dedicated service
+- Add check functions for each new category: checkSocialAchievements, checkStreakAchievements, checkModeAchievements, checkQuestAchievements, checkXpAchievements
+- Wire into existing quest completion and user update flows
+
+**Agent C — Achievement Gallery UI**
+- OWNED: `mini-app/src/pages/Achievements.tsx`, `mini-app/src/components/achievements/` (NEW dir)
+- Redesign achievements page: grid gallery with category tabs (All/Social/Streak/Mode/Quest/XP/Special)
+- Each achievement card: icon, name, description, rarity badge (color-coded), progress bar (e.g., "7/10 friends"), locked/unlocked state
+- Filter by: earned/unearned, rarity, category
+
+**Agent D — Achievement Notification + Celebration Integration**
+- OWNED: `bot/src/utils/achievementChecker.ts` (GRAY — add notification calls), celebration hooks
+- When achievement unlocked: trigger confetti + achievement toast in mini-app
+- Add Telegram bot notification for rare/epic/legendary achievements
+- Wire into the useCelebration hook
+
+**Agent E — Tests**
+- Test achievement checker service (unit tests for each check function)
+- Test achievement gallery UI (component tests)
+- Update existing achievement tests for new structure
+
+---
+
+#### Run 66: Pixel Art Avatar System (5 Agents)
+
+**Goal**: Build a pixel art avatar system where users can customize their character.
+
+**Agent A — Avatar Data Model + API**
+- OWNED: `database/schema.sql` (ADD tables), `bot/src/api/routes/avatars.ts` (NEW)
+- New tables: `avatar_items` (id, category, name, sprite_key, rarity, unlock_type, unlock_criteria), `user_avatar` (user_id, equipped_items JSONB)
+- Seed default avatar items: 5 hairstyles, 5 outfits, 5 accessories, 3 backgrounds
+- API: GET /avatar/:userId, PATCH /avatar/:userId/equip, GET /avatar/items (catalog)
+
+**Agent B — Avatar Sprite Rendering**
+- OWNED: `mini-app/src/components/avatar/` (NEW dir)
+- AvatarRenderer component: takes equipped items, renders layered pixel art (CSS layers or canvas)
+- Sprite sheet system: each item category has a sprite sheet PNG
+- Create placeholder sprite data (colored squares/simple shapes for now)
+
+**Agent C — Avatar Selection UI**
+- OWNED: `mini-app/src/pages/AvatarCustomizer.tsx` (NEW), `mini-app/src/hooks/useAvatar.ts` (NEW)
+- Full-screen avatar customizer: preview on top, item category tabs below
+- Tap item to preview, "Equip" button to save
+- Show locked items grayed out with unlock hint
+- useAvatar hook: load current avatar, save changes via API
+
+**Agent D — Avatar Integration**
+- OWNED: Dashboard, Profile, Leaderboard avatar rendering
+- Replace generic avatar circles with AvatarRenderer component
+- Show user's custom avatar in: Dashboard header, Profile page, Leaderboard rows, Social friend cards
+
+**Agent E — Tests**
+- Avatar API tests (HTTP), AvatarRenderer tests, AvatarCustomizer tests
+
+---
+
+#### Run 67: Animated Avatars + Trophy System (5 Agents)
+
+**Goal**: Add avatar animations and a trophy case for showcasing achievements.
+
+**Agent A — Avatar Animation States**
+- OWNED: `mini-app/src/components/avatar/AvatarAnimator.tsx` (NEW)
+- Animation states: idle (breathing), celebrate (jump + particles), level-up (glow + scale), walk
+- Use CSS keyframes or Framer Motion for smooth pixel-perfect animations
+- Trigger animations on events (quest complete, level up, achievement unlock)
+
+**Agent B — Trophy System Backend**
+- OWNED: `database/schema.sql` (ADD tables), `bot/src/api/routes/trophies.ts` (NEW)
+- New table: `trophies` (id, name, description, icon, rarity, criteria), `user_trophies` (user_id, trophy_id, earned_at)
+- Seed 15-20 trophies: "First Steps", "Social Star", "Challenge Conqueror", "Streak Master", etc.
+- API: GET /trophies/:userId (earned), GET /trophies (all available)
+- Trophy unlock logic tied to achievement milestones
+
+**Agent C — Trophy Case UI**
+- OWNED: `mini-app/src/pages/TrophyCase.tsx` (NEW), `mini-app/src/components/trophies/` (NEW)
+- Trophy display case: 3D-ish shelf layout with trophy icons
+- Earned trophies are shiny/animated, unearned are silhouettes
+- Tap to see details + how to earn
+- Add Trophy Case link to Profile page
+
+**Agent D — i18n + Integration**
+- OWNED: i18n files, navigation, routes
+- Add all trophy/animation i18n keys (en, ru, zh)
+- Add Trophy Case to navigation/router
+- Wire avatar animations into existing celebration system
+
+**Agent E — Tests**
+- Trophy API tests, Trophy Case component tests, avatar animation tests
+
+---
+
+#### Run 68: Purchasable Achievements + Stars Punishment (5 Agents)
+
+**Goal**: Add monetization through purchasable achievements and a punishment system.
+
+**Agent A — Shop Backend**
+- OWNED: `database/schema.sql` (ADD tables), `bot/src/api/routes/shop.ts` (NEW)
+- New tables: `shop_items` (id, type, item_id, price_stars, price_xp, is_featured), `user_purchases` (user_id, item_id, purchased_at)
+- Seed shop items: premium achievements, rare avatar items, trophy boosters
+- API: GET /shop/items, POST /shop/purchase (Stars or XP payment)
+
+**Agent B — Stars Punishment System**
+- OWNED: `bot/src/api/routes/punishment.ts` (modify), `bot/src/jobs/definitions/` (modify)
+- When user misses daily goals: deduct Stars (configurable per punishment config)
+- Add `punishment_history` tracking
+- Integration with existing punishment configuration UI
+- Telegram notification before deduction ("You missed your goal! X Stars will be deducted in 1 hour")
+
+**Agent C — Purchase Flow UI**
+- OWNED: `mini-app/src/hooks/usePurchase.ts` (NEW), `mini-app/src/components/shop/` (NEW)
+- Purchase confirmation modal (show item, price in Stars or XP, balance)
+- Stars payment via existing Telegram Stars flow
+- XP payment (deduct from user balance)
+- Purchase success animation
+
+**Agent D — Premium Achievement Badges**
+- OWNED: achievement display components
+- Purchased achievements get special visual treatment: gold border, sparkle animation, "Premium" tag
+- Show purchase status in achievement gallery
+- Add "Buy" button on locked purchasable achievements
+
+**Agent E — Tests**
+- Shop API tests, punishment logic tests, purchase flow tests
+
+---
+
+#### Run 69: Shop Page + Content Polish (5 Agents)
+
+**Goal**: Build the full shop page UI and polish all content.
+
+**Agent A — Shop Page UI**
+- OWNED: `mini-app/src/pages/Shop.tsx` (NEW), `mini-app/src/hooks/useShop.ts` (NEW)
+- Full shop page: featured items carousel, category tabs (Avatars/Achievements/Trophies/Boosters)
+- Item cards: preview, price, rarity badge, "Buy" button
+- User balance display (Stars + XP)
+- Search/filter functionality
+
+**Agent B — Inventory System**
+- OWNED: `mini-app/src/pages/Inventory.tsx` (NEW), `bot/src/api/routes/inventory.ts` (NEW)
+- User inventory page: owned items by category
+- Equip/unequip avatar items from inventory
+- Show purchase history
+
+**Agent C — Content Audit + Polish**
+- OWNED: seed data, i18n files
+- Review all seeded achievements (text quality, balanced XP rewards, correct criteria)
+- Review all trophy descriptions
+- Review all shop item descriptions and prices
+- Ensure all 3 languages are complete and consistent
+
+**Agent D — Navigation + Routing**
+- OWNED: routing, navigation, i18n keys
+- Add Shop page to main navigation (with cart icon)
+- Add Inventory to Profile sub-navigation
+- Add all shop/inventory i18n keys (en, ru, zh)
+- Deep link support: /shop/:itemId
+
+**Agent E — Tests**
+- Shop page tests, inventory tests, content validation tests
+
+---
+
+#### Run 70: Final QA + Performance Optimization (4 Agents)
+
+**Goal**: Full regression testing, performance optimization, bundle analysis.
+
+**Agent A — Performance Audit + Fixes**
+- Bundle analysis (vite-bundle-visualizer), identify top 5 largest chunks
+- Code splitting: lazy load Shop, TrophyCase, AvatarCustomizer, Inventory pages
+- Memo optimization for heavy components (AvatarRenderer, achievement gallery)
+- Target: -40% main bundle size
+
+**Agent B — Database Performance**
+- Add missing indexes for new tables (shop_items, user_purchases, trophies, user_trophies, avatar_items, user_avatar)
+- Review and optimize slow queries (EXPLAIN ANALYZE on critical paths)
+- Add connection pool tuning if needed
+
+**Agent C — Full Regression Test Suite**
+- Run ALL tests, fix any failures
+- Manual flow testing: onboarding → quest → achievement → shop → purchase → equip
+- Cross-feature integration tests
+- Payment end-to-end verification
+
+**Agent D — Service Worker + PWA**
+- Fix SW cache version (dynamic, not hardcoded)
+- Add PWA manifest with proper icons
+- Offline support for cached pages
+- App install prompt
+
+---
+
+#### Run 71: Accessibility + PWA + Dark Mode (4 Agents)
+
+**Agent A**: ARIA labels, keyboard nav, screen reader support across all pages
+**Agent B**: Dark mode theme system (CSS variables, theme toggle in settings, persist preference)
+**Agent C**: PWA enhancements (offline pages, cache strategies, background sync)
+**Agent D**: Tests for a11y, dark mode, PWA
+
+---
+
+#### Run 72: Advanced Analytics + Data Export (4 Agents)
+
+**Agent A**: Analytics dashboard improvements (charts, trends, comparisons)
+**Agent B**: Google Sheets auto-export (weekly Q&A data, progress summaries)
+**Agent C**: Data export feature (PDF/CSV personal data export, GDPR compliance)
+**Agent D**: Tests
+
+---
+
+#### Run 73: Notification System + Smart Reminders (4 Agents)
+
+**Agent A**: Smart reminder engine (optimal time detection, adaptive frequency)
+**Agent B**: Notification preferences UI (per-mode, per-type toggles)
+**Agent C**: Telegram notification templates (rich media, inline buttons)
+**Agent D**: Tests
+
+---
+
+#### Run 74: Integration Testing + Launch Prep (3 Agents)
+
+**Agent A**: Full end-to-end testing (all user flows)
+**Agent B**: Load testing + monitoring setup
+**Agent C**: Documentation + launch checklist
+
+### Expected Metrics After Run 74
+- Tests: 2500+
+- Achievement count: 45+
+- Avatar items: 20+
+- Trophies: 15-20
+- Shop items: 30+
+- Bundle size: -40% from current
+- All 3 languages complete
 
 ---
 
