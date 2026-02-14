@@ -400,7 +400,7 @@ describe('POST /api/social/challenges/:challengeId/join', () => {
     const res = await request(buildApp())
       .post('/api/social/challenges/10/join')
       .send({ userId: 2 })
-      .expect(200);
+      .expect(201);
 
     expect(res.body.success).toBe(true);
     expect(db.execute).toHaveBeenCalledWith(
@@ -429,7 +429,7 @@ describe('POST /api/social/challenges/:challengeId/join', () => {
       .expect(400);
 
     expect(res.body.success).toBe(false);
-    expect(res.body.error).toContain('already');
+    expect(res.body.error).toContain('Already');
   });
 
   it('should return 404 when challenge not found', async () => {
@@ -496,6 +496,6 @@ describe('PATCH /api/social/challenges/:challengeId/progress', () => {
       .expect(404);
 
     expect(res.body.success).toBe(false);
-    expect(res.body.error).toContain('not found');
+    expect(res.body.error).toContain('Not a participant');
   });
 });

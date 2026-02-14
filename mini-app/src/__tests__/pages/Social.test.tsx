@@ -106,6 +106,7 @@ vi.mock('lucide-react', () => {
     Users: s('users'),
     Swords: s('swords'),
     UserPlus: s('user-plus'),
+    UserMinus: s('user-minus'),
     PlusCircle: s('plus-circle'),
     X: s('x'),
     Star: s('star'),
@@ -186,7 +187,7 @@ describe('Social', () => {
   it('renders friends list when data is loaded', () => {
     render(<Social />);
 
-    expect(screen.getByTestId('friends-list')).toBeInTheDocument();
+    // Agent B inlined FriendCardWithRemove — no FriendsList component
     expect(screen.getByText('Alice')).toBeInTheDocument();
     expect(screen.getByText('Bob')).toBeInTheDocument();
   });

@@ -89,7 +89,7 @@ beforeEach(() => {
 
 describe('useSocial', () => {
   it('loads friends on mount', async () => {
-    const { result } = renderHook(() => useSocial(1));
+    const { result } = renderHook(() => useSocial({ userId: 1 }));
 
     await waitFor(() => {
       expect(result.current.loading).toBe(false);
@@ -100,7 +100,7 @@ describe('useSocial', () => {
   });
 
   it('loads pending requests on mount', async () => {
-    const { result } = renderHook(() => useSocial(1));
+    const { result } = renderHook(() => useSocial({ userId: 1 }));
 
     await waitFor(() => {
       expect(result.current.loading).toBe(false);
@@ -111,7 +111,7 @@ describe('useSocial', () => {
   });
 
   it('loads challenges on mount', async () => {
-    const { result } = renderHook(() => useSocial(1));
+    const { result } = renderHook(() => useSocial({ userId: 1 }));
 
     await waitFor(() => {
       expect(result.current.loading).toBe(false);
@@ -125,7 +125,7 @@ describe('useSocial', () => {
     let resolveFriends: (v: unknown[]) => void;
     mockGetFriends.mockReturnValue(new Promise(r => { resolveFriends = r; }));
 
-    const { result } = renderHook(() => useSocial(1));
+    const { result } = renderHook(() => useSocial({ userId: 1 }));
 
     // Should be loading initially
     expect(result.current.loading).toBe(true);
@@ -143,7 +143,7 @@ describe('useSocial', () => {
   it('handles API errors and sets error state', async () => {
     mockGetFriends.mockRejectedValue(new Error('Network error'));
 
-    const { result } = renderHook(() => useSocial(1));
+    const { result } = renderHook(() => useSocial({ userId: 1 }));
 
     await waitFor(() => {
       expect(result.current.loading).toBe(false);
@@ -155,7 +155,7 @@ describe('useSocial', () => {
   it('acceptRequest calls API and refreshes data', async () => {
     mockAcceptFriendRequest.mockResolvedValue(undefined);
 
-    const { result } = renderHook(() => useSocial(1));
+    const { result } = renderHook(() => useSocial({ userId: 1 }));
 
     await waitFor(() => {
       expect(result.current.loading).toBe(false);
@@ -181,7 +181,7 @@ describe('useSocial', () => {
   it('rejectRequest calls API and refreshes data', async () => {
     mockRejectFriendRequest.mockResolvedValue(undefined);
 
-    const { result } = renderHook(() => useSocial(1));
+    const { result } = renderHook(() => useSocial({ userId: 1 }));
 
     await waitFor(() => {
       expect(result.current.loading).toBe(false);
@@ -201,7 +201,7 @@ describe('useSocial', () => {
   it('joinChallenge calls API and refreshes data', async () => {
     mockJoinChallenge.mockResolvedValue(undefined);
 
-    const { result } = renderHook(() => useSocial(1));
+    const { result } = renderHook(() => useSocial({ userId: 1 }));
 
     await waitFor(() => {
       expect(result.current.loading).toBe(false);
@@ -219,7 +219,7 @@ describe('useSocial', () => {
   });
 
   it('refresh reloads all data', async () => {
-    const { result } = renderHook(() => useSocial(1));
+    const { result } = renderHook(() => useSocial({ userId: 1 }));
 
     await waitFor(() => {
       expect(result.current.loading).toBe(false);

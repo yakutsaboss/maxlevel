@@ -117,6 +117,9 @@ router.post('/friends/reject', authenticateTelegram, mutationLimiter, asyncHandl
 // GET /api/social/friends/pending/:userId — list pending incoming friend requests
 router.get('/friends/pending/:userId', authenticateTelegram, authorizeUser, readLimiter, asyncHandler(async (req: Request, res: Response) => {
   const userId = safeParseInt(req.params.userId, 0);
+  if (userId === 0) {
+    throw new BadRequestError('Invalid userId');
+  }
 
   const pending = await query(
     `SELECT fr.id, fr.created_at,
