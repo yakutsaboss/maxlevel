@@ -17,6 +17,31 @@ vi.mock('../../../utils/db.js', async () =>
 vi.mock('../../../utils/cache.js', async () =>
   (await import('../../helpers/httpMocks.js')).createMockCache().module);
 
+vi.mock('../../../bot.js', () => ({
+  bot: {
+    api: {
+      createInvoiceLink: vi.fn().mockResolvedValue('https://t.me/$test_invoice_url'),
+    },
+  },
+}));
+
+vi.mock('../../../utils/paymentHelpers.js', async () => {
+  const { UnauthorizedError } = await import('../../../api/utils/errors.js');
+  return {
+    TIER_PRICES: { free: 0, subscriber: 0, premium: 599 },
+    VALID_TIERS: ['free', 'subscriber', 'premium'],
+    isValidTier: (t: string) => ['free', 'subscriber', 'premium'].includes(t),
+    isPositiveInteger: (n: number) => Number.isInteger(n) && n > 0,
+    Tier: {},
+    verifyWebhookSecret: (req: any) => {
+      const secret = req.headers['x-telegram-bot-api-secret-token'];
+      const expected = process.env.TELEGRAM_WEBHOOK_SECRET || process.env.TELEGRAM_BOT_TOKEN;
+      if (!secret) throw new UnauthorizedError('Missing webhook secret token');
+      if (secret !== expected) throw new UnauthorizedError('Invalid webhook secret token');
+    },
+  };
+});
+
 vi.mock('../../../api/middleware/auth.js', () => ({
   authenticateTelegram: (req: any, _res: any, next: any) => {
     req.telegramUser = { id: 111 };

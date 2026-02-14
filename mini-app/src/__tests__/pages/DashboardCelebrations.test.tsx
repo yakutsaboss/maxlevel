@@ -93,19 +93,28 @@ vi.mock('@/components/celebrations/XpFloat', () => ({
     show ? <div data-testid="xp-float" onClick={onComplete}>+{amount} XP</div> : null,
 }));
 
-// Mock lucide-react icons
-vi.mock('lucide-react', () => ({
-  Trophy: (props: any) => <span data-testid="trophy-icon" {...props} />,
-  Zap: (props: any) => <span data-testid="zap-icon" {...props} />,
-  Target: (props: any) => <span data-testid="target-icon" {...props} />,
-  Flame: (props: any) => <span data-testid="flame-icon" {...props} />,
-  TrendingUp: (props: any) => <span data-testid="trending-icon" {...props} />,
-  Compass: (props: any) => <span data-testid="compass-icon" {...props} />,
-  Scroll: (props: any) => <span data-testid="scroll-icon" {...props} />,
-  Sparkles: (props: any) => <span data-testid="sparkles-icon" {...props} />,
-  ArrowRight: (props: any) => <span data-testid="arrow-icon" {...props} />,
-  Quote: (props: any) => <span data-testid="quote-icon" {...props} />,
-}));
+// Mock lucide-react icons (Dashboard + all sub-components)
+vi.mock('lucide-react', () => {
+  const s = (name: string) => (props: any) => <span data-testid={`${name}-icon`} {...props} />;
+  return {
+    Trophy: s('trophy'),
+    Zap: s('zap'),
+    Target: s('target'),
+    Flame: s('flame'),
+    TrendingUp: s('trending'),
+    Compass: s('compass'),
+    Scroll: s('scroll'),
+    Sparkles: s('sparkles'),
+    ArrowRight: s('arrow'),
+    Quote: s('quote'),
+    Calendar: s('calendar'),
+    Award: s('award'),
+    AlertCircle: s('alert-circle'),
+    RefreshCw: s('refresh'),
+    Clock: s('clock'),
+    CheckCircle: s('check-circle'),
+  };
+});
 
 // ─── Import after mocks ─────────────────────────────────────────────
 

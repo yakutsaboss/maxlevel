@@ -1081,10 +1081,38 @@ After completing work, write your retrospective in PARALLEL_AGENTS.md under "Run
 ### Run 60 Retrospectives
 
 #### Agent A Retrospective
-*(To be filled by Agent A)*
+- **Task**: Complete Telegram Stars payment backend — create real invoices via Bot API and handle payment events.
+- **Files created (1)**: `bot/src/handlers/payments.ts` (190 lines) — Grammy handlers for `pre_checkout_query` and `message:successful_payment` events.
+- **Files modified (3)**:
+  1. `bot/src/utils/paymentHelpers.ts` — Added `TIER_PRICES` constant (`Record<Tier, number>`) mapping each tier to its Stars price (free=0, subscriber=0, premium=599).
+  2. `bot/src/api/routes/payments.ts` — POST `/create` now calls `bot.api.createInvoiceLink()` to generate a real Telegram Stars invoice after creating the pending payment record. Returns `invoice_url` in response. On invoice creation failure, marks payment as `failed`. Added imports for `bot`, `TIER_PRICES`, `Tier`.
+  3. `bot/src/index.ts` — Added import for `handlePreCheckoutQuery` and `handleSuccessfulPayment`, registered `bot.on('pre_checkout_query', ...)` and `bot.on('message:successful_payment', ...)` handlers (3 lines total, GRAY AREA).
+- **Payment flow**: Mini-app calls POST `/create` → gets `invoice_url` → user opens invoice in Telegram → Telegram sends `pre_checkout_query` (we verify payment_id, amount, currency, status) → approve → Telegram charges user → `successful_payment` event → we complete payment + upsert subscription in a single DB transaction → send confirmation message.
+- **Design decisions**:
+  - `parsePayload()` helper validates JSON payload structure (requires `payment_id: number` + `tier`), used by both handlers.
+  - Pre-checkout verifies 4 things: valid payload, payment exists & pending, amount matches, currency is XTR.
+  - Successful payment is idempotent — if already completed, sends friendly confirmation instead of erroring.
+  - Transaction pattern matches existing `payment-webhook.ts` (same UPDATE payments + UPSERT subscriptions).
+  - `provider_token` is empty string for Telegram Stars (no external payment provider).
+- **Build**: `tsc` passes clean, 0 errors.
 
 #### Agent B Retrospective
-*(To be filled by Agent B)*
+**Task:** Wire celebration animations into Dashboard page and fix Stars payment mini-app to use real invoice URLs.
+**Result:** All 3 tasks completed. Build passes clean (tsc + vite build, 0 errors).
+
+**Files modified (4):**
+1. **mini-app/src/pages/Dashboard.tsx** — Imported useCelebration hook + Confetti, LevelUpModal, XpFloat components. Added celebration hook call, passed `onDashboardData` to useDashboardData. Rendered all 3 celebration components at the bottom of the JSX. Added useEffect hooks for haptic feedback: `haptic.impact('heavy')` on level-up, `haptic.impact('light')` on XP gain.
+2. **mini-app/src/hooks/useDashboardData.ts** — Added optional `onDashboardData?: (level: number, xp: number) => void` parameter. After successful stats load, calls `onDashboardData?.(response.data.user.level, response.data.user.xp)` to feed level/xp into the celebration system.
+3. **mini-app/src/hooks/usePayment.ts** — Removed the fake URL construction (`https://t.me/$BOT?startattach=pay_ID`). Now uses `payment.invoice_url` from the backend API response, which will contain the real Telegram Stars invoice URL generated via `bot.api.createInvoiceLink()`.
+4. **mini-app/src/api/payments.ts** — Added `invoice_url: string` field to `CreatePaymentResponse` interface to match the updated backend response.
+
+**Design decisions:**
+- Haptic feedback is triggered via useEffect in Dashboard.tsx (as the consuming page), not inside useCelebration — matching Agent C's recommendation from Run 59 retro.
+- `onDashboardData` is passed as a hook param (not a global event) to keep data flow explicit and testable.
+
+**Notes for Agent 0:**
+- The `onDashboardData` callback in useDashboardData is called on EVERY successful stat load (initial + refresh). The useCelebration hook handles deduplication via its internal localStorage tracking.
+- No i18n changes needed — celebration text keys were already added by Agent C in Run 59.
 
 #### Agent C Retrospective
 **Files created/modified:**

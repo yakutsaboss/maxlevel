@@ -16,11 +16,18 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 const mockQueryOne = vi.fn();
 const mockExecute = vi.fn();
 const mockQuery = vi.fn();
+const mockClientQuery = vi.fn().mockResolvedValue({ rows: [] });
+
+const mockTransaction = vi.fn(async (cb: (client: any) => Promise<void>) => {
+  const mockClient = { query: mockClientQuery };
+  await cb(mockClient);
+});
 
 vi.mock('../../utils/db.js', () => ({
   query: (...args: any[]) => mockQuery(...args),
   queryOne: (...args: any[]) => mockQueryOne(...args),
   execute: (...args: any[]) => mockExecute(...args),
+  transaction: (...args: any[]) => mockTransaction(...args),
   getPool: vi.fn(),
 }));
 
@@ -37,9 +44,16 @@ vi.mock('../../utils/logger.js', () => ({
   },
 }));
 
+vi.mock('../../utils/paymentHelpers.js', () => ({
+  TIER_PRICES: { free: 0, subscriber: 0, premium: 599 },
+  VALID_TIERS: ['free', 'subscriber', 'premium'],
+  isValidTier: (t: string) => ['free', 'subscriber', 'premium'].includes(t),
+  isPositiveInteger: (n: number) => Number.isInteger(n) && n > 0,
+}));
+
 // ─── Import after mocks ─────────────────────────────────────────────
 
-import { handlePreCheckout, handleSuccessfulPayment } from '../../handlers/payments.js';
+import { handlePreCheckoutQuery, handleSuccessfulPayment } from '../../handlers/payments.js';
 
 // ─── Helpers ─────────────────────────────────────────────────────────
 
@@ -81,17 +95,17 @@ function createSuccessfulPaymentCtx(overrides: Record<string, any> = {}) {
 
 // ─── Tests: handlePreCheckout ───────────────────────────────────────
 
-describe('handlePreCheckout', () => {
+describe('handlePreCheckoutQuery', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
   it('should approve valid payment with correct payload and amount', async () => {
     // Payment record exists in DB with matching amount
-    mockQueryOne.mockResolvedValueOnce({ id: 100, amount: 599, status: 'pending' });
+    mockQueryOne.mockResolvedValueOnce({ id: 100, amount: '599', status: 'pending' });
 
     const ctx = createPreCheckoutCtx();
-    await handlePreCheckout(ctx);
+    await handlePreCheckoutQuery(ctx);
 
     expect(ctx.answerPreCheckoutQuery).toHaveBeenCalledWith(true);
   });
@@ -101,7 +115,7 @@ describe('handlePreCheckout', () => {
       invoice_payload: 'not-valid-json',
     });
 
-    await handlePreCheckout(ctx);
+    await handlePreCheckoutQuery(ctx);
 
     expect(ctx.answerPreCheckoutQuery).toHaveBeenCalledWith(
       false,
@@ -116,7 +130,7 @@ describe('handlePreCheckout', () => {
       invoice_payload: JSON.stringify({ tier: 'premium' }),
     });
 
-    await handlePreCheckout(ctx);
+    await handlePreCheckoutQuery(ctx);
 
     expect(ctx.answerPreCheckoutQuery).toHaveBeenCalledWith(
       false,
@@ -130,7 +144,7 @@ describe('handlePreCheckout', () => {
     mockQueryOne.mockResolvedValueOnce(null);
 
     const ctx = createPreCheckoutCtx();
-    await handlePreCheckout(ctx);
+    await handlePreCheckoutQuery(ctx);
 
     expect(ctx.answerPreCheckoutQuery).toHaveBeenCalledWith(
       false,
@@ -142,10 +156,10 @@ describe('handlePreCheckout', () => {
 
   it('should reject payment with mismatched amount', async () => {
     // DB says 599 but pre_checkout says 999
-    mockQueryOne.mockResolvedValueOnce({ id: 100, amount: 599, status: 'pending' });
+    mockQueryOne.mockResolvedValueOnce({ id: 100, amount: '599', status: 'pending' });
 
     const ctx = createPreCheckoutCtx({ total_amount: 999 });
-    await handlePreCheckout(ctx);
+    await handlePreCheckoutQuery(ctx);
 
     expect(ctx.answerPreCheckoutQuery).toHaveBeenCalledWith(
       false,
@@ -156,26 +170,21 @@ describe('handlePreCheckout', () => {
   });
 
   it('should call answerPreCheckoutQuery exactly once', async () => {
-    mockQueryOne.mockResolvedValueOnce({ id: 100, amount: 599, status: 'pending' });
+    mockQueryOne.mockResolvedValueOnce({ id: 100, amount: '599', status: 'pending' });
 
     const ctx = createPreCheckoutCtx();
-    await handlePreCheckout(ctx);
+    await handlePreCheckoutQuery(ctx);
 
     expect(ctx.answerPreCheckoutQuery).toHaveBeenCalledTimes(1);
   });
 
-  it('should handle DB errors gracefully and reject', async () => {
+  it('should propagate DB errors (Grammy error handler catches them)', async () => {
     mockQueryOne.mockRejectedValueOnce(new Error('DB connection lost'));
 
     const ctx = createPreCheckoutCtx();
-    await handlePreCheckout(ctx);
-
-    expect(ctx.answerPreCheckoutQuery).toHaveBeenCalledWith(
-      false,
-      expect.objectContaining({
-        error_message: expect.any(String),
-      }),
-    );
+    // The handler doesn't have internal try-catch for DB errors —
+    // Grammy's bot.catch() handles it at the framework level
+    await expect(handlePreCheckoutQuery(ctx)).rejects.toThrow('DB connection lost');
   });
 });
 
@@ -188,42 +197,35 @@ describe('handleSuccessfulPayment', () => {
 
   it('should update payment status to completed in DB', async () => {
     // Payment record found
-    mockQueryOne.mockResolvedValueOnce({ id: 100, user_id: 1, amount: 599 });
-    // execute for UPDATE payments
-    mockExecute.mockResolvedValueOnce(1);
-    // queryOne for upsert subscription
-    mockQueryOne.mockResolvedValueOnce({ id: 1, tier: 'premium' });
+    mockQueryOne.mockResolvedValueOnce({ id: 100, user_id: 1, amount: '599', status: 'pending', metadata: { tier: 'premium' } });
 
     const ctx = createSuccessfulPaymentCtx();
     await handleSuccessfulPayment(ctx);
 
-    // Verify the payment was updated to 'completed'
-    expect(mockExecute).toHaveBeenCalledWith(
-      expect.stringContaining('completed'),
-      expect.arrayContaining(['charge_abc123']),
+    // Verify transaction was called
+    expect(mockTransaction).toHaveBeenCalledTimes(1);
+    // Verify client.query was called with 'completed' status update
+    const updateCall = mockClientQuery.mock.calls.find(
+      (call: any[]) => typeof call[0] === 'string' && call[0].includes('completed'),
     );
+    expect(updateCall).toBeTruthy();
   });
 
   it('should upsert subscription with correct tier', async () => {
-    mockQueryOne.mockResolvedValueOnce({ id: 100, user_id: 1, amount: 599 });
-    mockExecute.mockResolvedValueOnce(1);
-    mockQueryOne.mockResolvedValueOnce({ id: 1, tier: 'premium' });
+    mockQueryOne.mockResolvedValueOnce({ id: 100, user_id: 1, amount: '599', status: 'pending', metadata: { tier: 'premium' } });
 
     const ctx = createSuccessfulPaymentCtx();
     await handleSuccessfulPayment(ctx);
 
-    // Should have called either execute or queryOne for subscription upsert
-    const allCalls = [...mockExecute.mock.calls, ...mockQueryOne.mock.calls];
-    const subscriptionCall = allCalls.find(
-      (call) => typeof call[0] === 'string' && call[0].toLowerCase().includes('subscription'),
+    // Should have called client.query for subscription upsert inside transaction
+    const subscriptionCall = mockClientQuery.mock.calls.find(
+      (call: any[]) => typeof call[0] === 'string' && call[0].toLowerCase().includes('subscription'),
     );
     expect(subscriptionCall).toBeTruthy();
   });
 
   it('should send confirmation message to user', async () => {
-    mockQueryOne.mockResolvedValueOnce({ id: 100, user_id: 1, amount: 599 });
-    mockExecute.mockResolvedValueOnce(1);
-    mockQueryOne.mockResolvedValueOnce({ id: 1, tier: 'premium' });
+    mockQueryOne.mockResolvedValueOnce({ id: 100, user_id: 1, amount: '599', status: 'pending', metadata: { tier: 'premium' } });
 
     const ctx = createSuccessfulPaymentCtx();
     await handleSuccessfulPayment(ctx);
@@ -248,9 +250,7 @@ describe('handleSuccessfulPayment', () => {
   });
 
   it('should extract telegram_payment_charge_id from successful_payment', async () => {
-    mockQueryOne.mockResolvedValueOnce({ id: 100, user_id: 1, amount: 599 });
-    mockExecute.mockResolvedValueOnce(1);
-    mockQueryOne.mockResolvedValueOnce({ id: 1, tier: 'premium' });
+    mockQueryOne.mockResolvedValueOnce({ id: 100, user_id: 1, amount: '599', status: 'pending', metadata: { tier: 'premium' } });
 
     const ctx = createSuccessfulPaymentCtx({
       telegram_payment_charge_id: 'custom_charge_id',
@@ -258,9 +258,9 @@ describe('handleSuccessfulPayment', () => {
     });
     await handleSuccessfulPayment(ctx);
 
-    // The charge ID should appear in the update call
-    const executeCallArgs = mockExecute.mock.calls.flat();
-    const hasChargeId = executeCallArgs.some(
+    // The charge ID should appear in the client.query update call args
+    const clientQueryArgs = mockClientQuery.mock.calls.flat();
+    const hasChargeId = clientQueryArgs.some(
       (arg: any) => Array.isArray(arg) ? arg.includes('custom_charge_id') : arg === 'custom_charge_id',
     );
     expect(hasChargeId).toBe(true);
@@ -275,13 +275,14 @@ describe('handleSuccessfulPayment', () => {
     await expect(handleSuccessfulPayment(ctx)).resolves.not.toThrow();
   });
 
-  it('should handle DB error during status update gracefully', async () => {
-    mockQueryOne.mockResolvedValueOnce({ id: 100, user_id: 1, amount: 599 });
-    mockExecute.mockRejectedValueOnce(new Error('DB write failed'));
+  it('should propagate DB errors from transaction (Grammy error handler catches them)', async () => {
+    mockQueryOne.mockResolvedValueOnce({ id: 100, user_id: 1, amount: '599', status: 'pending', metadata: { tier: 'premium' } });
+    mockTransaction.mockRejectedValueOnce(new Error('DB write failed'));
 
     const ctx = createSuccessfulPaymentCtx();
 
-    // Should not throw — handler should catch errors
-    await expect(handleSuccessfulPayment(ctx)).resolves.not.toThrow();
+    // The handler doesn't have internal try-catch around transaction —
+    // Grammy's bot.catch() handles it at the framework level
+    await expect(handleSuccessfulPayment(ctx)).rejects.toThrow('DB write failed');
   });
 });

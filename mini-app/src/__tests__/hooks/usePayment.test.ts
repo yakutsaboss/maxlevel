@@ -77,6 +77,7 @@ describe('usePayment', () => {
     mockCreatePayment.mockResolvedValue({
       payment_id: 100,
       status: 'pending',
+      invoice_url: 'https://t.me/$invoice_100',
     } as any);
     mockOpenInvoice.mockImplementation((_url: string, callback?: (status: string) => void) => {
       callback?.('paid');
@@ -102,10 +103,11 @@ describe('usePayment', () => {
     expect(mockCreatePayment).toHaveBeenCalledWith(42, 'premium', 599);
   });
 
-  it('opens Telegram invoice with the URL from API', async () => {
+  it('opens Telegram invoice with the URL from API response', async () => {
     mockCreatePayment.mockResolvedValue({
       payment_id: 10,
       status: 'pending',
+      invoice_url: 'https://t.me/$stars_invoice_10',
     } as any);
     mockOpenInvoice.mockImplementation((_url: string, callback?: (status: string) => void) => {
       callback?.('paid');
@@ -125,9 +127,9 @@ describe('usePayment', () => {
       await flushPolling();
     });
 
-    // Hook constructs URL from payment_id + VITE_BOT_USERNAME (fallback: yakutsa_bot)
+    // Hook uses invoice_url from API response (not a constructed URL)
     expect(mockOpenInvoice).toHaveBeenCalledWith(
-      expect.stringContaining('pay_10'),
+      'https://t.me/$stars_invoice_10',
       expect.any(Function),
     );
   });
@@ -154,7 +156,7 @@ describe('usePayment', () => {
     });
 
     await act(async () => {
-      resolveCreate!({ payment_id: 1, status: 'pending' });
+      resolveCreate!({ payment_id: 1, status: 'pending', invoice_url: 'https://t.me/$invoice_1' });
       // Flush microtasks
       await vi.advanceTimersByTimeAsync(0);
     });
@@ -167,6 +169,7 @@ describe('usePayment', () => {
     mockCreatePayment.mockResolvedValue({
       payment_id: 5,
       status: 'pending',
+      invoice_url: 'https://t.me/$invoice_5',
     } as any);
     mockOpenInvoice.mockImplementation((_url: string, callback?: (status: string) => void) => {
       callback?.('cancelled');
@@ -187,6 +190,7 @@ describe('usePayment', () => {
     mockCreatePayment.mockResolvedValue({
       payment_id: 7,
       status: 'pending',
+      invoice_url: 'https://t.me/$invoice_7',
     } as any);
     mockOpenInvoice.mockImplementation((_url: string, callback?: (status: string) => void) => {
       callback?.('failed');
