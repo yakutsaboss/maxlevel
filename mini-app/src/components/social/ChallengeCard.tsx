@@ -1,6 +1,6 @@
 import { memo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Target, Clock, Users, Plus, Loader2, Check } from 'lucide-react';
+import { Target, Clock, Users, Plus, Loader2, Check, Eye } from 'lucide-react';
 
 interface Challenge {
   id: number;
@@ -18,6 +18,7 @@ interface Challenge {
 interface ChallengeCardProps {
   challenge: Challenge;
   onUpdateProgress?: (challengeId: number, progress: number) => Promise<void>;
+  onViewDetails?: (challengeId: number) => void;
 }
 
 function getTimeRemaining(endDate: string | null, t: (key: string) => string): string {
@@ -32,7 +33,7 @@ function getTimeRemaining(endDate: string | null, t: (key: string) => string): s
   return `${hours}${t('social.hoursLeft')}`;
 }
 
-export const ChallengeCard = memo(function ChallengeCard({ challenge, onUpdateProgress }: ChallengeCardProps) {
+export const ChallengeCard = memo(function ChallengeCard({ challenge, onUpdateProgress, onViewDetails }: ChallengeCardProps) {
   const { t } = useTranslation();
   const [showInput, setShowInput] = useState(false);
   const [inputValue, setInputValue] = useState('');
@@ -132,20 +133,31 @@ export const ChallengeCard = memo(function ChallengeCard({ challenge, onUpdatePr
         </div>
       )}
 
-      <div className="flex items-center gap-4 text-xs text-telegram-hint">
-        <span className="flex items-center gap-1">
-          <Users className="w-3 h-3" />
-          {challenge.participant_count} {challenge.participant_count !== 1 ? t('social.participantsPlural') : t('social.participants')}
-        </span>
-        <span className="flex items-center gap-1">
-          <Clock className="w-3 h-3" />
-          {timeRemaining}
-        </span>
-        {isCompleted && (
-          <span className="flex items-center gap-1 text-green-400">
-            <Target className="w-3 h-3" />
-            {t('social.completed')}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-4 text-xs text-telegram-hint">
+          <span className="flex items-center gap-1">
+            <Users className="w-3 h-3" />
+            {challenge.participant_count} {challenge.participant_count !== 1 ? t('social.participantsPlural') : t('social.participants')}
           </span>
+          <span className="flex items-center gap-1">
+            <Clock className="w-3 h-3" />
+            {timeRemaining}
+          </span>
+          {isCompleted && (
+            <span className="flex items-center gap-1 text-green-400">
+              <Target className="w-3 h-3" />
+              {t('social.completed')}
+            </span>
+          )}
+        </div>
+        {onViewDetails && (
+          <button
+            onClick={() => onViewDetails(challenge.id)}
+            className="flex items-center gap-1 text-xs text-telegram-link font-medium px-2 py-1 rounded-lg bg-telegram-link/10 active:scale-95 transition-transform"
+          >
+            <Eye className="w-3 h-3" />
+            {t('social.viewDetails')}
+          </button>
         )}
       </div>
     </div>

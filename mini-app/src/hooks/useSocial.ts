@@ -10,6 +10,7 @@ import {
   joinChallenge,
   updateChallengeProgress,
   discoverChallenges as discoverChallengesApi,
+  leaveChallenge as leaveChallengeApi,
 } from '@/api/social';
 import type { Friend, PendingRequest, Challenge, DiscoverChallenge } from '@/api/social';
 import { logger } from '@/utils/logger';
@@ -93,6 +94,12 @@ export function useSocial({ userId }: UseSocialParams) {
     await loadData();
   }, [userId, loadData]);
 
+  const leaveChallengeAction = useCallback(async (challengeId: number) => {
+    if (!userId) return;
+    await leaveChallengeApi(challengeId, userId);
+    await loadData();
+  }, [userId, loadData]);
+
   const loadDiscoverChallenges = useCallback(async (mode?: string) => {
     try {
       const data = await discoverChallengesApi(mode);
@@ -116,6 +123,7 @@ export function useSocial({ userId }: UseSocialParams) {
     removeFriend: unfriend,
     joinChallenge: joinChallengeAction,
     updateProgress,
+    leaveChallenge: leaveChallengeAction,
     discoverChallenges: loadDiscoverChallenges,
   };
 }

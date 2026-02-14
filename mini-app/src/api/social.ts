@@ -211,3 +211,10 @@ export async function getChallengeDetails(challengeId: number): Promise<Challeng
     `${API_BASE_URL}/social/challenges/${challengeId}/details`,
   );
 }
+
+export async function leaveChallenge(challengeId: number, userId: number): Promise<void> {
+  await request(`${API_BASE_URL}/social/challenges/${challengeId}/leave`, {
+    method: 'DELETE',
+    body: JSON.stringify({ userId }),
+  });
+}

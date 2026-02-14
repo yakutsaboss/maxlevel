@@ -7,6 +7,7 @@ import { useSocial } from '@/hooks/useSocial';
 import { FriendRequestForm } from '@/components/social/FriendRequestForm';
 import { ChallengeForm } from '@/components/social/ChallengeForm';
 import { ChallengesList } from '@/components/social/ChallengesList';
+import { ChallengeDetailModal } from '@/components/social/ChallengeDetailModal';
 import { ErrorSection } from '@/components/ErrorSection';
 import type { PendingRequest, Friend, DiscoverChallenge } from '@/api/social';
 
@@ -177,6 +178,7 @@ export function Social() {
     removeFriend,
     joinChallenge,
     updateProgress,
+    leaveChallenge,
     discoverChallenges,
   } = useSocial({ userId: user?.id });
 
@@ -185,6 +187,7 @@ export function Social() {
   const [showDiscover, setShowDiscover] = useState(false);
   const [discoverMode, setDiscoverMode] = useState('');
   const [actionLoading, setActionLoading] = useState(false);
+  const [selectedChallengeId, setSelectedChallengeId] = useState<number | null>(null);
 
   useEffect(() => {
     if (showDiscover) {
@@ -244,6 +247,18 @@ export function Social() {
       setActionLoading(false);
     }
   }, [joinChallenge, haptic, discoverChallenges, discoverMode]);
+
+  const handleLeaveChallenge = useCallback(async (challengeId: number) => {
+    try {
+      setActionLoading(true);
+      await leaveChallenge(challengeId);
+      haptic.notification('success');
+    } catch {
+      haptic.notification('error');
+    } finally {
+      setActionLoading(false);
+    }
+  }, [leaveChallenge, haptic]);
 
   const handleUpdateProgress = useCallback(async (challengeId: number, progress: number) => {
     try {
@@ -372,7 +387,7 @@ export function Social() {
             />
           )}
 
-          <ChallengesList challenges={challenges} onUpdateProgress={handleUpdateProgress} />
+          <ChallengesList challenges={challenges} onUpdateProgress={handleUpdateProgress} onViewDetails={setSelectedChallengeId} />
         </section>
 
         {/* Discover Challenges Section */}
@@ -432,6 +447,15 @@ export function Social() {
           )}
         </section>
       </div>
+
+      {user?.id && (
+        <ChallengeDetailModal
+          challengeId={selectedChallengeId}
+          onClose={() => setSelectedChallengeId(null)}
+          userId={user.id}
+          onLeave={handleLeaveChallenge}
+        />
+      )}
     </div>
   );
 }

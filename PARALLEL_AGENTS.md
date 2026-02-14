@@ -1990,7 +1990,25 @@ Add tests to `mini-app/src/__tests__/hooks/useSocial.test.ts`:
 **Files modified**: `bot/src/api/routes/social.ts` only.
 
 #### Agent B Retrospective
-*(To be filled by Agent B)*
+**Task 1: ChallengeDetailModal** — Done. Created `ChallengeDetailModal.tsx` with slide-up animation (Framer Motion, matching QuestDetailModal pattern). Features: loading skeleton, error state with retry, challenge info header (title, description, mode badge, target value, date range), user progress bar, participant leaderboard sorted by progress DESC with rank badges (trophies for top 3), crown icon for creator, current user row highlighting, and "Leave Challenge" button (hidden for creators with explanatory text).
+
+**Task 2: ChallengeForm mode pills** — Done. Replaced free-text mode input with pill/chip selector for 6 known modes (fitness, hydration, finance, learning, medication, habits). Tapping toggles selection. Added `targetValue` number input and `endDate` date picker (both optional). Form now sends `targetValue` and `endDate` in the API body. Added `useTranslation` hook for i18n.
+
+**API layer**: Added `leaveChallenge(challengeId, userId)` to `mini-app/src/api/social.ts` calling `DELETE /social/challenges/${challengeId}/leave`.
+
+**Hook**: Added `leaveChallenge` action to `useSocial` hook — calls API then refreshes data.
+
+**ChallengeCard**: Added "View" button with Eye icon that calls `onViewDetails(challengeId)`.
+
+**ChallengesList**: Passes `onViewDetails` prop through to ChallengeCard.
+
+**Social.tsx**: Manages `selectedChallengeId` state, renders ChallengeDetailModal with leave handler.
+
+**i18n**: Added 18 new keys across en, ru, zh — challengeDetails, leaveChallenge, leftChallenge, creatorCannotLeave, viewDetails, rank, challengeMode, targetValue, targetValuePlaceholder, endDate, challengeCreated, challengeTitlePlaceholder, challengeDescPlaceholder, mode_medication, mode_habits.
+
+**Verification**: `npx tsc --noEmit` passes cleanly. `npx vite build` succeeds (3.5s).
+
+**Files modified**: `mini-app/src/api/social.ts`, `mini-app/src/hooks/useSocial.ts`, `mini-app/src/components/social/ChallengeDetailModal.tsx` (NEW), `mini-app/src/components/social/ChallengeForm.tsx`, `mini-app/src/components/social/ChallengeCard.tsx`, `mini-app/src/components/social/ChallengesList.tsx`, `mini-app/src/pages/Social.tsx`, `mini-app/src/i18n/en.ts`, `mini-app/src/i18n/ru.ts`, `mini-app/src/i18n/zh.ts`.
 
 #### Agent C Retrospective
 *(To be filled by Agent C)*
