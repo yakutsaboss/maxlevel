@@ -297,6 +297,10 @@ export default {
     challenges: "Вызовы",
     newChallenge: "Новый вызов",
     couldNotLoad: "Не удалось загрузить социальные данные",
+    pendingRequests: "Входящие запросы",
+    accept: "Принять",
+    reject: "Отклонить",
+    unfriend: "Удалить друга",
   },
   finance: {
     budgetSummary: "Бюджет за месяц",

@@ -1056,7 +1056,29 @@ After completing work, write your retrospective in PARALLEL_AGENTS.md under "Run
 - **Notes for Agent 0**: No new imports or dependencies added. No changes to other files. All new endpoints follow existing patterns exactly.
 
 #### Agent B Retrospective
-*(To be filled by Agent B)*
+**Task:** Create social API client, useSocial hook, and refactor Social.tsx with pending requests UI and unfriend functionality.
+**Result:** All 3 tasks completed. Build passes clean (tsc + vite build, 0 errors).
+
+**Files created (2):**
+1. **mini-app/src/api/social.ts** (~130 lines) — Dedicated social API client with 10 functions: getFriends, getPendingRequests, sendFriendRequest, acceptFriendRequest, rejectFriendRequest, removeFriend, getChallenges, createChallenge, joinChallenge, updateChallengeProgress. Shared `request<T>()` helper handles auth headers, error parsing, and `{success, data}` unwrapping. Exports interfaces: Friend, PendingRequest, Challenge, CreateChallengeParams.
+2. **mini-app/src/hooks/useSocial.ts** (~95 lines) — Hook managing social data lifecycle: loads friends + pending requests + challenges on mount via Promise.all. Exposes mutation functions (sendRequest, acceptRequest, rejectRequest, removeFriend, joinChallenge) that auto-refresh after each mutation. Uses useCallback for stability.
+
+**Files modified (4):**
+1. **mini-app/src/pages/Social.tsx** (197→343 lines) — Complete refactor: replaced inline fetch() calls with useSocial hook, removed API_BASE_URL and manual headers. Added PendingRequestCard component (shows incoming requests with Accept/Reject buttons, yellow avatar badge). Added FriendCardWithRemove component (replaces FriendsList with per-friend unfriend button + confirmation). Pending requests section appears above friends when requests exist, with count badge. Removed FriendsList dependency (inlined with unfriend support).
+2. **mini-app/src/i18n/en.ts** — Added 4 keys: pendingRequests, accept, reject, unfriend
+3. **mini-app/src/i18n/ru.ts** — Same 4 keys in Russian
+4. **mini-app/src/i18n/zh.ts** — Same 4 keys in Chinese
+
+**Design decisions:**
+- Used standalone `api/social.ts` with shared `request<T>()` helper (same pattern as `api/payments.ts`) — keeps isolation from main apiClient singleton.
+- Unfriend has a 2-step confirmation (tap → confirm/cancel) to prevent accidental removals.
+- Pending requests section only renders when there are pending requests (no empty state).
+- Challenge join functionality is exposed via the hook but not rendered in UI — no "all challenges" endpoint exists yet, so join-by-ID would need a separate UI. The hook is ready for when that endpoint is added.
+
+**Notes for Agent 0:**
+- i18n files have 4 new keys per language (social namespace). No conflict with other agents expected.
+- The FriendsList component is no longer used by Social.tsx (replaced with FriendCardWithRemove inline). FriendsList still exists and is not deleted (outside OWNED scope).
+- The ChallengeForm and ChallengesList components still use their own inline fetch() — they are not in OWNED scope. A future run could refactor them to use the social API client too.
 
 #### Agent C Retrospective
 *(To be filled by Agent C)*

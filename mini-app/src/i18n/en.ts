@@ -297,6 +297,10 @@ export default {
     challenges: "Challenges",
     newChallenge: "New Challenge",
     couldNotLoad: "Could not load social data",
+    pendingRequests: "Pending Requests",
+    accept: "Accept",
+    reject: "Reject",
+    unfriend: "Remove friend",
   },
   finance: {
     budgetSummary: "Monthly Budget Summary",
