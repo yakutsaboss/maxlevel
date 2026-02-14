@@ -77,6 +77,22 @@ export interface CreateChallengeParams {
   endDate?: string | null;
 }
 
+// --- User Search ---
+
+export interface SearchUser {
+  id: number;
+  username: string | null;
+  first_name: string;
+  current_level: number;
+  total_xp: number;
+}
+
+export async function searchUsers(query: string): Promise<SearchUser[]> {
+  return request<SearchUser[]>(
+    `${API_BASE_URL}/social/users/search?q=${encodeURIComponent(query)}`,
+  );
+}
+
 // --- Friends ---
 
 export async function getFriends(userId: number): Promise<Friend[]> {

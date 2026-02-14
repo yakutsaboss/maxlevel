@@ -311,6 +311,12 @@ export default {
     mode_hydration: "Гидратация",
     mode_finance: "Финансы",
     mode_learning: "Обучение",
+    logProgress: "Записать прогресс",
+    updateProgress: "Обновить прогресс",
+    progressUpdated: "Прогресс обновлён!",
+    searchFriends: "Поиск друзей",
+    searchPlaceholder: "Поиск по имени или нику...",
+    noUsersFound: "Пользователи не найдены",
   },
   finance: {
     budgetSummary: "Бюджет за месяц",

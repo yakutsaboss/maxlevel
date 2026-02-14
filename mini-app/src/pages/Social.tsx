@@ -176,6 +176,7 @@ export function Social() {
     rejectRequest,
     removeFriend,
     joinChallenge,
+    updateProgress,
     discoverChallenges,
   } = useSocial({ userId: user?.id });
 
@@ -243,6 +244,18 @@ export function Social() {
       setActionLoading(false);
     }
   }, [joinChallenge, haptic, discoverChallenges, discoverMode]);
+
+  const handleUpdateProgress = useCallback(async (challengeId: number, progress: number) => {
+    try {
+      setActionLoading(true);
+      await updateProgress(challengeId, progress);
+      haptic.notification('success');
+    } catch {
+      haptic.notification('error');
+    } finally {
+      setActionLoading(false);
+    }
+  }, [updateProgress, haptic]);
 
   if (loading) return <SocialSkeleton />;
   if (error) return <ErrorSection message={t('social.couldNotLoad')} onRetry={refresh} />;
@@ -359,7 +372,7 @@ export function Social() {
             />
           )}
 
-          <ChallengesList challenges={challenges} />
+          <ChallengesList challenges={challenges} onUpdateProgress={handleUpdateProgress} />
         </section>
 
         {/* Discover Challenges Section */}

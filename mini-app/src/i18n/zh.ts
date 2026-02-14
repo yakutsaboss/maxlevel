@@ -311,6 +311,12 @@ export default {
     mode_hydration: "饮水",
     mode_finance: "财务",
     mode_learning: "学习",
+    logProgress: "记录进度",
+    updateProgress: "更新进度",
+    progressUpdated: "进度已更新！",
+    searchFriends: "搜索好友",
+    searchPlaceholder: "按用户名或姓名搜索...",
+    noUsersFound: "未找到用户",
   },
   finance: {
     budgetSummary: "月度预算概览",

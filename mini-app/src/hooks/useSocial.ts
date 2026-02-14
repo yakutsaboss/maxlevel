@@ -8,6 +8,7 @@ import {
   rejectFriendRequest,
   removeFriend,
   joinChallenge,
+  updateChallengeProgress,
   discoverChallenges as discoverChallengesApi,
 } from '@/api/social';
 import type { Friend, PendingRequest, Challenge, DiscoverChallenge } from '@/api/social';
@@ -86,6 +87,12 @@ export function useSocial({ userId }: UseSocialParams) {
     await loadData();
   }, [userId, loadData]);
 
+  const updateProgress = useCallback(async (challengeId: number, progress: number) => {
+    if (!userId) return;
+    await updateChallengeProgress(challengeId, userId, progress);
+    await loadData();
+  }, [userId, loadData]);
+
   const loadDiscoverChallenges = useCallback(async (mode?: string) => {
     try {
       const data = await discoverChallengesApi(mode);
@@ -108,6 +115,7 @@ export function useSocial({ userId }: UseSocialParams) {
     rejectRequest,
     removeFriend: unfriend,
     joinChallenge: joinChallengeAction,
+    updateProgress,
     discoverChallenges: loadDiscoverChallenges,
   };
 }

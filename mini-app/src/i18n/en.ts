@@ -311,6 +311,12 @@ export default {
     mode_hydration: "Hydration",
     mode_finance: "Finance",
     mode_learning: "Learning",
+    logProgress: "Log Progress",
+    updateProgress: "Update Progress",
+    progressUpdated: "Progress updated!",
+    searchFriends: "Search for friends",
+    searchPlaceholder: "Search by username or name...",
+    noUsersFound: "No users found",
   },
   finance: {
     budgetSummary: "Monthly Budget Summary",

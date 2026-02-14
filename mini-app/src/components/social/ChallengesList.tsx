@@ -17,9 +17,10 @@ interface Challenge {
 
 interface ChallengesListProps {
   challenges: Challenge[];
+  onUpdateProgress?: (challengeId: number, progress: number) => Promise<void>;
 }
 
-export const ChallengesList = memo(function ChallengesList({ challenges }: ChallengesListProps) {
+export const ChallengesList = memo(function ChallengesList({ challenges, onUpdateProgress }: ChallengesListProps) {
   if (challenges.length === 0) {
     return (
       <div className="text-center py-12">
@@ -32,7 +33,7 @@ export const ChallengesList = memo(function ChallengesList({ challenges }: Chall
   return (
     <div className="space-y-3">
       {challenges.map((challenge) => (
-        <ChallengeCard key={challenge.id} challenge={challenge} />
+        <ChallengeCard key={challenge.id} challenge={challenge} onUpdateProgress={onUpdateProgress} />
       ))}
     </div>
   );

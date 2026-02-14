@@ -1450,7 +1450,24 @@ Add tests to `mini-app/src/__tests__/pages/Social.test.tsx`:
 **Issues**: None. Clean run.
 
 #### Agent B Retrospective
-*(To be filled by Agent B)*
+**Status**: DONE
+**Changes**: 7 files modified
+
+**Task 1 — Challenge Progress Update UI:**
+- Added `updateChallengeProgress` import + `updateProgress` callback to `useSocial.ts` hook
+- Extended `ChallengeCard.tsx` with `onUpdateProgress` optional prop: shows a "+" button next to progress bar (hidden when completed), opens inline number input with confirm/cancel
+- Extended `ChallengesList.tsx` to accept and pass through `onUpdateProgress`
+- Wired `handleUpdateProgress` in `Social.tsx` page with haptic feedback and loading state
+
+**Task 2 — Friend Search by Username:**
+- Added `searchUsers(query)` function + `SearchUser` type to `api/social.ts` — calls `GET /social/users/search?q=`
+- Rewrote `FriendRequestForm.tsx` from numeric Telegram ID input to text search: debounced 300ms search, result cards with avatar/name/level/XP, per-user "Send Request" button, self-filtering
+- Kept existing success/error states and haptic feedback
+
+**i18n (en, ru, zh):** Added 6 keys: `logProgress`, `updateProgress`, `progressUpdated`, `searchFriends`, `searchPlaceholder`, `noUsersFound`
+
+**Build**: `npx tsc --noEmit` — 0 errors. `npx vite build` — success (2.69s).
+**Dependencies on Agent A**: `searchUsers` calls the endpoint Agent A is adding (`GET /api/social/users/search`). If not merged, search will 404 but won't break the app.
 
 #### Agent C Retrospective
 *(To be filled by Agent C)*
