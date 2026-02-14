@@ -1264,4 +1264,192 @@ After completing work, write your retrospective in PARALLEL_AGENTS.md under "Run
 **No conflicts**: All 3 files are Agent C-owned per ownership matrix.
 
 #### Agent 0 Retrospective
+**Merge result**: Clean — all 3 agents already merged to main by user before Agent 0 started.
+
+**Cross-agent fix (1 total)**:
+1. `social.http.test.ts` line 202: Agent C's challenge create test used `mode: 'solo'` but Agent A added `KNOWN_MODES` validation (fitness, hydration, finance, learning, medication, habits) — `'solo'` not in list → 400. Fixed to `mode: 'fitness'`.
+
+**Test results after fix**: 1789 total (935 bot + 854 mini-app), 0 failures.
+**Deploy**: Pushed to GitHub, built on server (bot + mini-app), PM2 restarted. Mini-app confirmed `yakutsa.ru/api`.
+**Notification**: Sent via Telegram.
+**Cleanup**: 3 worktrees removed, 3 feature branches deleted.
+
+**Observations**:
+- Agent C correctly identified the create challenge test failure as "pre-existing" (not caused by their changes), but it was actually caused by Agent A's mode validation enhancement in the same run. Cross-agent causation, not pre-existing.
+- Agent C's adaptive testing was strong — re-read Agent B's Browse toggle implementation and rewrote discover tests accordingly.
+- Agent B's useCelebration tests (12 cases) provide excellent coverage for a previously untested hook.
+- Bot build on server required `npm install` (not `--omit=dev`) to get TypeScript compiler available for `tsc`.
+
+---
+
+## Run 63 — Challenge Progress + User Search + Payment Webhook Tests
+
+**Theme**: Complete the challenge loop (users can now update progress on joined challenges), improve friend-add UX (search by username instead of Telegram ID), and add critical payment webhook test coverage.
+
+### Run 63 Agents
+
+| Agent | Focus | Branch | Key Files |
+|-------|-------|--------|-----------|
+| A | Backend: user search endpoint + payment webhook tests | `feature/r63-backend-search-webhook` | `bot/src/api/routes/social.ts`, `bot/src/__tests__/routes/http/payment-webhook.http.test.ts` |
+| B | Mini-app: challenge progress UI + friend search by username | `feature/r63-miniapp-progress-search` | `mini-app/src/components/social/ChallengeCard.tsx`, `mini-app/src/components/social/FriendRequestForm.tsx`, `mini-app/src/hooks/useSocial.ts` |
+| C | Tests for Agent A + B features | `feature/r63-tests` | `mini-app/src/__tests__/pages/Social.test.tsx`, `mini-app/src/__tests__/hooks/useSocial.test.ts`, `bot/src/__tests__/routes/http/social.http.test.ts` |
+
+### Run 63 File Ownership
+
+| File | Owner |
+|------|-------|
+| `bot/src/api/routes/social.ts` | Agent A |
+| `bot/src/__tests__/routes/http/payment-webhook.http.test.ts` (NEW) | Agent A |
+| `bot/src/api/routes/payment-webhook.ts` | READ-ONLY (all agents) |
+| `mini-app/src/components/social/ChallengeCard.tsx` | Agent B |
+| `mini-app/src/components/social/FriendRequestForm.tsx` | Agent B |
+| `mini-app/src/hooks/useSocial.ts` | Agent B |
+| `mini-app/src/api/social.ts` | Agent B |
+| `mini-app/src/i18n/en.ts`, `ru.ts`, `zh.ts` | Agent B |
+| `bot/src/__tests__/routes/http/social.http.test.ts` | Agent C |
+| `mini-app/src/__tests__/pages/Social.test.tsx` | Agent C |
+| `mini-app/src/__tests__/hooks/useSocial.test.ts` | Agent C |
+
+### Run 63 Merge Order
+
+1. Agent A (backend endpoints + tests) — search endpoint must exist first
+2. Agent B (mini-app UI) — depends on search API
+3. Agent C (tests) — tests only, merge last
+
+### Run 63 Copy-Paste Prompts
+
+#### Agent A Prompt
+```
+Read c:\Users\Asus\Desktop\Wibecode\PARALLEL_AGENTS.md — you are Agent A for Run 63.
+
+Your tasks:
+
+**Task 1: User search endpoint**
+Add `GET /api/social/users/search` to `bot/src/api/routes/social.ts`:
+- Query param: `q` (string, min 2 chars)
+- Search by username (case-insensitive ILIKE) — return up to 10 matches
+- Return: `{ id, username, first_name, current_level, total_xp }`
+- Use `readLimiter` and `authenticateTelegram`
+- Register BEFORE parameterized routes (like /challenges/:userId)
+- Do NOT return the searching user's own record (pass userId in query or body to exclude)
+
+**Task 2: Payment webhook HTTP tests**
+Create `bot/src/__tests__/routes/http/payment-webhook.http.test.ts`:
+- Read `bot/src/api/routes/payment-webhook.ts` to understand the route
+- Read `bot/src/__tests__/routes/http/payments.http.test.ts` for the existing test pattern (how to mock db, build app, etc.)
+- Test cases (~10-12):
+  - 200 on valid webhook with pending payment (completes payment + activates subscription)
+  - 200 on idempotent re-processing (already completed payment)
+  - 400 on missing telegram_payment_charge_id
+  - 400 on missing payment_id
+  - 404 on non-existent payment
+  - 400 on payment in 'failed' state (not pending)
+  - Verify transaction is called (payment update + subscription upsert)
+  - Verify webhook secret verification is called
+  - 401/403 on invalid webhook secret
+- Mock: db (queryOne, transaction, execute), verifyWebhookSecret from paymentHelpers
+- Look at how `payments.http.test.ts` mocks `verifyWebhookSecret` — follow the same pattern
+
+**Important**: Only modify files in your ownership. Run `npx vitest --run` before committing. Write a retrospective in PARALLEL_AGENTS.md after completing.
+```
+
+#### Agent B Prompt
+```
+Read c:\Users\Asus\Desktop\Wibecode\PARALLEL_AGENTS.md — you are Agent B for Run 63.
+
+Your tasks:
+
+**Task 1: Challenge progress update UI**
+The backend PATCH `/challenges/:challengeId/progress` endpoint already exists. The API client function `updateChallengeProgress()` exists in `mini-app/src/api/social.ts`. But there is NO UI to call it.
+
+Steps:
+1. Add `updateProgress(challengeId, progress)` to `useSocial` hook (`mini-app/src/hooks/useSocial.ts`):
+   - Import `updateChallengeProgress` from api/social
+   - Create `useCallback` that calls API then refreshes data
+   - Return it from the hook
+2. Modify `ChallengeCard.tsx` to accept an `onUpdateProgress` callback prop:
+   - Add a "+" button (or "Log Progress" button) next to the progress bar
+   - When clicked, show a small inline input (number) with a confirm button
+   - On confirm, call `onUpdateProgress(challenge.id, newProgress)`
+   - Show loading state during API call
+   - Don't show button if challenge is completed
+3. Modify `ChallengesList.tsx` to pass `onUpdateProgress` through to each ChallengeCard
+4. Update Social.tsx to pass `updateProgress` from useSocial to ChallengesList
+5. Add i18n keys: `logProgress`, `updateProgress`, `progressUpdated` (en, ru, zh)
+
+**Task 2: Friend search by username**
+Currently `FriendRequestForm.tsx` only accepts numeric Telegram ID — bad UX. Agent A is adding `GET /api/social/users/search?q=username`.
+
+Steps:
+1. Add `searchUsers(query)` function to `mini-app/src/api/social.ts`:
+   - GET request to `/social/users/search?q=${query}`
+   - Returns array of `{ id, username, first_name, current_level, total_xp }`
+2. Rewrite `FriendRequestForm.tsx`:
+   - Replace numeric Telegram ID input with text search input
+   - Debounce search (300ms) — on each keystroke, call `searchUsers(query)` if query.length >= 2
+   - Show search results as a list of cards (name, username, level)
+   - Each result has a "Send Request" button
+   - On click, call the existing friend request API with the selected user's ID
+   - Keep the existing success/error states
+3. Add i18n keys: `searchFriends`, `searchPlaceholder`, `noUsersFound` (en, ru, zh)
+
+**Important**: Only modify files in your ownership. Run `npx tsc --noEmit` and check the mini-app builds. Write a retrospective in PARALLEL_AGENTS.md after completing.
+```
+
+#### Agent C Prompt
+```
+Read c:\Users\Asus\Desktop\Wibecode\PARALLEL_AGENTS.md — you are Agent C for Run 63.
+
+Your tasks:
+
+**Task 1: User search endpoint tests**
+Add tests to `bot/src/__tests__/routes/http/social.http.test.ts`:
+- `GET /api/social/users/search` (Agent A adds this endpoint):
+  - 200 with matching users for valid query
+  - Returns empty array for no matches
+  - 400 when query is too short (< 2 chars)
+  - Excludes the searching user from results
+  - Respects limit of 10 results
+  - ~5-6 tests
+
+**Task 2: Challenge progress update tests (mini-app)**
+Add tests to `mini-app/src/__tests__/hooks/useSocial.test.ts`:
+- `updateProgress` function is exposed on hook return
+- `updateProgress` calls API with correct params and refreshes data
+- ~3-4 tests
+
+Add tests to `mini-app/src/__tests__/pages/Social.test.tsx`:
+- ChallengeCard renders "Log Progress" button for active challenges
+- ChallengeCard does NOT render button for completed challenges
+- Note: Read the actual ChallengeCard.tsx AFTER Agent B modifies it to understand exact UI
+- ~3-4 tests
+
+**Task 3: Friend search tests (mini-app)**
+Add tests to `mini-app/src/__tests__/pages/Social.test.tsx`:
+- FriendRequestForm renders search input (not numeric Telegram ID)
+- Note: Read the actual FriendRequestForm.tsx AFTER Agent B modifies it
+- ~2-3 tests
+
+**Critical patterns to follow**:
+- `useSocial` hook takes `{ userId: number }` (object param, NOT positional)
+- Social.test.tsx uses `mockUseSocial` mock — add `updateProgress` to `baseSocialReturn`
+- Add any new lucide-react icons to the mock at the top of Social.test.tsx
+- Mock `searchUsers` in api/social mock if needed for useSocial tests
+- Run `npx vitest --run` before committing
+
+**Important**: Only modify files in your ownership. Write a retrospective in PARALLEL_AGENTS.md after completing.
+```
+
+### Run 63 Retrospectives
+
+#### Agent A Retrospective
+*(To be filled by Agent A)*
+
+#### Agent B Retrospective
+*(To be filled by Agent B)*
+
+#### Agent C Retrospective
+*(To be filled by Agent C)*
+
+#### Agent 0 Retrospective
 *(To be filled by Agent 0 after merge)*
