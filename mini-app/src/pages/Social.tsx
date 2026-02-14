@@ -1,38 +1,14 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Users, Swords, UserPlus, PlusCircle, X } from 'lucide-react';
+import { Users, Swords, UserPlus, PlusCircle, X, Bell, Check, XCircle, UserMinus } from 'lucide-react';
 import { useTelegram } from '@/hooks/useTelegram';
 import { usePullToRefresh, PullIndicator } from '@/hooks/usePullToRefresh';
-import { FriendsList } from '@/components/social/FriendsList';
+import { useSocial } from '@/hooks/useSocial';
 import { FriendRequestForm } from '@/components/social/FriendRequestForm';
 import { ChallengeForm } from '@/components/social/ChallengeForm';
 import { ChallengesList } from '@/components/social/ChallengesList';
 import { ErrorSection } from '@/components/ErrorSection';
-
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
-
-interface Friend {
-  id: number;
-  username: string | null;
-  first_name: string;
-  current_level: number;
-  total_xp: number;
-  is_active: boolean;
-  friends_since: string;
-}
-
-interface Challenge {
-  id: number;
-  title: string;
-  description: string | null;
-  mode: string | null;
-  target_value: number | null;
-  start_date: string;
-  end_date: string | null;
-  status: string;
-  progress: number;
-  participant_count: number;
-}
+import type { PendingRequest, Friend } from '@/api/social';
 
 function SocialSkeleton() {
   return (
@@ -66,56 +42,186 @@ function SocialSkeleton() {
   );
 }
 
+function PendingRequestCard({
+  request,
+  onAccept,
+  onReject,
+  loading,
+}: {
+  request: PendingRequest;
+  onAccept: () => void;
+  onReject: () => void;
+  loading: boolean;
+}) {
+  const { t } = useTranslation();
+
+  return (
+    <div className="bg-telegram-secondaryBg rounded-2xl p-4 border border-telegram-hint/10 flex items-center gap-3">
+      <div className="w-10 h-10 rounded-full bg-yellow-500/20 flex items-center justify-center flex-shrink-0">
+        <span className="text-lg font-bold text-yellow-500">
+          {request.from_user.first_name.charAt(0).toUpperCase()}
+        </span>
+      </div>
+
+      <div className="flex-1 min-w-0">
+        <div className="font-medium text-telegram-text truncate">
+          {request.from_user.first_name}
+          {request.from_user.username && (
+            <span className="text-telegram-hint text-xs ml-1">@{request.from_user.username}</span>
+          )}
+        </div>
+        <div className="text-xs text-telegram-hint mt-0.5">
+          {t('social.level')}{request.from_user.current_level}
+        </div>
+      </div>
+
+      <div className="flex gap-2 flex-shrink-0">
+        <button
+          onClick={onAccept}
+          disabled={loading}
+          className="p-2 rounded-xl bg-green-500/20 text-green-400 active:scale-95 transition-transform disabled:opacity-50"
+          aria-label={t('social.accept')}
+        >
+          <Check className="w-4 h-4" />
+        </button>
+        <button
+          onClick={onReject}
+          disabled={loading}
+          className="p-2 rounded-xl bg-red-500/20 text-red-400 active:scale-95 transition-transform disabled:opacity-50"
+          aria-label={t('social.reject')}
+        >
+          <XCircle className="w-4 h-4" />
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function FriendCardWithRemove({
+  friend,
+  onRemove,
+  loading,
+}: {
+  friend: Friend;
+  onRemove: () => void;
+  loading: boolean;
+}) {
+  const { t } = useTranslation();
+  const [showConfirm, setShowConfirm] = useState(false);
+
+  return (
+    <div className="bg-telegram-secondaryBg rounded-2xl p-4 border border-telegram-hint/10 flex items-center gap-3">
+      <div className="w-10 h-10 rounded-full bg-telegram-link/20 flex items-center justify-center flex-shrink-0">
+        <span className="text-lg font-bold text-telegram-link">
+          {friend.first_name.charAt(0).toUpperCase()}
+        </span>
+      </div>
+
+      <div className="flex-1 min-w-0">
+        <div className="font-medium text-telegram-text truncate">
+          {friend.first_name}
+          {friend.username && (
+            <span className="text-telegram-hint text-xs ml-1">@{friend.username}</span>
+          )}
+        </div>
+        <div className="flex items-center gap-3 text-xs text-telegram-hint mt-0.5">
+          <span>{t('social.level')}{friend.current_level}</span>
+          <span>{friend.total_xp.toLocaleString()} XP</span>
+        </div>
+      </div>
+
+      <div className={`w-2 h-2 rounded-full flex-shrink-0 ${friend.is_active ? 'bg-green-400' : 'bg-telegram-hint/30'}`} />
+
+      {showConfirm ? (
+        <div className="flex gap-1 flex-shrink-0">
+          <button
+            onClick={() => { onRemove(); setShowConfirm(false); }}
+            disabled={loading}
+            className="p-1.5 rounded-lg bg-red-500/20 text-red-400 text-xs active:scale-95 transition-transform disabled:opacity-50"
+          >
+            <Check className="w-3 h-3" />
+          </button>
+          <button
+            onClick={() => setShowConfirm(false)}
+            className="p-1.5 rounded-lg bg-telegram-hint/20 text-telegram-hint text-xs active:scale-95 transition-transform"
+          >
+            <X className="w-3 h-3" />
+          </button>
+        </div>
+      ) : (
+        <button
+          onClick={() => setShowConfirm(true)}
+          className="p-2 rounded-xl text-telegram-hint/50 active:scale-95 transition-transform"
+          aria-label={t('social.unfriend')}
+        >
+          <UserMinus className="w-4 h-4" />
+        </button>
+      )}
+    </div>
+  );
+}
+
 export function Social() {
   const { t } = useTranslation();
   const { user, haptic } = useTelegram();
-  const [friends, setFriends] = useState<Friend[]>([]);
-  const [challenges, setChallenges] = useState<Challenge[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(false);
+  const {
+    friends,
+    pendingRequests,
+    challenges,
+    loading,
+    error,
+    refresh,
+    acceptRequest,
+    rejectRequest,
+    removeFriend,
+  } = useSocial({ userId: user?.id });
+
   const [showFriendForm, setShowFriendForm] = useState(false);
   const [showChallengeForm, setShowChallengeForm] = useState(false);
-
-  const headers: Record<string, string> = {
-    'Content-Type': 'application/json',
-    'X-Telegram-Init-Data': window.Telegram?.WebApp?.initData || '',
-  };
-
-  const loadData = useCallback(async () => {
-    if (!user?.id) return;
-    try {
-      setLoading(true);
-      setError(false);
-
-      const [friendsRes, challengesRes] = await Promise.all([
-        fetch(`${API_BASE_URL}/social/friends/${user.id}`, { headers }),
-        fetch(`${API_BASE_URL}/social/challenges/${user.id}`, { headers }),
-      ]);
-
-      const friendsJson = await friendsRes.json();
-      const challengesJson = await challengesRes.json();
-
-      if (friendsJson.success) setFriends(friendsJson.data || []);
-      if (challengesJson.success) setChallenges(challengesJson.data || []);
-    } catch {
-      setError(true);
-    } finally {
-      setLoading(false);
-    }
-  }, [user?.id]);
-
-  useEffect(() => {
-    loadData();
-  }, [loadData]);
+  const [actionLoading, setActionLoading] = useState(false);
 
   const handleRefresh = useCallback(async () => {
-    await loadData();
-  }, [loadData]);
+    await refresh();
+  }, [refresh]);
 
   const { containerRef, pullDistance, refreshing, pullThreshold, touchHandlers } = usePullToRefresh(handleRefresh, haptic);
 
+  const handleAccept = useCallback(async (requestId: number) => {
+    try {
+      setActionLoading(true);
+      await acceptRequest(requestId);
+      haptic.notification('success');
+    } catch {
+      haptic.notification('error');
+    } finally {
+      setActionLoading(false);
+    }
+  }, [acceptRequest, haptic]);
+
+  const handleReject = useCallback(async (requestId: number) => {
+    try {
+      setActionLoading(true);
+      await rejectRequest(requestId);
+    } catch {
+      haptic.notification('error');
+    } finally {
+      setActionLoading(false);
+    }
+  }, [rejectRequest, haptic]);
+
+  const handleRemoveFriend = useCallback(async (friendId: number) => {
+    try {
+      setActionLoading(true);
+      await removeFriend(friendId);
+    } catch {
+      haptic.notification('error');
+    } finally {
+      setActionLoading(false);
+    }
+  }, [removeFriend, haptic]);
+
   if (loading) return <SocialSkeleton />;
-  if (error) return <ErrorSection message={t('social.couldNotLoad')} onRetry={loadData} />;
+  if (error) return <ErrorSection message={t('social.couldNotLoad')} onRetry={refresh} />;
 
   return (
     <div
@@ -138,6 +244,30 @@ export function Social() {
       </div>
 
       <div className="p-4">
+        {/* Pending Requests Section */}
+        {pendingRequests.length > 0 && (
+          <section className="mb-6" role="region" aria-label="Pending Requests">
+            <h2 className="text-lg font-semibold flex items-center gap-2 mb-3">
+              <Bell className="w-5 h-5 text-yellow-500" aria-hidden="true" />
+              {t('social.pendingRequests')}
+              <span className="bg-yellow-500/20 text-yellow-500 text-xs font-bold px-2 py-0.5 rounded-full">
+                {pendingRequests.length}
+              </span>
+            </h2>
+            <div className="space-y-2">
+              {pendingRequests.map((req) => (
+                <PendingRequestCard
+                  key={req.id}
+                  request={req}
+                  onAccept={() => handleAccept(req.id)}
+                  onReject={() => handleReject(req.id)}
+                  loading={actionLoading}
+                />
+              ))}
+            </div>
+          </section>
+        )}
+
         {/* Friends Section */}
         <section className="mb-8" role="region" aria-label="Friends">
           <div className="flex items-center justify-between mb-3">
@@ -157,12 +287,28 @@ export function Social() {
           {showFriendForm && user?.id && (
             <FriendRequestForm
               userId={user.id}
-              onSuccess={() => { setShowFriendForm(false); }}
+              onSuccess={() => { setShowFriendForm(false); refresh(); }}
               haptic={haptic}
             />
           )}
 
-          <FriendsList friends={friends} />
+          {friends.length === 0 ? (
+            <div className="text-center py-12">
+              <Users className="w-12 h-12 text-telegram-hint mx-auto mb-3" />
+              <p className="text-telegram-hint text-sm">{t('social.noFriends')}</p>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {friends.map((friend) => (
+                <FriendCardWithRemove
+                  key={friend.id}
+                  friend={friend}
+                  onRemove={() => handleRemoveFriend(friend.id)}
+                  loading={actionLoading}
+                />
+              ))}
+            </div>
+          )}
         </section>
 
         {/* Challenges Section */}
@@ -184,7 +330,7 @@ export function Social() {
           {showChallengeForm && user?.id && (
             <ChallengeForm
               userId={user.id}
-              onSuccess={async () => { await loadData(); setShowChallengeForm(false); }}
+              onSuccess={async () => { await refresh(); setShowChallengeForm(false); }}
               haptic={haptic}
             />
           )}

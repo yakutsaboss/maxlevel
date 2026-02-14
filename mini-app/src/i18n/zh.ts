@@ -297,6 +297,10 @@ export default {
     challenges: "挑战",
     newChallenge: "新挑战",
     couldNotLoad: "无法加载社交数据",
+    pendingRequests: "待处理请求",
+    accept: "接受",
+    reject: "拒绝",
+    unfriend: "删除好友",
   },
   finance: {
     budgetSummary: "月度预算概览",
