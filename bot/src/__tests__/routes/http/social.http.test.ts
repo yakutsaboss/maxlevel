@@ -2,6 +2,10 @@
  * HTTP integration tests for social routes (bot/src/api/routes/social.ts)
  *
  * Uses supertest to exercise the full Express request/response cycle.
+ *
+ * Run 61 Agent C: Added tests for 5 new endpoints —
+ * GET /friends/pending, POST /friends/reject, DELETE /friends/:userId/:friendId,
+ * POST /challenges/:challengeId/join, PATCH /challenges/:challengeId/progress
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
@@ -263,5 +267,235 @@ describe('GET /api/social/challenges/:userId', () => {
 
     expect(res.body.success).toBe(true);
     expect(res.body.data).toHaveLength(0);
+  });
+});
+
+// ─── Run 61: New endpoint tests (Agent A additions) ──────────────────
+
+describe('GET /api/social/friends/pending/:userId', () => {
+  it('should return 200 with pending friend requests', async () => {
+    db.query.mockResolvedValueOnce([
+      { id: 10, from_user: { id: 3, username: 'charlie', first_name: 'Charlie', current_level: 7 }, created_at: '2026-02-10T12:00:00Z' },
+      { id: 11, from_user: { id: 4, username: 'diana', first_name: 'Diana', current_level: 2 }, created_at: '2026-02-11T08:00:00Z' },
+    ]);
+
+    const res = await request(buildApp())
+      .get('/api/social/friends/pending/1')
+      .expect(200);
+
+    expect(res.body.success).toBe(true);
+    expect(res.body.data).toHaveLength(2);
+  });
+
+  it('should return 200 with empty array when no pending requests', async () => {
+    db.query.mockResolvedValueOnce([]);
+
+    const res = await request(buildApp())
+      .get('/api/social/friends/pending/1')
+      .expect(200);
+
+    expect(res.body.success).toBe(true);
+    expect(res.body.data).toHaveLength(0);
+  });
+
+  it('should return 400 for non-numeric userId', async () => {
+    const res = await request(buildApp())
+      .get('/api/social/friends/pending/abc')
+      .expect(400);
+
+    expect(res.body.success).toBe(false);
+  });
+});
+
+describe('POST /api/social/friends/reject', () => {
+  it('should return 200 and reject a pending friend request', async () => {
+    db.queryOne.mockResolvedValueOnce({ id: 10, from_user_id: 3, to_user_id: 1, status: 'rejected' });
+
+    const res = await request(buildApp())
+      .post('/api/social/friends/reject')
+      .send({ requestId: 10, userId: 1 })
+      .expect(200);
+
+    expect(res.body.success).toBe(true);
+  });
+
+  it('should return 400 when requestId is missing', async () => {
+    const res = await request(buildApp())
+      .post('/api/social/friends/reject')
+      .send({ userId: 1 })
+      .expect(400);
+
+    expect(res.body.success).toBe(false);
+    expect(res.body.error).toContain('requestId');
+  });
+
+  it('should return 400 when userId is missing', async () => {
+    const res = await request(buildApp())
+      .post('/api/social/friends/reject')
+      .send({ requestId: 10 })
+      .expect(400);
+
+    expect(res.body.success).toBe(false);
+    expect(res.body.error).toContain('userId');
+  });
+
+  it('should return 404 when request not found or not pending', async () => {
+    db.queryOne.mockResolvedValueOnce(null);
+
+    const res = await request(buildApp())
+      .post('/api/social/friends/reject')
+      .send({ requestId: 999, userId: 1 })
+      .expect(404);
+
+    expect(res.body.success).toBe(false);
+    expect(res.body.error).toContain('not found');
+  });
+});
+
+describe('DELETE /api/social/friends/:userId/:friendId', () => {
+  it('should return 200 and remove an accepted friendship', async () => {
+    db.queryOne.mockResolvedValueOnce({ id: 5, from_user_id: 1, to_user_id: 2, status: 'accepted' });
+
+    const res = await request(buildApp())
+      .delete('/api/social/friends/1/2')
+      .expect(200);
+
+    expect(res.body.success).toBe(true);
+  });
+
+  it('should return 404 when friendship not found', async () => {
+    db.queryOne.mockResolvedValueOnce(null);
+
+    const res = await request(buildApp())
+      .delete('/api/social/friends/1/999')
+      .expect(404);
+
+    expect(res.body.success).toBe(false);
+    expect(res.body.error).toContain('not found');
+  });
+
+  it('should return 400 for non-numeric userId', async () => {
+    const res = await request(buildApp())
+      .delete('/api/social/friends/abc/2')
+      .expect(400);
+
+    expect(res.body.success).toBe(false);
+  });
+
+  it('should return 400 for non-numeric friendId', async () => {
+    const res = await request(buildApp())
+      .delete('/api/social/friends/1/xyz')
+      .expect(400);
+
+    expect(res.body.success).toBe(false);
+  });
+});
+
+describe('POST /api/social/challenges/:challengeId/join', () => {
+  it('should return 200 and join an active challenge', async () => {
+    db.queryOne.mockResolvedValueOnce({ id: 10, status: 'active' }); // challenge exists + active
+    db.queryOne.mockResolvedValueOnce(null); // not already joined
+    db.execute.mockResolvedValueOnce(undefined); // INSERT participant
+
+    const res = await request(buildApp())
+      .post('/api/social/challenges/10/join')
+      .send({ userId: 2 })
+      .expect(200);
+
+    expect(res.body.success).toBe(true);
+    expect(db.execute).toHaveBeenCalledWith(
+      expect.stringContaining('challenge_participants'),
+      expect.arrayContaining([10, 2]),
+    );
+  });
+
+  it('should return 400 when userId is missing', async () => {
+    const res = await request(buildApp())
+      .post('/api/social/challenges/10/join')
+      .send({})
+      .expect(400);
+
+    expect(res.body.success).toBe(false);
+    expect(res.body.error).toContain('userId');
+  });
+
+  it('should return 400 when already joined', async () => {
+    db.queryOne.mockResolvedValueOnce({ id: 10, status: 'active' }); // challenge exists
+    db.queryOne.mockResolvedValueOnce({ id: 5, user_id: 2 }); // already joined
+
+    const res = await request(buildApp())
+      .post('/api/social/challenges/10/join')
+      .send({ userId: 2 })
+      .expect(400);
+
+    expect(res.body.success).toBe(false);
+    expect(res.body.error).toContain('already');
+  });
+
+  it('should return 404 when challenge not found', async () => {
+    db.queryOne.mockResolvedValueOnce(null); // challenge doesn't exist
+
+    const res = await request(buildApp())
+      .post('/api/social/challenges/999/join')
+      .send({ userId: 2 })
+      .expect(404);
+
+    expect(res.body.success).toBe(false);
+    expect(res.body.error).toContain('not found');
+  });
+});
+
+describe('PATCH /api/social/challenges/:challengeId/progress', () => {
+  it('should return 200 and update challenge progress', async () => {
+    db.queryOne.mockResolvedValueOnce({ id: 5, challenge_id: 10, user_id: 2, progress: 50 }); // participant found
+    db.queryOne.mockResolvedValueOnce({ id: 5, challenge_id: 10, user_id: 2, progress: 75 }); // UPDATE RETURNING
+
+    const res = await request(buildApp())
+      .patch('/api/social/challenges/10/progress')
+      .send({ userId: 2, progress: 75 })
+      .expect(200);
+
+    expect(res.body.success).toBe(true);
+  });
+
+  it('should return 400 when userId is missing', async () => {
+    const res = await request(buildApp())
+      .patch('/api/social/challenges/10/progress')
+      .send({ progress: 50 })
+      .expect(400);
+
+    expect(res.body.success).toBe(false);
+    expect(res.body.error).toContain('userId');
+  });
+
+  it('should return 400 when progress is missing', async () => {
+    const res = await request(buildApp())
+      .patch('/api/social/challenges/10/progress')
+      .send({ userId: 2 })
+      .expect(400);
+
+    expect(res.body.success).toBe(false);
+    expect(res.body.error).toContain('progress');
+  });
+
+  it('should return 400 for negative progress', async () => {
+    const res = await request(buildApp())
+      .patch('/api/social/challenges/10/progress')
+      .send({ userId: 2, progress: -5 })
+      .expect(400);
+
+    expect(res.body.success).toBe(false);
+  });
+
+  it('should return 404 when user is not a participant', async () => {
+    db.queryOne.mockResolvedValueOnce(null); // not a participant
+
+    const res = await request(buildApp())
+      .patch('/api/social/challenges/10/progress')
+      .send({ userId: 999, progress: 50 })
+      .expect(404);
+
+    expect(res.body.success).toBe(false);
+    expect(res.body.error).toContain('not found');
   });
 });
