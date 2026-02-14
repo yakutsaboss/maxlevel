@@ -144,3 +144,54 @@ export async function updateChallengeProgress(
     body: JSON.stringify({ userId, progress }),
   });
 }
+
+// --- Challenge Discovery ---
+
+export interface DiscoverChallenge {
+  id: number;
+  title: string;
+  description: string | null;
+  mode: string | null;
+  target_value: number | null;
+  start_date: string;
+  end_date: string | null;
+  status: string;
+  creator: { username: string | null; first_name: string };
+  participant_count: number;
+}
+
+export interface ChallengeDetail {
+  id: number;
+  title: string;
+  description: string | null;
+  mode: string | null;
+  target_value: number | null;
+  start_date: string;
+  end_date: string | null;
+  status: string;
+  creator: { username: string | null; first_name: string };
+  participant_count: number;
+  participants: Array<{
+    user_id: number;
+    username: string | null;
+    first_name: string;
+    current_level: number;
+    progress: number;
+    joined_at: string;
+  }>;
+}
+
+export async function discoverChallenges(mode?: string): Promise<DiscoverChallenge[]> {
+  const params = new URLSearchParams();
+  if (mode) params.set('mode', mode);
+  const qs = params.toString();
+  return request<DiscoverChallenge[]>(
+    `${API_BASE_URL}/social/challenges/discover${qs ? `?${qs}` : ''}`,
+  );
+}
+
+export async function getChallengeDetails(challengeId: number): Promise<ChallengeDetail> {
+  return request<ChallengeDetail>(
+    `${API_BASE_URL}/social/challenges/${challengeId}/details`,
+  );
+}

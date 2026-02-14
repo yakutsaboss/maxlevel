@@ -8,8 +8,9 @@ import {
   rejectFriendRequest,
   removeFriend,
   joinChallenge,
+  discoverChallenges as discoverChallengesApi,
 } from '@/api/social';
-import type { Friend, PendingRequest, Challenge } from '@/api/social';
+import type { Friend, PendingRequest, Challenge, DiscoverChallenge } from '@/api/social';
 import { logger } from '@/utils/logger';
 
 interface UseSocialParams {
@@ -20,6 +21,7 @@ export function useSocial({ userId }: UseSocialParams) {
   const [friends, setFriends] = useState<Friend[]>([]);
   const [pendingRequests, setPendingRequests] = useState<PendingRequest[]>([]);
   const [challenges, setChallenges] = useState<Challenge[]>([]);
+  const [availableChallenges, setAvailableChallenges] = useState<DiscoverChallenge[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
 
@@ -84,10 +86,20 @@ export function useSocial({ userId }: UseSocialParams) {
     await loadData();
   }, [userId, loadData]);
 
+  const loadDiscoverChallenges = useCallback(async (mode?: string) => {
+    try {
+      const data = await discoverChallengesApi(mode);
+      setAvailableChallenges(data || []);
+    } catch (err) {
+      logger.error('Failed to load discover challenges', { error: err });
+    }
+  }, []);
+
   return {
     friends,
     pendingRequests,
     challenges,
+    availableChallenges,
     loading,
     error,
     refresh,
@@ -96,5 +108,6 @@ export function useSocial({ userId }: UseSocialParams) {
     rejectRequest,
     removeFriend: unfriend,
     joinChallenge: joinChallengeAction,
+    discoverChallenges: loadDiscoverChallenges,
   };
 }

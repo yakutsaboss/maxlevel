@@ -1,6 +1,6 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Users, Swords, UserPlus, PlusCircle, X, Bell, Check, XCircle, UserMinus } from 'lucide-react';
+import { Users, Swords, UserPlus, PlusCircle, X, Bell, Check, XCircle, UserMinus, Compass } from 'lucide-react';
 import { useTelegram } from '@/hooks/useTelegram';
 import { usePullToRefresh, PullIndicator } from '@/hooks/usePullToRefresh';
 import { useSocial } from '@/hooks/useSocial';
@@ -8,7 +8,7 @@ import { FriendRequestForm } from '@/components/social/FriendRequestForm';
 import { ChallengeForm } from '@/components/social/ChallengeForm';
 import { ChallengesList } from '@/components/social/ChallengesList';
 import { ErrorSection } from '@/components/ErrorSection';
-import type { PendingRequest, Friend } from '@/api/social';
+import type { PendingRequest, Friend, DiscoverChallenge } from '@/api/social';
 
 function SocialSkeleton() {
   return (
@@ -168,17 +168,28 @@ export function Social() {
     friends,
     pendingRequests,
     challenges,
+    availableChallenges,
     loading,
     error,
     refresh,
     acceptRequest,
     rejectRequest,
     removeFriend,
+    joinChallenge,
+    discoverChallenges,
   } = useSocial({ userId: user?.id });
 
   const [showFriendForm, setShowFriendForm] = useState(false);
   const [showChallengeForm, setShowChallengeForm] = useState(false);
+  const [showDiscover, setShowDiscover] = useState(false);
+  const [discoverMode, setDiscoverMode] = useState('');
   const [actionLoading, setActionLoading] = useState(false);
+
+  useEffect(() => {
+    if (showDiscover) {
+      discoverChallenges(discoverMode || undefined);
+    }
+  }, [showDiscover, discoverMode, discoverChallenges]);
 
   const handleRefresh = useCallback(async () => {
     await refresh();
@@ -219,6 +230,19 @@ export function Social() {
       setActionLoading(false);
     }
   }, [removeFriend, haptic]);
+
+  const handleJoinChallenge = useCallback(async (challengeId: number) => {
+    try {
+      setActionLoading(true);
+      await joinChallenge(challengeId);
+      haptic.notification('success');
+      discoverChallenges(discoverMode || undefined);
+    } catch {
+      haptic.notification('error');
+    } finally {
+      setActionLoading(false);
+    }
+  }, [joinChallenge, haptic, discoverChallenges, discoverMode]);
 
   if (loading) return <SocialSkeleton />;
   if (error) return <ErrorSection message={t('social.couldNotLoad')} onRetry={refresh} />;
@@ -337,6 +361,112 @@ export function Social() {
 
           <ChallengesList challenges={challenges} />
         </section>
+
+        {/* Discover Challenges Section */}
+        <section className="mt-6" role="region" aria-label="Discover Challenges">
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="text-lg font-semibold flex items-center gap-2">
+              <Compass className="w-5 h-5 text-emerald-500" aria-hidden="true" />
+              {t('social.discover')}
+            </h2>
+            <button
+              onClick={() => { haptic.impact('light'); setShowDiscover(!showDiscover); }}
+              className="flex items-center gap-1 text-sm text-emerald-500 font-medium px-3 py-1.5 rounded-xl bg-emerald-500/10 active:scale-95 transition-transform"
+            >
+              {showDiscover ? <X className="w-4 h-4" /> : <Compass className="w-4 h-4" />}
+              {showDiscover ? t('common.close') : t('social.browse')}
+            </button>
+          </div>
+
+          {showDiscover && (
+            <div>
+              {/* Mode filter */}
+              <div className="flex gap-2 mb-3 overflow-x-auto pb-1">
+                {['', 'fitness', 'hydration', 'finance', 'learning'].map((mode) => (
+                  <button
+                    key={mode}
+                    onClick={() => setDiscoverMode(mode)}
+                    className={`px-3 py-1 rounded-full text-xs font-medium whitespace-nowrap transition-colors ${
+                      discoverMode === mode
+                        ? 'bg-emerald-500 text-white'
+                        : 'bg-telegram-secondaryBg text-telegram-hint border border-telegram-hint/10'
+                    }`}
+                  >
+                    {mode === '' ? t('social.allModes') : t(`social.mode_${mode}`)}
+                  </button>
+                ))}
+              </div>
+
+              {/* Challenge cards */}
+              {availableChallenges.length === 0 ? (
+                <div className="text-center py-8">
+                  <Compass className="w-10 h-10 text-telegram-hint mx-auto mb-2" />
+                  <p className="text-telegram-hint text-sm">{t('social.noChallengesFound')}</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {availableChallenges.map((challenge) => (
+                    <DiscoverChallengeCard
+                      key={challenge.id}
+                      challenge={challenge}
+                      onJoin={() => handleJoinChallenge(challenge.id)}
+                      loading={actionLoading}
+                    />
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+        </section>
+      </div>
+    </div>
+  );
+}
+
+function DiscoverChallengeCard({
+  challenge,
+  onJoin,
+  loading,
+}: {
+  challenge: DiscoverChallenge;
+  onJoin: () => void;
+  loading: boolean;
+}) {
+  const { t } = useTranslation();
+
+  return (
+    <div className="bg-telegram-secondaryBg rounded-2xl p-4 border border-telegram-hint/10">
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex-1 min-w-0">
+          <h3 className="font-medium text-telegram-text truncate">{challenge.title}</h3>
+          {challenge.description && (
+            <p className="text-xs text-telegram-hint mt-0.5 line-clamp-2">{challenge.description}</p>
+          )}
+          <div className="flex items-center gap-2 mt-2">
+            {challenge.mode && (
+              <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-emerald-500/20 text-emerald-400">
+                {challenge.mode}
+              </span>
+            )}
+            <span className="text-xs text-telegram-hint flex items-center gap-1">
+              <Users className="w-3 h-3" />
+              {challenge.participant_count} {challenge.participant_count === 1 ? t('social.participants') : t('social.participantsPlural')}
+            </span>
+          </div>
+          {challenge.creator && (
+            <p className="text-xs text-telegram-hint mt-1">
+              {t('social.createdBy')} {challenge.creator.first_name}
+            </p>
+          )}
+        </div>
+
+        <button
+          onClick={onJoin}
+          disabled={loading}
+          className="px-3 py-1.5 rounded-xl bg-emerald-500 text-white text-sm font-medium active:scale-95 transition-transform disabled:opacity-50 flex-shrink-0"
+        >
+          {t('social.join')}
+        </button>
       </div>
     </div>
   );

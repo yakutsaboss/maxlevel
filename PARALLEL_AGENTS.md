@@ -1218,7 +1218,22 @@ After completing work, write your retrospective in PARALLEL_AGENTS.md under "Run
 **No conflicts**: Only file touched is `social.ts` (Agent A-owned).
 
 #### Agent B Retrospective
-*(To be filled after completion)*
+**Status**: DONE
+**Changes**: 6 files modified, 1 file created:
+
+1. **`mini-app/src/__tests__/hooks/useCelebration.test.ts`** (NEW) — 12 test cases covering: initial baseline storage without celebrating, level-up triggers confetti+levelUp, XP gain triggers xpFloat, dismiss/dismissConfetti/dismissLevelUp/dismissXpFloat clear correct state, subsequent calls compare stored values, handles missing localStorage gracefully (throws SecurityError), no celebration on same values, no celebration on decreased values.
+
+2. **`mini-app/src/api/social.ts`** — Added `DiscoverChallenge` and `ChallengeDetail` interfaces, plus `discoverChallenges(mode?)` and `getChallengeDetails(challengeId)` API functions. `discoverChallenges` builds query string for optional mode filter.
+
+3. **`mini-app/src/hooks/useSocial.ts`** — Added `availableChallenges` state (`DiscoverChallenge[]`), `loadDiscoverChallenges(mode?)` function that calls the API and updates state. Both returned from hook.
+
+4. **`mini-app/src/pages/Social.tsx`** — Added "Discover Challenges" section with toggle button (Compass icon), mode filter pills (All/Fitness/Hydration/Finance/Learning), `DiscoverChallengeCard` inline component showing title, description, mode badge, participant count, creator name, and Join button. Uses `useEffect` to reload when mode filter changes.
+
+5. **`mini-app/src/i18n/{en,ru,zh}.ts`** — Added 11 new keys each: discover, browse, allModes, noChallengesFound, join, createdBy, mode_fitness, mode_hydration, mode_finance, mode_learning.
+
+**Tests**: `npx tsc --noEmit` passes clean. `useCelebration.test.ts` 12/12 pass. `useSocial.test.ts` 9/9 pass (unchanged).
+**Expected Agent C updates**: Social.test.tsx needs `Compass` in lucide-react mock and `availableChallenges`/`discoverChallenges` in baseSocialReturn.
+**No conflicts**: All files are Agent B-owned per ownership matrix.
 
 #### Agent C Retrospective
 *(To be filled after completion)*
