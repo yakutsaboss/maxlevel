@@ -30,6 +30,7 @@ const mockUpdateChallengeProgress = vi.fn();
 const mockCreateChallenge = vi.fn();
 const mockDiscoverChallenges = vi.fn();
 const mockGetChallengeDetails = vi.fn();
+const mockLeaveChallenge = vi.fn();
 
 vi.mock('@/api/social', () => ({
   getFriends: (...args: unknown[]) => mockGetFriends(...args),
@@ -44,6 +45,7 @@ vi.mock('@/api/social', () => ({
   createChallenge: (...args: unknown[]) => mockCreateChallenge(...args),
   discoverChallenges: (...args: unknown[]) => mockDiscoverChallenges(...args),
   getChallengeDetails: (...args: unknown[]) => mockGetChallengeDetails(...args),
+  leaveChallenge: (...args: unknown[]) => mockLeaveChallenge(...args),
 }));
 
 // ─── Mock @twa-dev/sdk ──────────────────────────────────────────────
@@ -359,5 +361,56 @@ describe('useSocial', () => {
     });
 
     expect(mockUpdateChallengeProgress).not.toHaveBeenCalled();
+  });
+
+  // ── Leave Challenge (Run 64 — Agent B adds leaveChallenge to hook) ──
+
+  it('exposes leaveChallenge function', async () => {
+    const { result } = renderHook(() => useSocial({ userId: 1 }));
+
+    await waitFor(() => {
+      expect(result.current.loading).toBe(false);
+    });
+
+    expect(typeof result.current.leaveChallenge).toBe('function');
+  });
+
+  it('leaveChallenge calls API and refreshes data', async () => {
+    mockLeaveChallenge.mockResolvedValue(undefined);
+
+    const { result } = renderHook(() => useSocial({ userId: 1 }));
+
+    await waitFor(() => {
+      expect(result.current.loading).toBe(false);
+    });
+
+    // Clear mocks to track refresh calls
+    mockGetFriends.mockClear();
+    mockGetPendingRequests.mockClear();
+    mockGetChallenges.mockClear();
+    mockGetFriends.mockResolvedValue(mockFriendsData);
+    mockGetPendingRequests.mockResolvedValue(mockPendingData);
+    mockGetChallenges.mockResolvedValue([]);
+
+    await act(async () => {
+      await result.current.leaveChallenge(20);
+    });
+
+    expect(mockLeaveChallenge).toHaveBeenCalledWith(20, 1);
+    // Should have refreshed the data
+    expect(mockGetChallenges).toHaveBeenCalled();
+  });
+
+  it('leaveChallenge is a no-op when userId is undefined', async () => {
+    const { result } = renderHook(() => useSocial({ userId: undefined }));
+
+    // userId is falsy so loadData returns early
+    await act(async () => {});
+
+    await act(async () => {
+      await result.current.leaveChallenge(20);
+    });
+
+    expect(mockLeaveChallenge).not.toHaveBeenCalled();
   });
 });

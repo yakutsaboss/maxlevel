@@ -11,7 +11,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import request from 'supertest';
 import { createTestApp, addTestErrorHandler } from '../../helpers/testApp.js';
-import { getMockDb } from '../../helpers/httpMocks.js';
+import { getMockDb, getMockCache } from '../../helpers/httpMocks.js';
 
 // ─── Mocks (hoisted — use async dynamic import for httpMocks) ───────
 
@@ -39,6 +39,7 @@ import { socialRouter } from '../../../api/routes/social.js';
 // ─── Mock refs ──────────────────────────────────────────────────────
 
 const db = getMockDb();
+const cache = getMockCache();
 
 // ─── Build test app ────────────────────────────────────────────────
 
@@ -723,5 +724,78 @@ describe('GET /api/social/users/search', () => {
     const [sql] = db.query.mock.calls[0];
     expect(sql.toUpperCase()).toContain('ILIKE');
     expect(sql.toUpperCase()).toContain('LIMIT');
+  });
+});
+
+// ─── Run 64: Challenge leave endpoint tests (Agent C) ─────────────────
+
+describe('DELETE /api/social/challenges/:challengeId/leave', () => {
+  it('should return 200 when valid participant leaves', async () => {
+    db.queryOne.mockResolvedValueOnce({ creator_id: 999 }); // challenge exists, different creator
+    db.queryOne.mockResolvedValueOnce({ id: 5, challenge_id: 10, user_id: 2 }); // DELETE RETURNING
+
+    const res = await request(buildApp())
+      .delete('/api/social/challenges/10/leave')
+      .send({ userId: 2 })
+      .expect(200);
+
+    expect(res.body.success).toBe(true);
+    expect(res.body.message).toBe('Left challenge');
+  });
+
+  it('should return 404 when user is not a participant', async () => {
+    db.queryOne.mockResolvedValueOnce({ creator_id: 999 }); // challenge exists
+    db.queryOne.mockResolvedValueOnce(null); // DELETE RETURNING nothing
+
+    const res = await request(buildApp())
+      .delete('/api/social/challenges/10/leave')
+      .send({ userId: 2 })
+      .expect(404);
+
+    expect(res.body.success).toBe(false);
+    expect(res.body.error).toContain('Not a participant');
+  });
+
+  it('should return 400 when creator tries to leave', async () => {
+    db.queryOne.mockResolvedValueOnce({ creator_id: 2 }); // user IS the creator
+
+    const res = await request(buildApp())
+      .delete('/api/social/challenges/10/leave')
+      .send({ userId: 2 })
+      .expect(400);
+
+    expect(res.body.success).toBe(false);
+    expect(res.body.error).toContain('Creator cannot leave');
+  });
+
+  it('should return 400 on invalid challengeId', async () => {
+    const res = await request(buildApp())
+      .delete('/api/social/challenges/abc/leave')
+      .send({ userId: 2 })
+      .expect(400);
+
+    expect(res.body.success).toBe(false);
+  });
+
+  it('should return 400 on missing userId', async () => {
+    const res = await request(buildApp())
+      .delete('/api/social/challenges/10/leave')
+      .send({})
+      .expect(400);
+
+    expect(res.body.success).toBe(false);
+    expect(res.body.error).toContain('userId');
+  });
+
+  it('should invalidate cache after successful leave', async () => {
+    db.queryOne.mockResolvedValueOnce({ creator_id: 999 }); // challenge exists
+    db.queryOne.mockResolvedValueOnce({ id: 5, challenge_id: 10, user_id: 2 }); // DELETE RETURNING
+
+    await request(buildApp())
+      .delete('/api/social/challenges/10/leave')
+      .send({ userId: 2 })
+      .expect(200);
+
+    expect(cache.module.invalidate).toHaveBeenCalledWith('social:challenges:2');
   });
 });
