@@ -1048,7 +1048,22 @@ After completing work, write your retrospective in PARALLEL_AGENTS.md under "Run
 *(To be filled by Agent B)*
 
 #### Agent C Retrospective
-*(To be filled by Agent C)*
+**Files created/modified:**
+- `bot/src/__tests__/routes/http/social.http.test.ts` (UPDATED — added 18 tests for 5 new endpoints)
+- `mini-app/src/__tests__/hooks/useSocial.test.ts` (NEW — 9 tests for social data hook)
+- `mini-app/src/__tests__/pages/Social.test.tsx` (REWRITTEN — 9 tests, switched from fetch mocking to useSocial hook mocking)
+
+**Total: 36 tests across 3 files.**
+
+**Approach:**
+- TASK 1: Added 5 new `describe` blocks to social.http.test.ts matching existing patterns (createMockDb, buildApp, supertest). Tests cover: GET /friends/pending/:userId (3 tests), POST /friends/reject (4 tests), DELETE /friends/:userId/:friendId (4 tests), POST /challenges/:challengeId/join (4 tests), PATCH /challenges/:challengeId/progress (5 tests). Each block tests happy path, missing fields, not-found, and invalid input cases.
+- TASK 2: Created useSocial.test.ts using renderHook + waitFor pattern (matching usePayment.test.ts conventions). Tests cover: data loading on mount (friends, pending, challenges), loading state transitions, API error handling, mutation functions (acceptRequest, rejectRequest, joinChallenge) with post-mutation refresh verification, and explicit refresh() call. Mocks api/social.ts functions individually.
+- TASK 3: Rewrote Social.test.tsx from `globalThis.fetch` mocking to `useSocial` hook mocking to match Agent B's refactor. Tests: loading skeleton, friends list rendering, no-friends message, challenges list, no-challenges message, error state with Retry, ARIA regions, pending requests section (new feature), no-pending-section when empty.
+
+**Notes for Agent 0:**
+- Social.test.tsx was REWRITTEN (not appended) because the existing tests mock `globalThis.fetch` directly, which will break after Agent B's refactor to `useSocial` hook. The new tests use the same hook-mocking pattern as DashboardCelebrations.test.tsx.
+- The useSocial.test.ts assumes `useSocial(userId)` call signature — if Agent B uses a different signature (e.g., object param like `useSocial({ userId })`), Agent 0 will need to adjust.
+- HTTP tests assume Agent A follows standard patterns (asyncHandler, validateRequired, BadRequestError, NotFoundError, safeParseInt). Mock setup matches existing tests exactly (same vi.mock factories, same db/cache/auth mocks).
 
 #### Agent 0 Retrospective
 *(To be filled by Agent 0 after merge)*
