@@ -468,9 +468,65 @@ router.patch('/challenges/:challengeId/progress', authenticateTelegram, mutation
     throw new NotFoundError('Not a participant in this challenge');
   }
 
+  // Auto-detect completion: if progress >= target_value, mark completed_at
+  const challenge = await queryOne<{ target_value: number | null }>(
+    `SELECT target_value FROM challenges WHERE id = $1`,
+    [challengeId]
+  );
+
+  let result = updated;
+  if (challenge && challenge.target_value !== null && progress >= challenge.target_value) {
+    const completed = await queryOne(
+      `UPDATE challenge_participants SET completed_at = NOW()
+       WHERE challenge_id = $1 AND user_id = $2 AND completed_at IS NULL RETURNING *`,
+      [challengeId, userId]
+    );
+    if (completed) {
+      result = completed;
+    }
+  }
+
   invalidate(`social:challenges:${userId}`);
 
-  res.json(successResponse(updated, 'Progress updated'));
+  res.json(successResponse(result, 'Progress updated'));
+}));
+
+// DELETE /api/social/challenges/:challengeId/leave — leave a challenge
+router.delete('/challenges/:challengeId/leave', authenticateTelegram, mutationLimiter, asyncHandler(async (req: Request, res: Response) => {
+  const challengeId = safeParseInt(req.params.challengeId, 0);
+  const { userId } = req.body;
+  validateRequired(req.body, ['userId']);
+
+  if (challengeId <= 0) {
+    throw new BadRequestError('challengeId must be a positive integer');
+  }
+  if (!Number.isInteger(userId) || userId <= 0) {
+    throw new BadRequestError('userId must be a positive integer');
+  }
+
+  // Check if user is the challenge creator — creators cannot leave
+  const challenge = await queryOne<{ creator_id: number }>(
+    `SELECT creator_id FROM challenges WHERE id = $1`,
+    [challengeId]
+  );
+
+  if (challenge && challenge.creator_id === userId) {
+    throw new BadRequestError('Creator cannot leave their own challenge');
+  }
+
+  const deleted = await queryOne(
+    `DELETE FROM challenge_participants
+     WHERE challenge_id = $1 AND user_id = $2 RETURNING *`,
+    [challengeId, userId]
+  );
+
+  if (!deleted) {
+    throw new NotFoundError('Not a participant in this challenge');
+  }
+
+  invalidate(`social:challenges:${userId}`);
+
+  res.json(successResponse(null, 'Left challenge'));
 }));
 
 export const socialRouter = router;
