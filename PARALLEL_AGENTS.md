@@ -1099,4 +1099,121 @@ After completing work, write your retrospective in PARALLEL_AGENTS.md under "Run
 - HTTP tests assume Agent A follows standard patterns (asyncHandler, validateRequired, BadRequestError, NotFoundError, safeParseInt). Mock setup matches existing tests exactly (same vi.mock factories, same db/cache/auth mocks).
 
 #### Agent 0 Retrospective
+**Merge**: A→B→C, all auto-merged cleanly (no conflicts). Retrospectives auto-merged into PARALLEL_AGENTS.md.
+**Cross-agent test fixes (20 total across 4 files)**:
+1. `bot/src/api/routes/social.ts` — Agent A missed `userId === 0` validation in `GET /friends/pending/:userId` (other endpoints had it). Added `if (userId === 0) throw new BadRequestError('Invalid userId')`.
+2. `bot/src/__tests__/routes/http/social.http.test.ts` (3 fixes) — Agent C assumed 200 for join (Agent A returns 201), lowercase `'already'` (message starts with capital `'Already'`), `'not found'` (actual message is `'Not a participant'`).
+3. `mini-app/src/__tests__/hooks/useSocial.test.ts` (9 fixes) — Agent C used `useSocial(1)` but Agent B's hook takes `useSocial({ userId: 1 })`. All 9 renderHook calls updated.
+4. `mini-app/src/__tests__/pages/Social.test.tsx` (7 fixes) — Missing `UserMinus` in lucide-react mock (Agent B added unfriend button), plus `FriendsList` mock not used (Agent B inlined `FriendCardWithRemove`).
+**Tests**: Bot 78/78 files, 926 tests. Mini-app 146/146 files, 831 tests. All pass.
+**Deploy**: Server updated, PM2 restarted, API URL verified, notification sent.
+**Known issue from Agent C retro**: `useSocial(userId)` vs `useSocial({ userId })` was correctly predicted by Agent C and confirmed during merge. Good self-awareness from the test agent.
+
+---
+
+## Run 62: Challenge Discovery + Test Hardening
+
+**Theme**: Build challenge browsing/discovery so users can find and join challenges (Run 61 added join endpoint but no browse UI), plus close the useCelebration test gap.
+
+### Run 62 Agents
+
+#### Agent A — Challenge Discovery Backend
+**Scope**: Add 2 new endpoints + enhance 1 existing endpoint in `bot/src/api/routes/social.ts`.
+
+**Tasks**:
+1. **GET /challenges/discover** — List all active public challenges. Returns: id, title, description, mode, target_value, start_date, end_date, status, creator (username, first_name), participant_count. Ordered by created_at DESC. Supports `?mode=fitness` filter and `?limit=20&offset=0` pagination. Uses `readLimiter`. No auth required (public discovery).
+2. **GET /challenges/:challengeId/details** — Full challenge detail view. Returns: challenge data + array of participants (user_id, username, first_name, current_level, progress, joined_at). Uses JOIN on `challenge_participants` + `users`. Auth required (`authenticateTelegram`).
+3. **Enhancement**: In existing POST `/challenges/create`, add `description` and `mode` fields to the INSERT (currently only `title`, `target_value`, `creator_id`). Validate `mode` is a known mode name if provided.
+
+**File ownership**:
+| File | Agent A |
+|------|---------|
+| `bot/src/api/routes/social.ts` | **OWNED** |
+
+**Patterns to follow**: `asyncHandler`, `safeParseInt`, `BadRequestError`/`NotFoundError`, `successResponse`, `readLimiter`/`mutationLimiter`, cache with `invalidate()`. Register routes with proper ordering (specific before generic).
+
+#### Agent B — Challenge Discovery UI + useCelebration Tests
+**Scope**: Add challenge browsing UI to Social page + create missing useCelebration test.
+
+**Tasks**:
+1. **useCelebration.test.ts** (NEW) — Test the celebration hook (`mini-app/src/hooks/useCelebration.ts`). Test cases: initial call stores baseline without celebrating, level-up triggers confetti+levelUp, XP gain triggers xpFloat, dismiss functions clear state, subsequent calls compare with stored values, handles missing localStorage gracefully. Mock `localStorage` with vi.stubGlobal.
+2. **Challenge discovery section** in `mini-app/src/pages/Social.tsx` — Add a "Discover Challenges" tab/section that shows active public challenges from GET /challenges/discover. Each card shows: title, mode badge, participant count, progress bar (if user joined), Join button (calls existing `joinChallenge` from useSocial). Filter by mode dropdown.
+3. **api/social.ts** — Add `discoverChallenges(mode?: string)` and `getChallengeDetails(challengeId: number)` functions.
+4. **useSocial.ts** — Add `discoverChallenges` data + `availableChallenges` state to the hook.
+
+**File ownership**:
+| File | Agent B |
+|------|---------|
+| `mini-app/src/hooks/useCelebration.ts` | READ ONLY |
+| `mini-app/src/__tests__/hooks/useCelebration.test.ts` | **NEW** |
+| `mini-app/src/pages/Social.tsx` | **OWNED** |
+| `mini-app/src/api/social.ts` | **OWNED** |
+| `mini-app/src/hooks/useSocial.ts` | **OWNED** |
+| `mini-app/src/i18n/en.ts` | **OWNED** |
+| `mini-app/src/i18n/ru.ts` | **OWNED** |
+| `mini-app/src/i18n/zh.ts` | **OWNED** |
+
+**Key constraints**:
+- useSocial hook signature is `useSocial({ userId: number | undefined })` — use this exact signature.
+- Social.tsx uses useSocial hook + inline components (FriendCardWithRemove, PendingRequestCard) — follow same pattern.
+- Use lucide-react icons (Compass for discover, Users for participants).
+
+#### Agent C — Tests for Challenge Discovery
+**Scope**: HTTP tests for new endpoints + Social page test updates.
+
+**Tasks**:
+1. **Update `bot/src/__tests__/routes/http/social.http.test.ts`** — Add tests for:
+   - GET /challenges/discover: returns active challenges, supports mode filter, supports pagination, returns empty array
+   - GET /challenges/:challengeId/details: returns challenge with participants, returns 404 for non-existent, returns 400 for non-numeric
+   - POST /challenges/create enhancement: accepts description and mode fields
+2. **Update `mini-app/src/__tests__/pages/Social.test.tsx`** — Add tests for discover section: renders challenge cards, mode filter, join button interaction.
+3. **Update `mini-app/src/__tests__/hooks/useSocial.test.ts`** — Add tests for `discoverChallenges` state and function.
+
+**File ownership**:
+| File | Agent C |
+|------|---------|
+| `bot/src/__tests__/routes/http/social.http.test.ts` | **UPDATE** |
+| `mini-app/src/__tests__/pages/Social.test.tsx` | **UPDATE** |
+| `mini-app/src/__tests__/hooks/useSocial.test.ts` | **UPDATE** |
+
+**Key constraints**:
+- HTTP test mock pattern: use `createMockDb()`, `createMockCache()`, `createMockRateLimiters()` from httpMocks.
+- useSocial.test.ts uses `useSocial({ userId: 1 })` call signature (NOT `useSocial(1)`).
+- Social.test.tsx mocks lucide-react — add any new icons Agent B uses.
+- Social.test.tsx mocks useSocial — add new `discoverChallenges`/`availableChallenges` to baseSocialReturn.
+
+### Run 62 File Ownership Matrix
+
+| File | Agent A | Agent B | Agent C |
+|------|---------|---------|---------|
+| `bot/src/api/routes/social.ts` | **OWNED** | - | - |
+| `mini-app/src/pages/Social.tsx` | - | **OWNED** | - |
+| `mini-app/src/api/social.ts` | - | **OWNED** | - |
+| `mini-app/src/hooks/useSocial.ts` | - | **OWNED** | - |
+| `mini-app/src/hooks/useCelebration.ts` | - | READ | - |
+| `mini-app/src/__tests__/hooks/useCelebration.test.ts` | - | **NEW** | - |
+| `mini-app/src/i18n/*.ts` | - | **OWNED** | - |
+| `bot/src/__tests__/routes/http/social.http.test.ts` | - | - | **UPDATE** |
+| `mini-app/src/__tests__/pages/Social.test.tsx` | - | - | **UPDATE** |
+| `mini-app/src/__tests__/hooks/useSocial.test.ts` | - | - | **UPDATE** |
+| `PARALLEL_AGENTS.md` | retro | retro | retro |
+
+### Run 62 Merge Order
+
+1. Agent A (challenge backend) — endpoints must exist first
+2. Agent B (challenge mini-app) — depends on API structure
+3. Agent C (tests) — test only, merge last
+
+### Run 62 Retrospectives
+
+#### Agent A Retrospective
+*(To be filled after completion)*
+
+#### Agent B Retrospective
+*(To be filled after completion)*
+
+#### Agent C Retrospective
+*(To be filled after completion)*
+
+#### Agent 0 Retrospective
 *(To be filled by Agent 0 after merge)*
