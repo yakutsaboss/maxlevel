@@ -1042,7 +1042,18 @@ After completing work, write your retrospective in PARALLEL_AGENTS.md under "Run
 ### Run 61 Retrospectives
 
 #### Agent A Retrospective
-*(To be filled by Agent A)*
+- **Task**: Add 5 new social backend endpoints to `bot/src/api/routes/social.ts`.
+- **Files modified (1)**: `bot/src/api/routes/social.ts` (160→321 lines)
+- **Endpoints added (5)**:
+  1. **GET /friends/pending/:userId** — Lists incoming pending friend requests with requester info (id, username, first_name, current_level) via JOIN on users table. Uses authorizeUser + readLimiter.
+  2. **POST /friends/reject** — Rejects a pending friend request. Validates requestId + userId, ensures request belongs to user and is pending. Invalidates cache for both users.
+  3. **DELETE /friends/:userId/:friendId** — Unfriends by deleting the accepted friend_requests row (bidirectional match). Validates both IDs as positive integers. Invalidates cache for both users.
+  4. **POST /challenges/:challengeId/join** — Joins an active challenge. Validates challenge exists, is active, and user hasn't already joined. Invalidates challenge cache for user.
+  5. **PATCH /challenges/:challengeId/progress** — Updates participant progress. Validates progress is a non-negative integer, user is a participant. Invalidates challenge cache.
+- **Patterns followed**: All endpoints use `asyncHandler`, `validateRequired`, `BadRequestError`/`NotFoundError`, `safeParseInt` for URL params, `successResponse` wrapper, cache invalidation via `invalidate()`.
+- **Route ordering note**: GET `/friends/pending/:userId` is registered BEFORE GET `/friends/:userId` to prevent Express from matching "pending" as a userId parameter.
+- **Build**: `tsc` passes clean, 0 errors.
+- **Notes for Agent 0**: No new imports or dependencies added. No changes to other files. All new endpoints follow existing patterns exactly.
 
 #### Agent B Retrospective
 *(To be filled by Agent B)*
