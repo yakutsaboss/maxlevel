@@ -1491,4 +1491,204 @@ Add tests to `mini-app/src/__tests__/pages/Social.test.tsx`:
 **Pre-existing issue**: 7 failures in `FriendRequestForm.test.tsx` (not my file) — Agent B's rewrite added a `Search` icon that's not mocked in that test file. Agent 0 should fix this during merge.
 
 #### Agent 0 Retrospective
+**Merge result**: Clean — all 3 agents already merged to main by user before Agent 0 started.
+
+**Cross-agent fix (7 test failures in 1 file)**:
+- `FriendRequestForm.test.tsx`: Agent B completely rewrote the component from numeric Telegram ID input to username-based search with debounce. The old test file tested for "Friend's Telegram ID" label, "Enter Telegram ID" placeholder, "Send" button, and Telegram ID validation — none of which exist anymore. Rewrote all 7 tests to cover: search input with placeholder, debounce behavior, search results display with @username, self-filtering, "No users found" empty state, send request success with haptic feedback, API error display. Used real timers (not `vi.useFakeTimers()`) to avoid issues with promise resolution during debounce.
+
+**Test results after fix**: 1817 total (954 bot + 863 mini-app), 0 failures.
+**Deploy**: Pushed to GitHub, built on server (bot + mini-app), PM2 restarted.
+**Notification**: Sent via Telegram.
+**Cleanup**: 3 worktrees removed, 3 feature branches deleted.
+
+**Observations**:
+- Agent C correctly predicted the FriendRequestForm.test.tsx failures and flagged them as "not my file" in their retro — good boundary awareness.
+- Agent A's payment webhook tests (13 tests) provide critical coverage for a money-related route that was previously untested.
+- Agent B's FriendRequestForm rewrite is a significant UX improvement — users can now search by name instead of needing to know Telegram IDs.
+- Fake timers (`vi.useFakeTimers()`) don't work well with async promise-based debounce patterns — using real timers with `waitFor` is more reliable.
+
+---
+
+## Run 64 — Challenge Detail Leaderboard + ChallengeForm UX + ChallengeForm Tests
+
+**Theme**: Complete the challenge social loop. Users can create, discover, join, and update progress — but can't view a challenge leaderboard or see who else is participating. Also improve the ChallengeForm with mode selector pills (currently free-text) and add missing ChallengeForm tests.
+
+### Run 64 Agents
+
+| Agent | Focus | Branch | Key Files |
+|-------|-------|--------|-----------|
+| A | Backend: challenge leave endpoint + challenge completion auto-detect | `feature/r64-challenge-backend` | `bot/src/api/routes/social.ts` |
+| B | Mini-app: ChallengeDetailModal + ChallengeForm mode pills + i18n | `feature/r64-challenge-ui` | `mini-app/src/components/social/ChallengeDetailModal.tsx` (NEW), `mini-app/src/components/social/ChallengeForm.tsx`, `mini-app/src/pages/Social.tsx`, `mini-app/src/hooks/useSocial.ts` |
+| C | Tests for detail modal + challenge form + leave endpoint | `feature/r64-challenge-tests` | `mini-app/src/__tests__/components/social/ChallengeDetailModal.test.tsx` (NEW), `mini-app/src/__tests__/components/social/ChallengeForm.test.tsx`, `bot/src/__tests__/routes/http/social.http.test.ts`, `mini-app/src/__tests__/hooks/useSocial.test.ts` |
+
+### Run 64 File Ownership
+
+| File | Owner |
+|------|-------|
+| `bot/src/api/routes/social.ts` | Agent A |
+| `mini-app/src/components/social/ChallengeDetailModal.tsx` (NEW) | Agent B |
+| `mini-app/src/components/social/ChallengeForm.tsx` | Agent B |
+| `mini-app/src/components/social/ChallengeCard.tsx` | Agent B |
+| `mini-app/src/hooks/useSocial.ts` | Agent B |
+| `mini-app/src/api/social.ts` | Agent B |
+| `mini-app/src/pages/Social.tsx` | Agent B |
+| `mini-app/src/i18n/en.ts`, `ru.ts`, `zh.ts` | Agent B |
+| `bot/src/__tests__/routes/http/social.http.test.ts` | Agent C |
+| `mini-app/src/__tests__/components/social/ChallengeDetailModal.test.tsx` (NEW) | Agent C |
+| `mini-app/src/__tests__/components/social/ChallengeForm.test.tsx` | Agent C |
+| `mini-app/src/__tests__/hooks/useSocial.test.ts` | Agent C |
+| `mini-app/src/__tests__/pages/Social.test.tsx` | Agent C |
+
+### Run 64 Merge Order
+
+1. Agent A (backend endpoints) — leave endpoint must exist first
+2. Agent B (mini-app UI) — uses API structure
+3. Agent C (tests) — tests only, merge last
+
+### Run 64 Copy-Paste Prompts
+
+#### Agent A Prompt
+```
+Read c:\Users\Asus\Desktop\Wibecode\PARALLEL_AGENTS.md — you are Agent A for Run 64.
+
+Your tasks:
+
+**Task 1: Challenge leave endpoint**
+Add `DELETE /api/social/challenges/:challengeId/leave` to `bot/src/api/routes/social.ts`:
+- Body: `{ userId }` (required, positive integer)
+- Validate: challengeId and userId are positive integers
+- Check participant exists — if not, 404 "Not a participant in this challenge"
+- Check user is NOT the challenge creator — creators cannot leave their own challenge (400 "Creator cannot leave their own challenge")
+- Delete from `challenge_participants` WHERE challenge_id = $1 AND user_id = $2
+- Invalidate cache: `social:challenges:${userId}`
+- Return 200 with success message "Left challenge"
+- Use `authenticateTelegram` and `mutationLimiter`
+
+**Task 2: Challenge completion auto-detection**
+In the existing `PATCH /challenges/:challengeId/progress` route (around line 418), after updating progress:
+- Query the challenge to get `target_value`
+- If `progress >= target_value` AND `target_value IS NOT NULL`, update challenge_participants SET `completed_at = NOW()` for this user
+- This doesn't need a separate endpoint, just enhance the existing progress update logic
+- Return the updated row as before (the `completed_at` field will now be set)
+
+**Important**: Only modify `bot/src/api/routes/social.ts`. Run `npx vitest --run` before committing. Write a retrospective in PARALLEL_AGENTS.md after completing.
+```
+
+#### Agent B Prompt
+```
+Read c:\Users\Asus\Desktop\Wibecode\PARALLEL_AGENTS.md — you are Agent B for Run 64.
+
+Your tasks:
+
+**Task 1: ChallengeDetailModal component**
+Create `mini-app/src/components/social/ChallengeDetailModal.tsx`:
+- Props: `challengeId: number | null` (null = closed), `onClose: () => void`, `userId: number`
+- When `challengeId` is not null, call `getChallengeDetails(challengeId)` from `@/api/social`
+- Display:
+  - Challenge title, description, mode badge, target value, date range
+  - Progress bar (if target_value exists)
+  - "Participants" header with count
+  - Leaderboard: list of participants sorted by progress DESC, showing: rank #, first_name, @username, level, progress, joined_at
+  - Highlight the current user's row
+  - "Leave Challenge" button (only if user is NOT the creator)
+- Loading state with skeleton while fetching
+- Error state with retry button
+- Use Framer Motion for modal animation (slide up from bottom, like other modals)
+- Use i18n for all text
+
+Steps:
+1. Add `leaveChallenge(challengeId)` to `useSocial` hook — calls `DELETE /social/challenges/${challengeId}/leave` with userId, then refreshes
+2. Add `leaveChallenge` API function to `mini-app/src/api/social.ts`
+3. Create the modal component
+4. Modify `ChallengeCard.tsx` to add a "View" button that opens the detail modal (pass `onViewDetails(challengeId)` prop)
+5. Modify `ChallengesList.tsx` to pass `onViewDetails` through
+6. Wire it up in `Social.tsx` — manage `selectedChallengeId` state, render ChallengeDetailModal
+7. Add i18n keys: `challengeDetails`, `participants`, `leaveChallenge`, `leftChallenge`, `creatorCannotLeave`, `viewDetails`, `rank` (en, ru, zh)
+
+**Task 2: ChallengeForm mode selector pills**
+Improve `mini-app/src/components/social/ChallengeForm.tsx`:
+- Replace the free-text "Mode" input with pills/chips for KNOWN_MODES: fitness, hydration, finance, learning, medication, habits
+- Tapping a pill selects it (highlighted), tapping again deselects (mode = null)
+- Add `targetValue` number input field (optional, for challenges with numeric goals)
+- Add `endDate` date picker input (optional)
+- Add i18n keys: `challengeMode`, `targetValue`, `endDate` (en, ru, zh)
+
+**Important**: Only modify files in your ownership. Run `npx tsc --noEmit` and verify the mini-app builds. Write a retrospective in PARALLEL_AGENTS.md after completing.
+```
+
+#### Agent C Prompt
+```
+Read c:\Users\Asus\Desktop\Wibecode\PARALLEL_AGENTS.md — you are Agent C for Run 64.
+
+Your tasks:
+
+**Task 1: Challenge leave endpoint tests**
+Add tests to `bot/src/__tests__/routes/http/social.http.test.ts`:
+- `DELETE /api/social/challenges/:challengeId/leave`:
+  - 200 when valid participant leaves
+  - 404 when user is not a participant
+  - 400 when creator tries to leave
+  - 400 on invalid challengeId
+  - 400 on missing userId
+  - Verify cache invalidation call
+  - ~6 tests
+
+**Task 2: ChallengeDetailModal tests**
+Create `mini-app/src/__tests__/components/social/ChallengeDetailModal.test.tsx`:
+- Mock `getChallengeDetails` from `@/api/social`
+- Mock lucide-react icons (Trophy, X, Users, Target, Clock, Crown, Loader2, AlertCircle, RefreshCw)
+- Mock framer-motion (AnimatePresence, motion.div → regular div)
+- Test cases:
+  - Does not render when challengeId is null
+  - Shows loading skeleton when fetching
+  - Renders challenge title, description, mode badge
+  - Renders participant leaderboard sorted by progress
+  - Highlights current user's row
+  - Shows "Leave" button for non-creators
+  - Does NOT show "Leave" button for creators
+  - Calls onClose when X button clicked
+  - ~8-10 tests
+
+**Task 3: ChallengeForm tests**
+Create or update `mini-app/src/__tests__/components/social/ChallengeForm.test.tsx`:
+- Read the actual ChallengeForm.tsx AFTER Agent B modifies it
+- Test cases:
+  - Renders mode pills (fitness, hydration, etc.)
+  - Clicking a pill selects it (highlighted)
+  - Clicking selected pill deselects it
+  - Renders targetValue input field
+  - Renders endDate input field
+  - Create button is disabled when title is empty
+  - Successful submission calls API with correct body
+  - ~7-8 tests
+
+**Task 4: useSocial hook — leaveChallenge tests**
+Add tests to `mini-app/src/__tests__/hooks/useSocial.test.ts`:
+- `leaveChallenge` function is exposed on hook return
+- `leaveChallenge` calls API and refreshes data
+- `leaveChallenge` is a no-op when userId is undefined
+- Add `mockLeaveChallenge` to the api/social mock
+- ~3 tests
+
+**Critical patterns**:
+- `useSocial` hook takes `{ userId: number }` (object param)
+- Social.test.tsx uses `mockUseSocial` mock — add `leaveChallenge` to `baseSocialReturn`
+- Add any new lucide-react icons to mocks
+- Run `npx vitest --run` before committing
+
+**Important**: Only modify files in your ownership. Write a retrospective in PARALLEL_AGENTS.md after completing.
+```
+
+### Run 64 Retrospectives
+
+#### Agent A Retrospective
+*(To be filled by Agent A)*
+
+#### Agent B Retrospective
+*(To be filled by Agent B)*
+
+#### Agent C Retrospective
+*(To be filled by Agent C)*
+
+#### Agent 0 Retrospective
 *(To be filled by Agent 0 after merge)*
