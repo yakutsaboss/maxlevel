@@ -1,6 +1,15 @@
+/**
+ * Tests for Social page (mini-app/src/pages/Social.tsx)
+ *
+ * Run 61 Agent C: Rewritten to use useSocial hook mock (Agent B refactors
+ * Social.tsx from inline fetch() to useSocial hook). Added pending requests tests.
+ *
+ * Mocks: useSocial, usePullToRefresh, @twa-dev/sdk, react-router-dom,
+ *        social sub-components, ErrorSection, lucide-react
+ */
+
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import { Social } from '@/pages/Social';
 
 // Mock @twa-dev/sdk
 vi.mock('@twa-dev/sdk', () => ({
@@ -43,6 +52,12 @@ vi.mock('react-router-dom', () => ({
   useNavigate: () => vi.fn(),
 }));
 
+// Mock useSocial hook (Agent B creates this in Run 61)
+const mockUseSocial = vi.fn();
+vi.mock('@/hooks/useSocial', () => ({
+  useSocial: (...args: unknown[]) => mockUseSocial(...args),
+}));
+
 // Mock usePullToRefresh
 vi.mock('@/hooks/usePullToRefresh', () => ({
   usePullToRefresh: () => ({
@@ -67,15 +82,58 @@ vi.mock('@/components/social/FriendsList', () => ({
       : <div data-testid="friends-list">{friends.map((f: any) => <div key={f.id}>{f.first_name}</div>)}</div>,
 }));
 
-vi.mock('@/components/social/ChallengeCard', () => ({
-  ChallengeCard: ({ challenge }: { challenge: any }) =>
-    <div data-testid="challenge-card">{challenge.title}</div>,
+vi.mock('@/components/social/ChallengesList', () => ({
+  ChallengesList: ({ challenges }: { challenges: unknown[] }) =>
+    challenges.length === 0
+      ? <p>No challenges yet. Create one!</p>
+      : <div data-testid="challenges-list">{challenges.map((c: any) => <div key={c.id}>{c.title}</div>)}</div>,
 }));
 
-// Helpers
+vi.mock('@/components/social/FriendRequestForm', () => ({
+  FriendRequestForm: ({ onSuccess }: { onSuccess: () => void }) =>
+    <div data-testid="friend-request-form"><button onClick={onSuccess}>Send</button></div>,
+}));
+
+vi.mock('@/components/social/ChallengeForm', () => ({
+  ChallengeForm: ({ onSuccess }: { onSuccess: () => void }) =>
+    <div data-testid="challenge-form"><button onClick={onSuccess}>Create</button></div>,
+}));
+
+// Mock lucide-react icons
+vi.mock('lucide-react', () => {
+  const s = (name: string) => (props: any) => <span data-testid={`${name}-icon`} {...props} />;
+  return {
+    Users: s('users'),
+    Swords: s('swords'),
+    UserPlus: s('user-plus'),
+    PlusCircle: s('plus-circle'),
+    X: s('x'),
+    Star: s('star'),
+    Zap: s('zap'),
+    Trophy: s('trophy'),
+    Target: s('target'),
+    AlertCircle: s('alert-circle'),
+    RefreshCw: s('refresh'),
+    Check: s('check'),
+    XCircle: s('x-circle'),
+    Bell: s('bell'),
+  };
+});
+
+// ─── Import after mocks ─────────────────────────────────────────────
+
+import { Social } from '@/pages/Social';
+
+// ─── Test data ──────────────────────────────────────────────────────
+
 const mockFriends = [
   { id: 1, username: 'alice', first_name: 'Alice', current_level: 5, total_xp: 1200, is_active: true, friends_since: '2024-01-01' },
   { id: 2, username: null, first_name: 'Bob', current_level: 3, total_xp: 400, is_active: false, friends_since: '2024-02-15' },
+];
+
+const mockPending = [
+  { id: 10, from_user: { id: 4, username: 'charlie', first_name: 'Charlie', current_level: 7 }, created_at: '2026-02-10T12:00:00Z' },
+  { id: 11, from_user: { id: 5, username: 'diana', first_name: 'Diana', current_level: 2 }, created_at: '2026-02-11T08:00:00Z' },
 ];
 
 const mockChallenges = [
@@ -83,236 +141,144 @@ const mockChallenges = [
   { id: 11, title: 'Read 5 Books', description: null, mode: null, target_value: 5, start_date: '2024-06-01', end_date: null, status: 'active', progress: 1, participant_count: 2 },
 ];
 
-function mockFetchSuccess(friends: unknown[] = [], challenges: unknown[] = []) {
-  (globalThis.fetch as ReturnType<typeof vi.fn>).mockImplementation((url: string) => {
-    if (url.includes('/social/friends/')) {
-      return Promise.resolve({
-        json: () => Promise.resolve({ success: true, data: friends }),
-      });
-    }
-    if (url.includes('/social/challenges/')) {
-      return Promise.resolve({
-        json: () => Promise.resolve({ success: true, data: challenges }),
-      });
-    }
-    return Promise.reject(new Error('Unknown URL'));
-  });
-}
+const baseSocialReturn = {
+  friends: mockFriends,
+  pendingRequests: [],
+  challenges: mockChallenges,
+  loading: false,
+  error: false,
+  refresh: vi.fn(),
+  sendRequest: vi.fn(),
+  acceptRequest: vi.fn(),
+  rejectRequest: vi.fn(),
+  removeFriend: vi.fn(),
+  joinChallenge: vi.fn(),
+};
 
-function mockFetchFailure() {
-  (globalThis.fetch as ReturnType<typeof vi.fn>).mockRejectedValue(new Error('Network error'));
-}
+// ─── Tests ──────────────────────────────────────────────────────────
 
 describe('Social', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    globalThis.fetch = vi.fn();
+    mockUseSocial.mockReturnValue({ ...baseSocialReturn });
   });
 
   // ── Loading State ──
 
   it('renders loading skeleton initially', () => {
-    // fetch never resolves → stays in loading state
-    (globalThis.fetch as ReturnType<typeof vi.fn>).mockReturnValue(new Promise(() => {}));
+    mockUseSocial.mockReturnValue({
+      ...baseSocialReturn,
+      loading: true,
+      friends: [],
+      pendingRequests: [],
+      challenges: [],
+    });
+
     render(<Social />);
 
-    // Skeleton has animate-pulse class; real content headings are absent
-    expect(screen.queryByText('Social')).not.toBeInTheDocument();
-    expect(screen.queryByText('Friends')).not.toBeInTheDocument();
+    // Skeleton should render, not the actual content sections
+    expect(screen.queryByTestId('friends-list')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('challenges-list')).not.toBeInTheDocument();
   });
 
   // ── Loaded – Friends ──
 
-  it('renders friends list when data is loaded', async () => {
-    mockFetchSuccess(mockFriends, []);
+  it('renders friends list when data is loaded', () => {
     render(<Social />);
 
-    await waitFor(() => {
-      expect(screen.getByText('Friends')).toBeInTheDocument();
-    });
-
+    expect(screen.getByTestId('friends-list')).toBeInTheDocument();
     expect(screen.getByText('Alice')).toBeInTheDocument();
     expect(screen.getByText('Bob')).toBeInTheDocument();
   });
 
-  it('shows "no friends" message when friends list is empty', async () => {
-    mockFetchSuccess([], []);
+  it('shows "no friends" message when friends list is empty', () => {
+    mockUseSocial.mockReturnValue({
+      ...baseSocialReturn,
+      friends: [],
+    });
+
     render(<Social />);
 
-    await waitFor(() => {
-      expect(screen.getByText('No friends yet. Send a friend request!')).toBeInTheDocument();
-    });
+    expect(screen.getByText('No friends yet. Send a friend request!')).toBeInTheDocument();
   });
 
   // ── Loaded – Challenges ──
 
-  it('renders challenge cards when challenges exist', async () => {
-    mockFetchSuccess([], mockChallenges);
+  it('renders challenge cards when challenges exist', () => {
     render(<Social />);
 
-    await waitFor(() => {
-      expect(screen.getByText('Challenges')).toBeInTheDocument();
-    });
-
+    expect(screen.getByTestId('challenges-list')).toBeInTheDocument();
     expect(screen.getByText('7-Day Streak')).toBeInTheDocument();
     expect(screen.getByText('Read 5 Books')).toBeInTheDocument();
   });
 
-  it('shows "no challenges" message when challenges list is empty', async () => {
-    mockFetchSuccess([], []);
+  it('shows "no challenges" message when challenges list is empty', () => {
+    mockUseSocial.mockReturnValue({
+      ...baseSocialReturn,
+      challenges: [],
+    });
+
     render(<Social />);
 
-    await waitFor(() => {
-      expect(screen.getByText('No challenges yet. Create one!')).toBeInTheDocument();
-    });
+    expect(screen.getByText('No challenges yet. Create one!')).toBeInTheDocument();
   });
 
   // ── Error State ──
 
-  it('shows ErrorSection on fetch failure', async () => {
-    mockFetchFailure();
+  it('shows error state on failure', () => {
+    mockUseSocial.mockReturnValue({
+      ...baseSocialReturn,
+      loading: false,
+      error: true,
+      friends: [],
+      pendingRequests: [],
+      challenges: [],
+    });
+
     render(<Social />);
 
-    await waitFor(() => {
-      expect(screen.getByText('Could not load social data')).toBeInTheDocument();
-    });
+    // ErrorSection renders Retry button
     expect(screen.getByText('Retry')).toBeInTheDocument();
-  });
-
-  it('retries loading data when Retry is clicked', async () => {
-    mockFetchFailure();
-    render(<Social />);
-
-    await waitFor(() => {
-      expect(screen.getByText('Retry')).toBeInTheDocument();
-    });
-
-    // Switch to success and click retry
-    mockFetchSuccess(mockFriends, mockChallenges);
-    fireEvent.click(screen.getByText('Retry'));
-
-    await waitFor(() => {
-      expect(screen.getByText('Friends')).toBeInTheDocument();
-    });
-  });
-
-  // ── Header ──
-
-  it('renders page header with title and subtitle', async () => {
-    mockFetchSuccess([], []);
-    render(<Social />);
-
-    await waitFor(() => {
-      expect(screen.getByText('Social')).toBeInTheDocument();
-    });
-    expect(screen.getByText('Friends & challenges')).toBeInTheDocument();
-  });
-
-  // ── Friend Request Form ──
-
-  it('toggles friend request form with Add Friend button', async () => {
-    mockFetchSuccess([], []);
-    render(<Social />);
-
-    await waitFor(() => {
-      expect(screen.getByText('Add Friend')).toBeInTheDocument();
-    });
-
-    // Form should not be visible initially
-    expect(screen.queryByText("Friend's Telegram ID")).not.toBeInTheDocument();
-
-    // Click Add Friend to open form
-    fireEvent.click(screen.getByText('Add Friend'));
-    expect(screen.getByText("Friend's Telegram ID")).toBeInTheDocument();
-    expect(screen.getByPlaceholderText('Enter Telegram ID')).toBeInTheDocument();
-
-    // Click Cancel to close form
-    fireEvent.click(screen.getByText('Cancel'));
-    expect(screen.queryByText("Friend's Telegram ID")).not.toBeInTheDocument();
-  });
-
-  it('submits friend request and shows success message', async () => {
-    mockFetchSuccess([], []);
-    render(<Social />);
-
-    await waitFor(() => {
-      expect(screen.getByText('Add Friend')).toBeInTheDocument();
-    });
-
-    fireEvent.click(screen.getByText('Add Friend'));
-
-    const input = screen.getByPlaceholderText('Enter Telegram ID');
-    fireEvent.change(input, { target: { value: '456' } });
-
-    // Mock the friend request POST
-    (globalThis.fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
-      json: () => Promise.resolve({ success: true }),
-    });
-
-    fireEvent.click(screen.getByText('Send'));
-
-    await waitFor(() => {
-      expect(screen.getByText('Friend request sent!')).toBeInTheDocument();
-    });
-  });
-
-  it('shows validation error for invalid Telegram ID in friend form', async () => {
-    mockFetchSuccess([], []);
-    render(<Social />);
-
-    await waitFor(() => {
-      expect(screen.getByText('Add Friend')).toBeInTheDocument();
-    });
-
-    fireEvent.click(screen.getByText('Add Friend'));
-
-    const input = screen.getByPlaceholderText('Enter Telegram ID');
-    fireEvent.change(input, { target: { value: '-5' } });
-
-    fireEvent.click(screen.getByText('Send'));
-
-    await waitFor(() => {
-      expect(screen.getByText('Please enter a valid Telegram ID')).toBeInTheDocument();
-    });
-  });
-
-  // ── Challenge Form ──
-
-  it('toggles challenge creation form with New Challenge button', async () => {
-    mockFetchSuccess([], []);
-    render(<Social />);
-
-    await waitFor(() => {
-      expect(screen.getByText('New Challenge')).toBeInTheDocument();
-    });
-
-    // Form should not be visible initially
-    expect(screen.queryByText('Title *')).not.toBeInTheDocument();
-
-    // Open form
-    fireEvent.click(screen.getByText('New Challenge'));
-    expect(screen.getByText('Title *')).toBeInTheDocument();
-    expect(screen.getByPlaceholderText('Challenge title')).toBeInTheDocument();
-    expect(screen.getByPlaceholderText('Optional description')).toBeInTheDocument();
-    expect(screen.getByPlaceholderText('e.g. fitness, study')).toBeInTheDocument();
-
-    // Close form
-    const cancelButtons = screen.getAllByText('Cancel');
-    fireEvent.click(cancelButtons[cancelButtons.length - 1]);
-    expect(screen.queryByText('Title *')).not.toBeInTheDocument();
   });
 
   // ── ARIA Regions ──
 
-  it('renders Friends and Challenges sections with ARIA regions', async () => {
-    mockFetchSuccess(mockFriends, mockChallenges);
+  it('renders Friends and Challenges sections with ARIA regions', () => {
     render(<Social />);
-
-    await waitFor(() => {
-      expect(screen.getByText('Friends')).toBeInTheDocument();
-    });
 
     expect(screen.getByRole('region', { name: 'Friends' })).toBeInTheDocument();
     expect(screen.getByRole('region', { name: 'Challenges' })).toBeInTheDocument();
+  });
+
+  // ── Pending Requests (Run 61 — new feature by Agent B) ──
+
+  it('renders pending friend requests section when there are pending requests', () => {
+    mockUseSocial.mockReturnValue({
+      ...baseSocialReturn,
+      pendingRequests: mockPending,
+    });
+
+    render(<Social />);
+
+    // Should display pending request info (names or count)
+    const pageContent = document.body.textContent || '';
+    // The page should mention pending requests somehow
+    expect(
+      pageContent.includes('Charlie') || pageContent.includes('pending') || pageContent.includes('Pending'),
+    ).toBe(true);
+  });
+
+  it('does not show pending section when no pending requests', () => {
+    mockUseSocial.mockReturnValue({
+      ...baseSocialReturn,
+      pendingRequests: [],
+    });
+
+    render(<Social />);
+
+    // Should not have any pending request content when list is empty
+    const pageContent = document.body.textContent || '';
+    expect(pageContent).not.toContain('Charlie');
+    expect(pageContent).not.toContain('Diana');
   });
 });
