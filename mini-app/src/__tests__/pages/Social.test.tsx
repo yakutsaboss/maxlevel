@@ -118,6 +118,10 @@ vi.mock('lucide-react', () => {
     Check: s('check'),
     XCircle: s('x-circle'),
     Bell: s('bell'),
+    Compass: s('compass'),
+    ChevronDown: s('chevron-down'),
+    Search: s('search'),
+    Filter: s('filter'),
   };
 });
 
@@ -142,10 +146,16 @@ const mockChallenges = [
   { id: 11, title: 'Read 5 Books', description: null, mode: null, target_value: 5, start_date: '2024-06-01', end_date: null, status: 'active', progress: 1, participant_count: 2 },
 ];
 
+const mockAvailableChallenges = [
+  { id: 100, title: '30-Day Fitness', description: 'Get fit in 30 days', mode: 'fitness', target_value: 30, start_date: '2026-02-01', end_date: '2026-03-01', status: 'active', creator: { username: 'alice', first_name: 'Alice' }, participant_count: 10 },
+  { id: 101, title: 'Reading Challenge', description: 'Read 5 books', mode: 'learning', target_value: 5, start_date: '2026-02-01', end_date: null, status: 'active', creator: { username: 'bob', first_name: 'Bob' }, participant_count: 3 },
+];
+
 const baseSocialReturn = {
   friends: mockFriends,
   pendingRequests: [],
   challenges: mockChallenges,
+  availableChallenges: [],
   loading: false,
   error: false,
   refresh: vi.fn(),
@@ -154,6 +164,7 @@ const baseSocialReturn = {
   rejectRequest: vi.fn(),
   removeFriend: vi.fn(),
   joinChallenge: vi.fn(),
+  discoverChallenges: vi.fn(),
 };
 
 // ─── Tests ──────────────────────────────────────────────────────────
@@ -281,5 +292,108 @@ describe('Social', () => {
     const pageContent = document.body.textContent || '';
     expect(pageContent).not.toContain('Charlie');
     expect(pageContent).not.toContain('Diana');
+  });
+
+  // ── Discover Challenges (Run 62 — Agent B adds discover section) ──
+
+  it('renders Discover Challenges section header', () => {
+    render(<Social />);
+
+    expect(screen.getByRole('region', { name: 'Discover Challenges' })).toBeInTheDocument();
+    expect(screen.getByText('Discover Challenges')).toBeInTheDocument();
+    expect(screen.getByText('Browse')).toBeInTheDocument();
+  });
+
+  it('renders discover challenge cards after clicking Browse', async () => {
+    mockUseSocial.mockReturnValue({
+      ...baseSocialReturn,
+      availableChallenges: mockAvailableChallenges,
+    });
+
+    render(<Social />);
+
+    // Click Browse to open discover section
+    fireEvent.click(screen.getByText('Browse'));
+
+    await waitFor(() => {
+      expect(screen.getByText('30-Day Fitness')).toBeInTheDocument();
+    });
+    expect(screen.getByText('Reading Challenge')).toBeInTheDocument();
+  });
+
+  it('renders mode badges and participant count on discover cards', async () => {
+    mockUseSocial.mockReturnValue({
+      ...baseSocialReturn,
+      availableChallenges: mockAvailableChallenges,
+    });
+
+    render(<Social />);
+    fireEvent.click(screen.getByText('Browse'));
+
+    await waitFor(() => {
+      expect(screen.getByText('30-Day Fitness')).toBeInTheDocument();
+    });
+
+    // Mode badge renders mode name
+    const pageContent = (document.body.textContent || '').toLowerCase();
+    expect(pageContent).toContain('fitness');
+
+    // Participant count from mock data
+    expect(document.body.textContent).toContain('10');
+  });
+
+  it('renders mode filter buttons after clicking Browse', async () => {
+    mockUseSocial.mockReturnValue({
+      ...baseSocialReturn,
+      availableChallenges: mockAvailableChallenges,
+    });
+
+    render(<Social />);
+    fireEvent.click(screen.getByText('Browse'));
+
+    await waitFor(() => {
+      expect(screen.getByText('All')).toBeInTheDocument();
+    });
+    expect(screen.getByText('Fitness')).toBeInTheDocument();
+  });
+
+  it('renders Join buttons on discover cards', async () => {
+    mockUseSocial.mockReturnValue({
+      ...baseSocialReturn,
+      availableChallenges: [mockAvailableChallenges[0]],
+    });
+
+    render(<Social />);
+    fireEvent.click(screen.getByText('Browse'));
+
+    await waitFor(() => {
+      expect(screen.getByText('Join')).toBeInTheDocument();
+    });
+  });
+
+  it('shows empty state when Browse is clicked with no available challenges', async () => {
+    mockUseSocial.mockReturnValue({
+      ...baseSocialReturn,
+      availableChallenges: [],
+    });
+
+    render(<Social />);
+    fireEvent.click(screen.getByText('Browse'));
+
+    await waitFor(() => {
+      expect(screen.getByText('No challenges found')).toBeInTheDocument();
+    });
+  });
+
+  it('does not render discover cards before Browse is clicked', () => {
+    mockUseSocial.mockReturnValue({
+      ...baseSocialReturn,
+      availableChallenges: mockAvailableChallenges,
+    });
+
+    render(<Social />);
+
+    expect(screen.queryByText('30-Day Fitness')).not.toBeInTheDocument();
+    expect(screen.queryByText('Reading Challenge')).not.toBeInTheDocument();
   });
 });

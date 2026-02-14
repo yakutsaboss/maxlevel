@@ -28,6 +28,8 @@ const mockRemoveFriend = vi.fn();
 const mockJoinChallenge = vi.fn();
 const mockUpdateChallengeProgress = vi.fn();
 const mockCreateChallenge = vi.fn();
+const mockDiscoverChallenges = vi.fn();
+const mockGetChallengeDetails = vi.fn();
 
 vi.mock('@/api/social', () => ({
   getFriends: (...args: unknown[]) => mockGetFriends(...args),
@@ -40,6 +42,8 @@ vi.mock('@/api/social', () => ({
   joinChallenge: (...args: unknown[]) => mockJoinChallenge(...args),
   updateChallengeProgress: (...args: unknown[]) => mockUpdateChallengeProgress(...args),
   createChallenge: (...args: unknown[]) => mockCreateChallenge(...args),
+  discoverChallenges: (...args: unknown[]) => mockDiscoverChallenges(...args),
+  getChallengeDetails: (...args: unknown[]) => mockGetChallengeDetails(...args),
 }));
 
 // ─── Mock @twa-dev/sdk ──────────────────────────────────────────────
@@ -75,6 +79,11 @@ const mockChallengesData = [
   { id: 20, title: 'Daily Steps', creator_id: 1, progress: 5000, participant_count: 3, status: 'active' },
 ];
 
+const mockAvailableChallengesData = [
+  { id: 100, title: '30-Day Fitness', mode: 'fitness', participant_count: 10, status: 'active', creator: { username: 'alice', first_name: 'Alice' } },
+  { id: 101, title: 'Reading Challenge', mode: 'learning', participant_count: 3, status: 'active', creator: { username: 'bob', first_name: 'Bob' } },
+];
+
 // ─── Setup ──────────────────────────────────────────────────────────
 
 beforeEach(() => {
@@ -83,6 +92,7 @@ beforeEach(() => {
   mockGetFriends.mockResolvedValue(mockFriendsData);
   mockGetPendingRequests.mockResolvedValue(mockPendingData);
   mockGetChallenges.mockResolvedValue(mockChallengesData);
+  mockDiscoverChallenges.mockResolvedValue([]);
 });
 
 // ─── Tests ──────────────────────────────────────────────────────────
@@ -239,5 +249,63 @@ describe('useSocial', () => {
     expect(mockGetFriends).toHaveBeenCalledWith(1);
     expect(mockGetPendingRequests).toHaveBeenCalledWith(1);
     expect(mockGetChallenges).toHaveBeenCalledWith(1);
+  });
+
+  // ── Discover Challenges (Run 62 — Agent B adds discoverChallenges to hook) ──
+
+  it('exposes availableChallenges state', async () => {
+    const { result } = renderHook(() => useSocial({ userId: 1 }));
+
+    await waitFor(() => {
+      expect(result.current.loading).toBe(false);
+    });
+
+    expect(result.current.availableChallenges).toBeDefined();
+    expect(Array.isArray(result.current.availableChallenges)).toBe(true);
+  });
+
+  it('exposes discoverChallenges function', async () => {
+    const { result } = renderHook(() => useSocial({ userId: 1 }));
+
+    await waitFor(() => {
+      expect(result.current.loading).toBe(false);
+    });
+
+    expect(typeof result.current.discoverChallenges).toBe('function');
+  });
+
+  it('discoverChallenges calls API and updates availableChallenges', async () => {
+    mockDiscoverChallenges.mockResolvedValue(mockAvailableChallengesData);
+
+    const { result } = renderHook(() => useSocial({ userId: 1 }));
+
+    await waitFor(() => {
+      expect(result.current.loading).toBe(false);
+    });
+
+    await act(async () => {
+      await result.current.discoverChallenges();
+    });
+
+    expect(mockDiscoverChallenges).toHaveBeenCalled();
+    expect(result.current.availableChallenges).toEqual(mockAvailableChallengesData);
+  });
+
+  it('discoverChallenges passes mode filter to API', async () => {
+    mockDiscoverChallenges.mockResolvedValue([mockAvailableChallengesData[0]]);
+
+    const { result } = renderHook(() => useSocial({ userId: 1 }));
+
+    await waitFor(() => {
+      expect(result.current.loading).toBe(false);
+    });
+
+    await act(async () => {
+      await result.current.discoverChallenges('fitness');
+    });
+
+    expect(mockDiscoverChallenges).toHaveBeenCalledWith('fitness');
+    expect(result.current.availableChallenges).toHaveLength(1);
+    expect(result.current.availableChallenges[0].mode).toBe('fitness');
   });
 });

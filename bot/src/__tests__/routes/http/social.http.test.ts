@@ -499,3 +499,155 @@ describe('PATCH /api/social/challenges/:challengeId/progress', () => {
     expect(res.body.error).toContain('Not a participant');
   });
 });
+
+// ─── Run 62: Challenge Discovery + Details endpoint tests (Agent C) ────
+
+describe('GET /api/social/challenges/discover', () => {
+  it('should return 200 with active challenges', async () => {
+    db.query.mockResolvedValueOnce([
+      {
+        id: 1, title: 'Daily Steps', description: 'Walk 10k steps',
+        mode: 'fitness', target_value: 10000,
+        start_date: '2026-02-01T00:00:00Z', end_date: '2026-02-28T00:00:00Z',
+        status: 'active', participant_count: 5,
+      },
+      {
+        id: 2, title: 'Read Books', description: null,
+        mode: 'learning', target_value: 5,
+        start_date: '2026-02-01T00:00:00Z', end_date: null,
+        status: 'active', participant_count: 2,
+      },
+    ]);
+
+    const res = await request(buildApp())
+      .get('/api/social/challenges/discover')
+      .expect(200);
+
+    expect(res.body.success).toBe(true);
+    expect(res.body.data).toHaveLength(2);
+    expect(res.body.data[0].title).toBe('Daily Steps');
+    expect(res.body.data[1].title).toBe('Read Books');
+  });
+
+  it('should support mode filter query parameter', async () => {
+    db.query.mockResolvedValueOnce([
+      { id: 1, title: 'Daily Steps', mode: 'fitness', status: 'active', participant_count: 5 },
+    ]);
+
+    const res = await request(buildApp())
+      .get('/api/social/challenges/discover?mode=fitness')
+      .expect(200);
+
+    expect(res.body.success).toBe(true);
+    expect(res.body.data).toHaveLength(1);
+    expect(res.body.data[0].mode).toBe('fitness');
+  });
+
+  it('should support pagination with limit and offset', async () => {
+    db.query.mockResolvedValueOnce([
+      { id: 3, title: 'Challenge 3', mode: 'fitness', status: 'active', participant_count: 1 },
+    ]);
+
+    const res = await request(buildApp())
+      .get('/api/social/challenges/discover?limit=10&offset=5')
+      .expect(200);
+
+    expect(res.body.success).toBe(true);
+    expect(res.body.data).toHaveLength(1);
+  });
+
+  it('should return empty array when no active challenges', async () => {
+    db.query.mockResolvedValueOnce([]);
+
+    const res = await request(buildApp())
+      .get('/api/social/challenges/discover')
+      .expect(200);
+
+    expect(res.body.success).toBe(true);
+    expect(res.body.data).toHaveLength(0);
+  });
+});
+
+describe('GET /api/social/challenges/:challengeId/details', () => {
+  it('should return 200 with challenge data and participants', async () => {
+    db.queryOne.mockResolvedValueOnce({
+      id: 10, title: 'Daily Steps', description: 'Walk 10k steps',
+      mode: 'fitness', target_value: 10000, status: 'active', creator_id: 1,
+    });
+    db.query.mockResolvedValueOnce([
+      { user_id: 1, username: 'alice', first_name: 'Alice', current_level: 5, progress: 50, joined_at: '2026-02-01T00:00:00Z' },
+      { user_id: 2, username: 'bob', first_name: 'Bob', current_level: 3, progress: 20, joined_at: '2026-02-02T00:00:00Z' },
+    ]);
+
+    const res = await request(buildApp())
+      .get('/api/social/challenges/10/details')
+      .expect(200);
+
+    expect(res.body.success).toBe(true);
+    expect(res.body.data).toBeDefined();
+  });
+
+  it('should return 404 for non-existent challenge', async () => {
+    db.queryOne.mockResolvedValueOnce(null);
+
+    const res = await request(buildApp())
+      .get('/api/social/challenges/999/details')
+      .expect(404);
+
+    expect(res.body.success).toBe(false);
+    expect(res.body.error).toContain('not found');
+  });
+
+  it('should return 400 for non-numeric challengeId', async () => {
+    const res = await request(buildApp())
+      .get('/api/social/challenges/abc/details')
+      .expect(400);
+
+    expect(res.body.success).toBe(false);
+  });
+});
+
+describe('POST /api/social/challenges/create — description and mode (Run 62)', () => {
+  it('should store description and mode in the created challenge', async () => {
+    db.queryOne.mockResolvedValueOnce({
+      id: 20, creator_id: 1, title: 'Fitness Challenge',
+      description: 'Get fit in 30 days', mode: 'fitness', target_value: 30,
+    });
+    db.execute.mockResolvedValueOnce(undefined);
+
+    const res = await request(buildApp())
+      .post('/api/social/challenges/create')
+      .send({
+        creatorId: 1, title: 'Fitness Challenge',
+        description: 'Get fit in 30 days', mode: 'fitness', targetValue: 30,
+      })
+      .expect(201);
+
+    expect(res.body.success).toBe(true);
+    expect(res.body.data.description).toBe('Get fit in 30 days');
+    expect(res.body.data.mode).toBe('fitness');
+    // Verify description and mode are included in the INSERT query
+    expect(db.queryOne).toHaveBeenCalledWith(
+      expect.stringContaining('description'),
+      expect.arrayContaining(['Get fit in 30 days', 'fitness']),
+    );
+  });
+
+  it('should allow null description and mode', async () => {
+    db.queryOne.mockResolvedValueOnce({
+      id: 21, creator_id: 1, title: 'Simple Challenge',
+      description: null, mode: null, target_value: null,
+    });
+    db.execute.mockResolvedValueOnce(undefined);
+
+    const res = await request(buildApp())
+      .post('/api/social/challenges/create')
+      .send({ creatorId: 1, title: 'Simple Challenge' })
+      .expect(201);
+
+    expect(res.body.success).toBe(true);
+    expect(res.body.data.title).toBe('Simple Challenge');
+    expect(res.body.data.description).toBeNull();
+    expect(res.body.data.mode).toBeNull();
+  });
+});

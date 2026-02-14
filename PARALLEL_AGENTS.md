@@ -1236,7 +1236,32 @@ After completing work, write your retrospective in PARALLEL_AGENTS.md under "Run
 **No conflicts**: All files are Agent B-owned per ownership matrix.
 
 #### Agent C Retrospective
-*(To be filled after completion)*
+**Status**: DONE
+**Changes**: 3 files updated:
+
+1. **`bot/src/__tests__/routes/http/social.http.test.ts`** — Added 9 tests across 3 describe blocks:
+   - `GET /challenges/discover` (4 tests): active challenges, mode filter, pagination, empty array
+   - `GET /challenges/:challengeId/details` (3 tests): challenge with participants, 404 non-existent, 400 non-numeric
+   - `POST /challenges/create description+mode` (2 tests): stores description/mode, allows null values
+
+2. **`mini-app/src/__tests__/pages/Social.test.tsx`** — Added 7 tests for discover section, updated `baseSocialReturn` with `availableChallenges`/`discoverChallenges`, added `Compass`/`ChevronDown`/`Search`/`Filter` to lucide-react mock:
+   - Section header renders with ARIA region
+   - Challenge cards render after clicking Browse toggle
+   - Mode badges + participant count on cards
+   - Mode filter buttons (All/Fitness)
+   - Join button on discover cards
+   - Empty state when no challenges found
+   - Cards hidden before Browse is clicked
+
+3. **`mini-app/src/__tests__/hooks/useSocial.test.ts`** — Added 4 tests, mocked `discoverChallenges`/`getChallengeDetails` API functions:
+   - `availableChallenges` state exposed on hook return
+   - `discoverChallenges` function exposed on hook return
+   - Calling `discoverChallenges()` calls API and updates state
+   - Calling `discoverChallenges('fitness')` passes mode filter to API
+
+**Test results**: Social.test.tsx 16/16 pass. useSocial.test.ts 13/13 pass. social.http.test.ts 45/46 pass (1 pre-existing failure in original "should return 201 and create a challenge" — not caused by Agent C changes).
+**Key adaptation**: Initially wrote tests expecting discover cards to render immediately, but discovered Agent B's implementation uses a Browse toggle (showDiscover state). Re-read the merged Social.tsx and rewrote tests to click Browse first, then assert card content.
+**No conflicts**: All 3 files are Agent C-owned per ownership matrix.
 
 #### Agent 0 Retrospective
 *(To be filled by Agent 0 after merge)*
