@@ -343,6 +343,38 @@ ON CONFLICT DO NOTHING;
 -- The 'subscriber' tier is verified via Telegram getChatMember API with 1-hour cache.
 
 -- ========================================
+-- SHOP ITEMS (Run 68)
+-- ========================================
+
+-- Premium Achievements (purchasable only — no normal unlock criteria)
+INSERT INTO shop_items (type, name, description, price_stars, price_xp, rarity, icon_emoji, is_featured, sort_order) VALUES
+('achievement', 'Golden Collector', 'A prestigious badge for dedicated collectors who go above and beyond.', 50, 0, 'epic', '🥇', true, 1),
+('achievement', 'Diamond Streak', 'Proof of unwavering commitment — only the most disciplined earn this.', 100, 0, 'legendary', '💎', true, 2),
+('achievement', 'Platinum Social', 'A mark of social excellence and community leadership.', 75, 0, 'epic', '🤝', false, 3),
+('achievement', 'Ruby Mastery', 'The rarest badge — symbolizing true mastery across all modes.', 150, 0, 'legendary', '❤️‍🔥', true, 4)
+ON CONFLICT DO NOTHING;
+
+-- Rare Avatar Items
+INSERT INTO shop_items (type, name, description, price_stars, price_xp, rarity, icon_emoji, sort_order) VALUES
+('avatar_item', 'Neon Mohawk', 'A glowing neon mohawk hairstyle that pulses with energy.', 40, 200, 'rare', '💇', 10),
+('avatar_item', 'Shadow Cloak', 'A mysterious dark cloak that trails wisps of shadow.', 60, 0, 'epic', '🧥', 11),
+('avatar_item', 'Crystal Crown', 'A crown of pure crystal shards that refracts light beautifully.', 80, 0, 'legendary', '👑', 12),
+('avatar_item', 'Flame Wings', 'Blazing phoenix wings that leave embers in your wake.', 70, 350, 'epic', '🔥', 13)
+ON CONFLICT DO NOTHING;
+
+-- Trophy Boosters
+INSERT INTO shop_items (type, name, description, price_stars, price_xp, rarity, icon_emoji, sort_order) VALUES
+('trophy_booster', 'Trophy Revealer', 'Reveals hidden trophy criteria so you know exactly what to aim for.', 25, 150, 'rare', '🔍', 20),
+('trophy_booster', 'Trophy Accelerator', '2x trophy progress speed for 24 hours. Stack the odds in your favor.', 50, 0, 'epic', '⚡', 21)
+ON CONFLICT DO NOTHING;
+
+-- XP Boosters
+INSERT INTO shop_items (type, name, description, price_stars, price_xp, rarity, icon_emoji, sort_order) VALUES
+('xp_booster', 'XP Doubler 24h', 'Double all XP earned for 24 hours. Perfect for grinding sessions.', 30, 500, 'rare', '✨', 30),
+('xp_booster', 'XP Surge', '50% bonus XP for an entire week. Sustained growth accelerator.', 100, 0, 'epic', '🚀', 31)
+ON CONFLICT DO NOTHING;
+
+-- ========================================
 -- VERIFICATION QUERIES
 -- ========================================
 
@@ -350,3 +382,4 @@ ON CONFLICT DO NOTHING;
 -- SELECT 'Modes:', COUNT(*) FROM modes;
 -- SELECT 'Achievements:', COUNT(*) FROM achievements;
 -- SELECT 'Quest Templates:', COUNT(*) FROM quests;
+-- SELECT 'Shop Items:', COUNT(*) FROM shop_items;
