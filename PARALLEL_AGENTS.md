@@ -2274,7 +2274,22 @@ This is the **#1 lesson from Runs 65-66**: reading actual source before writing 
 *(To be filled by Agent A)*
 
 #### Agent B Retrospective
-*(To be filled by Agent B)*
+**Status**: DONE — all 3 tasks completed, 3 commits on `feature/r67-trophy-backend`.
+
+**What was built:**
+1. **Migration** (`database/migrations/run67_trophy_tables.sql`): `trophies` and `user_trophies` tables with indexes on `user_id` and `trophy_id`.
+2. **Seeds** (`database/seed_data.sql`): 17 trophies across 6 categories — Beginner (3 common), Streak (2 rare + 1 epic), Social (2 rare + 1 epic), Mastery (3 epic), Prestige (3 legendary), Special (1 epic + 1 legendary).
+3. **API route** (`bot/src/api/routes/trophies.ts`): 3 endpoints:
+   - `GET /api/trophies` — public catalog of all trophies
+   - `GET /api/trophies/:userId` — user's earned trophies with `earned_at`
+   - `GET /api/trophies/:userId/check` — checks user stats against all unearned trophy criteria and awards new ones; returns newly awarded trophies
+
+**Trophy criteria types** (for Agent C/D/E reference):
+`quest_count`, `level`, `friend_count`, `streak_days`, `xp_total`, `achievement_count`, `mode_count`, `challenge_created`, `challenge_wins`, `first_purchase`, `early_adopter`
+
+**Exported**: `trophyRouter` — Agent D should wire it in `server.ts` as `app.use('/api/trophies', trophyRouter)` with import from `'./routes/trophies.js'`.
+
+**No issues encountered.** TypeScript compiles clean (`tsc --noEmit` passes).
 
 #### Agent C Retrospective
 
