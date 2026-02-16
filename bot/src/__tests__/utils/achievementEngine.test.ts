@@ -226,3 +226,203 @@ describe('checkAndUnlockAchievements', () => {
     expect(result).toEqual([]);
   });
 });
+
+// ─── Run 65: New criteria type tests ────────────────────────────────
+
+describe('checkAndUnlockAchievements — friend_count criteria', () => {
+  it('unlocks when user has enough friends', async () => {
+    const achievement = makeAchievement(10, { type: 'friend_count', count: 5 }, 150);
+
+    // 1st queryOne → user stats
+    mockQueryOne.mockResolvedValueOnce(userRow);
+    // query → available achievements
+    mockQuery.mockResolvedValueOnce([achievement]);
+    // 2nd queryOne → friend count query inside checkCriteriaMet
+    mockQueryOne.mockResolvedValueOnce({ cnt: 7 });
+
+    mockTransaction.mockImplementationOnce(async (fn: any) => {
+      const mockClient = { query: vi.fn().mockResolvedValueOnce({ rows: [{ id: 10 }] }) };
+      return fn(mockClient);
+    });
+
+    const result = await checkAndUnlockAchievements(1);
+    expect(result).toHaveLength(1);
+    expect(result[0].id).toBe(10);
+  });
+
+  it('does not unlock when user has insufficient friends', async () => {
+    const achievement = makeAchievement(10, { type: 'friend_count', count: 5 }, 150);
+
+    mockQueryOne.mockResolvedValueOnce(userRow);
+    mockQuery.mockResolvedValueOnce([achievement]);
+    // Only 2 friends, need 5
+    mockQueryOne.mockResolvedValueOnce({ cnt: 2 });
+
+    const result = await checkAndUnlockAchievements(1);
+    expect(result).toEqual([]);
+    expect(mockTransaction).not.toHaveBeenCalled();
+  });
+});
+
+describe('checkAndUnlockAchievements — challenge_created criteria', () => {
+  it('unlocks when user has created enough challenges', async () => {
+    const achievement = makeAchievement(11, { type: 'challenge_created', count: 1 }, 75);
+
+    mockQueryOne.mockResolvedValueOnce(userRow);
+    mockQuery.mockResolvedValueOnce([achievement]);
+    mockQueryOne.mockResolvedValueOnce({ cnt: 3 });
+
+    mockTransaction.mockImplementationOnce(async (fn: any) => {
+      const mockClient = { query: vi.fn().mockResolvedValueOnce({ rows: [{ id: 11 }] }) };
+      return fn(mockClient);
+    });
+
+    const result = await checkAndUnlockAchievements(1);
+    expect(result).toHaveLength(1);
+  });
+
+  it('does not unlock when user has created no challenges', async () => {
+    const achievement = makeAchievement(11, { type: 'challenge_created', count: 1 }, 75);
+
+    mockQueryOne.mockResolvedValueOnce(userRow);
+    mockQuery.mockResolvedValueOnce([achievement]);
+    mockQueryOne.mockResolvedValueOnce({ cnt: 0 });
+
+    const result = await checkAndUnlockAchievements(1);
+    expect(result).toEqual([]);
+  });
+});
+
+describe('checkAndUnlockAchievements — challenge_completed criteria', () => {
+  it('unlocks when user has completed enough challenges', async () => {
+    const achievement = makeAchievement(12, { type: 'challenge_completed', count: 5 }, 250);
+
+    mockQueryOne.mockResolvedValueOnce(userRow);
+    mockQuery.mockResolvedValueOnce([achievement]);
+    mockQueryOne.mockResolvedValueOnce({ cnt: 6 });
+
+    mockTransaction.mockImplementationOnce(async (fn: any) => {
+      const mockClient = { query: vi.fn().mockResolvedValueOnce({ rows: [{ id: 12 }] }) };
+      return fn(mockClient);
+    });
+
+    const result = await checkAndUnlockAchievements(1);
+    expect(result).toHaveLength(1);
+  });
+
+  it('does not unlock when user has completed too few challenges', async () => {
+    const achievement = makeAchievement(12, { type: 'challenge_completed', count: 5 }, 250);
+
+    mockQueryOne.mockResolvedValueOnce(userRow);
+    mockQuery.mockResolvedValueOnce([achievement]);
+    mockQueryOne.mockResolvedValueOnce({ cnt: 3 });
+
+    const result = await checkAndUnlockAchievements(1);
+    expect(result).toEqual([]);
+  });
+});
+
+describe('checkAndUnlockAchievements — night_quest criteria', () => {
+  it('unlocks when user has completed a quest after the specified hour', async () => {
+    const achievement = makeAchievement(13, { type: 'night_quest', hour: 22 }, 100);
+
+    mockQueryOne.mockResolvedValueOnce(userRow);
+    mockQuery.mockResolvedValueOnce([achievement]);
+    mockQueryOne.mockResolvedValueOnce({ cnt: 1 });
+
+    mockTransaction.mockImplementationOnce(async (fn: any) => {
+      const mockClient = { query: vi.fn().mockResolvedValueOnce({ rows: [{ id: 13 }] }) };
+      return fn(mockClient);
+    });
+
+    const result = await checkAndUnlockAchievements(1);
+    expect(result).toHaveLength(1);
+  });
+
+  it('does not unlock when no quests completed after the hour', async () => {
+    const achievement = makeAchievement(13, { type: 'night_quest', hour: 22 }, 100);
+
+    mockQueryOne.mockResolvedValueOnce(userRow);
+    mockQuery.mockResolvedValueOnce([achievement]);
+    mockQueryOne.mockResolvedValueOnce({ cnt: 0 });
+
+    const result = await checkAndUnlockAchievements(1);
+    expect(result).toEqual([]);
+  });
+});
+
+describe('checkAndUnlockAchievements — early_quest criteria', () => {
+  it('unlocks when user has completed a quest before the specified hour', async () => {
+    const achievement = makeAchievement(14, { type: 'early_quest', hour: 6 }, 100);
+
+    mockQueryOne.mockResolvedValueOnce(userRow);
+    mockQuery.mockResolvedValueOnce([achievement]);
+    mockQueryOne.mockResolvedValueOnce({ cnt: 1 });
+
+    mockTransaction.mockImplementationOnce(async (fn: any) => {
+      const mockClient = { query: vi.fn().mockResolvedValueOnce({ rows: [{ id: 14 }] }) };
+      return fn(mockClient);
+    });
+
+    const result = await checkAndUnlockAchievements(1);
+    expect(result).toHaveLength(1);
+  });
+});
+
+describe('checkAndUnlockAchievements — weekend_quests criteria', () => {
+  it('unlocks when user has enough weekend quest completions', async () => {
+    const achievement = makeAchievement(15, { type: 'weekend_quests', count: 10 }, 200);
+
+    mockQueryOne.mockResolvedValueOnce(userRow);
+    mockQuery.mockResolvedValueOnce([achievement]);
+    mockQueryOne.mockResolvedValueOnce({ cnt: 12 });
+
+    mockTransaction.mockImplementationOnce(async (fn: any) => {
+      const mockClient = { query: vi.fn().mockResolvedValueOnce({ rows: [{ id: 15 }] }) };
+      return fn(mockClient);
+    });
+
+    const result = await checkAndUnlockAchievements(1);
+    expect(result).toHaveLength(1);
+  });
+
+  it('does not unlock when user has insufficient weekend quests', async () => {
+    const achievement = makeAchievement(15, { type: 'weekend_quests', count: 10 }, 200);
+
+    mockQueryOne.mockResolvedValueOnce(userRow);
+    mockQuery.mockResolvedValueOnce([achievement]);
+    mockQueryOne.mockResolvedValueOnce({ cnt: 4 });
+
+    const result = await checkAndUnlockAchievements(1);
+    expect(result).toEqual([]);
+  });
+});
+
+describe('checkAndUnlockAchievements — all_daily_complete criteria', () => {
+  it('unlocks when user has enough perfect days', async () => {
+    const achievement = makeAchievement(16, { type: 'all_daily_complete', days: 7 }, 300);
+
+    mockQueryOne.mockResolvedValueOnce(userRow);
+    mockQuery.mockResolvedValueOnce([achievement]);
+    mockQueryOne.mockResolvedValueOnce({ cnt: 10 });
+
+    mockTransaction.mockImplementationOnce(async (fn: any) => {
+      const mockClient = { query: vi.fn().mockResolvedValueOnce({ rows: [{ id: 16 }] }) };
+      return fn(mockClient);
+    });
+
+    const result = await checkAndUnlockAchievements(1);
+    expect(result).toHaveLength(1);
+  });
+
+  it('does not unlock when user has too few perfect days', async () => {
+    const achievement = makeAchievement(16, { type: 'all_daily_complete', days: 7 }, 300);
+
+    mockQueryOne.mockResolvedValueOnce(userRow);
+    mockQuery.mockResolvedValueOnce([achievement]);
+    mockQueryOne.mockResolvedValueOnce({ cnt: 3 });
+
+    const result = await checkAndUnlockAchievements(1);
+    expect(result).toEqual([]);
+  });
+});

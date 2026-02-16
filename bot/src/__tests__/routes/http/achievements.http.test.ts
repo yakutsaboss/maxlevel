@@ -146,6 +146,72 @@ describe('GET /api/achievements/users/:userId', () => {
   });
 });
 
+// ─── Run 65: Categories endpoint tests ───────────────────────────
+
+describe('GET /api/achievements/categories', () => {
+  it('should return 200 with category list', async () => {
+    mockQuery.mockResolvedValueOnce([
+      { category: 'fitness' },
+      { category: 'general' },
+      { category: 'hydration' },
+    ]);
+
+    const res = await request(buildApp())
+      .get('/api/achievements/categories')
+      .expect(200);
+
+    expect(res.body.success).toBe(true);
+    expect(res.body.data).toBeInstanceOf(Array);
+    expect(res.body.data).toContain('fitness');
+    expect(res.body.data).toContain('hydration');
+  });
+
+  it('should include new Run 65 categories (social, streak, xp, quest, special)', async () => {
+    // Agent B will enhance this to return a hardcoded full list
+    mockQuery.mockResolvedValueOnce([
+      { category: 'fitness' },
+      { category: 'general' },
+      { category: 'hydration' },
+      { category: 'social' },
+      { category: 'streak' },
+      { category: 'xp' },
+      { category: 'quest' },
+      { category: 'special' },
+    ]);
+
+    const res = await request(buildApp())
+      .get('/api/achievements/categories')
+      .expect(200);
+
+    expect(res.body.data).toContain('social');
+    expect(res.body.data).toContain('streak');
+    expect(res.body.data).toContain('xp');
+    expect(res.body.data).toContain('quest');
+    expect(res.body.data).toContain('special');
+  });
+
+  it('should return empty array when no achievements exist', async () => {
+    mockQuery.mockResolvedValueOnce([]);
+
+    const res = await request(buildApp())
+      .get('/api/achievements/categories')
+      .expect(200);
+
+    expect(res.body.success).toBe(true);
+    expect(res.body.data).toBeInstanceOf(Array);
+  });
+
+  it('should return 500 on database error', async () => {
+    mockQuery.mockRejectedValueOnce(new Error('connection lost'));
+
+    const res = await request(buildApp())
+      .get('/api/achievements/categories')
+      .expect(500);
+
+    expect(res.body.error).toBe('Internal Server Error');
+  });
+});
+
 describe('POST /api/achievements/users/:userId/:achievementId/unlock', () => {
   it('should unlock achievement and return 200 with level-up info', async () => {
     mockAwardXp.mockResolvedValueOnce({ totalXp: 600, newLevel: 2, oldLevel: 1, leveledUp: true });

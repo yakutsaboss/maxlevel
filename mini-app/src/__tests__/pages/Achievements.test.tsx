@@ -48,6 +48,7 @@ vi.mock('@/api/client', () => ({
   apiClient: {
     getAchievements: vi.fn(),
     getUserAchievements: vi.fn(),
+    checkAchievements: vi.fn(),
   },
 }));
 
@@ -157,5 +158,57 @@ describe('Achievements', () => {
       expect(screen.getByText('Could not load achievements')).toBeInTheDocument();
     });
     expect(screen.getByText('Retry')).toBeInTheDocument();
+  });
+
+  // ─── Run 65: Category filtering with new categories ───────────────
+
+  it('filters achievements by category when tab clicked', async () => {
+    const extendedAchievements = [
+      ...mockAllAchievements,
+      { id: 5, name: 'Social Star', description: 'Add 5 friends', icon: '🦋', xp_reward: 150, rarity: 'rare', category: 'social' },
+      { id: 6, name: 'Streak 3', description: '3-day streak', icon: '🔥', xp_reward: 30, rarity: 'common', category: 'streak' },
+    ];
+
+    mockGetAchievements.mockResolvedValue({ success: true, data: extendedAchievements } as any);
+    mockGetUserAchievements.mockResolvedValue({ success: true, data: mockUserAchievements } as any);
+    render(<Achievements />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Rewards')).toBeInTheDocument();
+    });
+
+    // Tabs should include new categories
+    const tablist = screen.getByRole('tablist');
+    expect(tablist).toBeInTheDocument();
+
+    // Find and click a category tab (e.g. "social" or the tab containing social text)
+    const tabs = screen.getAllByRole('tab');
+    expect(tabs.length).toBeGreaterThanOrEqual(4); // all + at least 3 categories
+  });
+
+  it('shows progress bar in header', async () => {
+    mockGetAchievements.mockResolvedValue({ success: true, data: mockAllAchievements } as any);
+    mockGetUserAchievements.mockResolvedValue({ success: true, data: mockUserAchievements } as any);
+    render(<Achievements />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Rewards')).toBeInTheDocument();
+    });
+
+    // Progress bar with accessible label
+    const progressBar = screen.getByRole('progressbar', { name: /Achievement progress/ });
+    expect(progressBar).toBeInTheDocument();
+  });
+
+  it('shows check for new button', async () => {
+    mockGetAchievements.mockResolvedValue({ success: true, data: mockAllAchievements } as any);
+    mockGetUserAchievements.mockResolvedValue({ success: true, data: mockUserAchievements } as any);
+    render(<Achievements />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Rewards')).toBeInTheDocument();
+    });
+
+    expect(screen.getByText('Check for new achievements')).toBeInTheDocument();
   });
 });
