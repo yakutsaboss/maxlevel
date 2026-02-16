@@ -228,3 +228,30 @@ a:focus-visible,
 .achievement-new {
   animation: achievementGlow 2s ease-in-out infinite;
 }
+
+/* Trophy card shimmer for earned trophies */
+@keyframes trophyShine {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+.trophy-card-shine {
+  position: relative;
+  overflow: hidden;
+}
+
+.trophy-card-shine::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    120deg,
+    transparent 30%,
+    rgba(255, 255, 255, 0.15) 50%,
+    transparent 70%
+  );
+  background-size: 200% 100%;
+  animation: trophyShine 3s ease-in-out infinite;
+  pointer-events: none;
+  border-radius: inherit;
+}
