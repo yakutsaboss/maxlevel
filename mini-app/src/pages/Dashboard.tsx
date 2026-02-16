@@ -20,6 +20,7 @@ import { ModeCard } from '@/components/dashboard/ModeCard';
 import { QuestCardMini } from '@/components/dashboard/QuestCardMini';
 import { DashboardAchievementCard } from '@/components/dashboard/DashboardAchievementCard';
 import { DashboardSkeleton } from '@/components/dashboard/DashboardSkeleton';
+import { AvatarRenderer, type EquippedItems } from '@/components/avatar';
 import { getDailyQuote } from '@/data/motivationalQuotes';
 
 function getGreetingKey(): string {
@@ -80,6 +81,11 @@ export function Dashboard() {
       <PullIndicator pullDistance={pullDistance} refreshing={refreshing} pullThreshold={pullThreshold} />
       <div className="bg-gradient-to-br from-purple-600 to-blue-600 p-6 rounded-b-3xl shadow-lg safe-area-top">
         <div className="flex items-center justify-between mb-4">
+          {(stats.user as any).equipped_items && (
+            <div className="flex-shrink-0 mr-3">
+              <AvatarRenderer equipped={(stats.user as any).equipped_items as EquippedItems} size="md" />
+            </div>
+          )}
           <div className="min-w-0 flex-1 mr-3">
             <h1 className="text-2xl font-bold text-white truncate">{t(getGreetingKey())}, {stats.user.first_name}!</h1>
             <p className="text-purple-100 text-sm truncate">{stats.user.username ? `@${stats.user.username}` : t('dashboard.rpgAdventurer')}</p>

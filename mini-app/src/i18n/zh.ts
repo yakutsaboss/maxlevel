@@ -182,6 +182,9 @@ export default {
     avatarRogue: "盗贼",
     avatarNight: "夜",
     avatarDawn: "黎明",
+    customizeAvatar: "自定义头像",
+    customizeAvatarDesc: "创建你的独特像素角色",
+    openAvatarStudio: "打开头像工作室",
   },
   settings: {
     title: "设置",
