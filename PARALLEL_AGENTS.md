@@ -2772,7 +2772,40 @@ git merge origin/feature/r68-premium-badges --no-edit
 *(To be filled by Agent B)*
 
 #### Agent C Retrospective
-*(To be filled by Agent C)*
+
+**Status:** All 4 tasks completed, 4 commits made.
+
+**Files created (all NEW, owned by Agent C):**
+- `mini-app/src/api/shop.ts` — Shop API client with `fetchShopItems`, `fetchShopItem`, `purchaseItem`, `fetchPurchaseHistory`. Types: `ShopItem`, `Purchase`, `PurchaseRequest`, `PurchaseResult`, `ShopItemType`, `ShopItemRarity`, `PaymentMethod`.
+- `mini-app/src/hooks/usePurchase.ts` — Purchase flow state machine hook. States: `idle → confirming → processing → success | error → idle`. Exposes `startPurchase`, `confirmPurchase`, `dismissResult`, `cancelPurchase`.
+- `mini-app/src/components/shop/PurchaseModal.tsx` — Bottom-sheet modal with item icon hero, rarity badge, description, dual payment buttons (Stars/XP), loading spinner, error state with retry, drag-to-close.
+- `mini-app/src/components/shop/PurchaseSuccessAnimation.tsx` — Full-screen overlay with 45 confetti particles, item icon pop-in, glow ring, "Purchase Complete!" text, "Continue" button, auto-dismiss after 3s.
+
+**Patterns followed:**
+- API client: same `request<T>` + `getAuthHeaders()` pattern as `trophies.ts`
+- Hook: same `useRef(false)` guard + `useCallback` pattern as `usePayment.ts`
+- Modal: same bottom-sheet pattern as `TrophyDetailModal.tsx` (drag, backdrop, spring transition)
+- Animation: same confetti + glow ring pattern as `LevelUpModal.tsx` + `Confetti.tsx`
+
+**i18n keys used (all need to be added to en.ts/ru.ts/zh.ts in a future run):**
+- `shop.close` — Close button aria-label
+- `shop.rarity_common` — "Common" rarity label
+- `shop.rarity_uncommon` — "Uncommon" rarity label
+- `shop.rarity_rare` — "Rare" rarity label
+- `shop.rarity_epic` — "Epic" rarity label
+- `shop.rarity_legendary` — "Legendary" rarity label
+- `shop.confirmPurchase` — "Choose payment method" header
+- `shop.payWithStars` — "Pay with {{amount}} ⭐" button
+- `shop.payWithXp` — "Pay with {{amount}} XP" button
+- `shop.retryWithStars` — "Retry with {{amount}} ⭐" button (error state)
+- `shop.retryWithXp` — "Retry with {{amount}} XP" button (error state)
+- `shop.processing` — "Processing purchase..." loading text
+- `shop.cancel` — "Cancel" button
+- `shop.purchaseComplete` — "Purchase Complete!" success text
+- `shop.continue` — "Continue" dismiss button
+- `shop.tapToDismiss` — "Tap to dismiss" hint
+
+**No conflicts expected:** Agent C only created new files in `mini-app/src/api/`, `mini-app/src/hooks/`, and `mini-app/src/components/shop/`. No existing files were modified.
 
 #### Agent D Retrospective
 *(To be filled by Agent D)*
