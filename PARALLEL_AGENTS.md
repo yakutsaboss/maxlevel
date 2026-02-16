@@ -2277,7 +2277,54 @@ This is the **#1 lesson from Runs 65-66**: reading actual source before writing 
 *(To be filled by Agent B)*
 
 #### Agent C Retrospective
-*(To be filled by Agent C)*
+
+**Status:** All 6 tasks completed, 6 commits made.
+
+**Files created:**
+- `mini-app/src/api/trophies.ts` — API client with `fetchAllTrophies()`, `fetchUserTrophies(userId)`, `checkTrophies(userId)`. Types: `Trophy`, `UserTrophy`, `TrophyCheckResult`.
+- `mini-app/src/hooks/useTrophies.ts` — Hook returning `{ allTrophies, earnedTrophies, loading, error, checkForNew, refresh }`. Auto-checks for new trophies on first load.
+- `mini-app/src/components/trophies/TrophyCard.tsx` — Grid card with earned shimmer, grayscale+lock for unearned, rarity badge, Framer Motion tap feedback.
+- `mini-app/src/components/trophies/TrophyDetailModal.tsx` — Bottom-sheet modal with swipe-to-dismiss, rarity gradient header, earned date, criteria progress hints.
+- `mini-app/src/components/trophies/TrophyCaseSkeleton.tsx` — Skeleton matching TrophyCase layout.
+- `mini-app/src/pages/TrophyCase.tsx` — Full page with header, progress bar, "Earned"/"All" tabs, 2-column grid, pull-to-refresh, back button → /profile.
+
+**Files modified:**
+- `mini-app/src/index.css` — Added `@keyframes trophyShine` and `.trophy-card-shine` for earned trophy shimmer effect.
+
+**i18n keys used (Agent D needs these):**
+- `trophy.title` — "Trophy Case"
+- `trophy.earnedCount` — "{{earned}}/{{total}} earned" (interpolation: `earned`, `total`)
+- `trophy.checking` — "Checking..."
+- `trophy.newEarned` — "{{count}} new!" (interpolation: `count`)
+- `trophy.checkForNew` — "Check for new trophies"
+- `trophy.tab_earned` — "Earned"
+- `trophy.tab_all` — "All"
+- `trophy.noEarned` — "No trophies earned yet"
+- `trophy.noTrophies` — "No trophies available"
+- `trophy.couldNotLoad` — "Could not load trophies"
+- `trophy.close` — "Close"
+- `trophy.earnedOn` — "Earned on {{date}}" (interpolation: `date`)
+- `trophy.howToEarn` — "How to earn"
+- `trophy.rarity_common` — "Common"
+- `trophy.rarity_rare` — "Rare"
+- `trophy.rarity_epic` — "Epic"
+- `trophy.rarity_legendary` — "Legendary"
+- `trophy.criteria_quest_count` — "Complete {{count}} quests"
+- `trophy.criteria_streak` — "Maintain a {{days}}-day streak"
+- `trophy.criteria_level` — "Reach level {{level}}"
+- `trophy.criteria_xp` — "Earn {{xp}} XP"
+- `trophy.criteria_friends` — "Add {{count}} friends"
+- `trophy.criteria_achievements` — "Earn {{count}} achievements"
+- `trophy.criteria_challenge_create` — "Create {{count}} challenge(s)"
+- `trophy.criteria_challenge_win` — "Win {{count}} challenge(s)"
+- `trophy.criteria_modes` — "Activate {{count}} mode(s)"
+- `trophy.criteria_unknown` — "Keep playing to unlock!"
+
+**Dependencies on other agents:**
+- Agent B: Backend endpoints `GET /trophies`, `GET /trophies/:userId`, `GET /trophies/:userId/check`
+- Agent D: i18n translations (all keys listed above), route `/trophy-case` in App.tsx, optional Navigation link
+
+**No issues encountered.** All files follow existing project patterns (avatars.ts API style, Achievements page layout, bottom-sheet modal pattern).
 
 #### Agent D Retrospective
 *(To be filled by Agent D)*
