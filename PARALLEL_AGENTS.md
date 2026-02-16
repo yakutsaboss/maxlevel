@@ -316,7 +316,7 @@ Runs 56-64 were supposed to deliver avatars, trophies, shop, and 30+ achievement
 
 | Run | Focus | Agents | Status |
 |-----|-------|--------|--------|
-| **65** | Achievement Expansion — 30+ New Achievements | 5 | ⬜ |
+| **65** | Achievement Expansion — 30+ New Achievements | 5 | 🔄 |
 | **66** | Pixel Art Avatar System | 5 | ⬜ |
 | **67** | Animated Avatars + Trophy System | 5 | ⬜ |
 | **68** | Purchasable Achievements + Stars Punishment | 5 | ⬜ |
@@ -2024,6 +2024,463 @@ Add tests to `mini-app/src/__tests__/hooks/useSocial.test.ts`:
 **Key finding:** ChallengeDetailModal's Leave button requires `onLeave` prop — it's optional and renders only when both `onLeave` provided AND user is not creator.
 
 **Files modified:** `bot/src/__tests__/routes/http/social.http.test.ts`, `mini-app/src/__tests__/components/social/ChallengeDetailModal.test.tsx` (NEW), `mini-app/src/__tests__/components/social/ChallengeForm.test.tsx`, `mini-app/src/__tests__/hooks/useSocial.test.ts`, `mini-app/src/__tests__/pages/Social.test.tsx`.
+
+#### Agent 0 Retrospective
+**Merge**: Agent A+B were already merged to main by user. Agent C merged cleanly (auto-merge, no conflicts). PARALLEL_AGENTS.md auto-merged.
+
+**Post-merge test fix (4 failures in 2 files)**:
+- `dailyQuestReset.test.ts` (3 failures) + `dailyQuestReset-fitness.test.ts` (1 failure): Both use `vi.useFakeTimers()` which inherits the real system date. Today (2026-02-16) is a Monday, triggering the Monday-only weekly quest assignment code path. This path makes extra `query()` calls the tests didn't mock, causing `Cannot read properties of undefined (reading 'length')`. Fix: pinned fake time to Tuesday `2026-02-17T00:00:00Z`. These failures were latent — only triggered when tests run on Mondays.
+
+**Agent C test quality**: All 121 tests passed without modification. Good improvement over previous runs where Agent C's tests typically needed 5-20 fixes.
+
+**Tests**: 1842 total (960 bot + 882 mini-app), 0 failures.
+**Deploy**: Commit `76452fa` verified on server. Notification sent.
+**Cleanup**: 3 worktrees removed, 3 feature branches deleted.
+
+**Schema note from Agent A**: `challenge_participants` table needs `ALTER TABLE challenge_participants ADD COLUMN completed_at TIMESTAMPTZ;` for the completion auto-detection feature to work at runtime. Carried forward.
+
+---
+
+## Run 65 — Achievement Expansion: 30+ New Achievements (5 Agents + Agent 0)
+
+**Date**: 2026-02-16
+**Agents**: 5 (A-E) + Agent 0
+**Source**: MANDATORY ROADMAP Run 65
+
+**Goal**: Expand achievements from 33 to 60+ across new categories (Social, Streak, XP/Level milestones, Special) with new criteria types in the engine, a redesigned gallery UI with category tabs, celebration integration for rare+ unlocks, and full test coverage.
+
+**Current state**:
+- 33 achievements seeded: 5 per mode (fitness/hydration/finance/learning/medication/habits) + 3 cross-mode
+- Achievement engine (`achievementEngine.ts`, 223 lines) supports: level, total_xp, quest_count, streak, quest_complete, quest_complete_consecutive, multi_mode_active, streak_rebuild
+- Missing criteria types: friend_count, challenge_count, login_days (for social/special achievements)
+- Achievement gallery (`Achievements.tsx`, 184 lines) has category tabs, rarity groups, progress bar
+- Achievement notification bot job runs every 15 min
+- Hourly batch check job exists
+- 1842 tests (960 bot + 882 mini-app)
+
+### Run 65 Agents
+
+| Agent | Focus | Branch | Key Files |
+|-------|-------|--------|-----------|
+| A | Seed 30+ new achievements in DB | `feature/r65-achievement-seeds` | `database/seed_data.sql` |
+| B | Achievement engine: add new criteria types + social achievement checking | `feature/r65-achievement-engine` | `bot/src/utils/achievementEngine.ts`, `bot/src/api/routes/achievements.ts` |
+| C | Achievement gallery redesign: category tabs, progress bars, filter | `feature/r65-achievement-gallery` | `mini-app/src/pages/Achievements.tsx`, `mini-app/src/components/achievements/` |
+| D | Celebration integration for achievement unlocks + schema migration | `feature/r65-achievement-celebrate` | `bot/src/jobs/definitions/achievementNotifier.ts`, `mini-app/src/hooks/useCelebration.ts` |
+| E | Tests for all Run 65 changes | `feature/r65-achievement-tests` | `bot/src/__tests__/`, `mini-app/src/__tests__/` |
+
+### Run 65 File Ownership
+
+| File | Owner |
+|------|-------|
+| `database/seed_data.sql` | Agent A |
+| `bot/src/utils/achievementEngine.ts` | Agent B |
+| `bot/src/api/routes/achievements.ts` | Agent B |
+| `mini-app/src/pages/Achievements.tsx` | Agent C |
+| `mini-app/src/components/achievements/AchievementCard.tsx` | Agent C |
+| `mini-app/src/components/achievements/RarityGroup.tsx` | Agent C |
+| `mini-app/src/components/achievements/AchievementsSkeleton.tsx` | Agent C |
+| `mini-app/src/components/achievements/CategoryTabs.tsx` (NEW) | Agent C |
+| `mini-app/src/components/achievements/AchievementProgressBar.tsx` (NEW) | Agent C |
+| `mini-app/src/i18n/en.ts`, `ru.ts`, `zh.ts` | Agent C |
+| `bot/src/jobs/definitions/achievementNotifier.ts` | Agent D |
+| `mini-app/src/hooks/useCelebration.ts` | Agent D (GRAY — add achievement trigger) |
+| `mini-app/src/hooks/useAchievements.ts` (NEW) | Agent D |
+| `bot/src/__tests__/utils/achievementEngine.test.ts` | Agent E |
+| `bot/src/__tests__/routes/http/achievements.http.test.ts` | Agent E |
+| `mini-app/src/__tests__/pages/Achievements.test.tsx` | Agent E |
+| `mini-app/src/__tests__/hooks/useAchievements.test.ts` (NEW) | Agent E |
+| `mini-app/src/__tests__/components/achievements/*.test.tsx` | Agent E |
+
+### Run 65 Merge Order
+
+1. Agent A (seed data) — achievements must exist in DB first
+2. Agent B (engine) — new criteria types must exist before tests
+3. Agent D (celebration + hook) — depends on engine patterns
+4. Agent C (gallery UI) — depends on category structure
+5. Agent E (tests) — tests only, merge last
+
+### Run 65 Copy-Paste Prompts
+
+#### Agent A Prompt
+```
+Read c:\Users\Asus\Desktop\Wibecode-agent-a\PARALLEL_AGENTS.md — find "Run 65" and locate the "Agent A" section. You are Agent A.
+
+YOUR TASK: Add 30+ new achievements to the seed data covering Social, Streak, XP/Level, and Special categories.
+
+OWNED FILES:
+- database/seed_data.sql (modify — add new achievement INSERTs)
+
+Read the existing seed_data.sql to understand the current 33 achievements and their patterns.
+
+TASK 1 — Add Social achievements (5):
+INSERT INTO achievements (name, description, badge_icon, criteria, xp_bonus, rarity) VALUES
+('first_friend', 'First Friend', '🤝', '{"type": "friend_count", "count": 1}', 50, 'common'),
+('social_butterfly', 'Social Butterfly', '🦋', '{"type": "friend_count", "count": 5}', 150, 'rare'),
+('social_network', 'Social Network', '🌐', '{"type": "friend_count", "count": 10}', 300, 'epic'),
+('challenge_creator', 'Challenge Creator', '🎯', '{"type": "challenge_created", "count": 1}', 75, 'common'),
+('challenge_champion', 'Challenge Champion', '🏅', '{"type": "challenge_completed", "count": 5}', 250, 'epic')
+ON CONFLICT (name) DO NOTHING;
+
+TASK 2 — Add Streak achievements (6):
+('streak_3', '3-Day Streak', '🔥', '{"type": "streak", "days": 3}', 30, 'common'),
+('streak_7', '7-Day Streak', '🔥', '{"type": "streak", "days": 7}', 75, 'common'),
+('streak_14', '14-Day Streak', '🔥', '{"type": "streak", "days": 14}', 150, 'rare'),
+('streak_30', '30-Day Streak', '🔥', '{"type": "streak", "days": 30}', 300, 'epic'),
+('streak_60', '60-Day Streak', '💎', '{"type": "streak", "days": 60}', 500, 'epic'),
+('streak_100', '100-Day Streak', '👑', '{"type": "streak", "days": 100}', 1000, 'legendary')
+These use the GLOBAL streak (no mode filter), checked via user_row.current_streak in the engine.
+
+TASK 3 — Add XP/Level milestones (8):
+('level_5', already exists — skip)
+('level_10', already exists — skip)
+('level_25', 'Level 25 Expert', '🌟', '{"type": "level_reached", "level": 25}', 750, 'epic'),
+('level_50', 'Level 50 Legend', '💫', '{"type": "level_reached", "level": 50}', 1500, 'legendary'),
+('level_100', 'Level 100 Mythic', '🏆', '{"type": "level_reached", "level": 100}', 3000, 'legendary'),
+('xp_1000', '1000 XP', '⭐', '{"type": "total_xp", "amount": 1000}', 50, 'common'),
+('xp_10000', '10,000 XP', '🌟', '{"type": "total_xp", "amount": 10000}', 500, 'rare'),
+('xp_50000', '50,000 XP', '💎', '{"type": "total_xp", "amount": 50000}', 1000, 'legendary')
+
+TASK 4 — Add Quest achievements (5):
+('first_quest', 'First Quest', '📜', '{"type": "quest_count", "count": 1}', 25, 'common'),
+('quest_10', '10 Quests Done', '📋', '{"type": "quest_count", "count": 10}', 100, 'common'),
+('quest_50', '50 Quests Done', '📒', '{"type": "quest_count", "count": 50}', 250, 'rare'),
+('quest_100', '100 Quests Done', '📕', '{"type": "quest_count", "count": 100}', 500, 'epic'),
+('quest_500', '500 Quests Done', '📖', '{"type": "quest_count", "count": 500}', 1000, 'legendary')
+
+TASK 5 — Add Special achievements (6):
+('multi_mode_3', 'Triple Threat', '🎯', '{"type": "multi_mode_active", "count": 3}', 200, 'rare'),
+('multi_mode_6', 'All-Rounder', '🌈', '{"type": "multi_mode_active", "count": 6}', 500, 'legendary'),
+('night_owl', 'Night Owl', '🦉', '{"type": "night_quest", "hour": 22}', 100, 'rare'),
+('early_bird', 'Early Bird', '🐦', '{"type": "early_quest", "hour": 6}', 100, 'rare'),
+('weekend_warrior', 'Weekend Warrior', '🗓️', '{"type": "weekend_quests", "count": 10}', 200, 'epic'),
+('perfectionist', 'Perfectionist', '✨', '{"type": "all_daily_complete", "days": 7}', 300, 'epic')
+
+Add these AFTER the existing cross-mode achievements section in seed_data.sql. Use the same ON CONFLICT (name) DO NOTHING pattern.
+
+IMPORTANT: Use descriptive section comments (-- Social Achievements, -- Global Streak Achievements, etc.)
+IMPORTANT: Double-check ALL criteria JSON is valid — missing commas or quotes will break the INSERT.
+IMPORTANT: Do NOT modify existing achievement rows (only add new ones).
+
+FORBIDDEN: bot/ files, mini-app/ files, test files.
+
+After completing, write your retrospective in PARALLEL_AGENTS.md under "Run 65 Retrospectives" → "Agent A Retrospective", replacing the placeholder. Then commit all changes.
+```
+
+#### Agent B Prompt
+```
+Read c:\Users\Asus\Desktop\Wibecode-agent-b\PARALLEL_AGENTS.md — find "Run 65" and locate the "Agent B" section. You are Agent B.
+
+YOUR TASK: Add new criteria types to the achievement engine for social and special achievements.
+
+OWNED FILES:
+- bot/src/utils/achievementEngine.ts (modify — add new criteria type handlers)
+- bot/src/api/routes/achievements.ts (modify — add categories endpoint enhancement)
+
+Read the existing achievementEngine.ts to understand the current checkCriteriaMet() switch statement.
+
+TASK 1 — Add new criteria types to checkCriteriaMet() in achievementEngine.ts:
+
+Add these new cases to the switch statement:
+
+case 'friend_count': {
+  const row = await queryOne<{ cnt: number }>(
+    `SELECT COUNT(*)::int AS cnt FROM friend_requests
+     WHERE (from_user_id = $1 OR to_user_id = $1) AND status = 'accepted'`,
+    [userId]
+  );
+  return (row?.cnt ?? 0) >= (criteria.count ?? 0);
+}
+
+case 'challenge_created': {
+  const row = await queryOne<{ cnt: number }>(
+    `SELECT COUNT(*)::int AS cnt FROM challenges WHERE creator_id = $1`,
+    [userId]
+  );
+  return (row?.cnt ?? 0) >= (criteria.count ?? 0);
+}
+
+case 'challenge_completed': {
+  const row = await queryOne<{ cnt: number }>(
+    `SELECT COUNT(*)::int AS cnt FROM challenge_participants
+     WHERE user_id = $1 AND completed_at IS NOT NULL`,
+    [userId]
+  );
+  return (row?.cnt ?? 0) >= (criteria.count ?? 0);
+}
+
+case 'night_quest': {
+  // Completed a quest after 10pm
+  const row = await queryOne<{ cnt: number }>(
+    `SELECT COUNT(*)::int AS cnt FROM quest_instances
+     WHERE user_id = $1 AND status = 'completed'
+     AND EXTRACT(HOUR FROM completed_at) >= $2`,
+    [userId, criteria.hour ?? 22]
+  );
+  return (row?.cnt ?? 0) >= 1;
+}
+
+case 'early_quest': {
+  // Completed a quest before 6am
+  const row = await queryOne<{ cnt: number }>(
+    `SELECT COUNT(*)::int AS cnt FROM quest_instances
+     WHERE user_id = $1 AND status = 'completed'
+     AND EXTRACT(HOUR FROM completed_at) < $2`,
+    [userId, criteria.hour ?? 6]
+  );
+  return (row?.cnt ?? 0) >= 1;
+}
+
+case 'weekend_quests': {
+  const row = await queryOne<{ cnt: number }>(
+    `SELECT COUNT(*)::int AS cnt FROM quest_instances
+     WHERE user_id = $1 AND status = 'completed'
+     AND EXTRACT(DOW FROM instance_date) IN (0, 6)`,
+    [userId]
+  );
+  return (row?.cnt ?? 0) >= (criteria.count ?? 0);
+}
+
+case 'all_daily_complete': {
+  // Count days where ALL assigned daily quests were completed
+  const row = await queryOne<{ cnt: number }>(
+    `SELECT COUNT(*)::int AS cnt FROM (
+       SELECT instance_date
+       FROM quest_instances
+       WHERE user_id = $1 AND quest_type = 'daily'
+       GROUP BY instance_date
+       HAVING COUNT(*) FILTER (WHERE status = 'completed') = COUNT(*)
+     ) perfect_days`,
+    [userId]
+  );
+  return (row?.cnt ?? 0) >= (criteria.days ?? 0);
+}
+
+TASK 2 — Update AchievementCriteria interface:
+Add optional fields: `hour?: number` to the interface for night_quest/early_quest criteria.
+
+TASK 3 — Enhance GET /achievements/categories in achievements.ts:
+The current endpoint returns dynamically-derived categories from criteria.mode. Enhance it to also include static categories that don't have mode fields:
+Return a hardcoded list: ['fitness', 'hydration', 'finance', 'learning', 'medication', 'habits', 'social', 'streak', 'xp', 'quest', 'special']
+This ensures the mini-app can show all category tabs even before achievements for that category exist.
+
+IMPORTANT: Use .js extensions in all import paths (ESM project).
+FORBIDDEN: mini-app/ files, database/ files, test files.
+
+BUILD VERIFY: cd bot && npm run build must pass.
+
+After completing, write your retrospective in PARALLEL_AGENTS.md under "Run 65 Retrospectives" → "Agent B Retrospective", replacing the placeholder. Then commit all changes.
+```
+
+#### Agent C Prompt
+```
+Read c:\Users\Asus\Desktop\Wibecode-agent-c\PARALLEL_AGENTS.md — find "Run 65" and locate the "Agent C" section. You are Agent C.
+
+YOUR TASK: Redesign the achievement gallery with better category navigation, per-achievement progress bars, and filter/sort options.
+
+OWNED FILES:
+- mini-app/src/pages/Achievements.tsx (modify)
+- mini-app/src/components/achievements/AchievementCard.tsx (modify)
+- mini-app/src/components/achievements/RarityGroup.tsx (modify)
+- mini-app/src/components/achievements/AchievementsSkeleton.tsx (modify)
+- mini-app/src/components/achievements/CategoryTabs.tsx (NEW)
+- mini-app/src/components/achievements/AchievementProgressBar.tsx (NEW)
+- mini-app/src/i18n/en.ts (modify — add achievement keys)
+- mini-app/src/i18n/ru.ts (modify — add achievement keys)
+- mini-app/src/i18n/zh.ts (modify — add achievement keys)
+
+Read the existing Achievements.tsx and component files first.
+
+TASK 1 — Create CategoryTabs.tsx component:
+- Horizontal scrollable tab bar (like Social page tabs)
+- Categories: All, Fitness, Hydration, Finance, Learning, Medication, Habits, Social, Streak, XP, Quest, Special
+- Each tab shows count (earned/total for that category)
+- Active tab is highlighted with accent color
+- Props: categories: string[], activeCategory: string, onSelect: (cat: string) => void, counts: Record<string, { earned: number; total: number }>
+
+Category-to-achievement mapping logic:
+- Achievements with criteria.mode set → use the mode as category (fitness, hydration, etc.)
+- Achievements with criteria.type === 'friend_count' | 'challenge_created' | 'challenge_completed' → 'social'
+- Achievements with criteria.type === 'streak' AND no criteria.mode → 'streak'
+- Achievements with criteria.type === 'level' | 'level_reached' | 'total_xp' → 'xp'
+- Achievements with criteria.type === 'quest_count' → 'quest'
+- Achievements with criteria.type in ['night_quest', 'early_quest', 'weekend_quests', 'all_daily_complete', 'multi_mode_active', 'streak_rebuild'] → 'special'
+- Default fallback → 'general'
+
+TASK 2 — Create AchievementProgressBar.tsx:
+- For locked achievements: show progress toward unlocking
+- Props: criteria: object, currentValue: number, targetValue: number
+- Display: horizontal bar with percentage, e.g., "7/10 friends" or "3/7 day streak"
+- For criteria types without progress (like night_quest), show "Not yet" vs "Unlocked"
+
+TASK 3 — Enhance AchievementCard.tsx:
+- Add the AchievementProgressBar for locked achievements
+- Add rarity color glow effect (gold for legendary, purple for epic, blue for rare)
+- Add tap-to-expand: tap a card to show full description + criteria details
+
+TASK 4 — Refactor Achievements.tsx:
+- Replace the current simple category filter with CategoryTabs component
+- Add filter toggles: "Earned" / "Unearned" / "All"
+- Add sort: "Rarity" (default) / "Progress" / "Recent"
+- Keep pull-to-refresh and "Check for New" button
+
+TASK 5 — i18n keys (en, ru, zh):
+Add keys for: all category names (social, streak, xp, quest, special), filter labels (earned, unearned, all), sort labels (byRarity, byProgress, byRecent), progress text patterns.
+
+FORBIDDEN: bot/ files, database/ files, test files, hooks.
+BUILD VERIFY: cd mini-app && npm run build must pass.
+
+After completing, write your retrospective in PARALLEL_AGENTS.md under "Run 65 Retrospectives" → "Agent C Retrospective", replacing the placeholder. Then commit all changes.
+```
+
+#### Agent D Prompt
+```
+Read c:\Users\Asus\Desktop\Wibecode-agent-d\PARALLEL_AGENTS.md — find "Run 65" and locate the "Agent D" section. You are Agent D.
+
+YOUR TASK: Wire achievement unlocks into the celebration system and create a useAchievements hook. Also run the schema migration for challenge_participants.completed_at.
+
+OWNED FILES:
+- mini-app/src/hooks/useAchievements.ts (NEW)
+- mini-app/src/hooks/useCelebration.ts (GRAY — add achievement celebration trigger)
+- bot/src/jobs/definitions/achievementNotifier.ts (modify — enhance notification messages)
+
+TASK 1 — Create mini-app/src/hooks/useAchievements.ts:
+A dedicated hook for achievement data management:
+```typescript
+interface UseAchievementsReturn {
+  achievements: Achievement[];
+  userAchievements: UserAchievement[];
+  categories: string[];
+  loading: boolean;
+  error: string | null;
+  refresh: () => void;
+  checkForNew: () => Promise<Achievement[]>;  // calls POST /check, returns newly unlocked
+  getProgress: (achievement: Achievement) => { current: number; target: number; percentage: number };
+}
+```
+
+- Load all achievements + user achievements on mount (use existing API client functions from api/client.ts: getAchievements, getUserAchievements, checkAchievements)
+- `checkForNew()` calls checkAchievements(userId), then refreshes to pick up new unlocks, and returns the newly unlocked list
+- `getProgress()` computes progress for locked achievements:
+  - For quest_count/quest_complete: needs total quests completed (can get from user stats)
+  - For streak: current streak
+  - For level/level_reached: current level
+  - For total_xp: current XP
+  - For friend_count: friend count (from social API)
+  - For other types: return 0/1 (unknown progress)
+- Accept userId as param
+
+TASK 2 — Enhance useCelebration.ts (GRAY AREA):
+Add `onAchievementUnlocked(achievement: Achievement)` to the celebration hook:
+- When called, trigger confetti for epic/legendary achievements
+- Always trigger an "achievement toast" (a simple state flag + achievement data)
+- Add to hook return: `achievementUnlocked: Achievement | null`, `dismissAchievement: () => void`
+- ONLY add the new function and state — do NOT modify existing level/xp logic
+
+TASK 3 — Enhance achievementNotifier.ts:
+Upgrade the notification message format:
+- Include rarity with emoji: 🟢 Common, 🔵 Rare, 🟣 Epic, 🟡 Legendary
+- Add category name to the message
+- Include progress hint: "You now have X/Y achievements in [category]"
+- Add XP bonus breakdown
+Current format: "🏆 Achievement Unlocked!\n⚡ Iron Will\n+200 XP bonus"
+New format: "🏆 Achievement Unlocked!\n🟣 Epic: Iron Will\n⚡ Complete 14 consecutive fitness quests\n+200 XP bonus\n\n📊 Fitness: 4/5 achievements"
+
+TASK 4 — Schema migration (run on server):
+The challenge_participants table needs a completed_at column (from Run 64 Agent A).
+Create a SQL migration at `database/migrations/run65_completed_at.sql`:
+```sql
+ALTER TABLE challenge_participants ADD COLUMN IF NOT EXISTS completed_at TIMESTAMPTZ;
+```
+This is a non-destructive migration (ADD COLUMN IF NOT EXISTS).
+
+Read the existing useCelebration.ts to understand its current structure before modifying.
+
+FORBIDDEN: bot/src/api/routes/ files, database/seed_data.sql, test files, Achievements.tsx, achievement component files.
+BUILD VERIFY: cd mini-app && npm run build must pass.
+
+After completing, write your retrospective in PARALLEL_AGENTS.md under "Run 65 Retrospectives" → "Agent D Retrospective", replacing the placeholder. Then commit all changes.
+```
+
+#### Agent E Prompt
+```
+Read c:\Users\Asus\Desktop\Wibecode-agent-e\PARALLEL_AGENTS.md — find "Run 65" and locate the "Agent E" section. You are Agent E.
+
+YOUR TASK: Write comprehensive tests for all Run 65 changes.
+
+OWNED FILES (all NEW or UPDATE):
+- bot/src/__tests__/utils/achievementEngine.test.ts (UPDATE — add tests for new criteria types)
+- bot/src/__tests__/routes/http/achievements.http.test.ts (UPDATE — categories endpoint)
+- mini-app/src/__tests__/pages/Achievements.test.tsx (UPDATE — category tabs, filters)
+- mini-app/src/__tests__/hooks/useAchievements.test.ts (NEW)
+- mini-app/src/__tests__/components/achievements/CategoryTabs.test.tsx (NEW)
+- mini-app/src/__tests__/components/achievements/AchievementProgressBar.test.tsx (NEW)
+- mini-app/src/__tests__/components/achievements/AchievementCard.test.tsx (UPDATE)
+
+TASK 1 — Achievement engine tests (~12 tests):
+Read the ACTUAL achievementEngine.ts AFTER Agent B modifies it. Add tests for:
+- friend_count criteria: met when user has enough friends
+- friend_count criteria: not met when insufficient
+- challenge_created criteria: met/not met
+- challenge_completed criteria: met/not met
+- night_quest criteria: met when quest completed after hour
+- early_quest criteria: met when quest completed before hour
+- weekend_quests criteria: met when enough weekend completions
+- all_daily_complete criteria: met when enough perfect days
+- unknown criteria type returns false (existing test, verify still passes)
+
+Pattern: Read existing achievementEngine.test.ts. Tests mock db functions (query, queryOne). Each criteria type test sets up mockQueryOne with appropriate return values.
+
+TASK 2 — Achievements HTTP tests (~5 tests):
+- GET /achievements/categories returns full category list including new ones
+- Verify category list includes 'social', 'streak', 'xp', 'quest', 'special'
+
+TASK 3 — useAchievements hook tests (~8 tests):
+- Loads achievements and user achievements on mount
+- Returns loading state correctly
+- checkForNew() calls API and refreshes
+- getProgress() returns correct values for different criteria types
+- Handles API errors
+
+TASK 4 — CategoryTabs tests (~5 tests):
+- Renders all category tabs
+- Active tab is highlighted
+- Clicking tab calls onSelect
+- Shows earned/total counts
+
+TASK 5 — AchievementProgressBar tests (~4 tests):
+- Shows progress bar with correct percentage
+- Shows "Unlocked" for completed achievements
+- Shows "Not yet" for progress-less types
+
+TASK 6 — AchievementCard tests (~4 tests):
+- Shows rarity glow effect
+- Shows progress bar for locked achievements
+- Shows unlock date for earned achievements
+
+CRITICAL: Read the ACTUAL source files created/modified by other agents before writing tests. Match exact function signatures, prop types, and component structures.
+
+FORBIDDEN: ALL source files (test-only agent).
+BUILD VERIFY: Run all your tests before committing.
+
+After completing, write your retrospective in PARALLEL_AGENTS.md under "Run 65 Retrospectives" → "Agent E Retrospective", replacing the placeholder. Then commit all changes.
+```
+
+### Run 65 Retrospectives
+
+#### Agent A Retrospective
+*(To be filled by Agent A)*
+
+#### Agent B Retrospective
+*(To be filled by Agent B)*
+
+#### Agent C Retrospective
+*(To be filled by Agent C)*
+
+#### Agent D Retrospective
+*(To be filled by Agent D)*
+
+#### Agent E Retrospective
+*(To be filled by Agent E)*
 
 #### Agent 0 Retrospective
 *(To be filled by Agent 0 after merge)*
