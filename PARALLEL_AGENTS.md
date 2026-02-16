@@ -2471,7 +2471,17 @@ After completing, write your retrospective in PARALLEL_AGENTS.md under "Run 65 R
 *(To be filled by Agent A)*
 
 #### Agent B Retrospective
-*(To be filled by Agent B)*
+**Status**: DONE — all 3 tasks completed, build passes clean (tsc, 0 errors).
+
+**Task 1 — New criteria types in achievementEngine.ts**: Added 7 new case handlers to `checkCriteriaMet()` switch statement: `friend_count` (counts accepted friend requests), `challenge_created` (counts challenges user created), `challenge_completed` (counts challenges user completed via challenge_participants), `night_quest` (quests completed after configurable hour, default 22), `early_quest` (quests completed before configurable hour, default 6), `weekend_quests` (quests completed on Saturday/Sunday), `all_daily_complete` (perfect days where all assigned daily quests were completed).
+
+**Task 2 — AchievementCriteria interface**: Added `hour?: number` optional field for night_quest/early_quest criteria thresholds.
+
+**Task 3 — Categories endpoint enhancement**: Updated `GET /achievements/categories` to merge DB-derived categories with a hardcoded list of all known categories (`fitness`, `hydration`, `finance`, `learning`, `medication`, `habits`, `social`, `streak`, `xp`, `quest`, `special`). Uses a Set for deduplication. Mini-app can now show all category tabs even before achievements exist for that category.
+
+**Files modified (2):**
+1. `bot/src/utils/achievementEngine.ts` — +1 interface field, +7 switch cases (~70 lines added)
+2. `bot/src/api/routes/achievements.ts` — Enhanced categories endpoint with hardcoded ALL_CATEGORIES list + Set merge
 
 #### Agent C Retrospective
 *(To be filled by Agent C)*
