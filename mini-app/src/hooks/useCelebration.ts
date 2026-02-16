@@ -1,4 +1,5 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
+import type { Achievement } from '@/types/achievement';
 
 const STORAGE_KEY_LEVEL = 'celebration_last_level';
 const STORAGE_KEY_XP = 'celebration_last_xp';
@@ -36,6 +37,8 @@ export function useCelebration() {
     levelUpData: 0,
     xpGained: 0,
   });
+
+  const [achievementUnlocked, setAchievementUnlocked] = useState<Achievement | null>(null);
 
   const initializedRef = useRef(false);
 
@@ -129,6 +132,18 @@ export function useCelebration() {
     setState((prev) => ({ ...prev, showXpFloat: false }));
   }, []);
 
+  const onAchievementUnlocked = useCallback((achievement: Achievement) => {
+    setAchievementUnlocked(achievement);
+    const rarity = achievement.rarity?.toLowerCase();
+    if (rarity === 'epic' || rarity === 'legendary') {
+      setState((prev) => ({ ...prev, showConfetti: true }));
+    }
+  }, []);
+
+  const dismissAchievement = useCallback(() => {
+    setAchievementUnlocked(null);
+  }, []);
+
   // Cleanup on unmount
   useEffect(() => {
     return () => {
@@ -142,8 +157,11 @@ export function useCelebration() {
     showXpFloat: state.showXpFloat,
     levelUpData: state.levelUpData,
     xpGained: state.xpGained,
+    achievementUnlocked,
     onDashboardData,
+    onAchievementUnlocked,
     dismiss,
+    dismissAchievement,
     dismissConfetti,
     dismissLevelUp,
     dismissXpFloat,

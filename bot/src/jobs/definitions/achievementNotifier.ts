@@ -28,14 +28,41 @@ async function sleep(ms: number): Promise<void> {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
 
+function rarityEmoji(rarity: string): string {
+  switch (rarity?.toLowerCase()) {
+    case 'common': return '🟢 Common';
+    case 'rare': return '🔵 Rare';
+    case 'epic': return '🟣 Epic';
+    case 'legendary': return '🟡 Legendary';
+    default: return rarity ?? '';
+  }
+}
+
+function categoryLabel(category: string): string {
+  if (!category) return '';
+  return category.charAt(0).toUpperCase() + category.slice(1);
+}
+
 export async function handler(jobs: Job[]): Promise<void> {
   if (!botRef) throw new Error('Bot instance not set for achievement notifier');
 
   const startTime = Date.now();
   log.info('Started');
 
-  const recentUnlocks = await query<{ user_id: number; telegram_id: number; achievement_id: number; name: string; badge_icon: string; xp_bonus: number }>(
-    `SELECT ua.user_id, u.telegram_id, a.id AS achievement_id, a.name, a.badge_icon, a.xp_bonus
+  const recentUnlocks = await query<{
+    user_id: number; telegram_id: number; achievement_id: number;
+    name: string; badge_icon: string; xp_bonus: number;
+    description: string; rarity: string; category: string;
+    category_earned: number; category_total: number;
+  }>(
+    `SELECT ua.user_id, u.telegram_id, a.id AS achievement_id,
+            a.name, a.badge_icon, a.xp_bonus,
+            a.description, a.rarity, a.category,
+            (SELECT COUNT(*) FROM user_achievements ua2
+             JOIN achievements a2 ON a2.id = ua2.achievement_id
+             WHERE ua2.user_id = ua.user_id AND a2.category = a.category)::int AS category_earned,
+            (SELECT COUNT(*) FROM achievements a3
+             WHERE a3.category = a.category)::int AS category_total
      FROM user_achievements ua
      JOIN users u ON u.id = ua.user_id
      JOIN achievements a ON a.id = ua.achievement_id
@@ -56,7 +83,14 @@ export async function handler(jobs: Job[]): Promise<void> {
 
   for (let i = 0; i < recentUnlocks.length; i++) {
     const unlock = recentUnlocks[i];
-    const message = `🏆 Achievement Unlocked!\n\n${unlock.badge_icon} ${unlock.name}\n+${unlock.xp_bonus} XP bonus`;
+    const message = [
+      '🏆 Achievement Unlocked!',
+      `${rarityEmoji(unlock.rarity)}: ${unlock.name}`,
+      `⚡ ${unlock.description}`,
+      `+${unlock.xp_bonus} XP bonus`,
+      '',
+      `📊 ${categoryLabel(unlock.category)}: ${unlock.category_earned}/${unlock.category_total} achievements`,
+    ].join('\n');
 
     try {
       await botRef.api.sendMessage(unlock.telegram_id, message);

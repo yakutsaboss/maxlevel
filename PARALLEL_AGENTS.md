@@ -2499,7 +2499,12 @@ After completing, write your retrospective in PARALLEL_AGENTS.md under "Run 65 R
 *(To be filled by Agent C)*
 
 #### Agent D Retrospective
-*(To be filled by Agent D)*
+- **Tasks completed**: All 4 tasks (useAchievements hook, useCelebration enhancement, achievementNotifier upgrade, schema migration)
+- **Files created**: `mini-app/src/hooks/useAchievements.ts`, `database/migrations/run65_completed_at.sql`
+- **Files modified**: `mini-app/src/hooks/useCelebration.ts`, `bot/src/jobs/definitions/achievementNotifier.ts`
+- **Build status**: Both mini-app and bot compile clean
+- **Issues encountered**: Minor TS strict mode error with `logger.error` accepting `unknown` — fixed with cast to `Record<string, unknown>`
+- **Notes**: The useAchievements hook accepts optional `userContext` param for progress calculations; consumers should pass level/xp/streak from their existing dashboard data. Achievement notifier now includes rarity emoji, description, and category progress count in notifications.
 
 #### Agent E Retrospective
 *(To be filled by Agent E)*
