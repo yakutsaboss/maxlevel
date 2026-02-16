@@ -1,6 +1,6 @@
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { Home, Target, User, Trophy, Award, Users, DollarSign, MoreHorizontal } from 'lucide-react';
+import { Home, Target, User, Trophy, Award, Users, DollarSign, Medal, MoreHorizontal } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useState, useRef, useEffect } from 'react';
 import { useTelegram } from '@/hooks/useTelegram';
@@ -20,6 +20,7 @@ const primaryItems: NavItem[] = [
 
 const moreItems: NavItem[] = [
   { path: '/leaderboard', icon: <Trophy className="w-5 h-5" />, labelKey: 'nav.ranks' },
+  { path: '/trophies', icon: <Medal className="w-5 h-5" />, labelKey: 'nav.trophies' },
   { path: '/social', icon: <Users className="w-5 h-5" />, labelKey: 'nav.social' },
   { path: '/finance', icon: <DollarSign className="w-5 h-5" />, labelKey: 'nav.finance' },
 ];
