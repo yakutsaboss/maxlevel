@@ -258,6 +258,36 @@ BEGIN
 END $$;
 
 -- ========================================
+-- AVATAR ITEMS (Run 66)
+-- ========================================
+
+INSERT INTO avatar_items (category, name, sprite_key, rarity, unlock_type, unlock_criteria, sort_order)
+VALUES
+  -- Hairstyles
+  ('hairstyle', 'Spiky', 'hair-spiky', 'common', 'free', '{}', 1),
+  ('hairstyle', 'Long Flow', 'hair-long', 'common', 'free', '{}', 2),
+  ('hairstyle', 'Mohawk', 'hair-mohawk', 'rare', 'level', '{"level": 5}', 3),
+  ('hairstyle', 'Crown Braid', 'hair-crown', 'epic', 'level', '{"level": 15}', 4),
+  ('hairstyle', 'Flame Hair', 'hair-flame', 'legendary', 'achievement', '{"achievement": "streak_30"}', 5),
+  -- Outfits
+  ('outfit', 'T-Shirt', 'outfit-tshirt', 'common', 'free', '{}', 1),
+  ('outfit', 'Hoodie', 'outfit-hoodie', 'common', 'free', '{}', 2),
+  ('outfit', 'Armor', 'outfit-armor', 'rare', 'level', '{"level": 10}', 3),
+  ('outfit', 'Wizard Robe', 'outfit-wizard', 'epic', 'achievement', '{"achievement": "multi_mode_3"}', 4),
+  ('outfit', 'Golden Plate', 'outfit-golden', 'legendary', 'level', '{"level": 25}', 5),
+  -- Accessories
+  ('accessory', 'None', 'acc-none', 'common', 'free', '{}', 1),
+  ('accessory', 'Glasses', 'acc-glasses', 'common', 'free', '{}', 2),
+  ('accessory', 'Headband', 'acc-headband', 'rare', 'level', '{"level": 8}', 3),
+  ('accessory', 'Wings', 'acc-wings', 'epic', 'achievement', '{"achievement": "level_25"}', 4),
+  ('accessory', 'Halo', 'acc-halo', 'legendary', 'achievement', '{"achievement": "streak_100"}', 5),
+  -- Backgrounds
+  ('background', 'Default', 'bg-default', 'common', 'free', '{}', 1),
+  ('background', 'Sunset', 'bg-sunset', 'rare', 'level', '{"level": 12}', 2),
+  ('background', 'Galaxy', 'bg-galaxy', 'legendary', 'level', '{"level": 30}', 3)
+ON CONFLICT (sprite_key) DO NOTHING;
+
+-- ========================================
 -- INITIAL CONFIGURATION (Optional)
 -- ========================================
 
