@@ -2756,7 +2756,32 @@ git merge origin/feature/r68-premium-badges --no-edit
 *(To be filled by Agent D)*
 
 #### Agent E Retrospective
-*(To be filled by Agent E)*
+
+**Status**: All 4 test files written and committed.
+
+**Files created**:
+1. `bot/src/__tests__/routes/http/shop.http.test.ts` — 17 tests for shop API (GET items, GET item by id, POST purchase, GET purchase history)
+2. `bot/src/__tests__/routes/http/punishment-deduct.http.test.ts` — 10 tests for Stars deduction endpoint + STARS_PENALTY_RATES constants
+3. `mini-app/src/__tests__/components/shop/PurchaseModal.test.tsx` — 13 tests for PurchaseModal component (Stars/XP buttons, loading, error, dual-price, close)
+4. `mini-app/src/__tests__/hooks/usePurchase.test.ts` — 9 tests for usePurchase hook (state machine flow, API calls, dismiss, edge cases)
+
+**Total**: 49 tests across 4 files.
+
+**Approach**: Other agent branches had not pushed their Run 68 code yet at the time of writing. Tests were written against the spec in PARALLEL_AGENTS.md, following established patterns from Run 67 tests (trophies.http.test.ts, useAvatar.test.ts, TrophyCase.test.tsx). Expected failures will resolve once Agents A, B, C, D code is merged.
+
+**Mocked modules**:
+- Backend tests: `db.js`, `cache.js`, `pythonTools.js`, `auth.js`, `rateLimiter.js` (via httpMocks.js helpers)
+- Frontend tests: `react-i18next`, `framer-motion`, `lucide-react`, `@/hooks/useTelegram`, `@/api/shop`, `@/utils/logger`
+
+**i18n keys used in PurchaseModal tests**: `shop.confirmPurchase`, `shop.payWithStars`, `shop.payWithXp`, `shop.processing`, `shop.purchaseFailed`, `shop.insufficientBalance`, `shop.retry`, `shop.cancel`, `shop.itemDescription`, `common.close`
+
+**Known risks**: Since tests are written before source code, mock structures (prop names, export names, API response shapes) may need adjustment during merge. Key assumptions:
+- `shopRouter` exported from `bot/src/api/routes/shop.ts`
+- `STARS_PENALTY_RATES` exported from `bot/src/api/utils/constants.ts`
+- `PurchaseModal` exported from `mini-app/src/components/shop/PurchaseModal.tsx` with props: `item`, `isOpen`, `onConfirm`, `onClose`, `isProcessing`, `error`
+- `usePurchase` exported from `mini-app/src/hooks/usePurchase.ts` returning `{ purchaseState, currentItem, startPurchase, confirmPurchase, dismissResult }`
+
+**Notes**: Tests follow the conservative approach of checking response shapes rather than exact SQL queries, making them more resilient to implementation differences across agents.
 
 #### Agent 0 Retrospective
 *(To be filled by Agent 0 after merge)*
