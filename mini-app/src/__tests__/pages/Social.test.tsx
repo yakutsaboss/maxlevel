@@ -129,6 +129,16 @@ vi.mock('lucide-react', () => {
     Clock: s('clock'),
     Loader2: s('loader2'),
     Send: s('send'),
+    Crown: s('crown'),
+    LogOut: s('log-out'),
+    Medal: s('medal'),
+    Calendar: s('calendar'),
+    Dumbbell: s('dumbbell'),
+    Droplets: s('droplets'),
+    DollarSign: s('dollar-sign'),
+    BookOpen: s('book-open'),
+    Pill: s('pill'),
+    Repeat: s('repeat'),
   };
 });
 
@@ -174,6 +184,7 @@ const baseSocialReturn = {
   joinChallenge: vi.fn(),
   updateProgress: vi.fn(),
   discoverChallenges: vi.fn(),
+  leaveChallenge: vi.fn(),
 };
 
 // ─── Tests ──────────────────────────────────────────────────────────

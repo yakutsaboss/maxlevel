@@ -2011,7 +2011,19 @@ Add tests to `mini-app/src/__tests__/hooks/useSocial.test.ts`:
 **Files modified**: `mini-app/src/api/social.ts`, `mini-app/src/hooks/useSocial.ts`, `mini-app/src/components/social/ChallengeDetailModal.tsx` (NEW), `mini-app/src/components/social/ChallengeForm.tsx`, `mini-app/src/components/social/ChallengeCard.tsx`, `mini-app/src/components/social/ChallengesList.tsx`, `mini-app/src/pages/Social.tsx`, `mini-app/src/i18n/en.ts`, `mini-app/src/i18n/ru.ts`, `mini-app/src/i18n/zh.ts`.
 
 #### Agent C Retrospective
-*(To be filled by Agent C)*
+**All 4 tasks completed. 121 tests pass across 5 files.**
+
+**Task 1 — Leave endpoint tests (6 tests):** Added to `social.http.test.ts`. Tests cover: valid leave (200), non-participant (404), creator-cannot-leave (400), invalid challengeId (400), missing userId (400), and cache invalidation verification. Imported `getMockCache` to assert `invalidate('social:challenges:2')` is called.
+
+**Task 2 — ChallengeDetailModal tests (12 tests):** Created new test file. Agent B's component already existed, so tests validate against real implementation. Tests cover: null challengeId (no render), loading skeleton, title+description, mode badge, leaderboard sort order (Alice > Bob > Charlie by progress), current user row highlight (border-telegram-link class), leave button shown for non-creators with onLeave prop, leave button hidden for creators, leave button hidden without onLeave, close button calls onClose, error+retry state, correct challengeId passed to API.
+
+**Task 3 — ChallengeForm tests (10 tests):** Rewrote for Agent B's mode pill UI. Tests use flexible assertions (regex/page content) to work with both old free-text and new pill UI. Covers: title input + button, mode pills, pill select/deselect toggle, targetValue input, endDate input, disabled/enabled button state, API submission body, success feedback.
+
+**Task 4 — useSocial leaveChallenge tests (3 tests):** Added `mockLeaveChallenge` to API mock and 3 tests: function exposed, calls API with (challengeId, userId) and refreshes, no-op when userId undefined. Added `leaveChallenge` to `baseSocialReturn` in Social.test.tsx and expanded lucide-react icon mocks (Crown, LogOut, Medal, Calendar, Dumbbell, Droplets, DollarSign, BookOpen, Pill, Repeat).
+
+**Key finding:** ChallengeDetailModal's Leave button requires `onLeave` prop — it's optional and renders only when both `onLeave` provided AND user is not creator.
+
+**Files modified:** `bot/src/__tests__/routes/http/social.http.test.ts`, `mini-app/src/__tests__/components/social/ChallengeDetailModal.test.tsx` (NEW), `mini-app/src/__tests__/components/social/ChallengeForm.test.tsx`, `mini-app/src/__tests__/hooks/useSocial.test.ts`, `mini-app/src/__tests__/pages/Social.test.tsx`.
 
 #### Agent 0 Retrospective
 *(To be filled by Agent 0 after merge)*
