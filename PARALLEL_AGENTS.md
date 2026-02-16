@@ -318,8 +318,8 @@ Runs 56-64 were supposed to deliver avatars, trophies, shop, and 30+ achievement
 |-----|-------|--------|--------|
 | **65** | Achievement Expansion — 30+ New Achievements | 5 | ✅ |
 | **66** | Pixel Art Avatar System | 5 | ✅ |
-| **67** | Animated Avatars + Trophy System | 5 | 🔄 |
-| **68** | Purchasable Achievements + Stars Punishment | 5 | ⬜ |
+| **67** | Animated Avatars + Trophy System | 5 | ✅ |
+| **68** | Purchasable Achievements + Stars Punishment | 5 | 🔄 |
 | **69** | Shop Page + Content Polish | 5 | ⬜ |
 | **70** | Final QA + Performance Optimization | 4 | ⬜ |
 | **71** | Accessibility + PWA + Dark Mode | 4 | ⬜ |
@@ -2400,6 +2400,363 @@ This is the **#1 lesson from Runs 65-66**: reading actual source before writing 
 **Patterns followed**: Matched existing test infrastructure exactly — `httpMocks.js`/`testApp.js` for bot HTTP tests, `vi.mock` hoisting for mini-app, same framer-motion/lucide-react/i18n mocking patterns as Run 65-66 tests.
 
 **Commits**: 4 commits (one per task), all on `feature/r67-tests` branch.
+
+#### Agent 0 Retrospective
+**Merge**: Agent C committed to main instead of feature branch (7 commits on main). Merged B→A→D→E on top. Zero git conflicts across all 4 merges.
+
+**Post-merge fixes (16 failures, 4 files)**:
+- **trophies.http.test.ts (6)**: Tests only mocked `db.query` but the route calls `queryOne` first for user existence/stats. Added `db.queryOne` mocks for user existence checks and user stats. Added `mockUserStats` object.
+- **TrophyCase.test.tsx (8)**: i18n key mismatch — Agent E used `trophy.earned`/`trophy.all` but Agent C used `trophy.tab_earned`/`trophy.tab_all`. Default tab is `'earned'` so "all trophies" test needed to click "All" tab first. Rarity keys used underscore pattern (`trophy.rarity_common`). Added missing i18n keys. Fixed "checkForNew on mount" → button click test.
+- **useTrophies.test.ts (2)**: `checkTrophies` mock returned array instead of `{ newTrophies: [...] }` object. Fixed return shape.
+- **Navigation.test.tsx**: Agent D added `Medal` icon + Trophies nav item. Added `Medal` to lucide-react mock and `nav.trophies` i18n key.
+
+**Trophy seeding issue**: SSH zombie processes (from rapid connection attempts during deploy) caused 3x duplicate inserts (51 rows instead of 17). Cleaned with `DELETE WHERE id NOT IN (SELECT MIN(id) ... GROUP BY name)`.
+
+**Schema**: Created `trophies` + `user_trophies` tables, seeded 17 trophies.
+
+**Result**: 1964 tests pass (999 bot + 965 mini-app). Deployed as commit `c41ea39`.
+
+**Roadmap**: Run 67 ✅ complete. Next: Run 68 Purchasable Achievements + Stars Punishment.
+
+---
+
+## RUN 68: Parallel Agents (5 Agents + Agent 0)
+
+### Focus: Purchasable Achievements + Stars Punishment
+
+Add a shop backend for purchasable items (premium achievements, rare avatar items, trophy boosters), a Stars punishment system for missed daily goals, a purchase flow UI, premium achievement badges, and comprehensive tests.
+
+### Copy-Paste Prompts
+
+**Agent A** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-a`):
+```
+Read the file c:\Users\Asus\Desktop\Wibecode-agent-a\PARALLEL_AGENTS.md — find the "RUN 68" section and follow the instructions for **Agent A (Shop Backend)**. You are Agent A. Do all tasks listed, commit after each task, and write your retrospective when done.
+```
+
+**Agent B** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-b`):
+```
+Read the file c:\Users\Asus\Desktop\Wibecode-agent-b\PARALLEL_AGENTS.md — find the "RUN 68" section and follow the instructions for **Agent B (Stars Punishment System)**. You are Agent B. Do all tasks listed, commit after each task, and write your retrospective when done.
+```
+
+**Agent C** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-c`):
+```
+Read the file c:\Users\Asus\Desktop\Wibecode-agent-c\PARALLEL_AGENTS.md — find the "RUN 68" section and follow the instructions for **Agent C (Purchase Flow UI)**. You are Agent C. Do all tasks listed, commit after each task, and write your retrospective when done.
+```
+
+**Agent D** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-d`):
+```
+Read the file c:\Users\Asus\Desktop\Wibecode-agent-d\PARALLEL_AGENTS.md — find the "RUN 68" section and follow the instructions for **Agent D (Premium Achievement Badges)**. You are Agent D. Do all tasks listed, commit after each task, and write your retrospective when done.
+```
+
+**Agent E** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-e`):
+```
+Read the file c:\Users\Asus\Desktop\Wibecode-agent-e\PARALLEL_AGENTS.md — find the "RUN 68" section and follow the instructions for **Agent E (Tests)**. You are Agent E. Do all tasks listed, commit after each task, and write your retrospective when done.
+```
+
+---
+
+### Agent A — Shop Backend
+
+**OWNED files** (only Agent A may edit these):
+- `database/migrations/run68_shop_tables.sql` (NEW)
+- `bot/src/api/routes/shop.ts` (NEW)
+
+**GRAY AREA files** (Agent A may APPEND to, not rewrite):
+- `database/seed_data.sql` — APPEND shop item seeds at the end
+- `bot/src/api/server.ts` — ADD 1 line: `import { shopRouter }` + `app.use('/api/shop', shopRouter);`
+
+**FORBIDDEN files** (do NOT touch):
+- All files in `mini-app/`
+- All i18n files
+- `bot/src/api/routes/punishment.ts` (Agent B owns this)
+- `bot/src/api/routes/payments.ts` (existing, not owned)
+- `PARALLEL_AGENTS.md` (except your retrospective section)
+
+**Tasks:**
+1. **Create migration `run68_shop_tables.sql`**:
+   ```sql
+   CREATE TABLE IF NOT EXISTS shop_items (
+     id SERIAL PRIMARY KEY,
+     type VARCHAR(30) NOT NULL,  -- 'achievement', 'avatar_item', 'trophy_booster', 'xp_booster'
+     reference_id INT,           -- points to achievements.id, avatar_items.id, etc.
+     name VARCHAR(100) NOT NULL,
+     description TEXT,
+     price_stars INT NOT NULL DEFAULT 0,
+     price_xp INT NOT NULL DEFAULT 0,
+     is_featured BOOLEAN NOT NULL DEFAULT false,
+     is_active BOOLEAN NOT NULL DEFAULT true,
+     rarity VARCHAR(20) NOT NULL DEFAULT 'common',
+     icon_emoji VARCHAR(10),
+     sort_order INT NOT NULL DEFAULT 0,
+     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+   );
+
+   CREATE TABLE IF NOT EXISTS user_purchases (
+     id SERIAL PRIMARY KEY,
+     user_id INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+     shop_item_id INT NOT NULL REFERENCES shop_items(id),
+     payment_method VARCHAR(20) NOT NULL,  -- 'stars', 'xp'
+     amount_paid INT NOT NULL,
+     purchased_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+   );
+
+   CREATE INDEX IF NOT EXISTS idx_shop_items_type ON shop_items(type);
+   CREATE INDEX IF NOT EXISTS idx_shop_items_active ON shop_items(is_active) WHERE is_active = true;
+   CREATE INDEX IF NOT EXISTS idx_user_purchases_user_id ON user_purchases(user_id);
+   ```
+
+2. **Seed 10-15 shop items** in `seed_data.sql`. Mix of types:
+   - **Premium achievements** (4): "Golden Collector" (50 Stars), "Diamond Streak" (100 Stars), "Platinum Social" (75 Stars), "Ruby Mastery" (150 Stars) — these reference achievement IDs that don't have normal unlock criteria.
+   - **Rare avatar items** (4): Premium hairstyles, outfits, accessories locked behind purchase. Link to existing avatar_items via reference_id where applicable, or create standalone descriptions.
+   - **Trophy boosters** (2): "Trophy Revealer" (shows hidden trophy criteria, 25 Stars), "Trophy Accelerator" (2x progress for 24h, 50 Stars).
+   - **XP boosters** (2): "XP Doubler 24h" (30 Stars / 500 XP), "XP Surge" (50% bonus for 1 week, 100 Stars).
+   - Each item: name, description, price_stars OR price_xp (at least one > 0), rarity, icon_emoji, sort_order.
+
+3. **Create `shop.ts` API route**:
+   - `GET /shop/items` — List all active shop items. Optional query params: `?type=achievement`, `?featured=true`. Returns items with purchase count.
+   - `GET /shop/items/:itemId` — Get single shop item details.
+   - `POST /shop/purchase` — Purchase an item. Body: `{ userId, itemId, paymentMethod: 'stars' | 'xp' }`.
+     - For `stars`: Verify user has enough Stars balance (query payments table or use Telegram API). Create invoice via existing payment helpers if needed. Insert into `user_purchases`.
+     - For `xp`: Check user XP balance >= price_xp. Deduct XP (`UPDATE users SET xp = xp - price WHERE id = $1 AND xp >= price`). Insert into `user_purchases`.
+     - Prevent duplicate purchases for achievements (one-time items).
+     - Return the purchased item + new balance.
+   - `GET /shop/purchases/:userId` — List user's purchase history.
+   - Use `authenticateTelegram`, `authorizeUser`, `asyncHandler`, `successResponse`, `BadRequestError`.
+   - Export as `shopRouter`.
+
+4. **Wire shopRouter into server.ts**: Add import + `app.use('/api/shop', shopRouter);` after the trophyRouter line.
+
+5. **Write retrospective** in the pre-allocated section below.
+
+---
+
+### Agent B — Stars Punishment System
+
+**OWNED files** (only Agent B may edit these):
+- `bot/src/api/routes/punishment.ts` (MODIFY — add Stars deduction endpoints)
+- `bot/src/jobs/definitions/punishmentCheck.ts` (MODIFY or NEW — add Stars deduction job logic)
+
+**GRAY AREA files** (Agent B may ADD to):
+- `bot/src/jobs/registerJobs.ts` — Add punishment job scheduling if not already present
+
+**FORBIDDEN files** (do NOT touch):
+- All files in `mini-app/`
+- All i18n files
+- `bot/src/api/routes/shop.ts` (Agent A)
+- `bot/src/api/routes/payments.ts`
+- `PARALLEL_AGENTS.md` (except your retrospective section)
+
+**Context**: The punishment system already exists with `punishment_settings` and `punishment_history` tables. Routes exist at `bot/src/api/routes/punishment.ts` for GET/PATCH settings and GET history. Current punishment types are in `bot/src/api/utils/constants.ts` under `PUNISHMENT_INTENSITY`.
+
+**Tasks:**
+1. **Read existing punishment code**: Read `punishment.ts` route, `punishment_settings` table schema, and the `PUNISHMENT_INTENSITY` constants to understand current state.
+
+2. **Add Stars deduction logic to punishment route**:
+   - `POST /punishment/:telegramId/deduct` — Manually trigger a Stars deduction for testing. Body: `{ amount, reason }`. Records in `punishment_history` with `type = 'stars_deduction'`.
+   - The deduction itself is a record-keeping operation (the actual Stars deduction happens via Telegram Bot API in the job, or as a "debt" tracked in the DB).
+
+3. **Add/modify punishment job**:
+   - Read existing job definitions in `bot/src/jobs/definitions/` to understand the pattern.
+   - If `punishmentCheck.ts` exists, modify it. If not, create it.
+   - Job logic: Query users where `punishment_settings.is_enabled = true` AND they missed their daily goal (check `quest_instances` for today with status != 'completed'). For each, calculate deduction based on `punishment_intensity` setting and insert into `punishment_history`.
+   - Add a pre-deduction warning: For users about to be punished, insert a `type = 'warning'` record 1 hour before the actual deduction.
+
+4. **Add Stars deduction constants** to `bot/src/api/utils/constants.ts` (GRAY AREA — only ADD, don't modify existing):
+   - `STARS_PENALTY_RATES: { light: 1, moderate: 3, strict: 5, extreme: 10 }` — Stars to deduct per missed goal based on intensity.
+
+5. **Write retrospective** in the pre-allocated section below.
+
+---
+
+### Agent C — Purchase Flow UI
+
+**OWNED files** (only Agent C may edit these):
+- `mini-app/src/hooks/usePurchase.ts` (NEW)
+- `mini-app/src/components/shop/PurchaseModal.tsx` (NEW)
+- `mini-app/src/components/shop/PurchaseSuccessAnimation.tsx` (NEW)
+- `mini-app/src/api/shop.ts` (NEW)
+
+**FORBIDDEN files** (do NOT touch):
+- All files in `bot/`, `tools/`, `database/`
+- All i18n files (Agent D from Run 69 will handle these later)
+- `App.tsx`, `Navigation.tsx`
+- Achievement components (Agent D owns)
+- `PARALLEL_AGENTS.md` (except your retrospective section)
+
+**Tasks:**
+1. **Create `mini-app/src/api/shop.ts`** — API client functions:
+   - `fetchShopItems(type?, featured?)` — GET /shop/items
+   - `fetchShopItem(itemId)` — GET /shop/items/:itemId
+   - `purchaseItem(userId, itemId, paymentMethod)` — POST /shop/purchase
+   - `fetchPurchaseHistory(userId)` — GET /shop/purchases/:userId
+   - Define types: `ShopItem`, `Purchase`, `PurchaseRequest`, `PurchaseResult`.
+
+2. **Create `usePurchase.ts` hook**:
+   - Manages the purchase flow state: idle → confirming → processing → success/error.
+   - `startPurchase(item)` — Opens confirmation state with item details.
+   - `confirmPurchase(paymentMethod)` — Calls API, handles Stars payment (opens Telegram invoice if needed) or XP deduction.
+   - `dismissResult()` — Clears success/error state.
+   - Returns: `{ purchaseState, currentItem, startPurchase, confirmPurchase, dismissResult }`.
+
+3. **Create `PurchaseModal.tsx`**:
+   - Bottom-sheet modal showing: item icon, name, description, rarity badge.
+   - Two payment options: "Pay with Stars (X ⭐)" and "Pay with XP (X XP)" — only show available options (items may have only stars price, only xp price, or both).
+   - Confirm button with loading state.
+   - Error state with retry button.
+   - Use i18n keys like `shop.confirmPurchase`, `shop.payWithStars`, `shop.payWithXp`, `shop.processing`, `shop.purchaseFailed`, `shop.insufficientBalance` (document all keys in retrospective).
+
+4. **Create `PurchaseSuccessAnimation.tsx`**:
+   - Full-screen overlay with confetti + item icon popping in.
+   - "Purchase Complete!" text with a "Continue" dismiss button.
+   - Auto-dismiss after 3 seconds.
+   - Use Framer Motion for animations.
+
+5. **Write retrospective** — list ALL i18n keys used.
+
+---
+
+### Agent D — Premium Achievement Badges
+
+**OWNED files** (only Agent D may edit these):
+- `mini-app/src/components/achievements/PremiumBadge.tsx` (NEW)
+
+**GRAY AREA files** (Agent D may MODIFY display logic in):
+- `mini-app/src/pages/Achievements.tsx` — Add "Buy" button on locked purchasable achievements, show premium badge on purchased ones
+- `mini-app/src/components/achievements/AchievementCard.tsx` (if exists) — Add premium visual treatment
+
+**FORBIDDEN files** (do NOT touch):
+- All files in `bot/`, `tools/`, `database/`
+- All i18n files
+- `App.tsx`, `Navigation.tsx`
+- Shop components (Agent C owns)
+- `PARALLEL_AGENTS.md` (except your retrospective section)
+
+**Context**: The Achievements page (`mini-app/src/pages/Achievements.tsx`) shows a gallery of achievements with category tabs. Read it first to understand the current layout.
+
+**Tasks:**
+1. **Read current Achievements code**: Read `Achievements.tsx` and any components in `mini-app/src/components/achievements/` to understand how achievements are displayed.
+
+2. **Create `PremiumBadge.tsx`**:
+   - A visual badge component for premium/purchasable achievements.
+   - Gold gradient border, subtle sparkle/shine CSS animation.
+   - Small "Premium" tag in corner.
+   - Props: `isPremium: boolean`, `isPurchased: boolean`.
+   - When `isPremium && !isPurchased`: show gold lock with "Buy" label.
+   - When `isPremium && isPurchased`: show gold border + "Premium" tag + shimmer.
+
+3. **Modify Achievements page** to support purchasable achievements:
+   - Detect purchasable achievements (those with `criteria.type === 'purchasable'` or similar marker).
+   - Show `PremiumBadge` on purchasable achievements.
+   - Add a "Buy" button on locked purchasable achievements that will integrate with the purchase flow (for now, just navigate to a future shop page or show a toast — the actual purchase modal from Agent C will be wired in later).
+   - Purchased premium achievements show the gold treatment (shimmer border, "Premium" tag).
+
+4. **Add achievement card premium visuals**: If there's a reusable `AchievementCard` component, add conditional premium styling. If achievements are rendered inline, add the styling directly.
+
+5. **Write retrospective** — list modified components and any i18n keys used.
+
+---
+
+### Agent E — Tests
+
+**OWNED files** (only Agent E may edit these):
+- `bot/src/__tests__/routes/http/shop.http.test.ts` (NEW)
+- `bot/src/__tests__/routes/http/punishment-deduct.http.test.ts` (NEW)
+- `mini-app/src/__tests__/components/shop/PurchaseModal.test.tsx` (NEW)
+- `mini-app/src/__tests__/hooks/usePurchase.test.ts` (NEW)
+
+**FORBIDDEN files** (do NOT touch):
+- All source files (only write test files)
+- All i18n files, App.tsx, Navigation.tsx
+- `PARALLEL_AGENTS.md` (except your retrospective section)
+
+**CRITICAL**: Before writing ANY test, merge Agents A, B, C, and D branches locally and READ the actual source code:
+```bash
+cd c:\Users\Asus\Desktop\Wibecode-agent-e
+git fetch origin
+git merge origin/feature/r68-shop-backend --no-edit
+git merge origin/feature/r68-stars-punishment --no-edit
+git merge origin/feature/r68-purchase-ui --no-edit
+git merge origin/feature/r68-premium-badges --no-edit
+```
+
+**Tasks:**
+1. **Shop API HTTP tests** (`shop.http.test.ts`):
+   - Test `GET /shop/items` — returns active items, filters by type/featured.
+   - Test `GET /shop/items/:itemId` — returns item details, 404 for invalid.
+   - Test `POST /shop/purchase` — successful Stars purchase, successful XP purchase, insufficient balance error, duplicate purchase error, invalid item error.
+   - Test `GET /shop/purchases/:userId` — returns purchase history.
+   - Follow patterns from `trophies.http.test.ts` and `avatars.http.test.ts`.
+
+2. **Punishment deduction tests** (`punishment-deduct.http.test.ts`):
+   - Test `POST /punishment/:telegramId/deduct` — successful deduction, invalid telegramId, records in history.
+   - Test punishment constants (Stars rates per intensity).
+
+3. **PurchaseModal tests** (`PurchaseModal.test.tsx`):
+   - Test renders item details (name, description, price).
+   - Test Stars payment button.
+   - Test XP payment button.
+   - Test loading state during purchase.
+   - Test error state with retry.
+   - Test items with only Stars price / only XP price / both.
+   - Mock framer-motion, lucide-react, react-i18next, useTelegram.
+
+4. **usePurchase hook tests** (`usePurchase.test.ts`):
+   - Test idle → confirming → processing → success flow.
+   - Test error handling.
+   - Test dismissResult clears state.
+   - Mock `@/api/shop` functions.
+
+5. **Write retrospective** in the pre-allocated section below.
+
+---
+
+### Run 68 File Ownership Matrix
+
+| File | A | B | C | D | E |
+|------|---|---|---|---|---|
+| `database/migrations/run68_shop_tables.sql` | ✅ | | | | |
+| `bot/src/api/routes/shop.ts` | ✅ | | | | |
+| `database/seed_data.sql` | ✅ | | | | |
+| `bot/src/api/server.ts` | ✅ | | | | |
+| `bot/src/api/routes/punishment.ts` | | ✅ | | | |
+| `bot/src/jobs/definitions/punishmentCheck.ts` | | ✅ | | | |
+| `bot/src/jobs/registerJobs.ts` | | ✅ | | | |
+| `bot/src/api/utils/constants.ts` | | ✅ | | | |
+| `mini-app/src/api/shop.ts` | | | ✅ | | |
+| `mini-app/src/hooks/usePurchase.ts` | | | ✅ | | |
+| `mini-app/src/components/shop/PurchaseModal.tsx` | | | ✅ | | |
+| `mini-app/src/components/shop/PurchaseSuccessAnimation.tsx` | | | ✅ | | |
+| `mini-app/src/components/achievements/PremiumBadge.tsx` | | | | ✅ | |
+| `mini-app/src/pages/Achievements.tsx` | | | | ✅ | |
+| `bot/src/__tests__/routes/http/shop.http.test.ts` | | | | | ✅ |
+| `bot/src/__tests__/routes/http/punishment-deduct.http.test.ts` | | | | | ✅ |
+| `mini-app/src/__tests__/components/shop/PurchaseModal.test.tsx` | | | | | ✅ |
+| `mini-app/src/__tests__/hooks/usePurchase.test.ts` | | | | | ✅ |
+
+### Run 68 Merge Order
+
+1. **Agent A** (Shop backend — tables, seeds, API route, server.ts wiring)
+2. **Agent B** (Stars punishment — modifies existing routes + job)
+3. **Agent C** (Purchase Flow UI — components, hooks, API client)
+4. **Agent D** (Premium Achievement Badges — modifies Achievements page)
+5. **Agent E** (Tests — must go last, merges all branches first)
+
+### Run 68 Retrospectives
+
+#### Agent A Retrospective
+*(To be filled by Agent A)*
+
+#### Agent B Retrospective
+*(To be filled by Agent B)*
+
+#### Agent C Retrospective
+*(To be filled by Agent C)*
+
+#### Agent D Retrospective
+*(To be filled by Agent D)*
+
+#### Agent E Retrospective
+*(To be filled by Agent E)*
 
 #### Agent 0 Retrospective
 *(To be filled by Agent 0 after merge)*
