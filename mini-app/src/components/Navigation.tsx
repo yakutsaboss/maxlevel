@@ -40,7 +40,7 @@ export function Navigation({ questBadgeCount = 0 }: NavigationProps) {
       className="fixed bottom-0 left-0 right-0 bg-telegram-secondaryBg border-t border-telegram-hint/20 safe-area-bottom z-40"
       aria-label="Main navigation"
     >
-      <div className="flex items-center justify-around px-4 py-2">
+      <div className="flex items-center justify-around px-1 py-2">
         {navItems.map((item) => {
           const isActive = location.pathname === item.path;
           const label = t(item.labelKey);
@@ -51,7 +51,7 @@ export function Navigation({ questBadgeCount = 0 }: NavigationProps) {
               onClick={() => handleNavigate(item.path)}
               aria-label={item.path === '/quests' && questBadgeCount > 0 ? `${label} (${questBadgeCount} new)` : label}
               aria-current={isActive ? 'page' : undefined}
-              className="relative flex flex-col items-center justify-center py-2 px-3 transition-colors"
+              className="relative flex flex-col items-center justify-center py-2 px-1 min-w-0 transition-colors"
             >
               {isActive && (
                 <motion.div
@@ -68,7 +68,7 @@ export function Navigation({ questBadgeCount = 0 }: NavigationProps) {
                   </span>
                 )}
               </div>
-              <span className={`relative z-10 text-xs mt-1 transition-colors ${isActive ? 'text-telegram-link font-semibold' : 'text-telegram-hint'}`}>
+              <span className={`relative z-10 text-[10px] mt-0.5 transition-colors truncate max-w-full ${isActive ? 'text-telegram-link font-semibold' : 'text-telegram-hint'}`}>
                 {label}
               </span>
               {isActive && (

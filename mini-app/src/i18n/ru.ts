@@ -4,7 +4,7 @@ export default {
     quests: "Задания",
     rewards: "Награды",
     ranks: "Рейтинг",
-    social: "Социальное",
+    social: "Клан",
     finance: "Финансы",
     profile: "Профиль",
   },
