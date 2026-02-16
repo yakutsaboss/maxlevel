@@ -2753,7 +2753,28 @@ git merge origin/feature/r68-premium-badges --no-edit
 *(To be filled by Agent C)*
 
 #### Agent D Retrospective
-*(To be filled by Agent D)*
+
+**Branch**: `feature/r68-premium-badges` (4 commits)
+
+**Files created:**
+- `mini-app/src/components/achievements/PremiumBadge.tsx` — New component with gold shimmer border, "PREMIUM" tag (purchased), and "BUY" label (locked)
+
+**Files modified:**
+- `mini-app/src/components/achievements/AchievementCard.tsx` — Added premium detection (`criteria.type === 'purchasable'`), PremiumBadge overlay, premium-specific card classes, amber-themed locked state for purchasables (description shown, no progress bar), onBuyClick handler
+- `mini-app/src/components/achievements/RarityGroup.tsx` — Passes `onBuyClick` prop through to AchievementCard
+- `mini-app/src/pages/Achievements.tsx` — Added `handleBuyClick` callback showing info Toast, imports Toast component
+- `mini-app/src/index.css` — Added CSS: `@keyframes premiumShimmer`, `@keyframes premiumGlow`, `.premium-shimmer`, `.premium-card`, `.premium-card-locked`
+
+**Design decisions:**
+- Purchasable achievements detected via `criteria.type === 'purchasable'` (matching Agent A's seed data pattern)
+- Locked purchasable achievements show name, icon (full color, not greyed out), description in amber, and "BUY" tag — to entice purchase
+- Purchased achievements get gold gradient border with animated shimmer + "PREMIUM" corner tag
+- Buy click currently shows an info Toast ("Shop coming soon!") — ready for Agent C's PurchaseModal to be wired in
+- No lock icon shown on premium locked cards (replaced by BUY label from PremiumBadge)
+
+**No i18n keys added** — all strings are English-only hardcoded (PremiumBadge labels: "PREMIUM", "BUY"; toast message). These should be converted to i18n keys in a future run.
+
+**No conflicts expected** with other agents — only touched achievement display components (owned/gray-area files).
 
 #### Agent E Retrospective
 *(To be filled by Agent E)*
