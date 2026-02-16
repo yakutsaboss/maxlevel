@@ -2744,7 +2744,29 @@ git merge origin/feature/r68-premium-badges --no-edit
 ### Run 68 Retrospectives
 
 #### Agent A Retrospective
-*(To be filled by Agent A)*
+**Status**: DONE
+**Commits**: 4 (migration, seeds, shop routes, server wiring)
+**Files created**:
+- `database/migrations/run68_shop_tables.sql` — `shop_items` + `user_purchases` tables with indexes
+- `bot/src/api/routes/shop.ts` — 4 endpoints (list, detail, purchase, history)
+
+**Files modified**:
+- `database/seed_data.sql` — appended 12 shop items (4 achievements, 4 avatar items, 2 trophy boosters, 2 XP boosters)
+- `bot/src/api/server.ts` — added import + `app.use('/api/shop', shopRouter)` after trophyRouter
+
+**API Endpoints**:
+- `GET /api/shop/items` — list active items, optional `?type=` and `?featured=true` filters, includes purchase_count
+- `GET /api/shop/items/:itemId` — single item detail with purchase_count
+- `POST /api/shop/purchase` — body `{ userId, itemId, paymentMethod: 'stars'|'xp' }`. XP deducted atomically. Achievements are one-time (ConflictError on duplicate). Auto-unlocks achievement via `user_achievements` if `reference_id` is set.
+- `GET /api/shop/purchases/:userId` — purchase history with item details, sorted by most recent
+
+**Design decisions**:
+- Stars payment records the purchase but doesn't invoke Telegram invoice API directly — the client handles the Telegram Stars payment flow first, then calls this endpoint to record.
+- XP deduction uses atomic `WHERE total_xp >= $1` to prevent negative balance without relying solely on CHECK constraint.
+- Achievement items prevent duplicate purchases via ConflictError (409).
+- Seed items use `ON CONFLICT DO NOTHING` for idempotent re-runs.
+
+**No issues encountered.**
 
 #### Agent B Retrospective
 *(To be filled by Agent B)*
