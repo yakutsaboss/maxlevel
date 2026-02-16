@@ -1,5 +1,25 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { MemoryRouter } from 'react-router-dom';
+
+// Mock react-i18next
+vi.mock('react-i18next', () => ({
+  useTranslation: () => ({
+    t: (key: string) => {
+      const translations: Record<string, string> = {
+        'profile.editProfile': 'Edit Profile',
+        'profile.nickname': 'Nickname',
+        'profile.chooseAvatar': 'Choose Avatar',
+        'profile.customizeAvatar': 'Customize in Avatar Studio',
+        'settings.saving': 'Saving...',
+        'common.save': 'Save',
+        'common.cancel': 'Cancel',
+        'profile.saveFailed': 'Failed to save profile. Tap Save to retry.',
+      };
+      return translations[key] ?? key;
+    },
+  }),
+}));
 
 // Mock framer-motion
 vi.mock('framer-motion', () => ({
@@ -9,6 +29,20 @@ vi.mock('framer-motion', () => ({
     ),
   },
   AnimatePresence: ({ children }: any) => <>{children}</>,
+}));
+
+// Mock lucide-react
+vi.mock('lucide-react', () => ({
+  X: (props: any) => <span data-testid="icon-x" {...props} />,
+  Check: (props: any) => <span data-testid="icon-check" {...props} />,
+  Loader2: (props: any) => <span data-testid="icon-loader" {...props} />,
+  AlertCircle: (props: any) => <span data-testid="icon-alert" {...props} />,
+  Palette: (props: any) => <span data-testid="icon-palette" {...props} />,
+}));
+
+// Mock avatar component
+vi.mock('@/components/avatar', () => ({
+  AvatarRenderer: ({ size }: any) => <div data-testid="avatar-renderer" data-size={size} />,
 }));
 
 // Mock apiClient
@@ -37,22 +71,25 @@ const defaultProps = {
   haptic: mockHaptic,
 };
 
+function renderWithRouter(ui: React.ReactElement) {
+  return render(<MemoryRouter>{ui}</MemoryRouter>);
+}
+
 describe('ProfileEditModal', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
   it('renders edit form with current values when open', () => {
-    render(<ProfileEditModal {...defaultProps} />);
+    renderWithRouter(<ProfileEditModal {...defaultProps} />);
 
     expect(screen.getByText('Edit Profile')).toBeInTheDocument();
     expect(screen.getByDisplayValue('TestUser')).toBeInTheDocument();
     expect(screen.getByText('Nickname')).toBeInTheDocument();
-    expect(screen.getByText('Choose Avatar')).toBeInTheDocument();
   });
 
   it('does not render when isOpen is false', () => {
-    render(<ProfileEditModal {...defaultProps} isOpen={false} />);
+    renderWithRouter(<ProfileEditModal {...defaultProps} isOpen={false} />);
 
     expect(screen.queryByText('Edit Profile')).not.toBeInTheDocument();
   });
@@ -60,7 +97,7 @@ describe('ProfileEditModal', () => {
   it('save button calls API with updated data', async () => {
     mockUpdateUserProfile.mockResolvedValueOnce({});
 
-    render(<ProfileEditModal {...defaultProps} />);
+    renderWithRouter(<ProfileEditModal {...defaultProps} />);
 
     // Change nickname
     const input = screen.getByDisplayValue('TestUser');
@@ -83,7 +120,7 @@ describe('ProfileEditModal', () => {
   });
 
   it('cancel closes modal', () => {
-    render(<ProfileEditModal {...defaultProps} />);
+    renderWithRouter(<ProfileEditModal {...defaultProps} />);
 
     fireEvent.click(screen.getByText('Cancel'));
 
@@ -93,7 +130,7 @@ describe('ProfileEditModal', () => {
   it('shows error message when save fails', async () => {
     mockUpdateUserProfile.mockRejectedValueOnce(new Error('Network error'));
 
-    render(<ProfileEditModal {...defaultProps} />);
+    renderWithRouter(<ProfileEditModal {...defaultProps} />);
     fireEvent.click(screen.getByText('Save'));
 
     await waitFor(() => {

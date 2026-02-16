@@ -1,6 +1,35 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 
+// Mock react-i18next
+vi.mock('react-i18next', () => ({
+  useTranslation: () => ({
+    t: (key: string) => {
+      const translations: Record<string, string> = {
+        'nav.home': 'Home',
+        'nav.quests': 'Quests',
+        'nav.rewards': 'Rewards',
+        'nav.ranks': 'Ranks',
+        'nav.profile': 'Profile',
+        'nav.more': 'More',
+      };
+      return translations[key] ?? key;
+    },
+  }),
+}));
+
+// Mock lucide-react icons used by Navigation
+vi.mock('lucide-react', () => ({
+  Home: (props: any) => <span data-testid="icon-home" {...props} />,
+  Target: (props: any) => <span data-testid="icon-quests" {...props} />,
+  Award: (props: any) => <span data-testid="icon-rewards" {...props} />,
+  Trophy: (props: any) => <span data-testid="icon-ranks" {...props} />,
+  User: (props: any) => <span data-testid="icon-profile" {...props} />,
+  Users: (props: any) => <span data-testid="icon-users" {...props} />,
+  MoreHorizontal: (props: any) => <span data-testid="icon-more" {...props} />,
+  DollarSign: (props: any) => <span data-testid="icon-finance" {...props} />,
+}));
+
 // Mock react-router-dom
 const mockNavigate = vi.fn();
 let mockPathname = '/dashboard';
@@ -35,14 +64,14 @@ describe('Navigation', () => {
     mockPathname = '/dashboard';
   });
 
-  it('renders 5 nav items', () => {
+  it('renders 4 primary nav items + More button', () => {
     render(<Navigation />);
 
     expect(screen.getByText('Home')).toBeInTheDocument();
     expect(screen.getByText('Quests')).toBeInTheDocument();
     expect(screen.getByText('Rewards')).toBeInTheDocument();
-    expect(screen.getByText('Ranks')).toBeInTheDocument();
     expect(screen.getByText('Profile')).toBeInTheDocument();
+    expect(screen.getByText('More')).toBeInTheDocument();
   });
 
   it('highlights active item based on route', () => {
