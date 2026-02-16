@@ -82,6 +82,71 @@ INSERT INTO achievements (name, description, badge_icon, criteria, xp_bonus, rar
 ON CONFLICT (name) DO NOTHING;
 
 -- ========================================
+-- SOCIAL ACHIEVEMENTS (Run 65)
+-- ========================================
+
+INSERT INTO achievements (name, description, badge_icon, criteria, xp_bonus, rarity) VALUES
+('first_friend', 'First Friend', '🤝', '{"type": "friend_count", "count": 1}', 50, 'common'),
+('social_butterfly', 'Social Butterfly', '🦋', '{"type": "friend_count", "count": 5}', 150, 'rare'),
+('social_network', 'Social Network', '🌐', '{"type": "friend_count", "count": 10}', 300, 'epic'),
+('challenge_creator', 'Challenge Creator', '🎯', '{"type": "challenge_created", "count": 1}', 75, 'common'),
+('challenge_champion', 'Challenge Champion', '🏅', '{"type": "challenge_completed", "count": 5}', 250, 'epic')
+ON CONFLICT (name) DO NOTHING;
+
+-- ========================================
+-- GLOBAL STREAK ACHIEVEMENTS (Run 65)
+-- ========================================
+
+-- These use the global streak (no mode filter), checked via user_row.current_streak in the engine.
+INSERT INTO achievements (name, description, badge_icon, criteria, xp_bonus, rarity) VALUES
+('streak_3', '3-Day Streak', '🔥', '{"type": "streak", "days": 3}', 30, 'common'),
+('streak_7', '7-Day Streak', '🔥', '{"type": "streak", "days": 7}', 75, 'common'),
+('streak_14', '14-Day Streak', '🔥', '{"type": "streak", "days": 14}', 150, 'rare'),
+('streak_30', '30-Day Streak', '🔥', '{"type": "streak", "days": 30}', 300, 'epic'),
+('streak_60', '60-Day Streak', '💎', '{"type": "streak", "days": 60}', 500, 'epic'),
+('streak_100', '100-Day Streak', '👑', '{"type": "streak", "days": 100}', 1000, 'legendary')
+ON CONFLICT (name) DO NOTHING;
+
+-- ========================================
+-- XP / LEVEL MILESTONE ACHIEVEMENTS (Run 65)
+-- ========================================
+
+-- level_5 and level_10 already exist in Cross-Mode Achievements above
+INSERT INTO achievements (name, description, badge_icon, criteria, xp_bonus, rarity) VALUES
+('level_25', 'Level 25 Expert', '🌟', '{"type": "level_reached", "level": 25}', 750, 'epic'),
+('level_50', 'Level 50 Legend', '💫', '{"type": "level_reached", "level": 50}', 1500, 'legendary'),
+('level_100', 'Level 100 Mythic', '🏆', '{"type": "level_reached", "level": 100}', 3000, 'legendary'),
+('xp_1000', '1000 XP', '⭐', '{"type": "total_xp", "amount": 1000}', 50, 'common'),
+('xp_10000', '10,000 XP', '🌟', '{"type": "total_xp", "amount": 10000}', 500, 'rare'),
+('xp_50000', '50,000 XP', '💎', '{"type": "total_xp", "amount": 50000}', 1000, 'legendary')
+ON CONFLICT (name) DO NOTHING;
+
+-- ========================================
+-- QUEST ACHIEVEMENTS (Run 65)
+-- ========================================
+
+INSERT INTO achievements (name, description, badge_icon, criteria, xp_bonus, rarity) VALUES
+('first_quest', 'First Quest', '📜', '{"type": "quest_count", "count": 1}', 25, 'common'),
+('quest_10', '10 Quests Done', '📋', '{"type": "quest_count", "count": 10}', 100, 'common'),
+('quest_50', '50 Quests Done', '📒', '{"type": "quest_count", "count": 50}', 250, 'rare'),
+('quest_100', '100 Quests Done', '📕', '{"type": "quest_count", "count": 100}', 500, 'epic'),
+('quest_500', '500 Quests Done', '📖', '{"type": "quest_count", "count": 500}', 1000, 'legendary')
+ON CONFLICT (name) DO NOTHING;
+
+-- ========================================
+-- SPECIAL ACHIEVEMENTS (Run 65)
+-- ========================================
+
+INSERT INTO achievements (name, description, badge_icon, criteria, xp_bonus, rarity) VALUES
+('multi_mode_3', 'Triple Threat', '🎯', '{"type": "multi_mode_active", "count": 3}', 200, 'rare'),
+('multi_mode_6', 'All-Rounder', '🌈', '{"type": "multi_mode_active", "count": 6}', 500, 'legendary'),
+('night_owl', 'Night Owl', '🦉', '{"type": "night_quest", "hour": 22}', 100, 'rare'),
+('early_bird', 'Early Bird', '🐦', '{"type": "early_quest", "hour": 6}', 100, 'rare'),
+('weekend_warrior', 'Weekend Warrior', '🗓️', '{"type": "weekend_quests", "count": 10}', 200, 'epic'),
+('perfectionist', 'Perfectionist', '✨', '{"type": "all_daily_complete", "days": 7}', 300, 'epic')
+ON CONFLICT (name) DO NOTHING;
+
+-- ========================================
 -- QUEST TEMPLATES (MVP)
 -- ========================================
 
