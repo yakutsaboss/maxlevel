@@ -12,6 +12,9 @@ vi.mock('react-i18next', () => ({
         'nav.ranks': 'Ranks',
         'nav.profile': 'Profile',
         'nav.more': 'More',
+        'nav.trophies': 'Trophies',
+        'nav.social': 'Social',
+        'nav.finance': 'Finance',
       };
       return translations[key] ?? key;
     },
@@ -26,6 +29,7 @@ vi.mock('lucide-react', () => ({
   Trophy: (props: any) => <span data-testid="icon-ranks" {...props} />,
   User: (props: any) => <span data-testid="icon-profile" {...props} />,
   Users: (props: any) => <span data-testid="icon-users" {...props} />,
+  Medal: (props: any) => <span data-testid="icon-medal" {...props} />,
   MoreHorizontal: (props: any) => <span data-testid="icon-more" {...props} />,
   DollarSign: (props: any) => <span data-testid="icon-finance" {...props} />,
 }));

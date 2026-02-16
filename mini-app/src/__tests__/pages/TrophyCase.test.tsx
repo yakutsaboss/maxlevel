@@ -27,18 +27,24 @@ vi.mock('react-i18next', () => ({
     t: (key: string, params?: Record<string, any>) => {
       const keys: Record<string, string> = {
         'trophy.title': 'Trophy Case',
-        'trophy.earned': 'Earned',
-        'trophy.all': 'All',
+        'trophy.tab_earned': 'Earned',
+        'trophy.tab_all': 'All',
         'trophy.earnedCount': `${params?.earned ?? 0}/${params?.total ?? 0} earned`,
         'trophy.howToEarn': 'How to earn',
         'trophy.earnedOn': `Earned on ${params?.date ?? ''}`,
         'trophy.locked': 'Locked',
-        'trophy.noTrophies': 'No trophies earned yet. Keep going!',
+        'trophy.checkForNew': 'Check for new',
+        'trophy.checking': 'Checking...',
+        'trophy.newEarned': `${params?.count ?? 0} new earned!`,
+        'trophy.noEarned': 'No trophies earned yet. Keep going!',
+        'trophy.noTrophies': 'No trophies available',
+        'trophy.couldNotLoad': 'Could not load trophies',
+        'trophy.close': 'Close',
         'trophy.newTrophy': 'New trophy earned!',
-        'trophy.rarity.common': 'Common',
-        'trophy.rarity.rare': 'Rare',
-        'trophy.rarity.epic': 'Epic',
-        'trophy.rarity.legendary': 'Legendary',
+        'trophy.rarity_common': 'Common',
+        'trophy.rarity_rare': 'Rare',
+        'trophy.rarity_epic': 'Epic',
+        'trophy.rarity_legendary': 'Legendary',
         'trophy.criteria.quest_count': `Complete ${params?.threshold ?? ''} quests`,
         'trophy.criteria.streak_days': `Maintain a ${params?.threshold ?? ''}-day streak`,
         'trophy.criteria.level': `Reach level ${params?.threshold ?? ''}`,
@@ -83,6 +89,8 @@ vi.mock('lucide-react', () => {
     Star: IconStub,
     CheckCircle: IconStub,
     AlertCircle: IconStub,
+    Calendar: IconStub,
+    Target: IconStub,
   };
 });
 
@@ -197,6 +205,10 @@ describe('TrophyCase', () => {
   it('renders trophy grid with all trophies', () => {
     renderPage();
 
+    // Default tab is 'earned', so click 'All' tab first to see all trophies
+    const allTab = screen.getByText('All');
+    fireEvent.click(allTab);
+
     // All trophies should render
     expect(screen.getByText('First Steps')).toBeInTheDocument();
     expect(screen.getByText('Getting Started')).toBeInTheDocument();
@@ -241,14 +253,19 @@ describe('TrophyCase', () => {
   });
 
   it('shows empty state when no trophies earned', () => {
-    hookReturn = { ...hookReturn, earnedTrophies: [], allTrophies: [] };
+    hookReturn = { ...hookReturn, earnedTrophies: [], allTrophies: mockAllTrophies };
     renderPage();
 
+    // Default tab is 'earned', and no earned trophies → shows noEarned message
     expect(screen.getByText('No trophies earned yet. Keep going!')).toBeInTheDocument();
   });
 
   it('shows rarity badges on trophy cards', () => {
     renderPage();
+
+    // Switch to 'All' tab to see all trophy emojis
+    const allTab = screen.getByText('All');
+    fireEvent.click(allTab);
 
     // Trophy emojis should render
     expect(screen.getByText('🏆')).toBeInTheDocument();
@@ -260,19 +277,22 @@ describe('TrophyCase', () => {
   it('opens detail modal when earned trophy is tapped', () => {
     renderPage();
 
-    // Click on the First Steps trophy (earned)
+    // Click on the First Steps trophy card (rendered as a button by motion.button mock)
     const trophy = screen.getByText('First Steps');
-    fireEvent.click(trophy.closest('div[role]') || trophy);
+    fireEvent.click(trophy.closest('button') || trophy);
 
     // Detail modal should show trophy description
-    // The modal shows description, earned date, etc.
-    // Exact content depends on Agent C's implementation
+    // The modal renders the trophy name in an h2 and its description
+    expect(screen.getByText('Complete 1 quest')).toBeInTheDocument();
   });
 
-  it('calls checkForNew on mount', () => {
+  it('calls checkForNew when check button is clicked', async () => {
     renderPage();
 
-    // The hook should auto-check for new trophies on first load
+    // Click the "Check for new" button
+    const checkButton = screen.getByText('Check for new');
+    fireEvent.click(checkButton);
+
     expect(mockCheckForNew).toHaveBeenCalled();
   });
 });

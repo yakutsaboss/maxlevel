@@ -101,9 +101,9 @@ describe('useTrophies', () => {
       expect(result.current.loading).toBe(false);
     });
 
-    // Manual checkForNew call
+    // Manual checkForNew call — the check endpoint returns Trophy objects with name, icon, etc.
     const newTrophy = { id: 2, name: 'Getting Started', icon_emoji: '🥇', rarity: 'common', earned_at: '2026-02-16T00:00:00Z' };
-    mockCheckTrophies.mockResolvedValueOnce([newTrophy]);
+    mockCheckTrophies.mockResolvedValueOnce({ newTrophies: [newTrophy], count: 1 });
     // After check, it refreshes data
     mockFetchAllTrophies.mockResolvedValueOnce(mockAllTrophies);
     mockFetchUserTrophies.mockResolvedValueOnce([

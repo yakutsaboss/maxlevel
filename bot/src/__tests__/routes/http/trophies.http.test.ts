@@ -61,6 +61,20 @@ const mockUserTrophies = [
   { id: 1, user_id: 1, trophy_id: 1, earned_at: '2026-02-10T10:00:00Z', name: 'First Steps', description: 'Complete 1 quest', icon_emoji: '🏆', rarity: 'common' },
 ];
 
+const mockUserStats = {
+  level: 5,
+  total_xp: 500,
+  current_streak: 3,
+  quests_completed: 10,
+  friend_count: 2,
+  achievement_count: 5,
+  mode_count: 2,
+  challenge_created: 1,
+  challenge_wins: 0,
+  has_purchase: false,
+  created_at: '2026-01-01T00:00:00Z',
+};
+
 // ─── Tests ─────────────────────────────────────────────────────────
 
 beforeEach(() => {
@@ -109,6 +123,7 @@ describe('GET /api/trophies', () => {
 
 describe('GET /api/trophies/:userId', () => {
   it('should return earned trophies for a user', async () => {
+    db.queryOne.mockResolvedValueOnce({ id: 1 }); // user existence check
     db.query.mockResolvedValueOnce(mockUserTrophies);
 
     const res = await request(buildApp())
@@ -122,6 +137,7 @@ describe('GET /api/trophies/:userId', () => {
   });
 
   it('should return empty array for user with no trophies', async () => {
+    db.queryOne.mockResolvedValueOnce({ id: 999 }); // user existence check
     db.query.mockResolvedValueOnce([]);
 
     const res = await request(buildApp())
@@ -141,7 +157,7 @@ describe('GET /api/trophies/:userId', () => {
   });
 
   it('should return 500 when database throws', async () => {
-    db.query.mockRejectedValueOnce(new Error('DB down'));
+    db.queryOne.mockRejectedValueOnce(new Error('DB down'));
 
     const res = await request(buildApp())
       .get('/api/trophies/1')
@@ -155,11 +171,15 @@ describe('GET /api/trophies/:userId', () => {
 
 describe('GET /api/trophies/:userId/check', () => {
   it('should award newly earned trophies and return them', async () => {
-    // The check endpoint reads user stats, compares against criteria, awards new trophies
-    const newlyAwarded = [
-      { id: 2, name: 'Getting Started', icon_emoji: '🥇', rarity: 'common', earned_at: '2026-02-16T00:00:00Z' },
+    // (1) queryOne — user stats
+    db.queryOne.mockResolvedValueOnce(mockUserStats);
+    // (2) query — unearned trophies (one that will be awarded based on mockUserStats)
+    const unearnedTrophies = [
+      { id: 1, name: 'First Steps', description: 'Complete 1 quest', icon_emoji: '🏆', rarity: 'common', criteria: { type: 'quest_count', threshold: 1 }, sort_order: 1 },
     ];
-    db.query.mockResolvedValueOnce(newlyAwarded);
+    db.query.mockResolvedValueOnce(unearnedTrophies);
+    // (3) queryOne — INSERT for each newly awarded trophy
+    db.queryOne.mockResolvedValueOnce({ id: 1 });
 
     const res = await request(buildApp())
       .get('/api/trophies/1/check')
@@ -167,10 +187,13 @@ describe('GET /api/trophies/:userId/check', () => {
 
     expect(res.body.success).toBe(true);
     expect(res.body.data).toHaveLength(1);
-    expect(res.body.data[0].name).toBe('Getting Started');
+    expect(res.body.data[0].name).toBe('First Steps');
   });
 
   it('should return empty array when no new trophies earned', async () => {
+    // (1) queryOne — user stats
+    db.queryOne.mockResolvedValueOnce(mockUserStats);
+    // (2) query — no unearned trophies
     db.query.mockResolvedValueOnce([]);
 
     const res = await request(buildApp())
@@ -190,7 +213,7 @@ describe('GET /api/trophies/:userId/check', () => {
   });
 
   it('should return 500 when database throws', async () => {
-    db.query.mockRejectedValueOnce(new Error('DB down'));
+    db.queryOne.mockRejectedValueOnce(new Error('DB down'));
 
     const res = await request(buildApp())
       .get('/api/trophies/1/check')
