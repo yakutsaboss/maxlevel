@@ -26,6 +26,7 @@ interface AchievementCriteria {
   count?: number;
   days?: number;
   mode?: string;
+  hour?: number;
 }
 
 /** Row from the achievements table */
@@ -128,6 +129,76 @@ async function checkCriteriaMet(userId: number, userRow: UserRow, criteria: Achi
         [userId]
       );
       return (row?.best ?? 0) >= (criteria.days ?? 0);
+    }
+
+    case 'friend_count': {
+      const row = await queryOne<{ cnt: number }>(
+        `SELECT COUNT(*)::int AS cnt FROM friend_requests
+         WHERE (from_user_id = $1 OR to_user_id = $1) AND status = 'accepted'`,
+        [userId]
+      );
+      return (row?.cnt ?? 0) >= (criteria.count ?? 0);
+    }
+
+    case 'challenge_created': {
+      const row = await queryOne<{ cnt: number }>(
+        `SELECT COUNT(*)::int AS cnt FROM challenges WHERE creator_id = $1`,
+        [userId]
+      );
+      return (row?.cnt ?? 0) >= (criteria.count ?? 0);
+    }
+
+    case 'challenge_completed': {
+      const row = await queryOne<{ cnt: number }>(
+        `SELECT COUNT(*)::int AS cnt FROM challenge_participants
+         WHERE user_id = $1 AND completed_at IS NOT NULL`,
+        [userId]
+      );
+      return (row?.cnt ?? 0) >= (criteria.count ?? 0);
+    }
+
+    case 'night_quest': {
+      const row = await queryOne<{ cnt: number }>(
+        `SELECT COUNT(*)::int AS cnt FROM quest_instances
+         WHERE user_id = $1 AND status = 'completed'
+         AND EXTRACT(HOUR FROM completed_at) >= $2`,
+        [userId, criteria.hour ?? 22]
+      );
+      return (row?.cnt ?? 0) >= 1;
+    }
+
+    case 'early_quest': {
+      const row = await queryOne<{ cnt: number }>(
+        `SELECT COUNT(*)::int AS cnt FROM quest_instances
+         WHERE user_id = $1 AND status = 'completed'
+         AND EXTRACT(HOUR FROM completed_at) < $2`,
+        [userId, criteria.hour ?? 6]
+      );
+      return (row?.cnt ?? 0) >= 1;
+    }
+
+    case 'weekend_quests': {
+      const row = await queryOne<{ cnt: number }>(
+        `SELECT COUNT(*)::int AS cnt FROM quest_instances
+         WHERE user_id = $1 AND status = 'completed'
+         AND EXTRACT(DOW FROM instance_date) IN (0, 6)`,
+        [userId]
+      );
+      return (row?.cnt ?? 0) >= (criteria.count ?? 0);
+    }
+
+    case 'all_daily_complete': {
+      const row = await queryOne<{ cnt: number }>(
+        `SELECT COUNT(*)::int AS cnt FROM (
+           SELECT instance_date
+           FROM quest_instances
+           WHERE user_id = $1 AND quest_type = 'daily'
+           GROUP BY instance_date
+           HAVING COUNT(*) FILTER (WHERE status = 'completed') = COUNT(*)
+         ) perfect_days`,
+        [userId]
+      );
+      return (row?.cnt ?? 0) >= (criteria.days ?? 0);
     }
 
     default:

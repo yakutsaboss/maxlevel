@@ -40,13 +40,20 @@ router.get('/', authenticateTelegram, asyncHandler(async (req: Request, res: Res
  * Cached for 5 minutes.
  */
 router.get('/categories', authenticateTelegram, asyncHandler(async (req: Request, res: Response) => {
+  const ALL_CATEGORIES = [
+    'fitness', 'hydration', 'finance', 'learning', 'medication', 'habits',
+    'social', 'streak', 'xp', 'quest', 'special',
+  ];
+
   const categories = await cached('achievements:categories', TTL.MEDIUM, async () => {
     const rows = await query<{ category: string }>(
       `SELECT DISTINCT COALESCE(criteria->>'mode', 'general') AS category
        FROM achievements
        ORDER BY category ASC`
     );
-    return rows.map((r) => r.category);
+    const dbCategories = rows.map((r) => r.category);
+    const merged = new Set([...ALL_CATEGORIES, ...dbCategories]);
+    return [...merged].sort();
   });
 
   res.json(successResponse(categories));
