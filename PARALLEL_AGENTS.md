@@ -2747,7 +2747,31 @@ git merge origin/feature/r68-premium-badges --no-edit
 *(To be filled by Agent A)*
 
 #### Agent B Retrospective
-*(To be filled by Agent B)*
+
+**Completed all 5 tasks** — Stars punishment system is fully wired.
+
+**Files modified:**
+- `bot/src/api/utils/constants.ts` — Added `STARS_PENALTY_RATES` (`{ light: 1, moderate: 3, strict: 5, extreme: 10 }`) and `StarsPenaltyLevel` type.
+- `bot/src/api/routes/punishment.ts` — Added `POST /:telegramId/deduct` endpoint for manual Stars deduction (testing/admin). Validates consent, records as `punishment_type = 'stars_deduction'` in `punishment_history`. Uses `xp_deducted` column to store Stars amount (avoids schema migration).
+- `bot/src/jobs/definitions/punishmentCheck.ts` — Extended existing XP penalty job with Stars deduction logic:
+  - Added `INTENSITY_TO_STARS_KEY` mapping: `low→light, medium→moderate, high→strict, extreme→extreme`.
+  - **Warning flow**: First run inserts a `punishment_type = 'warning'` record; next run applies actual `stars_deduction`.
+  - Safe mode respects `max_xp_penalty` as combined cap for Stars too.
+  - Idempotent — checks for existing warning/deduction records to prevent doubles.
+  - Telegram notifications include Stars penalty info alongside XP penalties.
+
+**No files created** — all modifications to existing files.
+
+**No migration needed** — reuses existing `punishment_history` table columns (`punishment_type`, `xp_deducted`, `message_sent`).
+
+**`registerJobs.ts` unchanged** — `punishmentCheck` was already imported and registered.
+
+**Design decisions:**
+- Reused `xp_deducted` column for Stars amount to avoid a schema migration. The `punishment_type` field (`'stars_deduction'` vs `'xp_penalty'`) disambiguates.
+- Warning + deduction is a two-phase flow: warning on first pass, deduction on second. Both happen in the same daily cron job (00:30 UTC), so the actual deduction happens the following day after the warning.
+- The manual `/deduct` endpoint skips the warning phase (it's for testing).
+
+**Commits:** 3 (constants, deduct endpoint, job logic)
 
 #### Agent C Retrospective
 *(To be filled by Agent C)*
