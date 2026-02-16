@@ -2271,7 +2271,20 @@ This is the **#1 lesson from Runs 65-66**: reading actual source before writing 
 ### Run 67 Retrospectives
 
 #### Agent A Retrospective
-*(To be filled by Agent A)*
+- **Status**: DONE
+- **Files created**: `mini-app/src/components/avatar/AvatarAnimator.tsx`, `mini-app/src/components/avatar/AvatarAnimations.css`
+- **Files modified**: `mini-app/src/components/avatar/AvatarRenderer.tsx` (added `animation` prop + AvatarAnimator wrapper), `mini-app/src/components/avatar/index.ts` (re-exports)
+- **Exported types**: `AvatarAnimation = 'idle' | 'celebrate' | 'levelup' | 'walk' | 'none'`
+- **Exported components**: `AvatarAnimator` (props: `animation`, `children`, `loop?`)
+- **Animation details**:
+  - `idle`: CSS keyframe `avatar-idle` — scale 1.0→1.02→1.0, 3s period
+  - `celebrate`: Framer Motion `motion.div` — translateY bounce (-8px→0) + 3 colored confetti particles (gold, red, teal)
+  - `levelup`: CSS keyframe `avatar-levelup-glow` — scale pulse 1.0→1.15→1.0 + gold box-shadow glow + brightness filter, 1.5s period
+  - `walk`: CSS keyframe `avatar-walk` — translateX ±2px + rotate ±1deg, 0.8s period
+  - `none`: passthrough render, no wrapper
+- **Pixel-art preservation**: `image-rendering: pixelated` on all animated containers, `will-change` hints for GPU acceleration
+- **Integration**: `AvatarRenderer` unchanged when no `animation` prop — zero behavior change for existing callers
+- **No issues encountered**
 
 #### Agent B Retrospective
 *(To be filled by Agent B)*
