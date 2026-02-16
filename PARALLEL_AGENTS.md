@@ -2514,7 +2514,23 @@ After completing, write your retrospective in PARALLEL_AGENTS.md under "Run 65 R
 - **Notes**: The useAchievements hook accepts optional `userContext` param for progress calculations; consumers should pass level/xp/streak from their existing dashboard data. Achievement notifier now includes rarity emoji, description, and category progress count in notifications.
 
 #### Agent E Retrospective
-*(To be filled by Agent E)*
+**Status**: Complete — all test files written and verified.
+
+**Tests written (38 total across 7 files)**:
+- `achievementEngine.test.ts`: +14 tests for 7 new criteria types (friend_count, challenge_created, challenge_completed, night_quest, early_quest, weekend_quests, all_daily_complete) — positive + negative cases
+- `achievements.http.test.ts`: +4 tests for GET /categories endpoint (basic list, new categories, empty, error)
+- `useAchievements.test.ts`: 8 NEW tests (load, loading state, checkForNew, getProgress ×3, error handling, refresh, categories)
+- `CategoryTabs.test.tsx`: 5 NEW tests (render all, active state, click handler, counts display, empty)
+- `AchievementProgressBar.test.tsx`: 4 NEW tests (progress bar, full bar, "Not yet" for binary types, zero progress)
+- `AchievementCard.test.tsx`: +4 tests (criteria hint, unlock date, NEW badge, rarity border styling)
+- `Achievements.test.tsx`: +3 tests (category filtering, progress bar, check button)
+
+**Verification results**:
+- Bot: 970/977 pass (7 expected failures — new criteria types not yet in engine, awaiting Agent B merge)
+- Mini-app: 889/889 pass, 3 test files fail to import (CategoryTabs, AchievementProgressBar, useAchievements don't exist yet — awaiting Agents C/D merge)
+- All pre-existing tests unaffected ✓
+
+**Notes**: Tests are designed to match the exact spec from PARALLEL_AGENTS.md. The 7+3 expected failures will resolve once Agents B, C, D code is merged before Agent E's branch. Locale-sensitive tests (date formatting) use CSS class selectors instead of text matching to avoid Russian locale issues.
 
 #### Agent 0 Retrospective
 *(To be filled by Agent 0 after merge)*
