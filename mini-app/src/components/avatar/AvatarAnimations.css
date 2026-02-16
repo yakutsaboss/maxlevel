@@ -1,0 +1,58 @@
+/* Avatar Animation Keyframes */
+
+/* Idle: subtle breathing — gentle scale oscillation */
+@keyframes avatar-idle {
+  0%, 100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.02);
+  }
+}
+
+/* Level-up: golden glow + scale pulse */
+@keyframes avatar-levelup-glow {
+  0%, 100% {
+    transform: scale(1);
+    box-shadow: 0 0 0 0 rgba(255, 215, 0, 0);
+    filter: brightness(1);
+  }
+  50% {
+    transform: scale(1.15);
+    box-shadow: 0 0 16px 4px rgba(255, 215, 0, 0.6);
+    filter: brightness(1.15);
+  }
+}
+
+/* Walk: horizontal sway with slight tilt */
+@keyframes avatar-walk {
+  0%, 100% {
+    transform: translateX(0) rotate(0deg);
+  }
+  25% {
+    transform: translateX(-2px) rotate(-1deg);
+  }
+  75% {
+    transform: translateX(2px) rotate(1deg);
+  }
+}
+
+/* Animated container classes */
+.avatar-anim-idle {
+  animation: avatar-idle 3s ease-in-out infinite;
+  image-rendering: pixelated;
+  will-change: transform;
+}
+
+.avatar-anim-levelup {
+  animation: avatar-levelup-glow 1.5s ease-in-out infinite;
+  image-rendering: pixelated;
+  border-radius: 8px;
+  will-change: transform, box-shadow, filter;
+}
+
+.avatar-anim-walk {
+  animation: avatar-walk 0.8s ease-in-out infinite;
+  image-rendering: pixelated;
+  will-change: transform;
+}
