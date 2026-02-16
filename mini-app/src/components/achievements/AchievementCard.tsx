@@ -198,6 +198,16 @@ export function AchievementCard({ achievement: ach, userAchievement: userAch, is
             </p>
           )}
         </>
+      ) : isPremium ? (
+        <>
+          <p className="text-xs text-amber-600 text-center line-clamp-2 mb-2">
+            {ach.description}
+          </p>
+          <div className="flex items-center justify-center gap-1 bg-amber-100 rounded-full px-2 py-0.5" aria-label={`Reward: ${ach.xp_reward ?? 0} XP`}>
+            <Star className="w-3 h-3 text-amber-500" aria-hidden="true" />
+            <span className="text-xs text-amber-600 font-medium">+{ach.xp_reward ?? 0} XP</span>
+          </div>
+        </>
       ) : (
         <>
           <p className="text-[11px] text-telegram-hint text-center italic line-clamp-2 mb-1">
