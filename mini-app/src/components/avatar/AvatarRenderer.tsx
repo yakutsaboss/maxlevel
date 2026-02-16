@@ -1,5 +1,6 @@
 import { AVATAR_LAYER_ORDER, SPRITE_REGISTRY } from '@/data/avatarItems';
 import { renderSprite, renderBaseBody } from './AvatarSprites';
+import { AvatarAnimator, type AvatarAnimation } from './AvatarAnimator';
 
 export interface EquippedItems {
   hairstyle: string | null;
@@ -13,6 +14,7 @@ export interface AvatarRendererProps {
   size?: 'sm' | 'md' | 'lg' | 'xl';
   className?: string;
   onClick?: () => void;
+  animation?: AvatarAnimation;
 }
 
 const SIZE_MAP: Record<string, number> = {
@@ -29,7 +31,7 @@ const DEFAULT_EQUIPPED: EquippedItems = {
   accessory: 'acc-none',
 };
 
-export function AvatarRenderer({ equipped, size = 'md', className = '', onClick }: AvatarRendererProps) {
+export function AvatarRenderer({ equipped, size = 'md', className = '', onClick, animation }: AvatarRendererProps) {
   const px = SIZE_MAP[size] ?? 48;
 
   const resolved: EquippedItems = {
@@ -39,7 +41,7 @@ export function AvatarRenderer({ equipped, size = 'md', className = '', onClick 
     accessory: equipped.accessory || DEFAULT_EQUIPPED.accessory,
   };
 
-  return (
+  const content = (
     <div
       className={className}
       onClick={onClick}
@@ -80,4 +82,10 @@ export function AvatarRenderer({ equipped, size = 'md', className = '', onClick 
       </div>
     </div>
   );
+
+  if (animation) {
+    return <AvatarAnimator animation={animation}>{content}</AvatarAnimator>;
+  }
+
+  return content;
 }
