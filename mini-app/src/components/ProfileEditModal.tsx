@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { X, Check, Loader2, AlertCircle } from 'lucide-react';
+import { X, Check, Loader2, AlertCircle, Palette } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { apiClient } from '@/api/client';
+import { AvatarRenderer, type EquippedItems } from '@/components/avatar';
 
 interface ProfileEditModalProps {
   isOpen: boolean;
@@ -11,6 +13,7 @@ interface ProfileEditModalProps {
   telegramId: number;
   currentName: string;
   currentAvatarId: number;
+  equippedItems?: EquippedItems;
   haptic: {
     impact: (style: 'light' | 'medium' | 'heavy' | 'rigid' | 'soft') => void;
     notification: (type: 'error' | 'success' | 'warning') => void;
@@ -39,24 +42,23 @@ const AVATAR_KEYS = [
 
 export const AVATAR_OPTIONS = AVATAR_KEYS.map(a => ({ icon: a.icon, color: a.color, label: a.labelKey }));
 
-export function ProfileEditModal({ isOpen, onClose, onSaved, telegramId, currentName, currentAvatarId, haptic }: ProfileEditModalProps) {
+export function ProfileEditModal({ isOpen, onClose, onSaved, telegramId, currentName, currentAvatarId, equippedItems, haptic }: ProfileEditModalProps) {
   const { t } = useTranslation();
+  const navigate = useNavigate();
   const [nickname, setNickname] = useState(currentName);
-  const [selectedAvatar, setSelectedAvatar] = useState(Math.min(Math.max(0, currentAvatarId - 1), AVATAR_KEYS.length - 1));
   const [saving, setSaving] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
 
   useEffect(() => {
     if (isOpen) {
       setNickname(currentName);
-      setSelectedAvatar(Math.min(Math.max(0, currentAvatarId - 1), AVATAR_KEYS.length - 1));
       setErrorMsg('');
       document.body.style.overflow = 'hidden';
     }
     return () => {
       document.body.style.overflow = '';
     };
-  }, [isOpen, currentName, currentAvatarId]);
+  }, [isOpen, currentName]);
 
   const handleSave = async () => {
     haptic.impact('medium');
@@ -65,7 +67,7 @@ export function ProfileEditModal({ isOpen, onClose, onSaved, telegramId, current
     try {
       await apiClient.updateUserProfile(telegramId, {
         first_name: nickname.trim() || currentName,
-        avatar_id: selectedAvatar + 1,
+        avatar_id: currentAvatarId,
       });
       haptic.notification('success');
       onSaved();
@@ -83,6 +85,14 @@ export function ProfileEditModal({ isOpen, onClose, onSaved, telegramId, current
     haptic.impact('light');
     onClose();
   };
+
+  const handleOpenAvatarStudio = () => {
+    haptic.impact('light');
+    onClose();
+    navigate('/avatar');
+  };
+
+  const currentAvatar = AVATAR_KEYS[Math.min(Math.max(0, currentAvatarId - 1), AVATAR_KEYS.length - 1)];
 
   return (
     <AnimatePresence>
@@ -123,26 +133,29 @@ export function ProfileEditModal({ isOpen, onClose, onSaved, telegramId, current
               <span className="text-xs text-telegram-hint mt-1 block">{nickname.length}/32</span>
             </div>
 
+            {/* Avatar Section — preview + link to Avatar Studio */}
             <div className="mb-6">
               <label className="text-sm text-telegram-hint mb-3 block">{t('profile.chooseAvatar')}</label>
-              <div className="grid grid-cols-4 gap-3">
-                {AVATAR_KEYS.map((avatar, index) => (
-                  <button
-                    key={index}
-                    onClick={() => { setSelectedAvatar(index); haptic.selection(); }}
-                    className={`flex flex-col items-center p-3 rounded-2xl border-2 transition-all active:scale-95 ${
-                      selectedAvatar === index
-                        ? 'border-telegram-link bg-telegram-link/10'
-                        : 'border-transparent bg-telegram-bg'
-                    }`}
-                  >
-                    <div className={`w-10 h-10 rounded-full ${avatar.color} flex items-center justify-center mb-1`}>
-                      <span className="text-xl">{avatar.icon}</span>
-                    </div>
-                    <span className="text-xs text-telegram-hint">{t(avatar.labelKey)}</span>
-                  </button>
-                ))}
-              </div>
+              <button
+                onClick={handleOpenAvatarStudio}
+                className="w-full flex items-center gap-4 bg-telegram-bg rounded-2xl p-4 border border-telegram-hint/20 active:scale-[0.98] transition-transform"
+              >
+                {equippedItems ? (
+                  <AvatarRenderer equipped={equippedItems} size="lg" />
+                ) : (
+                  <div className={`w-12 h-12 rounded-full ${currentAvatar.color} flex items-center justify-center flex-shrink-0`}>
+                    <span className="text-2xl">{currentAvatar.icon}</span>
+                  </div>
+                )}
+                <div className="flex-1 text-left">
+                  <span className="font-semibold text-sm flex items-center gap-1.5">
+                    <Palette className="w-4 h-4 text-purple-500" />
+                    {t('profile.openAvatarStudio')}
+                  </span>
+                  <p className="text-xs text-telegram-hint mt-0.5">{t('profile.customizeAvatarDesc')}</p>
+                </div>
+                <span className="text-telegram-hint text-lg">&rsaquo;</span>
+              </button>
             </div>
 
             {errorMsg && (

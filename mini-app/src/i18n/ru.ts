@@ -182,6 +182,9 @@ export default {
     avatarRogue: "Разбойник",
     avatarNight: "Ночь",
     avatarDawn: "Рассвет",
+    customizeAvatar: "Настроить аватар",
+    customizeAvatarDesc: "Создай уникального пиксельного персонажа",
+    openAvatarStudio: "Открыть студию аватаров",
   },
   settings: {
     title: "Настройки",

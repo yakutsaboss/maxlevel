@@ -1,4 +1,5 @@
 import { AVATAR_EMOJI_MAP } from '@/data/avatarOptions';
+import { AvatarRenderer, type EquippedItems } from '@/components/avatar';
 
 const AVATAR_COLORS = [
   'bg-purple-500', 'bg-blue-500', 'bg-green-500', 'bg-orange-500',
@@ -21,6 +22,7 @@ interface UserAvatarProps {
   firstName?: string;
   username?: string;
   avatarId?: number;
+  equippedItems?: EquippedItems;
   size?: 'sm' | 'md' | 'lg';
 }
 
@@ -36,7 +38,13 @@ const EMOJI_SIZE_CLASSES = {
   lg: 'text-2xl',
 };
 
-export function UserAvatar({ userId, firstName, username, avatarId, size = 'md' }: UserAvatarProps) {
+export function UserAvatar({ userId, firstName, username, avatarId, equippedItems, size = 'md' }: UserAvatarProps) {
+  // If equipped items are provided, use the new pixel art AvatarRenderer
+  if (equippedItems) {
+    return <AvatarRenderer equipped={equippedItems} size={size} />;
+  }
+
+  // Fall back to emoji-based avatar
   const emoji = avatarId ? AVATAR_EMOJI_MAP[avatarId] : undefined;
 
   if (emoji) {
@@ -47,6 +55,7 @@ export function UserAvatar({ userId, firstName, username, avatarId, size = 'md' 
     );
   }
 
+  // Fall back to initial letter
   return (
     <div className={`${SIZE_CLASSES[size]} rounded-full flex items-center justify-center text-white font-bold flex-shrink-0 ${getColorByUserId(userId)}`}>
       {getInitial(firstName, username)}

@@ -1823,7 +1823,25 @@ After completing, write your retrospective in PARALLEL_AGENTS.md under "Run 66 R
 **Merge note**: After Agent B merges, replace `AvatarPreview` with `AvatarRenderer` from `@/components/avatar` and pass `size="xl"` + equipped items as props.
 
 #### Agent D Retrospective
-*(To be filled by Agent D)*
+**Status**: DONE
+**Branch**: `feature/r66-avatar-integration`
+**Build**: PASS (`tsc && vite build` — 0 errors, 2102 modules)
+
+**What was done**:
+1. **UserAvatar.tsx** — Added optional `equippedItems` prop. If provided, renders `<AvatarRenderer>` instead of emoji/initial fallback. Fully backward compatible.
+2. **Profile.tsx** — Added "Customize Avatar" button below ProfileHeader that navigates to `/avatar`. Shows AvatarRenderer preview if user has equipped items, otherwise shows a Palette icon placeholder.
+3. **ProfileEditModal.tsx** — Replaced the 16-emoji avatar grid with a single "Open Avatar Studio" button that closes the modal and navigates to `/avatar`. Kept nickname editing + save functionality. Added optional `equippedItems` prop for preview. Preserved `AVATAR_OPTIONS` export for ProfileHeader.
+4. **Dashboard.tsx** — Added AvatarRenderer (size="md") in header next to greeting text, conditionally shown when `equipped_items` exists on user stats.
+5. **TopThreeCard.tsx + LeaderboardRow.tsx** — Pass `equippedItems` from entry data to UserAvatar (via `(entry as any).equipped_items`).
+6. **i18n** — Added 3 new keys (`customizeAvatar`, `customizeAvatarDesc`, `openAvatarStudio`) in EN/RU/ZH.
+7. **Stub** — Created minimal `components/avatar/index.tsx` stub (EquippedItems type + placeholder AvatarRenderer) so the branch builds independently. Will be replaced by Agent B's real implementation during merge.
+
+**Design decisions**:
+- Used `(x as any).equipped_items` pattern everywhere since the User/LeaderboardEntry types don't have this field yet (Agent A adds the API). This keeps TypeScript happy while being ready for the new data.
+- Kept all emoji/initial rendering as fallback — nothing breaks if equipped_items is undefined.
+- ProfileEditModal save still sends `avatar_id` (not equipped items) — avatar equipment is handled by the new `/avatar` page.
+
+**No issues encountered**. Initial build failed because stub was `.ts` not `.tsx` — fixed immediately.
 
 #### Agent E Retrospective
 *(To be filled by Agent E)*

@@ -182,6 +182,9 @@ export default {
     avatarRogue: "Rogue",
     avatarNight: "Night",
     avatarDawn: "Dawn",
+    customizeAvatar: "Customize Avatar",
+    customizeAvatarDesc: "Create your unique pixel art character",
+    openAvatarStudio: "Open Avatar Studio",
   },
   settings: {
     title: "Settings",

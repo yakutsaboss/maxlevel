@@ -1,10 +1,12 @@
 import { useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import { Palette } from 'lucide-react';
 import { useTelegram } from '@/hooks/useTelegram';
 import { useProfileData } from '@/hooks/useProfileData';
 import { apiClient } from '@/api/client';
 import { usePullToRefresh, PullIndicator } from '@/hooks/usePullToRefresh';
+import { AvatarRenderer, type EquippedItems } from '@/components/avatar';
 import { ProfileEditModal } from '@/components/ProfileEditModal';
 import { Toast } from '@/components/Toast';
 import { ProfileHeader } from '@/components/profile/ProfileHeader';
@@ -54,6 +56,27 @@ export function Profile() {
         onSettingsClick={() => navigate('/settings')}
         haptic={haptic}
       />
+
+      {/* Avatar Customization Section */}
+      <div className="px-4 mt-4">
+        <button
+          onClick={() => { haptic.impact('light'); navigate('/avatar'); }}
+          className="w-full flex items-center gap-3 bg-telegram-secondaryBg rounded-2xl p-4 border border-telegram-hint/10 active:scale-[0.98] transition-transform"
+        >
+          {(stats.user as any).equipped_items ? (
+            <AvatarRenderer equipped={(stats.user as any).equipped_items as EquippedItems} size="lg" />
+          ) : (
+            <div className="w-12 h-12 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center">
+              <Palette className="w-6 h-6 text-white" />
+            </div>
+          )}
+          <div className="flex-1 text-left">
+            <span className="font-semibold text-sm">{t('profile.customizeAvatar')}</span>
+            <p className="text-xs text-telegram-hint">{t('profile.customizeAvatarDesc')}</p>
+          </div>
+          <span className="text-telegram-hint text-lg">&rsaquo;</span>
+        </button>
+      </div>
 
       <ProfileStreak currentStreak={stats.user.current_streak} longestStreak={stats.user.longest_streak} />
 
@@ -108,6 +131,7 @@ export function Profile() {
         telegramId={user!.id}
         currentName={stats.user.first_name}
         currentAvatarId={stats.user.avatar_id ?? 1}
+        equippedItems={(stats.user as any).equipped_items}
         haptic={{ impact: haptic.impact, notification: haptic.notification, selection: haptic.selection }}
       />
 
