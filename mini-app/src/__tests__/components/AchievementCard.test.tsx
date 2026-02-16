@@ -2,14 +2,49 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import type { Achievement, UserAchievement } from '@/types';
 
+// Mock react-i18next (used by AchievementProgressBar)
+vi.mock('react-i18next', () => ({
+  useTranslation: () => ({
+    t: (key: string) => {
+      const keys: Record<string, string> = {
+        'achievements.progressFriends': 'friends',
+        'achievements.progressDays': 'days',
+        'achievements.progressQuests': 'quests',
+        'achievements.progressLevel': 'Level',
+        'achievements.progressChallenges': 'challenges',
+        'achievements.progressModes': 'modes',
+        'achievements.unlocked': 'Unlocked',
+        'achievements.progressNotYet': 'Not yet',
+      };
+      return keys[key] || key;
+    },
+  }),
+}));
+
 // Mock framer-motion
 vi.mock('framer-motion', () => ({
+  AnimatePresence: ({ children }: any) => <>{children}</>,
   motion: {
-    button: ({ children, onClick, className, 'aria-label': ariaLabel, ...props }: any) => (
-      <button onClick={onClick} className={className} aria-label={ariaLabel} type="button">{children}</button>
+    button: ({ children, onClick, className, 'aria-label': ariaLabel, 'aria-expanded': ariaExpanded, ...props }: any) => (
+      <button onClick={onClick} className={className} aria-label={ariaLabel} aria-expanded={ariaExpanded} type="button">{children}</button>
+    ),
+    div: ({ children, className, style, ...rest }: any) => (
+      <div className={className} style={style}>{children}</div>
     ),
   },
 }));
+
+// Mock lucide-react
+vi.mock('lucide-react', () => {
+  const IconStub = ({ className }: any) => <span data-testid="icon" className={className} />;
+  return {
+    Star: IconStub,
+    Lock: IconStub,
+    CheckCircle: IconStub,
+    Zap: IconStub,
+    ChevronDown: IconStub,
+  };
+});
 
 import { AchievementCard } from '@/components/achievements/AchievementCard';
 
@@ -91,7 +126,8 @@ describe('AchievementCard', () => {
       />
     );
 
-    expect(screen.getByText('Earned: +50 XP')).toBeInTheDocument();
+    // Source renders "+50 XP" inside a green pill (no "Earned:" prefix)
+    expect(screen.getByText('+50 XP')).toBeInTheDocument();
   });
 
   it('locked state shows reward XP', () => {
@@ -105,7 +141,11 @@ describe('AchievementCard', () => {
       />
     );
 
-    expect(screen.getByText('Reward: +50 XP')).toBeInTheDocument();
+    // Source renders "+50 XP" inside a hint-colored pill (no "Reward:" prefix)
+    // There are multiple "+50 XP" elements (one in the pill, one in expanded details)
+    // but at minimum the pill one should exist
+    const xpTexts = screen.getAllByText('+50 XP');
+    expect(xpTexts.length).toBeGreaterThanOrEqual(1);
   });
 
   it('triggers haptic feedback on click', () => {
@@ -123,7 +163,7 @@ describe('AchievementCard', () => {
     expect(mockHaptic.impact).toHaveBeenCalledWith('light');
   });
 
-  // ─── Run 65: New tests for enhanced AchievementCard ───────────────
+  // --- Run 65: New tests for enhanced AchievementCard ---
 
   it('shows criteria hint for new criteria types when locked', () => {
     const socialAch: Achievement = {
@@ -143,10 +183,8 @@ describe('AchievementCard', () => {
       />
     );
 
-    // Locked achievements show a criteria hint
-    // friend_count may show "Add 5 friends" or fallback to default hint
-    const hintEl = screen.getByText(/discover|friend/i);
-    expect(hintEl).toBeInTheDocument();
+    // getCriteriaHint for friend_count returns "Make 5 friends"
+    expect(screen.getByText(/Make 5 friend/)).toBeInTheDocument();
   });
 
   it('shows unlock date for earned achievements', () => {

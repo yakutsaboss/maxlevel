@@ -1,6 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor, fireEvent } from '@testing-library/react';
-import { Achievements } from '@/pages/Achievements';
 
 // Mock @twa-dev/sdk
 vi.mock('@twa-dev/sdk', () => ({
@@ -38,6 +37,88 @@ vi.mock('@twa-dev/sdk', () => ({
   },
 }));
 
+// Mock react-i18next (used by Achievements page, CategoryTabs, ErrorSection, AchievementProgressBar)
+vi.mock('react-i18next', () => ({
+  useTranslation: () => ({
+    t: (key: string, params?: Record<string, any>) => {
+      const keys: Record<string, string> = {
+        'achievements.rewards': 'Rewards',
+        'achievements.progress': 'Progress',
+        'achievements.checking': 'Checking...',
+        'achievements.checkForNewAchievements': 'Check for new achievements',
+        'achievements.couldNotLoad': 'Could not load achievements',
+        'achievements.noAchievements': 'No achievements yet',
+        'achievements.filterSort': 'Filter & Sort',
+        'achievements.filter_all': 'All',
+        'achievements.filter_earned': 'Earned',
+        'achievements.filter_unearned': 'Unearned',
+        'achievements.sort_rarity': 'Rarity',
+        'achievements.sort_progress': 'Progress',
+        'achievements.sort_recent': 'Recent',
+        'achievements.categoryAll': 'All',
+        'achievements.categoryFitness': 'Fitness',
+        'achievements.categoryHydration': 'Hydration',
+        'achievements.categorySocial': 'Social',
+        'achievements.categoryStreak': 'Streak',
+        'achievements.categoryXp': 'XP',
+        'achievements.categoryQuest': 'Quest',
+        'achievements.categorySpecial': 'Special',
+        'achievements.categoryGeneral': 'General',
+        'achievements.progressFriends': 'friends',
+        'achievements.progressDays': 'days',
+        'achievements.progressQuests': 'quests',
+        'achievements.progressLevel': 'Level',
+        'achievements.progressChallenges': 'challenges',
+        'achievements.progressModes': 'modes',
+        'achievements.unlocked': 'Unlocked',
+        'achievements.progressNotYet': 'Not yet',
+        'errors.somethingWentWrong': 'Something went wrong',
+        'common.retry': 'Retry',
+      };
+      if (key === 'achievements.newUnlocked' && params?.count) {
+        return `${params.count} new unlocked!`;
+      }
+      if (key === 'achievements.noCategoryAchievements' && params?.category) {
+        return `No ${params.category} achievements yet`;
+      }
+      return keys[key] || key;
+    },
+  }),
+}));
+
+// Mock framer-motion (used throughout the page and child components)
+vi.mock('framer-motion', () => ({
+  AnimatePresence: ({ children }: any) => <>{children}</>,
+  motion: {
+    div: ({ children, className, style, role, 'aria-valuenow': avn, 'aria-valuemin': avmin, 'aria-valuemax': avmax, 'aria-label': al, ...rest }: any) => (
+      <div className={className} style={style} role={role} aria-valuenow={avn} aria-valuemin={avmin} aria-valuemax={avmax} aria-label={al}>
+        {children}
+      </div>
+    ),
+    button: ({ children, onClick, className, 'aria-label': ariaLabel, 'aria-expanded': ariaExpanded, type }: any) => (
+      <button onClick={onClick} className={className} aria-label={ariaLabel} aria-expanded={ariaExpanded} type={type || 'button'}>
+        {children}
+      </button>
+    ),
+  },
+}));
+
+// Mock lucide-react
+vi.mock('lucide-react', () => {
+  const IconStub = ({ className }: any) => <span data-testid="icon" className={className} />;
+  return {
+    Trophy: IconStub,
+    RefreshCw: IconStub,
+    SlidersHorizontal: IconStub,
+    Star: IconStub,
+    Lock: IconStub,
+    CheckCircle: IconStub,
+    Zap: IconStub,
+    ChevronDown: IconStub,
+    AlertCircle: IconStub,
+  };
+});
+
 // Mock react-router-dom
 vi.mock('react-router-dom', () => ({
   useNavigate: () => vi.fn(),
@@ -68,6 +149,17 @@ vi.mock('@/hooks/usePullToRefresh', () => ({
   PullIndicator: () => null,
 }));
 
+// Mock logger
+vi.mock('@/utils/logger', () => ({
+  logger: {
+    error: vi.fn(),
+    warn: vi.fn(),
+    info: vi.fn(),
+    debug: vi.fn(),
+  },
+}));
+
+import { Achievements } from '@/pages/Achievements';
 import { apiClient } from '@/api/client';
 
 const mockGetAchievements = vi.mocked(apiClient.getAchievements);
@@ -126,7 +218,7 @@ describe('Achievements', () => {
       expect(screen.getByText('Rewards')).toBeInTheDocument();
     });
 
-    // With 3 categories (general, hydration, fitness) + "all" = 4, tabs should show
+    // With categories derived from criteria (general -> "general", etc.) + "all", tabs should show
     expect(screen.getByRole('tablist', { name: 'Achievement category filter' })).toBeInTheDocument();
     expect(screen.getByRole('tab', { name: 'Filter by All' })).toBeInTheDocument();
   });
@@ -160,13 +252,15 @@ describe('Achievements', () => {
     expect(screen.getByText('Retry')).toBeInTheDocument();
   });
 
-  // ─── Run 65: Category filtering with new categories ───────────────
+  // --- Run 65: Category filtering with new categories ---
 
   it('filters achievements by category when tab clicked', async () => {
+    // Achievements need criteria fields so getAchievementCategory() derives correct categories
     const extendedAchievements = [
       ...mockAllAchievements,
-      { id: 5, name: 'Social Star', description: 'Add 5 friends', icon: '🦋', xp_reward: 150, rarity: 'rare', category: 'social' },
-      { id: 6, name: 'Streak 3', description: '3-day streak', icon: '🔥', xp_reward: 30, rarity: 'common', category: 'streak' },
+      { id: 5, name: 'Social Star', description: 'Add 5 friends', icon: '🦋', xp_reward: 150, rarity: 'rare', category: 'social', criteria: { type: 'friend_count', count: 5 } },
+      { id: 6, name: 'Streak 3', description: '3-day streak', icon: '🔥', xp_reward: 30, rarity: 'common', category: 'streak', criteria: { type: 'streak', days: 3 } },
+      { id: 7, name: 'XP Collector', description: 'Earn 1000 XP', icon: '✨', xp_reward: 200, rarity: 'epic', category: 'xp', criteria: { type: 'total_xp', amount: 1000 } },
     ];
 
     mockGetAchievements.mockResolvedValue({ success: true, data: extendedAchievements } as any);
@@ -177,11 +271,11 @@ describe('Achievements', () => {
       expect(screen.getByText('Rewards')).toBeInTheDocument();
     });
 
-    // Tabs should include new categories
+    // Tabs should include new categories derived from criteria:
+    // all + general (no criteria) + social (friend_count) + streak + xp = 5 tabs
     const tablist = screen.getByRole('tablist');
     expect(tablist).toBeInTheDocument();
 
-    // Find and click a category tab (e.g. "social" or the tab containing social text)
     const tabs = screen.getAllByRole('tab');
     expect(tabs.length).toBeGreaterThanOrEqual(4); // all + at least 3 categories
   });

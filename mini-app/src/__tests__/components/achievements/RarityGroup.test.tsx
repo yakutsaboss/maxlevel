@@ -2,14 +2,49 @@ import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import type { Achievement, UserAchievement } from '@/types';
 
-// Mock framer-motion (used by AchievementCard)
+// Mock react-i18next (used by AchievementProgressBar inside AchievementCard)
+vi.mock('react-i18next', () => ({
+  useTranslation: () => ({
+    t: (key: string) => {
+      const keys: Record<string, string> = {
+        'achievements.progressFriends': 'friends',
+        'achievements.progressDays': 'days',
+        'achievements.progressQuests': 'quests',
+        'achievements.progressLevel': 'Level',
+        'achievements.progressChallenges': 'challenges',
+        'achievements.progressModes': 'modes',
+        'achievements.unlocked': 'Unlocked',
+        'achievements.progressNotYet': 'Not yet',
+      };
+      return keys[key] || key;
+    },
+  }),
+}));
+
+// Mock framer-motion (used by AchievementCard and AchievementProgressBar)
 vi.mock('framer-motion', () => ({
+  AnimatePresence: ({ children }: any) => <>{children}</>,
   motion: {
-    button: ({ children, onClick, className, 'aria-label': ariaLabel }: any) => (
-      <button onClick={onClick} className={className} aria-label={ariaLabel} type="button">{children}</button>
+    button: ({ children, onClick, className, 'aria-label': ariaLabel, 'aria-expanded': ariaExpanded, ...props }: any) => (
+      <button onClick={onClick} className={className} aria-label={ariaLabel} aria-expanded={ariaExpanded} type="button">{children}</button>
+    ),
+    div: ({ children, className, style, ...rest }: any) => (
+      <div className={className} style={style}>{children}</div>
     ),
   },
 }));
+
+// Mock lucide-react (used by AchievementCard)
+vi.mock('lucide-react', () => {
+  const IconStub = ({ className }: any) => <span data-testid="icon" className={className} />;
+  return {
+    Star: IconStub,
+    Lock: IconStub,
+    CheckCircle: IconStub,
+    Zap: IconStub,
+    ChevronDown: IconStub,
+  };
+});
 
 import { RarityGroup, RARITY_COLORS } from '@/components/achievements/RarityGroup';
 

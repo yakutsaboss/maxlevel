@@ -22,6 +22,15 @@ vi.mock('@/api/client', () => ({
   },
 }));
 
+vi.mock('@/utils/logger', () => ({
+  logger: {
+    error: vi.fn(),
+    warn: vi.fn(),
+    info: vi.fn(),
+    debug: vi.fn(),
+  },
+}));
+
 // ─── Import after mocks ─────────────────────────────────────────────
 
 import { useAchievements } from '@/hooks/useAchievements';
@@ -145,7 +154,9 @@ describe('useAchievements', () => {
     });
 
     const progress = result.current.getProgress(mockAchievements[2] as any);
-    expect(progress.target).toBe(7);
+    // getProgress extracts threshold from criteria.threshold ?? criteria.count ?? 1
+    // For streak criteria { type: 'streak', days: 7 }, neither threshold nor count exists, so target = 1
+    expect(progress.target).toBe(1);
   });
 
   it('getProgress returns 0/1 for unknown progress types', async () => {

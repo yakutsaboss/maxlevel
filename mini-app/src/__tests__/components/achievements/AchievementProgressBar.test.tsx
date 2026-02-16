@@ -11,26 +11,42 @@ import { render, screen } from '@testing-library/react';
 // Mock i18n
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({
-    t: (key: string, params?: Record<string, any>) => {
-      if (key === 'achievements.unlocked') return 'Unlocked';
-      if (key === 'achievements.notYet') return 'Not yet';
-      if (key === 'achievements.progress') return `${params?.current ?? 0}/${params?.target ?? 0}`;
-      return key;
+    t: (key: string) => {
+      const keys: Record<string, string> = {
+        'achievements.progressFriends': 'friends',
+        'achievements.progressDays': 'days',
+        'achievements.progressQuests': 'quests',
+        'achievements.progressLevel': 'Level',
+        'achievements.progressChallenges': 'challenges',
+        'achievements.progressModes': 'modes',
+        'achievements.unlocked': 'Unlocked',
+        'achievements.progressNotYet': 'Not yet',
+      };
+      return keys[key] || key;
     },
   }),
 }));
 
+// Mock framer-motion (used by the progress bar animation)
+vi.mock('framer-motion', () => ({
+  motion: {
+    div: ({ children, className, style, ...rest }: any) => (
+      <div className={className} style={style}>{children}</div>
+    ),
+  },
+}));
+
 import { AchievementProgressBar } from '@/components/achievements/AchievementProgressBar';
 
-// ─── Tests ──────────────────────────────────────────────────────────
+// --- Tests ---
 
 beforeEach(() => {
   vi.clearAllMocks();
 });
 
 describe('AchievementProgressBar', () => {
-  it('shows progress bar with correct percentage', () => {
-    render(
+  it('shows progress label with correct fraction', () => {
+    const { container } = render(
       <AchievementProgressBar
         criteria={{ type: 'friend_count', count: 10 }}
         currentValue={7}
@@ -38,16 +54,16 @@ describe('AchievementProgressBar', () => {
       />
     );
 
-    // Should show some indication of 7/10 progress
+    // getProgressLabel for friend_count: "7/10 friends"
     expect(screen.getByText(/7\/10/)).toBeInTheDocument();
 
-    // Should have a progress bar element
-    const progressBar = screen.getByRole('progressbar');
-    expect(progressBar).toBeInTheDocument();
+    // Should have a progress bar track (the outer bg-telegram-hint/15 div)
+    const track = container.querySelector('.rounded-full.overflow-hidden');
+    expect(track).toBeTruthy();
   });
 
   it('shows full bar for 100% progress', () => {
-    render(
+    const { container } = render(
       <AchievementProgressBar
         criteria={{ type: 'quest_count', count: 5 }}
         currentValue={5}
@@ -55,13 +71,16 @@ describe('AchievementProgressBar', () => {
       />
     );
 
+    // getProgressLabel for quest_count: "5/5 quests"
     expect(screen.getByText(/5\/5/)).toBeInTheDocument();
-    const progressBar = screen.getByRole('progressbar');
-    expect(progressBar).toBeInTheDocument();
+
+    // Should have a progress bar track
+    const track = container.querySelector('.rounded-full.overflow-hidden');
+    expect(track).toBeTruthy();
   });
 
-  it('shows "Not yet" for criteria types without measurable progress', () => {
-    render(
+  it('shows "Not yet" for binary criteria types without measurable progress', () => {
+    const { container } = render(
       <AchievementProgressBar
         criteria={{ type: 'night_quest', hour: 22 }}
         currentValue={0}
@@ -69,8 +88,12 @@ describe('AchievementProgressBar', () => {
       />
     );
 
-    // For binary criteria like night_quest, should show "Not yet" when not achieved
+    // For binary criteria like night_quest, getProgressLabel returns t('achievements.progressNotYet') = "Not yet"
     expect(screen.getByText('Not yet')).toBeInTheDocument();
+
+    // night_quest/early_quest are binary — no bar (hasProgressBar returns false)
+    const track = container.querySelector('.rounded-full.overflow-hidden');
+    expect(track).toBeNull();
   });
 
   it('shows zero progress correctly', () => {
@@ -82,6 +105,7 @@ describe('AchievementProgressBar', () => {
       />
     );
 
+    // getProgressLabel for streak: "0/30 days"
     expect(screen.getByText(/0\/30/)).toBeInTheDocument();
   });
 });

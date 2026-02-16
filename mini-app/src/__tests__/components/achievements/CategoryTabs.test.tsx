@@ -29,7 +29,7 @@ vi.mock('react-i18next', () => ({
 
 import { CategoryTabs } from '@/components/achievements/CategoryTabs';
 
-// ─── Test data ──────────────────────────────────────────────────────
+// --- Test data ---
 
 const mockCategories = ['all', 'fitness', 'hydration', 'social', 'streak'];
 
@@ -41,7 +41,9 @@ const mockCounts: Record<string, { earned: number; total: number }> = {
   streak: { earned: 2, total: 5 },
 };
 
-// ─── Tests ──────────────────────────────────────────────────────────
+const mockHaptic = { impact: vi.fn() };
+
+// --- Tests ---
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -56,6 +58,7 @@ describe('CategoryTabs', () => {
         activeCategory="all"
         onSelect={onSelect}
         counts={mockCounts}
+        haptic={mockHaptic}
       />
     );
 
@@ -72,6 +75,7 @@ describe('CategoryTabs', () => {
         activeCategory="fitness"
         onSelect={onSelect}
         counts={mockCounts}
+        haptic={mockHaptic}
       />
     );
 
@@ -88,6 +92,7 @@ describe('CategoryTabs', () => {
         activeCategory="all"
         onSelect={onSelect}
         counts={mockCounts}
+        haptic={mockHaptic}
       />
     );
 
@@ -95,6 +100,7 @@ describe('CategoryTabs', () => {
     // Click the second tab (fitness)
     fireEvent.click(tabs[1]);
     expect(onSelect).toHaveBeenCalledWith('fitness');
+    expect(mockHaptic.impact).toHaveBeenCalledWith('light');
   });
 
   it('shows earned/total counts for each category', () => {
@@ -105,12 +111,15 @@ describe('CategoryTabs', () => {
         activeCategory="all"
         onSelect={onSelect}
         counts={mockCounts}
+        haptic={mockHaptic}
       />
     );
 
-    // Should display count text like "2/5" or "5/20" somewhere
+    // Should display count text like "5/20" for the "all" tab
     expect(screen.getByText(/5\/20/)).toBeInTheDocument();
-    expect(screen.getByText(/2\/5/)).toBeInTheDocument();
+    // "2/5" appears in both fitness and streak tabs, so use getAllByText
+    const twoOfFive = screen.getAllByText(/2\/5/);
+    expect(twoOfFive.length).toBeGreaterThanOrEqual(1);
   });
 
   it('handles empty categories gracefully', () => {
@@ -121,6 +130,7 @@ describe('CategoryTabs', () => {
         activeCategory="all"
         onSelect={onSelect}
         counts={{}}
+        haptic={mockHaptic}
       />
     );
 

@@ -62,6 +62,24 @@ vi.mock('@twa-dev/sdk', () => ({
   },
 }));
 
+vi.mock('react-i18next', () => ({
+  useTranslation: () => ({
+    t: (key: string) => {
+      const keys: Record<string, string> = {
+        'achievements.progressFriends': 'friends',
+        'achievements.progressDays': 'days',
+        'achievements.progressQuests': 'quests',
+        'achievements.progressLevel': 'Level',
+        'achievements.progressChallenges': 'challenges',
+        'achievements.progressModes': 'modes',
+        'achievements.unlocked': 'Unlocked',
+        'achievements.progressNotYet': 'Not yet',
+      };
+      return keys[key] || key;
+    },
+  }),
+}));
+
 vi.mock('framer-motion', () => ({
   AnimatePresence: ({ children }: any) => <>{children}</>,
   motion: {
@@ -70,8 +88,8 @@ vi.mock('framer-motion', () => ({
         {children}
       </div>
     ),
-    button: ({ children, onClick, className, 'aria-label': ariaLabel, type }: any) => (
-      <button onClick={onClick} className={className} aria-label={ariaLabel} type={type || 'button'}>
+    button: ({ children, onClick, className, 'aria-label': ariaLabel, 'aria-expanded': ariaExpanded, type }: any) => (
+      <button onClick={onClick} className={className} aria-label={ariaLabel} aria-expanded={ariaExpanded} type={type || 'button'}>
         {children}
       </button>
     ),
@@ -85,6 +103,7 @@ vi.mock('lucide-react', () => {
     Lock: IconStub,
     CheckCircle: IconStub,
     Zap: IconStub,
+    ChevronDown: IconStub,
     Trophy: IconStub,
     Award: IconStub,
     Pencil: IconStub,
