@@ -1,7 +1,7 @@
 import { useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { Palette } from 'lucide-react';
+import { Palette, Trophy } from 'lucide-react';
 import { useTelegram } from '@/hooks/useTelegram';
 import { useProfileData } from '@/hooks/useProfileData';
 import { apiClient } from '@/api/client';
@@ -73,6 +73,23 @@ export function Profile() {
           <div className="flex-1 text-left">
             <span className="font-semibold text-sm">{t('profile.customizeAvatar')}</span>
             <p className="text-xs text-telegram-hint">{t('profile.customizeAvatarDesc')}</p>
+          </div>
+          <span className="text-telegram-hint text-lg">&rsaquo;</span>
+        </button>
+      </div>
+
+      {/* Trophy Case Section */}
+      <div className="px-4 mt-3">
+        <button
+          onClick={() => { haptic.impact('light'); navigate('/trophies'); }}
+          className="w-full flex items-center gap-3 bg-telegram-secondaryBg rounded-2xl p-4 border border-telegram-hint/10 active:scale-[0.98] transition-transform"
+        >
+          <div className="w-12 h-12 rounded-full bg-gradient-to-br from-yellow-500 to-amber-600 flex items-center justify-center">
+            <Trophy className="w-6 h-6 text-white" />
+          </div>
+          <div className="flex-1 text-left">
+            <span className="font-semibold text-sm">{t('trophy.viewTrophyCase')}</span>
+            <p className="text-xs text-telegram-hint">{t('trophy.viewTrophyCaseDesc')}</p>
           </div>
           <span className="text-telegram-hint text-lg">&rsaquo;</span>
         </button>

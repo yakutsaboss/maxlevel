@@ -2355,7 +2355,31 @@ This is the **#1 lesson from Runs 65-66**: reading actual source before writing 
 **No issues encountered.** All files follow existing project patterns (avatars.ts API style, Achievements page layout, bottom-sheet modal pattern).
 
 #### Agent D Retrospective
-*(To be filled by Agent D)*
+
+**Status**: All 7 tasks completed, branch pushed.
+
+**Commits** (6 total on `feature/r67-i18n-integration`):
+1. `feat(i18n): add trophy + avatarAnim keys in en/ru/zh` — Added `nav.trophies`, `trophy.*` (18 keys incl. nested rarity + criteria), `avatarAnim.*` (4 keys) to en.ts, ru.ts, zh.ts
+2. `feat(routing): add TrophyCase lazy route in App.tsx` — Lazy import + ProtectedRoute at `/trophies`
+3. `feat(nav): add Trophy Case to moreItems in Navigation` — Added Medal icon entry to `moreItems` array, imported `Medal` from lucide-react
+4. `feat(api): wire trophyRouter into server.ts` — Import + `app.use('/api/trophies', trophyRouter)` after avatarRouter
+5. `feat(profile): add Trophy Case button to Profile page` — Gold Trophy icon button after avatar customization section, navigates to `/trophies`
+6. `feat(celebration): add onTrophyEarned callback` — New `onTrophyEarned(rarity)` in useCelebration hook; triggers confetti for epic/legendary
+
+**i18n keys added** (for Agent C/E reference):
+- `nav.trophies` — "Trophies" / "Трофеи" / "奖杯"
+- `trophy.title`, `trophy.earned`, `trophy.all`, `trophy.earnedCount`, `trophy.howToEarn`, `trophy.earnedOn`, `trophy.locked`
+- `trophy.rarity.common`, `.rare`, `.epic`, `.legendary`
+- `trophy.criteria.quest_count`, `.streak_days`, `.level`, `.friend_count`, `.challenge_wins`, `.challenge_created`, `.achievement_count`, `.mode_count`, `.xp_total`, `.first_purchase`, `.early_adopter`
+- `trophy.noTrophies`, `trophy.newTrophy`, `trophy.viewTrophyCase`, `trophy.viewTrophyCaseDesc`
+- `avatarAnim.idle`, `.celebrate`, `.levelup`, `.walk`
+
+**Design decisions**:
+- Used `Medal` icon (not `Trophy`) for nav entry since `Trophy` was already used for leaderboard/ranks
+- Profile trophy button uses yellow-to-amber gradient to visually differentiate from purple avatar button
+- `onTrophyEarned` takes just `rarity: string` (not full trophy object) to keep it lightweight
+
+**No issues encountered**.
 
 #### Agent E Retrospective
 *(To be filled by Agent E)*

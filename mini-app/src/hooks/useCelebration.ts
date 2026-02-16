@@ -144,6 +144,13 @@ export function useCelebration() {
     setAchievementUnlocked(null);
   }, []);
 
+  const onTrophyEarned = useCallback((rarity: string) => {
+    const r = rarity?.toLowerCase();
+    if (r === 'epic' || r === 'legendary') {
+      setState((prev) => ({ ...prev, showConfetti: true }));
+    }
+  }, []);
+
   // Cleanup on unmount
   useEffect(() => {
     return () => {
@@ -160,6 +167,7 @@ export function useCelebration() {
     achievementUnlocked,
     onDashboardData,
     onAchievementUnlocked,
+    onTrophyEarned,
     dismiss,
     dismissAchievement,
     dismissConfetti,
