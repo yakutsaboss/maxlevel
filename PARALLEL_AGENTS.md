@@ -317,8 +317,8 @@ Runs 56-64 were supposed to deliver avatars, trophies, shop, and 30+ achievement
 | Run | Focus | Agents | Status |
 |-----|-------|--------|--------|
 | **65** | Achievement Expansion — 30+ New Achievements | 5 | ✅ |
-| **66** | Pixel Art Avatar System | 5 | 🔄 |
-| **67** | Animated Avatars + Trophy System | 5 | ⬜ |
+| **66** | Pixel Art Avatar System | 5 | ✅ |
+| **67** | Animated Avatars + Trophy System | 5 | 🔄 |
 | **68** | Purchasable Achievements + Stars Punishment | 5 | ⬜ |
 | **69** | Shop Page + Content Polish | 5 | ⬜ |
 | **70** | Final QA + Performance Optimization | 4 | ⬜ |
@@ -1865,6 +1865,425 @@ After completing, write your retrospective in PARALLEL_AGENTS.md under "Run 66 R
 **Mocking strategy**: Each external dependency fully mocked — framer-motion (stripped animation props), lucide-react (data-testid spans), useTelegram (with `user.id` for hook), usePullToRefresh (full return shape + PullIndicator component), ErrorSection (with message/onRetry).
 
 **Zero failures** on first run after reading actual source. Run 65's lesson (read before write) paid off completely.
+
+#### Agent 0 Retrospective
+**Merge**: All 5 branches merged in order A→B→C→D→E. Zero PARALLEL_AGENTS.md conflicts.
+
+**Post-merge fixes (6 failures, 2 files)**:
+- **Deleted `avatar/index.tsx` stub**: Agent D created a stub AvatarRenderer in `index.tsx` for build independence. Agent B's real `index.ts` re-exports from `AvatarRenderer.tsx`. Deleted the stub — builds resolve to the real component.
+- **ProfileEditModal.test.tsx (5)**: Agent D added `useNavigate()` — test needed MemoryRouter wrapper. Also needed mocks for `react-i18next`, `lucide-react` (X/Check/Loader2/AlertCircle/Palette), `@/components/avatar`. Button text uses `t('common.save')` not `t('profile.save')`.
+- **Navigation.test.tsx (1)**: Pre-existing failure (also failed before merge). "Ranks" is in `moreItems` behind "More" button, not a primary nav item. Updated test to check 4 primary items + "More" button. Added `react-i18next` and `lucide-react` mocks.
+
+**Schema**: Created `avatar_items` + `user_avatar` tables, seeded 18 items.
+
+**Result**: 1921 tests pass (988 bot + 933 mini-app). Deployed as commit `c322bc5`.
+
+**Roadmap**: Run 66 ✅ complete. Next: Run 67 Animated Avatars + Trophy System.
+
+---
+
+## RUN 67: Parallel Agents (5 Agents + Agent 0)
+
+### Focus: Animated Avatars + Trophy System
+
+Add CSS/Framer Motion animations to pixel art avatars (idle, celebrate, level-up, walk states) and build a trophy case system where users showcase achievements as trophies.
+
+### Copy-Paste Prompts
+
+**Agent A** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-a`):
+```
+Read the file c:\Users\Asus\Desktop\Wibecode-agent-a\PARALLEL_AGENTS.md — find the "RUN 67" section and follow the instructions for **Agent A (Avatar Animation States)**. You are Agent A. Do all tasks listed, commit after each task, and write your retrospective when done.
+```
+
+**Agent B** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-b`):
+```
+Read the file c:\Users\Asus\Desktop\Wibecode-agent-b\PARALLEL_AGENTS.md — find the "RUN 67" section and follow the instructions for **Agent B (Trophy System Backend)**. You are Agent B. Do all tasks listed, commit after each task, and write your retrospective when done.
+```
+
+**Agent C** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-c`):
+```
+Read the file c:\Users\Asus\Desktop\Wibecode-agent-c\PARALLEL_AGENTS.md — find the "RUN 67" section and follow the instructions for **Agent C (Trophy Case UI)**. You are Agent C. Do all tasks listed, commit after each task, and write your retrospective when done.
+```
+
+**Agent D** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-d`):
+```
+Read the file c:\Users\Asus\Desktop\Wibecode-agent-d\PARALLEL_AGENTS.md — find the "RUN 67" section and follow the instructions for **Agent D (i18n + Integration)**. You are Agent D. Do all tasks listed, commit after each task, and write your retrospective when done.
+```
+
+**Agent E** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-e`):
+```
+Read the file c:\Users\Asus\Desktop\Wibecode-agent-e\PARALLEL_AGENTS.md — find the "RUN 67" section and follow the instructions for **Agent E (Tests)**. You are Agent E. Do all tasks listed, commit after each task, and write your retrospective when done.
+```
+
+---
+
+### Agent A — Avatar Animation States
+
+**OWNED files** (only Agent A may edit these):
+- `mini-app/src/components/avatar/AvatarAnimator.tsx` (NEW)
+- `mini-app/src/components/avatar/AvatarAnimations.css` (NEW)
+
+**GRAY AREA files** (Agent A may ADD to, not rewrite):
+- `mini-app/src/components/avatar/AvatarRenderer.tsx` — add optional `animation` prop, wrap content in `<AvatarAnimator>` when set
+- `mini-app/src/components/avatar/index.ts` — re-export AvatarAnimator + animation types
+
+**FORBIDDEN files** (do NOT touch):
+- All files in `bot/`, `tools/`, `database/`
+- All i18n files
+- `App.tsx`, `Navigation.tsx`
+- All files in `mini-app/src/pages/`
+- `PARALLEL_AGENTS.md` (except your retrospective section)
+
+**Tasks:**
+1. **Create `AvatarAnimator.tsx`** — A wrapper component that adds animation to the pixel art avatar.
+   - Props: `animation: 'idle' | 'celebrate' | 'levelup' | 'walk' | 'none'`, `children: React.ReactNode`, `loop?: boolean`
+   - `idle`: Subtle breathing animation — gentle scale oscillation (1.0 → 1.02 → 1.0) with ~3s period. Use CSS keyframes.
+   - `celebrate`: Jump up + confetti particles — translateY bounce (-8px → 0) with 3 small colored particles spawned around the avatar. Use Framer Motion `motion.div`.
+   - `levelup`: Golden glow + scale pulse — box-shadow glow animation + scale(1.0 → 1.15 → 1.0). Use CSS keyframes with a gold/yellow glow color.
+   - `walk`: Subtle horizontal sway — translateX oscillation (-2px → 2px) with a slight rotation tilt. Use CSS keyframes.
+   - `none`: No animation, pass-through render.
+   - Each animation should be smooth, pixel-art-friendly (no sub-pixel blurring), and performant.
+   - Export the component and the `AvatarAnimation` type.
+
+2. **Create `AvatarAnimations.css`** — CSS keyframes for idle, levelup, and walk animations.
+   - Use `image-rendering: pixelated` on animated containers to preserve pixel art crispness.
+   - Keyframes: `@keyframes avatar-idle`, `@keyframes avatar-levelup-glow`, `@keyframes avatar-walk`.
+   - The celebrate animation uses Framer Motion (JS-driven), not CSS.
+
+3. **Update `AvatarRenderer.tsx`** — Add optional `animation` prop.
+   - New optional prop: `animation?: AvatarAnimation` (default: `undefined` = no animation).
+   - When `animation` is set, wrap the existing render output inside `<AvatarAnimator animation={animation}>`.
+   - When `animation` is undefined/not provided, render exactly as before (no wrapper, zero behavior change).
+   - Import `AvatarAnimator` from `./AvatarAnimator`.
+   - Import `./AvatarAnimations.css` at the top.
+
+4. **Update `index.ts`** — Re-export the new types.
+   - Add: `export { AvatarAnimator } from './AvatarAnimator';`
+   - Add: `export type { AvatarAnimation } from './AvatarAnimator';`
+
+5. **Write retrospective** in the pre-allocated section below.
+
+---
+
+### Agent B — Trophy System Backend
+
+**OWNED files** (only Agent B may edit these):
+- `database/migrations/run67_trophy_tables.sql` (NEW)
+- `bot/src/api/routes/trophies.ts` (NEW)
+
+**GRAY AREA files** (Agent B may APPEND to, not rewrite):
+- `database/seed_data.sql` — APPEND trophy seed data at the end (after the `-- Avatar Items` block)
+
+**FORBIDDEN files** (do NOT touch):
+- All files in `mini-app/`
+- `bot/src/api/server.ts` (Agent D wires the router)
+- All i18n files
+- `PARALLEL_AGENTS.md` (except your retrospective section)
+
+**Tasks:**
+1. **Create migration `run67_trophy_tables.sql`**:
+   ```sql
+   CREATE TABLE IF NOT EXISTS trophies (
+     id SERIAL PRIMARY KEY,
+     name VARCHAR(100) NOT NULL,
+     description TEXT,
+     icon_emoji VARCHAR(10) NOT NULL,
+     rarity VARCHAR(20) NOT NULL DEFAULT 'common',
+     criteria JSONB NOT NULL DEFAULT '{}',
+     sort_order INT NOT NULL DEFAULT 0,
+     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+   );
+
+   CREATE TABLE IF NOT EXISTS user_trophies (
+     id SERIAL PRIMARY KEY,
+     user_id INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+     trophy_id INT NOT NULL REFERENCES trophies(id) ON DELETE CASCADE,
+     earned_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+     UNIQUE(user_id, trophy_id)
+   );
+
+   CREATE INDEX IF NOT EXISTS idx_user_trophies_user_id ON user_trophies(user_id);
+   CREATE INDEX IF NOT EXISTS idx_user_trophies_trophy_id ON user_trophies(trophy_id);
+   ```
+
+2. **Seed 15-20 trophies** in `seed_data.sql`. Categories:
+   - **Beginner** (3): "First Steps" (complete 1 quest), "Getting Started" (reach level 2), "Social Debut" (add 1 friend)
+   - **Streak** (3): "Week Warrior" (7-day streak), "Fortnight Fighter" (14-day streak), "Monthly Master" (30-day streak)
+   - **Social** (3): "Social Star" (10 friends), "Challenge Creator" (create 1 challenge), "Challenge Conqueror" (win 3 challenges)
+   - **Mastery** (3): "Quest Centurion" (100 quests), "XP Millionaire" (10,000 XP), "Mode Explorer" (activate 3 modes)
+   - **Prestige** (3): "Streak Legend" (100-day streak), "Level 50 Club" (reach level 50), "Achievement Hunter" (earn 20 achievements)
+   - **Special** (2): "Early Adopter" (join before specific date), "Premium Pioneer" (first purchase)
+   - Each trophy: name, description, icon_emoji (🏆🥇🌟⚔️🛡️🔥💎👑 etc.), rarity (common/rare/epic/legendary), criteria JSONB (e.g., `{"type": "quest_count", "threshold": 100}`), sort_order.
+
+3. **Create `trophies.ts` API route**:
+   - `GET /trophies` — List all available trophies (public catalog).
+   - `GET /trophies/:userId` — List earned trophies for a user (with `earned_at`). Requires `authenticateTelegram` + `authorizeUser`.
+   - `GET /trophies/:userId/check` — Check and award any newly earned trophies. Reads user stats (quests completed, streak, level, friends count, achievements count, etc.) and compares against trophy criteria. Awards trophies where criteria are met and `user_trophies` row doesn't exist. Returns newly awarded trophies.
+   - Use the same patterns as `avatars.ts`: `asyncHandler`, `successResponse`, `BadRequestError`, `NotFoundError`, `safeParseInt`.
+   - Export as `trophyRouter`.
+
+4. **Write retrospective** in the pre-allocated section below.
+
+---
+
+### Agent C — Trophy Case UI
+
+**OWNED files** (only Agent C may edit these):
+- `mini-app/src/pages/TrophyCase.tsx` (NEW)
+- `mini-app/src/components/trophies/TrophyCard.tsx` (NEW)
+- `mini-app/src/components/trophies/TrophyDetailModal.tsx` (NEW)
+- `mini-app/src/components/trophies/TrophyCaseSkeleton.tsx` (NEW)
+- `mini-app/src/hooks/useTrophies.ts` (NEW)
+- `mini-app/src/api/trophies.ts` (NEW)
+
+**FORBIDDEN files** (do NOT touch):
+- All files in `bot/`, `tools/`, `database/`
+- All i18n files (Agent D handles these)
+- `App.tsx`, `Navigation.tsx` (Agent D handles routing)
+- `Profile.tsx`, `Dashboard.tsx`
+- `PARALLEL_AGENTS.md` (except your retrospective section)
+
+**Tasks:**
+1. **Create `mini-app/src/api/trophies.ts`** — API client functions:
+   - `fetchAllTrophies()` — GET /trophies (catalog)
+   - `fetchUserTrophies(userId)` — GET /trophies/:userId (earned)
+   - `checkTrophies(userId)` — GET /trophies/:userId/check (check + award)
+   - Use `apiClient` from `@/api/client` for HTTP calls. Follow the same pattern as `@/api/avatars.ts`.
+
+2. **Create `useTrophies.ts` hook**:
+   - Loads all trophies + user's earned trophies on mount.
+   - `checkForNew()` — calls check endpoint, refreshes earned list.
+   - Returns: `{ allTrophies, earnedTrophies, loading, error, checkForNew, refresh }`.
+   - Check for new trophies automatically on first load (call the check endpoint once).
+
+3. **Create `TrophyCard.tsx`**:
+   - Displays a single trophy in the grid: icon emoji (large), name, rarity badge (color-coded like achievements).
+   - Earned trophies: full color, subtle shine animation (CSS shimmer).
+   - Unearned trophies: grayscale/silhouette with lock icon overlay, "How to earn" hint text.
+   - Tapping an earned trophy opens `TrophyDetailModal`.
+   - Use `motion.div` from Framer Motion for tap feedback.
+
+4. **Create `TrophyDetailModal.tsx`**:
+   - Full-screen bottom sheet modal (slide up from bottom).
+   - Shows: large icon, trophy name, description, rarity, earned date (if earned), criteria description.
+   - For unearned trophies: show progress hint (e.g., "Complete 100 quests" with a simple fraction "45/100").
+   - Close button at top + swipe down to dismiss.
+
+5. **Create `TrophyCaseSkeleton.tsx`** — Loading skeleton matching the trophy grid layout.
+
+6. **Create `TrophyCase.tsx` page**:
+   - Header: "Trophy Case" with trophy count ("12/17 earned").
+   - Two tabs: "Earned" and "All" (filter).
+   - Grid layout (2 columns) with `TrophyCard` for each trophy.
+   - Pull-to-refresh using `usePullToRefresh`.
+   - Back button navigates to profile using `useBackButton`.
+   - Use i18n keys like `trophy.title`, `trophy.earned`, `trophy.all`, `trophy.earnedCount` etc. (Agent D will add the actual translations — use `t('trophy.xxx')` calls and document the keys you use in your retrospective).
+
+7. **Write retrospective** — list ALL i18n keys used (Agent D needs this).
+
+---
+
+### Agent D — i18n + Integration
+
+**OWNED files** (only Agent D may edit these):
+- `mini-app/src/i18n/en.ts` — ADD `trophy` and `avatarAnim` key blocks
+- `mini-app/src/i18n/ru.ts` — ADD `trophy` and `avatarAnim` key blocks
+- `mini-app/src/i18n/zh.ts` — ADD `trophy` and `avatarAnim` key blocks
+
+**GRAY AREA files** (Agent D may ADD minimal lines to):
+- `mini-app/src/App.tsx` — ADD lazy import for `TrophyCase` + `<Route>` entry
+- `mini-app/src/components/Navigation.tsx` — ADD Trophy Case to `moreItems` array
+- `bot/src/api/server.ts` — ADD `import { trophyRouter }` + `app.use('/api/trophies', trophyRouter);`
+- `mini-app/src/pages/Profile.tsx` — ADD a "Trophy Case" link/button (similar to the existing "Customize Avatar" button)
+- `mini-app/src/hooks/useCelebration.ts` — ADD `onTrophyEarned` callback that triggers celebrate animation
+
+**FORBIDDEN files** (do NOT touch):
+- All Agent A files (avatar components)
+- All Agent B files (trophies route, migration, seeds)
+- All Agent C files (trophy UI components)
+- `PARALLEL_AGENTS.md` (except your retrospective section)
+
+**Tasks:**
+1. **Add i18n keys for trophies** (all 3 languages):
+   ```
+   trophy: {
+     title: "Trophy Case",
+     earned: "Earned",
+     all: "All",
+     earnedCount: "{{earned}}/{{total}} earned",
+     howToEarn: "How to earn",
+     earnedOn: "Earned on {{date}}",
+     locked: "Locked",
+     rarity: { common: "Common", rare: "Rare", epic: "Epic", legendary: "Legendary" },
+     criteria: {
+       quest_count: "Complete {{threshold}} quests",
+       streak_days: "Maintain a {{threshold}}-day streak",
+       level: "Reach level {{threshold}}",
+       friend_count: "Add {{threshold}} friends",
+       challenge_wins: "Win {{threshold}} challenges",
+       challenge_created: "Create {{threshold}} challenges",
+       achievement_count: "Earn {{threshold}} achievements",
+       mode_count: "Activate {{threshold}} modes",
+       xp_total: "Earn {{threshold}} total XP",
+       first_purchase: "Make your first purchase",
+       early_adopter: "Be an early adopter",
+     },
+     noTrophies: "No trophies earned yet. Keep going!",
+     newTrophy: "New trophy earned!",
+   }
+   ```
+   Translate to Russian (ru) and Chinese (zh) as well.
+
+2. **Add i18n keys for avatar animations**:
+   ```
+   avatarAnim: {
+     idle: "Idle",
+     celebrate: "Celebrate",
+     levelup: "Level Up",
+     walk: "Walking",
+   }
+   ```
+
+3. **Wire TrophyCase route into App.tsx**:
+   - Add lazy import: `const TrophyCase = lazy(() => import('@/pages/TrophyCase').then(m => ({ default: m.TrophyCase })));`
+   - Add Route: `<Route path="/trophies" element={<ProtectedRoute needsOnboarding={effectiveNeedsOnboarding} lazy><TrophyCase /></ProtectedRoute>} />`
+
+4. **Add Trophy Case to navigation** in `Navigation.tsx`:
+   - Add to `moreItems` array: `{ path: '/trophies', icon: <Trophy className="w-5 h-5" />, labelKey: 'nav.trophies' }`
+   - Note: `Trophy` icon is already imported from lucide-react in this file. Add `nav.trophies` key to i18n files ("Trophies" / "Трофеи" / "奖杯").
+
+5. **Wire trophyRouter into server.ts**:
+   - Add import: `import { trophyRouter } from './routes/trophies.js';`
+   - Add use: `app.use('/api/trophies', trophyRouter);` (place after the avatarRouter line)
+
+6. **Add Trophy Case link to Profile.tsx**:
+   - Add a button similar to the "Customize Avatar" button (lines 61-79), but for Trophy Case.
+   - Place it AFTER the avatar customization button.
+   - Use a trophy icon (Trophy from lucide-react) and navigate to `/trophies`.
+   - i18n keys: `trophy.viewTrophyCase` ("View Trophy Case"), `trophy.viewTrophyCaseDesc` ("Showcase your earned trophies").
+
+7. **Enhance useCelebration.ts** — Add trophy celebration support:
+   - Add `onTrophyEarned` callback that sets `showConfetti: true` for epic/legendary trophies.
+   - Export the callback so Dashboard/TrophyCase pages can trigger it.
+
+8. **Write retrospective** in the pre-allocated section below.
+
+---
+
+### Agent E — Tests
+
+**OWNED files** (only Agent E may edit these):
+- `bot/src/__tests__/routes/http/trophies.http.test.ts` (NEW)
+- `mini-app/src/__tests__/components/avatar/AvatarAnimator.test.tsx` (NEW)
+- `mini-app/src/__tests__/pages/TrophyCase.test.tsx` (NEW)
+- `mini-app/src/__tests__/hooks/useTrophies.test.ts` (NEW)
+
+**FORBIDDEN files** (do NOT touch):
+- All source files (only write test files)
+- All i18n files, App.tsx, Navigation.tsx
+- `PARALLEL_AGENTS.md` (except your retrospective section)
+
+**CRITICAL**: Before writing ANY test, merge Agents A, B, C, and D branches locally and READ the actual source code:
+```bash
+cd c:\Users\Asus\Desktop\Wibecode-agent-e
+git fetch origin
+git merge origin/feature/r67-avatar-animations --no-edit
+git merge origin/feature/r67-trophy-backend --no-edit
+git merge origin/feature/r67-trophy-ui --no-edit
+git merge origin/feature/r67-i18n-integration --no-edit
+```
+This is the **#1 lesson from Runs 65-66**: reading actual source before writing tests prevents ALL mock/expectation mismatches.
+
+**Tasks:**
+1. **Trophy API HTTP tests** (`trophies.http.test.ts`):
+   - Test `GET /trophies` — returns full catalog (15+ trophies).
+   - Test `GET /trophies/:userId` — returns user's earned trophies (empty for new user).
+   - Test `GET /trophies/:userId/check` — awards trophies when criteria met, returns newly awarded.
+   - Test invalid userId (non-numeric, missing).
+   - Test auth: unauthenticated requests rejected.
+   - Follow the same test patterns as `avatars.http.test.ts` (read it first for mock setup, auth patterns, testApp configuration).
+
+2. **AvatarAnimator tests** (`AvatarAnimator.test.tsx`):
+   - Test each animation state renders: idle, celebrate, levelup, walk, none.
+   - Test `none` animation renders children without wrapper animation classes.
+   - Test `idle` applies correct CSS class/animation.
+   - Test `celebrate` uses Framer Motion (check for motion.div presence).
+   - Test `loop` prop behavior.
+   - Mock `framer-motion` (strip animation props, render as plain divs with data-testid).
+
+3. **TrophyCase page tests** (`TrophyCase.test.tsx`):
+   - Test loading skeleton renders during load.
+   - Test trophy grid renders with earned/all tabs.
+   - Test tab switching filters trophies.
+   - Test earned trophy tap opens detail modal.
+   - Test empty state shows "no trophies" message.
+   - Mock: `useTrophies`, `useTelegram`, `usePullToRefresh`, `useBackButton`, `react-i18next`, `lucide-react`, `framer-motion`, `react-router-dom`.
+
+4. **useTrophies hook tests** (`useTrophies.test.ts`):
+   - Test loads all trophies + user trophies on mount.
+   - Test `checkForNew()` calls check endpoint and refreshes data.
+   - Test error handling (API failure).
+   - Test `refresh()` reloads data.
+   - Mock `@/api/trophies` functions.
+
+5. **Write retrospective** in the pre-allocated section below.
+
+---
+
+### Run 67 File Ownership Matrix
+
+| File | A | B | C | D | E |
+|------|---|---|---|---|---|
+| `mini-app/src/components/avatar/AvatarAnimator.tsx` | ✅ | | | | |
+| `mini-app/src/components/avatar/AvatarAnimations.css` | ✅ | | | | |
+| `mini-app/src/components/avatar/AvatarRenderer.tsx` | ✅ | | | | |
+| `mini-app/src/components/avatar/index.ts` | ✅ | | | | |
+| `database/migrations/run67_trophy_tables.sql` | | ✅ | | | |
+| `bot/src/api/routes/trophies.ts` | | ✅ | | | |
+| `database/seed_data.sql` | | ✅ | | | |
+| `mini-app/src/pages/TrophyCase.tsx` | | | ✅ | | |
+| `mini-app/src/components/trophies/TrophyCard.tsx` | | | ✅ | | |
+| `mini-app/src/components/trophies/TrophyDetailModal.tsx` | | | ✅ | | |
+| `mini-app/src/components/trophies/TrophyCaseSkeleton.tsx` | | | ✅ | | |
+| `mini-app/src/hooks/useTrophies.ts` | | | ✅ | | |
+| `mini-app/src/api/trophies.ts` | | | ✅ | | |
+| `mini-app/src/i18n/en.ts` | | | | ✅ | |
+| `mini-app/src/i18n/ru.ts` | | | | ✅ | |
+| `mini-app/src/i18n/zh.ts` | | | | ✅ | |
+| `mini-app/src/App.tsx` | | | | ✅ | |
+| `mini-app/src/components/Navigation.tsx` | | | | ✅ | |
+| `bot/src/api/server.ts` | | | | ✅ | |
+| `mini-app/src/pages/Profile.tsx` | | | | ✅ | |
+| `mini-app/src/hooks/useCelebration.ts` | | | | ✅ | |
+| `bot/src/__tests__/routes/http/trophies.http.test.ts` | | | | | ✅ |
+| `mini-app/src/__tests__/components/avatar/AvatarAnimator.test.tsx` | | | | | ✅ |
+| `mini-app/src/__tests__/pages/TrophyCase.test.tsx` | | | | | ✅ |
+| `mini-app/src/__tests__/hooks/useTrophies.test.ts` | | | | | ✅ |
+
+### Run 67 Merge Order
+
+1. **Agent B** (Trophy backend — tables, seeds, API route)
+2. **Agent A** (Avatar animations — independent of trophies)
+3. **Agent C** (Trophy Case UI — pages, hooks, API client)
+4. **Agent D** (i18n + integration — wires routes, nav, server.ts, celebration)
+5. **Agent E** (Tests — must go last, merges all branches first)
+
+### Run 67 Retrospectives
+
+#### Agent A Retrospective
+*(To be filled by Agent A)*
+
+#### Agent B Retrospective
+*(To be filled by Agent B)*
+
+#### Agent C Retrospective
+*(To be filled by Agent C)*
+
+#### Agent D Retrospective
+*(To be filled by Agent D)*
+
+#### Agent E Retrospective
+*(To be filled by Agent E)*
 
 #### Agent 0 Retrospective
 *(To be filled by Agent 0 after merge)*
