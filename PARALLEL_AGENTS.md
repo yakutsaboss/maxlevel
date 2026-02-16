@@ -2474,7 +2474,14 @@ After completing, write your retrospective in PARALLEL_AGENTS.md under "Run 65 R
 *(To be filled by Agent B)*
 
 #### Agent C Retrospective
-*(To be filled by Agent C)*
+- **Created**: `CategoryTabs.tsx` — horizontal scrollable tab bar with category icons, earned/total counts, and `getAchievementCategory()` function that maps criteria types to 12 categories (fitness, hydration, finance, learning, medication, habits, social, streak, xp, quest, special, general)
+- **Created**: `AchievementProgressBar.tsx` — progress bar for locked achievements with contextual labels (e.g., "7/10 friends", "Level 3/25"); binary criteria (night_quest/early_quest) show "Not yet" text without a bar
+- **Enhanced**: `AchievementCard.tsx` — added rarity glow effects (gold/legendary, purple/epic, blue/rare via box-shadow), tap-to-expand with AnimatePresence for criteria details, progress bar integration for locked achievements, extended `getCriteriaHint()` with 7 new criteria types (friend_count, challenge_created/completed, quest_count, night/early_quest, weekend_quests, all_daily_complete)
+- **Refactored**: `Achievements.tsx` — replaced inline category filter with CategoryTabs component, added filter toggles (All/Earned/Unearned), sort options (By Rarity/By Progress/Recent), collapsible filter/sort panel with SlidersHorizontal icon, memoized category derivation and counting
+- **Updated**: `RarityGroup.tsx` — added `hideHeader` prop so non-rarity sort modes show a flat grid without rarity section headers; when `hideHeader=false` and sort is "flat", each card uses its own rarity style
+- **Updated**: `AchievementsSkeleton.tsx` — added progress bar and category tabs skeleton placeholders
+- **i18n**: Added 17 new keys across en/ru/zh — 7 new category names (medication, habits, social, streak, xp, quest, special), filter/sort labels, progress text patterns
+- Build passes cleanly, no TypeScript errors
 
 #### Agent D Retrospective
 *(To be filled by Agent D)*

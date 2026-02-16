@@ -15,26 +15,29 @@ interface RarityGroupProps {
   unlockedIds: Set<number>;
   userAchievements: UserAchievement[];
   haptic: HapticImpactOnly;
+  hideHeader?: boolean;
 }
 
-export function RarityGroup({ rarity, achievements, unlockedIds, userAchievements, haptic }: RarityGroupProps) {
+export function RarityGroup({ rarity, achievements, unlockedIds, userAchievements, haptic, hideHeader }: RarityGroupProps) {
   const rarityStyle = RARITY_COLORS[rarity] || RARITY_COLORS.common;
   const unlockedInGroup = achievements.filter(a => unlockedIds.has(a.id)).length;
 
   return (
-    <div role="region" aria-label={`${rarityStyle.label} achievements — ${unlockedInGroup} of ${achievements.length} unlocked`}>
-      <div className="flex items-center justify-between mb-3">
-        <h2 className={`text-lg font-semibold ${rarityStyle.text}`}>
-          {rarityStyle.label}
-        </h2>
-        <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${
-          unlockedInGroup === achievements.length
-            ? 'bg-green-100 text-green-700'
-            : 'bg-telegram-hint/10 text-telegram-hint'
-        }`}>
-          {unlockedInGroup} / {achievements.length} unlocked
-        </span>
-      </div>
+    <div role="region" aria-label={hideHeader ? 'Achievements' : `${rarityStyle.label} achievements — ${unlockedInGroup} of ${achievements.length} unlocked`}>
+      {!hideHeader && (
+        <div className="flex items-center justify-between mb-3">
+          <h2 className={`text-lg font-semibold ${rarityStyle.text}`}>
+            {rarityStyle.label}
+          </h2>
+          <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${
+            unlockedInGroup === achievements.length
+              ? 'bg-green-100 text-green-700'
+              : 'bg-telegram-hint/10 text-telegram-hint'
+          }`}>
+            {unlockedInGroup} / {achievements.length} unlocked
+          </span>
+        </div>
+      )}
       <div className="grid grid-cols-2 gap-3">
         {achievements.map((ach, index) => (
           <AchievementCard
@@ -42,7 +45,7 @@ export function RarityGroup({ rarity, achievements, unlockedIds, userAchievement
             achievement={ach}
             userAchievement={userAchievements.find(ua => ua.achievement_id === ach.id)}
             isUnlocked={unlockedIds.has(ach.id)}
-            rarityStyle={rarityStyle}
+            rarityStyle={RARITY_COLORS[ach.rarity] || rarityStyle}
             index={index}
             haptic={haptic}
           />
