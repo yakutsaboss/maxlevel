@@ -19,6 +19,8 @@ vi.mock('../../utils/db.js', () => ({
 }));
 
 vi.useFakeTimers();
+// Pin to a Tuesday so the Monday-only weekly quest path doesn't run
+vi.setSystemTime(new Date('2026-02-17T00:00:00Z'));
 
 beforeEach(() => {
   vi.clearAllMocks();
