@@ -1804,7 +1804,23 @@ After completing, write your retrospective in PARALLEL_AGENTS.md under "Run 66 R
 **Issues**: Initial build failed on 3 TS unused-variable errors (removed `SpriteProps` interface, renamed unused `size` params to `_props`). Fixed in 1 iteration.
 
 #### Agent C Retrospective
-*(To be filled by Agent C)*
+**Status**: DONE — all 5 tasks complete, build passes.
+
+**What was built**:
+1. `mini-app/src/api/avatars.ts` — fetch-based API client (follows social.ts pattern) with `getAvatarItems`, `getUserAvatar`, `equipAvatarItem`
+2. `mini-app/src/hooks/useAvatar.ts` — state management hook with items, equipped, preview, save, unlock-check logic
+3. `mini-app/src/pages/AvatarCustomizer.tsx` — full-screen page with gradient header, 4 category tabs, 3-col item grid, lock overlay, save bar with framer-motion animation
+4. `mini-app/src/App.tsx` — lazy import + `/avatar` route (GRAY, 2 lines)
+5. `mini-app/src/i18n/{en,ru,zh}.ts` — 11 avatar.* keys each
+
+**Design decisions**:
+- Used fetch-based pattern (like social.ts) instead of extending ApiClient class, since ApiClient doesn't expose public get/patch methods
+- Created local `AvatarPreview` placeholder inside AvatarCustomizer.tsx since Agent B's `AvatarRenderer` doesn't exist on this branch — will be swapped after B merges first
+- Used `useBackButton` from useTelegram.ts for back navigation to /profile
+- Included `usePullToRefresh` for data refresh consistency with other pages
+- Added `isItemUnlocked` check supporting free/level/achievement unlock types
+
+**Merge note**: After Agent B merges, replace `AvatarPreview` with `AvatarRenderer` from `@/components/avatar` and pass `size="xl"` + equipped items as props.
 
 #### Agent D Retrospective
 *(To be filled by Agent D)*
