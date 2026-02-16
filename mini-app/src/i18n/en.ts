@@ -7,6 +7,7 @@ export default {
     social: "Social",
     finance: "Finance",
     profile: "Profile",
+    more: "More",
   },
   onboarding: {
     welcome: "Welcome!",

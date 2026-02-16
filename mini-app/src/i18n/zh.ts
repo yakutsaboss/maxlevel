@@ -7,6 +7,7 @@ export default {
     social: "社交",
     finance: "财务",
     profile: "个人资料",
+    more: "更多",
   },
   onboarding: {
     welcome: "欢迎！",

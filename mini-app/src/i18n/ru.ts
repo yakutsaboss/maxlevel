@@ -4,9 +4,10 @@ export default {
     quests: "Задания",
     rewards: "Награды",
     ranks: "Рейтинг",
-    social: "Клан",
+    social: "Социальное",
     finance: "Финансы",
     profile: "Профиль",
+    more: "Ещё",
   },
   onboarding: {
     welcome: "Добро пожаловать!",
