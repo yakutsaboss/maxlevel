@@ -22,6 +22,7 @@ const Leaderboard = lazy(() => import('@/pages/Leaderboard').then(m => ({ defaul
 const Settings = lazy(() => import('@/pages/Settings').then(m => ({ default: m.Settings })));
 const Social = lazy(() => import('@/pages/Social').then(m => ({ default: m.Social })));
 const Finance = lazy(() => import('@/pages/Finance').then(m => ({ default: m.Finance })));
+const AvatarCustomizer = lazy(() => import('@/pages/AvatarCustomizer').then(m => ({ default: m.AvatarCustomizer })));
 
 // Create React Query client
 const queryClient = new QueryClient({
@@ -130,6 +131,7 @@ function AppContent() {
         <Route path="/finance" element={<ProtectedRoute needsOnboarding={effectiveNeedsOnboarding} lazy><Finance /></ProtectedRoute>} />
         <Route path="/achievements" element={<ProtectedRoute needsOnboarding={effectiveNeedsOnboarding} lazy><Achievements /></ProtectedRoute>} />
         <Route path="/settings" element={<ProtectedRoute needsOnboarding={effectiveNeedsOnboarding} lazy><Settings /></ProtectedRoute>} />
+        <Route path="/avatar" element={<ProtectedRoute needsOnboarding={effectiveNeedsOnboarding} lazy><AvatarCustomizer /></ProtectedRoute>} />
         <Route path="/admin" element={<LazyPageWrapper><Admin /></LazyPageWrapper>} />
       </Routes>
       {showNavigation && <Navigation questBadgeCount={questBadgeCount} />}
