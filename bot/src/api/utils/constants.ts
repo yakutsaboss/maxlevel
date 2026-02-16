@@ -46,3 +46,12 @@ export const PUNISHMENT_INTENSITY = {
 } as const;
 
 export type PunishmentIntensity = typeof PUNISHMENT_INTENSITY[keyof typeof PUNISHMENT_INTENSITY];
+
+export const STARS_PENALTY_RATES = {
+  light: 1,
+  moderate: 3,
+  strict: 5,
+  extreme: 10,
+} as const;
+
+export type StarsPenaltyLevel = keyof typeof STARS_PENALTY_RATES;
