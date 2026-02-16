@@ -4,23 +4,20 @@ import { useTelegram } from '@/hooks/useTelegram';
 import { usePullToRefresh, PullIndicator } from '@/hooks/usePullToRefresh';
 import { apiClient } from '@/api/client';
 import { Achievement, UserAchievement } from '@/types';
-import { Trophy, RefreshCw } from 'lucide-react';
+import { Trophy, RefreshCw, SlidersHorizontal } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { ErrorSection } from '@/components/ErrorSection';
 import { RarityGroup } from '@/components/achievements/RarityGroup';
 import { AchievementsSkeleton } from '@/components/achievements/AchievementsSkeleton';
+import { CategoryTabs, getAchievementCategory } from '@/components/achievements/CategoryTabs';
 import { logger } from '@/utils/logger';
 
 const RARITY_ORDER = ['common', 'rare', 'epic', 'legendary'] as const;
 
-const CATEGORY_KEYS: Record<string, string> = {
-  all: 'achievements.categoryAll',
-  fitness: 'achievements.categoryFitness',
-  hydration: 'achievements.categoryHydration',
-  finance: 'achievements.categoryFinance',
-  learning: 'achievements.categoryLearning',
-  general: 'achievements.categoryGeneral',
-};
+const ALL_CATEGORIES = ['all', 'fitness', 'hydration', 'finance', 'learning', 'medication', 'habits', 'social', 'streak', 'xp', 'quest', 'special'];
+
+type FilterMode = 'all' | 'earned' | 'unearned';
+type SortMode = 'rarity' | 'progress' | 'recent';
 
 export function Achievements() {
   const { t } = useTranslation();
@@ -32,6 +29,9 @@ export function Achievements() {
   const [checking, setChecking] = useState(false);
   const [newCount, setNewCount] = useState(0);
   const [selectedCategory, setSelectedCategory] = useState('all');
+  const [filterMode, setFilterMode] = useState<FilterMode>('all');
+  const [sortMode, setSortMode] = useState<SortMode>('rarity');
+  const [showControls, setShowControls] = useState(false);
 
   const loadData = async () => {
     if (!user?.id) { setLoading(false); return; }
@@ -73,23 +73,99 @@ export function Achievements() {
 
   useEffect(() => { loadData(); }, [user]);
 
-  const unlockedIds = new Set(userAchievements.map(ua => ua.achievement_id));
+  const unlockedIds = useMemo(() => new Set(userAchievements.map(ua => ua.achievement_id)), [userAchievements]);
   const unlockedCount = userAchievements.length;
   const totalCount = allAchievements.length;
 
-  const categories = useMemo(() => {
-    const cats = new Set(allAchievements.map(a => a.category || 'general'));
-    return ['all', ...Array.from(cats).sort()];
+  // Map achievements to derived categories using criteria
+  const achievementCategories = useMemo(() => {
+    const map = new Map<number, string>();
+    for (const ach of allAchievements) {
+      map.set(ach.id, getAchievementCategory(ach.criteria));
+    }
+    return map;
   }, [allAchievements]);
 
-  const filteredAchievements = selectedCategory === 'all'
-    ? allAchievements
-    : allAchievements.filter(a => (a.category || 'general') === selectedCategory);
+  // Determine which categories have achievements
+  const categories = useMemo(() => {
+    const presentCats = new Set(achievementCategories.values());
+    return ALL_CATEGORIES.filter(cat => cat === 'all' || presentCats.has(cat));
+  }, [achievementCategories]);
 
-  const grouped = RARITY_ORDER.map(rarity => ({
-    rarity,
-    achievements: filteredAchievements.filter(a => a.rarity === rarity),
-  })).filter(g => g.achievements.length > 0);
+  // Counts per category
+  const categoryCounts = useMemo(() => {
+    const counts: Record<string, { earned: number; total: number }> = {};
+    let totalEarned = 0;
+    let totalAll = 0;
+
+    for (const ach of allAchievements) {
+      const cat = achievementCategories.get(ach.id) || 'general';
+      if (!counts[cat]) counts[cat] = { earned: 0, total: 0 };
+      counts[cat].total++;
+      totalAll++;
+      if (unlockedIds.has(ach.id)) {
+        counts[cat].earned++;
+        totalEarned++;
+      }
+    }
+    counts.all = { earned: totalEarned, total: totalAll };
+    return counts;
+  }, [allAchievements, achievementCategories, unlockedIds]);
+
+  // Filter by category
+  const categoryFiltered = useMemo(() => {
+    if (selectedCategory === 'all') return allAchievements;
+    return allAchievements.filter(a => achievementCategories.get(a.id) === selectedCategory);
+  }, [allAchievements, selectedCategory, achievementCategories]);
+
+  // Filter by earned/unearned
+  const statusFiltered = useMemo(() => {
+    if (filterMode === 'all') return categoryFiltered;
+    if (filterMode === 'earned') return categoryFiltered.filter(a => unlockedIds.has(a.id));
+    return categoryFiltered.filter(a => !unlockedIds.has(a.id));
+  }, [categoryFiltered, filterMode, unlockedIds]);
+
+  // Sort
+  const sortedAchievements = useMemo(() => {
+    const arr = [...statusFiltered];
+    if (sortMode === 'rarity') {
+      // default: group by rarity handled by RarityGroup below
+      return arr;
+    }
+    if (sortMode === 'progress') {
+      // Earned first, then unearned
+      return arr.sort((a, b) => {
+        const aUnlocked = unlockedIds.has(a.id) ? 1 : 0;
+        const bUnlocked = unlockedIds.has(b.id) ? 1 : 0;
+        return bUnlocked - aUnlocked;
+      });
+    }
+    if (sortMode === 'recent') {
+      // Recently unlocked first
+      return arr.sort((a, b) => {
+        const aUa = userAchievements.find(ua => ua.achievement_id === a.id);
+        const bUa = userAchievements.find(ua => ua.achievement_id === b.id);
+        const aTime = aUa ? new Date(aUa.unlocked_at).getTime() : 0;
+        const bTime = bUa ? new Date(bUa.unlocked_at).getTime() : 0;
+        return bTime - aTime;
+      });
+    }
+    return arr;
+  }, [statusFiltered, sortMode, unlockedIds, userAchievements]);
+
+  // Group by rarity (only used in rarity sort mode)
+  const grouped = useMemo(() => {
+    if (sortMode !== 'rarity') {
+      // Single flat group for non-rarity sorts
+      return sortedAchievements.length > 0
+        ? [{ rarity: 'all' as string, achievements: sortedAchievements }]
+        : [];
+    }
+    return RARITY_ORDER.map(rarity => ({
+      rarity: rarity as string,
+      achievements: sortedAchievements.filter(a => a.rarity === rarity),
+    })).filter(g => g.achievements.length > 0);
+  }, [sortedAchievements, sortMode]);
 
   if (loading) return <AchievementsSkeleton />;
   if (error) return <ErrorSection message={t('achievements.couldNotLoad')} onRetry={loadData} />;
@@ -133,31 +209,74 @@ export function Achievements() {
           {checking ? t('achievements.checking') : newCount > 0 ? t('achievements.newUnlocked', { count: newCount }) : t('achievements.checkForNewAchievements')}
         </button>
 
-        {/* Category filter */}
-        {categories.length > 2 && (
-          <div className="flex gap-2 overflow-x-auto hide-scrollbar mt-3 -mx-1 px-1" role="tablist" aria-label="Achievement category filter">
-            {categories.map(cat => (
-              <button
-                key={cat}
-                role="tab"
-                aria-selected={selectedCategory === cat}
-                aria-label={`Filter by ${CATEGORY_KEYS[cat] ? t(CATEGORY_KEYS[cat]) : cat}`}
-                onClick={() => { haptic.impact('light'); setSelectedCategory(cat); }}
-                className={`shrink-0 py-1.5 px-3 rounded-xl font-medium text-sm transition-all ${
-                  selectedCategory === cat
-                    ? 'bg-white text-orange-600 shadow-lg'
-                    : 'bg-white/20 text-white/70'
-                }`}
-              >
-                {CATEGORY_KEYS[cat] ? t(CATEGORY_KEYS[cat]) : cat}
-              </button>
-            ))}
-          </div>
+        {/* Category tabs */}
+        <CategoryTabs
+          categories={categories}
+          activeCategory={selectedCategory}
+          onSelect={setSelectedCategory}
+          counts={categoryCounts}
+          haptic={haptic}
+        />
+      </div>
+
+      {/* Filter/sort controls */}
+      <div className="px-4 mt-4">
+        <button
+          onClick={() => {
+            haptic.impact('light');
+            setShowControls(prev => !prev);
+          }}
+          className="flex items-center gap-1.5 text-sm text-telegram-link font-medium mb-2"
+        >
+          <SlidersHorizontal className="w-4 h-4" />
+          {t('achievements.filterSort')}
+        </button>
+
+        {showControls && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            className="overflow-hidden mb-3"
+          >
+            {/* Filter toggles */}
+            <div className="flex gap-2 mb-2">
+              {(['all', 'earned', 'unearned'] as FilterMode[]).map(mode => (
+                <button
+                  key={mode}
+                  onClick={() => { haptic.impact('light'); setFilterMode(mode); }}
+                  className={`px-3 py-1 rounded-lg text-xs font-medium transition-all ${
+                    filterMode === mode
+                      ? 'bg-telegram-link text-white'
+                      : 'bg-telegram-secondaryBg text-telegram-hint'
+                  }`}
+                >
+                  {t(`achievements.filter_${mode}`)}
+                </button>
+              ))}
+            </div>
+
+            {/* Sort options */}
+            <div className="flex gap-2">
+              {(['rarity', 'progress', 'recent'] as SortMode[]).map(mode => (
+                <button
+                  key={mode}
+                  onClick={() => { haptic.impact('light'); setSortMode(mode); }}
+                  className={`px-3 py-1 rounded-lg text-xs font-medium transition-all ${
+                    sortMode === mode
+                      ? 'bg-telegram-link text-white'
+                      : 'bg-telegram-secondaryBg text-telegram-hint'
+                  }`}
+                >
+                  {t(`achievements.sort_${mode}`)}
+                </button>
+              ))}
+            </div>
+          </motion.div>
         )}
       </div>
 
-      {/* Achievement groups by rarity */}
-      <div className="px-4 mt-6 space-y-6 mb-6">
+      {/* Achievement groups */}
+      <div className="px-4 mt-2 space-y-6 mb-6">
         {grouped.map(({ rarity, achievements }) => (
           <RarityGroup
             key={rarity}
@@ -166,6 +285,7 @@ export function Achievements() {
             unlockedIds={unlockedIds}
             userAchievements={userAchievements}
             haptic={haptic}
+            hideHeader={sortMode !== 'rarity'}
           />
         ))}
 
@@ -173,7 +293,7 @@ export function Achievements() {
           <div className="text-center py-12 bg-telegram-secondaryBg rounded-2xl border border-telegram-hint/10">
             <Trophy className="w-12 h-12 text-telegram-hint mx-auto mb-3" />
             <p className="text-telegram-hint">
-              {selectedCategory === 'all' ? t('achievements.noAchievements') : t('achievements.noCategoryAchievements', { category: CATEGORY_KEYS[selectedCategory] ? t(CATEGORY_KEYS[selectedCategory]) : selectedCategory })}
+              {selectedCategory === 'all' ? t('achievements.noAchievements') : t('achievements.noCategoryAchievements', { category: selectedCategory })}
             </p>
           </div>
         )}
