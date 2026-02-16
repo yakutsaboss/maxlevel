@@ -288,6 +288,36 @@ VALUES
 ON CONFLICT (sprite_key) DO NOTHING;
 
 -- ========================================
+-- TROPHIES (Run 67)
+-- ========================================
+
+INSERT INTO trophies (name, description, icon_emoji, rarity, criteria, sort_order) VALUES
+-- Beginner (common)
+('First Steps', 'Complete your very first quest', '🏅', 'common', '{"type": "quest_count", "threshold": 1}', 1),
+('Getting Started', 'Reach level 2', '⭐', 'common', '{"type": "level", "threshold": 2}', 2),
+('Social Debut', 'Add your first friend', '🤝', 'common', '{"type": "friend_count", "threshold": 1}', 3),
+-- Streak (rare)
+('Week Warrior', 'Maintain a 7-day streak', '🔥', 'rare', '{"type": "streak_days", "threshold": 7}', 10),
+('Fortnight Fighter', 'Maintain a 14-day streak', '⚔️', 'rare', '{"type": "streak_days", "threshold": 14}', 11),
+('Monthly Master', 'Maintain a 30-day streak', '🛡️', 'epic', '{"type": "streak_days", "threshold": 30}', 12),
+-- Social (rare/epic)
+('Social Star', 'Add 10 friends', '🌟', 'rare', '{"type": "friend_count", "threshold": 10}', 20),
+('Challenge Creator', 'Create your first challenge', '🎯', 'rare', '{"type": "challenge_created", "threshold": 1}', 21),
+('Challenge Conqueror', 'Win 3 challenges', '🏆', 'epic', '{"type": "challenge_wins", "threshold": 3}', 22),
+-- Mastery (epic)
+('Quest Centurion', 'Complete 100 quests', '📜', 'epic', '{"type": "quest_count", "threshold": 100}', 30),
+('XP Millionaire', 'Earn 10,000 total XP', '💰', 'epic', '{"type": "xp_total", "threshold": 10000}', 31),
+('Mode Explorer', 'Activate 3 different modes', '🧭', 'epic', '{"type": "mode_count", "threshold": 3}', 32),
+-- Prestige (legendary)
+('Streak Legend', 'Maintain a 100-day streak', '👑', 'legendary', '{"type": "streak_days", "threshold": 100}', 40),
+('Level 50 Club', 'Reach level 50', '💎', 'legendary', '{"type": "level", "threshold": 50}', 41),
+('Achievement Hunter', 'Earn 20 achievements', '🏹', 'legendary', '{"type": "achievement_count", "threshold": 20}', 42),
+-- Special (epic/legendary)
+('Early Adopter', 'Joined before March 2026', '🌱', 'epic', '{"type": "early_adopter", "threshold": "2026-03-01"}', 50),
+('Premium Pioneer', 'Make your first purchase', '💳', 'legendary', '{"type": "first_purchase", "threshold": 1}', 51)
+ON CONFLICT DO NOTHING;
+
+-- ========================================
 -- INITIAL CONFIGURATION (Optional)
 -- ========================================
 
