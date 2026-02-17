@@ -90,11 +90,14 @@ describe('punishmentCheck', () => {
     mockQuery.mockResolvedValueOnce(FAILED_QUESTS); // expired quests
     mockExecute.mockResolvedValue(1); // all executes succeed
 
-    // User 1 has consent with medium intensity
-    mockQueryOne
-      .mockResolvedValueOnce({ consent_given: true, intensity_level: 'medium', safe_mode: false, max_xp_penalty: 100 })
-      // User 2 has consent with high intensity
-      .mockResolvedValueOnce({ consent_given: true, intensity_level: 'high', safe_mode: false, max_xp_penalty: 200 });
+    // User 1: get punishment settings (consent + medium intensity)
+    mockQueryOne.mockResolvedValueOnce({ consent_given: true, intensity_level: 'medium', safe_mode: false, max_xp_penalty: 100 });
+    // User 1: check existing warning today (none)
+    mockQueryOne.mockResolvedValueOnce(null);
+    // User 2: get punishment settings (consent + high intensity)
+    mockQueryOne.mockResolvedValueOnce({ consent_given: true, intensity_level: 'high', safe_mode: false, max_xp_penalty: 200 });
+    // User 2: check existing warning today (none)
+    mockQueryOne.mockResolvedValueOnce(null);
 
     await handler([{} as any]);
 
@@ -102,11 +105,13 @@ describe('punishmentCheck', () => {
     const failedUpdate = mockExecute.mock.calls[0];
     expect(failedUpdate[0]).toContain("status = 'failed'");
 
-    // Should deduct XP for users with consent (user 1: 2 quests, user 2: 1 quest)
-    // User 1: 50*1.0 + 30*1.0 = 80 XP deducted (2 execute calls)
-    // User 2: 40*1.5 = 60 XP deducted (1 execute call)
-    // Plus punishment_history inserts (3 total)
-    // Total: 1 (mark failed) + 2 (user1 XP) + 2 (user1 history) + 1 (user2 XP) + 1 (user2 history) = 7
+    // execute calls:
+    // 1: mark all quests failed
+    // 2: user1 quest1 XP deduct, 3: user1 quest1 history insert
+    // 4: user1 quest2 XP deduct, 5: user1 quest2 history insert
+    // 6: user1 warning insert
+    // 7: user2 quest XP deduct, 8: user2 history insert
+    // 9: user2 warning insert
     expect(mockExecute.mock.calls.length).toBeGreaterThanOrEqual(4); // at minimum: fail + penalties
 
     // Should invalidate cache for both users

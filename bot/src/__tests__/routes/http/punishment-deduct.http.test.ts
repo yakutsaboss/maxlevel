@@ -97,6 +97,8 @@ describe('POST /api/punishment/:telegramId/deduct', () => {
   it('should successfully create a Stars deduction record', async () => {
     // queryOne: user lookup
     db.queryOne.mockResolvedValueOnce(dbUser);
+    // queryOne: punishment settings (consent check)
+    db.queryOne.mockResolvedValueOnce({ consent_given: true });
     // queryOne: insert into punishment_history
     db.queryOne.mockResolvedValueOnce(mockDeductionResult);
 
@@ -111,6 +113,8 @@ describe('POST /api/punishment/:telegramId/deduct', () => {
 
   it('should record the deduction in punishment_history', async () => {
     db.queryOne.mockResolvedValueOnce(dbUser);
+    // queryOne: punishment settings (consent check)
+    db.queryOne.mockResolvedValueOnce({ consent_given: true });
     db.queryOne.mockResolvedValueOnce(mockDeductionResult);
 
     await request(buildApp())
@@ -119,7 +123,7 @@ describe('POST /api/punishment/:telegramId/deduct', () => {
       .expect(200);
 
     // Verify the INSERT was called with stars_deduction type
-    const insertCall = db.queryOne.mock.calls[1];
+    const insertCall = db.queryOne.mock.calls[2];
     expect(insertCall[0]).toContain('punishment_history');
     expect(insertCall[0]).toContain('stars_deduction');
   });

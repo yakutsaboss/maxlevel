@@ -116,6 +116,7 @@ vi.mock('lucide-react', () => {
     Zap: IconStub,
     ChevronDown: IconStub,
     AlertCircle: IconStub,
+    Info: IconStub,
   };
 });
 

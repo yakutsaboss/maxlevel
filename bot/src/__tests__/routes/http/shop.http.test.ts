@@ -206,18 +206,22 @@ describe('POST /api/shop/purchase', () => {
   const purchaseBody = { userId: 1, itemId: 1, paymentMethod: 'stars' };
 
   it('should complete a successful Stars purchase', async () => {
-    // queryOne: get shop item
+    // queryOne 1: verify user exists (SELECT id, total_xp FROM users)
+    db.queryOne.mockResolvedValueOnce({ id: 1, total_xp: 500 });
+    // queryOne 2: verify item exists (SELECT * FROM shop_items)
     db.queryOne.mockResolvedValueOnce(mockShopItems[0]);
-    // queryOne: get user with balance check
-    db.queryOne.mockResolvedValueOnce({ id: 1, stars_balance: 100 });
-    // queryOne: check for duplicate purchase (none)
+    // queryOne 3: check for duplicate purchase (achievement type → check)
     db.queryOne.mockResolvedValueOnce(null);
-    // queryOne: insert purchase + return result
+    // queryOne 4: insert purchase RETURNING
     db.queryOne.mockResolvedValueOnce({
-      id: 1, user_id: 1, shop_item_id: 1,
+      id: 1, shop_item_id: 1,
       payment_method: 'stars', amount_paid: 50,
       purchased_at: '2026-02-15T12:00:00Z',
     });
+    // queryOne 5: unlock achievement (INSERT INTO user_achievements ON CONFLICT DO NOTHING)
+    db.queryOne.mockResolvedValueOnce(null);
+    // queryOne 6: get updated balance (SELECT total_xp FROM users)
+    db.queryOne.mockResolvedValueOnce({ total_xp: 500 });
 
     const res = await request(buildApp())
       .post('/api/shop/purchase')
@@ -225,26 +229,28 @@ describe('POST /api/shop/purchase', () => {
       .expect(200);
 
     expect(res.body.success).toBe(true);
-    expect(res.body.data.payment_method).toBe('stars');
-    expect(res.body.data.amount_paid).toBe(50);
+    expect(res.body.data.purchase.payment_method).toBe('stars');
+    expect(res.body.data.purchase.amount_paid).toBe(50);
   });
 
   it('should complete a successful XP purchase', async () => {
-    const xpItem = mockShopItems[3]; // XP Doubler, price_xp: 500
-    // queryOne: get shop item
-    db.queryOne.mockResolvedValueOnce(xpItem);
-    // queryOne: get user with XP check
+    const xpItem = mockShopItems[3]; // XP Doubler, price_xp: 500, type: xp_booster
+    // queryOne 1: verify user exists
     db.queryOne.mockResolvedValueOnce({ id: 1, total_xp: 1000 });
-    // queryOne: check for duplicate purchase (none — boosters are not one-time)
-    db.queryOne.mockResolvedValueOnce(null);
-    // execute or queryOne: deduct XP
+    // queryOne 2: verify item exists
+    db.queryOne.mockResolvedValueOnce(xpItem);
+    // (no duplicate check — xp_booster is not 'achievement' type)
+    // queryOne 3: deduct XP atomically (UPDATE users SET total_xp = total_xp - $1 ... RETURNING)
     db.queryOne.mockResolvedValueOnce({ id: 1, total_xp: 500 });
-    // queryOne: insert purchase
+    // queryOne 4: insert purchase
     db.queryOne.mockResolvedValueOnce({
-      id: 2, user_id: 1, shop_item_id: 4,
+      id: 2, shop_item_id: 4,
       payment_method: 'xp', amount_paid: 500,
       purchased_at: '2026-02-15T12:00:00Z',
     });
+    // (no achievement unlock — xp_booster type)
+    // queryOne 5: get updated balance
+    db.queryOne.mockResolvedValueOnce({ total_xp: 500 });
 
     const res = await request(buildApp())
       .post('/api/shop/purchase')
@@ -252,30 +258,39 @@ describe('POST /api/shop/purchase', () => {
       .expect(200);
 
     expect(res.body.success).toBe(true);
-    expect(res.body.data.payment_method).toBe('xp');
+    expect(res.body.data.purchase.payment_method).toBe('xp');
   });
 
-  it('should reject purchase with insufficient Stars balance', async () => {
-    db.queryOne.mockResolvedValueOnce(mockShopItems[0]); // item with price_stars: 50
-    db.queryOne.mockResolvedValueOnce({ id: 1, stars_balance: 10 }); // insufficient
+  it('should reject purchase with insufficient XP balance', async () => {
+    const xpItem = mockShopItems[3]; // XP Doubler, price_xp: 500
+    // queryOne 1: verify user exists
+    db.queryOne.mockResolvedValueOnce({ id: 1, total_xp: 100 });
+    // queryOne 2: verify item exists
+    db.queryOne.mockResolvedValueOnce(xpItem);
+    // (no duplicate check — xp_booster is not 'achievement' type)
+    // queryOne 3: atomic XP deduct fails (returns null when total_xp < amount)
+    db.queryOne.mockResolvedValueOnce(null);
 
     const res = await request(buildApp())
       .post('/api/shop/purchase')
-      .send(purchaseBody)
+      .send({ userId: 1, itemId: 4, paymentMethod: 'xp' })
       .expect(400);
 
     expect(res.body.success).toBe(false);
   });
 
   it('should reject duplicate purchase for one-time items (achievements)', async () => {
-    db.queryOne.mockResolvedValueOnce(mockShopItems[0]); // achievement item
-    db.queryOne.mockResolvedValueOnce({ id: 1, stars_balance: 100 }); // sufficient
-    db.queryOne.mockResolvedValueOnce({ id: 1 }); // existing purchase found
+    // queryOne 1: verify user exists
+    db.queryOne.mockResolvedValueOnce({ id: 1, total_xp: 500 });
+    // queryOne 2: verify item exists (achievement type)
+    db.queryOne.mockResolvedValueOnce(mockShopItems[0]);
+    // queryOne 3: duplicate check — existing purchase found
+    db.queryOne.mockResolvedValueOnce({ id: 1 });
 
     const res = await request(buildApp())
       .post('/api/shop/purchase')
       .send(purchaseBody)
-      .expect(400);
+      .expect(409);
 
     expect(res.body.success).toBe(false);
   });
@@ -360,7 +375,7 @@ describe('GET /api/shop/purchases/:userId', () => {
   });
 
   it('should return 500 when database throws', async () => {
-    db.queryOne.mockRejectedValueOnce(new Error('DB down'));
+    db.query.mockRejectedValueOnce(new Error('DB down'));
 
     const res = await request(buildApp())
       .get('/api/shop/purchases/1')
