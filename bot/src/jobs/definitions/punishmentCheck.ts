@@ -2,8 +2,13 @@
  * Punishment Check Job
  * Runs daily at 00:30 UTC (after dailyQuestReset at midnight).
  * Finds quests that expired yesterday and were not completed,
- * marks them as failed, and applies XP penalties to users
+ * marks them as failed, and applies XP + Stars penalties to users
  * who have opted into the accountability system.
+ *
+ * Stars deduction:
+ *   - Uses STARS_PENALTY_RATES based on user's intensity_level.
+ *   - Inserts 'warning' record first; actual 'stars_deduction' on next run.
+ *   - Safe mode caps total Stars deduction per day.
  */
 
 import type { Job } from 'pg-boss';
@@ -12,6 +17,7 @@ import type { MyContext } from '../../bot.js';
 import { query, queryOne, execute } from '../../utils/db.js';
 import { invalidateUserCache } from '../../utils/cache.js';
 import { logger } from '../../utils/logger.js';
+import { STARS_PENALTY_RATES } from '../../api/utils/constants.js';
 
 const log = logger.child({ component: 'punishmentCheck' });
 
@@ -42,6 +48,14 @@ const INTENSITY_MULTIPLIER: Record<string, number> = {
   medium: 1.0,
   high: 1.5,
   extreme: 2.0,
+};
+
+/** Map DB intensity levels to STARS_PENALTY_RATES keys */
+const INTENSITY_TO_STARS_KEY: Record<string, keyof typeof STARS_PENALTY_RATES> = {
+  low: 'light',
+  medium: 'moderate',
+  high: 'strict',
+  extreme: 'extreme',
 };
 
 async function sleep(ms: number): Promise<void> {
@@ -96,6 +110,8 @@ export async function handler(jobs: Job[]): Promise<void> {
 
   let punishmentsApplied = 0;
   let totalXpDeducted = 0;
+  let totalStarsDeducted = 0;
+  let warningsSent = 0;
   let notificationsSent = 0;
   let notificationsFailed = 0;
 
@@ -188,6 +204,61 @@ export async function handler(jobs: Job[]): Promise<void> {
       }
 
       totalXpDeducted += userXpDeducted;
+
+      // --- Stars deduction with pre-warning ---
+      const starsKey = INTENSITY_TO_STARS_KEY[settings.intensity_level] ?? 'moderate';
+      const starsPerQuest = STARS_PENALTY_RATES[starsKey];
+      let starsToDeduct = starsPerQuest * quests.length;
+
+      // Safe mode: cap Stars deduction using max_xp_penalty as combined cap
+      if (settings.safe_mode) {
+        starsToDeduct = Math.min(starsToDeduct, settings.max_xp_penalty);
+      }
+
+      // Check if a warning was already issued today for this user
+      const existingWarning = await queryOne(
+        `SELECT id FROM punishment_history
+         WHERE user_id = $1 AND punishment_type = 'warning' AND applied_at >= CURRENT_DATE`,
+        [userId]
+      );
+
+      if (!existingWarning) {
+        // Issue warning — actual Stars deduction happens on next job run
+        await execute(
+          `INSERT INTO punishment_history (user_id, punishment_type, severity, xp_deducted, message_sent)
+           VALUES ($1, 'warning', $2, 0, $3)`,
+          [
+            userId,
+            settings.intensity_level,
+            `Warning: ${quests.length} quest(s) missed. Stars deduction of ${starsToDeduct} pending.`,
+          ]
+        );
+        warningsSent++;
+        penaltyMessages.push(`⚠️ Stars penalty warning: -${starsToDeduct} ⭐ pending`);
+      } else {
+        // Warning already exists — check if Stars deduction already applied today
+        const existingStarsDeduction = await queryOne(
+          `SELECT id FROM punishment_history
+           WHERE user_id = $1 AND punishment_type = 'stars_deduction' AND applied_at >= CURRENT_DATE`,
+          [userId]
+        );
+
+        if (!existingStarsDeduction && starsToDeduct > 0) {
+          await execute(
+            `INSERT INTO punishment_history (user_id, punishment_type, severity, xp_deducted, message_sent)
+             VALUES ($1, 'stars_deduction', $2, $3, $4)`,
+            [
+              userId,
+              settings.intensity_level,
+              starsToDeduct,
+              `Stars deducted: ${starsToDeduct} (${quests.length} missed × ${starsPerQuest}/quest)`,
+            ]
+          );
+          totalStarsDeducted += starsToDeduct;
+          penaltyMessages.push(`⭐ -${starsToDeduct} Stars deducted`);
+        }
+      }
+
       invalidateUserCache(userId);
 
       // Send Telegram notification
@@ -217,6 +288,7 @@ export async function handler(jobs: Job[]): Promise<void> {
   const elapsed = Date.now() - startTime;
   log.info(`Completed in ${elapsed}ms`, {
     questsFailed: failedIds.length, punishmentsApplied,
-    totalXpDeducted, notificationsSent, notificationsFailed,
+    totalXpDeducted, totalStarsDeducted, warningsSent,
+    notificationsSent, notificationsFailed,
   });
 }

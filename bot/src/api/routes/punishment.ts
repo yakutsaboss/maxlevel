@@ -6,11 +6,12 @@
  *   GET    /api/punishment/:telegramId/settings  — get punishment settings
  *   PATCH  /api/punishment/:telegramId/settings  — update punishment settings
  *   GET    /api/punishment/:telegramId/history    — paginated punishment history
+ *   POST   /api/punishment/:telegramId/deduct    — manually trigger Stars deduction
  */
 
 import { Router, Request, Response } from 'express';
 import { authenticateTelegram, requireOwnership } from '../middleware/auth.js';
-import { query, queryOne } from '../../utils/db.js';
+import { query, queryOne, execute } from '../../utils/db.js';
 import {
   asyncHandler,
   successResponse,
@@ -192,6 +193,53 @@ router.get('/:telegramId/history', authenticateTelegram, asyncHandler(async (req
     page,
     total,
   }));
+}));
+
+/**
+ * POST /api/punishment/:telegramId/deduct
+ * Manually trigger a Stars deduction (for testing / admin use).
+ * Body: { amount: number, reason: string }
+ * Records in punishment_history with type = 'stars_deduction'.
+ */
+router.post('/:telegramId/deduct', authenticateTelegram, asyncHandler(async (req: Request, res: Response) => {
+  const telegramId = safeParseInt(req.params.telegramId, 0);
+  requireOwnership(req);
+  if (telegramId === 0) {
+    throw new BadRequestError('Invalid telegram ID');
+  }
+
+  const { amount, reason } = req.body;
+
+  if (!amount || typeof amount !== 'number' || amount <= 0) {
+    throw new BadRequestError('amount must be a positive number');
+  }
+  if (!reason || typeof reason !== 'string' || reason.trim().length === 0) {
+    throw new BadRequestError('reason is required');
+  }
+
+  const user = await queryOne('SELECT id FROM users WHERE telegram_id = $1', [telegramId]);
+  if (!user) {
+    throw new NotFoundError('User not found');
+  }
+
+  // Check punishment consent
+  const settings = await queryOne(
+    'SELECT consent_given FROM punishment_settings WHERE user_id = $1',
+    [user.id]
+  );
+  if (!settings || !settings.consent_given) {
+    throw new BadRequestError('User has not consented to punishment system');
+  }
+
+  // Record the Stars deduction in punishment_history
+  const record = await queryOne(
+    `INSERT INTO punishment_history (user_id, punishment_type, severity, xp_deducted, message_sent)
+     VALUES ($1, 'stars_deduction', 'manual', $2, $3)
+     RETURNING id, punishment_type, severity, xp_deducted AS stars_deducted, message_sent, applied_at`,
+    [user.id, amount, reason.trim()]
+  );
+
+  res.json(successResponse(record));
 }));
 
 export { router as punishmentRouter };
