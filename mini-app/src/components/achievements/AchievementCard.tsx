@@ -4,6 +4,7 @@ import { Star, Lock, CheckCircle, Zap, ChevronDown } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import type { HapticImpactOnly } from '@/types/telegram';
 import { AchievementProgressBar } from './AchievementProgressBar';
+import { PremiumBadge } from './PremiumBadge';
 
 interface RarityStyle {
   border: string;
@@ -19,6 +20,7 @@ interface AchievementCardProps {
   rarityStyle: RarityStyle;
   index: number;
   haptic: HapticImpactOnly;
+  onBuyClick?: (achievement: Achievement) => void;
 }
 
 function formatDate(dateStr: string | undefined | null): string {
@@ -72,6 +74,8 @@ function getCriteriaHint(criteria?: Record<string, unknown>): string {
       return `Complete ${criteria.count} weekend quests`;
     case 'all_daily_complete':
       return `Have ${criteria.days} perfect days`;
+    case 'purchasable':
+      return 'Available for purchase in the shop';
     default:
       return 'Keep playing to discover how to unlock this!';
   }
@@ -115,11 +119,22 @@ const RARITY_GLOW: Record<string, string> = {
   common: '',
 };
 
-export function AchievementCard({ achievement: ach, userAchievement: userAch, isUnlocked, rarityStyle, index, haptic }: AchievementCardProps) {
+export function AchievementCard({ achievement: ach, userAchievement: userAch, isUnlocked, rarityStyle, index, haptic, onBuyClick }: AchievementCardProps) {
   const [expanded, setExpanded] = useState(false);
   const isNew = isUnlocked && userAch && isRecentlyUnlocked(userAch.unlocked_at);
   const glowClass = isUnlocked ? (RARITY_GLOW[ach.rarity] || '') : '';
   const target = getTargetFromCriteria(ach.criteria);
+  const isPremium = ach.criteria?.type === 'purchasable';
+  const isPurchased = isPremium && isUnlocked;
+
+  const handleClick = () => {
+    haptic.impact('light');
+    if (isPremium && !isUnlocked && onBuyClick) {
+      onBuyClick(ach);
+      return;
+    }
+    setExpanded(prev => !prev);
+  };
 
   return (
     <motion.button
@@ -129,18 +144,22 @@ export function AchievementCard({ achievement: ach, userAchievement: userAch, is
       animate={{ opacity: 1, scale: 1 }}
       transition={{ delay: index * 0.03, type: 'spring', stiffness: 200 }}
       whileTap={{ scale: 0.97 }}
-      onClick={() => {
-        haptic.impact('light');
-        setExpanded(prev => !prev);
-      }}
-      aria-label={`Achievement: ${isUnlocked ? (ach.name || 'Unknown') : 'Locked'} — ${isUnlocked ? 'Unlocked' : 'Locked'}, ${ach.xp_reward ?? 0} XP reward`}
+      onClick={handleClick}
+      aria-label={`Achievement: ${isUnlocked ? (ach.name || 'Unknown') : isPremium ? (ach.name || 'Premium') : 'Locked'} — ${isUnlocked ? 'Unlocked' : isPremium ? 'Available for purchase' : 'Locked'}, ${ach.xp_reward ?? 0} XP reward`}
       aria-expanded={expanded}
       className={`rounded-2xl p-4 border relative text-left w-full ${
-        isUnlocked
-          ? `bg-telegram-secondaryBg ${rarityStyle.border} ${glowClass}`
-          : 'bg-telegram-secondaryBg/60 border-telegram-hint/10 opacity-60'
+        isPurchased
+          ? `bg-telegram-secondaryBg premium-card ${glowClass}`
+          : isPremium && !isUnlocked
+            ? 'bg-telegram-secondaryBg/80 premium-card-locked opacity-90'
+            : isUnlocked
+              ? `bg-telegram-secondaryBg ${rarityStyle.border} ${glowClass}`
+              : 'bg-telegram-secondaryBg/60 border-telegram-hint/10 opacity-60'
       } ${isNew ? 'achievement-new' : ''}`}
     >
+      {/* Premium badge overlay */}
+      <PremiumBadge isPremium={isPremium} isPurchased={isPurchased} />
+
       {isNew && (
         <div className="absolute -top-2 -left-2 bg-yellow-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full shadow-sm z-10">
           NEW
@@ -151,17 +170,17 @@ export function AchievementCard({ achievement: ach, userAchievement: userAch, is
           <CheckCircle className="w-4 h-4 text-white" />
         </div>
       )}
-      {!isUnlocked && (
+      {!isUnlocked && !isPremium && (
         <div className="absolute -top-1.5 -right-1.5 bg-telegram-hint/50 rounded-full p-0.5" aria-hidden="true">
           <Lock className="w-4 h-4 text-white" />
         </div>
       )}
 
-      <div className={`text-4xl text-center mb-2 ${!isUnlocked ? 'grayscale opacity-40' : ''}`}>
+      <div className={`text-4xl text-center mb-2 ${!isUnlocked && !isPremium ? 'grayscale opacity-40' : ''}`}>
         {ach.icon || '🏆'}
       </div>
       <h3 className="text-sm font-semibold text-center line-clamp-2 mb-1">
-        {isUnlocked ? ach.name : '???'}
+        {isUnlocked || isPremium ? ach.name : '???'}
       </h3>
 
       {isUnlocked ? (
@@ -178,6 +197,16 @@ export function AchievementCard({ achievement: ach, userAchievement: userAch, is
               {formatDate(userAch.unlocked_at)}
             </p>
           )}
+        </>
+      ) : isPremium ? (
+        <>
+          <p className="text-xs text-amber-600 text-center line-clamp-2 mb-2">
+            {ach.description}
+          </p>
+          <div className="flex items-center justify-center gap-1 bg-amber-100 rounded-full px-2 py-0.5" aria-label={`Reward: ${ach.xp_reward ?? 0} XP`}>
+            <Star className="w-3 h-3 text-amber-500" aria-hidden="true" />
+            <span className="text-xs text-amber-600 font-medium">+{ach.xp_reward ?? 0} XP</span>
+          </div>
         </>
       ) : (
         <>

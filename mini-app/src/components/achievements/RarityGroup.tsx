@@ -16,9 +16,10 @@ interface RarityGroupProps {
   userAchievements: UserAchievement[];
   haptic: HapticImpactOnly;
   hideHeader?: boolean;
+  onBuyClick?: (achievement: Achievement) => void;
 }
 
-export function RarityGroup({ rarity, achievements, unlockedIds, userAchievements, haptic, hideHeader }: RarityGroupProps) {
+export function RarityGroup({ rarity, achievements, unlockedIds, userAchievements, haptic, hideHeader, onBuyClick }: RarityGroupProps) {
   const rarityStyle = RARITY_COLORS[rarity] || RARITY_COLORS.common;
   const unlockedInGroup = achievements.filter(a => unlockedIds.has(a.id)).length;
 
@@ -48,6 +49,7 @@ export function RarityGroup({ rarity, achievements, unlockedIds, userAchievement
             rarityStyle={RARITY_COLORS[ach.rarity] || rarityStyle}
             index={index}
             haptic={haptic}
+            onBuyClick={onBuyClick}
           />
         ))}
       </div>

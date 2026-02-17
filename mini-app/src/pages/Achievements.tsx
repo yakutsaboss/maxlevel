@@ -7,6 +7,7 @@ import { Achievement, UserAchievement } from '@/types';
 import { Trophy, RefreshCw, SlidersHorizontal } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { ErrorSection } from '@/components/ErrorSection';
+import { Toast } from '@/components/Toast';
 import { RarityGroup } from '@/components/achievements/RarityGroup';
 import { AchievementsSkeleton } from '@/components/achievements/AchievementsSkeleton';
 import { CategoryTabs, getAchievementCategory } from '@/components/achievements/CategoryTabs';
@@ -32,6 +33,12 @@ export function Achievements() {
   const [filterMode, setFilterMode] = useState<FilterMode>('all');
   const [sortMode, setSortMode] = useState<SortMode>('rarity');
   const [showControls, setShowControls] = useState(false);
+  const [buyToast, setBuyToast] = useState<string | null>(null);
+
+  const handleBuyClick = useCallback((achievement: Achievement) => {
+    haptic.impact('medium');
+    setBuyToast(`"${achievement.name}" — Shop coming soon!`);
+  }, [haptic]);
 
   const loadData = async () => {
     if (!user?.id) { setLoading(false); return; }
@@ -286,6 +293,7 @@ export function Achievements() {
             userAchievements={userAchievements}
             haptic={haptic}
             hideHeader={sortMode !== 'rarity'}
+            onBuyClick={handleBuyClick}
           />
         ))}
 
@@ -298,6 +306,10 @@ export function Achievements() {
           </div>
         )}
       </div>
+
+      {buyToast && (
+        <Toast message={buyToast} variant="info" onDismiss={() => setBuyToast(null)} />
+      )}
     </div>
   );
 }
