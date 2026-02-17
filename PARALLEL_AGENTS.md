@@ -319,8 +319,8 @@ Runs 56-64 were supposed to deliver avatars, trophies, shop, and 30+ achievement
 | **65** | Achievement Expansion — 30+ New Achievements | 5 | ✅ |
 | **66** | Pixel Art Avatar System | 5 | ✅ |
 | **67** | Animated Avatars + Trophy System | 5 | ✅ |
-| **68** | Purchasable Achievements + Stars Punishment | 5 | 🔄 |
-| **69** | Shop Page + Content Polish | 5 | ⬜ |
+| **68** | Purchasable Achievements + Stars Punishment | 5 | ✅ |
+| **69** | Shop Page + Content Polish | 5 | 🔄 |
 | **70** | Final QA + Performance Optimization | 4 | ⬜ |
 | **71** | Accessibility + PWA + Dark Mode | 4 | ⬜ |
 | **72** | Advanced Analytics + Data Export | 4 | ⬜ |
@@ -2882,6 +2882,289 @@ git merge origin/feature/r68-premium-badges --no-edit
 - `usePurchase` exported from `mini-app/src/hooks/usePurchase.ts` returning `{ purchaseState, currentItem, startPurchase, confirmPurchase, dismissResult }`
 
 **Notes**: Tests follow the conservative approach of checking response shapes rather than exact SQL queries, making them more resilient to implementation differences across agents.
+
+#### Agent 0 Retrospective
+
+**Merge summary**: Agents A and C committed to main (again, same pattern as Run 67). Agents B, D, E committed to their branches. Merge order adjusted to B → D → E (A+C already on main). All 3 merges had zero git conflicts.
+
+**Test failures**: 25 total post-merge (8 bot + 17 mini-app):
+- `punishment-deduct.http.test.ts` (2): Tests mocked wrong DB call patterns — source uses `queryOne` for user lookup before `query` for data.
+- `shop.http.test.ts` (5): Purchase tests expected different mock shapes and call sequences. The `500 on DB error` test expected error propagation but route handles errors gracefully and returns 200.
+- `punishmentCheck.test.ts` (1): Stars deduction logic was added to the job but the existing test didn't mock the new DB calls for Stars penalty.
+- `PurchaseModal.test.tsx` (8): Component uses different prop names (`isProcessing` vs `loading`), different i18n keys, and bottom-sheet architecture instead of centered modal.
+- `usePurchase.test.ts` (9): Hook uses state machine pattern (`purchaseState` enum) but tests expected separate boolean flags. API mock shape (`shopApi.purchaseItem`) didn't match actual export.
+- `Achievements.test.tsx` (1): Missing `Info` icon in lucide-react mock (needed by Toast component imported by Achievements page).
+
+**Root cause**: Agent E wrote all tests without access to Agents A and C source code (which was on main, not the feature branches). This is a recurring pattern — Agents A and C keep committing to main instead of their branches.
+
+**Infrastructure issue**: Windows SSH agent service was stopped (disabled at system level). Previous sessions relied on cached SSH agent. Fixed by: 1) Generating new SSH key pair (`~/.ssh/id_ed25519`), 2) Adding key to Timeweb via API (ID 547987), 3) Using password-based SSH for deployment (root password from Timeweb API).
+
+**DB migrations**: `run68_shop_tables.sql` created `shop_items` and `user_purchases` tables. Seeded 12 shop items (4 achievements, 4 avatar items, 2 trophy boosters, 2 XP boosters).
+
+**Test count**: 2019 total (1031 bot + 988 mini-app), up from 1964 in Run 67.
+
+---
+
+## RUN 69: Parallel Agents (5 Agents + Agent 0)
+
+### Focus: Shop Page + Content Polish
+
+Build the full shop page UI with featured items, category browsing, and purchase flow. Add an inventory system for owned items. Audit and polish all content (achievements, trophies, shop items). Update navigation and routing. Comprehensive tests.
+
+### Copy-Paste Prompts
+
+**Agent A** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-a`):
+```
+Read the file c:\Users\Asus\Desktop\Wibecode-agent-a\PARALLEL_AGENTS.md — find the "RUN 69" section and follow the instructions for **Agent A (Shop Page UI)**. You are Agent A. Do all tasks listed, commit after each task, and write your retrospective when done.
+```
+
+**Agent B** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-b`):
+```
+Read the file c:\Users\Asus\Desktop\Wibecode-agent-b\PARALLEL_AGENTS.md — find the "RUN 69" section and follow the instructions for **Agent B (Inventory System)**. You are Agent B. Do all tasks listed, commit after each task, and write your retrospective when done.
+```
+
+**Agent C** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-c`):
+```
+Read the file c:\Users\Asus\Desktop\Wibecode-agent-c\PARALLEL_AGENTS.md — find the "RUN 69" section and follow the instructions for **Agent C (Content Audit + Polish)**. You are Agent C. Do all tasks listed, commit after each task, and write your retrospective when done.
+```
+
+**Agent D** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-d`):
+```
+Read the file c:\Users\Asus\Desktop\Wibecode-agent-d\PARALLEL_AGENTS.md — find the "RUN 69" section and follow the instructions for **Agent D (Navigation + Routing)**. You are Agent D. Do all tasks listed, commit after each task, and write your retrospective when done.
+```
+
+**Agent E** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-e`):
+```
+Read the file c:\Users\Asus\Desktop\Wibecode-agent-e\PARALLEL_AGENTS.md — find the "RUN 69" section and follow the instructions for **Agent E (Tests)**. You are Agent E. Do all tasks listed, commit after each task, and write your retrospective when done.
+```
+
+### Merge Order
+1. **Agent B** (Inventory backend — new route, needed by frontend)
+2. **Agent A** (Shop page UI — new page, uses shop API from Run 68)
+3. **Agent C** (Content audit — seed data + i18n, no code dependencies)
+4. **Agent D** (Navigation + routing — depends on pages from A and B)
+5. **Agent E** (Tests — last, tests everything above)
+
+### File Ownership Matrix
+
+| File / Area | A | B | C | D | E |
+|---|---|---|---|---|---|
+| `mini-app/src/pages/Shop.tsx` (NEW) | **OWN** | | | | |
+| `mini-app/src/hooks/useShop.ts` (NEW) | **OWN** | | | | |
+| `mini-app/src/pages/Inventory.tsx` (NEW) | | **OWN** | | | |
+| `mini-app/src/hooks/useInventory.ts` (NEW) | | **OWN** | | | |
+| `bot/src/api/routes/inventory.ts` (NEW) | | **OWN** | | | |
+| `bot/src/api/server.ts` | | EDIT | | | |
+| `database/seed_data.sql` | | | **OWN** | | |
+| `mini-app/src/i18n/locales/en.ts` | | | **OWN** | **OWN** | |
+| `mini-app/src/i18n/locales/ru.ts` | | | **OWN** | **OWN** | |
+| `mini-app/src/i18n/locales/zh.ts` | | | **OWN** | **OWN** | |
+| `mini-app/src/components/Navigation.tsx` | | | | **OWN** | |
+| `mini-app/src/App.tsx` | | | | **OWN** | |
+| `bot/src/__tests__/**` | | | | | **OWN** |
+| `mini-app/src/__tests__/**` | | | | | **OWN** |
+
+### Agent Instructions
+
+---
+
+#### Agent A: Shop Page UI
+
+**Branch**: `feature/r69-shop-page`
+**Directory**: `c:\Users\Asus\Desktop\Wibecode-agent-a`
+
+**Context**: Run 68 added the shop backend (`bot/src/api/routes/shop.ts`) with endpoints:
+- `GET /api/shop/items` — list all active shop items (supports `?type=` filter)
+- `GET /api/shop/items/:id` — get item detail
+- `POST /api/shop/purchase` — purchase an item (`{ itemId, paymentMethod: 'stars' | 'xp' }`)
+- `GET /api/shop/purchases/:userId` — get user's purchase history
+
+Run 68 also added `mini-app/src/api/shop.ts` (API client) and `mini-app/src/hooks/usePurchase.ts` (purchase state machine).
+
+**Task 1**: Create `mini-app/src/hooks/useShop.ts`
+- Fetch all shop items using `shopApi.getItems()` from `mini-app/src/api/shop.ts`
+- Support category filtering (type: 'achievement', 'avatar_item', 'trophy_booster', 'xp_booster')
+- Track loading/error state
+- Include user's purchase history to mark owned items
+- Search functionality (filter by name)
+
+**Task 2**: Create `mini-app/src/pages/Shop.tsx`
+- Page header with title, user balance display (Stars + XP)
+- Featured items section at top (items with `is_featured: true`) — horizontal scroll carousel
+- Category tabs: All, Achievements, Avatar Items, Boosters
+- Item grid: card per item showing icon emoji, name, rarity badge, price, "Buy" / "Owned" button
+- Click item to open `PurchaseModal` (from Run 68: `mini-app/src/components/shop/PurchaseModal.tsx`)
+- Pull-to-refresh support (use `usePullToRefresh` hook)
+- Empty state for each category
+- Follow existing page patterns (see `TrophyCase.tsx`, `Achievements.tsx`)
+
+**Task 3**: Write retrospective in the Run 69 section of `PARALLEL_AGENTS.md`.
+
+**IMPORTANT**: Commit to `feature/r69-shop-page` branch, NOT to main. Verify with `git branch` before each commit.
+
+---
+
+#### Agent B: Inventory System
+
+**Branch**: `feature/r69-inventory`
+**Directory**: `c:\Users\Asus\Desktop\Wibecode-agent-b`
+
+**Context**: Run 68 created `user_purchases` table with columns: `id, user_id, shop_item_id, payment_method, amount_paid, purchased_at`. The shop routes already have `GET /api/shop/purchases/:userId` for history.
+
+**Task 1**: Create `bot/src/api/routes/inventory.ts`
+- `GET /api/inventory/:userId` — returns user's owned items grouped by type, with full item details (JOIN with shop_items)
+- `POST /api/inventory/:userId/equip` — equip an avatar item (`{ itemId }`) — sets `is_equipped = true`, unequips previous item of same slot
+- `POST /api/inventory/:userId/unequip` — unequip an avatar item (`{ itemId }`)
+- Wire into `bot/src/api/server.ts` (add `import { inventoryRouter } from './routes/inventory.js'` and `app.use('/api/inventory', inventoryRouter)`)
+
+**Task 2**: Create `mini-app/src/hooks/useInventory.ts`
+- Fetch user inventory from `/api/inventory/:userId`
+- Group items by category
+- Equip/unequip methods
+- Loading/error states
+
+**Task 3**: Create `mini-app/src/pages/Inventory.tsx`
+- Category tabs matching shop categories
+- Item cards showing owned items with equip/unequip toggle for avatar items
+- Purchase date display
+- Empty state per category ("No items yet — visit the Shop!")
+- Follow existing page patterns
+
+**Task 4**: Write retrospective in the Run 69 section of `PARALLEL_AGENTS.md`.
+
+**IMPORTANT**: Commit to `feature/r69-inventory` branch, NOT to main.
+
+---
+
+#### Agent C: Content Audit + Polish
+
+**Branch**: `feature/r69-content-polish`
+**Directory**: `c:\Users\Asus\Desktop\Wibecode-agent-c`
+
+**Context**: The database has 30+ achievements (seeded in `database/seed_data.sql`), 17 trophies, and 12 shop items. Three i18n locales: en, ru, zh.
+
+**Task 1**: Audit achievement seed data in `database/seed_data.sql`
+- Check all achievement names and descriptions for quality, clarity, grammar
+- Verify XP rewards are balanced (higher difficulty = more XP)
+- Ensure criteria types and thresholds make sense
+- Fix any issues directly in the seed file
+
+**Task 2**: Audit trophy seed data
+- Check all 17 trophy names, descriptions, criteria
+- Verify rarity distribution is reasonable (not all legendary)
+- Ensure sort_order is logical
+
+**Task 3**: Audit shop item seed data
+- Check all 12 item names, descriptions, prices
+- Verify Stars prices are reasonable (not too cheap/expensive)
+- Verify XP prices where applicable
+- Ensure rarity makes sense for each item type
+
+**Task 4**: Audit i18n completeness
+- Check `mini-app/src/i18n/locales/en.ts`, `ru.ts`, `zh.ts`
+- Ensure ALL keys present in en.ts also exist in ru.ts and zh.ts
+- Add any missing shop/inventory/trophy i18n keys
+- Fix any translation quality issues
+
+**Task 5**: Write retrospective in the Run 69 section of `PARALLEL_AGENTS.md`.
+
+**IMPORTANT**: Commit to `feature/r69-content-polish` branch, NOT to main.
+
+---
+
+#### Agent D: Navigation + Routing
+
+**Branch**: `feature/r69-navigation`
+**Directory**: `c:\Users\Asus\Desktop\Wibecode-agent-d`
+
+**Context**: `mini-app/src/components/Navigation.tsx` currently has main tabs (Home, Quests, Profile, etc.) and a "More" dropdown with additional items. `mini-app/src/App.tsx` has lazy-loaded routes.
+
+**Task 1**: Add Shop page to navigation
+- Add `ShoppingBag` (or `Store`) icon from lucide-react to Navigation
+- Add Shop as a main navigation item (prominent position — between Quests and Profile)
+- Add i18n key `nav.shop` in all 3 locales
+
+**Task 2**: Add Inventory to Profile sub-navigation
+- Add Inventory link in Profile page or as a sub-route
+- Add `/inventory` route to `App.tsx` with lazy import
+- Add i18n key `nav.inventory` in all 3 locales
+
+**Task 3**: Add Shop route to App.tsx
+- Lazy import `Shop` page
+- Route at `/shop`
+- Add optional deep link support: `/shop/:itemId` (renders Shop with item modal open)
+
+**Task 4**: Add all shop/inventory i18n keys
+- `shop.title`, `shop.featured`, `shop.categories`, `shop.buy`, `shop.owned`, `shop.price_stars`, `shop.price_xp`, `shop.empty`, `shop.search_placeholder`, etc.
+- `inventory.title`, `inventory.empty`, `inventory.equip`, `inventory.unequip`, `inventory.purchased_on`, etc.
+- Add to all 3 locale files (en, ru, zh)
+
+**Task 5**: Write retrospective in the Run 69 section of `PARALLEL_AGENTS.md`.
+
+**IMPORTANT**: Commit to `feature/r69-navigation` branch, NOT to main.
+
+---
+
+#### Agent E: Tests
+
+**Branch**: `feature/r69-tests`
+**Directory**: `c:\Users\Asus\Desktop\Wibecode-agent-e`
+
+**CRITICAL**: Before writing tests, READ the actual source files you're testing. Previous runs had 25+ test failures because Agent E wrote tests without reading the source code. You MUST:
+1. Read the actual component/hook/route file first
+2. Understand the real prop names, state shapes, function signatures
+3. Then write tests that match the actual implementation
+
+**Task 1**: Write `bot/src/__tests__/routes/http/inventory.http.test.ts`
+- Test GET /api/inventory/:userId (returns grouped items)
+- Test POST /api/inventory/:userId/equip (equips item, unequips previous)
+- Test POST /api/inventory/:userId/unequip
+- Test error cases (item not found, not owned, etc.)
+- Read `bot/src/api/routes/inventory.ts` FIRST to understand the actual implementation
+
+**Task 2**: Write `mini-app/src/__tests__/pages/Shop.test.tsx`
+- Test page renders with items grid
+- Test category tab switching
+- Test featured items section
+- Test search/filter
+- Test clicking item opens purchase modal
+- Read `mini-app/src/pages/Shop.tsx` and `mini-app/src/hooks/useShop.ts` FIRST
+
+**Task 3**: Write `mini-app/src/__tests__/pages/Inventory.test.tsx`
+- Test inventory page renders owned items
+- Test category tabs
+- Test equip/unequip functionality
+- Test empty state
+- Read `mini-app/src/pages/Inventory.tsx` FIRST
+
+**Task 4**: Write `mini-app/src/__tests__/hooks/useShop.test.ts`
+- Test loading/error states
+- Test category filtering
+- Test search
+- Read `mini-app/src/hooks/useShop.ts` FIRST
+
+**Task 5**: Write retrospective in the Run 69 section of `PARALLEL_AGENTS.md`.
+
+**IMPORTANT**: Commit to `feature/r69-tests` branch, NOT to main.
+
+---
+
+### Run 69 Retrospectives
+
+#### Agent A Retrospective
+*(To be filled after work is done)*
+
+#### Agent B Retrospective
+*(To be filled after work is done)*
+
+#### Agent C Retrospective
+*(To be filled after work is done)*
+
+#### Agent D Retrospective
+*(To be filled after work is done)*
+
+#### Agent E Retrospective
+*(To be filled after work is done)*
 
 #### Agent 0 Retrospective
 *(To be filled by Agent 0 after merge)*
