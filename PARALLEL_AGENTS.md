@@ -930,7 +930,18 @@ Read PARALLEL_AGENTS.md — you are Agent I of Run 75. Your task: Tests for the 
 ### Run 75 Retrospectives
 
 #### Agent A Retrospective
-*(To be filled by Agent A)*
+**Task**: Activity DB schema + seed data (`database/migrations/run75_activities.sql`)
+**Status**: Complete
+**What was done**:
+- Created `activity_types` table with all specified columns (name, category, icon_emoji, description, default_duration_min, calories_per_min, requires_timer, requires_gps, created_at)
+- Created `activity_logs` table with FK references to `users(id)` (ON DELETE CASCADE) and `activity_types(id)`, plus all tracking columns (started_at, ended_at, duration_min, distance_km, calories_burned, notes, gps_data JSONB)
+- Added composite index on `activity_logs(user_id, started_at DESC)` and index on `activity_logs(activity_type_id)`
+- Seeded 22 activity types across 6 categories: Cardio (5), Strength (5), Flexibility (3), Sports (4), Outdoor (3), Mind-Body (2)
+- Each seed row includes realistic `default_duration_min` and `calories_per_min` values
+- Used `IF NOT EXISTS` for tables/indexes and `ON CONFLICT DO NOTHING` for seeds (idempotent)
+- Added `NUMERIC(5,2)` precision for calories_per_min and `NUMERIC(8,3)` for distance_km
+**Issues**: None
+**Recommendations**: Agent 0 should run this migration on the server after merge: `PGPASSWORD=postgres psql -h localhost -U postgres -d telegram_rpg -f database/migrations/run75_activities.sql`
 
 #### Agent B Retrospective
 *(To be filled by Agent B)*
