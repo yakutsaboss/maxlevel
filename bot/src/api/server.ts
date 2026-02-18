@@ -28,6 +28,7 @@ import { analyticsRouter } from './routes/analytics.js';
 import { exportRouter } from './routes/export.js';
 import { financeRouter } from './routes/finance.js';
 import { channelRouter } from './routes/channel.js';
+import { activityRouter } from './routes/activities.js';
 import { healthRouter } from './routes/health.js';
 import { metricsRouter, collectMetrics } from './routes/metrics.js';
 import { apiLimiter } from './middleware/rateLimiter.js';
@@ -129,6 +130,7 @@ app.use('/api/analytics', analyticsRouter);
 app.use('/api/export', exportRouter);
 app.use('/api/finance', financeRouter);
 app.use('/api/channel', channelRouter);
+app.use('/api/activities', activityRouter);
 
 // Webhook route (mounted dynamically when webhook handler is provided)
 let _webhookMounted = false;
