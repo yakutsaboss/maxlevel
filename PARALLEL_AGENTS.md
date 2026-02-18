@@ -948,7 +948,28 @@ Read PARALLEL_AGENTS.md — you are Agent I of Run 75. Your task: Tests for the 
 *(To be filled by Agent F)*
 
 #### Agent G Retrospective
-*(To be filled by Agent G)*
+**Status:** COMPLETE — 15 activity achievements seeded + 7 new criteria types in achievement engine. Build: 0 errors.
+
+| # | Task | Status |
+|---|------|--------|
+| 1 | Add 15 activity achievements to seed_data.sql | Done |
+| 2 | Update AchievementCriteria interface (4 new fields) | Done |
+| 3 | Add 7 criteria handlers in achievementEngine.ts | Done |
+| 4 | Verify bot build (tsc --noEmit) | Done — 0 errors |
+
+**What was done:**
+- Added "Activity Achievements (Run 75)" section to `database/seed_data.sql` with 15 achievements across 3 INSERT blocks: count milestones (4), category-specific (5), and distance/calories/time/variety/streak (6). All use `ON CONFLICT (name) DO NOTHING` for idempotency.
+- Extended `AchievementCriteria` interface with `category`, `activity`, `before`, `after` fields.
+- Added 7 new case handlers in `checkCriteriaMet`: `activity_count`, `activity_category_count`, `total_distance_km`, `total_calories`, `activity_time`, `activity_all_categories`, `activity_streak`.
+- `activity_streak` uses the same ROW_NUMBER gap-grouping technique as existing `quest_complete_consecutive`.
+- `total_distance_km` uses case-insensitive name match (`LOWER(at.name) = LOWER($2)`) for robustness.
+- `activity_time` handles both `before` and `after` via `started_at::time` comparison.
+
+**Dependencies:** Queries reference `activity_logs` and `activity_types` tables created by Agent A. If tables don't exist yet at deploy time, these achievement checks will gracefully return `false` (query will error → caught by Promise.all in filterQualifyingAchievements → treated as not met). Once Agent A's migration runs, everything works.
+
+**Notes for Agent 0:**
+- Merge Agent A (schema) before Agent G for clean operation.
+- No conflicts expected — seed_data.sql append is in a new section, achievementEngine.ts changes are at end of switch block.
 
 #### Agent H Retrospective
 *(To be filled by Agent H)*

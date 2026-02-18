@@ -147,6 +147,37 @@ INSERT INTO achievements (name, description, badge_icon, criteria, xp_bonus, rar
 ON CONFLICT (name) DO NOTHING;
 
 -- ========================================
+-- ACTIVITY ACHIEVEMENTS (Run 75)
+-- ========================================
+
+-- Activity count milestones
+INSERT INTO achievements (name, description, badge_icon, criteria, xp_bonus, rarity) VALUES
+('activity_first_workout', 'First Workout', '🏃', '{"type": "activity_count", "value": 1}', 25, 'common'),
+('activity_getting_started', 'Getting Started', '🎽', '{"type": "activity_count", "value": 10}', 50, 'common'),
+('activity_dedicated_athlete', 'Dedicated Athlete', '💪', '{"type": "activity_count", "value": 50}', 150, 'rare'),
+('activity_century_club', 'Century Club', '🏅', '{"type": "activity_count", "value": 100}', 300, 'epic')
+ON CONFLICT (name) DO NOTHING;
+
+-- Category-specific achievements
+INSERT INTO achievements (name, description, badge_icon, criteria, xp_bonus, rarity) VALUES
+('activity_cardio_king', 'Cardio King', '❤️‍🔥', '{"type": "activity_category_count", "category": "Cardio", "value": 20}', 100, 'rare'),
+('activity_iron_pumper', 'Iron Pumper', '🏋️', '{"type": "activity_category_count", "category": "Strength", "value": 20}', 100, 'rare'),
+('activity_zen_master', 'Zen Master', '🧘', '{"type": "activity_category_count", "category": "Flexibility", "value": 20}', 100, 'rare'),
+('activity_sports_star', 'Sports Star', '⚽', '{"type": "activity_category_count", "category": "Sports", "value": 20}', 100, 'rare'),
+('activity_outdoor_explorer', 'Outdoor Explorer', '🏔️', '{"type": "activity_category_count", "category": "Outdoor", "value": 10}', 100, 'rare')
+ON CONFLICT (name) DO NOTHING;
+
+-- Distance, calories, time, variety, streak achievements
+INSERT INTO achievements (name, description, badge_icon, criteria, xp_bonus, rarity) VALUES
+('activity_marathon_runner', 'Marathon Runner', '🏃‍♂️', '{"type": "total_distance_km", "activity": "running", "value": 42}', 250, 'epic'),
+('activity_calorie_crusher', 'Calorie Crusher', '🔥', '{"type": "total_calories", "value": 10000}', 200, 'epic'),
+('activity_early_bird', 'Early Bird Athlete', '🌅', '{"type": "activity_time", "before": "07:00"}', 75, 'rare'),
+('activity_night_owl', 'Night Owl Athlete', '🌙', '{"type": "activity_time", "after": "22:00"}', 75, 'rare'),
+('activity_variety_pack', 'Variety Pack', '🎨', '{"type": "activity_all_categories", "value": 6}', 200, 'epic'),
+('activity_streak_7', 'Workout Streak 7', '🔥', '{"type": "activity_streak", "value": 7}', 100, 'rare')
+ON CONFLICT (name) DO NOTHING;
+
+-- ========================================
 -- QUEST TEMPLATES (MVP)
 -- ========================================
 
