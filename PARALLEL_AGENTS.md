@@ -1180,7 +1180,34 @@ Agent D did not commit any work for Run 73 (branch stayed at base commit).
 **Files touched:** `bot/src/api/routes/health.ts` (new), `bot/src/api/routes/metrics.ts` (new), `bot/src/api/server.ts` (modified), `tools/load_test.py` (new).
 
 #### Agent C Retrospective
-*(To be filled by Agent C)*
+**What was done:**
+1. **Created `docs/ARCHITECTURE.md`** — Full system overview with:
+   - Text-based architecture diagram (Telegram → nginx → Grammy/Express → PostgreSQL)
+   - Component descriptions: Bot (Grammy), API (Express), Mini-App (React+Vite), Database (PostgreSQL), Jobs (pg-boss)
+   - All 10 background jobs with cron schedules documented
+   - Key directory structure with descriptions
+   - Data flow diagrams: registration, onboarding, quest lifecycle, check-in flow
+   - Authentication details: Telegram initData, Admin Basic Auth, Payment webhook
+   - Deployment architecture: PM2, nginx reverse proxy, Timeweb VDS
+   - Subscription tier table (Free/Subscriber/Premium)
+
+2. **Created `docs/API_REFERENCE.md`** — Comprehensive API docs covering all 80+ endpoints:
+   - Read all 33 route files in `bot/src/api/routes/`
+   - Documented every endpoint: METHOD /path, description, params, response shape
+   - Grouped by domain: User (11 endpoints), Quests (6), Achievements (7), Shop (4), Inventory (3), Social (12), Finance (6), Analytics (3), Export (2), Modes (7), Leaderboard (3), Onboarding (3), Check-ins (3), Punishment (4), Payments (7), Avatars (3), Trophies (3), Channel (2), Admin (14)
+   - Auth requirements noted for each endpoint
+
+3. **Created `docs/LAUNCH_CHECKLIST.md`** — Pre/post-launch checklist:
+   - Pre-launch: tests, builds, .env verification, SSL cert check
+   - Database: all 21 migrations listed, seed data verification queries
+   - Mini-app: VITE_API_URL verification, service worker, manifest
+   - Server: PM2, nginx, webhook verification
+   - Monitoring: health endpoint, pm2 logs, all 10 jobs listed
+   - Post-launch manual testing: 6 flow categories with specific test items
+   - Webhook verification command
+   - Rollback plan
+
+**Issues:** None. Documentation-only task, no code changes needed.
 
 #### Agent 0 Retrospective
 *(To be filled by Agent 0 after merge)*
