@@ -263,6 +263,11 @@ class ApiClient {
     return response.data;
   }
 
+  // Content recommendations
+  async getRecommendations(userId: number, limit = 5, config?: { signal?: AbortSignal }): Promise<ApiResponse<{ articles: Array<{ id: number; title: string; summary: string; category: string; read_time_min: number; xp_reward: number; cover_emoji: string; difficulty: string; tags: string[] }>; dailyTip: { emoji: string; text: string; category: string; article_id: number | null } }>> {
+    return this.deduplicatedGet(`/recommendations/${userId}`, { limit }, config);
+  }
+
   // Account deletion
   async deleteAccount(telegramId: number): Promise<ApiResponse<{ message: string }>> {
     const response = await this.client.delete(`/users/${telegramId}/account`);

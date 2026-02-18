@@ -1528,7 +1528,19 @@ OWNED: all test files listed above. FORBIDDEN: source files (no modifications to
 **No issues or blockers.**
 
 #### Agent G Retrospective
-*(To be filled by Agent G)*
+**Content recommendation engine + Dashboard widget — DONE**
+
+Created 3 new files + modified 2 existing:
+
+1. **`bot/src/utils/contentRecommender.ts`** — `getRecommendedArticles(userId, limit)` scores articles by: unread (+100), mode-matching category (+50), XP reward, short read time (+10). `getDailyTip(userId)` rotates through article summaries by day-of-year, falls back to 7 static tips. Results cached with TTL.SHORT.
+2. **`bot/src/api/routes/recommendations.ts`** — `GET /api/recommendations/:userId` (articles + daily tip), `GET /api/recommendations/:userId/tip` (tip only). Both use Telegram auth + authorizeUser + readLimiter.
+3. **`bot/src/api/server.ts`** — Registered `recommendationsRouter` at `/api/recommendations`. (Agent B also modified this file to add `contentRouter` — no conflict.)
+4. **`mini-app/src/components/content/TodaysReadWidget.tsx`** — Dashboard widget showing daily tip (gradient card) + top recommended article (with emoji, title, summary, read time, XP badge, category badge). Loading skeleton, graceful failure (non-critical widget).
+5. **`mini-app/src/api/client.ts`** — Added `getRecommendations(userId, limit, config)` method to ApiClient.
+
+**Mode-to-category mapping**: finance→Personal Finance, fitness→Health, productivity→Productivity, discipline→Productivity+Health, social→all three.
+
+All TypeScript compiles cleanly (`tsc --noEmit` passes for both bot and mini-app — only pre-existing Agent B type errors in content.ts remain, not my files).
 
 #### Agent H Retrospective
 *(To be filled by Agent H)*
