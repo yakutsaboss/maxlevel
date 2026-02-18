@@ -1,13 +1,41 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useTelegram } from '@/hooks/useTelegram';
-import { DollarSign, Wallet, PiggyBank, Loader2 } from 'lucide-react';
+import { useBudget } from '@/components/finance/useBudget';
+import { useFinanceAnalytics } from '@/hooks/useFinanceAnalytics';
+import { DollarSign, Wallet, PiggyBank, BarChart3, Loader2 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { ErrorSection } from '@/components/ErrorSection';
 import { BudgetTracker } from '@/components/finance/BudgetTracker';
 import { SavingsGoal } from '@/components/finance/SavingsGoal';
+import { SpendingChart } from '@/components/finance/SpendingChart';
+import { CategoryBreakdown } from '@/components/finance/CategoryBreakdown';
 
-type FinanceTab = 'budget' | 'savings';
+type FinanceTab = 'budget' | 'savings' | 'analytics';
+
+function AnalyticsTab({ userId }: { userId: number }) {
+  const { entries, loading } = useBudget(userId);
+  const { dailySpending, categoryData, monthlyComparison, hasExpenses } = useFinanceAnalytics(entries);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-12" role="status" aria-label="Loading analytics">
+        <Loader2 className="w-6 h-6 animate-spin text-telegram-hint" aria-hidden="true" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      <CategoryBreakdown categoryData={categoryData} />
+      <SpendingChart
+        dailySpending={dailySpending}
+        monthlyComparison={monthlyComparison}
+        hasExpenses={hasExpenses}
+      />
+    </div>
+  );
+}
 
 export function Finance() {
   const { t } = useTranslation();
@@ -41,12 +69,12 @@ export function Finance() {
         </div>
 
         {/* Tab Switcher */}
-        <div className="flex gap-2 bg-white/20 backdrop-blur-sm rounded-2xl p-1" role="tablist" aria-label="Finance tabs">
+        <div className="flex gap-1 bg-white/20 backdrop-blur-sm rounded-2xl p-1" role="tablist" aria-label="Finance tabs">
           <button
             role="tab"
             aria-selected={activeTab === 'budget'}
             onClick={() => setActiveTab('budget')}
-            className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-medium transition-colors ${
+            className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-sm font-medium transition-colors ${
               activeTab === 'budget'
                 ? 'bg-white text-emerald-700 shadow-sm'
                 : 'text-white/80'
@@ -59,7 +87,7 @@ export function Finance() {
             role="tab"
             aria-selected={activeTab === 'savings'}
             onClick={() => setActiveTab('savings')}
-            className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-medium transition-colors ${
+            className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-sm font-medium transition-colors ${
               activeTab === 'savings'
                 ? 'bg-white text-emerald-700 shadow-sm'
                 : 'text-white/80'
@@ -67,6 +95,19 @@ export function Finance() {
           >
             <PiggyBank className="w-4 h-4" aria-hidden="true" />
             {t('finance.savings')}
+          </button>
+          <button
+            role="tab"
+            aria-selected={activeTab === 'analytics'}
+            onClick={() => setActiveTab('analytics')}
+            className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-sm font-medium transition-colors ${
+              activeTab === 'analytics'
+                ? 'bg-white text-emerald-700 shadow-sm'
+                : 'text-white/80'
+            }`}
+          >
+            <BarChart3 className="w-4 h-4" aria-hidden="true" />
+            {t('finance.charts.tab')}
           </button>
         </div>
       </div>
@@ -81,8 +122,10 @@ export function Finance() {
         >
           {activeTab === 'budget' ? (
             <BudgetTracker userId={user.id} />
-          ) : (
+          ) : activeTab === 'savings' ? (
             <SavingsGoal userId={user.id} />
+          ) : (
+            <AnalyticsTab userId={user.id} />
           )}
         </motion.div>
       </div>

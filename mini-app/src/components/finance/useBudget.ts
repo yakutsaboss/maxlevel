@@ -95,6 +95,7 @@ export function useBudget(userId: number) {
   const balance = summary?.balance ?? 0;
   const spentPercent = totalIncome > 0 ? Math.min((totalExpense / totalIncome) * 100, 100) : 0;
   const byCategory = summary?.by_category ?? {};
+  const entries = summary?.entries ?? [];
 
   return {
     loading,
@@ -106,6 +107,7 @@ export function useBudget(userId: number) {
     balance,
     spentPercent,
     byCategory,
+    entries,
     addEntry,
   };
 }
