@@ -29,6 +29,7 @@ const AvatarCustomizer = lazy(() => import('@/pages/AvatarCustomizer').then(m =>
 const TrophyCase = lazy(() => import('@/pages/TrophyCase').then(m => ({ default: m.TrophyCase })));
 const Inventory = lazy(() => import('@/pages/Inventory').then(m => ({ default: m.Inventory })));
 const Shop = lazy(() => import('@/pages/Shop').then(m => ({ default: m.Shop })));
+const Analytics = lazy(() => import('@/pages/Analytics').then(m => ({ default: m.Analytics })));
 
 // Create React Query client
 const queryClient = new QueryClient({
@@ -145,6 +146,7 @@ function AppContent() {
         <Route path="/inventory" element={<ProtectedRoute needsOnboarding={effectiveNeedsOnboarding} lazy><Inventory /></ProtectedRoute>} />
         <Route path="/shop" element={<ProtectedRoute needsOnboarding={effectiveNeedsOnboarding} lazy><Shop /></ProtectedRoute>} />
         <Route path="/shop/:itemId" element={<ProtectedRoute needsOnboarding={effectiveNeedsOnboarding} lazy><Shop /></ProtectedRoute>} />
+        <Route path="/analytics" element={<ProtectedRoute needsOnboarding={effectiveNeedsOnboarding} lazy><Analytics /></ProtectedRoute>} />
         <Route path="/admin" element={<LazyPageWrapper><Admin /></LazyPageWrapper>} />
       </Routes>
       </main>

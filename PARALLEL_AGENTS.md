@@ -916,7 +916,18 @@ Runs 65-71 complete. Remaining: 72, 73, 74.
 ### Run 72 Retrospectives
 
 #### Agent A Retrospective
-*(To be filled by Agent A)*
+**Analytics page with recharts charts — completed.**
+
+Changes:
+- **useAnalytics.ts** (new): Hook fetching `/api/analytics/:userId/summary` and `/api/analytics/:userId/modes` in parallel. Supports `TimeRange` toggle (`7d`/`30d`/`all`) passed as `?range=` query param. AbortController for cleanup, error/loading/retry states.
+- **XpTrendChart.tsx** (new): Recharts `LineChart` showing 7-day XP trend. Uses Telegram theme CSS vars for styling. Generates synthetic week data from `xp_this_week` when no granular data available.
+- **ModeBreakdownChart.tsx** (new): Recharts horizontal `BarChart` showing completion % per mode with colored bars and XP tooltips.
+- **Analytics.tsx** (new page): Full analytics dashboard with header, time range toggle (7d/30d/All), 4 stat cards (Total XP, Level, Quests Done, Best Streak), 3 secondary stats (Active Modes, Days Active, Completion %), XP trend line chart, and mode breakdown bar chart.
+- **App.tsx**: Added lazy-loaded `/analytics` route.
+- **Navigation.tsx**: Added `BarChart3` icon + analytics entry in the "More" popup menu.
+- **i18n**: Added `nav.analytics` and full `analyticsPage` section to en/ru/zh (13 keys each).
+
+Build: clean, zero TS errors. Analytics chunk: 9.44 kB (3 kB gzip). Recharts lazy-loaded: 359 kB (107 kB gzip, only when page visited).
 
 #### Agent B Retrospective
 **Data export API + analytics time range support — completed.**
@@ -929,7 +940,21 @@ Changes:
 Build: clean, zero errors. No mini-app or test files touched.
 
 #### Agent C Retrospective
-*(To be filled by Agent C)*
+**Task**: Finance analytics charts + enhanced Finance page
+
+**What was done**:
+- Installed `recharts` library for data visualization
+- Created `useFinanceAnalytics` hook (`mini-app/src/hooks/useFinanceAnalytics.ts`) — aggregates budget entries into 3 chart data sets: daily spending (30-day trend), category breakdown (pie chart slices), and monthly comparison (this vs last month)
+- Created `SpendingChart` component (`mini-app/src/components/finance/SpendingChart.tsx`) — spending trend line chart (last 30 days) + monthly income/expense bar chart with legend
+- Created `CategoryBreakdown` component (`mini-app/src/components/finance/CategoryBreakdown.tsx`) — interactive donut chart with center label showing total/selected category, clickable legend
+- Added "Charts" tab to Finance page alongside Budget and Savings tabs
+- Exposed `entries` array from `useBudget` hook (was private, now available for analytics)
+- Added i18n keys for all chart labels in en/ru/zh (7 new keys each under `finance.charts.*`)
+- Fixed pre-existing TypeScript errors in `ModeBreakdownChart.tsx`, `XpTrendChart.tsx`, and `Analytics.tsx` caused by stricter recharts type definitions after upgrade
+
+**Files changed**: `useFinanceAnalytics.ts` (new), `SpendingChart.tsx` (new), `CategoryBreakdown.tsx` (new), `Finance.tsx`, `useBudget.ts`, `ModeBreakdownChart.tsx`, `XpTrendChart.tsx`, `Analytics.tsx`, `en.ts`, `ru.ts`, `zh.ts`, `package.json`
+
+**Build**: Clean. Zero TS errors, Vite build succeeds. Finance chunk: 48.35 kB (12.82 kB gzip).
 
 #### Agent D Retrospective
 *(To be filled by Agent D)*
