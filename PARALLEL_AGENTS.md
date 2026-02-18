@@ -1151,7 +1151,33 @@ Agent D did not commit any work for Run 73 (branch stayed at base commit).
 *(To be filled by Agent A)*
 
 #### Agent B Retrospective
-*(To be filled by Agent B)*
+**What was done:**
+1. **Enhanced `/health` endpoint** (`bot/src/api/routes/health.ts` — NEW file):
+   - Database connectivity check with `SELECT 1` and pool stats (total/idle connections, waiting requests)
+   - pg-boss queue status — counts jobs by state (created/active/completed/failed) from `pgboss.job`
+   - Memory usage — heap used/total/percent, RSS in MB, with >90% heap warning
+   - Process uptime in seconds
+   - Git commit hash from `GIT_COMMIT` env var
+   - Overall status: `ok` | `degraded` | `error` with 503 on error
+   - Replaced the inline health handler in `server.ts` with the new router
+
+2. **Created `/api/metrics` endpoint** (`bot/src/api/routes/metrics.ts` — NEW file):
+   - Prometheus text exposition format (`text/plain; version=0.0.4`)
+   - `http_requests_total` counter
+   - `http_errors_total` counter (4xx + 5xx)
+   - `http_request_duration_seconds` histogram with 11 buckets (5ms–10s)
+   - `process_heap_bytes` and `process_rss_bytes` gauges
+   - `process_uptime_seconds` gauge
+   - `collectMetrics` middleware added early in the chain to count all requests
+
+3. **Created `tools/load_test.py`** — load testing script:
+   - Hits `/health` and `/api/metrics` concurrently with configurable `--concurrency` and `--rounds`
+   - Reports avg/p50/p95/p99 latency, error rate, throughput per endpoint
+   - Accepts `--url` for testing production (`https://yakutsa.ru`)
+   - Uses stdlib only (no pip dependencies)
+
+**Build:** `tsc` passes cleanly.
+**Files touched:** `bot/src/api/routes/health.ts` (new), `bot/src/api/routes/metrics.ts` (new), `bot/src/api/server.ts` (modified), `tools/load_test.py` (new).
 
 #### Agent C Retrospective
 *(To be filled by Agent C)*

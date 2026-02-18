@@ -28,6 +28,8 @@ import { analyticsRouter } from './routes/analytics.js';
 import { exportRouter } from './routes/export.js';
 import { financeRouter } from './routes/finance.js';
 import { channelRouter } from './routes/channel.js';
+import { healthRouter } from './routes/health.js';
+import { metricsRouter, collectMetrics } from './routes/metrics.js';
 import { apiLimiter } from './middleware/rateLimiter.js';
 import { requestTimeout } from './middleware/timeout.js';
 import { errorReporter } from './middleware/errorReporter.js';
@@ -95,19 +97,17 @@ app.use((req: Request, res: Response, next: NextFunction) => {
 // Request timeout (504 after 30s, warn on slow > 5s)
 app.use(requestTimeout(30000));
 
+// Metrics collection (before rate limiting so all requests are counted)
+app.use(collectMetrics);
+
 // Rate limiting (applied to all API routes)
 app.use('/api', apiLimiter);
 
 // Health check endpoint (no rate limit, no auth)
-app.get('/health', (req: Request, res: Response) => {
-  res.json({
-    status: 'ok',
-    version: BUILD_VERSION,
-    build_timestamp: BUILD_TIMESTAMP,
-    timestamp: new Date().toISOString(),
-    uptime: process.uptime(),
-  });
-});
+app.use(healthRouter);
+
+// Metrics endpoint (Prometheus-compatible)
+app.use('/api', metricsRouter);
 
 // API Routes
 app.use('/api/users', userRouter);
