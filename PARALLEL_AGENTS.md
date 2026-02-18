@@ -326,7 +326,7 @@ Runs 56-64 were supposed to deliver avatars, trophies, shop, and 30+ achievement
 | **70** | Final QA + Performance Optimization | 4 | ✅ |
 | **71** | Accessibility + PWA + Dark Mode | 4 | ✅ |
 | **72** | Advanced Analytics + Data Export | 4 | ✅ |
-| **73** | Notification System + Smart Reminders | 4 | ⬜ |
+| **73** | Notification System + Smart Reminders | 4 | ✅ |
 | **74** | Integration Testing + Launch Prep | 3 | ⬜ |
 
 ---
@@ -1094,7 +1094,67 @@ Agent D committed to main (49290d4) but left retro placeholder unfilled. Based o
 **Merge notes**: Agent A is concurrently modifying `questReminders.ts` with DND/timezone logic. Both changes are compatible — Agent A adds query filtering + `isInDndWindow`, Agent C adds template rendering. Merge order A→C should be clean since changes touch different parts of the file.
 
 #### Agent D Retrospective
-*(To be filled by Agent D)*
+Agent D did not commit any work for Run 73 (branch stayed at base commit).
+
+#### Agent 0 Retrospective
+**Status**: Merged and deployed. 10 test fixes needed across bot and mini-app.
+
+**Post-merge fixes**:
+- Bot (8 failures): questReminders cron changed from `0 18 * * *` to `0 * * * *` (hourly for timezone-aware), sendMessage now takes 3 args (HTML + options with parse_mode + InlineKeyboard). Fixed achievementNotifier mock data (added template fields). Fixed locale-sensitive `toLocaleString()` in templates and dailySummary handler (`parse_mode` Markdown→HTML).
+- Mini-app (3+ failures): `notification_modes` missing from mock data in NotificationSettings.test, Settings.test, useSettingsData.test, and aria-audit.test. Added `DEFAULT_NOTIFICATION_MODES` export to mocks. Fixed DND test `getByText` → `getAllByText` for duplicate text. Added aria-label to per-mode toggle buttons.
+
+**Agent results**:
+- Agent A: DND backend (3 new DB columns, timezone-aware scheduling, isInDndWindow helper, hourly cron for questReminders)
+- Agent B: Per-mode notification toggles, DND auto-save with debounce, NotificationHistory page, i18n for all 3 languages
+- Agent C: Rich HTML templates with inline buttons (dailySummary, questReminder, achievementUnlocked, streakWarning), sendWithRetry helper
+- Agent D: No work
+
+---
+
+## RUN 74
+
+**Theme**: Integration Testing + Launch Prep (3 Agents) — FINAL ROADMAP RUN
+**From Roadmap**: Run 74
+
+**Context**: This is the LAST run in the mandatory roadmap (Runs 65-74). After this, the roadmap is complete. The app has: 2000+ tests, full feature set (achievements, avatars, trophies, shop, inventory, analytics, finance, notifications, DND, PWA, a11y, keyboard nav), deployed and running at yakutsa.ru.
+
+### Run 74 Agents
+
+| Agent | Focus | Worktree |
+|-------|-------|----------|
+| A | Full end-to-end integration testing (all user flows) | Wibecode-agent-a |
+| B | Load testing + monitoring setup | Wibecode-agent-b |
+| C | Documentation + launch checklist | Wibecode-agent-c |
+
+### Run 74 File Ownership
+
+| File/Dir | Owner | Access |
+|----------|-------|--------|
+| bot/src/__tests__/integration/ | A | NEW dir |
+| mini-app/src/__tests__/integration/ | A | NEW dir |
+| bot/src/__tests__/e2e/ | A | NEW dir |
+| tools/load_test.py | B | NEW |
+| bot/src/api/routes/health.ts | B | MODIFY (add detailed metrics) |
+| docs/LAUNCH_CHECKLIST.md | C | NEW |
+| docs/API_REFERENCE.md | C | NEW |
+| docs/ARCHITECTURE.md | C | NEW |
+
+### Run 74 Merge Order
+
+1. **B** (backend health/monitoring — small, foundational)
+2. **A** (integration tests — large but test-only)
+3. **C** (docs — no code changes, always safe)
+
+### Run 74 Retrospectives
+
+#### Agent A Retrospective
+*(To be filled by Agent A)*
+
+#### Agent B Retrospective
+*(To be filled by Agent B)*
+
+#### Agent C Retrospective
+*(To be filled by Agent C)*
 
 #### Agent 0 Retrospective
 *(To be filled by Agent 0 after merge)*
