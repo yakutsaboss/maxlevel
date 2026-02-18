@@ -1,6 +1,6 @@
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { Home, Target, User, Trophy, Award, Users, DollarSign, Medal, MoreHorizontal, ShoppingBag, BarChart3 } from 'lucide-react';
+import { Home, Target, User, Trophy, Award, Users, DollarSign, Medal, MoreHorizontal, ShoppingBag, BarChart3, Dumbbell } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { useTelegram } from '@/hooks/useTelegram';
@@ -14,12 +14,13 @@ interface NavItem {
 const primaryItems: NavItem[] = [
   { path: '/dashboard', icon: <Home className="w-5 h-5" />, labelKey: 'nav.home' },
   { path: '/quests', icon: <Target className="w-5 h-5" />, labelKey: 'nav.quests' },
+  { path: '/activity', icon: <Dumbbell className="w-5 h-5" />, labelKey: 'nav.activities' },
   { path: '/shop', icon: <ShoppingBag className="w-5 h-5" />, labelKey: 'nav.shop' },
   { path: '/achievements', icon: <Award className="w-5 h-5" />, labelKey: 'nav.rewards' },
-  { path: '/profile', icon: <User className="w-5 h-5" />, labelKey: 'nav.profile' },
 ];
 
 const moreItems: NavItem[] = [
+  { path: '/profile', icon: <User className="w-5 h-5" />, labelKey: 'nav.profile' },
   { path: '/leaderboard', icon: <Trophy className="w-5 h-5" />, labelKey: 'nav.ranks' },
   { path: '/trophies', icon: <Medal className="w-5 h-5" />, labelKey: 'nav.trophies' },
   { path: '/analytics', icon: <BarChart3 className="w-5 h-5" />, labelKey: 'nav.analytics' },

@@ -1004,7 +1004,20 @@ Read PARALLEL_AGENTS.md — you are Agent I of Run 75. Your task: Tests for the 
 - No conflicts expected — seed_data.sql append is in a new section, achievementEngine.ts changes are at end of switch block.
 
 #### Agent H Retrospective
-*(To be filled by Agent H)*
+**Status**: Complete — all tasks done, build verified.
+
+**What was done**:
+1. **i18n keys (3 languages)**: Added `nav.activities` + `activityHub.*` (24 keys), `activityTimer.*` (16 keys), `activityHistory.*` (13 keys) = **53 keys per language** across en.ts, ru.ts, zh.ts. Covers categories (all/cardio/strength/flexibility/sports/outdoor/mindBody), timer controls, history stats, and UI strings.
+2. **Routes (App.tsx)**: Added lazy-loaded `ActivityHub` at `/activity` and `ActivityHistory` at `/activity/history`, both wrapped in `ProtectedRoute`.
+3. **Navigation (Navigation.tsx)**: Added `Dumbbell` icon from lucide-react as 3rd primary nav item (position: Home, Quests, **Activities**, Shop, Rewards). Moved Profile to the "More" menu (first item) to make room.
+4. **Stub pages**: Created `ActivityHub.tsx` and `ActivityHistory.tsx` as minimal placeholder pages so the build compiles. These use the i18n keys and render a placeholder state with icons.
+
+**Build**: `tsc --noEmit` and `npm run build` both pass. Activity chunks generated: `ActivityHub-Bgfn3kUc.js` (0.59 kB) and `ActivityHistory-BQKsqHda.js` (0.79 kB).
+
+**Notes for Agent 0**:
+- Profile moved from primary nav to More menu (first position) — this is a UX change that affects all users.
+- Stub pages are minimal — other agents (especially the ActivityHub UI agent) should flesh out the full components.
+- No merge conflicts expected — changes are in clearly owned files.
 
 #### Agent I Retrospective
 *(To be filled by Agent I)*
