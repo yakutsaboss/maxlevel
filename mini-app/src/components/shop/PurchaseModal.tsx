@@ -2,6 +2,7 @@ import { useEffect, useRef, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { motion, AnimatePresence, PanInfo } from 'framer-motion';
 import { X, Loader2, AlertCircle, RotateCcw } from 'lucide-react';
+import { FocusTrap } from '@/components/FocusTrap';
 import type { ShopItem, PaymentMethod } from '@/api/shop.js';
 import type { PurchaseState } from '@/hooks/usePurchase.js';
 
@@ -62,6 +63,7 @@ export function PurchaseModal({
         className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-end"
         onClick={isProcessing ? undefined : onClose}
       >
+        <FocusTrap onEscape={isProcessing ? undefined : onClose}>
         <motion.div
           ref={sheetRef}
           initial={{ y: '100%' }}
@@ -179,6 +181,7 @@ export function PurchaseModal({
             )}
           </div>
         </motion.div>
+        </FocusTrap>
       </motion.div>
     </AnimatePresence>
   );

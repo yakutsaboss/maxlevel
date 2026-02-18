@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Users, Target, Clock, Crown, Loader2, AlertCircle, RefreshCw, Trophy, LogOut } from 'lucide-react';
 import { getChallengeDetails } from '@/api/social';
+import { FocusTrap } from '@/components/FocusTrap';
 import type { ChallengeDetail } from '@/api/social';
 
 interface ChallengeDetailModalProps {
@@ -89,6 +90,7 @@ export function ChallengeDetailModal({ challengeId, onClose, userId, onLeave }: 
           className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-end"
           onClick={onClose}
         >
+          <FocusTrap onEscape={onClose}>
           <motion.div
             initial={{ y: '100%' }}
             animate={{ y: 0 }}
@@ -299,6 +301,7 @@ export function ChallengeDetailModal({ challengeId, onClose, userId, onLeave }: 
               </>
             )}
           </motion.div>
+          </FocusTrap>
         </motion.div>
       )}
     </AnimatePresence>

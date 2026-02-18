@@ -2,7 +2,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { Home, Target, User, Trophy, Award, Users, DollarSign, Medal, MoreHorizontal, ShoppingBag } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { useTelegram } from '@/hooks/useTelegram';
 
 interface NavItem {
@@ -66,22 +66,77 @@ export function Navigation({ questBadgeCount = 0 }: NavigationProps) {
     navigate(path);
   };
 
+  // All nav items: 5 primary + "More" button (index 5)
+  const allNavCount = primaryItems.length + 1;
+
+  // Keyboard handler for primary nav: Arrow Left/Right to move, Enter/Space to activate
+  const handleNavKeyDown = useCallback((e: React.KeyboardEvent, index: number) => {
+    let nextIndex = -1;
+
+    if (e.key === 'ArrowRight') {
+      e.preventDefault();
+      nextIndex = (index + 1) % allNavCount;
+    } else if (e.key === 'ArrowLeft') {
+      e.preventDefault();
+      nextIndex = (index - 1 + allNavCount) % allNavCount;
+    }
+
+    if (nextIndex >= 0) {
+      const nav = e.currentTarget.closest('nav');
+      const buttons = nav?.querySelectorAll<HTMLElement>('[data-nav-index]');
+      buttons?.[nextIndex]?.focus();
+    }
+  }, [allNavCount]);
+
+  // Keyboard handler for "More" popup items
+  const handleMoreKeyDown = useCallback((e: React.KeyboardEvent, index: number) => {
+    if (e.key === 'Escape') {
+      e.preventDefault();
+      setMoreOpen(false);
+      // Return focus to the More button
+      const nav = e.currentTarget.closest('nav');
+      const moreBtn = nav?.querySelector<HTMLElement>('[data-nav-index="5"]');
+      moreBtn?.focus();
+      return;
+    }
+
+    let nextIndex = -1;
+    if (e.key === 'ArrowDown' || e.key === 'ArrowRight') {
+      e.preventDefault();
+      nextIndex = (index + 1) % moreItems.length;
+    } else if (e.key === 'ArrowUp' || e.key === 'ArrowLeft') {
+      e.preventDefault();
+      nextIndex = (index - 1 + moreItems.length) % moreItems.length;
+    }
+
+    if (nextIndex >= 0) {
+      const popup = e.currentTarget.closest('[role="menu"]');
+      const items = popup?.querySelectorAll<HTMLElement>('[role="menuitem"]');
+      items?.[nextIndex]?.focus();
+    }
+  }, []);
+
   return (
     <nav
       className="fixed bottom-0 left-0 right-0 bg-telegram-secondaryBg border-t border-telegram-hint/20 safe-area-bottom z-40"
       aria-label="Main navigation"
     >
-      <div className="flex items-center justify-around px-2 py-2">
-        {primaryItems.map((item) => {
+      <div className="flex items-center justify-around px-2 py-2" role="tablist">
+        {primaryItems.map((item, index) => {
           const isActive = location.pathname === item.path;
           const label = t(item.labelKey);
 
           return (
             <button
               key={item.path}
+              data-nav-index={index}
               onClick={() => handleNavigate(item.path)}
+              onKeyDown={(e) => handleNavKeyDown(e, index)}
               aria-label={item.path === '/quests' && questBadgeCount > 0 ? `${label} (${questBadgeCount} new)` : label}
               aria-current={isActive ? 'page' : undefined}
+              role="tab"
+              aria-selected={isActive}
+              tabIndex={isActive ? 0 : -1}
               className="relative flex flex-col items-center justify-center py-2 px-3 transition-colors"
             >
               {isActive && (
@@ -118,12 +173,22 @@ export function Navigation({ questBadgeCount = 0 }: NavigationProps) {
         {/* More button */}
         <div ref={moreRef} className="relative">
           <button
+            data-nav-index={5}
             onClick={() => {
               haptic.selection();
               setMoreOpen((prev) => !prev);
             }}
+            onKeyDown={(e) => {
+              if (e.key === 'Escape' && moreOpen) {
+                e.preventDefault();
+                setMoreOpen(false);
+                return;
+              }
+              handleNavKeyDown(e, 5);
+            }}
             aria-label={t('nav.more')}
             aria-expanded={moreOpen}
+            aria-haspopup="menu"
             className="relative flex flex-col items-center justify-center py-2 px-3 transition-colors"
           >
             {isMoreActive && !moreOpen && (
@@ -159,15 +224,19 @@ export function Navigation({ questBadgeCount = 0 }: NavigationProps) {
                 exit={{ opacity: 0, y: 8, scale: 0.95 }}
                 transition={{ duration: 0.15 }}
                 className="absolute bottom-full right-0 mb-2 bg-telegram-secondaryBg border border-telegram-hint/20 rounded-2xl shadow-lg overflow-hidden min-w-[160px] z-50"
+                role="menu"
               >
-                {moreItems.map((item) => {
+                {moreItems.map((item, index) => {
                   const isActive = location.pathname === item.path;
                   const label = t(item.labelKey);
 
                   return (
                     <button
                       key={item.path}
+                      role="menuitem"
+                      tabIndex={0}
                       onClick={() => handleNavigate(item.path)}
+                      onKeyDown={(e) => handleMoreKeyDown(e, index)}
                       className={`flex items-center gap-3 w-full px-4 py-3 transition-colors ${
                         isActive
                           ? 'text-telegram-link bg-telegram-link/10'

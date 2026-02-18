@@ -4,6 +4,7 @@ import { Zap, CheckCircle, Loader2, Calendar } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { CheckInButton } from '@/components/CheckInButton';
 import { QuestDifficultyBadge } from '@/components/QuestDifficultyBadge';
+import { FocusTrap } from '@/components/FocusTrap';
 import { formatDate } from '@/utils/formatDate';
 
 interface QuestDetailModalProps {
@@ -28,6 +29,7 @@ export function QuestDetailModal({ quest, completing, userId, onClose, onCheckin
   return (
     <AnimatePresence>
       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-end" onClick={onClose}>
+        <FocusTrap onEscape={onClose}>
         <motion.div
           layoutId={`quest-${quest.id}`}
           initial={{ y: '100%' }}
@@ -130,6 +132,7 @@ export function QuestDetailModal({ quest, completing, userId, onClose, onCheckin
             </div>
           )}
         </motion.div>
+        </FocusTrap>
       </motion.div>
     </AnimatePresence>
   );

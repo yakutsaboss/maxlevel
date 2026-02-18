@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { motion, AnimatePresence } from 'framer-motion';
+import { FocusTrap } from '@/components/FocusTrap';
 
 interface LevelUpModalProps {
   level: number;
@@ -20,6 +21,7 @@ export function LevelUpModal({ level, show, onClose }: LevelUpModalProps) {
   return (
     <AnimatePresence>
       {show && (
+        <FocusTrap onEscape={onClose} autoFocus={false}>
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
@@ -72,6 +74,7 @@ export function LevelUpModal({ level, show, onClose }: LevelUpModalProps) {
             </span>
           </motion.div>
         </motion.div>
+        </FocusTrap>
       )}
     </AnimatePresence>
   );

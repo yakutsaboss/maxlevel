@@ -5,6 +5,7 @@ import { X, Check, Loader2, AlertCircle, Palette } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { apiClient } from '@/api/client';
 import { AvatarRenderer, type EquippedItems } from '@/components/avatar';
+import { FocusTrap } from '@/components/FocusTrap';
 
 interface ProfileEditModalProps {
   isOpen: boolean;
@@ -104,6 +105,7 @@ export function ProfileEditModal({ isOpen, onClose, onSaved, telegramId, current
           className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-end"
           onClick={handleCancel}
         >
+          <FocusTrap onEscape={handleCancel}>
           <motion.div
             initial={{ y: '100%' }}
             animate={{ y: 0 }}
@@ -186,6 +188,7 @@ export function ProfileEditModal({ isOpen, onClose, onSaved, telegramId, current
               </button>
             </div>
           </motion.div>
+          </FocusTrap>
         </motion.div>
       )}
     </AnimatePresence>

@@ -1900,7 +1900,28 @@ After completing, write your retrospective in PARALLEL_AGENTS.md under "Run 70 R
 *(To be filled by Agent A)*
 
 #### Agent B Retrospective
-*(To be filled by Agent B)*
+**Keyboard navigation + focus management**
+
+Changes made:
+1. **SkipLink.tsx** (NEW): "Skip to main content" link, visually hidden until focused. Uses `sr-only` + `focus:not-sr-only` pattern. Jumps to `#main-content` anchor.
+2. **FocusTrap.tsx** (NEW): Generic focus trap component for modals. Traps Tab/Shift+Tab cycling, Escape to close, auto-focuses first focusable element on mount, restores focus on unmount. Uses `role="dialog"` + `aria-modal="true"`.
+3. **App.tsx**: Added `<SkipLink />` at top of app container, wrapped Routes in `<main id="main-content">` for skip-link target.
+4. **Navigation.tsx**: Full keyboard navigation:
+   - Arrow Left/Right moves focus between nav items (wraps around)
+   - `role="tablist"` on container, `role="tab"` + `aria-selected` on items
+   - Roving tabindex pattern (active tab=0, others=-1)
+   - "More" button: `aria-haspopup="menu"`, Escape closes popup
+   - Popup menu: `role="menu"` + `role="menuitem"`, Arrow Up/Down/Left/Right navigation, Escape returns focus to trigger
+5. **Modal FocusTrap wrapping** — added FocusTrap to 6 modals:
+   - PurchaseModal (Escape disabled during processing)
+   - LevelUpModal (autoFocus=false, auto-dismisses)
+   - QuestDetailModal
+   - TrophyDetailModal
+   - ProfileEditModal
+   - ChallengeDetailModal
+6. **index.css**: Extended focus-visible indicators to `[role="tab"]`, `[role="menuitem"]`, `[tabindex]`, `input`, `select`, `textarea`.
+
+No issues encountered. Build passes cleanly.
 
 #### Agent C Retrospective
 **PWA completion — wired components + offline enhancements**
