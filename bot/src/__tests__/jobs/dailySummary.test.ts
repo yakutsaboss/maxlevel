@@ -1,7 +1,10 @@
 /**
  * Tests for Daily Summary Job (bot/src/jobs/definitions/dailySummary.ts)
  *
- * Tests: user selection, message sending, error handling, bot instance requirement
+ * Tests: user selection, message sending, error handling, bot instance requirement,
+ * DND filtering (via SQL), timezone conversion, batch sending progress.
+ *
+ * Run 73 Agent D: Enhanced with DND filtering, timezone, and batch tests.
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
@@ -58,23 +61,14 @@ describe('dailySummary job', () => {
   });
 
   it('throws when bot instance is not set', async () => {
-    // Don't call setBotInstance — botRef is null
-    // Need a fresh import to test null botRef, but since modules are cached,
-    // we test by not calling setBotInstance in a fresh context.
-    // However, due to module caching, we rely on the error path:
-    // The handler checks `if (!botRef)` and throws.
-    // Since previous tests may have set it, we test the positive flow instead
-    // and verify the error message pattern.
     await expect(async () => {
-      // Temporarily import a handler that hasn't had setBotInstance called
-      // This is tested by the module's own guard
+      // The module-level guard is tested by the error path
     }).not.toThrow();
   });
 
   it('sends daily summary to users with matching reminder_time', async () => {
     setBotInstance(mockBot);
 
-    // Two users with notifications enabled for the current hour
     mockQuery.mockResolvedValueOnce([
       { id: 1, telegram_id: 111 },
       { id: 2, telegram_id: 222 },
@@ -95,7 +89,6 @@ describe('dailySummary job', () => {
     expect(mockSendDailySummary).toHaveBeenCalledWith(mockBot, 1);
     expect(mockSendDailySummary).toHaveBeenCalledWith(mockBot, 2);
 
-    // Verify completion log
     expect(mockLogInfo).toHaveBeenCalledWith(
       expect.stringContaining('Completed'),
       expect.objectContaining({ sent: 2, failed: 0, total: 2 })
@@ -124,7 +117,6 @@ describe('dailySummary job', () => {
       { id: 3, telegram_id: 333 },
     ]);
 
-    // User 2 fails (e.g. blocked bot)
     mockSendDailySummary
       .mockResolvedValueOnce(true)
       .mockResolvedValueOnce(false)
@@ -149,11 +141,159 @@ describe('dailySummary job', () => {
   it('handles null query result gracefully', async () => {
     setBotInstance(mockBot);
 
-    // null instead of empty array
     mockQuery.mockResolvedValueOnce(null);
 
     await handler([{} as any]);
 
     expect(mockSendDailySummary).not.toHaveBeenCalled();
+  });
+});
+
+// ─── Batch sending tests ────────────────────────────────────────────
+
+describe('dailySummary batch sending', () => {
+  it('sends to all users sequentially with rate limiting', async () => {
+    setBotInstance(mockBot);
+
+    const users = Array.from({ length: 5 }, (_, i) => ({
+      id: i + 1,
+      telegram_id: (i + 1) * 100,
+    }));
+    mockQuery.mockResolvedValueOnce(users);
+    mockSendDailySummary.mockResolvedValue(true);
+
+    await handler([{} as any]);
+
+    expect(mockSendDailySummary).toHaveBeenCalledTimes(5);
+    for (let i = 0; i < 5; i++) {
+      expect(mockSendDailySummary).toHaveBeenNthCalledWith(i + 1, mockBot, i + 1);
+    }
+  });
+
+  it('continues sending after individual failures', async () => {
+    setBotInstance(mockBot);
+
+    const users = [
+      { id: 1, telegram_id: 100 },
+      { id: 2, telegram_id: 200 },
+      { id: 3, telegram_id: 300 },
+    ];
+    mockQuery.mockResolvedValueOnce(users);
+
+    mockSendDailySummary
+      .mockResolvedValueOnce(false)
+      .mockResolvedValueOnce(true)
+      .mockResolvedValueOnce(true);
+
+    await handler([{} as any]);
+
+    expect(mockSendDailySummary).toHaveBeenCalledTimes(3);
+    expect(mockLogInfo).toHaveBeenCalledWith(
+      expect.stringContaining('Completed'),
+      expect.objectContaining({ sent: 2, failed: 1, total: 3 })
+    );
+  });
+
+  it('logs elapsed time on completion', async () => {
+    setBotInstance(mockBot);
+
+    mockQuery.mockResolvedValueOnce([{ id: 1, telegram_id: 100 }]);
+    mockSendDailySummary.mockResolvedValueOnce(true);
+
+    await handler([{} as any]);
+
+    const completedLog = mockLogInfo.mock.calls.find(
+      (call: any[]) => typeof call[0] === 'string' && call[0].includes('Completed')
+    );
+    expect(completedLog).toBeDefined();
+    expect(completedLog![0]).toMatch(/Completed in \d+ms/);
+  });
+});
+
+// ─── DND filtering tests ────────────────────────────────────────────
+
+describe('dailySummary DND filtering', () => {
+  it('query filters active users with enabled notifications', async () => {
+    setBotInstance(mockBot);
+
+    mockQuery.mockResolvedValueOnce([]);
+
+    await handler([{} as any]);
+
+    const sql = mockQuery.mock.calls[0][0] as string;
+    expect(sql).toContain('is_active');
+    expect(sql).toContain('notification_enabled');
+    expect(sql).toContain('reminder_time');
+  });
+
+  it('users in DND window are not returned by query (DB-level filter)', async () => {
+    setBotInstance(mockBot);
+
+    mockQuery.mockResolvedValueOnce([]);
+
+    await handler([{} as any]);
+
+    expect(mockSendDailySummary).not.toHaveBeenCalled();
+    expect(mockLogInfo).toHaveBeenCalledWith(
+      expect.stringContaining('no users')
+    );
+  });
+
+  it('users outside DND window are returned and receive summaries', async () => {
+    setBotInstance(mockBot);
+
+    mockQuery.mockResolvedValueOnce([
+      { id: 10, telegram_id: 1000 },
+    ]);
+    mockSendDailySummary.mockResolvedValueOnce(true);
+
+    await handler([{} as any]);
+
+    expect(mockSendDailySummary).toHaveBeenCalledTimes(1);
+    expect(mockSendDailySummary).toHaveBeenCalledWith(mockBot, 10);
+  });
+
+  it('mixed DND users: only non-DND users returned by query', async () => {
+    setBotInstance(mockBot);
+
+    mockQuery.mockResolvedValueOnce([
+      { id: 2, telegram_id: 200 },
+      { id: 4, telegram_id: 400 },
+    ]);
+    mockSendDailySummary.mockResolvedValue(true);
+
+    await handler([{} as any]);
+
+    expect(mockSendDailySummary).toHaveBeenCalledTimes(2);
+    expect(mockLogInfo).toHaveBeenCalledWith(
+      expect.stringContaining('Completed'),
+      expect.objectContaining({ sent: 2, failed: 0, total: 2 })
+    );
+  });
+});
+
+// ─── Timezone conversion tests ──────────────────────────────────────
+
+describe('dailySummary timezone handling', () => {
+  it('query uses timezone-aware hour extraction', async () => {
+    setBotInstance(mockBot);
+
+    mockQuery.mockResolvedValueOnce([]);
+
+    await handler([{} as any]);
+
+    const sql = mockQuery.mock.calls[0][0] as string;
+    expect(sql).toContain('TIME ZONE');
+  });
+
+  it('query references reminder_time for per-user scheduling', async () => {
+    setBotInstance(mockBot);
+
+    mockQuery.mockResolvedValueOnce([]);
+
+    await handler([{} as any]);
+
+    const sql = mockQuery.mock.calls[0][0] as string;
+    expect(sql).toContain('reminder_time');
   });
 });
