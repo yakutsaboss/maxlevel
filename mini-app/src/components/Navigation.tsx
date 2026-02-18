@@ -1,6 +1,6 @@
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { Home, Target, User, Trophy, Award, Users, DollarSign, Medal, MoreHorizontal, ShoppingBag, BarChart3, Dumbbell } from 'lucide-react';
+import { Home, Target, User, Trophy, Award, Users, DollarSign, Medal, MoreHorizontal, ShoppingBag, BarChart3, Dumbbell, BookOpen } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { useTelegram } from '@/hooks/useTelegram';
@@ -26,6 +26,7 @@ const moreItems: NavItem[] = [
   { path: '/analytics', icon: <BarChart3 className="w-5 h-5" />, labelKey: 'nav.analytics' },
   { path: '/social', icon: <Users className="w-5 h-5" />, labelKey: 'nav.social' },
   { path: '/finance', icon: <DollarSign className="w-5 h-5" />, labelKey: 'nav.finance' },
+  { path: '/content', icon: <BookOpen className="w-5 h-5" />, labelKey: 'nav.knowledge' },
 ];
 
 interface NavigationProps {

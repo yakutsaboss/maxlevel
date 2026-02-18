@@ -33,6 +33,9 @@ const Analytics = lazy(() => import('@/pages/Analytics').then(m => ({ default: m
 const NotificationHistory = lazy(() => import('@/pages/NotificationHistory').then(m => ({ default: m.NotificationHistory })));
 const ActivityHub = lazy(() => import('@/pages/ActivityHub').then(m => ({ default: m.ActivityHub })));
 const ActivityHistory = lazy(() => import('@/pages/ActivityHistory').then(m => ({ default: m.ActivityHistory })));
+const ContentFeed = lazy(() => import('@/pages/ContentFeed').then(m => ({ default: m.ContentFeed })));
+const ArticleReader = lazy(() => import('@/pages/ArticleReader').then(m => ({ default: m.ArticleReader })));
+const ReadingHistory = lazy(() => import('@/pages/ReadingHistory').then(m => ({ default: m.ReadingHistory })));
 
 // Create React Query client
 const queryClient = new QueryClient({
@@ -153,6 +156,9 @@ function AppContent() {
         <Route path="/notifications" element={<ProtectedRoute needsOnboarding={effectiveNeedsOnboarding} lazy><NotificationHistory /></ProtectedRoute>} />
         <Route path="/activity" element={<ProtectedRoute needsOnboarding={effectiveNeedsOnboarding} lazy><ActivityHub /></ProtectedRoute>} />
         <Route path="/activity/history" element={<ProtectedRoute needsOnboarding={effectiveNeedsOnboarding} lazy><ActivityHistory /></ProtectedRoute>} />
+        <Route path="/content" element={<ProtectedRoute needsOnboarding={effectiveNeedsOnboarding} lazy><ContentFeed /></ProtectedRoute>} />
+        <Route path="/content/:articleId" element={<ProtectedRoute needsOnboarding={effectiveNeedsOnboarding} lazy><ArticleReader /></ProtectedRoute>} />
+        <Route path="/content/bookmarks" element={<ProtectedRoute needsOnboarding={effectiveNeedsOnboarding} lazy><ReadingHistory /></ProtectedRoute>} />
         <Route path="/admin" element={<LazyPageWrapper><Admin /></LazyPageWrapper>} />
       </Routes>
       </main>
