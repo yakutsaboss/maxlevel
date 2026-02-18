@@ -1433,7 +1433,29 @@ Run 68 also added `mini-app/src/api/shop.ts` (API client) and `mini-app/src/hook
 ### Run 69 Retrospectives
 
 #### Agent A Retrospective
-*(To be filled after work is done)*
+
+**Completed**: 2 tasks (useShop hook + Shop page), 2 commits on `feature/r69-shop-page`.
+
+**Files created**:
+- `mini-app/src/hooks/useShop.ts` — Data hook: fetches items + purchase history, category/search filtering, owned-item tracking
+- `mini-app/src/pages/Shop.tsx` — Full shop page: header with gradient, search toggle, featured carousel (horizontal scroll), category tabs (All/Achievements/Avatar Items/Boosters), 2-column item grid with rarity badges + price display, PurchaseModal integration, pull-to-refresh, loading skeleton, empty states
+
+**i18n keys used** (Agent D needs to add these):
+- `shop.title`, `shop.featured`, `shop.searchPlaceholder`
+- `shop.cat_all`, `shop.cat_achievements`, `shop.cat_avatarItems`, `shop.cat_boosters`, `shop.cat_boosters_xp`
+- `shop.rarity_common`, `shop.rarity_uncommon`, `shop.rarity_rare`, `shop.rarity_epic`, `shop.rarity_legendary`
+- `shop.owned`, `shop.empty`, `shop.noResults`
+- (PurchaseModal keys already existed from Run 68: `shop.close`, `shop.confirmPurchase`, `shop.payWithStars`, `shop.payWithXp`, `shop.retryWithStars`, `shop.retryWithXp`, `shop.processing`, `shop.cancel`)
+
+**Design decisions**:
+- Used indigo→purple gradient (differentiated from TrophyCase yellow→amber and Achievements amber→orange)
+- Featured carousel with horizontal snap scrolling, compact cards showing emoji + name + price
+- Item grid uses motion stagger animation (0.03s per card)
+- One-time achievement items show "Owned" badge and block re-purchase tap
+- Search is toggled via header button to keep the UI clean by default
+- No separate user balance display in header (User type doesn't have `stars_balance` field; XP is in user.xp but fetching UserStats just for balance would be wasteful — can be added later)
+
+**No issues encountered**. Clean implementation following TrophyCase/Achievements patterns.
 
 #### Agent B Retrospective
 **Status**: DONE — all 3 tasks completed, 3 commits on `feature/r69-inventory`.
