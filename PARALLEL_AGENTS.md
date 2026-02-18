@@ -1436,7 +1436,30 @@ Run 68 also added `mini-app/src/api/shop.ts` (API client) and `mini-app/src/hook
 *(To be filled after work is done)*
 
 #### Agent B Retrospective
-*(To be filled after work is done)*
+**Status**: DONE — all 3 tasks completed, 3 commits on `feature/r69-inventory`.
+
+**What was built:**
+1. **Inventory API routes** (`bot/src/api/routes/inventory.ts`):
+   - `GET /api/inventory/:userId` — returns owned items grouped by type (JOIN with shop_items)
+   - `POST /api/inventory/:userId/equip` — equip avatar item, auto-unequips previous
+   - `POST /api/inventory/:userId/unequip` — unequip avatar item
+   - Migration: added `is_equipped` column + index to `user_purchases`
+   - Wired into `server.ts`
+
+2. **Inventory API client + hook** (`mini-app/src/api/inventory.ts`, `mini-app/src/hooks/useInventory.ts`):
+   - API client: `fetchInventory`, `equipItem`, `unequipItem`
+   - Hook: category filtering (all/avatar/achievement/booster/xp), optimistic equip/unequip updates, loading/error states
+
+3. **Inventory page** (`mini-app/src/pages/Inventory.tsx`):
+   - Header with item count, gradient style (indigo-purple)
+   - Category tabs: All, Avatar Items, Achievements, Boosters, XP Boosters
+   - Item cards with emoji icon, rarity badge, purchase date, equip/unequip toggle
+   - Empty state with "Visit Shop" CTA
+   - Pull-to-refresh, Toast for equip/unequip feedback
+
+**Build**: Both `bot` and `mini-app` pass `tsc --noEmit` cleanly.
+**Patterns followed**: Matched shop.ts route style, useTrophies hook pattern, TrophyCase/Achievements page patterns.
+**No issues encountered.**
 
 #### Agent C Retrospective
 *(To be filled after work is done)*
