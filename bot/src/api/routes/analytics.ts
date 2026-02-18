@@ -13,6 +13,22 @@ import { safeParseInt } from '../../utils/validation.js';
 
 const router = Router();
 
+// ---- Time range support ----
+
+type RangeOption = '7d' | '30d' | 'all';
+const VALID_RANGES: RangeOption[] = ['7d', '30d', 'all'];
+
+/** Parse ?range= query param into a SQL interval expression and cache key suffix. */
+function parseRange(raw: unknown): { interval: string | null; key: string } {
+  const r = (typeof raw === 'string' ? raw : '7d') as RangeOption;
+  if (!VALID_RANGES.includes(r)) {
+    return { interval: "INTERVAL '6 days'", key: '7d' };
+  }
+  if (r === 'all') return { interval: null, key: 'all' };
+  if (r === '30d') return { interval: "INTERVAL '29 days'", key: '30d' };
+  return { interval: "INTERVAL '6 days'", key: '7d' };
+}
+
 // ---- Type definitions for analytics query rows ----
 
 interface ModeAnalyticsRow {
@@ -64,7 +80,13 @@ router.get('/:userId/modes', authenticateTelegram, authorizeUser, readLimiter, a
   const userId = safeParseInt(req.params.userId, NaN);
   if (isNaN(userId)) throw new BadRequestError('Invalid userId');
 
-  const modeAnalytics = await cached(`analytics:modes:${userId}`, TTL.MEDIUM, async () => {
+  const range = parseRange(req.query.range);
+
+  const modeAnalytics = await cached(`analytics:modes:${userId}:${range.key}`, TTL.MEDIUM, async () => {
+    const dateFilter = range.interval
+      ? `AND qi.instance_date >= CURRENT_DATE - ${range.interval}`
+      : '';
+
     const rows = await query<ModeAnalyticsRow>(
       `SELECT
          m.id AS mode_id,
@@ -79,7 +101,7 @@ router.get('/:userId/modes', authenticateTelegram, authorizeUser, readLimiter, a
        FROM user_modes um
        JOIN modes m ON um.mode_id = m.id
        LEFT JOIN quests q ON q.mode_id = m.id
-       LEFT JOIN quest_instances qi ON qi.quest_id = q.id AND qi.user_id = um.user_id
+       LEFT JOIN quest_instances qi ON qi.quest_id = q.id AND qi.user_id = um.user_id ${dateFilter}
        LEFT JOIN streaks s ON s.user_id = um.user_id AND s.mode_id = m.id
        WHERE um.user_id = $1 AND um.is_active = true
        GROUP BY m.id, m.name, m.display_name, m.icon_emoji, s.current_streak, s.longest_streak
@@ -220,7 +242,13 @@ router.get('/:userId/summary', authenticateTelegram, authorizeUser, readLimiter,
   const userId = safeParseInt(req.params.userId, NaN);
   if (isNaN(userId)) throw new BadRequestError('Invalid userId');
 
-  const summary = await cached(`analytics:summary:${userId}`, 2 * 60_000, async () => {
+  const range = parseRange(req.query.range);
+
+  const summary = await cached(`analytics:summary:${userId}:${range.key}`, 2 * 60_000, async () => {
+    const dateFilter = range.interval
+      ? `AND instance_date >= CURRENT_DATE - ${range.interval}`
+      : '';
+
     const row = await queryOne<ProgressSummaryRow>(
       `WITH quest_stats AS (
          SELECT
@@ -228,7 +256,7 @@ router.get('/:userId/summary', authenticateTelegram, authorizeUser, readLimiter,
            COUNT(*) AS quests_total,
            COUNT(DISTINCT instance_date) FILTER (WHERE status = 'completed') AS days_active,
            COALESCE(SUM(xp_awarded) FILTER (WHERE status = 'completed' AND completed_at >= CURRENT_DATE - INTERVAL '6 days'), 0)::int AS xp_this_week
-         FROM quest_instances WHERE user_id = $1
+         FROM quest_instances WHERE user_id = $1 ${dateFilter}
        ),
        mode_stats AS (
          SELECT

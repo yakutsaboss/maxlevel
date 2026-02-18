@@ -25,6 +25,7 @@ import { trophyRouter } from './routes/trophies.js';
 import { shopRouter } from './routes/shop.js';
 import { inventoryRouter } from './routes/inventory.js';
 import { analyticsRouter } from './routes/analytics.js';
+import { exportRouter } from './routes/export.js';
 import { financeRouter } from './routes/finance.js';
 import { channelRouter } from './routes/channel.js';
 import { apiLimiter } from './middleware/rateLimiter.js';
@@ -125,6 +126,7 @@ app.use('/api/trophies', trophyRouter);
 app.use('/api/shop', shopRouter);
 app.use('/api/inventory', inventoryRouter);
 app.use('/api/analytics', analyticsRouter);
+app.use('/api/export', exportRouter);
 app.use('/api/finance', financeRouter);
 app.use('/api/channel', channelRouter);
 
