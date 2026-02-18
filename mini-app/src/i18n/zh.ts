@@ -6,6 +6,7 @@ export default {
     ranks: "排名",
     social: "社交",
     finance: "财务",
+    shop: "商店",
     profile: "个人资料",
     more: "更多",
     trophies: "奖杯",

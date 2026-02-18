@@ -6,6 +6,7 @@ export default {
     ranks: "Рейтинг",
     social: "Социальное",
     finance: "Финансы",
+    shop: "Магазин",
     profile: "Профиль",
     more: "Ещё",
     trophies: "Трофеи",
