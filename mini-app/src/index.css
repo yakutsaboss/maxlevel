@@ -39,6 +39,19 @@ body.scroll-locked {
   }
 }
 
+/* Standalone PWA mode fallbacks (when Telegram vars aren't injected) */
+@media (display-mode: standalone) {
+  :root {
+    --tg-theme-bg-color: #1a1a2e;
+    --tg-theme-text-color: #eaeaea;
+    --tg-theme-hint-color: #8b8b8b;
+    --tg-theme-link-color: #4ea8de;
+    --tg-theme-button-color: #4ea8de;
+    --tg-theme-button-text-color: #ffffff;
+    --tg-theme-secondary-bg-color: #16213e;
+  }
+}
+
 * {
   margin: 0;
   padding: 0;

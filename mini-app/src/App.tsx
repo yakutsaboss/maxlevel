@@ -7,6 +7,9 @@ import { Navigation } from '@/components/Navigation';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { LazyPageWrapper } from '@/components/LazyPageWrapper';
 import { ProtectedRoute } from '@/components/ProtectedRoute';
+import { OfflineBanner } from '@/components/OfflineBanner';
+import { InstallPrompt } from '@/components/InstallPrompt';
+import { SkipLink } from '@/components/SkipLink';
 import { useTelegram } from '@/hooks/useTelegram';
 import { useOnboarding } from '@/hooks/useOnboarding';
 import { apiClient } from '@/api/client';
@@ -116,6 +119,9 @@ function AppContent() {
 
   return (
     <div className="app-container">
+      <SkipLink />
+      <OfflineBanner />
+      <main id="main-content">
       <Routes>
         <Route
           path="/"
@@ -141,6 +147,8 @@ function AppContent() {
         <Route path="/shop/:itemId" element={<ProtectedRoute needsOnboarding={effectiveNeedsOnboarding} lazy><Shop /></ProtectedRoute>} />
         <Route path="/admin" element={<LazyPageWrapper><Admin /></LazyPageWrapper>} />
       </Routes>
+      </main>
+      <InstallPrompt />
       {showNavigation && <Navigation questBadgeCount={questBadgeCount} />}
     </div>
   );

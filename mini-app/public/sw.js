@@ -4,6 +4,22 @@ const STATIC_ASSETS = [
   '/levelapp/index.html',
 ];
 
+// Pre-cache top page routes (SPA — all resolve to index.html)
+const APP_ROUTES = [
+  '/levelapp/dashboard',
+  '/levelapp/quests',
+  '/levelapp/profile',
+  '/levelapp/achievements',
+];
+
+// API paths eligible for stale-while-revalidate
+const SWR_API_PATTERNS = [
+  '/api/user/',
+  '/api/achievements',
+  '/levelapp/api/user/',
+  '/levelapp/api/achievements',
+];
+
 const OFFLINE_PAGE = `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -67,18 +83,30 @@ const OFFLINE_PAGE = `<!DOCTYPE html>
 
 const OFFLINE_CACHE_KEY = 'offline-page';
 
-// Install: cache static assets + offline fallback
+// Install: cache static assets + app routes + offline fallback
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) =>
-      cache.addAll(STATIC_ASSETS).then(() =>
-        cache.put(
-          new Request(OFFLINE_CACHE_KEY),
-          new Response(OFFLINE_PAGE, {
-            headers: { 'Content-Type': 'text/html; charset=utf-8' },
-          })
+      cache.addAll(STATIC_ASSETS)
+        .then(() =>
+          // Pre-cache app routes (SPA — they return the same index.html)
+          // Use individual fetches so a single 404 doesn't break install
+          Promise.allSettled(
+            APP_ROUTES.map((route) =>
+              fetch(route).then((res) => {
+                if (res.ok) return cache.put(route, res);
+              })
+            )
+          )
         )
-      )
+        .then(() =>
+          cache.put(
+            new Request(OFFLINE_CACHE_KEY),
+            new Response(OFFLINE_PAGE, {
+              headers: { 'Content-Type': 'text/html; charset=utf-8' },
+            })
+          )
+        )
     )
   );
   self.skipWaiting();
@@ -94,11 +122,44 @@ self.addEventListener('activate', (event) => {
   self.clients.claim();
 });
 
-// Fetch: network-first for API, cache-first for static, offline fallback
+// Check if a request matches stale-while-revalidate API patterns
+function isSWRApiRequest(pathname, method) {
+  if (method !== 'GET') return false;
+  return SWR_API_PATTERNS.some((pattern) => pathname.startsWith(pattern));
+}
+
+// Fetch: stale-while-revalidate for eligible APIs, network-first for other APIs, cache-first for static
 self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
 
-  // Network-first for API calls
+  // Stale-while-revalidate for eligible API GET requests
+  if (isSWRApiRequest(url.pathname, event.request.method)) {
+    event.respondWith(
+      caches.open(CACHE_NAME).then((cache) =>
+        cache.match(event.request).then((cached) => {
+          const networkFetch = fetch(event.request).then((response) => {
+            if (response.ok) {
+              cache.put(event.request, response.clone());
+            }
+            return response;
+          }).catch(() => {
+            // Network failed — return cached or 503
+            if (cached) return cached;
+            return new Response('{"error":"offline"}', {
+              status: 503,
+              headers: { 'Content-Type': 'application/json' },
+            });
+          });
+
+          // Return cached immediately if available, otherwise wait for network
+          return cached || networkFetch;
+        })
+      )
+    );
+    return;
+  }
+
+  // Network-first for other API calls (POST, PUT, non-SWR paths)
   if (url.pathname.startsWith('/api/') || url.pathname.startsWith('/levelapp/api/')) {
     event.respondWith(
       fetch(event.request).catch(() => caches.match(event.request))

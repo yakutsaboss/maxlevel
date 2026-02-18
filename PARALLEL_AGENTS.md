@@ -1903,7 +1903,21 @@ After completing, write your retrospective in PARALLEL_AGENTS.md under "Run 70 R
 *(To be filled by Agent B)*
 
 #### Agent C Retrospective
-*(To be filled by Agent C)*
+**PWA completion — wired components + offline enhancements**
+
+Changes made:
+1. **App.tsx**: Imported and mounted `OfflineBanner` (top of app, before Routes) and `InstallPrompt` (after Routes, before Navigation). Both render conditionally via their internal state.
+2. **sw.js caching improvements**:
+   - Added pre-caching of 4 top SPA routes (`/dashboard`, `/quests`, `/profile`, `/achievements`) during install using `Promise.allSettled` so a single failure doesn't break SW installation.
+   - Added stale-while-revalidate strategy for API GET requests matching `/api/user/*` and `/api/achievements` — returns cached response immediately while fetching fresh data in background.
+   - Other API calls (POST, non-SWR paths) remain network-first.
+3. **index.css**: Added `@media (display-mode: standalone)` block with dark-themed CSS variable fallbacks for when the app runs as a standalone PWA without Telegram's theme injection.
+4. **manifest.json**: Added `id`, `scope`, `orientation: portrait`, and a `maskable` icon entry. Removed empty `screenshots` array.
+5. **Icons**: Generated placeholder 192x192 and 512x512 solid-color PNG icons (`#6366f1` indigo) for PWA installability. These should be replaced with proper branded icons later.
+
+Files modified: `mini-app/src/App.tsx`, `mini-app/public/sw.js`, `mini-app/src/index.css`, `mini-app/public/manifest.json`
+Files created: `mini-app/public/icon-192.png`, `mini-app/public/icon-512.png`
+Build: passed
 
 #### Agent D Retrospective
 *(To be filled by Agent D)*
