@@ -1022,7 +1022,28 @@ Agent D committed to main (49290d4) but left retro placeholder unfilled. Based o
 ### Run 73 Retrospectives
 
 #### Agent A Retrospective
-*(To be filled by Agent A)*
+**Status**: COMPLETE — DND backend + timezone-aware scheduling across all 3 notification jobs. Build passes (0 errors).
+
+**What was done:**
+
+| # | Task | Status |
+|---|------|--------|
+| 1 | Create `database/migrations/run73_dnd.sql` — add `dnd_enabled`, `dnd_start`, `dnd_end` columns to users | Done |
+| 2 | Update `user-preferences.ts` — add DND fields to GET and PATCH endpoints with validation | Done |
+| 3 | Update `dailySummary.ts` — timezone-aware `reminder_time` matching + DND window skip | Done |
+| 4 | Update `questReminders.ts` — timezone-aware scheduling (hourly cron), DND check, preserved Agent C's rich templates | Done |
+| 5 | Update `achievementNotifier.ts` — DND check before sending, preserved Agent C's templates | Done |
+
+**Key changes:**
+- **Migration**: 3 new columns (`dnd_enabled BOOLEAN DEFAULT false`, `dnd_start INTEGER DEFAULT 22`, `dnd_end INTEGER DEFAULT 8`)
+- **API**: GET returns DND fields with defaults; PATCH validates 0-23 range for `dnd_start`/`dnd_end`, boolean for `dnd_enabled`
+- **Timezone-aware scheduling**: All jobs now use `EXTRACT(HOUR FROM NOW() AT TIME ZONE COALESCE(timezone, 'UTC'))` instead of raw UTC hour comparison. `questReminders` changed from fixed `0 18 * * *` cron to hourly `0 * * * *` (checks if it's 18:00 in each user's timezone).
+- **DND helper**: Shared `isInDndWindow(currentHour, dndStart, dndEnd)` handles overnight windows (e.g. 22→08) correctly.
+- **Agent C compatibility**: Preserved `questReminderTemplate` and `achievementUnlockedTemplate` imports + `sendWithRetry` pattern introduced by Agent C.
+
+**Files created**: `database/migrations/run73_dnd.sql`
+**Files modified**: `bot/src/api/routes/user-preferences.ts`, `bot/src/jobs/definitions/dailySummary.ts`, `bot/src/jobs/definitions/questReminders.ts`, `bot/src/jobs/definitions/achievementNotifier.ts`
+**Build**: clean, zero TS errors
 
 #### Agent B Retrospective
 *(To be filled by Agent B)*
