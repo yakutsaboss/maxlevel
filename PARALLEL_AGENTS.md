@@ -1817,7 +1817,16 @@ After completing, write your retrospective in PARALLEL_AGENTS.md under "Run 70 R
 *(To be filled by Agent C)*
 
 #### Agent D Retrospective
-*(To be filled by Agent D)*
+**Status**: All 5 tasks completed, build passes.
+
+**What was done**:
+- **sw.js enhanced**: Added inline offline fallback HTML page (dark-themed, matches app), cached during install phase. Added `.catch()` fallback in fetch handler — navigation requests get the offline page, other requests get a 503. Added `message` listener for `SKIP_WAITING` and `CLEAR_CACHE` commands from the app.
+- **useServiceWorker.ts**: Registers SW at `/levelapp/sw.js`, detects waiting workers via `updatefound` + `statechange`, tracks online/offline status via `navigator.onLine` + event listeners, provides `updateServiceWorker()` to trigger `SKIP_WAITING`. Reloads page on `controllerchange`.
+- **InstallPrompt.tsx**: Captures `beforeinstallprompt` event, shows a subtle bottom banner with Install/Dismiss buttons. Dismissal persists 7 days in localStorage. Uses Telegram haptic feedback on both install and dismiss. Dark theme styling with framer-motion animations.
+- **OfflineBanner.tsx**: Amber warning banner at top of screen when offline, auto-hides when back online. Uses `useServiceWorker` hook. Minimal, non-intrusive.
+- **manifest.json**: Added `categories: ["games", "lifestyle"]` and empty `screenshots: []` array.
+
+**Note for Agent 0**: The new components (`InstallPrompt`, `OfflineBanner`) are standalone and NOT yet wired into `App.tsx`. Agent 0 should add them during merge if desired — they're designed to be dropped into the `App` component as siblings (e.g., next to `<ErrorBoundary>`). The `useServiceWorker` hook also handles SW registration independently, so no changes to existing code are required for basic functionality.
 
 #### Agent 0 Retrospective
 *(To be filled by Agent 0 after merge)*

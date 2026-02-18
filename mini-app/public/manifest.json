@@ -6,6 +6,7 @@
   "display": "standalone",
   "background_color": "#1a1a2e",
   "theme_color": "#6366f1",
+  "categories": ["games", "lifestyle"],
   "icons": [
     {
       "src": "/levelapp/icon-192.png",
@@ -17,5 +18,6 @@
       "sizes": "512x512",
       "type": "image/png"
     }
-  ]
+  ],
+  "screenshots": []
 }
