@@ -956,7 +956,28 @@ Read PARALLEL_AGENTS.md — you are Agent I of Run 75. Your task: Tests for the 
 *(To be filled by Agent E)*
 
 #### Agent F Retrospective
-*(To be filled by Agent F)*
+**Status:** COMPLETE — `activityQuestMatcher.ts` created. Build: 0 TypeScript errors.
+
+| # | Task | Status |
+|---|------|--------|
+| 1 | Create `bot/src/utils/activityQuestMatcher.ts` with `matchActivityToQuests()` | Done |
+| 2 | Match activity categories to fitness mode quests | Done |
+| 3 | Auto-increment check_in_count + auto-complete quests at target | Done |
+| 4 | Award XP, update streaks, check achievements on completion | Done |
+| 5 | Verify build (`npx tsc --noEmit` — 0 errors) | Done |
+
+**What was done:**
+- Created `bot/src/utils/activityQuestMatcher.ts` exporting `matchActivityToQuests(userId, activityLog)`.
+- Logic: resolves activity category (from input or DB lookup) → checks if it's a fitness-related category (Cardio, Strength, Flexibility, Sports, Outdoor, Mind-Body) → queries active quest_instances for today with fitness mode + status `ready`/`in_progress` → increments `check_in_count` → if target reached, auto-completes quest in a transaction (awards XP via `awardXp`, updates streak, checks achievements).
+- Uses existing patterns: `transaction()` for atomic XP award, `invalidateUserCache()` + `invalidatePrefix()` for cache, fire-and-forget `Promise.allSettled` for side effects.
+- Entire function is wrapped in try/catch so quest matching errors never break activity logging.
+
+**GRAY AREA note for Agent 0:**
+- Agent B creates `bot/src/api/routes/activities.ts`. After merging Agent B, add these lines to activities.ts:
+  - Import: `import { matchActivityToQuests } from '../../utils/activityQuestMatcher.js';`
+  - After successful `POST /api/activities/log` insert: `const questResult = await matchActivityToQuests(userId, { id: logId, activity_type_id, category });`
+  - After successful `POST /api/activities/stop` update: `const questResult = await matchActivityToQuests(userId, { id: logId, activity_type_id, category });`
+  - Optionally include `questResult` in the response for frontend to show quest progress feedback.
 
 #### Agent G Retrospective
 **Status:** COMPLETE — 15 activity achievements seeded + 7 new criteria types in achievement engine. Build: 0 errors.
