@@ -1497,7 +1497,22 @@ Run 68 also added `mini-app/src/api/shop.ts` (API client) and `mini-app/src/hook
 **Merge notes**: i18n files are shared with Agent D (who also adds shop/inventory keys). Expect merge conflicts in en.ts, ru.ts, zh.ts — resolve by keeping both sets of keys (they may overlap or complement each other).
 
 #### Agent D Retrospective
-*(To be filled after work is done)*
+
+**Status**: All 4 tasks completed, 4 commits on `feature/r69-navigation`.
+
+**What was done**:
+1. **Navigation**: Added `ShoppingBag` icon from lucide-react. Inserted Shop as 3rd primary nav item (Home → Quests → **Shop** → Rewards → Profile). Added `nav.shop` i18n key in en/ru/zh.
+2. **Inventory sub-nav**: Added Inventory card-button in Profile page (matching existing Avatar Customizer / Trophy Case pattern with emerald gradient + Package icon). Added lazy-loaded `/inventory` route to App.tsx. Added `nav.inventory` in all locales.
+3. **Shop routes**: Added lazy-loaded Shop page import. Two routes: `/shop` (main) and `/shop/:itemId` (deep link for opening item modal). Both render the same `<Shop />` component which can read `itemId` from URL params.
+4. **i18n keys**: Added comprehensive `shop.*` section (22 keys: title, featured, categories, buy/owned, price templates, rarity names, purchase states, search, balance, item detail) and `inventory.*` section (12 keys: title, viewDesc, empty state, equip/unequip/equipped, purchased_on, 5 category names) — all in en, ru, zh.
+
+**Decisions made**:
+- Put Shop between Quests and Achievements (Rewards) in primary nav — makes 5 primary items + More button (6 total). This is slightly more crowded but gives Shop the prominent position requested.
+- Used `Package` icon for inventory (green gradient) to differentiate from Shop's `ShoppingBag`.
+- Added `inventory.viewDesc` key ("View your purchased items") for the Profile card description, not in the original spec but needed for the card pattern.
+- Used same ProtectedRoute wrapper for shop/inventory as all other routes.
+
+**Potential merge issues**: None expected. Files owned (Navigation.tsx, App.tsx) are exclusive to Agent D per ownership matrix. i18n files are shared with Agent C — keys are in separate sections (shop.*, inventory.*) so merging should be clean.
 
 #### Agent E Retrospective
 *(To be filled after work is done)*
