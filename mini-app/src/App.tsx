@@ -30,6 +30,7 @@ const TrophyCase = lazy(() => import('@/pages/TrophyCase').then(m => ({ default:
 const Inventory = lazy(() => import('@/pages/Inventory').then(m => ({ default: m.Inventory })));
 const Shop = lazy(() => import('@/pages/Shop').then(m => ({ default: m.Shop })));
 const Analytics = lazy(() => import('@/pages/Analytics').then(m => ({ default: m.Analytics })));
+const NotificationHistory = lazy(() => import('@/pages/NotificationHistory').then(m => ({ default: m.NotificationHistory })));
 
 // Create React Query client
 const queryClient = new QueryClient({
@@ -147,6 +148,7 @@ function AppContent() {
         <Route path="/shop" element={<ProtectedRoute needsOnboarding={effectiveNeedsOnboarding} lazy><Shop /></ProtectedRoute>} />
         <Route path="/shop/:itemId" element={<ProtectedRoute needsOnboarding={effectiveNeedsOnboarding} lazy><Shop /></ProtectedRoute>} />
         <Route path="/analytics" element={<ProtectedRoute needsOnboarding={effectiveNeedsOnboarding} lazy><Analytics /></ProtectedRoute>} />
+        <Route path="/notifications" element={<ProtectedRoute needsOnboarding={effectiveNeedsOnboarding} lazy><NotificationHistory /></ProtectedRoute>} />
         <Route path="/admin" element={<LazyPageWrapper><Admin /></LazyPageWrapper>} />
       </Routes>
       </main>

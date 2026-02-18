@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { apiClient } from '@/api/client';
-import { detectTimezone } from '@/components/settings/NotificationSettings';
+import { detectTimezone, DEFAULT_NOTIFICATION_MODES } from '@/components/settings/NotificationSettings';
 import type { UserPreferences } from '@/components/settings/NotificationSettings';
 import type { PunishmentSettings } from '@/components/settings/AccountabilitySettings';
 import { getErrorMessage } from '@/hooks/useApiError';
@@ -36,6 +36,7 @@ export function useSettingsData({
     dnd_enabled: false,
     dnd_start: 22,
     dnd_end: 8,
+    notification_modes: { ...DEFAULT_NOTIFICATION_MODES },
   });
   const [punishment, setPunishment] = useState<PunishmentSettings>({
     consent_given: false,
@@ -71,6 +72,10 @@ export function useSettingsData({
         apiClient.getPunishmentSettings(user.id, { signal }).catch(() => null),
       ]);
       if (res.success && res.data) {
+        const rawModes = (res.data as any)?.notification_modes;
+        const parsedModes = rawModes && typeof rawModes === 'object'
+          ? { ...DEFAULT_NOTIFICATION_MODES, ...rawModes }
+          : { ...DEFAULT_NOTIFICATION_MODES };
         setPrefs({
           notifications_enabled: res.data.notification_enabled ?? true,
           reminder_time: res.data.reminder_time ?? 18,
@@ -78,6 +83,7 @@ export function useSettingsData({
           dnd_enabled: res.data.dnd_enabled ?? false,
           dnd_start: res.data.dnd_start ?? 22,
           dnd_end: res.data.dnd_end ?? 8,
+          notification_modes: parsedModes,
         });
       }
       if (punishRes && punishRes.success && punishRes.data) {
@@ -160,6 +166,7 @@ export function useSettingsData({
         dnd_enabled: prefs.dnd_enabled,
         dnd_start: prefs.dnd_start,
         dnd_end: prefs.dnd_end,
+        notification_modes: { ...prefs.notification_modes } as Record<string, boolean>,
       });
       haptic.notification('success');
       setToast({ message: 'Settings saved!', variant: 'success' });

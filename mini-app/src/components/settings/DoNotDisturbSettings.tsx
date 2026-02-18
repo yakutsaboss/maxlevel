@@ -1,5 +1,8 @@
-import { MoonStar } from 'lucide-react';
+import { useState, useEffect, useRef } from 'react';
+import { MoonStar, Check, Loader2 } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { motion } from 'framer-motion';
+import { apiClient } from '@/api/client';
 import type { HapticWithSelection } from '@/types/telegram';
 
 export interface DndPreferences {
@@ -20,9 +23,50 @@ interface DoNotDisturbSettingsProps {
   dnd: DndPreferences;
   onDndChange: (dnd: DndPreferences) => void;
   haptic: HapticWithSelection;
+  telegramId?: number;
 }
 
-export function DoNotDisturbSettings({ dnd, onDndChange, haptic }: DoNotDisturbSettingsProps) {
+export function DoNotDisturbSettings({ dnd, onDndChange, haptic, telegramId }: DoNotDisturbSettingsProps) {
+  const { t } = useTranslation();
+  const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const statusTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Auto-save DND preferences with debounce
+  const autoSave = (updated: DndPreferences) => {
+    if (!telegramId) return;
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(async () => {
+      setSaveStatus('saving');
+      try {
+        await apiClient.updateUserPreferences(telegramId, {
+          dnd_enabled: updated.dnd_enabled,
+          dnd_start: updated.dnd_start,
+          dnd_end: updated.dnd_end,
+        });
+        setSaveStatus('saved');
+        if (statusTimeoutRef.current) clearTimeout(statusTimeoutRef.current);
+        statusTimeoutRef.current = setTimeout(() => setSaveStatus('idle'), 2000);
+      } catch {
+        setSaveStatus('error');
+        if (statusTimeoutRef.current) clearTimeout(statusTimeoutRef.current);
+        statusTimeoutRef.current = setTimeout(() => setSaveStatus('idle'), 2000);
+      }
+    }, 500);
+  };
+
+  useEffect(() => {
+    return () => {
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+      if (statusTimeoutRef.current) clearTimeout(statusTimeoutRef.current);
+    };
+  }, []);
+
+  const handleChange = (updated: DndPreferences) => {
+    onDndChange(updated);
+    autoSave(updated);
+  };
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 10 }}
@@ -37,26 +81,31 @@ export function DoNotDisturbSettings({ dnd, onDndChange, haptic }: DoNotDisturbS
             <MoonStar className="w-5 h-5" />
           </div>
           <div>
-            <h3 className="font-semibold text-sm">Do Not Disturb</h3>
-            <p className="text-xs text-telegram-hint">Mute notifications during hours</p>
+            <h3 className="font-semibold text-sm">{t('settings.dnd.title')}</h3>
+            <p className="text-xs text-telegram-hint">{t('settings.dnd.description')}</p>
           </div>
         </div>
-        <button
-          onClick={() => {
-            haptic.selection();
-            onDndChange({ ...dnd, dnd_enabled: !dnd.dnd_enabled });
-          }}
-          role="switch"
-          aria-checked={dnd.dnd_enabled}
-          aria-label={`Do Not Disturb: ${dnd.dnd_enabled ? 'on' : 'off'}`}
-          className={`w-12 h-7 rounded-full transition-colors relative ${dnd.dnd_enabled ? 'bg-telegram-link' : 'bg-telegram-hint/30'}`}
-        >
-          <motion.div
-            className="w-5 h-5 bg-white rounded-full absolute top-1 shadow-sm"
-            animate={{ left: dnd.dnd_enabled ? 26 : 4 }}
-            transition={{ type: 'spring', stiffness: 500, damping: 30 }}
-          />
-        </button>
+        <div className="flex items-center gap-2">
+          {saveStatus === 'saving' && <Loader2 className="w-3.5 h-3.5 animate-spin text-telegram-hint" />}
+          {saveStatus === 'saved' && <Check className="w-3.5 h-3.5 text-green-500" />}
+          {saveStatus === 'error' && <span className="text-[10px] text-red-400">!</span>}
+          <button
+            onClick={() => {
+              haptic.selection();
+              handleChange({ ...dnd, dnd_enabled: !dnd.dnd_enabled });
+            }}
+            role="switch"
+            aria-checked={dnd.dnd_enabled}
+            aria-label={`${t('settings.dnd.title')}: ${dnd.dnd_enabled ? 'on' : 'off'}`}
+            className={`w-12 h-7 rounded-full transition-colors relative ${dnd.dnd_enabled ? 'bg-telegram-link' : 'bg-telegram-hint/30'}`}
+          >
+            <motion.div
+              className="w-5 h-5 bg-white rounded-full absolute top-1 shadow-sm"
+              animate={{ left: dnd.dnd_enabled ? 26 : 4 }}
+              transition={{ type: 'spring', stiffness: 500, damping: 30 }}
+            />
+          </button>
+        </div>
       </div>
 
       {/* Time range picker — only shown when enabled */}
@@ -70,7 +119,7 @@ export function DoNotDisturbSettings({ dnd, onDndChange, haptic }: DoNotDisturbS
           {/* Start time */}
           <div>
             <p className="text-xs text-telegram-hint mb-2">
-              From <span className="text-telegram-text font-medium">{formatHour(dnd.dnd_start)}</span>
+              {t('settings.dnd.from')} <span className="text-telegram-text font-medium">{formatHour(dnd.dnd_start)}</span>
             </p>
             <div className="flex gap-2 overflow-x-auto pb-2 hide-scrollbar">
               {HOURS.map((hour) => (
@@ -78,7 +127,7 @@ export function DoNotDisturbSettings({ dnd, onDndChange, haptic }: DoNotDisturbS
                   key={hour}
                   onClick={() => {
                     haptic.selection();
-                    onDndChange({ ...dnd, dnd_start: hour });
+                    handleChange({ ...dnd, dnd_start: hour });
                   }}
                   className={`flex-shrink-0 py-1.5 px-3 rounded-xl text-center transition-all active:scale-95 ${
                     dnd.dnd_start === hour
@@ -95,7 +144,7 @@ export function DoNotDisturbSettings({ dnd, onDndChange, haptic }: DoNotDisturbS
           {/* End time */}
           <div>
             <p className="text-xs text-telegram-hint mb-2">
-              Until <span className="text-telegram-text font-medium">{formatHour(dnd.dnd_end)}</span>
+              {t('settings.dnd.until')} <span className="text-telegram-text font-medium">{formatHour(dnd.dnd_end)}</span>
             </p>
             <div className="flex gap-2 overflow-x-auto pb-2 hide-scrollbar">
               {HOURS.map((hour) => (
@@ -103,7 +152,7 @@ export function DoNotDisturbSettings({ dnd, onDndChange, haptic }: DoNotDisturbS
                   key={hour}
                   onClick={() => {
                     haptic.selection();
-                    onDndChange({ ...dnd, dnd_end: hour });
+                    handleChange({ ...dnd, dnd_end: hour });
                   }}
                   className={`flex-shrink-0 py-1.5 px-3 rounded-xl text-center transition-all active:scale-95 ${
                     dnd.dnd_end === hour
@@ -118,7 +167,7 @@ export function DoNotDisturbSettings({ dnd, onDndChange, haptic }: DoNotDisturbS
           </div>
 
           <p className="text-[11px] text-telegram-hint/70 text-center">
-            Notifications will be silenced from {formatHour(dnd.dnd_start)} to {formatHour(dnd.dnd_end)}
+            {t('settings.dnd.silencedRange', { start: formatHour(dnd.dnd_start), end: formatHour(dnd.dnd_end) })}
           </p>
         </motion.div>
       )}

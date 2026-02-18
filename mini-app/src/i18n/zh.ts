@@ -213,6 +213,24 @@ export default {
     timezoneDesc: "自动从浏览器检测",
     timezonePlaceholder: "例如：Asia/Shanghai",
     autoDetectTimezone: "自动检测时区",
+    notificationHistory: "通知历史",
+    notificationHistoryDesc: "查看最近的提醒和更新",
+    dnd: {
+      title: "免打扰",
+      description: "在指定时段内静音通知",
+      from: "从",
+      until: "到",
+      silencedRange: "通知将在 {{start}} 至 {{end}} 期间静音",
+    },
+    notifModes: {
+      title: "通知我关于",
+      fitness: "健身",
+      hydration: "饮水",
+      finance: "财务",
+      learning: "学习",
+      medication: "用药",
+      habits: "习惯",
+    },
     subscription: {
       title: "订阅",
       tier_free: "免费",
@@ -677,6 +695,12 @@ export default {
     celebrate: "庆祝",
     levelup: "升级",
     walk: "行走",
+  },
+  notificationHistory: {
+    title: "通知",
+    subtitle: "最近的提醒和更新",
+    couldNotLoad: "无法加载通知历史",
+    empty: "暂无通知",
   },
   analyticsPage: {
     title: "数据分析",

@@ -213,6 +213,24 @@ export default {
     timezoneDesc: "Auto-detected from browser",
     timezonePlaceholder: "e.g. Europe/Moscow",
     autoDetectTimezone: "Auto-detect timezone",
+    notificationHistory: "Notification History",
+    notificationHistoryDesc: "View recent alerts and updates",
+    dnd: {
+      title: "Do Not Disturb",
+      description: "Mute notifications during hours",
+      from: "From",
+      until: "Until",
+      silencedRange: "Notifications will be silenced from {{start}} to {{end}}",
+    },
+    notifModes: {
+      title: "Notify me about",
+      fitness: "Fitness",
+      hydration: "Hydration",
+      finance: "Finance",
+      learning: "Learning",
+      medication: "Medication",
+      habits: "Habits",
+    },
     subscription: {
       title: "Subscription",
       tier_free: "Free",
@@ -677,6 +695,12 @@ export default {
     celebrate: "Celebrate",
     levelup: "Level Up",
     walk: "Walking",
+  },
+  notificationHistory: {
+    title: "Notifications",
+    subtitle: "Recent alerts & updates",
+    couldNotLoad: "Could not load notification history",
+    empty: "No notifications yet",
   },
   analyticsPage: {
     title: "Analytics",

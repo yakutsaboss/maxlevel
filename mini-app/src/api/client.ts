@@ -1,5 +1,5 @@
 import axios, { AxiosError, AxiosInstance, InternalAxiosRequestConfig } from 'axios';
-import type { ApiResponse, UserStats, User, Mode, Quest, Achievement, UserAchievement, QuestCompleteResponse, CheckinResponse, CheckinListResponse, UserPreferences, PunishmentSettings, PunishmentHistoryResponse, OnboardingState, LeaderboardEntry, Subscription, ChannelStatus, TierInfo, PaymentHistoryEntry } from '@/types';
+import type { ApiResponse, UserStats, User, Mode, Quest, Achievement, UserAchievement, QuestCompleteResponse, CheckinResponse, CheckinListResponse, UserPreferences, PunishmentSettings, PunishmentHistoryResponse, OnboardingState, LeaderboardEntry, Subscription, ChannelStatus, TierInfo, PaymentHistoryEntry, NotificationHistoryEntry } from '@/types';
 import { ApiError } from '@/types/errors';
 
 interface RetryableAxiosConfig extends InternalAxiosRequestConfig {
@@ -167,9 +167,14 @@ class ApiClient {
     return this.deduplicatedGet(`/users/${telegramId}/preferences`, undefined, config);
   }
 
-  async updateUserPreferences(telegramId: number, data: { notification_enabled?: boolean; reminder_time?: number; timezone?: string; dnd_enabled?: boolean; dnd_start?: number; dnd_end?: number }): Promise<ApiResponse<UserPreferences>> {
+  async updateUserPreferences(telegramId: number, data: { notification_enabled?: boolean; reminder_time?: number; timezone?: string; dnd_enabled?: boolean; dnd_start?: number; dnd_end?: number; notification_modes?: Record<string, boolean> }): Promise<ApiResponse<UserPreferences>> {
     const response = await this.client.patch(`/users/${telegramId}/preferences`, data);
     return response.data;
+  }
+
+  // Notification history
+  async getNotificationHistory(userId: number, limit = 20, config?: { signal?: AbortSignal }): Promise<ApiResponse<NotificationHistoryEntry[]>> {
+    return this.deduplicatedGet(`/notifications/${userId}`, { limit }, config);
   }
 
   // User profile update

@@ -1046,7 +1046,33 @@ Agent D committed to main (49290d4) but left retro placeholder unfilled. Based o
 **Build**: clean, zero TS errors
 
 #### Agent B Retrospective
-*(To be filled by Agent B)*
+**Status**: COMPLETE — Notification preferences UI, per-mode toggles, DND auto-save, notification history page. Build passes (0 errors).
+
+**What was done:**
+
+| # | Task | Status |
+|---|------|--------|
+| 1 | Wire DoNotDisturbSettings to auto-save via API (debounced PATCH) | Done |
+| 2 | Add per-mode notification toggles (fitness, hydration, finance, learning, medication, habits) to NotificationSettings | Done |
+| 3 | Add `notification_modes` to UserPreferences interface + useSettingsData hook | Done |
+| 4 | Create `useNotificationHistory` hook (fetches GET /notifications/:userId) | Done |
+| 5 | Create NotificationHistory page with icons, relative timestamps, XP changes | Done |
+| 6 | Add `/notifications` route in App.tsx + link button from Settings page | Done |
+| 7 | Add i18n keys (en/ru/zh) for DND, mode toggles, notification history | Done |
+| 8 | Add `NotificationHistoryEntry` type to types/user.ts | Done |
+| 9 | Add `getNotificationHistory()` method to API client | Done |
+
+**Key changes:**
+- **DoNotDisturbSettings**: Now auto-saves DND preferences on toggle/time change with 500ms debounce + save status indicator (spinner/checkmark). Takes optional `telegramId` prop. Fully i18n-ready.
+- **NotificationSettings**: Added `NotificationModes` interface with 6 mode toggles (fitness, hydration, finance, learning, medication, habits). Toggles appear below the main notifications switch when enabled. Saved via `notification_modes` JSON in preferences.
+- **useSettingsData**: Loads `notification_modes` from API response (with defaults), sends them back on save via `{ ...prefs.notification_modes } as Record<string, boolean>` cast.
+- **NotificationHistory page**: Pull-to-refresh, skeleton loading, empty state, per-type icons (trophy, calendar, trending, alert), relative timestamps, XP change badges.
+- **Settings page**: Added "Notification History" link button between DND and haptic settings, navigates to `/notifications`.
+- **i18n**: Added `settings.dnd.*`, `settings.notifModes.*`, `settings.notificationHistory*`, `notificationHistory.*` in all 3 languages.
+
+**Files created**: `mini-app/src/hooks/useNotificationHistory.ts`, `mini-app/src/pages/NotificationHistory.tsx`
+**Files modified**: `mini-app/src/components/settings/DoNotDisturbSettings.tsx`, `mini-app/src/components/settings/NotificationSettings.tsx`, `mini-app/src/hooks/useSettingsData.ts`, `mini-app/src/api/client.ts`, `mini-app/src/types/user.ts`, `mini-app/src/App.tsx`, `mini-app/src/pages/Settings.tsx`, `mini-app/src/i18n/en.ts`, `mini-app/src/i18n/ru.ts`, `mini-app/src/i18n/zh.ts`
+**Build**: clean, zero TS errors
 
 #### Agent C Retrospective
 **Status**: Complete

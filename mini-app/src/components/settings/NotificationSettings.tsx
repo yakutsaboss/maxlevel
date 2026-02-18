@@ -3,6 +3,24 @@ import { useTranslation } from 'react-i18next';
 import { motion } from 'framer-motion';
 import type { HapticWithSelection } from '@/types/telegram';
 
+export interface NotificationModes {
+  fitness: boolean;
+  hydration: boolean;
+  finance: boolean;
+  learning: boolean;
+  medication: boolean;
+  habits: boolean;
+}
+
+export const DEFAULT_NOTIFICATION_MODES: NotificationModes = {
+  fitness: true,
+  hydration: true,
+  finance: true,
+  learning: true,
+  medication: true,
+  habits: true,
+};
+
 export interface UserPreferences {
   notifications_enabled: boolean;
   reminder_time: number;
@@ -10,9 +28,19 @@ export interface UserPreferences {
   dnd_enabled: boolean;
   dnd_start: number;
   dnd_end: number;
+  notification_modes: NotificationModes;
 }
 
 const ALL_HOURS = Array.from({ length: 24 }, (_, i) => i);
+
+const MODE_KEYS: Array<{ key: keyof NotificationModes; icon: string; color: string }> = [
+  { key: 'fitness', icon: '💪', color: 'bg-red-500' },
+  { key: 'hydration', icon: '💧', color: 'bg-cyan-500' },
+  { key: 'finance', icon: '💰', color: 'bg-emerald-500' },
+  { key: 'learning', icon: '📚', color: 'bg-purple-500' },
+  { key: 'medication', icon: '💊', color: 'bg-pink-500' },
+  { key: 'habits', icon: '✅', color: 'bg-amber-500' },
+];
 
 export function formatUTCHour(hour: number): string {
   const suffix = hour < 12 ? 'AM' : 'PM';
@@ -77,6 +105,48 @@ export function NotificationSettings({ prefs, onPrefsChange, haptic }: Notificat
             />
           </button>
         </div>
+
+        {/* Per-mode notification toggles — only when notifications enabled */}
+        {prefs.notifications_enabled && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            className="mt-4 space-y-2"
+          >
+            <p className="text-xs text-telegram-hint mb-2">{t('settings.notifModes.title')}</p>
+            {MODE_KEYS.map(({ key, icon }) => (
+              <div key={key} className="flex items-center justify-between py-1.5">
+                <div className="flex items-center gap-2">
+                  <span className="text-sm">{icon}</span>
+                  <span className="text-sm text-telegram-text">{t(`settings.notifModes.${key}`)}</span>
+                </div>
+                <button
+                  onClick={() => {
+                    haptic.selection();
+                    onPrefsChange({
+                      ...prefs,
+                      notification_modes: {
+                        ...prefs.notification_modes,
+                        [key]: !prefs.notification_modes[key],
+                      },
+                    });
+                  }}
+                  role="switch"
+                  aria-checked={prefs.notification_modes[key]}
+                  className={`w-10 h-6 rounded-full transition-colors relative ${
+                    prefs.notification_modes[key] ? 'bg-telegram-link' : 'bg-telegram-hint/30'
+                  }`}
+                >
+                  <motion.div
+                    className="w-4 h-4 bg-white rounded-full absolute top-1 shadow-sm"
+                    animate={{ left: prefs.notification_modes[key] ? 22 : 3 }}
+                    transition={{ type: 'spring', stiffness: 500, damping: 30 }}
+                  />
+                </button>
+              </div>
+            ))}
+          </motion.div>
+        )}
       </motion.div>
 
       {/* Reminder Time */}

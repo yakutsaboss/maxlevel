@@ -213,6 +213,24 @@ export default {
     timezoneDesc: "Автоматически определяется из браузера",
     timezonePlaceholder: "напр. Europe/Moscow",
     autoDetectTimezone: "Определить часовой пояс",
+    notificationHistory: "История уведомлений",
+    notificationHistoryDesc: "Последние оповещения и обновления",
+    dnd: {
+      title: "Не беспокоить",
+      description: "Отключить уведомления в выбранные часы",
+      from: "С",
+      until: "До",
+      silencedRange: "Уведомления будут отключены с {{start}} до {{end}}",
+    },
+    notifModes: {
+      title: "Уведомлять о",
+      fitness: "Фитнес",
+      hydration: "Гидратация",
+      finance: "Финансы",
+      learning: "Обучение",
+      medication: "Лекарства",
+      habits: "Привычки",
+    },
     subscription: {
       title: "Подписка",
       tier_free: "Бесплатный",
@@ -677,6 +695,12 @@ export default {
     celebrate: "Празднование",
     levelup: "Новый уровень",
     walk: "Прогулка",
+  },
+  notificationHistory: {
+    title: "Уведомления",
+    subtitle: "Последние оповещения и обновления",
+    couldNotLoad: "Не удалось загрузить историю уведомлений",
+    empty: "Пока нет уведомлений",
   },
   analyticsPage: {
     title: "Аналитика",

@@ -102,3 +102,13 @@ export interface PunishmentHistoryResponse {
   page: number;
   total: number;
 }
+
+// Notification history entry (from user_activity_log)
+export interface NotificationHistoryEntry {
+  id: number;
+  activity_type: string;
+  description: string;
+  xp_change: number;
+  created_at: string;
+  metadata?: Record<string, unknown>;
+}
