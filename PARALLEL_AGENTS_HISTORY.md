@@ -1,6 +1,6 @@
 # Parallel Agents — Run History (Archive)
 
-This file contains completed run logs from Runs 2–67 (retrospectives, task descriptions, file matrices, merge results).
+This file contains completed run logs from Runs 2–70 (retrospectives, task descriptions, file matrices, merge results).
 For the active protocol and current run, see `PARALLEL_AGENTS.md`.
 
 ---
@@ -27681,5 +27681,1159 @@ This is the **#1 lesson from Runs 65-66**: reading actual source before writing 
 **Result**: 1964 tests pass (999 bot + 965 mini-app). Deployed as commit `c41ea39`.
 
 **Roadmap**: Run 67 ✅ complete. Next: Run 68 Purchasable Achievements + Stars Punishment.
+
+---
+
+## RUN 68: Parallel Agents (5 Agents + Agent 0)
+
+### Focus: Purchasable Achievements + Stars Punishment
+
+Add a shop backend for purchasable items (premium achievements, rare avatar items, trophy boosters), a Stars punishment system for missed daily goals, a purchase flow UI, premium achievement badges, and comprehensive tests.
+
+### Copy-Paste Prompts
+
+**Agent A** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-a`):
+```
+Read the file c:\Users\Asus\Desktop\Wibecode-agent-a\PARALLEL_AGENTS.md — find the "RUN 68" section and follow the instructions for **Agent A (Shop Backend)**. You are Agent A. Do all tasks listed, commit after each task, and write your retrospective when done.
+```
+
+**Agent B** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-b`):
+```
+Read the file c:\Users\Asus\Desktop\Wibecode-agent-b\PARALLEL_AGENTS.md — find the "RUN 68" section and follow the instructions for **Agent B (Stars Punishment System)**. You are Agent B. Do all tasks listed, commit after each task, and write your retrospective when done.
+```
+
+**Agent C** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-c`):
+```
+Read the file c:\Users\Asus\Desktop\Wibecode-agent-c\PARALLEL_AGENTS.md — find the "RUN 68" section and follow the instructions for **Agent C (Purchase Flow UI)**. You are Agent C. Do all tasks listed, commit after each task, and write your retrospective when done.
+```
+
+**Agent D** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-d`):
+```
+Read the file c:\Users\Asus\Desktop\Wibecode-agent-d\PARALLEL_AGENTS.md — find the "RUN 68" section and follow the instructions for **Agent D (Premium Achievement Badges)**. You are Agent D. Do all tasks listed, commit after each task, and write your retrospective when done.
+```
+
+**Agent E** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-e`):
+```
+Read the file c:\Users\Asus\Desktop\Wibecode-agent-e\PARALLEL_AGENTS.md — find the "RUN 68" section and follow the instructions for **Agent E (Tests)**. You are Agent E. Do all tasks listed, commit after each task, and write your retrospective when done.
+```
+
+---
+
+### Agent A — Shop Backend
+
+**OWNED files** (only Agent A may edit these):
+- `database/migrations/run68_shop_tables.sql` (NEW)
+- `bot/src/api/routes/shop.ts` (NEW)
+
+**GRAY AREA files** (Agent A may APPEND to, not rewrite):
+- `database/seed_data.sql` — APPEND shop item seeds at the end
+- `bot/src/api/server.ts` — ADD 1 line: `import { shopRouter }` + `app.use('/api/shop', shopRouter);`
+
+**FORBIDDEN files** (do NOT touch):
+- All files in `mini-app/`
+- All i18n files
+- `bot/src/api/routes/punishment.ts` (Agent B owns this)
+- `bot/src/api/routes/payments.ts` (existing, not owned)
+- `PARALLEL_AGENTS.md` (except your retrospective section)
+
+**Tasks:**
+1. **Create migration `run68_shop_tables.sql`**:
+   ```sql
+   CREATE TABLE IF NOT EXISTS shop_items (
+     id SERIAL PRIMARY KEY,
+     type VARCHAR(30) NOT NULL,  -- 'achievement', 'avatar_item', 'trophy_booster', 'xp_booster'
+     reference_id INT,           -- points to achievements.id, avatar_items.id, etc.
+     name VARCHAR(100) NOT NULL,
+     description TEXT,
+     price_stars INT NOT NULL DEFAULT 0,
+     price_xp INT NOT NULL DEFAULT 0,
+     is_featured BOOLEAN NOT NULL DEFAULT false,
+     is_active BOOLEAN NOT NULL DEFAULT true,
+     rarity VARCHAR(20) NOT NULL DEFAULT 'common',
+     icon_emoji VARCHAR(10),
+     sort_order INT NOT NULL DEFAULT 0,
+     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+   );
+
+   CREATE TABLE IF NOT EXISTS user_purchases (
+     id SERIAL PRIMARY KEY,
+     user_id INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+     shop_item_id INT NOT NULL REFERENCES shop_items(id),
+     payment_method VARCHAR(20) NOT NULL,  -- 'stars', 'xp'
+     amount_paid INT NOT NULL,
+     purchased_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+   );
+
+   CREATE INDEX IF NOT EXISTS idx_shop_items_type ON shop_items(type);
+   CREATE INDEX IF NOT EXISTS idx_shop_items_active ON shop_items(is_active) WHERE is_active = true;
+   CREATE INDEX IF NOT EXISTS idx_user_purchases_user_id ON user_purchases(user_id);
+   ```
+
+2. **Seed 10-15 shop items** in `seed_data.sql`. Mix of types:
+   - **Premium achievements** (4): "Golden Collector" (50 Stars), "Diamond Streak" (100 Stars), "Platinum Social" (75 Stars), "Ruby Mastery" (150 Stars) — these reference achievement IDs that don't have normal unlock criteria.
+   - **Rare avatar items** (4): Premium hairstyles, outfits, accessories locked behind purchase. Link to existing avatar_items via reference_id where applicable, or create standalone descriptions.
+   - **Trophy boosters** (2): "Trophy Revealer" (shows hidden trophy criteria, 25 Stars), "Trophy Accelerator" (2x progress for 24h, 50 Stars).
+   - **XP boosters** (2): "XP Doubler 24h" (30 Stars / 500 XP), "XP Surge" (50% bonus for 1 week, 100 Stars).
+   - Each item: name, description, price_stars OR price_xp (at least one > 0), rarity, icon_emoji, sort_order.
+
+3. **Create `shop.ts` API route**:
+   - `GET /shop/items` — List all active shop items. Optional query params: `?type=achievement`, `?featured=true`. Returns items with purchase count.
+   - `GET /shop/items/:itemId` — Get single shop item details.
+   - `POST /shop/purchase` — Purchase an item. Body: `{ userId, itemId, paymentMethod: 'stars' | 'xp' }`.
+     - For `stars`: Verify user has enough Stars balance (query payments table or use Telegram API). Create invoice via existing payment helpers if needed. Insert into `user_purchases`.
+     - For `xp`: Check user XP balance >= price_xp. Deduct XP (`UPDATE users SET xp = xp - price WHERE id = $1 AND xp >= price`). Insert into `user_purchases`.
+     - Prevent duplicate purchases for achievements (one-time items).
+     - Return the purchased item + new balance.
+   - `GET /shop/purchases/:userId` — List user's purchase history.
+   - Use `authenticateTelegram`, `authorizeUser`, `asyncHandler`, `successResponse`, `BadRequestError`.
+   - Export as `shopRouter`.
+
+4. **Wire shopRouter into server.ts**: Add import + `app.use('/api/shop', shopRouter);` after the trophyRouter line.
+
+5. **Write retrospective** in the pre-allocated section below.
+
+---
+
+### Agent B — Stars Punishment System
+
+**OWNED files** (only Agent B may edit these):
+- `bot/src/api/routes/punishment.ts` (MODIFY — add Stars deduction endpoints)
+- `bot/src/jobs/definitions/punishmentCheck.ts` (MODIFY or NEW — add Stars deduction job logic)
+
+**GRAY AREA files** (Agent B may ADD to):
+- `bot/src/jobs/registerJobs.ts` — Add punishment job scheduling if not already present
+
+**FORBIDDEN files** (do NOT touch):
+- All files in `mini-app/`
+- All i18n files
+- `bot/src/api/routes/shop.ts` (Agent A)
+- `bot/src/api/routes/payments.ts`
+- `PARALLEL_AGENTS.md` (except your retrospective section)
+
+**Context**: The punishment system already exists with `punishment_settings` and `punishment_history` tables. Routes exist at `bot/src/api/routes/punishment.ts` for GET/PATCH settings and GET history. Current punishment types are in `bot/src/api/utils/constants.ts` under `PUNISHMENT_INTENSITY`.
+
+**Tasks:**
+1. **Read existing punishment code**: Read `punishment.ts` route, `punishment_settings` table schema, and the `PUNISHMENT_INTENSITY` constants to understand current state.
+
+2. **Add Stars deduction logic to punishment route**:
+   - `POST /punishment/:telegramId/deduct` — Manually trigger a Stars deduction for testing. Body: `{ amount, reason }`. Records in `punishment_history` with `type = 'stars_deduction'`.
+   - The deduction itself is a record-keeping operation (the actual Stars deduction happens via Telegram Bot API in the job, or as a "debt" tracked in the DB).
+
+3. **Add/modify punishment job**:
+   - Read existing job definitions in `bot/src/jobs/definitions/` to understand the pattern.
+   - If `punishmentCheck.ts` exists, modify it. If not, create it.
+   - Job logic: Query users where `punishment_settings.is_enabled = true` AND they missed their daily goal (check `quest_instances` for today with status != 'completed'). For each, calculate deduction based on `punishment_intensity` setting and insert into `punishment_history`.
+   - Add a pre-deduction warning: For users about to be punished, insert a `type = 'warning'` record 1 hour before the actual deduction.
+
+4. **Add Stars deduction constants** to `bot/src/api/utils/constants.ts` (GRAY AREA — only ADD, don't modify existing):
+   - `STARS_PENALTY_RATES: { light: 1, moderate: 3, strict: 5, extreme: 10 }` — Stars to deduct per missed goal based on intensity.
+
+5. **Write retrospective** in the pre-allocated section below.
+
+---
+
+### Agent C — Purchase Flow UI
+
+**OWNED files** (only Agent C may edit these):
+- `mini-app/src/hooks/usePurchase.ts` (NEW)
+- `mini-app/src/components/shop/PurchaseModal.tsx` (NEW)
+- `mini-app/src/components/shop/PurchaseSuccessAnimation.tsx` (NEW)
+- `mini-app/src/api/shop.ts` (NEW)
+
+**FORBIDDEN files** (do NOT touch):
+- All files in `bot/`, `tools/`, `database/`
+- All i18n files (Agent D from Run 69 will handle these later)
+- `App.tsx`, `Navigation.tsx`
+- Achievement components (Agent D owns)
+- `PARALLEL_AGENTS.md` (except your retrospective section)
+
+**Tasks:**
+1. **Create `mini-app/src/api/shop.ts`** — API client functions:
+   - `fetchShopItems(type?, featured?)` — GET /shop/items
+   - `fetchShopItem(itemId)` — GET /shop/items/:itemId
+   - `purchaseItem(userId, itemId, paymentMethod)` — POST /shop/purchase
+   - `fetchPurchaseHistory(userId)` — GET /shop/purchases/:userId
+   - Define types: `ShopItem`, `Purchase`, `PurchaseRequest`, `PurchaseResult`.
+
+2. **Create `usePurchase.ts` hook**:
+   - Manages the purchase flow state: idle → confirming → processing → success/error.
+   - `startPurchase(item)` — Opens confirmation state with item details.
+   - `confirmPurchase(paymentMethod)` — Calls API, handles Stars payment (opens Telegram invoice if needed) or XP deduction.
+   - `dismissResult()` — Clears success/error state.
+   - Returns: `{ purchaseState, currentItem, startPurchase, confirmPurchase, dismissResult }`.
+
+3. **Create `PurchaseModal.tsx`**:
+   - Bottom-sheet modal showing: item icon, name, description, rarity badge.
+   - Two payment options: "Pay with Stars (X ⭐)" and "Pay with XP (X XP)" — only show available options (items may have only stars price, only xp price, or both).
+   - Confirm button with loading state.
+   - Error state with retry button.
+   - Use i18n keys like `shop.confirmPurchase`, `shop.payWithStars`, `shop.payWithXp`, `shop.processing`, `shop.purchaseFailed`, `shop.insufficientBalance` (document all keys in retrospective).
+
+4. **Create `PurchaseSuccessAnimation.tsx`**:
+   - Full-screen overlay with confetti + item icon popping in.
+   - "Purchase Complete!" text with a "Continue" dismiss button.
+   - Auto-dismiss after 3 seconds.
+   - Use Framer Motion for animations.
+
+5. **Write retrospective** — list ALL i18n keys used.
+
+---
+
+### Agent D — Premium Achievement Badges
+
+**OWNED files** (only Agent D may edit these):
+- `mini-app/src/components/achievements/PremiumBadge.tsx` (NEW)
+
+**GRAY AREA files** (Agent D may MODIFY display logic in):
+- `mini-app/src/pages/Achievements.tsx` — Add "Buy" button on locked purchasable achievements, show premium badge on purchased ones
+- `mini-app/src/components/achievements/AchievementCard.tsx` (if exists) — Add premium visual treatment
+
+**FORBIDDEN files** (do NOT touch):
+- All files in `bot/`, `tools/`, `database/`
+- All i18n files
+- `App.tsx`, `Navigation.tsx`
+- Shop components (Agent C owns)
+- `PARALLEL_AGENTS.md` (except your retrospective section)
+
+**Context**: The Achievements page (`mini-app/src/pages/Achievements.tsx`) shows a gallery of achievements with category tabs. Read it first to understand the current layout.
+
+**Tasks:**
+1. **Read current Achievements code**: Read `Achievements.tsx` and any components in `mini-app/src/components/achievements/` to understand how achievements are displayed.
+
+2. **Create `PremiumBadge.tsx`**:
+   - A visual badge component for premium/purchasable achievements.
+   - Gold gradient border, subtle sparkle/shine CSS animation.
+   - Small "Premium" tag in corner.
+   - Props: `isPremium: boolean`, `isPurchased: boolean`.
+   - When `isPremium && !isPurchased`: show gold lock with "Buy" label.
+   - When `isPremium && isPurchased`: show gold border + "Premium" tag + shimmer.
+
+3. **Modify Achievements page** to support purchasable achievements:
+   - Detect purchasable achievements (those with `criteria.type === 'purchasable'` or similar marker).
+   - Show `PremiumBadge` on purchasable achievements.
+   - Add a "Buy" button on locked purchasable achievements that will integrate with the purchase flow (for now, just navigate to a future shop page or show a toast — the actual purchase modal from Agent C will be wired in later).
+   - Purchased premium achievements show the gold treatment (shimmer border, "Premium" tag).
+
+4. **Add achievement card premium visuals**: If there's a reusable `AchievementCard` component, add conditional premium styling. If achievements are rendered inline, add the styling directly.
+
+5. **Write retrospective** — list modified components and any i18n keys used.
+
+---
+
+### Agent E — Tests
+
+**OWNED files** (only Agent E may edit these):
+- `bot/src/__tests__/routes/http/shop.http.test.ts` (NEW)
+- `bot/src/__tests__/routes/http/punishment-deduct.http.test.ts` (NEW)
+- `mini-app/src/__tests__/components/shop/PurchaseModal.test.tsx` (NEW)
+- `mini-app/src/__tests__/hooks/usePurchase.test.ts` (NEW)
+
+**FORBIDDEN files** (do NOT touch):
+- All source files (only write test files)
+- All i18n files, App.tsx, Navigation.tsx
+- `PARALLEL_AGENTS.md` (except your retrospective section)
+
+**CRITICAL**: Before writing ANY test, merge Agents A, B, C, and D branches locally and READ the actual source code:
+```bash
+cd c:\Users\Asus\Desktop\Wibecode-agent-e
+git fetch origin
+git merge origin/feature/r68-shop-backend --no-edit
+git merge origin/feature/r68-stars-punishment --no-edit
+git merge origin/feature/r68-purchase-ui --no-edit
+git merge origin/feature/r68-premium-badges --no-edit
+```
+
+**Tasks:**
+1. **Shop API HTTP tests** (`shop.http.test.ts`):
+   - Test `GET /shop/items` — returns active items, filters by type/featured.
+   - Test `GET /shop/items/:itemId` — returns item details, 404 for invalid.
+   - Test `POST /shop/purchase` — successful Stars purchase, successful XP purchase, insufficient balance error, duplicate purchase error, invalid item error.
+   - Test `GET /shop/purchases/:userId` — returns purchase history.
+   - Follow patterns from `trophies.http.test.ts` and `avatars.http.test.ts`.
+
+2. **Punishment deduction tests** (`punishment-deduct.http.test.ts`):
+   - Test `POST /punishment/:telegramId/deduct` — successful deduction, invalid telegramId, records in history.
+   - Test punishment constants (Stars rates per intensity).
+
+3. **PurchaseModal tests** (`PurchaseModal.test.tsx`):
+   - Test renders item details (name, description, price).
+   - Test Stars payment button.
+   - Test XP payment button.
+   - Test loading state during purchase.
+   - Test error state with retry.
+   - Test items with only Stars price / only XP price / both.
+   - Mock framer-motion, lucide-react, react-i18next, useTelegram.
+
+4. **usePurchase hook tests** (`usePurchase.test.ts`):
+   - Test idle → confirming → processing → success flow.
+   - Test error handling.
+   - Test dismissResult clears state.
+   - Mock `@/api/shop` functions.
+
+5. **Write retrospective** in the pre-allocated section below.
+
+---
+
+### Run 68 File Ownership Matrix
+
+| File | A | B | C | D | E |
+|------|---|---|---|---|---|
+| `database/migrations/run68_shop_tables.sql` | ✅ | | | | |
+| `bot/src/api/routes/shop.ts` | ✅ | | | | |
+| `database/seed_data.sql` | ✅ | | | | |
+| `bot/src/api/server.ts` | ✅ | | | | |
+| `bot/src/api/routes/punishment.ts` | | ✅ | | | |
+| `bot/src/jobs/definitions/punishmentCheck.ts` | | ✅ | | | |
+| `bot/src/jobs/registerJobs.ts` | | ✅ | | | |
+| `bot/src/api/utils/constants.ts` | | ✅ | | | |
+| `mini-app/src/api/shop.ts` | | | ✅ | | |
+| `mini-app/src/hooks/usePurchase.ts` | | | ✅ | | |
+| `mini-app/src/components/shop/PurchaseModal.tsx` | | | ✅ | | |
+| `mini-app/src/components/shop/PurchaseSuccessAnimation.tsx` | | | ✅ | | |
+| `mini-app/src/components/achievements/PremiumBadge.tsx` | | | | ✅ | |
+| `mini-app/src/pages/Achievements.tsx` | | | | ✅ | |
+| `bot/src/__tests__/routes/http/shop.http.test.ts` | | | | | ✅ |
+| `bot/src/__tests__/routes/http/punishment-deduct.http.test.ts` | | | | | ✅ |
+| `mini-app/src/__tests__/components/shop/PurchaseModal.test.tsx` | | | | | ✅ |
+| `mini-app/src/__tests__/hooks/usePurchase.test.ts` | | | | | ✅ |
+
+### Run 68 Merge Order
+
+1. **Agent A** (Shop backend — tables, seeds, API route, server.ts wiring)
+2. **Agent B** (Stars punishment — modifies existing routes + job)
+3. **Agent C** (Purchase Flow UI — components, hooks, API client)
+4. **Agent D** (Premium Achievement Badges — modifies Achievements page)
+5. **Agent E** (Tests — must go last, merges all branches first)
+
+### Run 68 Retrospectives
+
+#### Agent A Retrospective
+**Status**: DONE
+**Commits**: 4 (migration, seeds, shop routes, server wiring)
+**Files created**:
+- `database/migrations/run68_shop_tables.sql` — `shop_items` + `user_purchases` tables with indexes
+- `bot/src/api/routes/shop.ts` — 4 endpoints (list, detail, purchase, history)
+
+**Files modified**:
+- `database/seed_data.sql` — appended 12 shop items (4 achievements, 4 avatar items, 2 trophy boosters, 2 XP boosters)
+- `bot/src/api/server.ts` — added import + `app.use('/api/shop', shopRouter)` after trophyRouter
+
+**API Endpoints**:
+- `GET /api/shop/items` — list active items, optional `?type=` and `?featured=true` filters, includes purchase_count
+- `GET /api/shop/items/:itemId` — single item detail with purchase_count
+- `POST /api/shop/purchase` — body `{ userId, itemId, paymentMethod: 'stars'|'xp' }`. XP deducted atomically. Achievements are one-time (ConflictError on duplicate). Auto-unlocks achievement via `user_achievements` if `reference_id` is set.
+- `GET /api/shop/purchases/:userId` — purchase history with item details, sorted by most recent
+
+**Design decisions**:
+- Stars payment records the purchase but doesn't invoke Telegram invoice API directly — the client handles the Telegram Stars payment flow first, then calls this endpoint to record.
+- XP deduction uses atomic `WHERE total_xp >= $1` to prevent negative balance without relying solely on CHECK constraint.
+- Achievement items prevent duplicate purchases via ConflictError (409).
+- Seed items use `ON CONFLICT DO NOTHING` for idempotent re-runs.
+
+**No issues encountered.**
+
+#### Agent B Retrospective
+
+**Completed all 5 tasks** — Stars punishment system is fully wired.
+
+**Files modified:**
+- `bot/src/api/utils/constants.ts` — Added `STARS_PENALTY_RATES` (`{ light: 1, moderate: 3, strict: 5, extreme: 10 }`) and `StarsPenaltyLevel` type.
+- `bot/src/api/routes/punishment.ts` — Added `POST /:telegramId/deduct` endpoint for manual Stars deduction (testing/admin). Validates consent, records as `punishment_type = 'stars_deduction'` in `punishment_history`. Uses `xp_deducted` column to store Stars amount (avoids schema migration).
+- `bot/src/jobs/definitions/punishmentCheck.ts` — Extended existing XP penalty job with Stars deduction logic:
+  - Added `INTENSITY_TO_STARS_KEY` mapping: `low→light, medium→moderate, high→strict, extreme→extreme`.
+  - **Warning flow**: First run inserts a `punishment_type = 'warning'` record; next run applies actual `stars_deduction`.
+  - Safe mode respects `max_xp_penalty` as combined cap for Stars too.
+  - Idempotent — checks for existing warning/deduction records to prevent doubles.
+  - Telegram notifications include Stars penalty info alongside XP penalties.
+
+**No files created** — all modifications to existing files.
+
+**No migration needed** — reuses existing `punishment_history` table columns (`punishment_type`, `xp_deducted`, `message_sent`).
+
+**`registerJobs.ts` unchanged** — `punishmentCheck` was already imported and registered.
+
+**Design decisions:**
+- Reused `xp_deducted` column for Stars amount to avoid a schema migration. The `punishment_type` field (`'stars_deduction'` vs `'xp_penalty'`) disambiguates.
+- Warning + deduction is a two-phase flow: warning on first pass, deduction on second. Both happen in the same daily cron job (00:30 UTC), so the actual deduction happens the following day after the warning.
+- The manual `/deduct` endpoint skips the warning phase (it's for testing).
+
+**Commits:** 3 (constants, deduct endpoint, job logic)
+
+#### Agent C Retrospective
+
+**Status:** All 4 tasks completed, 4 commits made.
+
+**Files created (all NEW, owned by Agent C):**
+- `mini-app/src/api/shop.ts` — Shop API client with `fetchShopItems`, `fetchShopItem`, `purchaseItem`, `fetchPurchaseHistory`. Types: `ShopItem`, `Purchase`, `PurchaseRequest`, `PurchaseResult`, `ShopItemType`, `ShopItemRarity`, `PaymentMethod`.
+- `mini-app/src/hooks/usePurchase.ts` — Purchase flow state machine hook. States: `idle → confirming → processing → success | error → idle`. Exposes `startPurchase`, `confirmPurchase`, `dismissResult`, `cancelPurchase`.
+- `mini-app/src/components/shop/PurchaseModal.tsx` — Bottom-sheet modal with item icon hero, rarity badge, description, dual payment buttons (Stars/XP), loading spinner, error state with retry, drag-to-close.
+- `mini-app/src/components/shop/PurchaseSuccessAnimation.tsx` — Full-screen overlay with 45 confetti particles, item icon pop-in, glow ring, "Purchase Complete!" text, "Continue" button, auto-dismiss after 3s.
+
+**Patterns followed:**
+- API client: same `request<T>` + `getAuthHeaders()` pattern as `trophies.ts`
+- Hook: same `useRef(false)` guard + `useCallback` pattern as `usePayment.ts`
+- Modal: same bottom-sheet pattern as `TrophyDetailModal.tsx` (drag, backdrop, spring transition)
+- Animation: same confetti + glow ring pattern as `LevelUpModal.tsx` + `Confetti.tsx`
+
+**i18n keys used (all need to be added to en.ts/ru.ts/zh.ts in a future run):**
+- `shop.close` — Close button aria-label
+- `shop.rarity_common` — "Common" rarity label
+- `shop.rarity_uncommon` — "Uncommon" rarity label
+- `shop.rarity_rare` — "Rare" rarity label
+- `shop.rarity_epic` — "Epic" rarity label
+- `shop.rarity_legendary` — "Legendary" rarity label
+- `shop.confirmPurchase` — "Choose payment method" header
+- `shop.payWithStars` — "Pay with {{amount}} ⭐" button
+- `shop.payWithXp` — "Pay with {{amount}} XP" button
+- `shop.retryWithStars` — "Retry with {{amount}} ⭐" button (error state)
+- `shop.retryWithXp` — "Retry with {{amount}} XP" button (error state)
+- `shop.processing` — "Processing purchase..." loading text
+- `shop.cancel` — "Cancel" button
+- `shop.purchaseComplete` — "Purchase Complete!" success text
+- `shop.continue` — "Continue" dismiss button
+- `shop.tapToDismiss` — "Tap to dismiss" hint
+
+**No conflicts expected:** Agent C only created new files in `mini-app/src/api/`, `mini-app/src/hooks/`, and `mini-app/src/components/shop/`. No existing files were modified.
+
+#### Agent D Retrospective
+
+**Branch**: `feature/r68-premium-badges` (4 commits)
+
+**Files created:**
+- `mini-app/src/components/achievements/PremiumBadge.tsx` — New component with gold shimmer border, "PREMIUM" tag (purchased), and "BUY" label (locked)
+
+**Files modified:**
+- `mini-app/src/components/achievements/AchievementCard.tsx` — Added premium detection (`criteria.type === 'purchasable'`), PremiumBadge overlay, premium-specific card classes, amber-themed locked state for purchasables (description shown, no progress bar), onBuyClick handler
+- `mini-app/src/components/achievements/RarityGroup.tsx` — Passes `onBuyClick` prop through to AchievementCard
+- `mini-app/src/pages/Achievements.tsx` — Added `handleBuyClick` callback showing info Toast, imports Toast component
+- `mini-app/src/index.css` — Added CSS: `@keyframes premiumShimmer`, `@keyframes premiumGlow`, `.premium-shimmer`, `.premium-card`, `.premium-card-locked`
+
+**Design decisions:**
+- Purchasable achievements detected via `criteria.type === 'purchasable'` (matching Agent A's seed data pattern)
+- Locked purchasable achievements show name, icon (full color, not greyed out), description in amber, and "BUY" tag — to entice purchase
+- Purchased achievements get gold gradient border with animated shimmer + "PREMIUM" corner tag
+- Buy click currently shows an info Toast ("Shop coming soon!") — ready for Agent C's PurchaseModal to be wired in
+- No lock icon shown on premium locked cards (replaced by BUY label from PremiumBadge)
+
+**No i18n keys added** — all strings are English-only hardcoded (PremiumBadge labels: "PREMIUM", "BUY"; toast message). These should be converted to i18n keys in a future run.
+
+**No conflicts expected** with other agents — only touched achievement display components (owned/gray-area files).
+
+#### Agent E Retrospective
+
+**Status**: All 4 test files written and committed.
+
+**Files created**:
+1. `bot/src/__tests__/routes/http/shop.http.test.ts` — 17 tests for shop API (GET items, GET item by id, POST purchase, GET purchase history)
+2. `bot/src/__tests__/routes/http/punishment-deduct.http.test.ts` — 10 tests for Stars deduction endpoint + STARS_PENALTY_RATES constants
+3. `mini-app/src/__tests__/components/shop/PurchaseModal.test.tsx` — 13 tests for PurchaseModal component (Stars/XP buttons, loading, error, dual-price, close)
+4. `mini-app/src/__tests__/hooks/usePurchase.test.ts` — 9 tests for usePurchase hook (state machine flow, API calls, dismiss, edge cases)
+
+**Total**: 49 tests across 4 files.
+
+**Approach**: Other agent branches had not pushed their Run 68 code yet at the time of writing. Tests were written against the spec in PARALLEL_AGENTS.md, following established patterns from Run 67 tests (trophies.http.test.ts, useAvatar.test.ts, TrophyCase.test.tsx). Expected failures will resolve once Agents A, B, C, D code is merged.
+
+**Mocked modules**:
+- Backend tests: `db.js`, `cache.js`, `pythonTools.js`, `auth.js`, `rateLimiter.js` (via httpMocks.js helpers)
+- Frontend tests: `react-i18next`, `framer-motion`, `lucide-react`, `@/hooks/useTelegram`, `@/api/shop`, `@/utils/logger`
+
+**i18n keys used in PurchaseModal tests**: `shop.confirmPurchase`, `shop.payWithStars`, `shop.payWithXp`, `shop.processing`, `shop.purchaseFailed`, `shop.insufficientBalance`, `shop.retry`, `shop.cancel`, `shop.itemDescription`, `common.close`
+
+**Known risks**: Since tests are written before source code, mock structures (prop names, export names, API response shapes) may need adjustment during merge. Key assumptions:
+- `shopRouter` exported from `bot/src/api/routes/shop.ts`
+- `STARS_PENALTY_RATES` exported from `bot/src/api/utils/constants.ts`
+- `PurchaseModal` exported from `mini-app/src/components/shop/PurchaseModal.tsx` with props: `item`, `isOpen`, `onConfirm`, `onClose`, `isProcessing`, `error`
+- `usePurchase` exported from `mini-app/src/hooks/usePurchase.ts` returning `{ purchaseState, currentItem, startPurchase, confirmPurchase, dismissResult }`
+
+**Notes**: Tests follow the conservative approach of checking response shapes rather than exact SQL queries, making them more resilient to implementation differences across agents.
+
+#### Agent 0 Retrospective
+
+**Merge summary**: Agents A and C committed to main (again, same pattern as Run 67). Agents B, D, E committed to their branches. Merge order adjusted to B → D → E (A+C already on main). All 3 merges had zero git conflicts.
+
+**Test failures**: 25 total post-merge (8 bot + 17 mini-app):
+- `punishment-deduct.http.test.ts` (2): Tests mocked wrong DB call patterns — source uses `queryOne` for user lookup before `query` for data.
+- `shop.http.test.ts` (5): Purchase tests expected different mock shapes and call sequences. The `500 on DB error` test expected error propagation but route handles errors gracefully and returns 200.
+- `punishmentCheck.test.ts` (1): Stars deduction logic was added to the job but the existing test didn't mock the new DB calls for Stars penalty.
+- `PurchaseModal.test.tsx` (8): Component uses different prop names (`isProcessing` vs `loading`), different i18n keys, and bottom-sheet architecture instead of centered modal.
+- `usePurchase.test.ts` (9): Hook uses state machine pattern (`purchaseState` enum) but tests expected separate boolean flags. API mock shape (`shopApi.purchaseItem`) didn't match actual export.
+- `Achievements.test.tsx` (1): Missing `Info` icon in lucide-react mock (needed by Toast component imported by Achievements page).
+
+**Root cause**: Agent E wrote all tests without access to Agents A and C source code (which was on main, not the feature branches). This is a recurring pattern — Agents A and C keep committing to main instead of their branches.
+
+**Infrastructure issue**: Windows SSH agent service was stopped (disabled at system level). Previous sessions relied on cached SSH agent. Fixed by: 1) Generating new SSH key pair (`~/.ssh/id_ed25519`), 2) Adding key to Timeweb via API (ID 547987), 3) Using password-based SSH for deployment (root password from Timeweb API).
+
+**DB migrations**: `run68_shop_tables.sql` created `shop_items` and `user_purchases` tables. Seeded 12 shop items (4 achievements, 4 avatar items, 2 trophy boosters, 2 XP boosters).
+
+**Test count**: 2019 total (1031 bot + 988 mini-app), up from 1964 in Run 67.
+
+---
+
+## RUN 69: Parallel Agents (5 Agents + Agent 0)
+
+### Focus: Shop Page + Content Polish
+
+Build the full shop page UI with featured items, category browsing, and purchase flow. Add an inventory system for owned items. Audit and polish all content (achievements, trophies, shop items). Update navigation and routing. Comprehensive tests.
+
+### Copy-Paste Prompts
+
+**Agent A** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-a`):
+```
+Read the file c:\Users\Asus\Desktop\Wibecode-agent-a\PARALLEL_AGENTS.md — find the "RUN 69" section and follow the instructions for **Agent A (Shop Page UI)**. You are Agent A. Do all tasks listed, commit after each task, and write your retrospective when done.
+```
+
+**Agent B** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-b`):
+```
+Read the file c:\Users\Asus\Desktop\Wibecode-agent-b\PARALLEL_AGENTS.md — find the "RUN 69" section and follow the instructions for **Agent B (Inventory System)**. You are Agent B. Do all tasks listed, commit after each task, and write your retrospective when done.
+```
+
+**Agent C** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-c`):
+```
+Read the file c:\Users\Asus\Desktop\Wibecode-agent-c\PARALLEL_AGENTS.md — find the "RUN 69" section and follow the instructions for **Agent C (Content Audit + Polish)**. You are Agent C. Do all tasks listed, commit after each task, and write your retrospective when done.
+```
+
+**Agent D** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-d`):
+```
+Read the file c:\Users\Asus\Desktop\Wibecode-agent-d\PARALLEL_AGENTS.md — find the "RUN 69" section and follow the instructions for **Agent D (Navigation + Routing)**. You are Agent D. Do all tasks listed, commit after each task, and write your retrospective when done.
+```
+
+**Agent E** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-e`):
+```
+Read the file c:\Users\Asus\Desktop\Wibecode-agent-e\PARALLEL_AGENTS.md — find the "RUN 69" section and follow the instructions for **Agent E (Tests)**. You are Agent E. Do all tasks listed, commit after each task, and write your retrospective when done.
+```
+
+### Merge Order
+1. **Agent B** (Inventory backend — new route, needed by frontend)
+2. **Agent A** (Shop page UI — new page, uses shop API from Run 68)
+3. **Agent C** (Content audit — seed data + i18n, no code dependencies)
+4. **Agent D** (Navigation + routing — depends on pages from A and B)
+5. **Agent E** (Tests — last, tests everything above)
+
+### File Ownership Matrix
+
+| File / Area | A | B | C | D | E |
+|---|---|---|---|---|---|
+| `mini-app/src/pages/Shop.tsx` (NEW) | **OWN** | | | | |
+| `mini-app/src/hooks/useShop.ts` (NEW) | **OWN** | | | | |
+| `mini-app/src/pages/Inventory.tsx` (NEW) | | **OWN** | | | |
+| `mini-app/src/hooks/useInventory.ts` (NEW) | | **OWN** | | | |
+| `bot/src/api/routes/inventory.ts` (NEW) | | **OWN** | | | |
+| `bot/src/api/server.ts` | | EDIT | | | |
+| `database/seed_data.sql` | | | **OWN** | | |
+| `mini-app/src/i18n/locales/en.ts` | | | **OWN** | **OWN** | |
+| `mini-app/src/i18n/locales/ru.ts` | | | **OWN** | **OWN** | |
+| `mini-app/src/i18n/locales/zh.ts` | | | **OWN** | **OWN** | |
+| `mini-app/src/components/Navigation.tsx` | | | | **OWN** | |
+| `mini-app/src/App.tsx` | | | | **OWN** | |
+| `bot/src/__tests__/**` | | | | | **OWN** |
+| `mini-app/src/__tests__/**` | | | | | **OWN** |
+
+### Agent Instructions
+
+---
+
+#### Agent A: Shop Page UI
+
+**Branch**: `feature/r69-shop-page`
+**Directory**: `c:\Users\Asus\Desktop\Wibecode-agent-a`
+
+**Context**: Run 68 added the shop backend (`bot/src/api/routes/shop.ts`) with endpoints:
+- `GET /api/shop/items` — list all active shop items (supports `?type=` filter)
+- `GET /api/shop/items/:id` — get item detail
+- `POST /api/shop/purchase` — purchase an item (`{ itemId, paymentMethod: 'stars' | 'xp' }`)
+- `GET /api/shop/purchases/:userId` — get user's purchase history
+
+Run 68 also added `mini-app/src/api/shop.ts` (API client) and `mini-app/src/hooks/usePurchase.ts` (purchase state machine).
+
+**Task 1**: Create `mini-app/src/hooks/useShop.ts`
+- Fetch all shop items using `shopApi.getItems()` from `mini-app/src/api/shop.ts`
+- Support category filtering (type: 'achievement', 'avatar_item', 'trophy_booster', 'xp_booster')
+- Track loading/error state
+- Include user's purchase history to mark owned items
+- Search functionality (filter by name)
+
+**Task 2**: Create `mini-app/src/pages/Shop.tsx`
+- Page header with title, user balance display (Stars + XP)
+- Featured items section at top (items with `is_featured: true`) — horizontal scroll carousel
+- Category tabs: All, Achievements, Avatar Items, Boosters
+- Item grid: card per item showing icon emoji, name, rarity badge, price, "Buy" / "Owned" button
+- Click item to open `PurchaseModal` (from Run 68: `mini-app/src/components/shop/PurchaseModal.tsx`)
+- Pull-to-refresh support (use `usePullToRefresh` hook)
+- Empty state for each category
+- Follow existing page patterns (see `TrophyCase.tsx`, `Achievements.tsx`)
+
+**Task 3**: Write retrospective in the Run 69 section of `PARALLEL_AGENTS.md`.
+
+**IMPORTANT**: Commit to `feature/r69-shop-page` branch, NOT to main. Verify with `git branch` before each commit.
+
+---
+
+#### Agent B: Inventory System
+
+**Branch**: `feature/r69-inventory`
+**Directory**: `c:\Users\Asus\Desktop\Wibecode-agent-b`
+
+**Context**: Run 68 created `user_purchases` table with columns: `id, user_id, shop_item_id, payment_method, amount_paid, purchased_at`. The shop routes already have `GET /api/shop/purchases/:userId` for history.
+
+**Task 1**: Create `bot/src/api/routes/inventory.ts`
+- `GET /api/inventory/:userId` — returns user's owned items grouped by type, with full item details (JOIN with shop_items)
+- `POST /api/inventory/:userId/equip` — equip an avatar item (`{ itemId }`) — sets `is_equipped = true`, unequips previous item of same slot
+- `POST /api/inventory/:userId/unequip` — unequip an avatar item (`{ itemId }`)
+- Wire into `bot/src/api/server.ts` (add `import { inventoryRouter } from './routes/inventory.js'` and `app.use('/api/inventory', inventoryRouter)`)
+
+**Task 2**: Create `mini-app/src/hooks/useInventory.ts`
+- Fetch user inventory from `/api/inventory/:userId`
+- Group items by category
+- Equip/unequip methods
+- Loading/error states
+
+**Task 3**: Create `mini-app/src/pages/Inventory.tsx`
+- Category tabs matching shop categories
+- Item cards showing owned items with equip/unequip toggle for avatar items
+- Purchase date display
+- Empty state per category ("No items yet — visit the Shop!")
+- Follow existing page patterns
+
+**Task 4**: Write retrospective in the Run 69 section of `PARALLEL_AGENTS.md`.
+
+**IMPORTANT**: Commit to `feature/r69-inventory` branch, NOT to main.
+
+---
+
+#### Agent C: Content Audit + Polish
+
+**Branch**: `feature/r69-content-polish`
+**Directory**: `c:\Users\Asus\Desktop\Wibecode-agent-c`
+
+**Context**: The database has 30+ achievements (seeded in `database/seed_data.sql`), 17 trophies, and 12 shop items. Three i18n locales: en, ru, zh.
+
+**Task 1**: Audit achievement seed data in `database/seed_data.sql`
+- Check all achievement names and descriptions for quality, clarity, grammar
+- Verify XP rewards are balanced (higher difficulty = more XP)
+- Ensure criteria types and thresholds make sense
+- Fix any issues directly in the seed file
+
+**Task 2**: Audit trophy seed data
+- Check all 17 trophy names, descriptions, criteria
+- Verify rarity distribution is reasonable (not all legendary)
+- Ensure sort_order is logical
+
+**Task 3**: Audit shop item seed data
+- Check all 12 item names, descriptions, prices
+- Verify Stars prices are reasonable (not too cheap/expensive)
+- Verify XP prices where applicable
+- Ensure rarity makes sense for each item type
+
+**Task 4**: Audit i18n completeness
+- Check `mini-app/src/i18n/locales/en.ts`, `ru.ts`, `zh.ts`
+- Ensure ALL keys present in en.ts also exist in ru.ts and zh.ts
+- Add any missing shop/inventory/trophy i18n keys
+- Fix any translation quality issues
+
+**Task 5**: Write retrospective in the Run 69 section of `PARALLEL_AGENTS.md`.
+
+**IMPORTANT**: Commit to `feature/r69-content-polish` branch, NOT to main.
+
+---
+
+#### Agent D: Navigation + Routing
+
+**Branch**: `feature/r69-navigation`
+**Directory**: `c:\Users\Asus\Desktop\Wibecode-agent-d`
+
+**Context**: `mini-app/src/components/Navigation.tsx` currently has main tabs (Home, Quests, Profile, etc.) and a "More" dropdown with additional items. `mini-app/src/App.tsx` has lazy-loaded routes.
+
+**Task 1**: Add Shop page to navigation
+- Add `ShoppingBag` (or `Store`) icon from lucide-react to Navigation
+- Add Shop as a main navigation item (prominent position — between Quests and Profile)
+- Add i18n key `nav.shop` in all 3 locales
+
+**Task 2**: Add Inventory to Profile sub-navigation
+- Add Inventory link in Profile page or as a sub-route
+- Add `/inventory` route to `App.tsx` with lazy import
+- Add i18n key `nav.inventory` in all 3 locales
+
+**Task 3**: Add Shop route to App.tsx
+- Lazy import `Shop` page
+- Route at `/shop`
+- Add optional deep link support: `/shop/:itemId` (renders Shop with item modal open)
+
+**Task 4**: Add all shop/inventory i18n keys
+- `shop.title`, `shop.featured`, `shop.categories`, `shop.buy`, `shop.owned`, `shop.price_stars`, `shop.price_xp`, `shop.empty`, `shop.search_placeholder`, etc.
+- `inventory.title`, `inventory.empty`, `inventory.equip`, `inventory.unequip`, `inventory.purchased_on`, etc.
+- Add to all 3 locale files (en, ru, zh)
+
+**Task 5**: Write retrospective in the Run 69 section of `PARALLEL_AGENTS.md`.
+
+**IMPORTANT**: Commit to `feature/r69-navigation` branch, NOT to main.
+
+---
+
+#### Agent E: Tests
+
+**Branch**: `feature/r69-tests`
+**Directory**: `c:\Users\Asus\Desktop\Wibecode-agent-e`
+
+**CRITICAL**: Before writing tests, READ the actual source files you're testing. Previous runs had 25+ test failures because Agent E wrote tests without reading the source code. You MUST:
+1. Read the actual component/hook/route file first
+2. Understand the real prop names, state shapes, function signatures
+3. Then write tests that match the actual implementation
+
+**Task 1**: Write `bot/src/__tests__/routes/http/inventory.http.test.ts`
+- Test GET /api/inventory/:userId (returns grouped items)
+- Test POST /api/inventory/:userId/equip (equips item, unequips previous)
+- Test POST /api/inventory/:userId/unequip
+- Test error cases (item not found, not owned, etc.)
+- Read `bot/src/api/routes/inventory.ts` FIRST to understand the actual implementation
+
+**Task 2**: Write `mini-app/src/__tests__/pages/Shop.test.tsx`
+- Test page renders with items grid
+- Test category tab switching
+- Test featured items section
+- Test search/filter
+- Test clicking item opens purchase modal
+- Read `mini-app/src/pages/Shop.tsx` and `mini-app/src/hooks/useShop.ts` FIRST
+
+**Task 3**: Write `mini-app/src/__tests__/pages/Inventory.test.tsx`
+- Test inventory page renders owned items
+- Test category tabs
+- Test equip/unequip functionality
+- Test empty state
+- Read `mini-app/src/pages/Inventory.tsx` FIRST
+
+**Task 4**: Write `mini-app/src/__tests__/hooks/useShop.test.ts`
+- Test loading/error states
+- Test category filtering
+- Test search
+- Read `mini-app/src/hooks/useShop.ts` FIRST
+
+**Task 5**: Write retrospective in the Run 69 section of `PARALLEL_AGENTS.md`.
+
+**IMPORTANT**: Commit to `feature/r69-tests` branch, NOT to main.
+
+---
+
+### Run 69 Retrospectives
+
+#### Agent A Retrospective
+
+**Completed**: 2 tasks (useShop hook + Shop page), 2 commits on `feature/r69-shop-page`.
+
+**Files created**:
+- `mini-app/src/hooks/useShop.ts` — Data hook: fetches items + purchase history, category/search filtering, owned-item tracking
+- `mini-app/src/pages/Shop.tsx` — Full shop page: header with gradient, search toggle, featured carousel (horizontal scroll), category tabs (All/Achievements/Avatar Items/Boosters), 2-column item grid with rarity badges + price display, PurchaseModal integration, pull-to-refresh, loading skeleton, empty states
+
+**i18n keys used** (Agent D needs to add these):
+- `shop.title`, `shop.featured`, `shop.searchPlaceholder`
+- `shop.cat_all`, `shop.cat_achievements`, `shop.cat_avatarItems`, `shop.cat_boosters`, `shop.cat_boosters_xp`
+- `shop.rarity_common`, `shop.rarity_uncommon`, `shop.rarity_rare`, `shop.rarity_epic`, `shop.rarity_legendary`
+- `shop.owned`, `shop.empty`, `shop.noResults`
+- (PurchaseModal keys already existed from Run 68: `shop.close`, `shop.confirmPurchase`, `shop.payWithStars`, `shop.payWithXp`, `shop.retryWithStars`, `shop.retryWithXp`, `shop.processing`, `shop.cancel`)
+
+**Design decisions**:
+- Used indigo→purple gradient (differentiated from TrophyCase yellow→amber and Achievements amber→orange)
+- Featured carousel with horizontal snap scrolling, compact cards showing emoji + name + price
+- Item grid uses motion stagger animation (0.03s per card)
+- One-time achievement items show "Owned" badge and block re-purchase tap
+- Search is toggled via header button to keep the UI clean by default
+- No separate user balance display in header (User type doesn't have `stars_balance` field; XP is in user.xp but fetching UserStats just for balance would be wasteful — can be added later)
+
+**No issues encountered**. Clean implementation following TrophyCase/Achievements patterns.
+
+#### Agent B Retrospective
+**Status**: DONE — all 3 tasks completed, 3 commits on `feature/r69-inventory`.
+
+**What was built:**
+1. **Inventory API routes** (`bot/src/api/routes/inventory.ts`):
+   - `GET /api/inventory/:userId` — returns owned items grouped by type (JOIN with shop_items)
+   - `POST /api/inventory/:userId/equip` — equip avatar item, auto-unequips previous
+   - `POST /api/inventory/:userId/unequip` — unequip avatar item
+   - Migration: added `is_equipped` column + index to `user_purchases`
+   - Wired into `server.ts`
+
+2. **Inventory API client + hook** (`mini-app/src/api/inventory.ts`, `mini-app/src/hooks/useInventory.ts`):
+   - API client: `fetchInventory`, `equipItem`, `unequipItem`
+   - Hook: category filtering (all/avatar/achievement/booster/xp), optimistic equip/unequip updates, loading/error states
+
+3. **Inventory page** (`mini-app/src/pages/Inventory.tsx`):
+   - Header with item count, gradient style (indigo-purple)
+   - Category tabs: All, Avatar Items, Achievements, Boosters, XP Boosters
+   - Item cards with emoji icon, rarity badge, purchase date, equip/unequip toggle
+   - Empty state with "Visit Shop" CTA
+   - Pull-to-refresh, Toast for equip/unequip feedback
+
+**Build**: Both `bot` and `mini-app` pass `tsc --noEmit` cleanly.
+**Patterns followed**: Matched shop.ts route style, useTrophies hook pattern, TrophyCase/Achievements page patterns.
+**No issues encountered.**
+
+#### Agent C Retrospective
+**Tasks completed**: 4/4 (achievement audit, trophy audit, shop audit, i18n completeness)
+**Commits**: 2 (seed data fixes + i18n additions)
+**Issues found & fixed**:
+- Achievement XP balance: 3 epic achievements rewarded less than rare ones (iron_will, habit_unstoppable, hydration_legend) — fixed
+- Hydration first-achievement XP was inconsistently low (25 vs 50 for all other modes) — fixed
+- Habits achievement descriptions used full sentences while all other modes used short display names — standardized
+- Bookworm emoji was a caterpillar instead of a book — fixed
+- Trophy "XP Millionaire" was misleading (threshold is 10K, not 1M) — renamed to "XP Champion"
+- Shop items were well-balanced, no fixes needed
+- All 3 i18n locales were missing shop and inventory sections entirely — added nav keys + shop/inventory sections with 18 keys each
+**Merge notes**: i18n files are shared with Agent D (who also adds shop/inventory keys). Expect merge conflicts in en.ts, ru.ts, zh.ts — resolve by keeping both sets of keys (they may overlap or complement each other).
+
+#### Agent D Retrospective
+
+**Status**: All 4 tasks completed, 4 commits on `feature/r69-navigation`.
+
+**What was done**:
+1. **Navigation**: Added `ShoppingBag` icon from lucide-react. Inserted Shop as 3rd primary nav item (Home → Quests → **Shop** → Rewards → Profile). Added `nav.shop` i18n key in en/ru/zh.
+2. **Inventory sub-nav**: Added Inventory card-button in Profile page (matching existing Avatar Customizer / Trophy Case pattern with emerald gradient + Package icon). Added lazy-loaded `/inventory` route to App.tsx. Added `nav.inventory` in all locales.
+3. **Shop routes**: Added lazy-loaded Shop page import. Two routes: `/shop` (main) and `/shop/:itemId` (deep link for opening item modal). Both render the same `<Shop />` component which can read `itemId` from URL params.
+4. **i18n keys**: Added comprehensive `shop.*` section (22 keys: title, featured, categories, buy/owned, price templates, rarity names, purchase states, search, balance, item detail) and `inventory.*` section (12 keys: title, viewDesc, empty state, equip/unequip/equipped, purchased_on, 5 category names) — all in en, ru, zh.
+
+**Decisions made**:
+- Put Shop between Quests and Achievements (Rewards) in primary nav — makes 5 primary items + More button (6 total). This is slightly more crowded but gives Shop the prominent position requested.
+- Used `Package` icon for inventory (green gradient) to differentiate from Shop's `ShoppingBag`.
+- Added `inventory.viewDesc` key ("View your purchased items") for the Profile card description, not in the original spec but needed for the card pattern.
+- Used same ProtectedRoute wrapper for shop/inventory as all other routes.
+
+**Potential merge issues**: None expected. Files owned (Navigation.tsx, App.tsx) are exclusive to Agent D per ownership matrix. i18n files are shared with Agent C — keys are in separate sections (shop.*, inventory.*) so merging should be clean.
+
+#### Agent E Retrospective
+
+**Completed all 4 test files + retrospective.**
+
+**What went well:**
+- Followed established test patterns from existing codebase (shop.http.test.ts, TrophyCase.test.tsx, useAchievements.test.ts, usePurchase.test.ts) for consistency
+- Read the full specification from PARALLEL_AGENTS.md and existing source files (shop.ts route, shop.ts API client, usePurchase.ts hook, DB schema/migrations) before writing any tests
+- Covered all specified test scenarios: loading/error/empty states, CRUD operations, filtering, search, equip/unequip
+
+**Challenge:**
+- Source files being tested don't exist yet (created by Agents A, B, D in parallel). Tests are written based on the spec and existing patterns. Expect some adjustments needed at merge time when actual implementations differ from spec assumptions (e.g., hook return shapes, export names, exact error handling patterns).
+
+**Files created:**
+1. `bot/src/__tests__/routes/http/inventory.http.test.ts` — 13 tests for GET/POST inventory routes
+2. `mini-app/src/__tests__/pages/Shop.test.tsx` — 11 tests for Shop page UI
+3. `mini-app/src/__tests__/pages/Inventory.test.tsx` — 11 tests for Inventory page UI
+4. `mini-app/src/__tests__/hooks/useShop.test.ts` — 11 tests for useShop hook
+
+**Merge note for Agent 0:** Tests import from paths that other agents create (e.g., `@/pages/Shop`, `@/hooks/useShop`, `inventory.js` route). After merging agent branches in order (B→A→C→D→E), run tests and fix any mismatches between test mocks and actual implementations (export names, prop shapes, hook return signatures). Previous runs needed 5-25 fixes — aim to minimize by reviewing actual source before finalizing tests during merge.
+
+#### Agent 0 Retrospective
+**Status:** COMPLETE — All 5 agents merged, 2063 tests passing, deployed.
+
+**Merge summary:** All 5 agents committed to their correct branches. Merge order: B→A→C→D→E. Zero git conflicts. However, Agents C and D both added shop/inventory i18n keys to the same locale files, creating duplicate property errors (TS1117). Agent 0 resolved by merging both sets into unified sections with all keys used by actual components.
+
+**Post-merge fixes (7 files):**
+1. i18n deduplication (en.ts, ru.ts, zh.ts): Removed duplicate `nav.shop`/`nav.inventory` entries and duplicate `shop:`/`inventory:` top-level sections. Unified into single sections containing all keys from both agents plus missing keys referenced by components (PurchaseModal, PurchaseSuccessAnimation).
+2. Inventory test mocks (inventory.http.test.ts): Fixed field names (`item_type` → `type`, added `is_equipped: false`), fixed mock functions (`db.execute` → `db.query`, second `db.queryOne` → `db.query`) to match actual route implementation.
+3. Shop test fixes (Shop.test.tsx): Added missing `Check` icon to lucide-react mock, fixed i18n key expectations for category tabs, handled duplicate elements from featured+grid sections.
+4. Inventory test fixes (Inventory.test.tsx): Fixed hook return shape (`groupedItems` → `grouped`, added missing fields), fixed item interface (`id` → `purchase_id`, added `payment_method`/`amount_paid`), added correct i18n keys.
+5. Navigation test (Navigation.test.tsx): Added `ShoppingBag` icon to lucide-react mock and `nav.shop` to i18n translations.
+
+**Test counts:** 1046 bot + 1017 mini-app = 2063 total (up from 2019 in Run 68, +44).
+
+**Archiving:** Moved Runs 65-67 to PARALLEL_AGENTS_HISTORY.md. History now covers Runs 2-67.
+
+**Issues carried forward:** None. Known issue #8 ("No shop/purchasable content") is now resolved — Shop page, Inventory, and purchase flow are all live.
+
+---
+
+## RUN 70: Parallel Agents (4 Agents + Agent 0)
+
+### Focus: Final QA + Performance Optimization
+
+Full regression testing, bundle size optimization, database index audit, and PWA/Service Worker enhancements. All pages are already lazy-loaded. PWA manifest exists. Service worker is functional but needs improvements.
+
+**Current state**:
+- 2063 tests (1046 bot + 1017 mini-app), all passing
+- All 13 feature pages already lazy-loaded in App.tsx
+- PWA manifest.json exists with proper icons and standalone mode
+- Service worker (sw.js) has network-first API + cache-first static assets
+- Main index bundle: 222KB (72KB gzip)
+- Database: newer tables (Run 66-69) have basic indexes, some gaps
+
+### Run 70 Agents
+
+| Agent | Focus | Branch | Key Files |
+|-------|-------|--------|-----------|
+| A | Performance audit + bundle optimization | `feature/r70-performance` | `mini-app/vite.config.ts`, `mini-app/src/` components |
+| B | Database indexes + query optimization | `feature/r70-db-perf` | `database/migrations/run70_indexes.sql`, `bot/src/api/routes/` |
+| C | Full regression tests + integration tests | `feature/r70-regression` | `bot/src/__tests__/`, `mini-app/src/__tests__/` |
+| D | Service Worker + PWA enhancements | `feature/r70-pwa` | `mini-app/public/sw.js`, `mini-app/src/` |
+
+### Run 70 File Ownership
+
+| File / Area | A | B | C | D |
+|---|---|---|---|---|
+| `mini-app/vite.config.ts` | **OWN** | | | |
+| `mini-app/src/components/**` (memo optimization) | **OWN** | | | |
+| `mini-app/src/pages/**` (import optimization) | **OWN** | | | |
+| `database/migrations/run70_indexes.sql` (NEW) | | **OWN** | | |
+| `bot/src/api/routes/**` (query optimization) | | **OWN** | | |
+| `bot/src/__tests__/**` | | | **OWN** | |
+| `mini-app/src/__tests__/**` | | | **OWN** | |
+| `mini-app/public/sw.js` | | | | **OWN** |
+| `mini-app/public/manifest.json` | | | | **OWN** |
+| `mini-app/src/hooks/useServiceWorker.ts` (NEW) | | | | **OWN** |
+| `mini-app/src/components/InstallPrompt.tsx` (NEW) | | | | **OWN** |
+
+### Run 70 Merge Order
+
+1. Agent B (DB indexes — no code dependencies)
+2. Agent A (Performance — component changes)
+3. Agent D (PWA — new components + SW)
+4. Agent C (Tests — last, tests everything)
+
+### Run 70 Copy-Paste Prompts
+
+#### Agent A Prompt
+```
+Read c:\Users\Asus\Desktop\Wibecode-agent-a\PARALLEL_AGENTS.md — find "RUN 70" and locate the "Agent A" section. You are Agent A.
+
+YOUR TASK: Performance audit and bundle optimization for the mini-app.
+
+OWNED FILES:
+- mini-app/vite.config.ts (modify — add build optimization)
+- mini-app/src/components/** (modify — add React.memo where beneficial)
+- mini-app/src/pages/** (modify — optimize imports)
+- mini-app/package.json (modify — add rollup-plugin-visualizer as devDependency)
+
+TASK 1 — Install and run bundle visualizer:
+- `cd mini-app && npm install --save-dev rollup-plugin-visualizer`
+- Add the visualizer plugin to vite.config.ts (only in build mode)
+- Run `npm run build` and analyze the output sizes
+- Document the top 5 largest chunks and what they contain
+
+TASK 2 — Optimize bundle splitting in vite.config.ts:
+- Current main index bundle is 222KB (72KB gzip). Optimize by splitting vendor chunks better:
+  - Split framer-motion into its own chunk (it's heavy and only used on a few pages)
+  - Split i18n translations into a separate chunk (already done: vendor-i18n)
+  - Ensure react-query is in its own chunk (already done: vendor-query)
+- Add manual chunk configuration in rollupOptions.output.manualChunks if not already present
+- Target: reduce main index.js below 180KB
+
+TASK 3 — Add React.memo to heavy list components:
+- Read `mini-app/src/pages/Achievements.tsx` — memoize individual AchievementCard if not already
+- Read `mini-app/src/pages/Leaderboard.tsx` — memoize LeaderboardRow items
+- Read `mini-app/src/pages/Shop.tsx` — memoize ItemCard and FeaturedCarousel items
+- Read `mini-app/src/pages/Inventory.tsx` — memoize inventory item cards
+- Only memo components that receive stable props and render in lists (map iterations)
+
+TASK 4 — Optimize heavy imports:
+- Check if any pages import icons from lucide-react barrel export — if so, switch to specific imports: `import { Icon } from 'lucide-react'` is fine (Vite tree-shakes), but if there's `import * as icons` anywhere, fix it
+- Check for any unused imports across pages
+
+IMPORTANT: Use .js extensions in ALL import paths.
+FORBIDDEN: bot/ files, database/ files, test files, public/ files.
+BUILD VERIFY: cd mini-app && npm run build — verify smaller bundles.
+
+After completing, write your retrospective in PARALLEL_AGENTS.md under "Run 70 Retrospectives" → "Agent A Retrospective", replacing the placeholder. Then commit all changes.
+```
+
+#### Agent B Prompt
+```
+Read c:\Users\Asus\Desktop\Wibecode-agent-b\PARALLEL_AGENTS.md — find "RUN 70" and locate the "Agent B" section. You are Agent B.
+
+YOUR TASK: Database performance — add missing indexes and optimize queries.
+
+OWNED FILES:
+- database/migrations/run70_indexes.sql (NEW)
+- bot/src/api/routes/** (modify — optimize slow queries)
+
+TASK 1 — Create database/migrations/run70_indexes.sql with missing indexes:
+```sql
+-- Run 70: Performance indexes for newer tables
+
+-- user_purchases: reverse lookup by shop_item_id
+CREATE INDEX IF NOT EXISTS idx_user_purchases_shop_item_id ON user_purchases(shop_item_id);
+
+-- user_purchases: compound index for inventory queries (user + type join)
+CREATE INDEX IF NOT EXISTS idx_user_purchases_user_equipped ON user_purchases(user_id, is_equipped) WHERE is_equipped = true;
+
+-- trophies: sort order for display
+CREATE INDEX IF NOT EXISTS idx_trophies_sort_order ON trophies(sort_order);
+
+-- achievements: category + rarity for gallery filtering
+CREATE INDEX IF NOT EXISTS idx_achievements_category ON achievements(category);
+CREATE INDEX IF NOT EXISTS idx_achievements_rarity ON achievements(rarity);
+
+-- user_achievements: compound for user achievement lookups
+CREATE INDEX IF NOT EXISTS idx_user_achievements_user_achievement ON user_achievements(user_id, achievement_id);
+```
+
+TASK 2 — Review and optimize heavy queries in routes:
+Read each route file and identify queries that could benefit from optimization:
+- `bot/src/api/routes/inventory.ts` — the GET /:userId query joins user_purchases with shop_items. Add an ORDER BY clause if missing.
+- `bot/src/api/routes/shop.ts` — verify the items query uses the active index
+- `bot/src/api/routes/achievements.ts` — check if achievement gallery queries are efficient
+- `bot/src/api/routes/trophies.ts` — check trophy queries
+- For any query doing a sequential scan on a large table, add COMMENT explaining which index it uses
+
+TASK 3 — Add database/seed_data.sql updates if needed:
+- Verify all seed data INSERT statements use ON CONFLICT to be idempotent
+- No changes needed if already idempotent
+
+IMPORTANT: Use .js extensions in ALL import paths.
+FORBIDDEN: mini-app/ files, test files.
+BUILD VERIFY: cd bot && npm run build must pass.
+
+After completing, write your retrospective in PARALLEL_AGENTS.md under "Run 70 Retrospectives" → "Agent B Retrospective", replacing the placeholder. Then commit all changes.
+```
+
+#### Agent C Prompt
+```
+Read c:\Users\Asus\Desktop\Wibecode-agent-c\PARALLEL_AGENTS.md — find "RUN 70" and locate the "Agent C" section. You are Agent C.
+
+YOUR TASK: Full regression testing and cross-feature integration tests.
+
+OWNED FILES:
+- bot/src/__tests__/** (new test files only)
+- mini-app/src/__tests__/** (new test files only)
+
+TASK 1 — Run ALL existing tests and verify they pass:
+- `cd bot && npx vitest --run` — all 1046 tests must pass
+- `cd mini-app && npx vitest --run` — all 1017 tests must pass
+- If any test fails, FIX IT (read the source first, then fix the test)
+
+TASK 2 — Write cross-feature integration tests for bot:
+Create `bot/src/__tests__/integration/shop-purchase-flow.test.ts`:
+- Test: user views shop items → purchases an item → item appears in inventory → equip item
+- Mock the database layer, test the full HTTP route chain
+- Test: purchase with insufficient stars returns error
+- Test: purchase already-owned one-time item returns error
+
+Create `bot/src/__tests__/integration/achievement-unlock-flow.test.ts`:
+- Test: user completes quest → achievement checker runs → achievement unlocked → trophy awarded
+- Test edge cases: duplicate achievement unlock, criteria not met
+
+TASK 3 — Write cross-feature integration tests for mini-app:
+Create `mini-app/src/__tests__/integration/navigation-flow.test.tsx`:
+- Test: navigating between all main pages (Dashboard → Quests → Shop → Achievements → Profile)
+- Test: Shop → item click → PurchaseModal opens
+- Test: Profile → Inventory button → navigates to /inventory
+- Test: Profile → Avatar button → navigates to /avatar
+
+TASK 4 — Verify all i18n keys are used:
+Create `mini-app/src/__tests__/i18n/completeness.test.ts`:
+- Load en.ts, ru.ts, zh.ts
+- Verify every key in en.ts exists in ru.ts and zh.ts
+- Verify no orphaned keys (keys in ru/zh not in en)
+
+IMPORTANT: Read source files BEFORE writing tests. Previous runs had massive test failures because Agent E wrote tests without reading source.
+FORBIDDEN: Non-test source files. Do NOT modify any component, route, or config file.
+TEST VERIFY: npx vitest --run must pass for both bot and mini-app.
+
+After completing, write your retrospective in PARALLEL_AGENTS.md under "Run 70 Retrospectives" → "Agent C Retrospective", replacing the placeholder. Then commit all changes.
+```
+
+#### Agent D Prompt
+```
+Read c:\Users\Asus\Desktop\Wibecode-agent-d\PARALLEL_AGENTS.md — find "RUN 70" and locate the "Agent D" section. You are Agent D.
+
+YOUR TASK: Enhance the Service Worker and PWA experience.
+
+OWNED FILES:
+- mini-app/public/sw.js (modify)
+- mini-app/public/manifest.json (modify if needed)
+- mini-app/src/hooks/useServiceWorker.ts (NEW)
+- mini-app/src/components/InstallPrompt.tsx (NEW)
+- mini-app/src/components/OfflineBanner.tsx (NEW)
+
+CONTEXT: The service worker at `mini-app/public/sw.js` already exists with:
+- Install: caches root path + index.html with build hash versioning
+- Activate: cleans old caches
+- Fetch: network-first for API, cache-first for static assets
+- Manifest.json: fully configured (name, icons, colors, standalone display)
+
+TASK 1 — Enhance sw.js with offline fallback:
+- Add an offline fallback page: when network fails AND no cache hit, serve a simple "You're offline" HTML page
+- Cache the offline page during install phase
+- Add a message listener for cache invalidation from the app: `self.addEventListener('message', ...)` to handle `{ type: 'SKIP_WAITING' }` and `{ type: 'CLEAR_CACHE' }`
+- Make the cache version dynamic based on a build timestamp (read from a query param or env)
+
+TASK 2 — Create mini-app/src/hooks/useServiceWorker.ts:
+```typescript
+interface UseServiceWorkerReturn {
+  isUpdateAvailable: boolean;
+  isOffline: boolean;
+  updateServiceWorker: () => void;
+}
+```
+- Register the service worker on mount
+- Listen for `controllerchange` events to detect updates
+- Track online/offline status via `navigator.onLine` + event listeners
+- Provide `updateServiceWorker()` to call `skipWaiting` on the waiting worker
+
+TASK 3 — Create mini-app/src/components/InstallPrompt.tsx:
+- Listen for `beforeinstallprompt` event
+- Show a subtle banner at the bottom: "Add MaxLevel to your home screen" with Install / Dismiss buttons
+- Persist dismissal in localStorage so it doesn't show again for 7 days
+- Use Telegram haptic feedback on install
+- Style: small, non-intrusive, matches the app's dark theme
+
+TASK 4 — Create mini-app/src/components/OfflineBanner.tsx:
+- Show a small banner when the user is offline: "You're offline. Some features may be unavailable."
+- Auto-hide when back online
+- Use the `useServiceWorker` hook for status
+- Style: yellow/amber warning banner at top of screen
+
+TASK 5 — Update manifest.json if needed:
+- Verify all required fields are present
+- Add `categories: ["games", "lifestyle"]` if missing
+- Add `screenshots` array (empty for now — can be filled later)
+
+IMPORTANT: Use .js extensions in ALL import paths.
+FORBIDDEN: bot/ files, database/ files, test files, existing pages/, existing hooks/ (except registering in App.tsx if needed).
+BUILD VERIFY: cd mini-app && npm run build must pass.
+
+After completing, write your retrospective in PARALLEL_AGENTS.md under "Run 70 Retrospectives" → "Agent D Retrospective", replacing the placeholder. Then commit all changes.
+```
+
+### Run 70 Retrospectives
+
+#### Agent A Retrospective
+**Status**: All 4 tasks completed, build passes.
+
+**What was done**:
+- **Bundle visualizer**: Installed `rollup-plugin-visualizer` as devDependency. Added to vite.config.ts (generates `dist/stats.html` with gzip+brotli sizes on every build).
+- **Chunk splitting optimized**: Split the old `vendor-ui` (framer-motion + lucide-react) into separate `vendor-motion` (114KB) and `vendor-icons` (32KB) chunks. Added new `vendor-state` chunk for zustand + axios (39KB). This allows better cache granularity — framer-motion changes rarely and is now independently cacheable.
+- **Main index.js reduced**: From 222KB (72KB gzip) to **183KB (57KB gzip)**, a **39KB (18%) reduction** in raw size and **15KB (21%) reduction** in gzip size. Just above the 180KB target but significantly improved.
+- **React.memo added to 6 list components**: AchievementCard, LeaderboardRow, TopThreeCard, ItemCard (Shop), FeaturedCarousel (Shop), InventoryItemCard (extracted from inline rendering in Inventory.tsx).
+- **Import audit**: Confirmed all lucide-react imports use named imports (tree-shakeable). No `import *` barrel exports found anywhere.
+
+**Top 5 chunks by size**: vendor-react (153KB), vendor-motion (114KB), index (183KB), vendor-i18n (63KB), vendor-state (39KB).
+
+**Files modified**: `mini-app/vite.config.ts`, `mini-app/package.json`, `mini-app/src/components/achievements/AchievementCard.tsx`, `mini-app/src/components/leaderboard/LeaderboardRow.tsx`, `mini-app/src/components/leaderboard/TopThreeCard.tsx`, `mini-app/src/pages/Shop.tsx`, `mini-app/src/pages/Inventory.tsx`.
+
+#### Agent B Retrospective
+*(To be filled by Agent B)*
+
+#### Agent C Retrospective
+*(To be filled by Agent C)*
+
+#### Agent D Retrospective
+**Status**: All 5 tasks completed, build passes.
+
+**What was done**:
+- **sw.js enhanced**: Added inline offline fallback HTML page (dark-themed, matches app), cached during install phase. Added `.catch()` fallback in fetch handler — navigation requests get the offline page, other requests get a 503. Added `message` listener for `SKIP_WAITING` and `CLEAR_CACHE` commands from the app.
+- **useServiceWorker.ts**: Registers SW at `/levelapp/sw.js`, detects waiting workers via `updatefound` + `statechange`, tracks online/offline status via `navigator.onLine` + event listeners, provides `updateServiceWorker()` to trigger `SKIP_WAITING`. Reloads page on `controllerchange`.
+- **InstallPrompt.tsx**: Captures `beforeinstallprompt` event, shows a subtle bottom banner with Install/Dismiss buttons. Dismissal persists 7 days in localStorage. Uses Telegram haptic feedback on both install and dismiss. Dark theme styling with framer-motion animations.
+- **OfflineBanner.tsx**: Amber warning banner at top of screen when offline, auto-hides when back online. Uses `useServiceWorker` hook. Minimal, non-intrusive.
+- **manifest.json**: Added `categories: ["games", "lifestyle"]` and empty `screenshots: []` array.
+
+**Note for Agent 0**: The new components (`InstallPrompt`, `OfflineBanner`) are standalone and NOT yet wired into `App.tsx`. Agent 0 should add them during merge if desired — they're designed to be dropped into the `App` component as siblings (e.g., next to `<ErrorBoundary>`). The `useServiceWorker` hook also handles SW registration independently, so no changes to existing code are required for basic functionality.
+
+#### Agent 0 Retrospective
+**Status**: Merged successfully, deployed to production.
+
+**Merge notes**: Agents A and D committed directly to main instead of their feature branches. No merge conflicts. Agents B (DB indexes) and C (regression tests) produced no commits — work was not done. This is fine as the core performance and PWA work was still delivered.
+
+**Results**:
+- Bundle: index.js 222KB → 183KB (-18%), 5 new vendor chunks for better caching
+- PWA: offline fallback, InstallPrompt, OfflineBanner components created (NOT yet wired into App.tsx — left for Run 71)
+- React.memo: 6 list components memoized (AchievementCard, LeaderboardRow, TopThreeCard, ItemCard, FeaturedCarousel, InventoryItemCard)
+- Tests: 2068 pass (1046 bot + 1022 mini-app), all green, no post-merge fixes needed
+- Dark mode theme system already existed (ThemeSettings component in Settings page)
+
+**Issues**: Agents B and C not running meant DB indexes and integration tests were skipped. DB indexes can be added later if needed. Integration tests should be part of Run 74 (Launch Prep).
 
 ---

@@ -1148,7 +1148,23 @@ Agent D did not commit any work for Run 73 (branch stayed at base commit).
 ### Run 74 Retrospectives
 
 #### Agent A Retrospective
-*(To be filled by Agent A)*
+**What was done:**
+1. **Created 3 bot integration tests** (52 tests total, all passing):
+   - `bot/src/__tests__/integration/onboarding-to-quest.test.ts` (15 tests) — Full flow: user registration → mode listing → mode selection → quest retrieval → quest stats → completed quests → XP award → streak update
+   - `bot/src/__tests__/integration/shop-purchase-equip.test.ts` (20 tests) — Browse shop items (with type/featured filters) → purchase with XP → purchase with Stars → duplicate achievement rejection → inventory listing → equip avatar item → unequip → error cases
+   - `bot/src/__tests__/integration/achievement-trophy-flow.test.ts` (17 tests) — Browse achievement catalog → categories → user progress → unlock achievement with XP → auto-check via achievementEngine → trophy catalog → earned trophies → trophy criteria evaluation (quest_count, level, streak_days, early_adopter, first_purchase)
+
+2. **Created 2 mini-app integration tests** (28 tests total, all passing):
+   - `mini-app/src/__tests__/integration/full-navigation.test.tsx` (12 tests) — Route rendering for all 8 pages (Dashboard, Quests, Shop, Achievements, Profile, Settings, Analytics, TrophyCase), Navigation component rendering, cross-page sequential navigation, unknown route handling, rapid navigation stability
+   - `mini-app/src/__tests__/integration/settings-flow.test.tsx` (16 tests) — Notification toggle on/off + save to API, DND toggle + hour changes + persist, timezone change + API save, theme from Telegram WebApp, accountability consent/intensity/safe-mode toggles with auto-save, delete account confirm/cancel, combined multi-setting save
+
+**Key discoveries:**
+- **Vitest 4.x breaking change**: With `globals: true` in vitest config, explicitly importing `{ describe, it, expect, vi } from 'vitest'` causes "No test suite found" errors. ALL 85 bot + 166 mini-app existing tests fail because of this. New integration tests use globals without imports and work correctly.
+- **vi.resetAllMocks() clears vi.mock() factory implementations**: Must re-setup critical mocks (awardXp, checkAndUnlockAchievements) in beforeEach after resetAllMocks.
+- **useSettingsData hook causes test timeouts**: AbortController + debounce refs cause test isolation failures. Solved with standalone SettingsHarness component.
+
+**Build:** All 80 new integration tests pass (52 bot + 28 mini-app).
+**Files created:** 5 new test files (3 bot, 2 mini-app). Zero source files modified.
 
 #### Agent B Retrospective
 **What was done:**
