@@ -1472,7 +1472,35 @@ OWNED: all test files listed above. FORBIDDEN: source files (no modifications to
 *(To be filled by Agent A)*
 
 #### Agent B Retrospective
-*(To be filled by Agent B)*
+
+**Status**: All 8 endpoints implemented + registered in server.ts. Build passes cleanly.
+
+| Task | Status |
+|------|--------|
+| GET /feed (paginated, category filter, unread-first sort) | Done |
+| GET /:articleId (article detail + user read/bookmark status) | Done |
+| POST /:articleId/read (mark read + award XP, idempotent) | Done |
+| GET /:articleId/quiz (questions without correct_index) | Done |
+| POST /:articleId/quiz (grade answers + award XP, upsert progress) | Done |
+| POST /:articleId/bookmark (toggle on/off) | Done |
+| GET /bookmarks/:userId (bookmarked articles list) | Done |
+| GET /progress/:userId (reading history + stats) | Done |
+| Register contentRouter in server.ts at /api/content | Done |
+| TypeScript build verification | Done |
+
+**Problems**: Interfaces needed `[key: string]: unknown` index signatures to satisfy `query<T>` / `queryOne<T>` generic constraint (`Record<string, unknown>`), matching the pattern in activities.ts.
+
+**Design decisions**:
+- Quiz GET strips `correct_index` so answers aren't leaked to the client
+- POST /read is idempotent — returns `already_read: true` if re-submitted
+- POST /quiz uses `ON CONFLICT ... DO UPDATE` upsert to handle retakes, accumulating XP
+- Feed sorts unread articles first, then by newest
+- Bookmarks and progress use `authorizeUser` middleware for ownership checks
+- Article detail is cached (5 min TTL) since content rarely changes
+
+**Dependencies on Agent A**: All queries assume tables `content_articles`, `content_quiz`, `user_content_progress`, `user_bookmarks` with a `UNIQUE(user_id, article_id)` constraint on both progress and bookmarks tables.
+
+**Recommendations**: Agent H (tests) should test idempotent read marking, quiz grading with various answer combinations, bookmark toggling, and feed pagination with category filters.
 
 #### Agent C Retrospective
 *(To be filled by Agent C)*
