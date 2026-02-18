@@ -3160,7 +3160,17 @@ Run 68 also added `mini-app/src/api/shop.ts` (API client) and `mini-app/src/hook
 *(To be filled after work is done)*
 
 #### Agent C Retrospective
-*(To be filled after work is done)*
+**Tasks completed**: 4/4 (achievement audit, trophy audit, shop audit, i18n completeness)
+**Commits**: 2 (seed data fixes + i18n additions)
+**Issues found & fixed**:
+- Achievement XP balance: 3 epic achievements rewarded less than rare ones (iron_will, habit_unstoppable, hydration_legend) — fixed
+- Hydration first-achievement XP was inconsistently low (25 vs 50 for all other modes) — fixed
+- Habits achievement descriptions used full sentences while all other modes used short display names — standardized
+- Bookworm emoji was a caterpillar instead of a book — fixed
+- Trophy "XP Millionaire" was misleading (threshold is 10K, not 1M) — renamed to "XP Champion"
+- Shop items were well-balanced, no fixes needed
+- All 3 i18n locales were missing shop and inventory sections entirely — added nav keys + shop/inventory sections with 18 keys each
+**Merge notes**: i18n files are shared with Agent D (who also adds shop/inventory keys). Expect merge conflicts in en.ts, ru.ts, zh.ts — resolve by keeping both sets of keys (they may overlap or complement each other).
 
 #### Agent D Retrospective
 *(To be filled after work is done)*
