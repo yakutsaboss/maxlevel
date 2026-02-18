@@ -2,7 +2,9 @@
 
 exports[`DashboardSkeleton > matches snapshot 1`] = `
 <div
+  aria-label="Loading dashboard"
   class="min-h-screen bg-telegram-bg pb-20"
+  role="status"
 >
   <div
     class="bg-gradient-to-br from-purple-600 to-blue-600 p-6 rounded-b-3xl"

@@ -31,7 +31,7 @@ describe('TabButton', () => {
     const onClick = vi.fn();
     render(<TabButton {...defaultProps} onClick={onClick} />);
 
-    fireEvent.click(screen.getByRole('button'));
+    fireEvent.click(screen.getByRole('tab'));
 
     expect(onClick).toHaveBeenCalledOnce();
   });

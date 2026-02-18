@@ -1941,7 +1941,28 @@ Files created: `mini-app/public/icon-192.png`, `mini-app/public/icon-512.png`
 Build: passed
 
 #### Agent D Retrospective
-*(To be filled by Agent D)*
+**Task**: Tests for accessibility and PWA components
+
+**What was done**:
+1. Ran existing tests — bot: 84 files/1046 tests, mini-app: 162 files/1022 tests (all green)
+2. Created `mini-app/src/__tests__/components/OfflineBanner.test.tsx` (4 tests) — renders when offline, hides when online, shows warning text, transitions between states
+3. Created `mini-app/src/__tests__/components/InstallPrompt.test.tsx` (6 tests) — shows prompt on `beforeinstallprompt`, dismiss persists 7 days to localStorage, doesn't show if recently dismissed, shows after 7-day expiry, install triggers haptic + native prompt
+4. Created `mini-app/src/__tests__/hooks/useServiceWorker.test.ts` (8 tests) — online/offline tracking, SW registration, update detection, SKIP_WAITING message, event listener cleanup
+5. Created `mini-app/src/__tests__/a11y/aria-audit.test.tsx` (12 tests) — renders Dashboard, Profile, Settings, Leaderboard and validates: no missing alt text on images, all buttons have accessible names, headings in order
+6. Fixed 3 pre-existing test failures caused by Agent B's a11y changes: `TabButton.test.tsx` (role button→tab), `Navigation.test.tsx` (role button→tab), `DashboardSkeleton.test.tsx` (updated snapshot for new role/aria-label)
+
+**Results**: 166 test files / 1052 tests passing (mini-app), 84 files / 1046 tests passing (bot)
+
+**A11y findings documented in tests**:
+- Settings page: h1 → h3 heading gap (h2 skipped — child components use h3 directly)
+- Profile page: h1 → h3 heading gap (same pattern — ProfileHeader uses h3 for sub-sections)
+
+**Challenges**:
+- `useServiceWorker` cleanup effect called `navigator.serviceWorker.removeEventListener` after test teardown restored the original (undefined in jsdom). Fixed by calling `cleanup()` before restoring mocks in `afterEach`.
+- Profile a11y test needed `AVATAR_OPTIONS` export in the `ProfileEditModal` mock (used by `ProfileHeader`).
+
+**Files created**: 4 new test files (30 new tests total)
+**Files modified**: 3 existing test files (cross-agent fix), 1 snapshot updated
 
 #### Agent 0 Retrospective
 *(To be filled by Agent 0 after merge)*

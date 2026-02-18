@@ -84,11 +84,11 @@ describe('Navigation', () => {
     mockPathname = '/quests';
     render(<Navigation />);
 
-    const questsButton = screen.getByRole('button', { name: 'Quests' });
-    expect(questsButton).toHaveAttribute('aria-current', 'page');
+    const questsTab = screen.getByRole('tab', { name: 'Quests' });
+    expect(questsTab).toHaveAttribute('aria-current', 'page');
 
-    const homeButton = screen.getByRole('button', { name: 'Home' });
-    expect(homeButton).not.toHaveAttribute('aria-current');
+    const homeTab = screen.getByRole('tab', { name: 'Home' });
+    expect(homeTab).not.toHaveAttribute('aria-current');
   });
 
   it('click triggers navigation', () => {
