@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import { Trophy, Medal, Award } from 'lucide-react';
 import { motion } from 'framer-motion';
 import type { LeaderboardEntry } from '@/types';
@@ -47,7 +48,7 @@ export function getXpLabel(timePeriod: TimePeriod): string {
   return 'XP';
 }
 
-export function TopThreeCard({ entry, rank, isCurrentUser, timePeriod, index, trend = 'none' }: TopThreeCardProps) {
+export const TopThreeCard = memo(function TopThreeCard({ entry, rank, isCurrentUser, timePeriod, index, trend = 'none' }: TopThreeCardProps) {
   const rankStyle = TOP_RANK_STYLES[rank];
   const xpValue = getXpValue(entry, timePeriod);
 
@@ -94,4 +95,4 @@ export function TopThreeCard({ entry, rank, isCurrentUser, timePeriod, index, tr
       </div>
     </motion.div>
   );
-}
+});

@@ -1808,7 +1808,18 @@ After completing, write your retrospective in PARALLEL_AGENTS.md under "Run 70 R
 ### Run 70 Retrospectives
 
 #### Agent A Retrospective
-*(To be filled by Agent A)*
+**Status**: All 4 tasks completed, build passes.
+
+**What was done**:
+- **Bundle visualizer**: Installed `rollup-plugin-visualizer` as devDependency. Added to vite.config.ts (generates `dist/stats.html` with gzip+brotli sizes on every build).
+- **Chunk splitting optimized**: Split the old `vendor-ui` (framer-motion + lucide-react) into separate `vendor-motion` (114KB) and `vendor-icons` (32KB) chunks. Added new `vendor-state` chunk for zustand + axios (39KB). This allows better cache granularity — framer-motion changes rarely and is now independently cacheable.
+- **Main index.js reduced**: From 222KB (72KB gzip) to **183KB (57KB gzip)**, a **39KB (18%) reduction** in raw size and **15KB (21%) reduction** in gzip size. Just above the 180KB target but significantly improved.
+- **React.memo added to 6 list components**: AchievementCard, LeaderboardRow, TopThreeCard, ItemCard (Shop), FeaturedCarousel (Shop), InventoryItemCard (extracted from inline rendering in Inventory.tsx).
+- **Import audit**: Confirmed all lucide-react imports use named imports (tree-shakeable). No `import *` barrel exports found anywhere.
+
+**Top 5 chunks by size**: vendor-react (153KB), vendor-motion (114KB), index (183KB), vendor-i18n (63KB), vendor-state (39KB).
+
+**Files modified**: `mini-app/vite.config.ts`, `mini-app/package.json`, `mini-app/src/components/achievements/AchievementCard.tsx`, `mini-app/src/components/leaderboard/LeaderboardRow.tsx`, `mini-app/src/components/leaderboard/TopThreeCard.tsx`, `mini-app/src/pages/Shop.tsx`, `mini-app/src/pages/Inventory.tsx`.
 
 #### Agent B Retrospective
 *(To be filled by Agent B)*

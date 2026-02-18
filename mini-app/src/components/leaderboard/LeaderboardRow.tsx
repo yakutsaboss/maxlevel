@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import { motion } from 'framer-motion';
 import type { LeaderboardEntry } from '@/types';
 import type { TimePeriod } from './TimePeriodTabs.js';
@@ -14,7 +15,7 @@ interface LeaderboardRowProps {
   trend?: TrendDirection;
 }
 
-export function LeaderboardRow({ entry, rank, isCurrentUser, timePeriod, index, trend = 'none' }: LeaderboardRowProps) {
+export const LeaderboardRow = memo(function LeaderboardRow({ entry, rank, isCurrentUser, timePeriod, index, trend = 'none' }: LeaderboardRowProps) {
   const xpValue = getXpValue(entry, timePeriod);
 
   return (
@@ -58,4 +59,4 @@ export function LeaderboardRow({ entry, rank, isCurrentUser, timePeriod, index, 
       </div>
     </motion.div>
   );
-}
+});

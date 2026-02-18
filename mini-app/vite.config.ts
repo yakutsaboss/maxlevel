@@ -2,6 +2,7 @@ import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import path from 'path';
 import { readFileSync, writeFileSync, existsSync } from 'fs';
+import { visualizer } from 'rollup-plugin-visualizer';
 
 // Vite plugin: inject build hash into sw.js so each deploy busts the SW cache
 function swCacheBust() {
@@ -19,7 +20,15 @@ function swCacheBust() {
 }
 
 export default defineConfig({
-  plugins: [react(), swCacheBust()],
+  plugins: [
+    react(),
+    swCacheBust(),
+    visualizer({
+      filename: 'dist/stats.html',
+      gzipSize: true,
+      brotliSize: true,
+    }),
+  ],
   base: '/levelapp/',
   resolve: {
     alias: {
@@ -42,8 +51,10 @@ export default defineConfig({
         manualChunks: {
           'vendor-react': ['react', 'react-dom', 'react-router-dom'],
           'vendor-query': ['@tanstack/react-query'],
-          'vendor-ui': ['framer-motion', 'lucide-react'],
+          'vendor-motion': ['framer-motion'],
+          'vendor-icons': ['lucide-react'],
           'vendor-i18n': ['i18next', 'react-i18next', 'i18next-browser-languagedetector'],
+          'vendor-state': ['zustand', 'axios'],
         },
       },
     },

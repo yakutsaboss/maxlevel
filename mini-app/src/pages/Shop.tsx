@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef, memo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useTelegram } from '@/hooks/useTelegram.js';
 import { useShop } from '@/hooks/useShop.js';
@@ -59,7 +59,7 @@ function ShopSkeleton() {
   );
 }
 
-function FeaturedCarousel({
+const FeaturedCarousel = memo(function FeaturedCarousel({
   items,
   ownedItemIds,
   onItemTap,
@@ -124,9 +124,9 @@ function FeaturedCarousel({
       </div>
     </div>
   );
-}
+});
 
-function ItemCard({
+const ItemCard = memo(function ItemCard({
   item,
   owned,
   onTap,
@@ -188,7 +188,7 @@ function ItemCard({
       </div>
     </motion.button>
   );
-}
+});
 
 export function Shop() {
   const { t } = useTranslation();

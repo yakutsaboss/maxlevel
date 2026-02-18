@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, memo } from 'react';
 import { Achievement, UserAchievement } from '@/types';
 import { Star, Lock, CheckCircle, Zap, ChevronDown } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -119,7 +119,7 @@ const RARITY_GLOW: Record<string, string> = {
   common: '',
 };
 
-export function AchievementCard({ achievement: ach, userAchievement: userAch, isUnlocked, rarityStyle, index, haptic, onBuyClick }: AchievementCardProps) {
+export const AchievementCard = memo(function AchievementCard({ achievement: ach, userAchievement: userAch, isUnlocked, rarityStyle, index, haptic, onBuyClick }: AchievementCardProps) {
   const [expanded, setExpanded] = useState(false);
   const isNew = isUnlocked && userAch && isRecentlyUnlocked(userAch.unlocked_at);
   const glowClass = isUnlocked ? (RARITY_GLOW[ach.rarity] || '') : '';
@@ -256,4 +256,4 @@ export function AchievementCard({ achievement: ach, userAchievement: userAch, is
       </AnimatePresence>
     </motion.button>
   );
-}
+});

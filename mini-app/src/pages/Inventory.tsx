@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, memo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useTelegram, useBackButton } from '@/hooks/useTelegram';
@@ -42,6 +42,67 @@ function formatDate(dateStr: string): string {
   const date = new Date(dateStr);
   return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
 }
+
+const InventoryItemCard = memo(function InventoryItemCard({
+  item,
+  index,
+  equipping,
+  onEquipToggle,
+}: {
+  item: InventoryItem;
+  index: number;
+  equipping: number | null;
+  onEquipToggle: (item: InventoryItem) => void;
+}) {
+  const { t } = useTranslation();
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: index * 0.05, duration: 0.2 }}
+      className="bg-telegram-secondaryBg rounded-2xl p-4 border border-telegram-hint/10"
+    >
+      <div className="flex items-start gap-3">
+        <div className="text-3xl w-12 h-12 flex items-center justify-center bg-telegram-bg rounded-xl flex-shrink-0">
+          {item.icon_emoji || '📦'}
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 mb-1">
+            <span className="font-semibold text-telegram-text truncate">{item.name}</span>
+            <span className={`${RARITY_COLORS[item.rarity] || 'bg-gray-500'} text-white text-[10px] px-1.5 py-0.5 rounded-full font-medium uppercase`}>
+              {item.rarity}
+            </span>
+          </div>
+          {item.description && (
+            <p className="text-telegram-hint text-xs mb-1.5 line-clamp-2">{item.description}</p>
+          )}
+          <div className="flex items-center gap-3 text-xs text-telegram-hint">
+            <span>{formatDate(item.purchased_at)}</span>
+            <span>{item.payment_method === 'stars' ? '⭐' : '✨'} {item.amount_paid}</span>
+          </div>
+        </div>
+        {item.type === 'avatar_item' && (
+          <button
+            onClick={() => onEquipToggle(item)}
+            disabled={equipping === item.shop_item_id}
+            className={`px-3 py-1.5 rounded-xl text-xs font-medium transition-all flex-shrink-0 ${
+              item.is_equipped
+                ? 'bg-indigo-500 text-white'
+                : 'bg-telegram-bg text-telegram-link border border-telegram-link/30'
+            } disabled:opacity-50`}
+          >
+            {equipping === item.shop_item_id
+              ? '...'
+              : item.is_equipped
+                ? t('inventory.unequip')
+                : t('inventory.equip')}
+          </button>
+        )}
+      </div>
+    </motion.div>
+  );
+});
 
 export function Inventory() {
   const { t } = useTranslation();
@@ -150,56 +211,13 @@ export function Inventory() {
       {/* Item grid */}
       <div className="px-4 mt-4 grid grid-cols-1 gap-3 mb-6">
         {filteredItems.map((item, index) => (
-          <motion.div
+          <InventoryItemCard
             key={item.purchase_id}
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: index * 0.05, duration: 0.2 }}
-            className="bg-telegram-secondaryBg rounded-2xl p-4 border border-telegram-hint/10"
-          >
-            <div className="flex items-start gap-3">
-              {/* Icon */}
-              <div className="text-3xl w-12 h-12 flex items-center justify-center bg-telegram-bg rounded-xl flex-shrink-0">
-                {item.icon_emoji || '📦'}
-              </div>
-
-              {/* Details */}
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2 mb-1">
-                  <span className="font-semibold text-telegram-text truncate">{item.name}</span>
-                  <span className={`${RARITY_COLORS[item.rarity] || 'bg-gray-500'} text-white text-[10px] px-1.5 py-0.5 rounded-full font-medium uppercase`}>
-                    {item.rarity}
-                  </span>
-                </div>
-                {item.description && (
-                  <p className="text-telegram-hint text-xs mb-1.5 line-clamp-2">{item.description}</p>
-                )}
-                <div className="flex items-center gap-3 text-xs text-telegram-hint">
-                  <span>{formatDate(item.purchased_at)}</span>
-                  <span>{item.payment_method === 'stars' ? '⭐' : '✨'} {item.amount_paid}</span>
-                </div>
-              </div>
-
-              {/* Equip button (avatar items only) */}
-              {item.type === 'avatar_item' && (
-                <button
-                  onClick={() => handleEquipToggle(item)}
-                  disabled={equipping === item.shop_item_id}
-                  className={`px-3 py-1.5 rounded-xl text-xs font-medium transition-all flex-shrink-0 ${
-                    item.is_equipped
-                      ? 'bg-indigo-500 text-white'
-                      : 'bg-telegram-bg text-telegram-link border border-telegram-link/30'
-                  } disabled:opacity-50`}
-                >
-                  {equipping === item.shop_item_id
-                    ? '...'
-                    : item.is_equipped
-                      ? t('inventory.unequip')
-                      : t('inventory.equip')}
-                </button>
-              )}
-            </div>
-          </motion.div>
+            item={item}
+            index={index}
+            equipping={equipping}
+            onEquipToggle={handleEquipToggle}
+          />
         ))}
 
         {/* Empty state */}
