@@ -1484,7 +1484,20 @@ OWNED: all test files listed above. FORBIDDEN: source files (no modifications to
 *(To be filled by Agent E)*
 
 #### Agent F Retrospective
-*(To be filled by Agent F)*
+**Created**: `mini-app/src/pages/ReadingHistory.tsx`, `mini-app/src/hooks/useReadingHistory.ts`
+
+**What was done**:
+- `useReadingHistory.ts` hook: fetches reading progress (`GET /api/content/progress/:userId`) and bookmarks (`GET /api/content/bookmarks/:userId`) in parallel. Computes stats client-side (total articles, avg quiz score, total XP, reading streak via consecutive-day counting, favorite category, category breakdown). Supports bookmark removal via `POST /api/content/:articleId/bookmark` toggle. Uses mountedRef pattern, AbortController-ready API calls.
+- `ReadingHistory.tsx` page with 3 tabs:
+  - **History**: chronological list of read articles with cover emoji, title, category badge, read time, XP earned, quiz score (color-coded by performance), relative timestamp. Each row clickable → navigates to `/content/:articleId`.
+  - **Bookmarks**: saved articles with summary preview, read status indicator, remove button (BookmarkX). Same navigation on click.
+  - **Stats**: 4 stat cards (Articles Read, Avg Quiz Score, XP from Content, Reading Streak), favorite category highlight, category breakdown with animated progress bars.
+- UI follows project conventions: gradient header (violet→purple), pull-to-refresh, skeleton loader, empty states, Framer Motion animations, Telegram haptic feedback, useBackButton → `/content`.
+- Used direct `fetch()` calls (not apiClient) since Agent C owns `mini-app/src/api/content.ts`. Same pattern as ActivityHistory.tsx.
+- Zero new TS errors introduced (only pre-existing error in Agent G's TodaysReadWidget.tsx).
+
+**Dependencies**: Agent C's routing (must add `/reading-history` route in App.tsx). Agent B's content API endpoints.
+**No issues or blockers.**
 
 #### Agent G Retrospective
 *(To be filled by Agent G)*
