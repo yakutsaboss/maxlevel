@@ -7,6 +7,7 @@
 import type { Bot, Context } from 'grammy';
 import { queryOne } from '../utils/db.js';
 import { logger } from '../utils/logger.js';
+import { dailySummaryTemplate } from '../utils/notificationTemplates.js';
 
 const log = logger.child({ component: 'dailySummary' });
 
@@ -41,37 +42,19 @@ export async function sendDailySummary<C extends Context>(bot: Bot<C>, userId: n
       return false;
     }
 
-    const name = stats.first_name || 'Adventurer';
-    const questsToday = stats.quests_today || 0;
-    const xpToday = stats.xp_today || 0;
-    const streak = stats.current_streak || 0;
+    const { text, keyboard } = dailySummaryTemplate({
+      first_name: stats.first_name,
+      current_level: stats.current_level,
+      total_xp: stats.total_xp,
+      quests_today: stats.quests_today || 0,
+      xp_today: stats.xp_today || 0,
+      current_streak: stats.current_streak || 0,
+    });
 
-    // Build motivational message
-    let msg = `📊 *Daily Summary for ${name}*\n\n`;
-
-    if (questsToday > 0) {
-      msg += `✅ Quests completed today: *${questsToday}*\n`;
-      msg += `⚡ XP earned today: *${xpToday}*\n`;
-    } else {
-      msg += `📭 No quests completed yet today.\n`;
-    }
-
-    if (streak > 0) {
-      msg += `🔥 Current streak: *${streak} day${streak !== 1 ? 's' : ''}*\n`;
-    }
-
-    msg += `⭐ Level ${stats.current_level} · ${stats.total_xp} total XP\n\n`;
-
-    // Motivational closing
-    if (questsToday === 0) {
-      msg += `💪 There's still time! Check /quests to find something to complete today.`;
-    } else if (questsToday >= 3) {
-      msg += `🎉 Amazing work today! You're on fire!`;
-    } else {
-      msg += `👍 Good progress! Keep the momentum going.`;
-    }
-
-    await bot.api.sendMessage(stats.telegram_id, msg, { parse_mode: 'Markdown' });
+    await bot.api.sendMessage(stats.telegram_id, text, {
+      parse_mode: 'HTML',
+      reply_markup: keyboard,
+    });
     return true;
   } catch (error) {
     log.error(`Failed to send to user ${userId}`, error as Error);

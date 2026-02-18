@@ -1028,7 +1028,23 @@ Agent D committed to main (49290d4) but left retro placeholder unfilled. Based o
 *(To be filled by Agent B)*
 
 #### Agent C Retrospective
-*(To be filled by Agent C)*
+**Status**: Complete
+**Files created**:
+- `bot/src/utils/notificationTemplates.ts` — 4 template functions: `dailySummaryTemplate`, `questReminderTemplate`, `achievementUnlockedTemplate`, `streakWarningTemplate`
+
+**Files modified**:
+- `bot/src/handlers/dailySummary.ts` — switched from Markdown to HTML with InlineKeyboard "Open App" button
+- `bot/src/jobs/definitions/questReminders.ts` — integrated `questReminderTemplate` with "Complete Now" inline button + extracted `sendWithRetry` helper
+- `bot/src/jobs/definitions/achievementNotifier.ts` — integrated `achievementUnlockedTemplate` with rarity badges, XP display, "View Achievements" button
+
+**Key decisions**:
+- All templates return `{ text, keyboard }` tuple for clean integration — callers just destructure and pass to `sendMessage`
+- Used `parse_mode: 'HTML'` consistently (more reliable than Markdown for nested formatting)
+- HTML-escaped user names to prevent injection via `first_name`
+- `streakWarningTemplate` created but not wired to `streakCheck.ts` — that job resets streaks but doesn't send Telegram messages. Agent A or Agent 0 can wire it up when streak warning notifications are added.
+- `MINI_APP_URL` read from env at module level (same pattern as `miniapp.ts` handler)
+
+**Merge notes**: Agent A is concurrently modifying `questReminders.ts` with DND/timezone logic. Both changes are compatible — Agent A adds query filtering + `isInDndWindow`, Agent C adds template rendering. Merge order A→C should be clean since changes touch different parts of the file.
 
 #### Agent D Retrospective
 *(To be filled by Agent D)*
