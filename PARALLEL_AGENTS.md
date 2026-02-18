@@ -995,7 +995,28 @@ Read PARALLEL_AGENTS.md — you are Agent I of Run 75. Your task: Tests for the 
 - No i18n keys were added (Agent H owns translations); all keys reference existing `activityHub.*` namespace
 
 #### Agent D Retrospective
-*(To be filled by Agent D)*
+**Status:** COMPLETE — WorkoutTimer component + useWorkoutTimer hook created, tsc + vite build pass.
+
+**What was done:**
+
+| # | Task | Status |
+|---|------|--------|
+| 1 | Create `useWorkoutTimer.ts` hook with start/pause/resume/stop/reset/addLap | Done |
+| 2 | Create `WorkoutTimer.tsx` full-screen timer overlay component | Done |
+| 3 | Verify TypeScript (`tsc --noEmit`) and Vite build | Done — 0 errors |
+
+**Implementation details:**
+- **useWorkoutTimer.ts** (126 lines): Drift-proof timer using `Date.now()` reference points + `setInterval` at 100ms ticks. Accumulated time tracked across pause/resume cycles via `useRef`. Includes `addLap()` with split time calculation. Also exports `formatTime()` (HH:MM:SS) and `formatLapTime()` (M:SS) utilities.
+- **WorkoutTimer.tsx** (518 lines): Full-screen timer overlay with animated pulsing ring, real-time calorie counter, lap/set tracking, stop confirmation dialog, completion celebration with confetti + summary view, haptic feedback.
+
+**What went well:**
+- Existing `Confetti` celebration component was reused directly — no need to create a new one.
+- `useTelegram()` hook provided clean haptic API (impact/notification/selection) — no need for raw `window.Telegram?.WebApp?.HapticFeedback` calls.
+- Tailwind + Telegram theme vars pattern made styling straightforward.
+
+**Recommendations for Agent 0:**
+- WorkoutTimer is a standalone component (not wired into any page yet). Agent C's ActivityHub should import it for the "Start Timer" flow.
+- The `onComplete(duration, calories)` callback expects duration in minutes (rounded). Agent B's API POST /api/activities/stop should receive these values.
 
 #### Agent E Retrospective
 **Task**: Activity History + Statistics page — `ActivityHistory.tsx`, `ActivityCalendar.tsx`
