@@ -73,7 +73,7 @@ export function QuestFilters({ modes, selectedModeId, onModeSelect, selectedDiff
           onClick={cycleSortOption}
           className="flex-shrink-0 flex items-center gap-1 px-3 py-1.5 rounded-xl text-sm font-medium bg-telegram-secondaryBg text-telegram-hint transition-all active:scale-95"
         >
-          <ArrowUpDown className="w-3.5 h-3.5" />
+          <ArrowUpDown className="w-3.5 h-3.5" aria-hidden="true" />
           <span>{t(SORT_LABEL_KEYS[sortBy])}</span>
         </button>
       </div>

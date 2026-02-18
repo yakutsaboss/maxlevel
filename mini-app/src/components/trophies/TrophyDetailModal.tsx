@@ -82,7 +82,7 @@ export function TrophyDetailModal({ trophy, earned, onClose }: TrophyDetailModal
               className="p-2 rounded-full bg-telegram-hint/10 active:bg-telegram-hint/20"
               aria-label={t('trophy.close')}
             >
-              <X className="w-5 h-5 text-telegram-hint" />
+              <X className="w-5 h-5 text-telegram-hint" aria-hidden="true" />
             </button>
           </div>
 
@@ -110,7 +110,7 @@ export function TrophyDetailModal({ trophy, earned, onClose }: TrophyDetailModal
             {/* Earned date */}
             {isEarned && earnedDate && (
               <div className="flex items-center gap-2 text-sm text-green-600 bg-green-50 rounded-xl px-4 py-3 mb-4">
-                <Calendar className="w-4 h-4" />
+                <Calendar className="w-4 h-4" aria-hidden="true" />
                 <span>{t('trophy.earnedOn', { date: earnedDate })}</span>
               </div>
             )}
@@ -119,7 +119,7 @@ export function TrophyDetailModal({ trophy, earned, onClose }: TrophyDetailModal
             {!isEarned && criteriaType && threshold > 0 && (
               <div className="bg-telegram-bg rounded-xl px-4 py-3 mb-4">
                 <div className="flex items-center gap-2 text-sm text-telegram-hint mb-2">
-                  <Target className="w-4 h-4" />
+                  <Target className="w-4 h-4" aria-hidden="true" />
                   <span>{t('trophy.howToEarn')}</span>
                 </div>
                 <p className="text-sm font-medium">

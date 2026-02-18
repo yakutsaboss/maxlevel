@@ -183,6 +183,8 @@ export function Onboarding() {
             exit={{ opacity: 0, y: -10 }}
             transition={{ duration: 0.2 }}
             className="fixed top-1 left-1/2 -translate-x-1/2 z-50"
+            role="status"
+            aria-live="polite"
           >
             <span
               className={`text-xs font-medium px-3 py-1 rounded-full backdrop-blur-sm ${

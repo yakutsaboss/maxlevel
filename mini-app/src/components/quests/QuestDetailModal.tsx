@@ -51,7 +51,7 @@ export function QuestDetailModal({ quest, completing, userId, onClose, onCheckin
 
           <div className="flex flex-wrap gap-2 mb-4">
             <span className="inline-flex items-center gap-1 bg-gradient-to-r from-yellow-400 to-orange-400 text-white px-4 py-2 rounded-xl text-sm font-bold shadow-sm">
-              <Zap className="w-4 h-4" />{quest.xp_reward} XP
+              <Zap className="w-4 h-4" aria-hidden="true" />{quest.xp_reward} XP
             </span>
             {quest.difficulty && (
               <QuestDifficultyBadge difficulty={quest.difficulty} size="md" />
@@ -68,7 +68,7 @@ export function QuestDetailModal({ quest, completing, userId, onClose, onCheckin
 
           {quest.due_date && (
             <div className="flex items-center gap-2 text-sm text-telegram-hint mb-4">
-              <Calendar className="w-4 h-4" />
+              <Calendar className="w-4 h-4" aria-hidden="true" />
               <span>Due {formatDate(quest.due_date)}</span>
             </div>
           )}
@@ -78,7 +78,7 @@ export function QuestDetailModal({ quest, completing, userId, onClose, onCheckin
               <span className="text-telegram-hint">Progress</span>
               <span className="font-semibold">{quest.progress} / {quest.target}</span>
             </div>
-            <div className="bg-telegram-hint/20 rounded-full h-3 overflow-hidden">
+            <div className="bg-telegram-hint/20 rounded-full h-3 overflow-hidden" role="progressbar" aria-valuenow={quest.progress} aria-valuemin={0} aria-valuemax={quest.target} aria-label={`Quest progress: ${quest.progress} of ${quest.target}`}>
               <motion.div
                 className={`h-full ${quest.progress >= quest.target ? 'bg-green-500' : 'bg-gradient-to-r from-blue-500 to-purple-500'}`}
                 initial={{ width: 0 }}
@@ -123,9 +123,9 @@ export function QuestDetailModal({ quest, completing, userId, onClose, onCheckin
           {quest.progress >= quest.target && (
             <div className="bg-green-100 border border-green-300 rounded-2xl p-4 text-center">
               {completing ? (
-                <Loader2 className="w-8 h-8 text-green-600 mx-auto mb-2 animate-spin" />
+                <Loader2 className="w-8 h-8 text-green-600 mx-auto mb-2 animate-spin" aria-hidden="true" />
               ) : (
-                <CheckCircle className="w-8 h-8 text-green-600 mx-auto mb-2" />
+                <CheckCircle className="w-8 h-8 text-green-600 mx-auto mb-2" aria-hidden="true" />
               )}
               <p className="text-green-800 font-semibold">{completing ? 'Completing...' : 'Quest Complete!'}</p>
               <p className="text-green-600 text-sm">{completing ? 'Please wait' : 'Tap the button below to claim your reward'}</p>

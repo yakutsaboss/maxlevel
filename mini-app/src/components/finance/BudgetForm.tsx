@@ -36,7 +36,7 @@ export function BudgetForm({ submitting, onSubmit }: BudgetFormProps) {
         onClick={() => setShowForm((v) => !v)}
         className="w-full flex items-center justify-center gap-2 py-3 bg-telegram-button text-telegram-buttonText rounded-xl font-medium text-sm"
       >
-        <PlusCircle size={16} />
+        <PlusCircle size={16} aria-hidden="true" />
         {showForm ? t('common.cancel') : t('finance.addEntry')}
       </motion.button>
 

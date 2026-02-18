@@ -228,7 +228,7 @@ export const AchievementCard = memo(function AchievementCard({ achievement: ach,
 
       {/* Expand indicator */}
       <div className="flex justify-center mt-1">
-        <ChevronDown className={`w-3.5 h-3.5 text-telegram-hint/40 transition-transform ${expanded ? 'rotate-180' : ''}`} />
+        <ChevronDown className={`w-3.5 h-3.5 text-telegram-hint/40 transition-transform ${expanded ? 'rotate-180' : ''}`} aria-hidden="true" />
       </div>
 
       {/* Expanded details */}

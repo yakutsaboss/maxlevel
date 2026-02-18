@@ -1,6 +1,6 @@
 export function AchievementsSkeleton() {
   return (
-    <div className="min-h-screen bg-telegram-bg pb-20">
+    <div className="min-h-screen bg-telegram-bg pb-20" role="status" aria-label="Loading achievements">
       <div className="bg-gradient-to-br from-amber-500 to-orange-600 pt-8 pb-6 px-6 rounded-b-3xl">
         <div className="skeleton h-7 w-40 rounded-lg mb-2" />
         <div className="skeleton h-4 w-28 rounded-lg mb-3" />

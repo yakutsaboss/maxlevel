@@ -25,10 +25,10 @@ export function QuestCard({ quest, index, isSelected, onClick }: QuestCardProps)
         </div>
         <div className="ml-3 flex flex-col items-end gap-1 flex-shrink-0">
           <div className="flex items-center gap-1 bg-yellow-100 px-2 py-1 rounded-lg">
-            <Zap className="w-4 h-4 text-yellow-600" />
+            <Zap className="w-4 h-4 text-yellow-600" aria-hidden="true" />
             <span className="text-sm font-bold text-yellow-700">{quest.xp_reward}</span>
           </div>
-          {isComplete && <CheckCircle className="w-5 h-5 text-green-500" />}
+          {isComplete && <CheckCircle className="w-5 h-5 text-green-500" aria-hidden="true" />}
         </div>
       </div>
       {!isComplete && (
@@ -36,7 +36,7 @@ export function QuestCard({ quest, index, isSelected, onClick }: QuestCardProps)
           <div className="flex justify-between text-xs text-telegram-hint mb-1">
             <span>Progress</span><span>{quest.progress} / {quest.target}</span>
           </div>
-          <div className="bg-telegram-hint/20 rounded-full h-2 overflow-hidden">
+          <div className="bg-telegram-hint/20 rounded-full h-2 overflow-hidden" role="progressbar" aria-valuenow={quest.progress} aria-valuemin={0} aria-valuemax={quest.target} aria-label={`Quest progress: ${quest.progress} of ${quest.target}`}>
             <motion.div className={`h-full ${progress === 100 ? 'bg-green-500' : 'bg-gradient-to-r from-blue-500 to-purple-500'}`} initial={{ width: 0 }} animate={{ width: `${progress}%` }} transition={{ duration: 0.5, delay: index * 0.05 }} />
           </div>
         </div>

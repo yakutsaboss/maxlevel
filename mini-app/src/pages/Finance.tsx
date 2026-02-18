@@ -16,8 +16,8 @@ export function Finance() {
 
   if (!user) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-telegram-bg">
-        <Loader2 className="w-6 h-6 animate-spin text-telegram-hint" />
+      <div className="flex items-center justify-center min-h-screen bg-telegram-bg" role="status" aria-label="Loading finance">
+        <Loader2 className="w-6 h-6 animate-spin text-telegram-hint" aria-hidden="true" />
       </div>
     );
   }
@@ -32,7 +32,7 @@ export function Finance() {
       <div className="bg-gradient-to-r from-emerald-600 to-teal-600 pt-8 pb-6 px-6 rounded-b-3xl shadow-lg safe-area-top">
         <div className="flex items-center gap-3 mb-4">
           <div className="bg-white/20 backdrop-blur-sm rounded-2xl p-3">
-            <DollarSign className="w-8 h-8 text-white" />
+            <DollarSign className="w-8 h-8 text-white" aria-hidden="true" />
           </div>
           <div>
             <h1 className="text-2xl font-bold text-white">{t('finance.title')}</h1>
@@ -41,8 +41,10 @@ export function Finance() {
         </div>
 
         {/* Tab Switcher */}
-        <div className="flex gap-2 bg-white/20 backdrop-blur-sm rounded-2xl p-1">
+        <div className="flex gap-2 bg-white/20 backdrop-blur-sm rounded-2xl p-1" role="tablist" aria-label="Finance tabs">
           <button
+            role="tab"
+            aria-selected={activeTab === 'budget'}
             onClick={() => setActiveTab('budget')}
             className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-medium transition-colors ${
               activeTab === 'budget'
@@ -50,10 +52,12 @@ export function Finance() {
                 : 'text-white/80'
             }`}
           >
-            <Wallet className="w-4 h-4" />
+            <Wallet className="w-4 h-4" aria-hidden="true" />
             {t('finance.budget')}
           </button>
           <button
+            role="tab"
+            aria-selected={activeTab === 'savings'}
             onClick={() => setActiveTab('savings')}
             className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-medium transition-colors ${
               activeTab === 'savings'
@@ -61,7 +65,7 @@ export function Finance() {
                 : 'text-white/80'
             }`}
           >
-            <PiggyBank className="w-4 h-4" />
+            <PiggyBank className="w-4 h-4" aria-hidden="true" />
             {t('finance.savings')}
           </button>
         </div>

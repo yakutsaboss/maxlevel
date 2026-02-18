@@ -106,7 +106,7 @@ export function Dashboard() {
           </div>
         </div>
         <div className="flex items-center justify-center gap-1 mt-2">
-          <Sparkles className="w-3.5 h-3.5 text-yellow-300" />
+          <Sparkles className="w-3.5 h-3.5 text-yellow-300" aria-hidden="true" />
           <span className="text-purple-100 text-xs font-medium">{xpNeeded} {t('dashboard.xpToLevel')} {nextLevel}</span>
         </div>
       </div>
@@ -139,14 +139,14 @@ export function Dashboard() {
         <h2 className="text-lg font-semibold mb-3 flex items-center gap-2"><TrendingUp className="w-5 h-5 text-telegram-link" aria-hidden="true" />{t('dashboard.activeModes')}</h2>
         {stats.modes.length === 0 ? (
           <div className="text-center py-8 bg-telegram-secondaryBg rounded-2xl border border-telegram-hint/10">
-            <Compass className="w-12 h-12 text-telegram-hint mx-auto mb-3" />
+            <Compass className="w-12 h-12 text-telegram-hint mx-auto mb-3" aria-hidden="true" />
             <p className="text-telegram-text font-medium mb-1">{t('dashboard.adventureAwaits')}</p>
             <p className="text-telegram-hint text-sm mb-4">{t('dashboard.chooseModeDesc')}</p>
             <button
               onClick={() => navigate('/settings')}
               className="inline-flex items-center gap-1.5 bg-gradient-to-r from-purple-600 to-blue-600 text-white text-sm font-medium px-4 py-2 rounded-full"
             >
-              {t('dashboard.chooseModeButton')} <ArrowRight className="w-4 h-4" />
+              {t('dashboard.chooseModeButton')} <ArrowRight className="w-4 h-4" aria-hidden="true" />
             </button>
           </div>
         ) : (
@@ -165,14 +165,14 @@ export function Dashboard() {
         <div className="space-y-3">
           {stats.activeQuests.length === 0 ? (
             <div className="text-center py-8 bg-telegram-secondaryBg rounded-2xl border border-telegram-hint/10">
-              <Scroll className="w-12 h-12 text-telegram-hint mx-auto mb-3" />
+              <Scroll className="w-12 h-12 text-telegram-hint mx-auto mb-3" aria-hidden="true" />
               <p className="text-telegram-text font-medium mb-1">{t('dashboard.noActiveQuests')}</p>
               <p className="text-telegram-hint text-sm mb-4">{t('dashboard.checkInTomorrow')}</p>
               <button
                 onClick={() => navigate('/quests')}
                 className="inline-flex items-center gap-1.5 bg-gradient-to-r from-purple-600 to-blue-600 text-white text-sm font-medium px-4 py-2 rounded-full"
               >
-                {t('dashboard.viewQuests')} <ArrowRight className="w-4 h-4" />
+                {t('dashboard.viewQuests')} <ArrowRight className="w-4 h-4" aria-hidden="true" />
               </button>
             </div>
           ) : (

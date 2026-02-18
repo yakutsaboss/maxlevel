@@ -30,6 +30,7 @@ export function TrophyCard({ trophy, earned, onTap, index }: TrophyCardProps) {
       transition={{ delay: index * 0.04, duration: 0.25 }}
       whileTap={{ scale: 0.95 }}
       onClick={() => onTap(trophy)}
+      aria-label={`${trophy.name}, ${trophy.rarity}${isEarned ? ', earned' : ', locked'}`}
       className={`relative bg-telegram-secondaryBg rounded-2xl p-4 text-center border transition-shadow ${
         isEarned
           ? `${style.border} trophy-card-shine`
@@ -41,7 +42,7 @@ export function TrophyCard({ trophy, earned, onTap, index }: TrophyCardProps) {
         {trophy.icon_emoji}
         {!isEarned && (
           <div className="absolute inset-0 flex items-center justify-center">
-            <Lock className="w-5 h-5 text-telegram-hint/60" />
+            <Lock className="w-5 h-5 text-telegram-hint/60" aria-hidden="true" />
           </div>
         )}
       </div>

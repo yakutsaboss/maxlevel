@@ -29,7 +29,7 @@ const CATEGORIES: { key: ShopCategory; label: string }[] = [
 
 function ShopSkeleton() {
   return (
-    <div className="min-h-screen bg-telegram-bg pb-20">
+    <div className="min-h-screen bg-telegram-bg pb-20" role="status" aria-label="Loading shop">
       <div className="bg-gradient-to-br from-indigo-500 to-purple-600 pt-8 pb-6 px-6 rounded-b-3xl safe-area-top">
         <div className="flex items-center gap-3 mb-3">
           <div className="skeleton w-7 h-7 rounded-lg" />
@@ -90,28 +90,29 @@ const FeaturedCarousel = memo(function FeaturedCarousel({
               key={item.id}
               whileTap={{ scale: 0.96 }}
               onClick={() => onItemTap(item)}
+              aria-label={`${item.name} — ${owned ? t('shop.owned') : item.price_stars > 0 ? `${item.price_stars} stars` : `${item.price_xp} XP`}`}
               className={`flex-shrink-0 w-40 snap-start rounded-2xl overflow-hidden bg-gradient-to-br ${gradient} p-3 text-left`}
             >
-              <span className="text-4xl block mb-2">{item.icon_emoji || '🛍️'}</span>
+              <span className="text-4xl block mb-2" role="img" aria-hidden="true">{item.icon_emoji || '🛍️'}</span>
               <p className="text-white font-bold text-sm truncate">{item.name}</p>
               <p className="text-white/70 text-xs truncate">{item.description}</p>
               <div className="mt-2 flex items-center gap-1">
                 {owned ? (
                   <span className="flex items-center gap-1 text-white/90 text-xs font-medium bg-white/20 rounded-lg px-2 py-0.5">
-                    <Check className="w-3 h-3" />
+                    <Check className="w-3 h-3" aria-hidden="true" />
                     {t('shop.owned')}
                   </span>
                 ) : (
                   <>
                     {item.price_stars > 0 && (
                       <span className="flex items-center gap-0.5 text-white/90 text-xs font-bold bg-white/20 rounded-lg px-2 py-0.5">
-                        <Star className="w-3 h-3" />
+                        <Star className="w-3 h-3" aria-hidden="true" />
                         {item.price_stars}
                       </span>
                     )}
                     {item.price_xp > 0 && (
                       <span className="flex items-center gap-0.5 text-white/90 text-xs font-bold bg-white/20 rounded-lg px-2 py-0.5">
-                        <Sparkles className="w-3 h-3" />
+                        <Sparkles className="w-3 h-3" aria-hidden="true" />
                         {item.price_xp}
                       </span>
                     )}
@@ -147,10 +148,11 @@ const ItemCard = memo(function ItemCard({
       transition={{ delay: index * 0.03, duration: 0.3 }}
       whileTap={{ scale: 0.97 }}
       onClick={() => onTap(item)}
+      aria-label={`${item.name}, ${item.rarity}${owned ? `, ${t('shop.owned')}` : ''}`}
       className="bg-telegram-secondaryBg rounded-2xl p-4 border border-telegram-hint/10 text-left flex flex-col items-center"
     >
       {/* Icon */}
-      <div className={`w-14 h-14 rounded-xl bg-gradient-to-br ${gradient} flex items-center justify-center mb-2`}>
+      <div className={`w-14 h-14 rounded-xl bg-gradient-to-br ${gradient} flex items-center justify-center mb-2`} aria-hidden="true">
         <span className="text-2xl">{item.icon_emoji || '🛍️'}</span>
       </div>
 
@@ -166,20 +168,20 @@ const ItemCard = memo(function ItemCard({
       <div className="mt-2 w-full">
         {owned ? (
           <div className="flex items-center justify-center gap-1 bg-green-500/10 text-green-600 rounded-lg py-1.5 text-xs font-bold">
-            <Check className="w-3.5 h-3.5" />
+            <Check className="w-3.5 h-3.5" aria-hidden="true" />
             {t('shop.owned')}
           </div>
         ) : (
           <div className="flex items-center justify-center gap-2">
             {item.price_stars > 0 && (
               <span className="flex items-center gap-0.5 text-xs font-bold text-yellow-600">
-                <Star className="w-3.5 h-3.5" />
+                <Star className="w-3.5 h-3.5" aria-hidden="true" />
                 {item.price_stars}
               </span>
             )}
             {item.price_xp > 0 && (
               <span className="flex items-center gap-0.5 text-xs font-bold text-blue-500">
-                <Sparkles className="w-3.5 h-3.5" />
+                <Sparkles className="w-3.5 h-3.5" aria-hidden="true" />
                 {item.price_xp}
               </span>
             )}
@@ -271,7 +273,7 @@ export function Shop() {
       <div className="bg-gradient-to-br from-indigo-500 to-purple-600 pt-8 pb-6 px-6 rounded-b-3xl shadow-lg safe-area-top">
         <div className="flex items-center justify-between mb-1">
           <div className="flex items-center gap-3">
-            <ShoppingBag className="w-7 h-7 text-white" />
+            <ShoppingBag className="w-7 h-7 text-white" aria-hidden="true" />
             <h1 className="text-2xl font-bold text-white">{t('shop.title')}</h1>
           </div>
           <button
@@ -280,8 +282,9 @@ export function Shop() {
               setShowSearch((v) => !v);
             }}
             className="p-2 rounded-full bg-white/20 active:bg-white/30 transition-colors"
+            aria-label="Toggle search"
           >
-            <Search className="w-5 h-5 text-white" />
+            <Search className="w-5 h-5 text-white" aria-hidden="true" />
           </button>
         </div>
 
@@ -297,6 +300,7 @@ export function Shop() {
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder={t('shop.searchPlaceholder')}
+              aria-label="Search shop items"
               className="w-full px-4 py-2.5 rounded-xl bg-white/20 text-white placeholder-white/50 text-sm outline-none focus:bg-white/30 transition-colors"
               autoFocus
             />
@@ -311,10 +315,12 @@ export function Shop() {
         />
 
         {/* Category tabs */}
-        <div className="flex gap-2 mt-4 overflow-x-auto scrollbar-hide pb-1">
+        <div className="flex gap-2 mt-4 overflow-x-auto scrollbar-hide pb-1" role="tablist" aria-label="Shop categories">
           {CATEGORIES.map(({ key, label }) => (
             <button
               key={key}
+              role="tab"
+              aria-selected={category === key}
               onClick={() => {
                 haptic.impact('light');
                 setCategory(key);
@@ -345,7 +351,7 @@ export function Shop() {
 
         {filteredItems.length === 0 && (
           <div className="col-span-2 text-center py-12 bg-telegram-secondaryBg rounded-2xl border border-telegram-hint/10">
-            <ShoppingBag className="w-12 h-12 text-telegram-hint mx-auto mb-3" />
+            <ShoppingBag className="w-12 h-12 text-telegram-hint mx-auto mb-3" aria-hidden="true" />
             <p className="text-telegram-hint">
               {searchQuery.trim()
                 ? t('shop.noResults')

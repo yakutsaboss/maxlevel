@@ -85,7 +85,7 @@ export function TrophyCase() {
       {/* Header */}
       <div className="bg-gradient-to-br from-yellow-500 to-amber-600 pt-8 pb-6 px-6 rounded-b-3xl shadow-lg safe-area-top">
         <div className="flex items-center gap-3 mb-3">
-          <TrophyIcon className="w-7 h-7 text-white" />
+          <TrophyIcon className="w-7 h-7 text-white" aria-hidden="true" />
           <h1 className="text-2xl font-bold text-white">{t('trophy.title')}</h1>
         </div>
 
@@ -97,7 +97,7 @@ export function TrophyCase() {
               {totalCount > 0 ? Math.round((earnedCount / totalCount) * 100) : 0}%
             </span>
           </div>
-          <div className="bg-white/30 rounded-full h-2.5 overflow-hidden">
+          <div className="bg-white/30 rounded-full h-2.5 overflow-hidden" role="progressbar" aria-valuenow={earnedCount} aria-valuemin={0} aria-valuemax={totalCount} aria-label={`Trophy progress: ${earnedCount} of ${totalCount} earned`}>
             <motion.div
               className="h-full bg-white rounded-full"
               initial={{ width: 0 }}
@@ -113,7 +113,7 @@ export function TrophyCase() {
           disabled={checking}
           className="w-full mt-3 flex items-center justify-center gap-2 bg-white/20 hover:bg-white/30 active:scale-[0.98] backdrop-blur-sm rounded-xl px-4 py-2 text-white text-sm font-medium transition-all disabled:opacity-50"
         >
-          <RefreshCw className={`w-4 h-4 ${checking ? 'animate-spin' : ''}`} />
+          <RefreshCw className={`w-4 h-4 ${checking ? 'animate-spin' : ''}`} aria-hidden="true" />
           {checking
             ? t('trophy.checking')
             : newCount > 0
@@ -122,10 +122,12 @@ export function TrophyCase() {
         </button>
 
         {/* Tabs */}
-        <div className="flex gap-2 mt-4">
+        <div className="flex gap-2 mt-4" role="tablist" aria-label="Trophy tabs">
           {(['earned', 'all'] as Tab[]).map((tab) => (
             <button
               key={tab}
+              role="tab"
+              aria-selected={activeTab === tab}
               onClick={() => { haptic.impact('light'); setActiveTab(tab); }}
               className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-all ${
                 activeTab === tab
@@ -153,7 +155,7 @@ export function TrophyCase() {
 
         {displayedTrophies.length === 0 && (
           <div className="col-span-2 text-center py-12 bg-telegram-secondaryBg rounded-2xl border border-telegram-hint/10">
-            <TrophyIcon className="w-12 h-12 text-telegram-hint mx-auto mb-3" />
+            <TrophyIcon className="w-12 h-12 text-telegram-hint mx-auto mb-3" aria-hidden="true" />
             <p className="text-telegram-hint">
               {activeTab === 'earned' ? t('trophy.noEarned') : t('trophy.noTrophies')}
             </p>

@@ -40,9 +40,9 @@ export function GoalCard({
             isComplete ? 'bg-emerald-500/10' : 'bg-telegram-button/10'
           }`}>
             {isComplete ? (
-              <Target size={16} className="text-emerald-500" />
+              <Target size={16} className="text-emerald-500" aria-hidden="true" />
             ) : (
-              <Target size={16} className="text-telegram-button" />
+              <Target size={16} className="text-telegram-button" aria-hidden="true" />
             )}
           </div>
           <div>
@@ -57,8 +57,9 @@ export function GoalCard({
             whileTap={{ scale: 0.95 }}
             onClick={() => onToggleDeposit(goal.id)}
             className="text-telegram-button"
+            aria-label="Add deposit"
           >
-            <Wallet size={18} />
+            <Wallet size={18} aria-hidden="true" />
           </motion.button>
         )}
       </div>
@@ -73,7 +74,7 @@ export function GoalCard({
             {progress.toFixed(0)}%
           </span>
         </div>
-        <div className="h-2 bg-telegram-bg rounded-full overflow-hidden">
+        <div className="h-2 bg-telegram-bg rounded-full overflow-hidden" role="progressbar" aria-valuenow={goal.current_amount} aria-valuemin={0} aria-valuemax={goal.target_amount} aria-label={`Savings progress: ${goal.current_amount} of ${goal.target_amount}`}>
           <motion.div
             initial={{ width: 0 }}
             animate={{ width: `${progress}%` }}
@@ -85,7 +86,7 @@ export function GoalCard({
 
       {/* Projected Completion */}
       <div className="flex items-center gap-2 text-xs text-telegram-hint">
-        <Calendar size={12} />
+        <Calendar size={12} aria-hidden="true" />
         <span>Projected: {getProjectedCompletion(goal)}</span>
       </div>
 
@@ -93,7 +94,7 @@ export function GoalCard({
       {goal.deposits && goal.deposits.length > 0 && (
         <div className="space-y-1">
           <div className="flex items-center gap-1 text-[10px] text-telegram-hint uppercase tracking-wide">
-            <TrendingUp size={10} />
+            <TrendingUp size={10} aria-hidden="true" />
             <span>Recent deposits</span>
           </div>
           <div className="space-y-1 max-h-24 overflow-y-auto">

@@ -35,7 +35,7 @@ export function BudgetSummary({
             className="text-center"
           >
             <div className="w-8 h-8 mx-auto rounded-lg bg-emerald-500/10 flex items-center justify-center mb-1">
-              <TrendingUp size={16} className="text-emerald-500" />
+              <TrendingUp size={16} className="text-emerald-500" aria-hidden="true" />
             </div>
             <div className="text-lg font-bold text-telegram-text">{totalIncome.toLocaleString()}</div>
             <div className="text-[10px] text-telegram-hint">{t('finance.income')}</div>
@@ -48,7 +48,7 @@ export function BudgetSummary({
             className="text-center"
           >
             <div className="w-8 h-8 mx-auto rounded-lg bg-red-500/10 flex items-center justify-center mb-1">
-              <TrendingDown size={16} className="text-red-500" />
+              <TrendingDown size={16} className="text-red-500" aria-hidden="true" />
             </div>
             <div className="text-lg font-bold text-telegram-text">{totalExpense.toLocaleString()}</div>
             <div className="text-[10px] text-telegram-hint">{t('finance.expenses')}</div>
@@ -61,7 +61,7 @@ export function BudgetSummary({
             className="text-center"
           >
             <div className="w-8 h-8 mx-auto rounded-lg bg-telegram-button/10 flex items-center justify-center mb-1">
-              <DollarSign size={16} className="text-telegram-button" />
+              <DollarSign size={16} className="text-telegram-button" aria-hidden="true" />
             </div>
             <div className={`text-lg font-bold ${balance >= 0 ? 'text-emerald-500' : 'text-red-500'}`}>
               {balance.toLocaleString()}
@@ -76,7 +76,7 @@ export function BudgetSummary({
             <span>{t('finance.spent')}</span>
             <span>{spentPercent.toFixed(0)}%</span>
           </div>
-          <div className="h-2 bg-telegram-bg rounded-full overflow-hidden">
+          <div className="h-2 bg-telegram-bg rounded-full overflow-hidden" role="progressbar" aria-valuenow={spentPercent} aria-valuemin={0} aria-valuemax={100} aria-label={`Budget spent: ${spentPercent.toFixed(0)}%`}>
             <motion.div
               initial={{ width: 0 }}
               animate={{ width: `${spentPercent}%` }}
@@ -93,7 +93,7 @@ export function BudgetSummary({
       {Object.keys(byCategory).length > 0 && (
         <div className="bg-telegram-secondaryBg rounded-xl p-4 space-y-3">
           <div className="flex items-center gap-2">
-            <PieChart size={14} className="text-telegram-hint" />
+            <PieChart size={14} className="text-telegram-hint" aria-hidden="true" />
             <h3 className="text-sm font-semibold text-telegram-hint uppercase tracking-wide">
               {t('finance.categoryBreakdown')}
             </h3>

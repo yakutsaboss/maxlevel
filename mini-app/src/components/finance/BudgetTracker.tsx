@@ -25,8 +25,8 @@ export function BudgetTracker({ userId }: BudgetTrackerProps) {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-12">
-        <Loader2 className="w-6 h-6 animate-spin text-telegram-hint" />
+      <div className="flex items-center justify-center py-12" role="status" aria-label="Loading budget">
+        <Loader2 className="w-6 h-6 animate-spin text-telegram-hint" aria-hidden="true" />
       </div>
     );
   }

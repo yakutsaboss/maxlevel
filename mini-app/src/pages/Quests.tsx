@@ -51,16 +51,16 @@ export function Quests() {
       <div className="bg-gradient-to-r from-blue-600 to-purple-600 pt-8 pb-6 px-6 rounded-b-3xl shadow-lg safe-area-top">
         <div className="flex items-center gap-3 mb-4">
           <div className="bg-white/20 backdrop-blur-sm rounded-2xl p-3">
-            <Target className="w-8 h-8 text-white" />
+            <Target className="w-8 h-8 text-white" aria-hidden="true" />
           </div>
           <div>
             <h1 className="text-2xl font-bold text-white">{t('quests.title')}</h1>
             <p className="text-purple-100 text-sm">{t('quests.subtitle')}</p>
           </div>
         </div>
-        <div className="flex gap-2 bg-white/20 backdrop-blur-sm rounded-2xl p-1">
-          <TabButton active={activeTab === 'active'} onClick={() => { setActiveTab('active'); haptic.selection(); }} icon={<Clock className="w-4 h-4" />} label={t('quests.active')} count={activeQuests.length} />
-          <TabButton active={activeTab === 'completed'} onClick={() => { setActiveTab('completed'); haptic.selection(); }} icon={<CheckCircle className="w-4 h-4" />} label={t('quests.completed')} count={completedQuests.length} />
+        <div className="flex gap-2 bg-white/20 backdrop-blur-sm rounded-2xl p-1" role="tablist" aria-label="Quest tabs">
+          <TabButton active={activeTab === 'active'} onClick={() => { setActiveTab('active'); haptic.selection(); }} icon={<Clock className="w-4 h-4" aria-hidden="true" />} label={t('quests.active')} count={activeQuests.length} />
+          <TabButton active={activeTab === 'completed'} onClick={() => { setActiveTab('completed'); haptic.selection(); }} icon={<CheckCircle className="w-4 h-4" aria-hidden="true" />} label={t('quests.completed')} count={completedQuests.length} />
         </div>
 
         {/* Progress summary */}
@@ -73,12 +73,12 @@ export function Quests() {
             </span>
             {todayCheckinCount > 0 && (
               <span className="flex items-center gap-1 text-white/80 text-xs">
-                <CheckCircle className="w-3 h-3 text-green-300" />
+                <CheckCircle className="w-3 h-3 text-green-300" aria-hidden="true" />
                 {t('quests.checkinToday', { count: todayCheckinCount })}
               </span>
             )}
           </div>
-          <div className="bg-white/20 rounded-full h-1.5 overflow-hidden">
+          <div className="bg-white/20 rounded-full h-1.5 overflow-hidden" role="progressbar" aria-valuenow={completionStats.done} aria-valuemin={0} aria-valuemax={completionStats.total} aria-label={`Quest progress: ${completionStats.done} of ${completionStats.total}`}>
             <motion.div
               className="h-full bg-white rounded-full"
               initial={{ width: 0 }}
@@ -109,7 +109,7 @@ export function Quests() {
             <motion.div key="empty" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="text-center py-12">
               {activeTab === 'active' ? (
                 <>
-                  <div className="text-6xl mb-4">🎯</div>
+                  <div className="text-6xl mb-4" role="img" aria-label="Target">🎯</div>
                   <p className="text-telegram-text font-semibold text-lg mb-2">{t('quests.noActiveQuests')}</p>
                   <p className="text-telegram-hint text-sm mb-6">
                     {selectedModeId !== null
@@ -127,7 +127,7 @@ export function Quests() {
                 </>
               ) : (
                 <>
-                  <Trophy className="w-16 h-16 text-telegram-hint/40 mx-auto mb-4" />
+                  <Trophy className="w-16 h-16 text-telegram-hint/40 mx-auto mb-4" aria-hidden="true" />
                   <p className="text-telegram-text font-semibold text-lg mb-2">{t('quests.noVictoriesYet')}</p>
                   <p className="text-telegram-hint text-sm">
                     {selectedModeId !== null

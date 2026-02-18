@@ -1897,7 +1897,50 @@ After completing, write your retrospective in PARALLEL_AGENTS.md under "Run 70 R
 ### Run 71 Retrospectives
 
 #### Agent A Retrospective
-*(To be filled by Agent A)*
+**ARIA audit + screen reader fixes across all mini-app pages and components**
+
+Changes made (27 files modified):
+
+**Pages (14 files):**
+1. **Dashboard.tsx** — `aria-hidden` on Sparkles, Compass, Scroll, ArrowRight icons
+2. **Profile.tsx** — `aria-hidden` on Palette, Trophy, Package icons
+3. **Quests.tsx** — `aria-hidden` on Target, CheckCircle, Trophy icons; `role="tablist"`/`role="tab"`/`aria-selected` on tab container; `role="progressbar"` with value attrs on progress bar; `role="img"` on emoji
+4. **Leaderboard.tsx** — `aria-hidden` on Trophy (header + empty state), Share2 icons
+5. **Shop.tsx** — `aria-hidden` on ShoppingBag, Search, Star, Sparkles, Check icons; `aria-label` on search button, search input, featured items, item cards; `role="tablist"`/`role="tab"`/`aria-selected` on categories; `role="status"` on skeleton
+6. **Inventory.tsx** — `aria-hidden` on category icons, Package icons; `role="status"` on loading; `aria-label` on equip buttons; `role="tablist"`/`role="tab"`/`aria-selected`; `role="img"` on item emoji
+7. **Social.tsx** — `aria-hidden` on Users, UserMinus, Check, X icons; `role="img"` + `aria-label` on online/offline dot; `aria-label` on confirm/cancel buttons
+8. **Achievements.tsx** — `aria-hidden` on Trophy, RefreshCw, SlidersHorizontal icons; `aria-label` on filter toggle
+9. **Finance.tsx** — `role="status"` on loading; `aria-hidden` on DollarSign, Wallet, PiggyBank icons; `role="tablist"`/`role="tab"`/`aria-selected` on tabs
+10. **Admin.tsx** — `aria-hidden` on all 5 tab icons + Shield, LogOut; `role="tablist"`/`role="tab"`/`aria-selected`; `aria-label` on logout button
+11. **Onboarding.tsx** — `role="status"` + `aria-live="polite"` on save indicator
+12. **AvatarCustomizer.tsx** — `role="img"` on avatar preview; `aria-hidden` on User icons; `role="status"` on skeleton; `role="tablist"`/`role="tab"`/`aria-selected`; `aria-label` on item buttons with name/rarity/status
+13. **TrophyCase.tsx** — `aria-hidden` on TrophyIcon, RefreshCw; `role="progressbar"` with value attrs; `role="tablist"`/`role="tab"`/`aria-selected`
+14. **Settings.tsx** — already had good ARIA, no changes needed
+
+**Components (21 files):**
+1. **Toast.tsx** — `aria-hidden` on variant icons; `role="alert"` + `aria-live="assertive"`; `aria-label` on dismiss
+2. **ErrorBoundary.tsx** — `role="alert"`; `aria-hidden` on icons; `aria-label` on retry
+3. **LazyPageWrapper.tsx** — `role="status"` + `aria-label` on loading fallback
+4. **CheckInButton.tsx** — `aria-hidden` on icons; `role="status"` + `aria-live="polite"` on success
+5. **DashboardSkeleton.tsx** — `role="status"` + `aria-label`
+6. **TabButton.tsx** (quests) — `role="tab"` + `aria-selected`; `aria-label` on count
+7. **QuestCard.tsx** — `aria-hidden` on Zap, CheckCircle; `role="progressbar"` with value attrs
+8. **QuestDetailModal.tsx** — `aria-hidden` on Zap, Calendar, Loader2, CheckCircle; `role="progressbar"`
+9. **QuestFilters.tsx** — `aria-hidden` on ArrowUpDown
+10. **TodaysProgress.tsx** — `aria-hidden` on Target, Zap, Clock icons
+11. **StreakSection.tsx** — `aria-hidden` on Award, Calendar; `role="progressbar"` on streak bar
+12. **ThemeSettings.tsx** — `aria-hidden` on Palette + theme icons; `aria-label` on theme buttons
+13. **TrophyCaseSkeleton.tsx** — `role="status"` + `aria-label`
+14. **AchievementsSkeleton.tsx** — `role="status"` + `aria-label`
+15. **AchievementCard.tsx** — `aria-hidden` on ChevronDown
+16. **TrophyCard.tsx** — `aria-hidden` on Lock; `aria-label` on button with name/rarity/status
+17. **TrophyDetailModal.tsx** — `aria-hidden` on X, Calendar, Target icons
+18. **BudgetTracker.tsx** — `role="status"` on loading; `aria-hidden` on Loader2
+19. **BudgetSummary.tsx** — `aria-hidden` on TrendingUp, TrendingDown, DollarSign, PieChart; `role="progressbar"` on spending bar
+20. **BudgetForm.tsx** — `aria-hidden` on PlusCircle
+21. **GoalCard.tsx** — `aria-hidden` on Target, Wallet, Calendar, TrendingUp; `aria-label` on deposit button; `role="progressbar"` on savings bar
+
+Build: passed (0 TypeScript errors, 0 warnings)
 
 #### Agent B Retrospective
 **Keyboard navigation + focus management**

@@ -188,7 +188,7 @@ export function Achievements() {
       {/* Header */}
       <div className="bg-gradient-to-br from-amber-500 to-orange-600 pt-8 pb-6 px-6 rounded-b-3xl shadow-lg safe-area-top">
         <div className="flex items-center gap-3 mb-3">
-          <Trophy className="w-7 h-7 text-white" />
+          <Trophy className="w-7 h-7 text-white" aria-hidden="true" />
           <h1 className="text-2xl font-bold text-white">{t('achievements.rewards')}</h1>
         </div>
         <div className="bg-white/20 backdrop-blur-sm rounded-2xl px-4 py-3">
@@ -212,7 +212,7 @@ export function Achievements() {
           disabled={checking}
           className="w-full mt-3 flex items-center justify-center gap-2 bg-white/20 hover:bg-white/30 active:scale-[0.98] backdrop-blur-sm rounded-xl px-4 py-2 text-white text-sm font-medium transition-all disabled:opacity-50"
         >
-          <RefreshCw className={`w-4 h-4 ${checking ? 'animate-spin' : ''}`} />
+          <RefreshCw className={`w-4 h-4 ${checking ? 'animate-spin' : ''}`} aria-hidden="true" />
           {checking ? t('achievements.checking') : newCount > 0 ? t('achievements.newUnlocked', { count: newCount }) : t('achievements.checkForNewAchievements')}
         </button>
 
@@ -234,8 +234,9 @@ export function Achievements() {
             setShowControls(prev => !prev);
           }}
           className="flex items-center gap-1.5 text-sm text-telegram-link font-medium mb-2"
+          aria-label="Toggle filter and sort options"
         >
-          <SlidersHorizontal className="w-4 h-4" />
+          <SlidersHorizontal className="w-4 h-4" aria-hidden="true" />
           {t('achievements.filterSort')}
         </button>
 
@@ -299,7 +300,7 @@ export function Achievements() {
 
         {grouped.length === 0 && (
           <div className="text-center py-12 bg-telegram-secondaryBg rounded-2xl border border-telegram-hint/10">
-            <Trophy className="w-12 h-12 text-telegram-hint mx-auto mb-3" />
+            <Trophy className="w-12 h-12 text-telegram-hint mx-auto mb-3" aria-hidden="true" />
             <p className="text-telegram-hint">
               {selectedCategory === 'all' ? t('achievements.noAchievements') : t('achievements.noCategoryAchievements', { category: selectedCategory })}
             </p>

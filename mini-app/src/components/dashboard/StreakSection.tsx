@@ -79,17 +79,17 @@ export const StreakSection = memo(function StreakSection({ streakData, perModeSt
           </div>
           <div className="flex flex-col gap-2 text-right">
             <div className="flex items-center gap-1.5 justify-end">
-              <Award className="w-4 h-4 text-orange-100" />
+              <Award className="w-4 h-4 text-orange-100" aria-hidden="true" />
               <span className="text-sm text-white font-medium">Best: {streakData.longest}</span>
             </div>
             <div className="flex items-center gap-1.5 justify-end">
-              <Calendar className="w-4 h-4 text-orange-100" />
+              <Calendar className="w-4 h-4 text-orange-100" aria-hidden="true" />
               <span className="text-sm text-white font-medium">{streakData.daysActive} active</span>
             </div>
           </div>
         </div>
         {streakData.current > 0 && streakData.longest > 0 && (
-          <div className="mt-3 bg-white/20 backdrop-blur-sm rounded-full h-2 overflow-hidden">
+          <div className="mt-3 bg-white/20 backdrop-blur-sm rounded-full h-2 overflow-hidden" role="progressbar" aria-valuenow={streakData.current} aria-valuemin={0} aria-valuemax={streakData.longest} aria-label={`Streak progress: ${streakData.current} of ${streakData.longest} days`}>
             <motion.div
               className="h-full bg-white rounded-full"
               initial={{ width: 0 }}

@@ -20,11 +20,11 @@ interface AdminStats {
 }
 
 const tabs: { id: AdminTab; labelKey: string; icon: React.ReactNode }[] = [
-  { id: 'stats', labelKey: 'admin.overview', icon: <BarChart3 size={18} /> },
-  { id: 'users', labelKey: 'admin.users', icon: <Users size={18} /> },
-  { id: 'broadcast', labelKey: 'admin.broadcast', icon: <Megaphone size={18} /> },
-  { id: 'jobs', labelKey: 'admin.jobs', icon: <Briefcase size={18} /> },
-  { id: 'logs', labelKey: 'admin.logs', icon: <ScrollText size={18} /> },
+  { id: 'stats', labelKey: 'admin.overview', icon: <BarChart3 size={18} aria-hidden="true" /> },
+  { id: 'users', labelKey: 'admin.users', icon: <Users size={18} aria-hidden="true" /> },
+  { id: 'broadcast', labelKey: 'admin.broadcast', icon: <Megaphone size={18} aria-hidden="true" /> },
+  { id: 'jobs', labelKey: 'admin.jobs', icon: <Briefcase size={18} aria-hidden="true" /> },
+  { id: 'logs', labelKey: 'admin.logs', icon: <ScrollText size={18} aria-hidden="true" /> },
 ];
 
 export function Admin() {
@@ -82,23 +82,26 @@ export function Admin() {
       <div className="bg-telegram-secondaryBg px-4 pt-4 pb-2">
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2">
-            <Shield size={22} className="text-telegram-button" />
+            <Shield size={22} className="text-telegram-button" aria-hidden="true" />
             <h1 className="text-lg font-bold">{t('admin.dashboard')}</h1>
           </div>
           <button
             onClick={handleLogout}
             className="flex items-center gap-1 text-sm text-telegram-hint hover:text-red-400 transition-colors"
+            aria-label="Log out"
           >
-            <LogOut size={16} />
+            <LogOut size={16} aria-hidden="true" />
             {t('admin.logout')}
           </button>
         </div>
 
         {/* Tabs */}
-        <div className="flex gap-1 bg-telegram-bg rounded-xl p-1 overflow-x-auto hide-scrollbar">
+        <div className="flex gap-1 bg-telegram-bg rounded-xl p-1 overflow-x-auto hide-scrollbar" role="tablist" aria-label="Admin tabs">
           {tabs.map((tab) => (
             <button
               key={tab.id}
+              role="tab"
+              aria-selected={activeTab === tab.id}
               onClick={() => setActiveTab(tab.id)}
               className={`flex items-center justify-center gap-1 py-2 px-2.5 rounded-lg text-xs font-medium transition-colors whitespace-nowrap flex-shrink-0 ${
                 activeTab === tab.id

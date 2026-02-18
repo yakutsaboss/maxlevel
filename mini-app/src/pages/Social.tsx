@@ -131,7 +131,7 @@ function FriendCardWithRemove({
         </div>
       </div>
 
-      <div className={`w-2 h-2 rounded-full flex-shrink-0 ${friend.is_active ? 'bg-green-400' : 'bg-telegram-hint/30'}`} />
+      <div className={`w-2 h-2 rounded-full flex-shrink-0 ${friend.is_active ? 'bg-green-400' : 'bg-telegram-hint/30'}`} role="img" aria-label={friend.is_active ? 'Online' : 'Offline'} />
 
       {showConfirm ? (
         <div className="flex gap-1 flex-shrink-0">
@@ -139,14 +139,16 @@ function FriendCardWithRemove({
             onClick={() => { onRemove(); setShowConfirm(false); }}
             disabled={loading}
             className="p-1.5 rounded-lg bg-red-500/20 text-red-400 text-xs active:scale-95 transition-transform disabled:opacity-50"
+            aria-label={t('social.confirmRemove')}
           >
-            <Check className="w-3 h-3" />
+            <Check className="w-3 h-3" aria-hidden="true" />
           </button>
           <button
             onClick={() => setShowConfirm(false)}
             className="p-1.5 rounded-lg bg-telegram-hint/20 text-telegram-hint text-xs active:scale-95 transition-transform"
+            aria-label={t('common.cancel')}
           >
-            <X className="w-3 h-3" />
+            <X className="w-3 h-3" aria-hidden="true" />
           </button>
         </div>
       ) : (
@@ -155,7 +157,7 @@ function FriendCardWithRemove({
           className="p-2 rounded-xl text-telegram-hint/50 active:scale-95 transition-transform"
           aria-label={t('social.unfriend')}
         >
-          <UserMinus className="w-4 h-4" />
+          <UserMinus className="w-4 h-4" aria-hidden="true" />
         </button>
       )}
     </div>
@@ -286,7 +288,7 @@ export function Social() {
       <div className="bg-gradient-to-r from-indigo-600 to-blue-600 pt-8 pb-6 px-6 rounded-b-3xl shadow-lg safe-area-top">
         <div className="flex items-center gap-3">
           <div className="bg-white/20 backdrop-blur-sm rounded-2xl p-3">
-            <Users className="w-8 h-8 text-white" />
+            <Users className="w-8 h-8 text-white" aria-hidden="true" />
           </div>
           <div>
             <h1 className="text-2xl font-bold text-white">{t('social.title')}</h1>
@@ -346,7 +348,7 @@ export function Social() {
 
           {friends.length === 0 ? (
             <div className="text-center py-12">
-              <Users className="w-12 h-12 text-telegram-hint mx-auto mb-3" />
+              <Users className="w-12 h-12 text-telegram-hint mx-auto mb-3" aria-hidden="true" />
               <p className="text-telegram-hint text-sm">{t('social.noFriends')}</p>
             </div>
           ) : (

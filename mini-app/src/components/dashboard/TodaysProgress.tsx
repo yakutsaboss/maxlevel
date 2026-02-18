@@ -17,21 +17,21 @@ export const TodaysProgress = memo(function TodaysProgress({ completedToday, xpG
         <div className="grid grid-cols-3 gap-3">
           <div className="text-center">
             <div className={`w-10 h-10 rounded-xl flex items-center justify-center mx-auto mb-2 ${completedToday > 0 ? 'bg-green-500' : 'bg-telegram-hint/30'}`}>
-              <Target className={`w-5 h-5 ${completedToday > 0 ? 'text-white' : 'text-telegram-hint'}`} />
+              <Target className={`w-5 h-5 ${completedToday > 0 ? 'text-white' : 'text-telegram-hint'}`} aria-hidden="true" />
             </div>
             <div className={`text-xl font-bold ${completedToday > 0 ? 'text-green-600' : 'text-telegram-text'}`}>{completedToday}</div>
             <div className="text-xs text-telegram-hint">Completed</div>
           </div>
           <div className="text-center">
             <div className="w-10 h-10 rounded-xl flex items-center justify-center mx-auto mb-2 bg-yellow-500">
-              <Zap className="w-5 h-5 text-white" />
+              <Zap className="w-5 h-5 text-white" aria-hidden="true" />
             </div>
             <div className="text-xl font-bold text-yellow-600">+{xpGainedToday}</div>
             <div className="text-xs text-telegram-hint">XP Earned</div>
           </div>
           <div className="text-center">
             <div className="w-10 h-10 rounded-xl flex items-center justify-center mx-auto mb-2 bg-blue-500">
-              <Clock className="w-5 h-5 text-white" />
+              <Clock className="w-5 h-5 text-white" aria-hidden="true" />
             </div>
             <div className="text-xl font-bold text-telegram-text">{activeQuestsCount}</div>
             <div className="text-xs text-telegram-hint">Remaining</div>

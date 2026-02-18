@@ -69,7 +69,7 @@ export function ThemeSettings({ colorScheme, themeParams, haptic }: ThemeSetting
       {/* Header */}
       <div className="flex items-center gap-3 mb-3">
         <div className="bg-indigo-500 w-10 h-10 rounded-xl flex items-center justify-center text-white">
-          <Palette className="w-5 h-5" />
+          <Palette className="w-5 h-5" aria-hidden="true" />
         </div>
         <div>
           <h3 className="font-semibold text-sm">Theme</h3>
@@ -86,13 +86,14 @@ export function ThemeSettings({ colorScheme, themeParams, haptic }: ThemeSetting
           <button
             key={value}
             onClick={() => handleSelect(value)}
+            aria-label={`${label} theme: ${desc}`}
             className={`flex-1 py-2.5 px-2 rounded-xl text-center transition-all active:scale-95 ${
               preference === value
                 ? 'bg-telegram-link text-white shadow-md'
                 : 'bg-telegram-bg text-telegram-hint border border-telegram-hint/20'
             }`}
           >
-            <Icon className={`w-4 h-4 mx-auto mb-1 ${preference === value ? 'text-white' : ''}`} />
+            <Icon className={`w-4 h-4 mx-auto mb-1 ${preference === value ? 'text-white' : ''}`} aria-hidden="true" />
             <div className="text-xs font-semibold">{label}</div>
             <div className={`text-[10px] mt-0.5 ${preference === value ? 'text-white/70' : 'text-telegram-hint/70'}`}>
               {desc}

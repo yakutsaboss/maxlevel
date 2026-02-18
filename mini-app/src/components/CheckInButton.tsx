@@ -58,9 +58,9 @@ export function CheckInButton({ questInstanceId, telegramId, onSuccess, disabled
         }`}
       >
         {loading ? (
-          <Loader2 className="w-5 h-5 animate-spin" />
+          <Loader2 className="w-5 h-5 animate-spin" aria-hidden="true" />
         ) : (
-          <CheckCircle className="w-5 h-5" />
+          <CheckCircle className="w-5 h-5" aria-hidden="true" />
         )}
         {loading ? t('quests.checkingIn') : (() => {
           if (currentProgress !== undefined && target !== undefined && target > 1) {
@@ -79,6 +79,8 @@ export function CheckInButton({ questInstanceId, telegramId, onSuccess, disabled
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -10 }}
             className="absolute -top-8 left-1/2 -translate-x-1/2 bg-green-500 text-white text-sm font-medium px-3 py-1 rounded-full whitespace-nowrap"
+            role="status"
+            aria-live="polite"
           >
             {t('quests.checkedIn')}
           </motion.div>

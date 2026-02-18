@@ -67,7 +67,7 @@ export function Profile() {
             <AvatarRenderer equipped={(stats.user as any).equipped_items as EquippedItems} size="lg" />
           ) : (
             <div className="w-12 h-12 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center">
-              <Palette className="w-6 h-6 text-white" />
+              <Palette className="w-6 h-6 text-white" aria-hidden="true" />
             </div>
           )}
           <div className="flex-1 text-left">
@@ -85,7 +85,7 @@ export function Profile() {
           className="w-full flex items-center gap-3 bg-telegram-secondaryBg rounded-2xl p-4 border border-telegram-hint/10 active:scale-[0.98] transition-transform"
         >
           <div className="w-12 h-12 rounded-full bg-gradient-to-br from-yellow-500 to-amber-600 flex items-center justify-center">
-            <Trophy className="w-6 h-6 text-white" />
+            <Trophy className="w-6 h-6 text-white" aria-hidden="true" />
           </div>
           <div className="flex-1 text-left">
             <span className="font-semibold text-sm">{t('trophy.viewTrophyCase')}</span>
@@ -102,7 +102,7 @@ export function Profile() {
           className="w-full flex items-center gap-3 bg-telegram-secondaryBg rounded-2xl p-4 border border-telegram-hint/10 active:scale-[0.98] transition-transform"
         >
           <div className="w-12 h-12 rounded-full bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center">
-            <Package className="w-6 h-6 text-white" />
+            <Package className="w-6 h-6 text-white" aria-hidden="true" />
           </div>
           <div className="flex-1 text-left">
             <span className="font-semibold text-sm">{t('inventory.title')}</span>

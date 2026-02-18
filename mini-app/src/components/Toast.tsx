@@ -11,15 +11,15 @@ interface ToastProps {
 const VARIANT_STYLES = {
   success: {
     bg: 'bg-green-500',
-    icon: <CheckCircle className="w-5 h-5 text-white" />,
+    icon: <CheckCircle className="w-5 h-5 text-white" aria-hidden="true" />,
   },
   error: {
     bg: 'bg-red-500',
-    icon: <AlertCircle className="w-5 h-5 text-white" />,
+    icon: <AlertCircle className="w-5 h-5 text-white" aria-hidden="true" />,
   },
   info: {
     bg: 'bg-blue-500',
-    icon: <Info className="w-5 h-5 text-white" />,
+    icon: <Info className="w-5 h-5 text-white" aria-hidden="true" />,
   },
 };
 
@@ -39,11 +39,13 @@ export function Toast({ message, variant, onDismiss }: ToastProps) {
         exit={{ opacity: 0, y: -60 }}
         transition={{ type: 'spring', stiffness: 300, damping: 25 }}
         className={`fixed top-4 left-4 right-4 z-60 ${style.bg} rounded-2xl px-4 py-3 shadow-lg flex items-center gap-3`}
+        role="alert"
+        aria-live="assertive"
       >
         {style.icon}
         <span className="text-white text-sm font-medium flex-1">{message}</span>
-        <button onClick={onDismiss} className="p-1 rounded-full hover:bg-white/20 active:scale-90 transition-transform">
-          <X className="w-4 h-4 text-white" />
+        <button onClick={onDismiss} className="p-1 rounded-full hover:bg-white/20 active:scale-90 transition-transform" aria-label="Dismiss notification">
+          <X className="w-4 h-4 text-white" aria-hidden="true" />
         </button>
       </motion.div>
     </AnimatePresence>

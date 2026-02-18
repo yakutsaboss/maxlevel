@@ -12,11 +12,11 @@ import { Package, ShoppingBag, Shield, Zap } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 const CATEGORIES: { key: InventoryCategory; icon: React.ReactNode }[] = [
-  { key: 'all', icon: <Package className="w-4 h-4" /> },
-  { key: 'avatar_item', icon: <Shield className="w-4 h-4" /> },
-  { key: 'achievement', icon: <Zap className="w-4 h-4" /> },
-  { key: 'trophy_booster', icon: <Zap className="w-4 h-4" /> },
-  { key: 'xp_booster', icon: <Zap className="w-4 h-4" /> },
+  { key: 'all', icon: <Package className="w-4 h-4" aria-hidden="true" /> },
+  { key: 'avatar_item', icon: <Shield className="w-4 h-4" aria-hidden="true" /> },
+  { key: 'achievement', icon: <Zap className="w-4 h-4" aria-hidden="true" /> },
+  { key: 'trophy_booster', icon: <Zap className="w-4 h-4" aria-hidden="true" /> },
+  { key: 'xp_booster', icon: <Zap className="w-4 h-4" aria-hidden="true" /> },
 ];
 
 const RARITY_COLORS: Record<string, string> = {
@@ -64,7 +64,7 @@ const InventoryItemCard = memo(function InventoryItemCard({
       className="bg-telegram-secondaryBg rounded-2xl p-4 border border-telegram-hint/10"
     >
       <div className="flex items-start gap-3">
-        <div className="text-3xl w-12 h-12 flex items-center justify-center bg-telegram-bg rounded-xl flex-shrink-0">
+        <div className="text-3xl w-12 h-12 flex items-center justify-center bg-telegram-bg rounded-xl flex-shrink-0" role="img" aria-label={item.name}>
           {item.icon_emoji || '📦'}
         </div>
         <div className="flex-1 min-w-0">
@@ -86,6 +86,7 @@ const InventoryItemCard = memo(function InventoryItemCard({
           <button
             onClick={() => onEquipToggle(item)}
             disabled={equipping === item.shop_item_id}
+            aria-label={`${item.is_equipped ? 'Unequip' : 'Equip'} ${item.name}`}
             className={`px-3 py-1.5 rounded-xl text-xs font-medium transition-all flex-shrink-0 ${
               item.is_equipped
                 ? 'bg-indigo-500 text-white'
@@ -156,9 +157,9 @@ export function Inventory() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-telegram-bg flex items-center justify-center">
+      <div className="min-h-screen bg-telegram-bg flex items-center justify-center" role="status" aria-label="Loading inventory">
         <div className="animate-pulse flex flex-col items-center gap-3">
-          <Package className="w-10 h-10 text-telegram-hint" />
+          <Package className="w-10 h-10 text-telegram-hint" aria-hidden="true" />
           <p className="text-telegram-hint text-sm">{t('inventory.loading')}</p>
         </div>
       </div>
@@ -178,7 +179,7 @@ export function Inventory() {
       {/* Header */}
       <div className="bg-gradient-to-br from-indigo-500 to-purple-600 pt-8 pb-6 px-6 rounded-b-3xl shadow-lg safe-area-top">
         <div className="flex items-center gap-3 mb-3">
-          <Package className="w-7 h-7 text-white" />
+          <Package className="w-7 h-7 text-white" aria-hidden="true" />
           <h1 className="text-2xl font-bold text-white">{t('inventory.title')}</h1>
         </div>
 
@@ -190,10 +191,12 @@ export function Inventory() {
         </div>
 
         {/* Category tabs */}
-        <div className="flex gap-2 mt-4 overflow-x-auto pb-1 scrollbar-none">
+        <div className="flex gap-2 mt-4 overflow-x-auto pb-1 scrollbar-none" role="tablist" aria-label="Inventory categories">
           {CATEGORIES.map(({ key, icon }) => (
             <button
               key={key}
+              role="tab"
+              aria-selected={category === key}
               onClick={() => { haptic.impact('light'); setCategory(key); }}
               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-all whitespace-nowrap ${
                 category === key
@@ -223,7 +226,7 @@ export function Inventory() {
         {/* Empty state */}
         {filteredItems.length === 0 && (
           <div className="text-center py-12 bg-telegram-secondaryBg rounded-2xl border border-telegram-hint/10">
-            <Package className="w-12 h-12 text-telegram-hint mx-auto mb-3" />
+            <Package className="w-12 h-12 text-telegram-hint mx-auto mb-3" aria-hidden="true" />
             <p className="text-telegram-hint mb-3">
               {category === 'all'
                 ? t('inventory.empty')
@@ -233,7 +236,7 @@ export function Inventory() {
               onClick={() => { haptic.impact('light'); navigate('/shop'); }}
               className="inline-flex items-center gap-2 bg-indigo-500 text-white px-4 py-2 rounded-xl text-sm font-medium"
             >
-              <ShoppingBag className="w-4 h-4" />
+              <ShoppingBag className="w-4 h-4" aria-hidden="true" />
               {t('inventory.visit_shop')}
             </button>
           </div>

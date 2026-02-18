@@ -91,7 +91,7 @@ export function Leaderboard() {
       <div className="bg-gradient-to-r from-yellow-500 to-orange-500 pt-8 pb-6 px-6 rounded-b-3xl shadow-lg safe-area-top">
         <div className="flex items-center gap-3 mb-4">
           <div className="bg-white/20 backdrop-blur-sm rounded-2xl p-3">
-            <Trophy className="w-8 h-8 text-white" />
+            <Trophy className="w-8 h-8 text-white" aria-hidden="true" />
           </div>
           <div className="flex-1">
             <h1 className="text-2xl font-bold text-white">{t('leaderboard.title')}</h1>
@@ -102,7 +102,7 @@ export function Leaderboard() {
             className="bg-white/20 backdrop-blur-sm rounded-2xl p-3 active:scale-95 transition-transform"
             aria-label="Share leaderboard"
           >
-            <Share2 className="w-6 h-6 text-white" />
+            <Share2 className="w-6 h-6 text-white" aria-hidden="true" />
           </button>
         </div>
         <TimePeriodTabs timePeriod={timePeriod} onSelect={setTimePeriod} haptic={haptic} />
@@ -111,7 +111,7 @@ export function Leaderboard() {
       <div className="px-4 mt-6">
         {entries.length === 0 ? (
           <div className="text-center py-12">
-            <Trophy className="w-12 h-12 text-telegram-hint mx-auto mb-3" />
+            <Trophy className="w-12 h-12 text-telegram-hint mx-auto mb-3" aria-hidden="true" />
             <p className="text-telegram-hint">{t('leaderboard.noRankings')}</p>
           </div>
         ) : (

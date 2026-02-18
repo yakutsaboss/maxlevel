@@ -1,6 +1,6 @@
 export function TrophyCaseSkeleton() {
   return (
-    <div className="min-h-screen bg-telegram-bg pb-20">
+    <div className="min-h-screen bg-telegram-bg pb-20" role="status" aria-label="Loading trophy case">
       {/* Header skeleton */}
       <div className="bg-gradient-to-br from-yellow-500 to-amber-600 pt-8 pb-6 px-6 rounded-b-3xl safe-area-top">
         <div className="flex items-center gap-3 mb-3">

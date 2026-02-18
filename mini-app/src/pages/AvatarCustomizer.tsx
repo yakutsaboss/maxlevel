@@ -24,12 +24,12 @@ const RARITY_COLORS: Record<string, string> = {
 function AvatarPreview({ equipped }: { equipped: EquippedItems }) {
   const slots = Object.entries(equipped).filter(([, v]) => v);
   return (
-    <div className="relative w-40 h-40 mx-auto rounded-full bg-gradient-to-br from-indigo-400 to-purple-600 flex items-center justify-center shadow-xl">
+    <div className="relative w-40 h-40 mx-auto rounded-full bg-gradient-to-br from-indigo-400 to-purple-600 flex items-center justify-center shadow-xl" role="img" aria-label={`Avatar preview with ${slots.length} items equipped`}>
       {slots.length === 0 ? (
-        <User className="w-16 h-16 text-white/60" />
+        <User className="w-16 h-16 text-white/60" aria-hidden="true" />
       ) : (
         <div className="text-center text-white">
-          <User className="w-12 h-12 mx-auto mb-1 text-white/80" />
+          <User className="w-12 h-12 mx-auto mb-1 text-white/80" aria-hidden="true" />
           <span className="text-xs text-white/60">{slots.length} items</span>
         </div>
       )}
@@ -40,7 +40,7 @@ function AvatarPreview({ equipped }: { equipped: EquippedItems }) {
 // Loading skeleton
 function AvatarCustomizerSkeleton() {
   return (
-    <div className="min-h-screen bg-telegram-bg animate-pulse">
+    <div className="min-h-screen bg-telegram-bg animate-pulse" role="status" aria-label="Loading avatar customizer">
       <div className="pt-12 pb-8 px-6 flex flex-col items-center">
         <div className="w-40 h-40 rounded-full bg-telegram-secondaryBg" />
         <div className="mt-4 w-32 h-6 rounded bg-telegram-secondaryBg" />
@@ -142,10 +142,12 @@ export function AvatarCustomizer() {
 
       {/* Category tabs */}
       <div className="px-4 mt-4">
-        <div className="flex gap-2">
+        <div className="flex gap-2" role="tablist" aria-label="Avatar categories">
           {CATEGORIES.map(cat => (
             <button
               key={cat}
+              role="tab"
+              aria-selected={activeCategory === cat}
               onClick={() => {
                 haptic.impact('light');
                 setActiveCategory(cat);
@@ -179,6 +181,7 @@ export function AvatarCustomizer() {
                 previewItem(activeCategory, isPreviewed ? null : item.sprite_key);
               }}
               disabled={!unlocked}
+              aria-label={`${item.name}, ${item.rarity}${isEquipped ? ', equipped' : ''}${!unlocked ? ', locked' : ''}`}
               className={`relative rounded-xl p-3 border-2 transition-all ${
                 isPreviewed
                   ? 'border-telegram-link bg-telegram-link/10 shadow-md'
