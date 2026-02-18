@@ -944,7 +944,31 @@ Read PARALLEL_AGENTS.md — you are Agent I of Run 75. Your task: Tests for the 
 **Recommendations**: Agent 0 should run this migration on the server after merge: `PGPASSWORD=postgres psql -h localhost -U postgres -d telegram_rpg -f database/migrations/run75_activities.sql`
 
 #### Agent B Retrospective
-*(To be filled by Agent B)*
+**Status:** COMPLETE — all 7 endpoints created, `tsc --noEmit` passes with 0 errors.
+
+**What was done:**
+- Created `bot/src/api/routes/activities.ts` (320 lines) with 7 endpoints:
+
+| # | Endpoint | Method | Description |
+|---|----------|--------|-------------|
+| 1 | `/start` | POST | Start timer-based activity (creates log with started_at, no ended_at). Prevents duplicate running timers. |
+| 2 | `/stop` | POST | Stop running timer (calculates duration_min from elapsed time, calories_burned from activity_type.calories_per_min × duration). |
+| 3 | `/log` | POST | Quick log with provided duration_min (auto-calculates calories, sets started_at/ended_at via interval). |
+| 4 | `/types` | GET | All activity_types grouped by category, cached with TTL.MEDIUM (5 min). |
+| 5 | `/:userId/history` | GET | Paginated history with dynamic filters: ?page, ?limit, ?category, ?from, ?to. Returns total + totalPages for pagination UI. |
+| 6 | `/:userId/stats` | GET | Aggregated stats: total_activities, total_duration_min, total_calories, favorite_activity, current_streak, longest_streak. |
+| 7 | `/:logId` | DELETE | Hard delete with telegram_id ownership check via JOIN. |
+
+- Registered `activityRouter` in `server.ts` at `/api/activities`.
+- Used all existing patterns: `asyncHandler`, `authenticateTelegram`, `authorizeUser` (for /:userId routes), `requireOwnership`-style telegram_id checks, `successResponse`, `mutationLimiter`/`readLimiter`, `cached` with `TTL.MEDIUM`, `invalidateUserCache`.
+- Streak calculation: queries DISTINCT dates, walks backwards from today checking consecutive days. Both current and longest streak computed.
+
+**Interfaces:** Added `ActivityType` and `ActivityLog` with `[key: string]: unknown` index signature to satisfy `Record<string, unknown>` constraint on `query<T>` / `queryOne<T>`.
+
+**Notes for Agent 0:**
+- Tables `activity_types` and `activity_logs` are created by Agent A's migration — API references them via SQL strings only.
+- Agent F (activityQuestMatcher) needs to add `import { matchActivityToQuests }` to activities.ts and call it in POST /log and POST /stop. This is documented as GRAY AREA in the ownership matrix.
+- No pre-existing TypeScript errors were found — `tsc --noEmit` is clean.
 
 #### Agent C Retrospective
 *(To be filled by Agent C)*
