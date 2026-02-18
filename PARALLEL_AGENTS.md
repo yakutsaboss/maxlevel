@@ -839,3 +839,122 @@ Plus two mixed runs (81, 82) for personalization engine, A/B testing, referrals,
 - ~~Hardcoded punishment validLevels~~ — Replaced with `PUNISHMENT_INTENSITY` constants in Run 21 Agent E
 
 <!-- Runs 2-74 archived to PARALLEL_AGENTS_HISTORY.md -->
+
+## RUN 75: Activity Hub — Sport Logging System (9 Agents + Agent 0)
+
+### Focus: Build a complete sport/activity logging system — users can open the Activity Hub, browse 20+ activities across 6 categories, start a timer workout or quick-log, track history with calendar view, and auto-complete fitness quests.
+
+### Copy-Paste Prompts
+
+**Agent A** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-a`):
+```
+Read PARALLEL_AGENTS.md — you are Agent A of Run 75. Your task: Activity DB schema + seed data. Create `database/migrations/run75_activities.sql` with two tables: `activity_types` (id SERIAL PRIMARY KEY, name VARCHAR NOT NULL, category VARCHAR NOT NULL, icon_emoji VARCHAR, description TEXT, default_duration_min INTEGER, calories_per_min NUMERIC, requires_timer BOOLEAN DEFAULT false, requires_gps BOOLEAN DEFAULT false, created_at TIMESTAMPTZ DEFAULT NOW()) and `activity_logs` (id SERIAL PRIMARY KEY, user_id INTEGER NOT NULL REFERENCES users(id), activity_type_id INTEGER NOT NULL REFERENCES activity_types(id), started_at TIMESTAMPTZ NOT NULL, ended_at TIMESTAMPTZ, duration_min INTEGER, distance_km NUMERIC, calories_burned INTEGER, notes TEXT, gps_data JSONB, created_at TIMESTAMPTZ DEFAULT NOW()). Add indexes on activity_logs(user_id, started_at) and activity_logs(activity_type_id). Seed 20+ activities across 6 categories: Cardio (running, cycling, swimming, jump rope, HIIT), Strength (gym workout, push-ups, pull-ups, squats, deadlifts), Flexibility (yoga, stretching, pilates), Sports (basketball, football, tennis, boxing), Outdoor (hiking, walking, climbing), Mind-Body (meditation, breathing exercises). Each with realistic default_duration_min and calories_per_min. OWNED files: database/migrations/run75_activities.sql. FORBIDDEN: everything else. After done, write your retrospective in PARALLEL_AGENTS.md under Run 75 Retrospectives → Agent A.
+```
+
+**Agent B** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-b`):
+```
+Read PARALLEL_AGENTS.md — you are Agent B of Run 75. Your task: Activity logging API. Create `bot/src/api/routes/activities.ts` with these endpoints: POST /api/activities/start (start timer — create log with started_at, no ended_at), POST /api/activities/stop (end timer — set ended_at, calculate duration_min and calories_burned from activity_type calories_per_min × duration), POST /api/activities/log (quick log — create complete log with duration_min provided), GET /api/activities/types (list all activity_types grouped by category, cached), GET /api/activities/:userId/history (paginated with ?page=&limit=&category=&from=&to= filters, ordered by started_at DESC), GET /api/activities/:userId/stats (total activities, total time, total calories, favorite activity, current streak, longest streak), DELETE /api/activities/:logId (soft delete or hard delete). Register the router in server.ts at /api/activities. Use existing patterns from other route files (asyncHandler, authenticateTelegram, authorizeUser, successResponse). OWNED: bot/src/api/routes/activities.ts, bot/src/api/server.ts (add router import). FORBIDDEN: mini-app/*, database/*. After done, verify build with `cd bot && npx tsc --noEmit`. Write retrospective in PARALLEL_AGENTS.md.
+```
+
+**Agent C** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-c`):
+```
+Read PARALLEL_AGENTS.md — you are Agent C of Run 75. Your task: Activity Hub page UI. Create `mini-app/src/pages/ActivityHub.tsx` — the main activity page. Layout: header with title "Activity Hub" and total stats (activities this week, calories burned). Category tabs (All, Cardio, Strength, Flexibility, Sports, Outdoor, Mind-Body) with horizontal scroll. Grid of ActivityCard components (2 columns). Each card shows: icon_emoji, activity name, category badge, "last done: X days ago" or "Never", personal record (longest duration or most calories). Two action buttons per card: "Quick Log" (logs instantly with default duration) and "Start Timer" (navigates to timer). Search bar at top. Create `mini-app/src/components/activity/ActivityCard.tsx`. Create `mini-app/src/hooks/useActivities.ts` — hook that fetches GET /api/activities/types and GET /api/activities/:userId/stats. Use existing patterns (usePullToRefresh, skeleton loading, ErrorSection). OWNED: mini-app/src/pages/ActivityHub.tsx, mini-app/src/components/activity/ActivityCard.tsx, mini-app/src/hooks/useActivities.ts. FORBIDDEN: bot/*, database/*, mini-app/src/App.tsx, mini-app/src/components/Navigation.tsx. After done, verify: cd mini-app && npx tsc --noEmit. Write retrospective.
+```
+
+**Agent D** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-d`):
+```
+Read PARALLEL_AGENTS.md — you are Agent D of Run 75. Your task: Workout timer/stopwatch component. Create `mini-app/src/components/activity/WorkoutTimer.tsx` — a full-screen timer overlay. Props: activityType (name, icon_emoji, calories_per_min), onComplete(duration, calories), onCancel(). Features: large HH:MM:SS display (centered), animated pulsing ring around time, Start/Pause/Resume button (toggle), Stop button (shows confirmation "End workout?"), real-time calories counter (calories_per_min × elapsed minutes), lap/set counter (+ button to increment, shows list of lap times). On complete: celebration animation (confetti or checkmark), show summary (duration, calories, laps), "Save" button that calls onComplete. Use Telegram theme CSS vars for colors. Add haptic feedback on button presses (window.Telegram?.WebApp?.HapticFeedback). Create `mini-app/src/hooks/useWorkoutTimer.ts` — timer logic hook (start, pause, resume, stop, elapsed, isRunning). Use setInterval with useRef for accurate timing. OWNED: mini-app/src/components/activity/WorkoutTimer.tsx, mini-app/src/hooks/useWorkoutTimer.ts. FORBIDDEN: bot/*, database/*, pages/*. After done, verify build. Write retrospective.
+```
+
+**Agent E** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-e`):
+```
+Read PARALLEL_AGENTS.md — you are Agent E of Run 75. Your task: Activity history + statistics page. Create `mini-app/src/pages/ActivityHistory.tsx` — activity history with calendar and stats. Sections: (1) Calendar heatmap at top — show last 3 months, each day cell colored by activity count (0=gray, 1-2=light, 3-4=medium, 5+=dark), tap day to see activities. (2) Weekly summary card: total activities, total time, total calories, comparison to last week (↑/↓ with %). (3) Personal records: longest run, most calories in a session, longest streak. (4) Activity log list: chronological list with activity icon, name, duration, calories, date. Paginated with "Load more". Create `mini-app/src/components/activity/ActivityCalendar.tsx` for the calendar heatmap. Use recharts for any charts (already installed). Fetch data from GET /api/activities/:userId/history and /stats. OWNED: mini-app/src/pages/ActivityHistory.tsx, mini-app/src/components/activity/ActivityCalendar.tsx. FORBIDDEN: bot/*, database/*. After done, verify build. Write retrospective.
+```
+
+**Agent F** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-f`):
+```
+Read PARALLEL_AGENTS.md — you are Agent F of Run 75. Your task: Activity → Quest integration. Create `bot/src/utils/activityQuestMatcher.ts` — service that links activities to quests. When a user logs an activity, check if any of their active quests can be progressed. Logic: match activity_type.category to quest mode (e.g., category "Cardio"/"Strength"/"Flexibility" → fitness mode). If a fitness quest is active and in "ready" or "in_progress" status, increment its check_in_count. If check_in_count >= target, auto-complete the quest and award XP. Export function `matchActivityToQuests(userId, activityLog)` that: (1) queries user's active quest_instances with JOIN on quests table, (2) filters to fitness mode quests, (3) updates check_in_count via SQL, (4) if quest completed, calls existing awardXp and checkAndUnlockAchievements utilities. Import and call this function from the activities route POST /api/activities/log and POST /api/activities/stop. OWNED: bot/src/utils/activityQuestMatcher.ts. GRAY AREA: bot/src/api/routes/activities.ts (add import + call to matchActivityToQuests after successful log — coordinate with Agent B). FORBIDDEN: mini-app/*, database/*. After done, verify build. Write retrospective.
+```
+
+**Agent G** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-g`):
+```
+Read PARALLEL_AGENTS.md — you are Agent G of Run 75. Your task: Activity achievements (15 new). Add 15 new achievements to database/seed_data.sql in a clearly marked "-- Activity Achievements (Run 75)" section. Achievements: (1) First Workout — complete 1 activity {type:"activity_count",value:1} — common, 25 XP, (2) Getting Started — 10 activities {type:"activity_count",value:10} — common, 50 XP, (3) Dedicated Athlete — 50 activities {type:"activity_count",value:50} — rare, 150 XP, (4) Century Club — 100 activities {type:"activity_count",value:100} — epic, 300 XP, (5) Cardio King — 20 cardio activities {type:"activity_category_count",category:"Cardio",value:20} — rare, 100 XP, (6) Iron Pumper — 20 strength {type:"activity_category_count",category:"Strength",value:20} — rare, 100 XP, (7) Zen Master — 20 flexibility {type:"activity_category_count",category:"Flexibility",value:20} — rare, 100 XP, (8) Sports Star — 20 sports {type:"activity_category_count",category:"Sports",value:20} — rare, 100 XP, (9) Outdoor Explorer — 10 outdoor {type:"activity_category_count",category:"Outdoor",value:10} — rare, 100 XP, (10) Marathon Runner — total 42km running distance {type:"total_distance_km",activity:"running",value:42} — epic, 250 XP, (11) Calorie Crusher — burn 10000 total cal {type:"total_calories",value:10000} — epic, 200 XP, (12) Early Bird Athlete — workout before 7am {type:"activity_time",before:"07:00"} — rare, 75 XP, (13) Night Owl Athlete — workout after 22:00 {type:"activity_time",after:"22:00"} — rare, 75 XP, (14) Variety Pack — log all 6 categories {type:"activity_all_categories",value:6} — epic, 200 XP, (15) Workout Streak 7 — 7 consecutive days with activity {type:"activity_streak",value:7} — rare, 100 XP. Also update bot/src/utils/achievementChecker.ts (or achievementEngine.ts — check which exists) to add checking logic for the new activity-based criteria types. OWNED: database/seed_data.sql (activity achievements section only), bot/src/utils/achievementChecker.ts or achievementEngine.ts. FORBIDDEN: mini-app/*. After done, verify bot build. Write retrospective.
+```
+
+**Agent H** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-h`):
+```
+Read PARALLEL_AGENTS.md — you are Agent H of Run 75. Your task: Activity i18n + navigation wiring. (1) Add all i18n keys for the Activity Hub in mini-app/src/i18n/en.ts, ru.ts, zh.ts. Keys needed: nav.activities, activityHub.title, activityHub.searchPlaceholder, activityHub.categories.* (all, cardio, strength, flexibility, sports, outdoor, mindBody), activityHub.quickLog, activityHub.startTimer, activityHub.lastDone, activityHub.never, activityHub.personalRecord, activityHub.thisWeek, activityHub.caloriesBurned, activityTimer.title, activityTimer.start, activityTimer.pause, activityTimer.resume, activityTimer.stop, activityTimer.endWorkout, activityTimer.summary, activityTimer.save, activityTimer.laps, activityHistory.title, activityHistory.weeklyStats, activityHistory.personalRecords, activityHistory.longestRun, activityHistory.mostCalories, activityHistory.longestStreak, activityHistory.loadMore, activityHistory.noActivities — at least 40 keys in each language. (2) Add routes to mini-app/src/App.tsx: lazy-load ActivityHub at /activity and ActivityHistory at /activity/history. (3) Add to mini-app/src/components/Navigation.tsx: add Dumbbell icon (from lucide-react) as a main nav item (5th position, replacing something in the "More" menu or adding to main bar). OWNED: mini-app/src/i18n/en.ts, ru.ts, zh.ts (activity keys only), mini-app/src/App.tsx (add routes), mini-app/src/components/Navigation.tsx (add nav item). FORBIDDEN: bot/*, database/*. After done, verify build. Write retrospective.
+```
+
+**Agent I** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-i`):
+```
+Read PARALLEL_AGENTS.md — you are Agent I of Run 75. Your task: Tests for the Activity Hub system. Create tests for: (1) Activity API — bot/src/__tests__/routes/activities.test.ts: test all 7 endpoints (start, stop, log, types, history, stats, delete). Use existing test patterns (buildApp, supertest, mock pool.query). Test: successful responses, missing params, auth required, pagination, filters. (2) ActivityHub UI — mini-app/src/__tests__/pages/ActivityHub.test.tsx: test rendering, category filtering, search, card display. Mock useActivities hook. (3) WorkoutTimer — mini-app/src/__tests__/components/WorkoutTimer.test.tsx: test start/pause/resume/stop, elapsed time display, calories calculation, onComplete callback. Use vi.useFakeTimers(). (4) ActivityHistory — mini-app/src/__tests__/pages/ActivityHistory.test.tsx: test calendar rendering, stats display, load more, empty state. (5) activityQuestMatcher — bot/src/__tests__/utils/activityQuestMatcher.test.ts: test matching logic, quest auto-completion, XP award. Run existing tests first: cd bot && npx vitest --run, cd mini-app && npx vitest --run — fix any pre-existing failures before adding new tests. OWNED: all test files listed above. FORBIDDEN: source files (no modifications to non-test files). After done, write retrospective.
+```
+
+### Run 75 File Ownership Matrix
+
+| File/Dir | Owner | Access |
+|----------|-------|--------|
+| database/migrations/run75_activities.sql | A | NEW |
+| database/seed_data.sql (activity achievements) | G | MODIFY (append only) |
+| bot/src/api/routes/activities.ts | B | NEW |
+| bot/src/api/server.ts | B | MODIFY (register router) |
+| bot/src/utils/activityQuestMatcher.ts | F | NEW |
+| bot/src/utils/achievementChecker.ts | G | MODIFY (add activity criteria) |
+| mini-app/src/pages/ActivityHub.tsx | C | NEW |
+| mini-app/src/pages/ActivityHistory.tsx | E | NEW |
+| mini-app/src/components/activity/ActivityCard.tsx | C | NEW |
+| mini-app/src/components/activity/WorkoutTimer.tsx | D | NEW |
+| mini-app/src/components/activity/ActivityCalendar.tsx | E | NEW |
+| mini-app/src/hooks/useActivities.ts | C | NEW |
+| mini-app/src/hooks/useWorkoutTimer.ts | D | NEW |
+| mini-app/src/App.tsx | H | MODIFY (add routes) |
+| mini-app/src/components/Navigation.tsx | H | MODIFY (add nav item) |
+| mini-app/src/i18n/en.ts, ru.ts, zh.ts | H | MODIFY (add activity keys) |
+| bot/src/__tests__/** | I | NEW test files |
+| mini-app/src/__tests__/** | I | NEW test files |
+| PARALLEL_AGENTS.md | ALL | Retrospective section only |
+
+### Run 75 Merge Order
+
+1. **A** (DB schema — foundational, no code deps)
+2. **B** (API routes — depends on schema)
+3. **F** (Quest matcher — depends on B's routes)
+4. **G** (Achievements — depends on schema + achievement checker)
+5. **C** (Activity Hub UI — depends on B's API)
+6. **D** (Timer component — independent UI)
+7. **E** (History page — depends on B's API)
+8. **H** (i18n + navigation — touches App.tsx, merge late)
+9. **I** (Tests — always last)
+
+### Run 75 Retrospectives
+
+#### Agent A Retrospective
+*(To be filled by Agent A)*
+
+#### Agent B Retrospective
+*(To be filled by Agent B)*
+
+#### Agent C Retrospective
+*(To be filled by Agent C)*
+
+#### Agent D Retrospective
+*(To be filled by Agent D)*
+
+#### Agent E Retrospective
+*(To be filled by Agent E)*
+
+#### Agent F Retrospective
+*(To be filled by Agent F)*
+
+#### Agent G Retrospective
+*(To be filled by Agent G)*
+
+#### Agent H Retrospective
+*(To be filled by Agent H)*
+
+#### Agent I Retrospective
+*(To be filled by Agent I)*
+
+#### Agent 0 Retrospective
+*(To be filled by Agent 0 after merge)*
