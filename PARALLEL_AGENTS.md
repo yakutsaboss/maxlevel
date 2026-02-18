@@ -295,291 +295,431 @@ Use this structure when creating a new run. Copy and adapt:
 
 ---
 
-## MANDATORY ROADMAP (Runs 65-74) — Agent 0 MUST Follow This
+## MANDATORY ROADMAP (Runs 75-82) — Agent 0 MUST Follow This
 
 ⚠️ **This roadmap is NON-NEGOTIABLE. Agent 0 must execute these runs IN ORDER.**
 ⚠️ **Do NOT skip, reorder, or replace runs with "more important" work.**
 ⚠️ **If you are Agent 0 and you are about to design a new run, the NEXT unexecuted run below is your ONLY option.**
 
 ### Background
-Runs 56-64 were supposed to deliver avatars, trophies, shop, and 30+ achievements. Instead, Agent 0 improvised social features, challenge discovery, and test hardening. This roadmap corrects course.
+Runs 65-74 delivered the core gamification stack: achievements (50+), avatars, trophies, shop, inventory, analytics, finance, notifications, DND, PWA, a11y, keyboard nav, and integration tests. The app is feature-complete for v1. This new roadmap focuses on two themes:
 
-### Current State (after Run 64)
-- 1817+ tests (954 bot + 863 mini-app)
-- Tier system: free/subscriber/premium with channel verification + mode gating
-- Payment: Telegram Stars end-to-end (createInvoiceLink → pre_checkout → successful_payment)
-- Celebrations: Confetti, LevelUpModal, XpFloat wired into Dashboard
-- Social: friends (request/accept/reject/unfriend), challenges (create/discover/join/progress/leave/detail), user search
-- Achievements: basic system exists, ~15 achievements seeded, achievement checking on quest completion
-- Avatars: shared avatar data file exists, leaderboard shows avatar_id, but NO visual avatar system
-- Shop: nothing exists (no shop page, no purchasable items, no inventory)
+1. **Interactive Engagement** (Runs 75, 76, 79) — Activity Hub (sport logging), Knowledge Feed (articles + quizzes), daily challenges, streak multipliers, habit chains, social activity feed
+2. **Spreadsheet/Admin Ecosystem** (Runs 77, 78, 80) — Full admin panel overhaul, live Google Sheets bidirectional sync, onboarding classification, funnel analytics, user segmentation, churn prediction
+
+Plus two mixed runs (81, 82) for personalization engine, A/B testing, referrals, and final integration.
+
+### Current State (after Run 74)
+- 2000+ tests (1046 bot + 1052 mini-app)
+- 80+ API endpoints across 33 route files
+- 24 DB tables + 2 views
+- 16 mini-app pages
+- Full gamification: achievements, avatars, trophies, shop, inventory
+- Social: friends, challenges, leaderboard
+- Finance: budget tracker, savings goals
+- Notifications: DND, timezone-aware, rich HTML templates
+- PWA: service worker, install prompt, offline banner
+- A11y: ARIA labels, keyboard nav, focus traps, skip links
+- Google Sheets export (weekly scheduled)
+- Prometheus metrics + health endpoint
 
 ### The Roadmap
 
-| Run | Focus | Agents | Status |
-|-----|-------|--------|--------|
-| **65** | Achievement Expansion — 30+ New Achievements | 5 | ✅ |
-| **66** | Pixel Art Avatar System | 5 | ✅ |
-| **67** | Animated Avatars + Trophy System | 5 | ✅ |
-| **68** | Purchasable Achievements + Stars Punishment | 5 | ✅ |
-| **69** | Shop Page + Content Polish | 5 | ✅ |
-| **70** | Final QA + Performance Optimization | 4 | ✅ |
-| **71** | Accessibility + PWA + Dark Mode | 4 | ✅ |
-| **72** | Advanced Analytics + Data Export | 4 | ✅ |
-| **73** | Notification System + Smart Reminders | 4 | ✅ |
-| **74** | Integration Testing + Launch Prep | 3 | ⬜ |
+| Run | Theme | Focus | Agents | Status |
+|-----|-------|-------|--------|--------|
+| **75** | Engagement | Activity Hub — Sport Logging System | 9 | ⬜ |
+| **76** | Engagement | Knowledge Feed — Articles & Quizzes | 8 | ⬜ |
+| **77** | Admin | Admin Panel Revolution + Player Management | 9 | ⬜ |
+| **78** | Admin | Live Spreadsheet Ecosystem | 9 | ⬜ |
+| **79** | Engagement | Daily Challenges + Gamification | 8 | ⬜ |
+| **80** | Admin | Funnel Analytics + User Segmentation | 8 | ⬜ |
+| **81** | Mixed | Personalization + Growth Engine | 8 | ⬜ |
+| **82** | Mixed | Final Integration + QA | 7 | ⬜ |
 
 ---
 
-#### Run 65: Achievement Expansion — 30+ New Achievements (5 Agents)
+#### Run 75: Activity Hub — Sport Logging System (9 Agents)
 
-**Goal**: Expand the achievement system from ~15 to 45+ achievements across all categories.
+**Goal**: Build a complete sport/activity logging system — the "special button" that opens a window with sport activities users can tap to log workouts and complete daily quests.
 
-**Agent A — Achievement Seed Data**
-- OWNED: `database/seed_data.sql`
-- Add 30+ new achievements across categories:
-  - Social achievements (5): First Friend, Social Butterfly (10 friends), Challenge Creator, Challenge Champion, Helping Hand
-  - Streak achievements (5): 7-day, 14-day, 30-day, 60-day, 100-day streaks
-  - Mode mastery (6): Master of each mode (fitness, hydration, finance, medication, habits, learning)
-  - Quest achievements (5): First Quest, 10 Quests, 50 Quests, 100 Quests, Quest Perfectionist (all daily)
-  - XP milestones (5): Level 5, 10, 25, 50, 100
-  - Special achievements (4): Early Adopter, Premium Member, Night Owl (complete after 10pm), Weekend Warrior
-- Each achievement: name, description, icon_emoji, criteria JSONB, xp_reward, rarity (common/rare/epic/legendary)
+**Agent A — Activity DB schema + seed data**
+- OWNED: `database/migrations/run75_activities.sql`
+- New tables: `activity_types` (id, name, category, icon_emoji, description, default_duration_min, calories_per_min, requires_timer, requires_gps), `activity_logs` (id, user_id, activity_type_id, started_at, ended_at, duration_min, distance_km, calories_burned, notes, gps_data JSONB)
+- Seed 20+ activities across 6 categories: Cardio (running, cycling, swimming, jump rope, HIIT), Strength (gym, push-ups, pull-ups, squats, deadlifts), Flexibility (yoga, stretching, pilates), Sports (basketball, football, tennis, boxing), Outdoor (hiking, walking, climbing), Mind-Body (meditation, breathing exercises)
 
-**Agent B — Achievement Checking Service Refactor**
-- OWNED: `bot/src/api/routes/achievements.ts`, `bot/src/utils/achievementChecker.ts` (NEW)
-- Extract achievement checking logic into a dedicated service
-- Add check functions for each new category: checkSocialAchievements, checkStreakAchievements, checkModeAchievements, checkQuestAchievements, checkXpAchievements
-- Wire into existing quest completion and user update flows
+**Agent B — Activity logging API**
+- OWNED: `bot/src/api/routes/activities.ts` (NEW)
+- `POST /api/activities/start` (start timer), `POST /api/activities/stop` (end + save), `POST /api/activities/log` (quick log without timer)
+- `GET /api/activities/types` (catalog with categories), `GET /api/activities/:userId/history` (paginated, filterable)
+- `GET /api/activities/:userId/stats` (total time, calories, favorite activity, streaks), `DELETE /api/activities/:logId`
 
-**Agent C — Achievement Gallery UI**
-- OWNED: `mini-app/src/pages/Achievements.tsx`, `mini-app/src/components/achievements/` (NEW dir)
-- Redesign achievements page: grid gallery with category tabs (All/Social/Streak/Mode/Quest/XP/Special)
-- Each achievement card: icon, name, description, rarity badge (color-coded), progress bar (e.g., "7/10 friends"), locked/unlocked state
-- Filter by: earned/unearned, rarity, category
+**Agent C — Activity Hub page UI**
+- OWNED: `mini-app/src/pages/ActivityHub.tsx` (NEW), `mini-app/src/components/activity/ActivityCard.tsx` (NEW)
+- Grid of sport cards grouped by category tabs, each card shows icon + name + last done + personal record
+- One-tap "Quick Log" button per activity. "Start Workout" button for timer-based activities
+- Search/filter by category. Add to Navigation (dumbbell icon in main nav)
 
-**Agent D — Achievement Notification + Celebration Integration**
-- OWNED: `bot/src/utils/achievementChecker.ts` (GRAY — add notification calls), celebration hooks
-- When achievement unlocked: trigger confetti + achievement toast in mini-app
-- Add Telegram bot notification for rare/epic/legendary achievements
-- Wire into the useCelebration hook
+**Agent D — Activity timer/stopwatch**
+- OWNED: `mini-app/src/components/activity/WorkoutTimer.tsx` (NEW)
+- Full-screen timer with start/pause/resume/stop, elapsed time display (HH:MM:SS)
+- Calories counter (real-time estimate), heart rate zone indicator, lap/set counter for gym workouts
+- GPS distance tracking toggle (optional). Celebration animation on complete
 
-**Agent E — Tests**
-- Test achievement checker service (unit tests for each check function)
-- Test achievement gallery UI (component tests)
-- Update existing achievement tests for new structure
+**Agent E — Activity history + statistics**
+- OWNED: `mini-app/src/pages/ActivityHistory.tsx` (NEW), `mini-app/src/components/activity/ActivityCalendar.tsx` (NEW)
+- Calendar view (day dots colored by category), weekly/monthly summary cards (total time, calories, activities count)
+- Personal records section, streaks per activity type. Chart: activity frequency over time (recharts bar chart)
 
----
+**Agent F — Activity → Quest integration**
+- OWNED: `bot/src/utils/activityQuestMatcher.ts` (NEW)
+- Link activities to existing quest system: when user logs an activity matching a fitness quest, auto-progress that quest
+- New quest type `activity_based` in quests table. Auto-complete quests when activity logged. XP bonus for exceeding targets
 
-#### Run 66: Pixel Art Avatar System (5 Agents)
+**Agent G — Activity achievements (15 new)**
+- OWNED: `database/seed_data.sql` (activity achievements section)
+- Seed 15 activity achievements: First Workout, 10/50/100 Workouts, Cardio King, Iron Pumper, Zen Master, Sports Star, Outdoor Explorer, Marathon (42km running), Century (100 activities), Calorie Crusher (10,000 cal), Early Bird Athlete, Night Owl Athlete, Variety Pack (all 6 categories)
+- Wire into achievement checker
 
-**Goal**: Build a pixel art avatar system where users can customize their character.
+**Agent H — Activity i18n + navigation**
+- OWNED: i18n files, `mini-app/src/App.tsx` (route), `mini-app/src/components/Navigation.tsx` (nav item)
+- All i18n keys for activity hub (en/ru/zh — 40+ keys each)
+- Add ActivityHub + ActivityHistory routes, Navigation dumbbell icon, deep links (/activity, /activity/:typeId)
+- Add activity stats to Profile page
 
-**Agent A — Avatar Data Model + API**
-- OWNED: `database/schema.sql` (ADD tables), `bot/src/api/routes/avatars.ts` (NEW)
-- New tables: `avatar_items` (id, category, name, sprite_key, rarity, unlock_type, unlock_criteria), `user_avatar` (user_id, equipped_items JSONB)
-- Seed default avatar items: 5 hairstyles, 5 outfits, 5 accessories, 3 backgrounds
-- API: GET /avatar/:userId, PATCH /avatar/:userId/equip, GET /avatar/items (catalog)
-
-**Agent B — Avatar Sprite Rendering**
-- OWNED: `mini-app/src/components/avatar/` (NEW dir)
-- AvatarRenderer component: takes equipped items, renders layered pixel art (CSS layers or canvas)
-- Sprite sheet system: each item category has a sprite sheet PNG
-- Create placeholder sprite data (colored squares/simple shapes for now)
-
-**Agent C — Avatar Selection UI**
-- OWNED: `mini-app/src/pages/AvatarCustomizer.tsx` (NEW), `mini-app/src/hooks/useAvatar.ts` (NEW)
-- Full-screen avatar customizer: preview on top, item category tabs below
-- Tap item to preview, "Equip" button to save
-- Show locked items grayed out with unlock hint
-- useAvatar hook: load current avatar, save changes via API
-
-**Agent D — Avatar Integration**
-- OWNED: Dashboard, Profile, Leaderboard avatar rendering
-- Replace generic avatar circles with AvatarRenderer component
-- Show user's custom avatar in: Dashboard header, Profile page, Leaderboard rows, Social friend cards
-
-**Agent E — Tests**
-- Avatar API tests (HTTP), AvatarRenderer tests, AvatarCustomizer tests
+**Agent I — Tests**
+- Activity API tests (HTTP integration), ActivityHub component tests, WorkoutTimer tests
+- ActivityHistory tests, activity-quest matcher unit tests, achievement checker tests for new achievements
 
 ---
 
-#### Run 67: Animated Avatars + Trophy System (5 Agents)
+#### Run 76: Knowledge Feed + Content Platform (8 Agents)
 
-**Goal**: Add avatar animations and a trophy case for showcasing achievements.
+**Goal**: Content delivery system — articles about personal finance, savings, health tips, productivity. Users read short articles, take quizzes, earn XP.
 
-**Agent A — Avatar Animation States**
-- OWNED: `mini-app/src/components/avatar/AvatarAnimator.tsx` (NEW)
-- Animation states: idle (breathing), celebrate (jump + particles), level-up (glow + scale), walk
-- Use CSS keyframes or Framer Motion for smooth pixel-perfect animations
-- Trigger animations on events (quest complete, level up, achievement unlock)
+**Agent A — Content DB schema + seed data**
+- OWNED: `database/migrations/run76_content.sql`
+- New tables: `content_articles` (id, title, summary, body_html, category, read_time_min, xp_reward, cover_emoji, difficulty, tags JSONB, is_published, created_at), `content_quiz` (id, article_id, question, options JSONB, correct_index, xp_reward), `user_content_progress` (user_id, article_id, read_at, quiz_score, xp_earned), `user_bookmarks` (user_id, article_id, bookmarked_at)
+- Seed 30+ articles: Personal Finance (10), Health (10), Productivity (10) — each with 2-3 quiz questions
 
-**Agent B — Trophy System Backend**
-- OWNED: `database/schema.sql` (ADD tables), `bot/src/api/routes/trophies.ts` (NEW)
-- New table: `trophies` (id, name, description, icon, rarity, criteria), `user_trophies` (user_id, trophy_id, earned_at)
-- Seed 15-20 trophies: "First Steps", "Social Star", "Challenge Conqueror", "Streak Master", etc.
-- API: GET /trophies/:userId (earned), GET /trophies (all available)
-- Trophy unlock logic tied to achievement milestones
+**Agent B — Content API**
+- OWNED: `bot/src/api/routes/content.ts` (NEW)
+- `GET /api/content/feed` (paginated, category filter, unread first), `GET /api/content/:articleId`, `POST /api/content/:articleId/read` (mark read + award XP)
+- `GET /api/content/:articleId/quiz`, `POST /api/content/:articleId/quiz` (submit answers + award XP)
+- `POST /api/content/:articleId/bookmark` (toggle), `GET /api/content/bookmarks/:userId`, `GET /api/content/progress/:userId`
 
-**Agent C — Trophy Case UI**
-- OWNED: `mini-app/src/pages/TrophyCase.tsx` (NEW), `mini-app/src/components/trophies/` (NEW)
-- Trophy display case: 3D-ish shelf layout with trophy icons
-- Earned trophies are shiny/animated, unearned are silhouettes
-- Tap to see details + how to earn
-- Add Trophy Case link to Profile page
+**Agent C — Content Feed page**
+- OWNED: `mini-app/src/pages/ContentFeed.tsx` (NEW), `mini-app/src/components/content/ContentCard.tsx` (NEW)
+- Swipeable horizontal card carousel (cover emoji, title, category badge, read time, XP reward)
+- Category filter tabs (All, Finance, Health, Productivity). "New" badge for unread. Pull-to-refresh
 
-**Agent D — i18n + Integration**
-- OWNED: i18n files, navigation, routes
-- Add all trophy/animation i18n keys (en, ru, zh)
-- Add Trophy Case to navigation/router
-- Wire avatar animations into existing celebration system
+**Agent D — Article detail + reader**
+- OWNED: `mini-app/src/pages/ArticleReader.tsx` (NEW)
+- Full-screen article view with scroll progress indicator, rich text rendering (HTML)
+- Estimated read time, related articles at bottom, bookmark button, "Take Quiz" CTA at end
+- Track reading completion (must scroll to 80%+ to earn read XP)
 
-**Agent E — Tests**
-- Trophy API tests, Trophy Case component tests, avatar animation tests
+**Agent E — Quiz system UI**
+- OWNED: `mini-app/src/components/content/ContentQuiz.tsx` (NEW)
+- Post-article quiz modal: multiple choice with animated feedback (correct=green+confetti, wrong=red+shake)
+- Score summary at end, XP earned display, share score button, "Read Again" if failed
 
----
+**Agent F — Bookmarks + reading history**
+- OWNED: `mini-app/src/pages/ReadingHistory.tsx` (NEW)
+- Tabs: History / Bookmarks / Stats. Chronological read list with quiz scores
+- Stats: total articles read, average quiz score, XP from content, reading streak, favorite category
 
-#### Run 68: Purchasable Achievements + Stars Punishment (5 Agents)
+**Agent G — Content recommendation + daily tip**
+- OWNED: Dashboard widget, daily summary integration
+- Recommend articles based on active modes, reading history, quiz performance
+- Dashboard widget: "Today's Read" card. Include daily tip in daily summary notification
 
-**Goal**: Add monetization through purchasable achievements and a punishment system.
-
-**Agent A — Shop Backend**
-- OWNED: `database/schema.sql` (ADD tables), `bot/src/api/routes/shop.ts` (NEW)
-- New tables: `shop_items` (id, type, item_id, price_stars, price_xp, is_featured), `user_purchases` (user_id, item_id, purchased_at)
-- Seed shop items: premium achievements, rare avatar items, trophy boosters
-- API: GET /shop/items, POST /shop/purchase (Stars or XP payment)
-
-**Agent B — Stars Punishment System**
-- OWNED: `bot/src/api/routes/punishment.ts` (modify), `bot/src/jobs/definitions/` (modify)
-- When user misses daily goals: deduct Stars (configurable per punishment config)
-- Add `punishment_history` tracking
-- Integration with existing punishment configuration UI
-- Telegram notification before deduction ("You missed your goal! X Stars will be deducted in 1 hour")
-
-**Agent C — Purchase Flow UI**
-- OWNED: `mini-app/src/hooks/usePurchase.ts` (NEW), `mini-app/src/components/shop/` (NEW)
-- Purchase confirmation modal (show item, price in Stars or XP, balance)
-- Stars payment via existing Telegram Stars flow
-- XP payment (deduct from user balance)
-- Purchase success animation
-
-**Agent D — Premium Achievement Badges**
-- OWNED: achievement display components
-- Purchased achievements get special visual treatment: gold border, sparkle animation, "Premium" tag
-- Show purchase status in achievement gallery
-- Add "Buy" button on locked purchasable achievements
-
-**Agent E — Tests**
-- Shop API tests, punishment logic tests, purchase flow tests
+**Agent H — Tests**
+- Content API tests, feed component tests, quiz flow tests, bookmark tests, recommendation logic tests
 
 ---
 
-#### Run 69: Shop Page + Content Polish (5 Agents)
+#### Run 77: Admin Panel Revolution + Player Management (9 Agents)
 
-**Goal**: Build the full shop page UI and polish all content.
+**Goal**: Completely redesign the admin panel into a full-featured player management system. Admin can search players, view full profiles, award XP, unlock achievements, change tiers.
 
-**Agent A — Shop Page UI**
-- OWNED: `mini-app/src/pages/Shop.tsx` (NEW), `mini-app/src/hooks/useShop.ts` (NEW)
-- Full shop page: featured items carousel, category tabs (Avatars/Achievements/Trophies/Boosters)
-- Item cards: preview, price, rarity badge, "Buy" button
-- User balance display (Stars + XP)
-- Search/filter functionality
+**Agent A — Admin layout + dashboard redesign**
+- OWNED: `mini-app/src/components/admin/AdminLayout.tsx` (NEW), `mini-app/src/components/admin/AdminSidebar.tsx` (NEW), `mini-app/src/pages/admin/AdminDashboard.tsx` (NEW)
+- Full sidebar-nav admin layout: sidebar (Dashboard, Players, Quests, Achievements, Content, Analytics, Settings)
+- Dashboard: 6 stat cards (Total Users, Active Today, New This Week, Revenue, Avg Session, Retention Rate), mini charts
+- Quick actions panel (broadcast, trigger job, export data)
 
-**Agent B — Inventory System**
-- OWNED: `mini-app/src/pages/Inventory.tsx` (NEW), `bot/src/api/routes/inventory.ts` (NEW)
-- User inventory page: owned items by category
-- Equip/unequip avatar items from inventory
-- Show purchase history
+**Agent B — Player list — spreadsheet-style table**
+- OWNED: `mini-app/src/pages/admin/AdminPlayerList.tsx` (NEW), `mini-app/src/hooks/useAdminPlayers.ts` (NEW)
+- Full-width data table: Avatar, Name, Telegram ID, Level, XP, Tier, Active Modes, Last Active, Joined, Status
+- Column sorting, text search, filters (tier, level range, mode, active/inactive, date range), pagination (50/page)
+- Row selection (checkboxes for bulk ops), CSV export button, inline quick actions per row
 
-**Agent C — Content Audit + Polish**
-- OWNED: seed data, i18n files
-- Review all seeded achievements (text quality, balanced XP rewards, correct criteria)
-- Review all trophy descriptions
-- Review all shop item descriptions and prices
-- Ensure all 3 languages are complete and consistent
+**Agent C — Player detail view**
+- OWNED: `mini-app/src/pages/admin/AdminPlayerDetail.tsx` (NEW)
+- Full player profile: Overview, Activity Timeline, Mode Progress, Quest History, Achievements, Financial Summary, Social, Settings/Preferences, Punishment History
+- Breadcrumb navigation back to player list
 
-**Agent D — Navigation + Routing**
-- OWNED: routing, navigation, i18n keys
-- Add Shop page to main navigation (with cart icon)
-- Add Inventory to Profile sub-navigation
-- Add all shop/inventory i18n keys (en, ru, zh)
-- Deep link support: /shop/:itemId
+**Agent D — Admin actions — XP, achievements, tier**
+- OWNED: `mini-app/src/components/admin/AdminPlayerActions.tsx` (NEW)
+- "Award XP" modal, "Unlock Achievement" dropdown + confirm, "Change Tier" select + confirm
+- "Send Message" (via Telegram), "Deactivate Account" confirm modal. All actions logged to audit log
 
-**Agent E — Tests**
-- Shop page tests, inventory tests, content validation tests
+**Agent E — Admin actions API backend**
+- OWNED: `bot/src/api/routes/admin-players.ts` (enhanced), `database/migrations/run77_admin.sql`
+- New endpoints: `POST /admin/players/:userId/award-xp`, `POST /admin/players/:userId/unlock-achievement`, `PATCH /admin/players/:userId/tier`, `POST /admin/players/:userId/message`
+- New table: `admin_audit_log` (admin_id, action, target_user_id, details JSONB, created_at)
+- Enhanced `GET /admin/players` with pagination, search, sort, filter params
 
----
+**Agent F — Bulk operations**
+- OWNED: `mini-app/src/components/admin/AdminBulkActions.tsx` (NEW)
+- Toolbar on row selection: bulk award XP, bulk change tier, bulk send message, bulk export
+- Confirmation modal (count + action), progress bar for large ops, all actions logged
 
-#### Run 70: Final QA + Performance Optimization (4 Agents)
+**Agent G — Admin notification center**
+- OWNED: `mini-app/src/components/admin/AdminNotifications.tsx` (NEW), `bot/src/api/routes/admin-notifications.ts` (NEW)
+- Bell icon → dropdown: new registrations, achievement unlocks, payments, system alerts
+- Mark as read, filter by type, link to player detail. Backend: `admin_notifications` table + API
 
-**Goal**: Full regression testing, performance optimization, bundle analysis.
+**Agent H — Admin i18n + routing**
+- OWNED: i18n files, `mini-app/src/App.tsx` (admin routes)
+- All admin i18n keys (en/ru/zh — 60+ keys)
+- Routing: `/admin/dashboard`, `/admin/players`, `/admin/players/:id`, etc.
+- Sidebar active state. Mobile-responsive admin layout
 
-**Agent A — Performance Audit + Fixes**
-- Bundle analysis (vite-bundle-visualizer), identify top 5 largest chunks
-- Code splitting: lazy load Shop, TrophyCase, AvatarCustomizer, Inventory pages
-- Memo optimization for heavy components (AvatarRenderer, achievement gallery)
-- Target: -40% main bundle size
-
-**Agent B — Database Performance**
-- Add missing indexes for new tables (shop_items, user_purchases, trophies, user_trophies, avatar_items, user_avatar)
-- Review and optimize slow queries (EXPLAIN ANALYZE on critical paths)
-- Add connection pool tuning if needed
-
-**Agent C — Full Regression Test Suite**
-- Run ALL tests, fix any failures
-- Manual flow testing: onboarding → quest → achievement → shop → purchase → equip
-- Cross-feature integration tests
-- Payment end-to-end verification
-
-**Agent D — Service Worker + PWA**
-- Fix SW cache version (dynamic, not hardcoded)
-- Add PWA manifest with proper icons
-- Offline support for cached pages
-- App install prompt
+**Agent I — Tests**
+- Admin API tests (CRUD, bulk, audit log), player list tests, player detail tests, action modal tests, bulk ops tests
 
 ---
 
-#### Run 71: Accessibility + PWA + Dark Mode (4 Agents)
+#### Run 78: Live Spreadsheet Ecosystem (9 Agents)
 
-**Agent A**: ARIA labels, keyboard nav, screen reader support across all pages
-**Agent B**: Dark mode theme system (CSS variables, theme toggle in settings, persist preference)
-**Agent C**: PWA enhancements (offline pages, cache strategies, background sync)
-**Agent D**: Tests for a11y, dark mode, PWA
+**Goal**: Bidirectional Google Sheets sync — admin edits spreadsheet, app reflects changes. Auto-populated player roster, onboarding classification, point system configuration.
+
+**Agent A — Sheets sync engine backend**
+- OWNED: `tools/sheets_sync_engine.py` (NEW)
+- Core functions: `push_to_sheet()`, `pull_from_sheet()`, `diff_and_merge()`. Conflict resolution: remote wins for admin-editable fields
+- Batch operations (100+ rows efficiently), retry with exponential backoff
+
+**Agent B — Player roster sheet**
+- OWNED: `tools/sheets_player_roster.py` (NEW)
+- Auto-populated sheet: Telegram ID, Username, Level, XP, Tier, Modes, Last Active, Join Date, Streaks, Quests, Achievements
+- Sync every 30 min. Admin-editable: Tier (syncs back to app), Notes. Conditional formatting by tier
+
+**Agent C — Onboarding classification sheet**
+- OWNED: `tools/sheets_onboarding_classification.py` (NEW)
+- Sheet: User ID, Username, Modes Selected, Quiz Responses, Pain Points, Punishment Consent, Referral Source, Auto-Classification
+- Auto-classify: "Casual", "Committed", "Hardcore", "Finance-focused", "Fitness-focused". Admin can override
+
+**Agent D — Point system config sheet**
+- OWNED: `tools/config_from_sheets.py` (NEW)
+- Admin-editable config: XP per quest difficulty, streak bonus multipliers, activity XP rates, content XP, level thresholds
+- Pull config → cache in memory → API reads from cache. Config change detection + hot reload
+
+**Agent E — Activity tracking sheet**
+- OWNED: `tools/sheets_activity_tracking.py` (NEW)
+- Daily activity log: Date, User, Activity Type, Duration, Calories, Quest Linked, XP Earned
+- Aggregation rows: daily/weekly totals. Charts: frequency histogram, popular activities
+
+**Agent F — Sheets sync API + admin UI**
+- OWNED: `bot/src/api/routes/admin-sheets.ts` (NEW), `mini-app/src/pages/admin/AdminSheets.tsx` (NEW)
+- API: `POST /admin/sheets/sync`, `GET /admin/sheets/status`, `GET /admin/sheets/config`
+- Admin UI: sync status, last sync time, manual sync button, sheet links, config preview table
+
+**Agent G — Sync scheduler + monitoring**
+- OWNED: `bot/src/jobs/definitions/sheetSync.ts` (NEW), `database/migrations/run78_sheets.sql`
+- pg-boss job: `sheetSync` every 30 min. Sync order: config → roster → onboarding → activities
+- `sheets_sync_log` table: sync_time, sheet_name, rows_pushed, rows_pulled, errors, duration_ms
+
+**Agent H — Financial aggregation sheet**
+- OWNED: `tools/sheets_financial_summary.py` (NEW)
+- Per-user budget/savings overview: Monthly Income/Expenses, Savings Rate, Goal Progress
+- Privacy: only finance-mode users. Update weekly
+
+**Agent I — Tests**
+- Sheets sync tests (mock Google Sheets API), config reader tests, scheduler tests, API tests, sync log tests
 
 ---
 
-#### Run 72: Advanced Analytics + Data Export (4 Agents)
+#### Run 79: Enhanced Daily Engagement + Gamification (8 Agents)
 
-**Agent A**: Analytics dashboard improvements (charts, trends, comparisons)
-**Agent B**: Google Sheets auto-export (weekly Q&A data, progress summaries)
-**Agent C**: Data export feature (PDF/CSV personal data export, GDPR compliance)
-**Agent D**: Tests
+**Goal**: Daily rotating challenges, streak multipliers, calendar heatmap, habit chains, social activity feed.
+
+**Agent A — Daily challenge engine backend**
+- OWNED: `bot/src/api/routes/daily-challenges.ts` (NEW), `bot/src/jobs/definitions/dailyChallengeGenerator.ts` (NEW), `database/migrations/run79_engagement.sql`
+- Tables: `daily_challenges`, `daily_challenge_progress`
+- Types: "Complete 3 quests", "Log 2 activities", "Read 1 article", "Beat your PR", "Help a friend"
+- API: `GET /api/challenges/daily`, `POST /api/challenges/daily/:id/progress`. Midnight generator job
+
+**Agent B — Dashboard quick-action widgets**
+- OWNED: `mini-app/src/components/dashboard/QuickActionWidgets.tsx` (NEW)
+- "Quick Activity" one-tap button, "Daily Challenge" card with progress, "Today's Read" card
+- "Streak Status" animated flame with multiplier badge, "Friend Activity" ticker
+
+**Agent C — Calendar heatmap**
+- OWNED: `mini-app/src/components/activity/ActivityHeatmap.tsx` (NEW)
+- GitHub-style contribution calendar. Day cells colored by intensity. Tooltip: date, activities, XP, quests
+- Current streak highlight. Year/month toggle. Integrate into ActivityHistory + Profile
+
+**Agent D — Habit chain tracker**
+- OWNED: `mini-app/src/components/habits/HabitChainTracker.tsx` (NEW)
+- Visual chain per mode: completed = solid link, missed = broken. Current/longest chain length
+- Grace mechanic: miss 1 day + double next day = chain continues. "Don't break the chain!" message
+
+**Agent E — Streak multiplier system**
+- OWNED: `bot/src/utils/streakMultiplier.ts` (NEW)
+- `getStreakMultiplier(streakDays)`: 1.0x (0-6d), 1.2x (7-13d), 1.5x (14-29d), 2.0x (30-59d), 2.5x (60-99d), 3.0x (100d+)
+- Apply to quest + activity XP. Combo: all daily quests + daily challenge = bonus XP
+- Pull multiplier values from config sheet (Run 78)
+
+**Agent F — Social activity feed**
+- OWNED: `mini-app/src/components/social/SocialFeed.tsx` (NEW)
+- Friends' recent activities: "Alex completed Morning Run", "Maria unlocked Gold Trophy"
+- Reactions (fire, clap, thumbs up) stored in `activity_reactions` table. "Nudge" inactive friends
+
+**Agent G — Engagement i18n + animations**
+- OWNED: i18n files, animation CSS/Framer Motion
+- All i18n keys (en/ru/zh — 50+ keys). Micro-animations: chain forming, fire growing, multiplier bounce
+- Haptic feedback on all interactions
+
+**Agent H — Tests**
+- Daily challenge engine tests, widget tests, heatmap tests, habit chain tests, multiplier tests, feed tests
 
 ---
 
-#### Run 73: Notification System + Smart Reminders (4 Agents)
+#### Run 80: Funnel Analytics + User Segmentation (8 Agents)
 
-**Agent A**: Smart reminder engine (optimal time detection, adaptive frequency)
-**Agent B**: Notification preferences UI (per-mode, per-type toggles)
-**Agent C**: Telegram notification templates (rich media, inline buttons)
-**Agent D**: Tests
+**Goal**: Event-driven analytics — track user actions, visualize funnels, retention cohorts, auto-classify players.
+
+**Agent A — Event tracking system**
+- OWNED: `bot/src/utils/eventTracker.ts` (NEW), `database/migrations/run80_analytics.sql`
+- Table: `analytics_events` (id, user_id, event_type, event_data JSONB, session_id, created_at)
+- Events: onboarding_step, quest_started/completed, activity_logged, article_read, shop_purchase, page_viewed, session_start/end
+- `trackEvent(type, data)` callable from any route. Middleware for auto-tracking
+
+**Agent B — Onboarding funnel visualization**
+- OWNED: `mini-app/src/pages/admin/AdminOnboardingFunnel.tsx` (NEW)
+- Step-by-step funnel chart: Splash → Mode Selection → Quiz → Avatar → Punishment → Notifications → Complete
+- Drop-off % between steps, median time per step. Filter by date range, referral source
+- Drill down to specific users who dropped at each step
+
+**Agent C — Feature adoption tracking**
+- OWNED: `mini-app/src/pages/admin/AdminFeatureAdoption.tsx` (NEW)
+- Table + charts: % of users using each feature. Segmented by tier/join date
+- "Feature stickiness" metric: % who returned within 7 days. Trend over time
+
+**Agent D — Player classification engine**
+- OWNED: `tools/player_classifier.py` (NEW), `bot/src/jobs/definitions/playerClassification.ts` (NEW)
+- Segments: Power Users, Regular, Casual, At-Risk, Churned
+- Score based on: login frequency, quest completion, streaks, feature breadth, social engagement
+- `user_segments` table. Daily job. Push to Google Sheet
+
+**Agent E — Cohort retention analysis**
+- OWNED: `mini-app/src/pages/admin/AdminRetention.tsx` (NEW)
+- Retention matrix: rows = join week, columns = weeks 1-12. Color-coded heatmap
+- D1, D7, D30, D90 rates. Filter by segment, mode, tier. Export to spreadsheet
+
+**Agent F — Admin analytics dashboard revamp**
+- OWNED: `mini-app/src/pages/admin/AdminDashboard.tsx` (enhanced)
+- Interactive recharts: DAU/MAU, User Growth, Revenue, Top Features, Segment Distribution, Retention Trend
+- Date range picker. Period comparison (this week vs last)
+
+**Agent G — Churn prediction + re-engagement**
+- OWNED: `bot/src/jobs/definitions/churnDetection.ts` (NEW)
+- Churn risk score (0-100): days inactive, declining completion, broken streaks
+- Auto-send re-engagement notification when score > 70. Admin: at-risk users sorted by score
+- Push churn scores to spreadsheet
+
+**Agent H — Tests**
+- Event tracking tests, funnel tests, adoption tests, classifier tests, retention tests, churn score tests
 
 ---
 
-#### Run 74: Integration Testing + Launch Prep (3 Agents)
+#### Run 81: Personalization + Growth Engine (8 Agents)
 
-**Agent A**: Full end-to-end testing (all user flows)
-**Agent B**: Load testing + monitoring setup
-**Agent C**: Documentation + launch checklist
+**Goal**: Smart personalization — difficulty auto-adjusts, recommendations, A/B testing, referrals, surveys.
 
-### Expected Metrics After Run 74
-- Tests: 2500+
-- Achievement count: 45+
-- Avatar items: 20+
-- Trophies: 15-20
-- Shop items: 30+
-- Bundle size: -40% from current
-- All 3 languages complete
+**Agent A — Difficulty adjustment algorithm**
+- OWNED: `bot/src/utils/difficultyAdjuster.ts` (NEW), `bot/src/jobs/definitions/difficultyAdjustment.ts` (NEW)
+- Auto-scale quest difficulty: >90% completion 7 days → increase, <50% → decrease
+- `user_difficulty_profile` table (current_difficulty, adjustment_history JSONB)
+- Pull base parameters from config sheet. API: GET/PATCH difficulty
+
+**Agent B — Personalized recommendations**
+- OWNED: `bot/src/utils/recommendationEngine.ts` (NEW), `bot/src/api/routes/recommendations.ts` (NEW)
+- Recommend: quests, activities, articles, friends — based on history, modes, time of day, performance
+- API: `GET /api/recommendations/:userId`. Dashboard: "Recommended For You" section
+
+**Agent C — A/B testing framework**
+- OWNED: `bot/src/api/routes/experiments.ts` (NEW), `database/migrations/run81_personalization.sql`
+- Tables: `experiments`, `experiment_assignments`, `experiment_events`
+- API: assignment, event tracking. Admin UI: create experiments, view results with confidence intervals
+- SDK: `getVariant(experimentName, userId)`
+
+**Agent D — In-app survey system**
+- OWNED: `bot/src/api/routes/surveys.ts` (NEW), `mini-app/src/components/SurveyModal.tsx` (NEW)
+- Tables: `surveys`, `survey_responses`. Types: NPS, feature feedback, free text
+- Trigger conditions: after N days/quests, on specific page. XP reward for completion
+
+**Agent E — Referral system**
+- OWNED: `bot/src/api/routes/referrals.ts` (NEW), `mini-app/src/pages/ReferralPage.tsx` (NEW)
+- Tables: `referral_codes`, `referral_completions`. Unique codes per user
+- Referred: bonus XP. Referrer: XP + "Recruiter" badge. Dashboard: code, share buttons, count, rewards
+
+**Agent F — Engagement scoring system**
+- OWNED: `bot/src/utils/engagementScorer.ts` (NEW), `bot/src/jobs/definitions/engagementScoring.ts` (NEW)
+- Composite score (0-100): login (30%), quests (25%), features (15%), social (15%), content (15%)
+- `user_engagement_scores` table (daily snapshots). Admin player detail display. Trend chart
+
+**Agent G — Growth metrics dashboard**
+- OWNED: `mini-app/src/pages/admin/AdminGrowthMetrics.tsx` (NEW)
+- AARRR funnel: Acquisition, Activation, Retention, Revenue, Referral
+- LTV estimation based on tier + engagement. Month-over-month comparison
+
+**Agent H — Tests**
+- Difficulty tests, recommendation tests, A/B tests, survey tests, referral tests, engagement score tests
+
+---
+
+#### Run 82: Final Integration + Quality Assurance (7 Agents)
+
+**Goal**: Connect all new features, ensure everything works, optimize performance, update documentation.
+
+**Agent A — Cross-feature integration**
+- Wire: Activity → quest → achievement → streak multiplier → daily challenge → engagement score → segment
+- Content → quiz → XP → level → difficulty adjustment. Verify all event tracking fires correctly
+
+**Agent B — Performance optimization**
+- Bundle analysis, lazy-load all new pages. DB indexes on new tables
+- Query optimization (EXPLAIN ANALYZE top 10 slowest). Target: <200ms p95 user-facing APIs
+
+**Agent C — Onboarding v2 integration**
+- Showcase new features in onboarding: Activity Hub preview, Content Feed preview
+- Add referral code input step. Track all steps as analytics events
+
+**Agent D — Spreadsheet integration testing**
+- E2E: create user → classify → verify roster sheet → admin edits tier → sync → verify app → activity → verify sheet
+- Fix sync issues. Document full data flow
+
+**Agent E — Full regression test suite**
+- Run ALL tests, fix failures. 10+ new integration test scenarios
+- Verify all API endpoints. Test admin flows E2E
+
+**Agent F — Documentation update**
+- Update ARCHITECTURE.md, API_REFERENCE.md. New: ADMIN_GUIDE.md, SPREADSHEET_GUIDE.md
+
+**Agent G — Load testing + monitoring**
+- Test new endpoints under load (100 concurrent users). Target: <500ms p99
+- Prometheus alert rules. Verify pg-boss jobs under load
+
+### Expected Metrics After Run 82
+- Tests: 3000+
+- Activity types: 20+
+- Content articles: 30+
+- Admin features: full player management, bulk ops, audit log
+- Google Sheets: 5 live-synced sheets (roster, onboarding, config, activities, financial)
+- Analytics: event tracking, funnel viz, retention cohorts, churn prediction
+- Personalization: A/B testing, referrals, difficulty adjustment, recommendations
+- All 3 languages complete for all new features
 
 ---
 
