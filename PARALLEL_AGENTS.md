@@ -322,7 +322,7 @@ Runs 56-64 were supposed to deliver avatars, trophies, shop, and 30+ achievement
 | **66** | Pixel Art Avatar System | 5 | ✅ |
 | **67** | Animated Avatars + Trophy System | 5 | ✅ |
 | **68** | Purchasable Achievements + Stars Punishment | 5 | ✅ |
-| **69** | Shop Page + Content Polish | 5 | 🔄 |
+| **69** | Shop Page + Content Polish | 5 | ✅ |
 | **70** | Final QA + Performance Optimization | 4 | ⬜ |
 | **71** | Accessibility + PWA + Dark Mode | 4 | ⬜ |
 | **72** | Advanced Analytics + Data Export | 4 | ⬜ |
@@ -1533,6 +1533,291 @@ Run 68 also added `mini-app/src/api/shop.ts` (API client) and `mini-app/src/hook
 4. `mini-app/src/__tests__/hooks/useShop.test.ts` — 11 tests for useShop hook
 
 **Merge note for Agent 0:** Tests import from paths that other agents create (e.g., `@/pages/Shop`, `@/hooks/useShop`, `inventory.js` route). After merging agent branches in order (B→A→C→D→E), run tests and fix any mismatches between test mocks and actual implementations (export names, prop shapes, hook return signatures). Previous runs needed 5-25 fixes — aim to minimize by reviewing actual source before finalizing tests during merge.
+
+#### Agent 0 Retrospective
+**Status:** COMPLETE — All 5 agents merged, 2063 tests passing, deployed.
+
+**Merge summary:** All 5 agents committed to their correct branches. Merge order: B→A→C→D→E. Zero git conflicts. However, Agents C and D both added shop/inventory i18n keys to the same locale files, creating duplicate property errors (TS1117). Agent 0 resolved by merging both sets into unified sections with all keys used by actual components.
+
+**Post-merge fixes (7 files):**
+1. i18n deduplication (en.ts, ru.ts, zh.ts): Removed duplicate `nav.shop`/`nav.inventory` entries and duplicate `shop:`/`inventory:` top-level sections. Unified into single sections containing all keys from both agents plus missing keys referenced by components (PurchaseModal, PurchaseSuccessAnimation).
+2. Inventory test mocks (inventory.http.test.ts): Fixed field names (`item_type` → `type`, added `is_equipped: false`), fixed mock functions (`db.execute` → `db.query`, second `db.queryOne` → `db.query`) to match actual route implementation.
+3. Shop test fixes (Shop.test.tsx): Added missing `Check` icon to lucide-react mock, fixed i18n key expectations for category tabs, handled duplicate elements from featured+grid sections.
+4. Inventory test fixes (Inventory.test.tsx): Fixed hook return shape (`groupedItems` → `grouped`, added missing fields), fixed item interface (`id` → `purchase_id`, added `payment_method`/`amount_paid`), added correct i18n keys.
+5. Navigation test (Navigation.test.tsx): Added `ShoppingBag` icon to lucide-react mock and `nav.shop` to i18n translations.
+
+**Test counts:** 1046 bot + 1017 mini-app = 2063 total (up from 2019 in Run 68, +44).
+
+**Archiving:** Moved Runs 65-67 to PARALLEL_AGENTS_HISTORY.md. History now covers Runs 2-67.
+
+**Issues carried forward:** None. Known issue #8 ("No shop/purchasable content") is now resolved — Shop page, Inventory, and purchase flow are all live.
+
+---
+
+## RUN 70: Parallel Agents (4 Agents + Agent 0)
+
+### Focus: Final QA + Performance Optimization
+
+Full regression testing, bundle size optimization, database index audit, and PWA/Service Worker enhancements. All pages are already lazy-loaded. PWA manifest exists. Service worker is functional but needs improvements.
+
+**Current state**:
+- 2063 tests (1046 bot + 1017 mini-app), all passing
+- All 13 feature pages already lazy-loaded in App.tsx
+- PWA manifest.json exists with proper icons and standalone mode
+- Service worker (sw.js) has network-first API + cache-first static assets
+- Main index bundle: 222KB (72KB gzip)
+- Database: newer tables (Run 66-69) have basic indexes, some gaps
+
+### Run 70 Agents
+
+| Agent | Focus | Branch | Key Files |
+|-------|-------|--------|-----------|
+| A | Performance audit + bundle optimization | `feature/r70-performance` | `mini-app/vite.config.ts`, `mini-app/src/` components |
+| B | Database indexes + query optimization | `feature/r70-db-perf` | `database/migrations/run70_indexes.sql`, `bot/src/api/routes/` |
+| C | Full regression tests + integration tests | `feature/r70-regression` | `bot/src/__tests__/`, `mini-app/src/__tests__/` |
+| D | Service Worker + PWA enhancements | `feature/r70-pwa` | `mini-app/public/sw.js`, `mini-app/src/` |
+
+### Run 70 File Ownership
+
+| File / Area | A | B | C | D |
+|---|---|---|---|---|
+| `mini-app/vite.config.ts` | **OWN** | | | |
+| `mini-app/src/components/**` (memo optimization) | **OWN** | | | |
+| `mini-app/src/pages/**` (import optimization) | **OWN** | | | |
+| `database/migrations/run70_indexes.sql` (NEW) | | **OWN** | | |
+| `bot/src/api/routes/**` (query optimization) | | **OWN** | | |
+| `bot/src/__tests__/**` | | | **OWN** | |
+| `mini-app/src/__tests__/**` | | | **OWN** | |
+| `mini-app/public/sw.js` | | | | **OWN** |
+| `mini-app/public/manifest.json` | | | | **OWN** |
+| `mini-app/src/hooks/useServiceWorker.ts` (NEW) | | | | **OWN** |
+| `mini-app/src/components/InstallPrompt.tsx` (NEW) | | | | **OWN** |
+
+### Run 70 Merge Order
+
+1. Agent B (DB indexes — no code dependencies)
+2. Agent A (Performance — component changes)
+3. Agent D (PWA — new components + SW)
+4. Agent C (Tests — last, tests everything)
+
+### Run 70 Copy-Paste Prompts
+
+#### Agent A Prompt
+```
+Read c:\Users\Asus\Desktop\Wibecode-agent-a\PARALLEL_AGENTS.md — find "RUN 70" and locate the "Agent A" section. You are Agent A.
+
+YOUR TASK: Performance audit and bundle optimization for the mini-app.
+
+OWNED FILES:
+- mini-app/vite.config.ts (modify — add build optimization)
+- mini-app/src/components/** (modify — add React.memo where beneficial)
+- mini-app/src/pages/** (modify — optimize imports)
+- mini-app/package.json (modify — add rollup-plugin-visualizer as devDependency)
+
+TASK 1 — Install and run bundle visualizer:
+- `cd mini-app && npm install --save-dev rollup-plugin-visualizer`
+- Add the visualizer plugin to vite.config.ts (only in build mode)
+- Run `npm run build` and analyze the output sizes
+- Document the top 5 largest chunks and what they contain
+
+TASK 2 — Optimize bundle splitting in vite.config.ts:
+- Current main index bundle is 222KB (72KB gzip). Optimize by splitting vendor chunks better:
+  - Split framer-motion into its own chunk (it's heavy and only used on a few pages)
+  - Split i18n translations into a separate chunk (already done: vendor-i18n)
+  - Ensure react-query is in its own chunk (already done: vendor-query)
+- Add manual chunk configuration in rollupOptions.output.manualChunks if not already present
+- Target: reduce main index.js below 180KB
+
+TASK 3 — Add React.memo to heavy list components:
+- Read `mini-app/src/pages/Achievements.tsx` — memoize individual AchievementCard if not already
+- Read `mini-app/src/pages/Leaderboard.tsx` — memoize LeaderboardRow items
+- Read `mini-app/src/pages/Shop.tsx` — memoize ItemCard and FeaturedCarousel items
+- Read `mini-app/src/pages/Inventory.tsx` — memoize inventory item cards
+- Only memo components that receive stable props and render in lists (map iterations)
+
+TASK 4 — Optimize heavy imports:
+- Check if any pages import icons from lucide-react barrel export — if so, switch to specific imports: `import { Icon } from 'lucide-react'` is fine (Vite tree-shakes), but if there's `import * as icons` anywhere, fix it
+- Check for any unused imports across pages
+
+IMPORTANT: Use .js extensions in ALL import paths.
+FORBIDDEN: bot/ files, database/ files, test files, public/ files.
+BUILD VERIFY: cd mini-app && npm run build — verify smaller bundles.
+
+After completing, write your retrospective in PARALLEL_AGENTS.md under "Run 70 Retrospectives" → "Agent A Retrospective", replacing the placeholder. Then commit all changes.
+```
+
+#### Agent B Prompt
+```
+Read c:\Users\Asus\Desktop\Wibecode-agent-b\PARALLEL_AGENTS.md — find "RUN 70" and locate the "Agent B" section. You are Agent B.
+
+YOUR TASK: Database performance — add missing indexes and optimize queries.
+
+OWNED FILES:
+- database/migrations/run70_indexes.sql (NEW)
+- bot/src/api/routes/** (modify — optimize slow queries)
+
+TASK 1 — Create database/migrations/run70_indexes.sql with missing indexes:
+```sql
+-- Run 70: Performance indexes for newer tables
+
+-- user_purchases: reverse lookup by shop_item_id
+CREATE INDEX IF NOT EXISTS idx_user_purchases_shop_item_id ON user_purchases(shop_item_id);
+
+-- user_purchases: compound index for inventory queries (user + type join)
+CREATE INDEX IF NOT EXISTS idx_user_purchases_user_equipped ON user_purchases(user_id, is_equipped) WHERE is_equipped = true;
+
+-- trophies: sort order for display
+CREATE INDEX IF NOT EXISTS idx_trophies_sort_order ON trophies(sort_order);
+
+-- achievements: category + rarity for gallery filtering
+CREATE INDEX IF NOT EXISTS idx_achievements_category ON achievements(category);
+CREATE INDEX IF NOT EXISTS idx_achievements_rarity ON achievements(rarity);
+
+-- user_achievements: compound for user achievement lookups
+CREATE INDEX IF NOT EXISTS idx_user_achievements_user_achievement ON user_achievements(user_id, achievement_id);
+```
+
+TASK 2 — Review and optimize heavy queries in routes:
+Read each route file and identify queries that could benefit from optimization:
+- `bot/src/api/routes/inventory.ts` — the GET /:userId query joins user_purchases with shop_items. Add an ORDER BY clause if missing.
+- `bot/src/api/routes/shop.ts` — verify the items query uses the active index
+- `bot/src/api/routes/achievements.ts` — check if achievement gallery queries are efficient
+- `bot/src/api/routes/trophies.ts` — check trophy queries
+- For any query doing a sequential scan on a large table, add COMMENT explaining which index it uses
+
+TASK 3 — Add database/seed_data.sql updates if needed:
+- Verify all seed data INSERT statements use ON CONFLICT to be idempotent
+- No changes needed if already idempotent
+
+IMPORTANT: Use .js extensions in ALL import paths.
+FORBIDDEN: mini-app/ files, test files.
+BUILD VERIFY: cd bot && npm run build must pass.
+
+After completing, write your retrospective in PARALLEL_AGENTS.md under "Run 70 Retrospectives" → "Agent B Retrospective", replacing the placeholder. Then commit all changes.
+```
+
+#### Agent C Prompt
+```
+Read c:\Users\Asus\Desktop\Wibecode-agent-c\PARALLEL_AGENTS.md — find "RUN 70" and locate the "Agent C" section. You are Agent C.
+
+YOUR TASK: Full regression testing and cross-feature integration tests.
+
+OWNED FILES:
+- bot/src/__tests__/** (new test files only)
+- mini-app/src/__tests__/** (new test files only)
+
+TASK 1 — Run ALL existing tests and verify they pass:
+- `cd bot && npx vitest --run` — all 1046 tests must pass
+- `cd mini-app && npx vitest --run` — all 1017 tests must pass
+- If any test fails, FIX IT (read the source first, then fix the test)
+
+TASK 2 — Write cross-feature integration tests for bot:
+Create `bot/src/__tests__/integration/shop-purchase-flow.test.ts`:
+- Test: user views shop items → purchases an item → item appears in inventory → equip item
+- Mock the database layer, test the full HTTP route chain
+- Test: purchase with insufficient stars returns error
+- Test: purchase already-owned one-time item returns error
+
+Create `bot/src/__tests__/integration/achievement-unlock-flow.test.ts`:
+- Test: user completes quest → achievement checker runs → achievement unlocked → trophy awarded
+- Test edge cases: duplicate achievement unlock, criteria not met
+
+TASK 3 — Write cross-feature integration tests for mini-app:
+Create `mini-app/src/__tests__/integration/navigation-flow.test.tsx`:
+- Test: navigating between all main pages (Dashboard → Quests → Shop → Achievements → Profile)
+- Test: Shop → item click → PurchaseModal opens
+- Test: Profile → Inventory button → navigates to /inventory
+- Test: Profile → Avatar button → navigates to /avatar
+
+TASK 4 — Verify all i18n keys are used:
+Create `mini-app/src/__tests__/i18n/completeness.test.ts`:
+- Load en.ts, ru.ts, zh.ts
+- Verify every key in en.ts exists in ru.ts and zh.ts
+- Verify no orphaned keys (keys in ru/zh not in en)
+
+IMPORTANT: Read source files BEFORE writing tests. Previous runs had massive test failures because Agent E wrote tests without reading source.
+FORBIDDEN: Non-test source files. Do NOT modify any component, route, or config file.
+TEST VERIFY: npx vitest --run must pass for both bot and mini-app.
+
+After completing, write your retrospective in PARALLEL_AGENTS.md under "Run 70 Retrospectives" → "Agent C Retrospective", replacing the placeholder. Then commit all changes.
+```
+
+#### Agent D Prompt
+```
+Read c:\Users\Asus\Desktop\Wibecode-agent-d\PARALLEL_AGENTS.md — find "RUN 70" and locate the "Agent D" section. You are Agent D.
+
+YOUR TASK: Enhance the Service Worker and PWA experience.
+
+OWNED FILES:
+- mini-app/public/sw.js (modify)
+- mini-app/public/manifest.json (modify if needed)
+- mini-app/src/hooks/useServiceWorker.ts (NEW)
+- mini-app/src/components/InstallPrompt.tsx (NEW)
+- mini-app/src/components/OfflineBanner.tsx (NEW)
+
+CONTEXT: The service worker at `mini-app/public/sw.js` already exists with:
+- Install: caches root path + index.html with build hash versioning
+- Activate: cleans old caches
+- Fetch: network-first for API, cache-first for static assets
+- Manifest.json: fully configured (name, icons, colors, standalone display)
+
+TASK 1 — Enhance sw.js with offline fallback:
+- Add an offline fallback page: when network fails AND no cache hit, serve a simple "You're offline" HTML page
+- Cache the offline page during install phase
+- Add a message listener for cache invalidation from the app: `self.addEventListener('message', ...)` to handle `{ type: 'SKIP_WAITING' }` and `{ type: 'CLEAR_CACHE' }`
+- Make the cache version dynamic based on a build timestamp (read from a query param or env)
+
+TASK 2 — Create mini-app/src/hooks/useServiceWorker.ts:
+```typescript
+interface UseServiceWorkerReturn {
+  isUpdateAvailable: boolean;
+  isOffline: boolean;
+  updateServiceWorker: () => void;
+}
+```
+- Register the service worker on mount
+- Listen for `controllerchange` events to detect updates
+- Track online/offline status via `navigator.onLine` + event listeners
+- Provide `updateServiceWorker()` to call `skipWaiting` on the waiting worker
+
+TASK 3 — Create mini-app/src/components/InstallPrompt.tsx:
+- Listen for `beforeinstallprompt` event
+- Show a subtle banner at the bottom: "Add MaxLevel to your home screen" with Install / Dismiss buttons
+- Persist dismissal in localStorage so it doesn't show again for 7 days
+- Use Telegram haptic feedback on install
+- Style: small, non-intrusive, matches the app's dark theme
+
+TASK 4 — Create mini-app/src/components/OfflineBanner.tsx:
+- Show a small banner when the user is offline: "You're offline. Some features may be unavailable."
+- Auto-hide when back online
+- Use the `useServiceWorker` hook for status
+- Style: yellow/amber warning banner at top of screen
+
+TASK 5 — Update manifest.json if needed:
+- Verify all required fields are present
+- Add `categories: ["games", "lifestyle"]` if missing
+- Add `screenshots` array (empty for now — can be filled later)
+
+IMPORTANT: Use .js extensions in ALL import paths.
+FORBIDDEN: bot/ files, database/ files, test files, existing pages/, existing hooks/ (except registering in App.tsx if needed).
+BUILD VERIFY: cd mini-app && npm run build must pass.
+
+After completing, write your retrospective in PARALLEL_AGENTS.md under "Run 70 Retrospectives" → "Agent D Retrospective", replacing the placeholder. Then commit all changes.
+```
+
+### Run 70 Retrospectives
+
+#### Agent A Retrospective
+*(To be filled by Agent A)*
+
+#### Agent B Retrospective
+*(To be filled by Agent B)*
+
+#### Agent C Retrospective
+*(To be filled by Agent C)*
+
+#### Agent D Retrospective
+*(To be filled by Agent D)*
 
 #### Agent 0 Retrospective
 *(To be filled by Agent 0 after merge)*
