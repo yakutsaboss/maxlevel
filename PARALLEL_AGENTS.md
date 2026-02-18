@@ -327,7 +327,7 @@ Plus two mixed runs (81, 82) for personalization engine, A/B testing, referrals,
 
 | Run | Theme | Focus | Agents | Status |
 |-----|-------|-------|--------|--------|
-| **75** | Engagement | Activity Hub — Sport Logging System | 9 | ⬜ |
+| **75** | Engagement | Activity Hub — Sport Logging System | 9 | ✅ |
 | **76** | Engagement | Knowledge Feed — Articles & Quizzes | 8 | ⬜ |
 | **77** | Admin | Admin Panel Revolution + Player Management | 9 | ⬜ |
 | **78** | Admin | Live Spreadsheet Ecosystem | 9 | ⬜ |
@@ -1145,6 +1145,352 @@ Read PARALLEL_AGENTS.md — you are Agent I of Run 75. Your task: Tests for the 
 - After merging Agent D's WorkoutTimer.tsx, consider replacing the contract-based tests with direct component render tests. The contract tests validate the timer logic but not the UI rendering.
 - The `fetchActivityHistory` in ActivityHistory uses raw `fetch()` instead of an API client — the tests mock `global.fetch` directly.
 - All 2324 tests pass (88 bot files + 171 mini-app files = 259 suites, 0 failures).
+
+#### Agent 0 Retrospective
+**Status:** COMPLETE — all 9 agents merged, tested, deployed.
+
+**Merge summary:**
+- Agents A, B, F, G, H, I were already merged to main by a previous Agent 0 session (7 commits)
+- Agents C and E had files on main but uncommitted (6 files: ActivityHub.tsx, ActivityHistory.tsx, ActivityCard.tsx, ActivityCalendar.tsx, useActivities.ts, activities API client) — committed as one batch
+- Agent D had 2 unmerged commits on `feature/r75-workout-timer` — merged with PARALLEL_AGENTS.md conflict resolution (took ours + spliced D's retrospective)
+
+**Agent 0 integration work:**
+- Wired `matchActivityToQuests()` into `POST /activities/stop` and `POST /activities/log` (Agent F's GRAY AREA task)
+- questResult included in API responses for frontend to show quest progress feedback
+
+**Build & test results:**
+- Bot: tsc clean, 90 files / 1196 tests passed
+- Mini-app: tsc clean, vite build success, 171 files / 1128 tests passed
+- Total: 2324 tests, 0 failures
+
+**Deploy:**
+- Migration `run75_activities.sql`: 2 tables created, 2 indexes, 22 activities seeded
+- Seed data re-run for 15 new activity achievements
+- PM2 restart verified: version `0301bfe`, uptime confirmed via health endpoint
+- SSH required PowerShell wrapper for output capture (bash SSH silent on Windows)
+
+**Known issues carried forward:**
+- Agent E's ActivityHistory expects extended `/stats` response (calendar, prev_week comparisons, records) that Agent B's endpoint doesn't provide yet — needs API enhancement in a future run
+- Agent C's Quick Log calls `POST /activities/:userId/quick-log` which doesn't exist — Agent B implemented `POST /activities/log` instead. Frontend needs adjustment
+- WorkoutTimer is standalone — not wired into ActivityHub's "Start Timer" button yet
+- pg-boss Node.js 22.12+ warning persists (server has 20.20)
+
+---
+
+## RUN 76: Knowledge Feed + Content Platform (8 Agents + Agent 0)
+
+### Focus: Build a content delivery system — articles about personal finance, health, and productivity. Users browse a feed, read articles, take quizzes, earn XP, bookmark favorites, and get personalized recommendations.
+
+### Copy-Paste Prompts
+
+**Agent A** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-a`):
+```
+Read PARALLEL_AGENTS.md — you are Agent A of Run 76. Your task: Content DB schema + seed data. Create `database/migrations/run76_content.sql` with these tables:
+
+1. `content_articles` (id SERIAL PRIMARY KEY, title VARCHAR(255) NOT NULL, summary TEXT NOT NULL, body_html TEXT NOT NULL, category VARCHAR(50) NOT NULL, read_time_min INTEGER NOT NULL DEFAULT 5, xp_reward INTEGER NOT NULL DEFAULT 25, cover_emoji VARCHAR(10), difficulty VARCHAR(20) DEFAULT 'beginner', tags JSONB DEFAULT '[]', is_published BOOLEAN DEFAULT true, created_at TIMESTAMPTZ DEFAULT NOW())
+
+2. `content_quiz` (id SERIAL PRIMARY KEY, article_id INTEGER NOT NULL REFERENCES content_articles(id) ON DELETE CASCADE, question TEXT NOT NULL, options JSONB NOT NULL, correct_index INTEGER NOT NULL, xp_reward INTEGER NOT NULL DEFAULT 10, created_at TIMESTAMPTZ DEFAULT NOW())
+
+3. `user_content_progress` (id SERIAL PRIMARY KEY, user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE, article_id INTEGER NOT NULL REFERENCES content_articles(id) ON DELETE CASCADE, read_at TIMESTAMPTZ DEFAULT NOW(), quiz_score INTEGER, xp_earned INTEGER DEFAULT 0, UNIQUE(user_id, article_id))
+
+4. `user_bookmarks` (id SERIAL PRIMARY KEY, user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE, article_id INTEGER NOT NULL REFERENCES content_articles(id) ON DELETE CASCADE, bookmarked_at TIMESTAMPTZ DEFAULT NOW(), UNIQUE(user_id, article_id))
+
+Add indexes: content_articles(category, is_published), content_articles(created_at DESC), user_content_progress(user_id), user_bookmarks(user_id), content_quiz(article_id).
+
+Seed 30+ articles across 3 categories with realistic HTML content:
+- **Personal Finance** (10): budgeting basics, emergency fund, debt payoff strategies, compound interest, investing for beginners, 50/30/20 rule, credit score tips, side income ideas, tax saving basics, retirement planning
+- **Health** (10): morning routines, hydration benefits, sleep hygiene, meal prep basics, stretching guide, mental health check-in, sugar reduction, protein intake, HIIT benefits, meditation intro
+- **Productivity** (10): time blocking, pomodoro technique, digital declutter, goal setting (SMART), deep work, habit stacking, inbox zero, weekly review ritual, saying no gracefully, energy management
+
+Each article should have: title, 2-3 sentence summary, 200-400 word body_html with <h2>, <p>, <ul>/<li> tags, cover_emoji, appropriate difficulty (beginner/intermediate/advanced), tags array, and xp_reward (25-50 based on difficulty).
+
+Each article gets 2-3 quiz questions. Options as JSON array of 4 strings, correct_index 0-3. Example: options='["Budget","Credit Score","Savings Rate","Net Worth"]', correct_index=2.
+
+Use IF NOT EXISTS for tables/indexes and ON CONFLICT DO NOTHING for seeds (idempotent). OWNED: database/migrations/run76_content.sql. FORBIDDEN: everything else. After done, write your retrospective in PARALLEL_AGENTS.md under Run 76 Retrospectives → Agent A.
+```
+
+**Agent B** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-b`):
+```
+Read PARALLEL_AGENTS.md — you are Agent B of Run 76. Your task: Content API. Create `bot/src/api/routes/content.ts` with these endpoints:
+
+1. GET /api/content/feed — paginated content feed. Query params: ?page=1&limit=10&category=&unread_first=true. Join with user_content_progress to determine read status. Order: unread first (if unread_first=true), then by created_at DESC. Response: { articles: [...], total, totalPages, page }
+
+2. GET /api/content/:articleId — single article detail. Include quiz count, bookmark status, read status for the requesting user.
+
+3. POST /api/content/:articleId/read — mark article as read + award XP. Body: { telegram_id }. Check user_content_progress for existing read (idempotent — don't double-award XP). Insert into user_content_progress with xp_earned = article.xp_reward. Call awardXp() from utils/xpAward.js.
+
+4. GET /api/content/:articleId/quiz — get quiz questions for an article. Return questions with options but WITHOUT correct_index (don't leak answers).
+
+5. POST /api/content/:articleId/quiz — submit quiz answers. Body: { telegram_id, answers: [{ question_id, selected_index }] }. Score = correct answers / total. Award XP: quiz xp_reward × (score percentage). Update user_content_progress.quiz_score. Return: { score, total, correct, xp_earned, correct_answers: [...] }.
+
+6. POST /api/content/:articleId/bookmark — toggle bookmark. Body: { telegram_id }. If bookmark exists → delete (unbookmark). If not → insert. Return: { bookmarked: true/false }.
+
+7. GET /api/content/bookmarks/:userId — user's bookmarked articles with article details.
+
+8. GET /api/content/progress/:userId — reading stats: total_read, total_xp_from_content, avg_quiz_score, reading_streak (consecutive days with a read), favorite_category, articles_by_category.
+
+Register the router in server.ts at `/api/content`. Use existing patterns: asyncHandler, authenticateTelegram, authorizeUser (for /:userId routes), successResponse, mutationLimiter/readLimiter, cached with TTL.MEDIUM for feed/articles. Import awardXp from ../../utils/xpAward.js for XP awards.
+
+OWNED: bot/src/api/routes/content.ts (NEW), bot/src/api/server.ts (add router import+mount). FORBIDDEN: mini-app/*, database/*. After done, verify build: cd bot && npx tsc --noEmit. Write retrospective in PARALLEL_AGENTS.md.
+```
+
+**Agent C** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-c`):
+```
+Read PARALLEL_AGENTS.md — you are Agent C of Run 76. Your task: Content Feed page + i18n + routing + navigation.
+
+**Part 1 — Content Feed page:**
+Create `mini-app/src/pages/ContentFeed.tsx`:
+- Gradient header with title "Knowledge Feed" + stats (articles read this week, total XP from content)
+- Category filter tabs: All, Finance, Health, Productivity (horizontal scroll, like ActivityHub pattern)
+- Card list: each card shows cover_emoji, title, summary (truncated 2 lines), category badge, read_time_min, xp_reward, "NEW" badge if unread. Tap card → navigate to /content/:articleId
+- Pull-to-refresh (usePullToRefresh pattern)
+- Skeleton loading, ErrorSection for error state, empty state
+- Pagination: "Load More" button at bottom
+
+Create `mini-app/src/components/content/ContentCard.tsx`:
+- Memo'd card component. Props: article (id, title, summary, cover_emoji, category, read_time_min, xp_reward, is_read), onClick
+- Layout: emoji left, text right (title bold, summary gray, bottom row: category badge + read time + XP)
+- Visual difference for read vs unread (unread has left accent border)
+
+Create `mini-app/src/hooks/useContentFeed.ts`:
+- Fetch GET /api/content/feed with pagination, category filter
+- Track loading, error, articles list, hasMore
+- Pull-to-refresh support
+- Use existing API patterns (X-Telegram-Init-Data header)
+
+Create `mini-app/src/api/content.ts`:
+- API client functions: fetchContentFeed, fetchArticle, markArticleRead, fetchQuiz, submitQuiz, toggleBookmark, fetchBookmarks, fetchReadingProgress — following the pattern in mini-app/src/api/activities.ts
+
+**Part 2 — i18n (ALL content-related keys):**
+Add to mini-app/src/i18n/en.ts, ru.ts, zh.ts:
+- `nav.knowledge` (nav label)
+- `content.title`, `content.searchPlaceholder`, `content.categories.all`, `content.categories.finance`, `content.categories.health`, `content.categories.productivity`
+- `content.readTime`, `content.xpReward`, `content.new`, `content.read`, `content.loadMore`, `content.noArticles`, `content.articlesRead`, `content.totalXp`
+- `article.readingProgress`, `article.bookmark`, `article.bookmarked`, `article.takeQuiz`, `article.relatedArticles`, `article.backToFeed`, `article.readComplete`, `article.xpEarned`
+- `quiz.title`, `quiz.question`, `quiz.submit`, `quiz.correct`, `quiz.wrong`, `quiz.score`, `quiz.xpEarned`, `quiz.tryAgain`, `quiz.perfect`, `quiz.passed`, `quiz.readAgain`
+- `reading.title`, `reading.history`, `reading.bookmarks`, `reading.stats`, `reading.totalRead`, `reading.avgScore`, `reading.readingStreak`, `reading.favoriteCategory`, `reading.noHistory`, `reading.noBookmarks`
+- `recommendation.todaysRead`, `recommendation.recommended`, `recommendation.forYou`
+At least 50 keys per language. Russian and Chinese translations should be natural, not machine-translated feel.
+
+**Part 3 — Routes + Navigation:**
+In mini-app/src/App.tsx: add lazy-loaded routes:
+- `/content` → ContentFeed
+- `/content/:articleId` → ArticleReader
+- `/content/bookmarks` → ReadingHistory
+All wrapped in ProtectedRoute with lazy prop.
+
+In mini-app/src/components/Navigation.tsx: add "Knowledge" to the More menu (BookOpen icon from lucide-react). Position it after Finance in the More menu list.
+
+OWNED: mini-app/src/pages/ContentFeed.tsx (NEW), mini-app/src/components/content/ContentCard.tsx (NEW), mini-app/src/hooks/useContentFeed.ts (NEW), mini-app/src/api/content.ts (NEW), mini-app/src/i18n/en.ts + ru.ts + zh.ts (add content/article/quiz/reading/recommendation keys), mini-app/src/App.tsx (add 3 routes), mini-app/src/components/Navigation.tsx (add nav item to More menu). FORBIDDEN: bot/*, database/*. After done, verify: cd mini-app && npx tsc --noEmit. Write retrospective.
+```
+
+**Agent D** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-d`):
+```
+Read PARALLEL_AGENTS.md — you are Agent D of Run 76. Your task: Article detail reader page. Create `mini-app/src/pages/ArticleReader.tsx`:
+
+- Full-screen article reader with back button (useBackButton → /content)
+- Fetch article via GET /api/content/:articleId using the article API client
+- **Scroll progress indicator**: thin colored bar at top of screen that fills as user scrolls (0% to 100%). Use onScroll handler with scrollTop / scrollHeight calculation
+- **Reading completion**: when user scrolls past 80%, auto-call POST /api/content/:articleId/read to mark as read and award XP. Show a subtle toast "Article complete! +{xp} XP" with haptic feedback
+- **Article content**: render body_html safely using dangerouslySetInnerHTML. Style HTML content with Telegram theme vars (h2: bold + theme hint color, p: regular text, ul/li: proper spacing, links: theme link color)
+- **Header section**: cover_emoji (large), title, category badge, read_time_min, difficulty badge, tags as small chips
+- **Bookmark button**: toggle bookmark via POST /api/content/:articleId/bookmark. Heart icon (filled when bookmarked, outline when not). Haptic feedback on toggle
+- **"Take Quiz" CTA**: prominent button at bottom of article. Only show if article has quiz questions. Navigate to quiz or show quiz modal (pass articleId)
+- **Related articles**: at bottom, show 3 related articles from same category (fetched from feed endpoint with category filter). Each as small horizontal card, tap → navigate to that article
+- **Loading state**: skeleton matching article layout (emoji circle, title lines, body paragraphs)
+- **Error state**: ErrorSection component
+
+Use Telegram theme CSS vars throughout. Import from the content API client (mini-app/src/api/content.ts created by Agent C). Use framer-motion for fade-in animations. Use useParams() to get articleId from URL.
+
+OWNED: mini-app/src/pages/ArticleReader.tsx (NEW). FORBIDDEN: bot/*, database/*, i18n files, App.tsx, Navigation.tsx. After done, verify build: cd mini-app && npx tsc --noEmit. Write retrospective.
+```
+
+**Agent E** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-e`):
+```
+Read PARALLEL_AGENTS.md — you are Agent E of Run 76. Your task: Quiz system UI component. Create `mini-app/src/components/content/ContentQuiz.tsx`:
+
+- Modal/overlay that appears after user taps "Take Quiz" on an article
+- Props: articleId (number), onClose(), onComplete(score, xpEarned)
+- Fetch quiz questions via GET /api/content/:articleId/quiz (from API client)
+- **Question flow**: show one question at a time with progress indicator (Question 1 of 3)
+- **Answer options**: 4 buttons stacked vertically. Tap to select. Before submit: just highlight selected option
+- **Submit**: "Check Answer" button. After submit, show result:
+  - Correct: option turns green + confetti burst (import Confetti component from existing components) + haptic success notification
+  - Wrong: selected turns red + correct turns green + haptic error + subtle shake animation
+  - Show brief explanation: "Correct answer: [option text]"
+- **Next button**: after each answer, "Next Question" button (or "See Results" on last question)
+- **Results screen**: circular score display (e.g., "2/3"), percentage, XP earned ("+ 20 XP"), message based on score:
+  - 100%: "Perfect! 🎉" (or use i18n key quiz.perfect)
+  - 67%+: "Great job!" (quiz.passed)
+  - Below: "Keep learning!" (quiz.readAgain)
+- **Actions on results**: "Read Again" button (onClose), "Back to Feed" button (navigate /content)
+- Submit all answers via POST /api/content/:articleId/quiz on completion. Include all selected_index values
+- Use framer-motion for question transitions (slide left/right). AnimatePresence for smooth enter/exit
+- Loading state while fetching questions. Handle empty quiz (no questions) gracefully
+
+OWNED: mini-app/src/components/content/ContentQuiz.tsx (NEW). FORBIDDEN: bot/*, database/*, i18n files. After done, verify build: cd mini-app && npx tsc --noEmit. Write retrospective.
+```
+
+**Agent F** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-f`):
+```
+Read PARALLEL_AGENTS.md — you are Agent F of Run 76. Your task: Reading history + bookmarks page. Create `mini-app/src/pages/ReadingHistory.tsx`:
+
+- Gradient header with title "Reading History"
+- **3 tabs**: History / Bookmarks / Stats (horizontal tab bar, animated underline on active tab)
+- **History tab**: chronological list of read articles. Each item: cover_emoji, title, category badge, read date (relative: "2 hours ago", "Yesterday"), quiz score if taken ("Quiz: 3/3 ✓" or "Quiz: 1/3"). Paginated with "Load More". Empty state: "No articles read yet"
+- **Bookmarks tab**: bookmarked articles list. Each item: cover_emoji, title, category, bookmarked date. Tap → navigate to /content/:articleId. Swipe left to unbookmark (or unbookmark button). Empty state: "No bookmarks yet"
+- **Stats tab**: reading statistics dashboard:
+  - Total articles read (big number card)
+  - Average quiz score (percentage with color: green >80%, yellow >50%, red <50%)
+  - XP from content (total)
+  - Reading streak (consecutive days with at least 1 article read)
+  - Favorite category (most-read)
+  - Articles by category (small bar chart or simple list with counts)
+- Fetch data from GET /api/content/progress/:userId and GET /api/content/bookmarks/:userId
+- Use usePullToRefresh for refresh, useBackButton for back navigation
+- Skeleton loading matching each tab's layout
+- framer-motion for tab transitions
+
+Create `mini-app/src/hooks/useReadingHistory.ts`:
+- Fetch reading progress and bookmarks
+- Tab state management
+- Bookmark toggle function
+
+OWNED: mini-app/src/pages/ReadingHistory.tsx (NEW), mini-app/src/hooks/useReadingHistory.ts (NEW). FORBIDDEN: bot/*, database/*, i18n files, App.tsx. After done, verify build: cd mini-app && npx tsc --noEmit. Write retrospective.
+```
+
+**Agent G** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-g`):
+```
+Read PARALLEL_AGENTS.md — you are Agent G of Run 76. Your task: Content recommendation engine + Dashboard widget.
+
+**Part 1 — Recommendation logic:**
+Create `bot/src/utils/contentRecommender.ts`:
+- Export `getRecommendedArticles(userId, limit = 3)`:
+  1. Get user's active modes from user_modes table
+  2. Map modes to content categories: fitness → Health, finance → Finance, learning → Productivity
+  3. Get user's reading history (read article IDs)
+  4. Query unread articles matching user's mode categories, ordered by: matching category first, then difficulty appropriate for user's quiz scores, then newest
+  5. Fallback: if no mode-matched unread articles, return newest unread from any category
+  6. Return array of article summaries (id, title, summary, cover_emoji, category, xp_reward)
+- Export `getDailyTip(userId)`:
+  1. Pick one unread article from user's mode categories (rotate daily based on date hash)
+  2. Return { article_id, title, summary, cover_emoji } or null if all read
+
+**Part 2 — Dashboard widget:**
+Create `mini-app/src/components/content/TodaysReadWidget.tsx`:
+- Small card for Dashboard page: "Today's Read" header, cover_emoji, article title (2 lines max), category badge, "Read now →" link
+- Fetch recommended article from API (or pass as prop from dashboard data)
+- If no recommendation: show "All caught up! 📚" state
+- Tap → navigate to /content/:articleId
+- Matches Dashboard card styling (use Telegram theme vars, rounded corners, subtle shadow)
+
+**Part 3 — API endpoint for recommendations:**
+Create `bot/src/api/routes/recommendations.ts`:
+- GET /api/recommendations/:userId — returns { recommended: Article[], daily_tip: Article | null }
+- Uses getRecommendedArticles and getDailyTip from the recommender utility
+- Register in server.ts at /api/recommendations
+
+OWNED: bot/src/utils/contentRecommender.ts (NEW), bot/src/api/routes/recommendations.ts (NEW), bot/src/api/server.ts (add recommendations router), mini-app/src/components/content/TodaysReadWidget.tsx (NEW). FORBIDDEN: database/*, mini-app/src/pages/*, i18n files. After done, verify bot build: cd bot && npx tsc --noEmit. Write retrospective.
+```
+
+**Agent H** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-h`):
+```
+Read PARALLEL_AGENTS.md — you are Agent H of Run 76. Your task: Tests for the Knowledge Feed system.
+
+Create these test files:
+
+1. **bot/src/__tests__/routes/content.test.ts** (25+ tests):
+   - Test all 8 content endpoints using existing test patterns (buildApp, supertest, mock pool.query)
+   - Feed: paginated response, category filter, unread_first ordering, empty state
+   - Article detail: success, not found, includes quiz count + bookmark status
+   - Read: mark read + XP award, idempotent (no double XP), article not found
+   - Quiz GET: returns questions without correct_index
+   - Quiz POST: scoring, XP calculation, all correct, all wrong, partial
+   - Bookmark: toggle on, toggle off, article not found
+   - Bookmarks list: with bookmarks, empty
+   - Progress: stats calculation, empty user
+
+2. **mini-app/src/__tests__/pages/ContentFeed.test.tsx** (10+ tests):
+   - Mock useContentFeed hook. Test: loading skeleton, error state, title rendering, category tabs, card rendering, "NEW" badge for unread, card click navigation, empty state, load more button, pull-to-refresh
+
+3. **mini-app/src/__tests__/pages/ArticleReader.test.tsx** (8+ tests):
+   - Mock fetch/API calls. Test: loading, article content rendering, scroll progress, bookmark toggle, take quiz button, read completion trigger, related articles, error state
+
+4. **mini-app/src/__tests__/components/ContentQuiz.test.tsx** (12+ tests):
+   - Mock API. Test: question display, option selection, correct answer feedback, wrong answer feedback, next question navigation, results screen, score calculation, XP display, read again button, empty quiz, loading state, submit API call
+
+5. **mini-app/src/__tests__/pages/ReadingHistory.test.tsx** (8+ tests):
+   - Mock hooks/fetch. Test: tab switching, history list, bookmarks list, stats display, empty states for each tab, pull-to-refresh, bookmark removal
+
+6. **bot/src/__tests__/utils/contentRecommender.test.ts** (8+ tests):
+   - Mock db queries. Test: recommendations based on user modes, fallback when all read, daily tip rotation, empty user (no modes), user with no unread articles
+
+Run existing tests FIRST: `cd bot && npx vitest --run` and `cd mini-app && npx vitest --run`. Fix any pre-existing failures before adding new tests.
+
+OWNED: all test files listed above. FORBIDDEN: source files (no modifications to non-test files). After done, write retrospective in PARALLEL_AGENTS.md.
+```
+
+### Run 76 File Ownership Matrix
+
+| File/Dir | Owner | Access |
+|----------|-------|--------|
+| database/migrations/run76_content.sql | A | NEW |
+| bot/src/api/routes/content.ts | B | NEW |
+| bot/src/api/server.ts | B, G | MODIFY (register content + recommendations routers) |
+| bot/src/utils/contentRecommender.ts | G | NEW |
+| bot/src/api/routes/recommendations.ts | G | NEW |
+| mini-app/src/pages/ContentFeed.tsx | C | NEW |
+| mini-app/src/pages/ArticleReader.tsx | D | NEW |
+| mini-app/src/pages/ReadingHistory.tsx | F | NEW |
+| mini-app/src/components/content/ContentCard.tsx | C | NEW |
+| mini-app/src/components/content/ContentQuiz.tsx | E | NEW |
+| mini-app/src/components/content/TodaysReadWidget.tsx | G | NEW |
+| mini-app/src/hooks/useContentFeed.ts | C | NEW |
+| mini-app/src/hooks/useReadingHistory.ts | F | NEW |
+| mini-app/src/api/content.ts | C | NEW |
+| mini-app/src/App.tsx | C | MODIFY (add 3 routes) |
+| mini-app/src/components/Navigation.tsx | C | MODIFY (add nav item) |
+| mini-app/src/i18n/en.ts, ru.ts, zh.ts | C | MODIFY (add content keys) |
+| bot/src/__tests__/** | H | NEW test files |
+| mini-app/src/__tests__/** | H | NEW test files |
+| PARALLEL_AGENTS.md | ALL | Retrospective section only |
+
+### Run 76 Merge Order
+
+1. **A** (DB schema + seed data — foundational)
+2. **B** (Content API — depends on schema)
+3. **G** (Recommendations — depends on B's content tables + creates own API route)
+4. **C** (Feed page + i18n + routes — depends on B's API, creates files others import)
+5. **D** (Article reader — depends on C's API client)
+6. **E** (Quiz UI — depends on C's API client)
+7. **F** (Reading history — depends on C's API client)
+8. **H** (Tests — always last)
+
+### Run 76 Retrospectives
+
+#### Agent A Retrospective
+*(To be filled by Agent A)*
+
+#### Agent B Retrospective
+*(To be filled by Agent B)*
+
+#### Agent C Retrospective
+*(To be filled by Agent C)*
+
+#### Agent D Retrospective
+*(To be filled by Agent D)*
+
+#### Agent E Retrospective
+*(To be filled by Agent E)*
+
+#### Agent F Retrospective
+*(To be filled by Agent F)*
+
+#### Agent G Retrospective
+*(To be filled by Agent G)*
+
+#### Agent H Retrospective
+*(To be filled by Agent H)*
 
 #### Agent 0 Retrospective
 *(To be filled by Agent 0 after merge)*
