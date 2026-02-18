@@ -325,7 +325,7 @@ Runs 56-64 were supposed to deliver avatars, trophies, shop, and 30+ achievement
 | **69** | Shop Page + Content Polish | 5 | ✅ |
 | **70** | Final QA + Performance Optimization | 4 | ✅ |
 | **71** | Accessibility + PWA + Dark Mode | 4 | ✅ |
-| **72** | Advanced Analytics + Data Export | 4 | ⬜ |
+| **72** | Advanced Analytics + Data Export | 4 | ✅ |
 | **73** | Notification System + Smart Reminders | 4 | ⬜ |
 | **74** | Integration Testing + Launch Prep | 3 | ⬜ |
 
@@ -955,6 +955,80 @@ Build: clean, zero errors. No mini-app or test files touched.
 **Files changed**: `useFinanceAnalytics.ts` (new), `SpendingChart.tsx` (new), `CategoryBreakdown.tsx` (new), `Finance.tsx`, `useBudget.ts`, `ModeBreakdownChart.tsx`, `XpTrendChart.tsx`, `Analytics.tsx`, `en.ts`, `ru.ts`, `zh.ts`, `package.json`
 
 **Build**: Clean. Zero TS errors, Vite build succeeds. Finance chunk: 48.35 kB (12.82 kB gzip).
+
+#### Agent D Retrospective
+Agent D committed to main (49290d4) but left retro placeholder unfilled. Based on commit message: "test: analytics + export tests, fix cross-agent Navigation breakage (Run 72 Agent D)".
+
+#### Agent 0 Retrospective
+**Status**: Merged and deployed. 1 post-merge fix needed (Navigation test missing BarChart3 mock + nav.analytics i18n key).
+
+**Results**:
+- Agent A: Full analytics page with recharts (XP trend line chart, mode breakdown bar chart, stat cards, 7d/30d/all toggle). Recharts lazy-loaded at 359KB.
+- Agent B: Export API (CSV + JSON endpoints), analytics time range ?range=7d|30d|all filtering
+- Agent C: Finance charts tab (spending trend, category donut, monthly comparison), fixed TS errors in Agent A's chart components
+- Agent D: Tests + Navigation fix (but left retro empty)
+- Agent 0: Fixed 1 test (BarChart3 mock in Navigation.test.tsx)
+- Tests: 2093 total (1046 bot + 1047 mini-app)
+
+---
+
+## RUN 73
+
+**Theme**: Notification System + Smart Reminders (4 Agents)
+**From Roadmap**: Run 73
+
+**Context**: Infrastructure already exists:
+- DB: `reminders` table (unused), users have `notification_enabled`, `reminder_time`, `timezone`
+- Jobs: 3 notification jobs (questReminders, dailySummary, achievementNotifier)
+- UI: NotificationSettings + DoNotDisturbSettings components in Settings page
+- Gap: DND columns don't exist in DB yet, reminders table unused, no notification history, timezone not used properly in jobs
+
+### Run 73 Agents
+
+| Agent | Focus | Worktree |
+|-------|-------|----------|
+| A | Smart reminder engine — DND backend, timezone-aware scheduling, adaptive frequency | Wibecode-agent-a |
+| B | Notification preferences UI — per-mode toggles, notification history page | Wibecode-agent-b |
+| C | Telegram notification templates — rich media messages, inline buttons | Wibecode-agent-c |
+| D | Tests | Wibecode-agent-d |
+
+### Run 73 File Ownership
+
+| File/Dir | Owner | Access |
+|----------|-------|--------|
+| database/migrations/run73_dnd.sql | A | NEW |
+| bot/src/jobs/definitions/questReminders.ts | A | MODIFY |
+| bot/src/jobs/definitions/dailySummary.ts | A | MODIFY |
+| bot/src/jobs/definitions/achievementNotifier.ts | A | MODIFY |
+| bot/src/api/routes/user-preferences.ts | A | MODIFY (add DND endpoints) |
+| mini-app/src/components/settings/NotificationSettings.tsx | B | MODIFY |
+| mini-app/src/components/settings/DoNotDisturbSettings.tsx | B | MODIFY |
+| mini-app/src/pages/NotificationHistory.tsx | B | NEW |
+| mini-app/src/hooks/useNotificationHistory.ts | B | NEW |
+| mini-app/src/App.tsx | B | MODIFY (add route) |
+| bot/src/handlers/dailySummary.ts | C | MODIFY |
+| bot/src/handlers/questReminders.ts | C | MODIFY (if exists) |
+| bot/src/utils/notificationTemplates.ts | C | NEW |
+| mini-app/src/__tests__/** | D | NEW |
+| bot/src/__tests__/** | D | NEW |
+
+### Run 73 Merge Order
+
+1. **A** (backend DND + timezone — foundational)
+2. **C** (notification templates — depends on A's DND checks)
+3. **B** (UI — depends on A's API changes)
+4. **D** (tests — last)
+
+### Run 73 Retrospectives
+
+#### Agent A Retrospective
+*(To be filled by Agent A)*
+
+#### Agent B Retrospective
+*(To be filled by Agent B)*
+
+#### Agent C Retrospective
+*(To be filled by Agent C)*
 
 #### Agent D Retrospective
 *(To be filled by Agent D)*
