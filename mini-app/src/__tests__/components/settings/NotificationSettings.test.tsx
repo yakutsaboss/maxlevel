@@ -26,6 +26,14 @@ const defaultPrefs: UserPreferences = {
   dnd_enabled: false,
   dnd_start: 22,
   dnd_end: 8,
+  notification_modes: {
+    fitness: true,
+    hydration: true,
+    finance: true,
+    learning: true,
+    medication: true,
+    habits: true,
+  },
 };
 
 const mockHaptic = {

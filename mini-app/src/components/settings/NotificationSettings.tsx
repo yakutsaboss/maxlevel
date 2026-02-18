@@ -133,6 +133,7 @@ export function NotificationSettings({ prefs, onPrefsChange, haptic }: Notificat
                   }}
                   role="switch"
                   aria-checked={prefs.notification_modes[key]}
+                  aria-label={`${t(`settings.notifModes.${key}`)}: ${prefs.notification_modes[key] ? 'on' : 'off'}`}
                   className={`w-10 h-6 rounded-full transition-colors relative ${
                     prefs.notification_modes[key] ? 'bg-telegram-link' : 'bg-telegram-hint/30'
                   }`}

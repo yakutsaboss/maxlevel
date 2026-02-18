@@ -57,10 +57,11 @@ describe('sendDailySummary', () => {
     expect(msg).toContain('150');  // xp today
     expect(msg).toContain('7 days');  // streak
     expect(msg).toContain('Level 5');
-    expect(msg).toContain('2500 total XP');
+    // toLocaleString() formatting varies by environment (comma, dot, space, or nothing)
+    expect(msg).toMatch(/2[,.\s]?500 total XP/);
     // 3 quests → "Amazing work" motivational message
     expect(msg).toContain('Amazing work');
-    expect(opts.parse_mode).toBe('Markdown');
+    expect(opts.parse_mode).toBe('HTML');
   });
 
   it('should send summary for user with no activity today', async () => {

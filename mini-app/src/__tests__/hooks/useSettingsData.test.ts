@@ -12,9 +12,17 @@ vi.mock('@/api/client', () => ({
   },
 }));
 
-// Mock detectTimezone and UserPreferences from NotificationSettings
+// Mock detectTimezone and DEFAULT_NOTIFICATION_MODES from NotificationSettings
 vi.mock('@/components/settings/NotificationSettings', () => ({
   detectTimezone: () => 'America/New_York',
+  DEFAULT_NOTIFICATION_MODES: {
+    fitness: true,
+    hydration: true,
+    finance: true,
+    learning: true,
+    medication: true,
+    habits: true,
+  },
 }));
 
 import { apiClient } from '@/api/client';
