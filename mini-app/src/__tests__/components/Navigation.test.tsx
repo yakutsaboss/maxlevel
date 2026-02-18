@@ -17,6 +17,7 @@ vi.mock('react-i18next', () => ({
         'nav.finance': 'Finance',
         'nav.shop': 'Shop',
         'nav.analytics': 'Analytics',
+        'nav.activities': 'Activities',
       };
       return translations[key] ?? key;
     },
@@ -36,6 +37,7 @@ vi.mock('lucide-react', () => ({
   DollarSign: (props: any) => <span data-testid="icon-finance" {...props} />,
   ShoppingBag: (props: any) => <span data-testid="icon-shop" {...props} />,
   BarChart3: (props: any) => <span data-testid="icon-analytics" {...props} />,
+  Dumbbell: (props: any) => <span data-testid="icon-dumbbell" {...props} />,
 }));
 
 // Mock react-router-dom
@@ -72,13 +74,14 @@ describe('Navigation', () => {
     mockPathname = '/dashboard';
   });
 
-  it('renders 4 primary nav items + More button', () => {
+  it('renders 5 primary nav items + More button', () => {
     render(<Navigation />);
 
     expect(screen.getByText('Home')).toBeInTheDocument();
     expect(screen.getByText('Quests')).toBeInTheDocument();
+    expect(screen.getByText('Activities')).toBeInTheDocument();
+    expect(screen.getByText('Shop')).toBeInTheDocument();
     expect(screen.getByText('Rewards')).toBeInTheDocument();
-    expect(screen.getByText('Profile')).toBeInTheDocument();
     expect(screen.getByText('More')).toBeInTheDocument();
   });
 
@@ -103,7 +106,7 @@ describe('Navigation', () => {
   it('triggers haptic feedback on tap', () => {
     render(<Navigation />);
 
-    fireEvent.click(screen.getByText('Profile'));
+    fireEvent.click(screen.getByText('Quests'));
     expect(mockHaptic.selection).toHaveBeenCalled();
   });
 

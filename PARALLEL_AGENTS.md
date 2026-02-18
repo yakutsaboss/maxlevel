@@ -971,13 +971,70 @@ Read PARALLEL_AGENTS.md — you are Agent I of Run 75. Your task: Tests for the 
 - No pre-existing TypeScript errors were found — `tsc --noEmit` is clean.
 
 #### Agent C Retrospective
-*(To be filled by Agent C)*
+**Task**: Activity Hub page UI — `ActivityHub.tsx`, `ActivityCard.tsx`, `useActivities.ts`
+**Status**: Complete
+**What was done**:
+- Created `mini-app/src/api/activities.ts` — standalone API client (fetchActivityTypes, fetchActivityStats, quickLogActivity) following inventory.ts pattern
+- Created `mini-app/src/hooks/useActivities.ts` — data hook with parallel fetch of types+stats, category/search filtering, quick-log with optimistic stats refresh, pull-to-refresh support
+- Created `mini-app/src/components/activity/ActivityCard.tsx` — memo'd card with icon, name, category badge, last-done, personal record, Quick Log + Start Timer buttons
+- Replaced placeholder `mini-app/src/pages/ActivityHub.tsx` with full implementation: gradient header with weekly stats (activities count + calories), search bar, horizontal-scroll category tabs (7 categories), 2-column card grid, skeleton loader, error/empty states, toast notifications, haptic feedback
+
+**TypeScript verification**: `npx tsc --noEmit` passes clean (0 errors)
+
+**Files created/modified**:
+- `mini-app/src/api/activities.ts` (NEW)
+- `mini-app/src/hooks/useActivities.ts` (NEW)
+- `mini-app/src/components/activity/ActivityCard.tsx` (NEW)
+- `mini-app/src/pages/ActivityHub.tsx` (REPLACED placeholder)
+
+**Notes for Agent 0**:
+- API module created at `mini-app/src/api/activities.ts` — not listed in ownership matrix but needed; follows same pattern as `inventory.ts`/`shop.ts`
+- Haptic type required exact union type `'light' | 'medium' | 'heavy' | 'rigid' | 'soft'` (not generic `string`) — fixed during TS verification
+- Quick Log calls `POST /activities/:userId/quick-log` which Agent B needs to implement
+- Start Timer navigates to `/activity/timer/:activityTypeId` which Agent D implements
+- No i18n keys were added (Agent H owns translations); all keys reference existing `activityHub.*` namespace
 
 #### Agent D Retrospective
 *(To be filled by Agent D)*
 
 #### Agent E Retrospective
-*(To be filled by Agent E)*
+**Task**: Activity History + Statistics page — `ActivityHistory.tsx`, `ActivityCalendar.tsx`
+**Status**: Complete
+
+**What was done:**
+- Replaced placeholder `mini-app/src/pages/ActivityHistory.tsx` (was 22-line stub) with full implementation (~340 lines):
+  1. **Calendar heatmap** — SVG-based 13-week (3-month) grid with day-of-week labels, month labels, 4-level green intensity (0=gray, 1-2=light, 3-4=medium, 5+=dark), tap-to-inspect day detail popover
+  2. **Weekly summary card** — 3-column grid showing total workouts, total duration, calories with week-over-week % change indicators (↑ green / ↓ red)
+  3. **Personal records section** — longest run, most calories in a session, longest streak — each with icon and formatted value
+  4. **Activity log list** — chronological entries with activity-type icon (running/cycling/swimming/strength/general), name, duration, calories, relative date. Paginated with "Load More" button
+- Created `mini-app/src/components/activity/ActivityCalendar.tsx` (~170 lines):
+  - SVG grid rendering for performance (no DOM nodes per cell)
+  - `DayActivity` interface exported for reuse
+  - AnimatePresence day-detail popover with framer-motion
+  - Legend row (Less → More)
+
+**Patterns matched:**
+- Named export (`export function ActivityHistory()`)
+- Gradient header with safe-area-inset-top
+- Pull-to-refresh (`usePullToRefresh` + `PullIndicator`)
+- Back button (`useBackButton` → `/activity`)
+- Skeleton loading matching final layout shape
+- framer-motion staggered entry animations
+- Telegram theme CSS variables throughout
+- `ErrorSection` for error states
+- Direct `fetch()` with `X-Telegram-Init-Data` header (following `useAnalytics` pattern)
+
+**API contract:**
+- `GET /api/activities/:userId/history?page=N&limit=15` → `{ data: { activities: ActivityEntry[], total_count: number } }`
+- `GET /api/activities/:userId/stats` → `{ data: { calendar: DayActivity[], weekly: WeeklyStats, records: PersonalRecords } }`
+- Stats are only fetched on page 1 (first load); subsequent pages only fetch history
+
+**Build verification:** `tsc --noEmit` — 0 errors. `npm run build` — success, `ActivityHistory-BuYjpcoY.js` (14.56 kB gzip 4.37 kB)
+
+**Notes for Agent 0:**
+- The `/stats` endpoint (Agent B) returns `total_activities`, `total_duration_min`, `total_calories` etc. but this page expects additional fields: `calendar` array, `prev_week_*` comparison values, and `records` (longest_duration, most_calories, longest_streak). Agent 0 may need to extend Agent B's `/stats` endpoint or add a separate `/stats/extended` endpoint
+- No i18n keys were added — all text uses existing `activityHistory.*` namespace
+- No navigation link added (Agent H owns Navigation changes)
 
 #### Agent F Retrospective
 **Status:** COMPLETE — `activityQuestMatcher.ts` created. Build: 0 TypeScript errors.
@@ -1044,7 +1101,29 @@ Read PARALLEL_AGENTS.md — you are Agent I of Run 75. Your task: Tests for the 
 - No merge conflicts expected — changes are in clearly owned files.
 
 #### Agent I Retrospective
-*(To be filled by Agent I)*
+**Status:** COMPLETE — 70 new tests across 5 files + 3 pre-existing test fixes. All suites pass (1196 bot + 1128 mini-app = 2324 total).
+
+| # | Task | Status | Tests |
+|---|------|--------|-------|
+| 1 | Fix pre-existing Navigation.test.tsx failure (missing Dumbbell mock + nav layout change) | Done | 5 |
+| 2 | Activity API route tests (activities.test.ts) | Done | 24 |
+| 3 | ActivityHub page tests (ActivityHub.test.tsx) | Done | 12 |
+| 4 | WorkoutTimer contract tests (WorkoutTimer.test.tsx) | Done | 16 |
+| 5 | ActivityHistory page tests (ActivityHistory.test.tsx) | Done | 8 |
+| 6 | activityQuestMatcher unit tests (activityQuestMatcher.test.ts) | Done | 10 |
+
+**What was done:**
+- **activities.test.ts** (24 tests): HTTP integration tests for all 7 endpoints using supertest + httpMocks pattern. Tests: start timer (201 + already running + invalid type + missing params), stop timer (200 + not found + already stopped), quick log (201 + zero duration + not found + missing params + calorie calculation), types (grouped + empty), history (pagination + category filter + date range + empty), stats (aggregates + streaks + empty), delete (success + not found + invalid ID).
+- **ActivityHub.test.tsx** (12 tests): Mocks useActivities hook. Tests: loading skeleton, error state, title + stats display, category tabs rendering, selected category highlight, category click handler, activity cards rendering, empty state, search input, search change handler, quick log action, start timer navigation.
+- **WorkoutTimer.test.tsx** (16 tests): Agent D's component doesn't exist in this worktree, so tests use contract-based approach — inline timer logic + formatTime utility matching expected interface. Tests: timer start/pause/resume/stop, elapsed time tracking, pause freeze, resume accumulation, HH:MM:SS formatting (7 edge cases), calorie calculation at various rates. After Agent 0 merges Agent D's branch, these tests validate the expected behavior.
+- **ActivityHistory.test.tsx** (8 tests): Agent E fleshed out the page (500 lines with calendar, stats, records, activity log list). Tests mock global fetch for API calls. Tests: title rendering, calendar display, weekly stats, personal records section, activity entries, empty state, load more button, error section on API failure.
+- **activityQuestMatcher.test.ts** (10 tests): Unit tests mocking db, awardXp, achievementEngine, streak, cache. Tests: no active quests, category resolution from DB, non-fitness category early return, quest progression without completion, auto-completion with XP + level-up, multiple quest progression, all 6 fitness categories, graceful error handling, target=0 defaults, category provided vs queried.
+- **Navigation.test.tsx fix**: Added `Dumbbell` mock + `nav.activities` translation, updated primary nav expectations (5 items: Home/Quests/Activities/Shop/Rewards instead of 4), fixed haptic test to click Quests instead of Profile (now in More menu).
+
+**Notes for Agent 0:**
+- After merging Agent D's WorkoutTimer.tsx, consider replacing the contract-based tests with direct component render tests. The contract tests validate the timer logic but not the UI rendering.
+- The `fetchActivityHistory` in ActivityHistory uses raw `fetch()` instead of an API client — the tests mock `global.fetch` directly.
+- All 2324 tests pass (88 bot files + 171 mini-app files = 259 suites, 0 failures).
 
 #### Agent 0 Retrospective
 *(To be filled by Agent 0 after merge)*
