@@ -7,6 +7,7 @@ export default {
     social: "Social",
     finance: "Finance",
     shop: "Shop",
+    inventory: "Inventory",
     profile: "Profile",
     more: "More",
     trophies: "Trophies",

@@ -7,6 +7,7 @@ export default {
     social: "社交",
     finance: "财务",
     shop: "商店",
+    inventory: "物品栏",
     profile: "个人资料",
     more: "更多",
     trophies: "奖杯",

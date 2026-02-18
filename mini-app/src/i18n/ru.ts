@@ -7,6 +7,7 @@ export default {
     social: "Социальное",
     finance: "Финансы",
     shop: "Магазин",
+    inventory: "Инвентарь",
     profile: "Профиль",
     more: "Ещё",
     trophies: "Трофеи",
