@@ -24,16 +24,16 @@ INSERT INTO achievements (name, description, badge_icon, criteria, xp_bonus, rar
 ('week_warrior', 'Week Warrior', '💪', '{"type": "streak", "mode": "fitness", "days": 7}', 100, 'rare'),
 ('month_champion', 'Month Champion', '🏋️', '{"type": "streak", "mode": "fitness", "days": 30}', 500, 'epic'),
 ('gym_rat', 'Gym Rat', '🏆', '{"type": "quest_complete", "mode": "fitness", "count": 50}', 300, 'rare'),
-('iron_will', 'Iron Will', '⚡', '{"type": "quest_complete_consecutive", "mode": "fitness", "days": 14}', 200, 'epic')
+('iron_will', 'Iron Will', '⚡', '{"type": "quest_complete_consecutive", "mode": "fitness", "days": 14}', 350, 'epic')
 ON CONFLICT (name) DO NOTHING;
 
 -- Hydration Achievements
 INSERT INTO achievements (name, description, badge_icon, criteria, xp_bonus, rarity) VALUES
-('first_drop', 'First Drop', '💧', '{"type": "quest_complete", "mode": "hydration", "count": 1}', 25, 'common'),
-('hydro_hero', 'Hydro Hero', '🌊', '{"type": "streak", "mode": "hydration", "days": 7}', 75, 'rare'),
+('first_drop', 'First Drop', '💧', '{"type": "quest_complete", "mode": "hydration", "count": 1}', 50, 'common'),
+('hydro_hero', 'Hydro Hero', '🌊', '{"type": "streak", "mode": "hydration", "days": 7}', 100, 'rare'),
 ('ocean_master', 'Ocean Master', '🏆', '{"type": "streak", "mode": "hydration", "days": 30}', 300, 'epic'),
 ('water_warrior', 'Water Warrior', '💦', '{"type": "quest_complete", "mode": "hydration", "count": 100}', 250, 'rare'),
-('hydration_legend', 'Hydration Legend', '👑', '{"type": "quest_complete_consecutive", "mode": "hydration", "days": 21}', 400, 'legendary')
+('hydration_legend', 'Hydration Legend', '👑', '{"type": "quest_complete_consecutive", "mode": "hydration", "days": 21}', 450, 'legendary')
 ON CONFLICT (name) DO NOTHING;
 
 -- Finance Achievements
@@ -50,7 +50,7 @@ INSERT INTO achievements (name, description, badge_icon, criteria, xp_bonus, rar
 ('first_lesson', 'First Lesson', '📚', '{"type": "quest_complete", "mode": "learning", "count": 1}', 50, 'common'),
 ('study_streak', 'Study Streak', '📖', '{"type": "streak", "mode": "learning", "days": 7}', 100, 'rare'),
 ('scholar', 'Scholar', '🎓', '{"type": "streak", "mode": "learning", "days": 30}', 500, 'epic'),
-('bookworm', 'Bookworm', '🐛', '{"type": "quest_complete", "mode": "learning", "count": 50}', 300, 'rare'),
+('bookworm', 'Bookworm', '📗', '{"type": "quest_complete", "mode": "learning", "count": 50}', 300, 'rare'),
 ('lifelong_learner', 'Lifelong Learner', '🧠', '{"type": "quest_complete_consecutive", "mode": "learning", "days": 14}', 200, 'epic')
 ON CONFLICT (name) DO NOTHING;
 
@@ -65,11 +65,11 @@ ON CONFLICT (name) DO NOTHING;
 
 -- Habits Achievements
 INSERT INTO achievements (name, description, badge_icon, criteria, xp_bonus, rarity) VALUES
-('first_habit', 'Complete your first habit check-in', '🎯', '{"type": "quest_complete", "mode": "habits", "count": 1}', 50, 'common'),
-('habit_week', 'Maintain a 7-day habit streak', '🔥', '{"type": "streak", "mode": "habits", "days": 7}', 100, 'rare'),
-('habit_month', '30-day habit streak master', '🏆', '{"type": "streak", "mode": "habits", "days": 30}', 500, 'epic'),
-('habit_collector', 'Complete 50 habit check-ins', '📋', '{"type": "quest_complete", "mode": "habits", "count": 50}', 300, 'rare'),
-('habit_unstoppable', '14 consecutive days of habit tracking', '⚡', '{"type": "quest_complete_consecutive", "mode": "habits", "days": 14}', 200, 'epic')
+('first_habit', 'First Habit', '🎯', '{"type": "quest_complete", "mode": "habits", "count": 1}', 50, 'common'),
+('habit_week', 'Habit Streak', '🔥', '{"type": "streak", "mode": "habits", "days": 7}', 100, 'rare'),
+('habit_month', 'Habit Master', '🏆', '{"type": "streak", "mode": "habits", "days": 30}', 500, 'epic'),
+('habit_collector', 'Habit Collector', '📋', '{"type": "quest_complete", "mode": "habits", "count": 50}', 300, 'rare'),
+('habit_unstoppable', 'Unstoppable', '⚡', '{"type": "quest_complete_consecutive", "mode": "habits", "days": 14}', 350, 'epic')
 ON CONFLICT (name) DO NOTHING;
 
 -- Cross-Mode Achievements
@@ -306,7 +306,7 @@ INSERT INTO trophies (name, description, icon_emoji, rarity, criteria, sort_orde
 ('Challenge Conqueror', 'Win 3 challenges', '🏆', 'epic', '{"type": "challenge_wins", "threshold": 3}', 22),
 -- Mastery (epic)
 ('Quest Centurion', 'Complete 100 quests', '📜', 'epic', '{"type": "quest_count", "threshold": 100}', 30),
-('XP Millionaire', 'Earn 10,000 total XP', '💰', 'epic', '{"type": "xp_total", "threshold": 10000}', 31),
+('XP Champion', 'Earn 10,000 total XP', '💰', 'epic', '{"type": "xp_total", "threshold": 10000}', 31),
 ('Mode Explorer', 'Activate 3 different modes', '🧭', 'epic', '{"type": "mode_count", "threshold": 3}', 32),
 -- Prestige (legendary)
 ('Streak Legend', 'Maintain a 100-day streak', '👑', 'legendary', '{"type": "streak_days", "threshold": 100}', 40),
