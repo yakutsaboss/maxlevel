@@ -1556,7 +1556,36 @@ OWNED: all test files listed above. FORBIDDEN: source files (no modifications to
 **Merge notes:** No conflicts expected — only owns ArticleReader.tsx. Depends on Agent C's route `/content/:articleId` being registered in App.tsx. API endpoints expected: GET `/content/:id`, GET `/content/:id/related`, POST `/content/:id/read`, POST `/content/:id/bookmark`, GET `/content/bookmarks/:userId`.
 
 #### Agent E Retrospective
-*(To be filled by Agent E)*
+**Task**: Quiz system UI — `ContentQuiz.tsx`
+**Status**: Complete
+
+**What was built:**
+- `mini-app/src/components/content/ContentQuiz.tsx` — full post-article quiz modal
+- Bottom-sheet modal (spring-animated, matches QuestDetailModal pattern)
+- One-question-at-a-time flow with horizontal slide transitions (AnimatePresence + Framer Motion)
+- Option cards with letter labels (A/B/C/D), selected-state highlight, disabled during feedback
+- Brief 400ms "selected" feedback then auto-advance to next question
+- On last question, auto-submits all answers to `POST /content/:articleId/quiz`
+- Results screen: gradient score circle with emoji + percentage, correct/total count, XP earned card (Trophy icon), per-question breakdown with correct/wrong indicators + shake animation on wrong, correct answer revealed for wrong answers
+- Confetti triggered on scores >= 80% (reuses existing Confetti component)
+- "Try Again" button (shown when score < 80%) reloads quiz; "Share Score" button via Telegram share link
+- Progress bar (segmented dots) with color-coded results after submit (green = correct, red = wrong)
+- Haptic feedback: medium impact on select, success/warning notification on results
+- FocusTrap for accessibility, Escape to close
+- Loading + error states with retry
+- All Telegram theme tokens (bg, text, hint, link, secondaryBg)
+
+**Design decisions:**
+- Answers are NOT revealed per-question during the quiz (backend strips `correct_index` from GET response). All feedback is deferred to the results screen after submit — this matches the backend's security model.
+- Uses Agent C's `fetchQuiz()` and `submitQuiz()` from `api/content.ts` and the `QuizQuestion`, `QuizAnswer`, `QuizResult` types.
+- `correct_answers` field from QuizResult is used for the per-question breakdown. If the backend returns `results[]` with `correct_index` instead, Agent 0 may need to align the types.
+
+**Dependencies:**
+- Agent C's `api/content.ts` (types + fetch functions) — already exists
+- Agent C's route registration in App.tsx (for navigating to quiz from ArticleReader)
+- Agent D's ArticleReader should import and render ContentQuiz when user taps "Take Quiz"
+
+**Merge notes:** No conflicts expected — only owns `ContentQuiz.tsx`. Zero modifications to any other file. Component is self-contained and exported for Agent D's ArticleReader to import.
 
 #### Agent F Retrospective
 **Created**: `mini-app/src/pages/ReadingHistory.tsx`, `mini-app/src/hooks/useReadingHistory.ts`
