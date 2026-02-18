@@ -12,6 +12,7 @@ import {
   ForbiddenError,
 } from '../utils/errors.js';
 import { safeParseInt } from '../../utils/validation.js';
+import { matchActivityToQuests } from '../../utils/activityQuestMatcher.js';
 
 const router = Router();
 
@@ -147,7 +148,14 @@ router.post('/stop', authenticateTelegram, mutationLimiter, asyncHandler(async (
 
   invalidateUserCache(userId);
 
-  res.json(successResponse(updated));
+  // Auto-progress fitness quests
+  const questResult = await matchActivityToQuests(userId, {
+    id: Number(activity_log_id),
+    activity_type_id: log.activity_type_id,
+    duration_min: durationMin,
+  });
+
+  res.json(successResponse({ ...updated, questResult }));
 }));
 
 // ── POST /log — Quick log (no timer) ────────────────────────────────
@@ -180,7 +188,7 @@ router.post('/log', authenticateTelegram, mutationLimiter, asyncHandler(async (r
     ? Math.round(Number(activityType.calories_per_min) * dur)
     : null;
 
-  const log = await queryOne<ActivityLog>(
+  const newLog = await queryOne<ActivityLog>(
     `INSERT INTO activity_logs (user_id, activity_type_id, started_at, ended_at, duration_min, calories_burned, notes, distance_km)
      VALUES ($1, $2, NOW() - ($3 || ' minutes')::interval, NOW(), $3, $4, $5, $6)
      RETURNING id, user_id, activity_type_id, started_at, ended_at, duration_min, distance_km, calories_burned, notes, created_at`,
@@ -189,7 +197,14 @@ router.post('/log', authenticateTelegram, mutationLimiter, asyncHandler(async (r
 
   invalidateUserCache(userId);
 
-  res.status(201).json(successResponse(log));
+  // Auto-progress fitness quests
+  const questResult = await matchActivityToQuests(userId, {
+    id: newLog!.id,
+    activity_type_id: Number(activity_type_id),
+    duration_min: dur,
+  });
+
+  res.status(201).json(successResponse({ ...newLog, questResult }));
 }));
 
 // ── GET /types — List all activity types grouped by category ────────
