@@ -1506,7 +1506,23 @@ OWNED: all test files listed above. FORBIDDEN: source files (no modifications to
 *(To be filled by Agent C)*
 
 #### Agent D Retrospective
-*(To be filled by Agent D)*
+**Status:** COMPLETE — `mini-app/src/pages/ArticleReader.tsx` created. Vite build passes.
+
+**What was built:**
+- Full-screen article reader with scroll progress indicator (fixed top bar + inline progress section)
+- HTML body rendering via `dangerouslySetInnerHTML` with comprehensive Tailwind prose styling
+- 80% scroll threshold auto-triggers `POST /content/:id/read` → awards XP with toast + haptic feedback
+- Bookmark toggle button (checks bookmark status on load, POST toggle)
+- "Take Quiz" CTA button navigating to `/content/:id/quiz`
+- Related articles section at bottom with category-colored emoji cards
+- Category-aware gradient header (finance=emerald, health=rose, productivity=blue)
+- Meta badges: category, read time, XP reward, difficulty level
+- Tags display, scroll-to-top FAB, skeleton loading state, error retry
+- Standalone fetch API helpers (same pattern as activities.ts) — no shared files touched
+
+**Files created:** `mini-app/src/pages/ArticleReader.tsx` (1 file)
+**Files modified:** None
+**Merge notes:** No conflicts expected — only owns ArticleReader.tsx. Depends on Agent C's route `/content/:articleId` being registered in App.tsx. API endpoints expected: GET `/content/:id`, GET `/content/:id/related`, POST `/content/:id/read`, POST `/content/:id/bookmark`, GET `/content/bookmarks/:userId`.
 
 #### Agent E Retrospective
 *(To be filled by Agent E)*
