@@ -37,10 +37,16 @@ vi.mock('react-i18next', () => ({
         'shop.price_xp': `${params?.price ?? 0} XP`,
         'shop.empty': 'No items available',
         'shop.search_placeholder': 'Search items...',
+        'shop.searchPlaceholder': 'Search items...',
         'shop.tab_all': 'All',
         'shop.tab_achievement': 'Achievements',
         'shop.tab_avatar_item': 'Avatar Items',
         'shop.tab_booster': 'Boosters',
+        'shop.cat_all': 'All',
+        'shop.cat_achievements': 'Achievements',
+        'shop.cat_avatarItems': 'Avatar Items',
+        'shop.cat_boosters': 'Boosters',
+        'shop.cat_boosters_xp': 'XP Boosters',
         'shop.balance_stars': `${params?.count ?? 0} Stars`,
         'shop.balance_xp': `${params?.count ?? 0} XP`,
         'errors.somethingWentWrong': 'Something went wrong',
@@ -85,6 +91,7 @@ vi.mock('lucide-react', () => {
     ChevronDown: IconStub,
     AlertCircle: IconStub,
     CheckCircle: IconStub,
+    Check: IconStub,
     Crown: IconStub,
     Sparkles: IconStub,
     Package: IconStub,
@@ -238,27 +245,29 @@ describe('Shop', () => {
 
   it('renders item grid with all shop items', () => {
     renderPage();
-    expect(screen.getByText('Golden Collector')).toBeInTheDocument();
+    // Featured items (Golden Collector, XP Doubler 24h) appear in both carousel and grid
+    expect(screen.getAllByText('Golden Collector').length).toBeGreaterThanOrEqual(1);
     expect(screen.getByText('Diamond Streak')).toBeInTheDocument();
     expect(screen.getByText('Premium Hairstyle')).toBeInTheDocument();
-    expect(screen.getByText('XP Doubler 24h')).toBeInTheDocument();
+    expect(screen.getAllByText('XP Doubler 24h').length).toBeGreaterThanOrEqual(1);
   });
 
   it('renders featured items section', () => {
     renderPage();
     // Featured section should show featured items
     expect(screen.getByText('Featured')).toBeInTheDocument();
-    // Featured items: Golden Collector and XP Doubler 24h
-    expect(screen.getByText('🏅')).toBeInTheDocument();
-    expect(screen.getByText('⚡')).toBeInTheDocument();
+    // Featured items: Golden Collector and XP Doubler 24h (emojis appear in both carousel and grid)
+    expect(screen.getAllByText('🏅').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText('⚡').length).toBeGreaterThanOrEqual(1);
   });
 
   it('renders item emoji icons', () => {
     renderPage();
-    expect(screen.getByText('🏅')).toBeInTheDocument();
+    // Featured items appear in both carousel and grid, so use getAllByText
+    expect(screen.getAllByText('🏅').length).toBeGreaterThanOrEqual(1);
     expect(screen.getByText('💎')).toBeInTheDocument();
     expect(screen.getByText('💇')).toBeInTheDocument();
-    expect(screen.getByText('⚡')).toBeInTheDocument();
+    expect(screen.getAllByText('⚡').length).toBeGreaterThanOrEqual(1);
   });
 
   it('shows category tabs', () => {
@@ -280,20 +289,20 @@ describe('Shop', () => {
     expect(screen.getByText('No items available')).toBeInTheDocument();
   });
 
-  it('triggers purchase flow when Buy button is clicked', () => {
+  it('triggers purchase flow when item card is clicked', () => {
     renderPage();
-    // Find Buy buttons
-    const buyButtons = screen.getAllByText('Buy');
-    expect(buyButtons.length).toBeGreaterThan(0);
-    fireEvent.click(buyButtons[0]);
+    // Click on a non-featured item card to trigger purchase (Diamond Streak is not featured)
+    const itemCard = screen.getByText('Diamond Streak');
+    fireEvent.click(itemCard);
     expect(mockStartPurchase).toHaveBeenCalled();
   });
 
   it('shows "Owned" instead of "Buy" for purchased items', () => {
     hookReturn = { ...hookReturn, ownedItemIds: new Set([1]) };
     renderPage();
-    // Item 1 (Golden Collector) should show "Owned"
-    expect(screen.getByText('Owned')).toBeInTheDocument();
+    // Item 1 (Golden Collector) is featured + in grid, so "Owned" appears in both places
+    const ownedLabels = screen.getAllByText('Owned');
+    expect(ownedLabels.length).toBeGreaterThanOrEqual(1);
   });
 
   it('renders error state', () => {

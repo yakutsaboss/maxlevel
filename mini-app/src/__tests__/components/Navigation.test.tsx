@@ -15,6 +15,7 @@ vi.mock('react-i18next', () => ({
         'nav.trophies': 'Trophies',
         'nav.social': 'Social',
         'nav.finance': 'Finance',
+        'nav.shop': 'Shop',
       };
       return translations[key] ?? key;
     },
@@ -32,6 +33,7 @@ vi.mock('lucide-react', () => ({
   Medal: (props: any) => <span data-testid="icon-medal" {...props} />,
   MoreHorizontal: (props: any) => <span data-testid="icon-more" {...props} />,
   DollarSign: (props: any) => <span data-testid="icon-finance" {...props} />,
+  ShoppingBag: (props: any) => <span data-testid="icon-shop" {...props} />,
 }));
 
 // Mock react-router-dom

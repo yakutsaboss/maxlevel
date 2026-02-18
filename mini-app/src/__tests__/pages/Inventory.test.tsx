@@ -28,14 +28,26 @@ vi.mock('react-i18next', () => ({
       const keys: Record<string, string> = {
         'inventory.title': 'Inventory',
         'inventory.empty': 'No items yet — visit the Shop!',
+        'inventory.empty_category': 'No items in this category',
         'inventory.equip': 'Equip',
         'inventory.unequip': 'Unequip',
         'inventory.purchased_on': `Purchased ${params?.date ?? ''}`,
+        'inventory.loading': 'Loading...',
+        'inventory.couldNotLoad': 'Could not load inventory',
+        'inventory.total_items': 'Total items',
+        'inventory.visit_shop': 'Visit Shop',
         'inventory.tab_all': 'All',
         'inventory.tab_achievement': 'Achievements',
         'inventory.tab_avatar_item': 'Avatar Items',
         'inventory.tab_booster': 'Boosters',
+        'inventory.cat_all': 'All',
+        'inventory.cat_avatar': 'Avatar Items',
+        'inventory.cat_achievement': 'Achievements',
+        'inventory.cat_booster': 'Boosters',
+        'inventory.cat_xp_booster': 'XP Boosters',
         'inventory.equipped': 'Equipped',
+        'inventory.unequipped': `Unequipped ${params?.name ?? ''}`,
+        'inventory.equip_failed': 'Failed to equip',
         'errors.somethingWentWrong': 'Something went wrong',
         'common.retry': 'Retry',
       };
@@ -72,10 +84,13 @@ vi.mock('lucide-react', () => {
     ShoppingBag: IconStub,
     CheckCircle: IconStub,
     AlertCircle: IconStub,
+    RefreshCw: IconStub,
     Star: IconStub,
     Zap: IconStub,
     Crown: IconStub,
     Shield: IconStub,
+    Info: IconStub,
+    X: IconStub,
   };
 });
 
@@ -116,31 +131,40 @@ const mockRefresh = vi.fn();
 
 const mockInventoryItems = [
   {
-    id: 1, shop_item_id: 1, name: 'Golden Collector', type: 'achievement',
+    purchase_id: 1, shop_item_id: 1, name: 'Golden Collector', type: 'achievement',
     description: 'A premium golden achievement', rarity: 'rare',
     icon_emoji: '🏅', purchased_at: '2026-02-10T12:00:00Z', is_equipped: false,
+    payment_method: 'stars', amount_paid: 50,
   },
   {
-    id: 2, shop_item_id: 3, name: 'Premium Hairstyle', type: 'avatar_item',
+    purchase_id: 2, shop_item_id: 3, name: 'Premium Hairstyle', type: 'avatar_item',
     description: 'An exclusive hairstyle', rarity: 'rare',
     icon_emoji: '💇', purchased_at: '2026-02-11T14:00:00Z', is_equipped: false,
+    payment_method: 'stars', amount_paid: 30,
   },
   {
-    id: 3, shop_item_id: 4, name: 'XP Doubler 24h', type: 'xp_booster',
+    purchase_id: 3, shop_item_id: 4, name: 'XP Doubler 24h', type: 'xp_booster',
     description: 'Double XP for 24 hours', rarity: 'common',
     icon_emoji: '⚡', purchased_at: '2026-02-12T10:00:00Z', is_equipped: false,
+    payment_method: 'xp', amount_paid: 500,
   },
 ];
 
+const mockSetCategory = vi.fn();
+
 let hookReturn = {
   items: mockInventoryItems,
-  groupedItems: {
+  grouped: {
     achievement: [mockInventoryItems[0]],
     avatar_item: [mockInventoryItems[1]],
     xp_booster: [mockInventoryItems[2]],
   } as Record<string, typeof mockInventoryItems>,
+  filteredItems: mockInventoryItems,
+  totalCount: mockInventoryItems.length,
   loading: false,
   error: null as string | null,
+  category: 'all' as string,
+  setCategory: mockSetCategory,
   equip: mockEquip,
   unequip: mockUnequip,
   refresh: mockRefresh,
@@ -170,13 +194,17 @@ beforeEach(() => {
   vi.clearAllMocks();
   hookReturn = {
     items: mockInventoryItems,
-    groupedItems: {
+    grouped: {
       achievement: [mockInventoryItems[0]],
       avatar_item: [mockInventoryItems[1]],
       xp_booster: [mockInventoryItems[2]],
     },
+    filteredItems: mockInventoryItems,
+    totalCount: mockInventoryItems.length,
     loading: false,
     error: null,
+    category: 'all',
+    setCategory: mockSetCategory,
     equip: mockEquip,
     unequip: mockUnequip,
     refresh: mockRefresh,
@@ -190,7 +218,7 @@ describe('Inventory', () => {
   });
 
   it('renders loading state when loading', () => {
-    hookReturn = { ...hookReturn, loading: true, items: [], groupedItems: {} };
+    hookReturn = { ...hookReturn, loading: true, items: [], grouped: {}, filteredItems: [], totalCount: 0 };
     renderPage();
     // When loading, item names should not be visible
     expect(screen.queryByText('Golden Collector')).not.toBeInTheDocument();
@@ -230,24 +258,30 @@ describe('Inventory', () => {
   });
 
   it('shows unequip button for equipped items', () => {
+    const equippedItem = { ...mockInventoryItems[1], is_equipped: true };
     hookReturn = {
       ...hookReturn,
-      items: [{ ...mockInventoryItems[1], is_equipped: true }],
-      groupedItems: {
-        avatar_item: [{ ...mockInventoryItems[1], is_equipped: true }],
+      items: [equippedItem],
+      filteredItems: [equippedItem],
+      grouped: {
+        avatar_item: [equippedItem],
       },
+      totalCount: 1,
     };
     renderPage();
     expect(screen.getByText('Unequip')).toBeInTheDocument();
   });
 
   it('calls unequip when unequip button is clicked', () => {
+    const equippedItem = { ...mockInventoryItems[1], is_equipped: true };
     hookReturn = {
       ...hookReturn,
-      items: [{ ...mockInventoryItems[1], is_equipped: true }],
-      groupedItems: {
-        avatar_item: [{ ...mockInventoryItems[1], is_equipped: true }],
+      items: [equippedItem],
+      filteredItems: [equippedItem],
+      grouped: {
+        avatar_item: [equippedItem],
       },
+      totalCount: 1,
     };
     renderPage();
     const unequipButton = screen.getByText('Unequip');
@@ -256,13 +290,13 @@ describe('Inventory', () => {
   });
 
   it('shows empty state when no items', () => {
-    hookReturn = { ...hookReturn, items: [], groupedItems: {} };
+    hookReturn = { ...hookReturn, items: [], grouped: {}, filteredItems: [], totalCount: 0 };
     renderPage();
     expect(screen.getByText('No items yet — visit the Shop!')).toBeInTheDocument();
   });
 
   it('renders error state', () => {
-    hookReturn = { ...hookReturn, error: 'Failed to load', items: [], groupedItems: {} };
+    hookReturn = { ...hookReturn, error: 'Failed to load', items: [], grouped: {}, filteredItems: [], totalCount: 0 };
     renderPage();
     expect(screen.getByText('Something went wrong')).toBeInTheDocument();
   });

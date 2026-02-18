@@ -142,14 +142,12 @@ describe('POST /api/inventory/:userId/equip', () => {
   it('should equip an owned avatar item', async () => {
     // Verify item is owned by user
     db.queryOne.mockResolvedValueOnce({
-      id: 2, user_id: 1, shop_item_id: 3, item_type: 'avatar_item',
+      purchase_id: 2, shop_item_id: 3, type: 'avatar_item', is_equipped: false,
     });
-    // Unequip previous item of same type (if any)
-    db.execute.mockResolvedValueOnce(undefined);
+    // Unequip previous avatar items
+    db.query.mockResolvedValueOnce([]);
     // Equip the new item
-    db.queryOne.mockResolvedValueOnce({
-      id: 2, is_equipped: true,
-    });
+    db.query.mockResolvedValueOnce([]);
 
     const res = await request(buildApp())
       .post('/api/inventory/1/equip')
@@ -206,12 +204,10 @@ describe('POST /api/inventory/:userId/unequip', () => {
   it('should unequip an equipped avatar item', async () => {
     // Verify item is owned and equipped
     db.queryOne.mockResolvedValueOnce({
-      id: 2, user_id: 1, shop_item_id: 3, item_type: 'avatar_item', is_equipped: true,
+      purchase_id: 2, shop_item_id: 3, type: 'avatar_item', is_equipped: true,
     });
     // Unequip the item
-    db.queryOne.mockResolvedValueOnce({
-      id: 2, is_equipped: false,
-    });
+    db.query.mockResolvedValueOnce([]);
 
     const res = await request(buildApp())
       .post('/api/inventory/1/unequip')
