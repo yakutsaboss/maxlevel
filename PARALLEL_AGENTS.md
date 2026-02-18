@@ -839,3 +839,29 @@ Plus two mixed runs (81, 82) for personalization engine, A/B testing, referrals,
 - ~~Hardcoded punishment validLevels~~ — Replaced with `PUNISHMENT_INTENSITY` constants in Run 21 Agent E
 
 <!-- Runs 2-74 archived to PARALLEL_AGENTS_HISTORY.md -->
+
+### Run 75 Retrospectives
+
+#### Agent D Retrospective
+**Status:** COMPLETE — WorkoutTimer component + useWorkoutTimer hook created, tsc + vite build pass.
+
+**What was done:**
+
+| # | Task | Status |
+|---|------|--------|
+| 1 | Create `useWorkoutTimer.ts` hook with start/pause/resume/stop/reset/addLap | Done |
+| 2 | Create `WorkoutTimer.tsx` full-screen timer overlay component | Done |
+| 3 | Verify TypeScript (`tsc --noEmit`) and Vite build | Done — 0 errors |
+
+**Implementation details:**
+- **useWorkoutTimer.ts** (126 lines): Drift-proof timer using `Date.now()` reference points + `setInterval` at 100ms ticks. Accumulated time tracked across pause/resume cycles via `useRef`. Includes `addLap()` with split time calculation. Also exports `formatTime()` (HH:MM:SS) and `formatLapTime()` (M:SS) utilities.
+- **WorkoutTimer.tsx** (351 lines): Full-screen overlay (`z-[50]`) with 4 phases: ready → active → confirm-stop → summary. Features: animated SVG pulsing ring (4s cycle via `motion.circle`), real-time calorie counter (calories_per_min × elapsed minutes), lap tracking with reverse-chronological list, stop confirmation dialog, completion celebration with existing `Confetti` component reuse, summary view with stats grid + save button. Uses Telegram theme CSS vars throughout, haptic feedback on all interactions via `useTelegram()` hook. All sub-views extracted as named functions.
+
+**What went well:**
+- Existing `Confetti` celebration component was reused directly — no need to create a new one.
+- `useTelegram()` hook provided clean haptic API (impact/notification/selection) — no need for raw `window.Telegram?.WebApp?.HapticFeedback` calls.
+- Tailwind + Telegram theme vars pattern made styling straightforward.
+
+**Recommendations for Agent 0:**
+- WorkoutTimer is a standalone component (not wired into any page yet). Agent C's ActivityHub should import it for the "Start Timer" flow.
+- The `onComplete(duration, calories)` callback expects duration in minutes (rounded). Agent B's API POST /api/activities/stop should receive these values.
