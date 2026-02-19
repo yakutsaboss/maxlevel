@@ -18,6 +18,7 @@ vi.mock('react-i18next', () => ({
         'nav.shop': 'Shop',
         'nav.analytics': 'Analytics',
         'nav.activities': 'Activities',
+        'nav.knowledge': 'Knowledge',
       };
       return translations[key] ?? key;
     },
@@ -38,6 +39,7 @@ vi.mock('lucide-react', () => ({
   ShoppingBag: (props: any) => <span data-testid="icon-shop" {...props} />,
   BarChart3: (props: any) => <span data-testid="icon-analytics" {...props} />,
   Dumbbell: (props: any) => <span data-testid="icon-dumbbell" {...props} />,
+  BookOpen: (props: any) => <span data-testid="icon-bookopen" {...props} />,
 }));
 
 // Mock react-router-dom
