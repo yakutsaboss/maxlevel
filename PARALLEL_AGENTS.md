@@ -1970,7 +1970,21 @@ OWNED: all test files listed above. FORBIDDEN: source files. After done, write r
 *(To be filled by Agent C)*
 
 #### Agent D Retrospective
-*(To be filled by Agent D)*
+Created `mini-app/src/components/admin/AdminPlayerActions.tsx` — a complete admin actions component with 5 action modals:
+
+1. **Award XP** — number input + reason, calls `POST /admin/players/:userId/award-xp`
+2. **Unlock Achievement** — fetches all achievements via `apiClient`, shows searchable list with already-unlocked items disabled, calls `POST /admin/players/:userId/unlock-achievement`
+3. **Change Tier** — select free/subscriber/premium with downgrade warning, calls `PATCH /admin/players/:userId/tier`
+4. **Send Message** — textarea (4096 char limit), calls `POST /admin/players/:userId/message`
+5. **Deactivate Account** — danger zone with red confirmation modal, calls `POST /admin/users/:userId/deactivate` (existing endpoint)
+
+**Patterns used**: Bottom-sheet modals with `framer-motion` + `FocusTrap`, `adminFetch` for admin API calls, `apiClient` for public achievement endpoints, haptic feedback on all actions (medium impact on button press, success/error notification on result), Toast component for feedback, Telegram theme variables throughout.
+
+**Props**: `userId`, `currentTier`, `currentXp`, `onActionComplete()` callback — designed to be embedded in Agent C's `AdminPlayerDetail` page.
+
+**TypeScript**: Clean build with `npx tsc --noEmit` — no errors.
+
+**Notes for Agent 0**: The deactivate endpoint uses the existing `POST /admin/users/:userId/deactivate` from `admin-users.ts`. The other 4 endpoints are new (created by Agent E). Credentials are read from `sessionStorage` directly (same pattern as other admin components).
 
 #### Agent E Retrospective
 *(To be filled by Agent E)*
