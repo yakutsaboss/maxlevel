@@ -19,7 +19,6 @@ import type { OnboardingStep } from '@/hooks/useOnboarding';
 const Dashboard = lazy(() => import('@/pages/Dashboard').then(m => ({ default: m.Dashboard })));
 const Quests = lazy(() => import('@/pages/Quests').then(m => ({ default: m.Quests })));
 const Profile = lazy(() => import('@/pages/Profile').then(m => ({ default: m.Profile })));
-const Admin = lazy(() => import('@/pages/Admin').then(m => ({ default: m.Admin })));
 const Achievements = lazy(() => import('@/pages/Achievements').then(m => ({ default: m.Achievements })));
 const Leaderboard = lazy(() => import('@/pages/Leaderboard').then(m => ({ default: m.Leaderboard })));
 const Settings = lazy(() => import('@/pages/Settings').then(m => ({ default: m.Settings })));
@@ -36,6 +35,9 @@ const ActivityHistory = lazy(() => import('@/pages/ActivityHistory').then(m => (
 const ContentFeed = lazy(() => import('@/pages/ContentFeed').then(m => ({ default: m.ContentFeed })));
 const ArticleReader = lazy(() => import('@/pages/ArticleReader').then(m => ({ default: m.ArticleReader })));
 const ReadingHistory = lazy(() => import('@/pages/ReadingHistory').then(m => ({ default: m.ReadingHistory })));
+const AdminDashboard = lazy(() => import('@/pages/admin/AdminDashboard').then(m => ({ default: m.AdminDashboard })));
+const AdminPlayerList = lazy(() => import('@/pages/admin/AdminPlayerList').then(m => ({ default: m.AdminPlayerList })));
+const AdminPlayerDetail = lazy(() => import('@/pages/admin/AdminPlayerDetail').then(m => ({ default: m.AdminPlayerDetail })));
 
 // Create React Query client
 const queryClient = new QueryClient({
@@ -159,7 +161,10 @@ function AppContent() {
         <Route path="/content" element={<ProtectedRoute needsOnboarding={effectiveNeedsOnboarding} lazy><ContentFeed /></ProtectedRoute>} />
         <Route path="/content/:articleId" element={<ProtectedRoute needsOnboarding={effectiveNeedsOnboarding} lazy><ArticleReader /></ProtectedRoute>} />
         <Route path="/content/bookmarks" element={<ProtectedRoute needsOnboarding={effectiveNeedsOnboarding} lazy><ReadingHistory /></ProtectedRoute>} />
-        <Route path="/admin" element={<LazyPageWrapper><Admin /></LazyPageWrapper>} />
+        <Route path="/admin" element={<Navigate to="/admin/dashboard" replace />} />
+        <Route path="/admin/dashboard" element={<LazyPageWrapper><AdminDashboard /></LazyPageWrapper>} />
+        <Route path="/admin/players" element={<LazyPageWrapper><AdminPlayerList /></LazyPageWrapper>} />
+        <Route path="/admin/players/:userId" element={<LazyPageWrapper><AdminPlayerDetail /></LazyPageWrapper>} />
       </Routes>
       </main>
       <InstallPrompt />
