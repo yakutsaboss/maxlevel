@@ -328,7 +328,7 @@ Plus two mixed runs (81, 82) for personalization engine, A/B testing, referrals,
 | Run | Theme | Focus | Agents | Status |
 |-----|-------|-------|--------|--------|
 | **75** | Engagement | Activity Hub — Sport Logging System | 9 | ✅ |
-| **76** | Engagement | Knowledge Feed — Articles & Quizzes | 8 | ⬜ |
+| **76** | Engagement | Knowledge Feed — Articles & Quizzes | 8 | ✅ |
 | **77** | Admin | Admin Panel Revolution + Player Management | 9 | ⬜ |
 | **78** | Admin | Live Spreadsheet Ecosystem | 9 | ⬜ |
 | **79** | Engagement | Daily Challenges + Gamification | 8 | ⬜ |
@@ -1640,6 +1640,352 @@ All TypeScript compiles cleanly (`tsc --noEmit` passes for both bot and mini-app
 - The `useContentFeed.test.ts` file covers the hook + API integration as a unit since the contentRecommender is a backend-only module (Node.js `query`/`queryOne` DB functions) that can't run in jsdom. The 8+ "contentRecommender tests" are folded into the useContentFeed hook tests which test the equivalent frontend recommendation/feed logic.
 
 **No pre-existing test failures introduced. All 111 new tests pass cleanly.**
+
+#### Agent 0 Retrospective
+**Status:** COMPLETE — all 8 agents merged, tested, deployed.
+
+**Merge summary:**
+- All 8 agents' code was already merged to main by a previous session (10 commits)
+- Agent A's migration file (`run76_content.sql`, 1180 lines) was untracked on main — committed separately
+- No branch merges needed — all branches had 0 unmerged commits
+
+**Agent 0 fixes:**
+- Navigation.test.tsx: added `BookOpen` mock + `nav.knowledge` i18n key (Agent C added BookOpen to nav but test mock was missing it)
+
+**Build & test results:**
+- Bot: tsc clean, 90 files / 1196 tests passed
+- Mini-app: tsc clean, vite build success, 406 suites / 1239 tests passed
+- Total: 2435 tests, 0 failures
+
+**Deploy:**
+- Migration `run76_content.sql`: 4 tables created, 30 articles + 80+ quiz questions seeded
+- PM2 restart verified: version `7080473`, health status `ok`
+
+---
+
+## RUN 77: Admin Panel Revolution + Player Management (9 Agents + Agent 0)
+
+### Focus: Completely redesign the admin panel into a full-featured player management system with sidebar navigation, player list with sorting/filtering, player detail views, admin actions (award XP, unlock achievements, change tier), bulk operations, notification center, and full i18n.
+
+### Copy-Paste Prompts
+
+**Agent A** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-a`):
+```
+Read PARALLEL_AGENTS.md — you are Agent A of Run 77. Your task: Admin layout + dashboard redesign.
+
+Create `mini-app/src/components/admin/AdminLayout.tsx`:
+- Wrapper component for all admin pages. Props: children, title
+- Responsive layout: sidebar on desktop (>768px), bottom sheet on mobile
+- Header: "Admin Panel" title + notification bell icon (placeholder) + current admin username
+- Main content area with padding, scrollable
+
+Create `mini-app/src/components/admin/AdminSidebar.tsx`:
+- Sidebar navigation with icons: Dashboard (LayoutDashboard), Players (Users), Quests (Target), Achievements (Award), Content (BookOpen), Analytics (BarChart3), Settings (Settings) — all from lucide-react
+- Active item highlighted with accent color (Telegram theme var)
+- Collapsible on mobile (hamburger toggle)
+- Each item navigates to /admin/{section}
+
+Create `mini-app/src/pages/admin/AdminDashboard.tsx`:
+- 6 stat cards in 2x3 grid: Total Users, Active Today, New This Week, Revenue (Stars), Avg Session Duration, Retention Rate (D7)
+- Each card: icon, label, value (large number), trend indicator (↑ green / ↓ red + %)
+- Quick actions panel below: "Broadcast Message", "Trigger Job", "Export Data" buttons
+- Fetch data from existing GET /admin/stats endpoint
+- Use AdminLayout wrapper
+
+OWNED: mini-app/src/components/admin/AdminLayout.tsx (NEW), mini-app/src/components/admin/AdminSidebar.tsx (NEW), mini-app/src/pages/admin/AdminDashboard.tsx (NEW). FORBIDDEN: bot/*, database/*, i18n files, App.tsx. After done, verify build: cd mini-app && npx tsc --noEmit. Write retrospective.
+```
+
+**Agent B** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-b`):
+```
+Read PARALLEL_AGENTS.md — you are Agent B of Run 77. Your task: Player list — spreadsheet-style data table.
+
+Create `mini-app/src/pages/admin/AdminPlayerList.tsx`:
+- Full-width data table wrapped in AdminLayout (import from components/admin/AdminLayout)
+- Columns: checkbox (for selection), Avatar (emoji), Display Name, Telegram ID, Level, XP, Tier (badge), Active Modes (comma-separated), Last Active (relative date), Joined (date), Status (active/inactive badge)
+- **Column sorting**: click header to sort asc/desc, arrow indicator
+- **Text search**: search bar that filters by name or telegram ID (debounced 300ms)
+- **Filters panel** (collapsible): tier dropdown (all/free/subscriber/premium), level range (min-max inputs), mode checkboxes, active/inactive toggle, date range picker for joined date
+- **Pagination**: 50 rows per page, page numbers + prev/next, total count display
+- **Row selection**: checkboxes, "Select All" header checkbox, selected count indicator
+- **CSV export**: button that downloads current filtered results as CSV
+- **Row click**: navigate to /admin/players/:userId for detail view
+- **Inline actions**: kebab menu per row → "View", "Award XP", "Change Tier"
+
+Create `mini-app/src/hooks/useAdminPlayers.ts`:
+- Fetch GET /admin/players with query params (page, limit, search, sort, order, tier, mode, status, date_from, date_to)
+- Manage: players list, loading, error, pagination, sort state, filter state, selected rows
+- CSV export function
+
+OWNED: mini-app/src/pages/admin/AdminPlayerList.tsx (NEW), mini-app/src/hooks/useAdminPlayers.ts (NEW). FORBIDDEN: bot/*, database/*. After done, verify build. Write retrospective.
+```
+
+**Agent C** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-c`):
+```
+Read PARALLEL_AGENTS.md — you are Agent C of Run 77. Your task: Player detail view.
+
+Create `mini-app/src/pages/admin/AdminPlayerDetail.tsx`:
+- Wrapped in AdminLayout. Breadcrumb: Players > Player Name
+- Fetch full player data from GET /admin/players/:userId (Agent E creates this endpoint)
+- **Header**: Avatar, display name, telegram ID, tier badge, level, XP bar, member since
+- **Tabbed sections** (horizontal tabs):
+  1. Overview — stats summary cards (total quests, streaks, achievements, XP, activities, articles read)
+  2. Activity Timeline — chronological list of recent events (quest completions, achievements, activity logs, content reads) with icons and relative timestamps
+  3. Mode Progress — cards per active mode showing quest completion rate, streak
+  4. Quest History — table of quest_instances (quest name, status, started, completed, XP earned)
+  5. Achievements — grid of unlocked achievements with dates, grayed out locked ones
+  6. Financial Summary — budget overview if finance mode active (income, expenses, savings rate)
+  7. Social — friends count, challenges sent/received, leaderboard rank
+  8. Admin Actions — embedded AdminPlayerActions component (Agent D creates this)
+- Loading skeleton per tab, error state
+- Use framer-motion for tab transitions
+
+OWNED: mini-app/src/pages/admin/AdminPlayerDetail.tsx (NEW). FORBIDDEN: bot/*, database/*. After done, verify build. Write retrospective.
+```
+
+**Agent D** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-d`):
+```
+Read PARALLEL_AGENTS.md — you are Agent D of Run 77. Your task: Admin player actions component.
+
+Create `mini-app/src/components/admin/AdminPlayerActions.tsx`:
+- Component used inside AdminPlayerDetail. Props: userId (number), currentTier (string), currentXp (number), onActionComplete() callback
+
+- **Award XP** button → modal: number input for XP amount, reason text input, "Award" confirm button. Calls POST /admin/players/:userId/award-xp. On success: toast "Awarded X XP", call onActionComplete()
+
+- **Unlock Achievement** button → modal: dropdown listing all achievements (fetch from GET /api/achievements), search filter, select one, "Unlock" confirm. Calls POST /admin/players/:userId/unlock-achievement. Shows which ones are already unlocked (disabled)
+
+- **Change Tier** button → modal: select dropdown (free/subscriber/premium), current tier shown. Calls PATCH /admin/players/:userId/tier. Warning text for downgrades
+
+- **Send Message** button → modal: text input for message, "Send" button. Calls POST /admin/players/:userId/message (sends via Telegram bot)
+
+- **Deactivate Account** button (red, danger zone section) → confirmation modal: "Are you sure? This will deactivate the user's account." Calls PATCH /admin/players/:userId with {status: 'inactive'}
+
+- All modals: loading state on submit, error toast on failure, success toast + close on success
+- Use Telegram theme vars, haptic feedback on actions
+
+OWNED: mini-app/src/components/admin/AdminPlayerActions.tsx (NEW). FORBIDDEN: bot/*, database/*. After done, verify build. Write retrospective.
+```
+
+**Agent E** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-e`):
+```
+Read PARALLEL_AGENTS.md — you are Agent E of Run 77. Your task: Admin actions API backend.
+
+Create `database/migrations/run77_admin.sql`:
+- Table: admin_audit_log (id SERIAL PRIMARY KEY, admin_id INTEGER, action VARCHAR(100) NOT NULL, target_user_id INTEGER REFERENCES users(id), details JSONB, created_at TIMESTAMPTZ DEFAULT NOW())
+- Index on admin_audit_log(target_user_id), admin_audit_log(created_at DESC)
+
+Create `bot/src/api/routes/admin-players.ts`:
+- All endpoints require Basic Auth (existing adminAuth middleware from admin.ts)
+
+1. GET /admin/players — enhanced player list with pagination + search + sort + filters:
+   Query: ?page=1&limit=50&search=&sort=level&order=desc&tier=&mode=&status=&date_from=&date_to=
+   Response: { players: [...], total, page, totalPages }
+   Join users + user_modes + user_stats for full data per row
+
+2. GET /admin/players/:userId — full player detail:
+   Join users + modes + quest_instances + achievements + activity_logs + content progress
+   Return: { user: {...}, modes: [...], recentQuests: [...], achievements: [...], recentActivities: [...], stats: {...} }
+
+3. POST /admin/players/:userId/award-xp — { amount, reason }
+   Call awardXp() utility, log to admin_audit_log
+
+4. POST /admin/players/:userId/unlock-achievement — { achievement_id }
+   Insert into user_achievements, log to audit
+
+5. PATCH /admin/players/:userId/tier — { tier }
+   Update users.tier, log to audit
+
+6. POST /admin/players/:userId/message — { text }
+   Send message via bot.api.sendMessage(user.telegram_id, text), log to audit
+
+7. GET /admin/audit-log — paginated audit log with filters
+
+Register in server.ts under the existing admin router mount. Look at how admin.ts imports sub-routers (admin-users.ts, admin-stats.ts, etc.) and follow the same pattern.
+
+OWNED: database/migrations/run77_admin.sql (NEW), bot/src/api/routes/admin-players.ts (NEW), bot/src/api/routes/admin.ts (add import). FORBIDDEN: mini-app/*. After done, verify build: cd bot && npx tsc --noEmit. Write retrospective.
+```
+
+**Agent F** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-f`):
+```
+Read PARALLEL_AGENTS.md — you are Agent F of Run 77. Your task: Bulk operations toolbar.
+
+Create `mini-app/src/components/admin/AdminBulkActions.tsx`:
+- Floating toolbar that appears when 1+ rows are selected in AdminPlayerList
+- Props: selectedUserIds (number[]), onComplete(), onClearSelection()
+- Positioned at bottom of screen, slides up with framer-motion
+
+- **Bulk Award XP**: button → modal with XP amount input + reason. Calls POST /admin/players/bulk/award-xp with { user_ids: [...], amount, reason }. Progress bar (X/total processed). On complete: success count toast
+
+- **Bulk Change Tier**: button → modal with tier select. Calls POST /admin/players/bulk/tier with { user_ids: [...], tier }. Confirmation: "Change tier for X users?"
+
+- **Bulk Send Message**: button → modal with text input. Calls POST /admin/players/bulk/message with { user_ids: [...], text }. Progress indicator
+
+- **Bulk Export**: button → immediately downloads CSV of selected users
+
+- All modals show count of affected users, require confirmation
+- Disable buttons while any bulk op is in progress
+- All operations logged to audit log (backend handles this)
+
+Also add the bulk API endpoints to Agent E's admin-players route. Since Agent E owns admin-players.ts, create a separate file:
+Create `bot/src/api/routes/admin-bulk.ts`:
+- POST /admin/players/bulk/award-xp — loops through user_ids, calls awardXp for each, logs audit
+- POST /admin/players/bulk/tier — batch UPDATE users SET tier = $1 WHERE id = ANY($2)
+- POST /admin/players/bulk/message — loops through user_ids, sends message via bot API
+Register in admin.ts router.
+
+OWNED: mini-app/src/components/admin/AdminBulkActions.tsx (NEW), bot/src/api/routes/admin-bulk.ts (NEW), bot/src/api/routes/admin.ts (add import). FORBIDDEN: database/*. After done, verify both builds. Write retrospective.
+```
+
+**Agent G** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-g`):
+```
+Read PARALLEL_AGENTS.md — you are Agent G of Run 77. Your task: Admin notification center.
+
+Create `bot/src/api/routes/admin-notifications.ts`:
+- Table (add to a new migration or inline SQL): admin_notifications (id SERIAL PRIMARY KEY, type VARCHAR(50) NOT NULL, title TEXT NOT NULL, message TEXT, related_user_id INTEGER REFERENCES users(id), is_read BOOLEAN DEFAULT false, created_at TIMESTAMPTZ DEFAULT NOW())
+- Types: 'new_registration', 'achievement_unlock', 'payment', 'system_alert', 'tier_change'
+- GET /admin/notifications — paginated, filter by ?type=&is_read=. Returns newest first
+- PATCH /admin/notifications/:id/read — mark as read
+- POST /admin/notifications/mark-all-read — mark all as read
+- GET /admin/notifications/unread-count — returns { count: N }
+Register in admin.ts
+
+Create `mini-app/src/components/admin/AdminNotifications.tsx`:
+- Bell icon button (for AdminLayout header). Badge shows unread count (red circle with number)
+- Click → dropdown panel (positioned absolute, right-aligned):
+  - Header: "Notifications" + "Mark all read" link
+  - Filter tabs: All, Registrations, Achievements, Payments, Alerts
+  - Notification list: icon per type, title, time ago, click to navigate (new_registration → player detail)
+  - Unread items have accent left border
+  - "Load more" at bottom for pagination
+  - Empty state: "No notifications"
+- Auto-refresh unread count every 30 seconds (polling)
+- Close dropdown on outside click
+
+Also create `database/migrations/run77_admin_notifications.sql` for the table + indexes.
+
+OWNED: bot/src/api/routes/admin-notifications.ts (NEW), bot/src/api/routes/admin.ts (add import), mini-app/src/components/admin/AdminNotifications.tsx (NEW), database/migrations/run77_admin_notifications.sql (NEW). After done, verify both builds. Write retrospective.
+```
+
+**Agent H** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-h`):
+```
+Read PARALLEL_AGENTS.md — you are Agent H of Run 77. Your task: Admin i18n + routing.
+
+**Part 1 — i18n keys (60+ per language):**
+Add to mini-app/src/i18n/en.ts, ru.ts, zh.ts under `admin` namespace (extend existing admin keys):
+- `admin.sidebar.*` (dashboard, players, quests, achievements, content, analytics, settings)
+- `admin.dashboard.*` (totalUsers, activeToday, newThisWeek, revenue, avgSession, retentionRate, quickActions, broadcast, triggerJob, exportData)
+- `admin.players.*` (title, search, filters, tier, level, mode, status, active, inactive, joined, lastActive, selectAll, selectedCount, export, noPlayers, loadMore)
+- `admin.playerDetail.*` (overview, timeline, modeProgress, questHistory, achievements, financial, social, adminActions)
+- `admin.actions.*` (awardXp, unlockAchievement, changeTier, sendMessage, deactivateAccount, amount, reason, confirm, cancel, success, error)
+- `admin.bulk.*` (awardXp, changeTier, sendMessage, export, processing, complete, confirmation)
+- `admin.notifications.*` (title, markAllRead, noNotifications, newRegistration, achievementUnlock, payment, systemAlert, tierChange)
+At least 60 keys per language with natural translations.
+
+**Part 2 — Routing:**
+In mini-app/src/App.tsx: add lazy-loaded admin routes:
+- `/admin/dashboard` → AdminDashboard
+- `/admin/players` → AdminPlayerList
+- `/admin/players/:userId` → AdminPlayerDetail
+All routes should NOT use ProtectedRoute (admin has its own auth). Wrap in LazyPageWrapper.
+Keep existing `/admin` route for backward compatibility (redirect to /admin/dashboard or keep current page).
+
+OWNED: mini-app/src/i18n/en.ts, ru.ts, zh.ts (admin keys only), mini-app/src/App.tsx (add admin routes). FORBIDDEN: bot/*, database/*. After done, verify build. Write retrospective.
+```
+
+**Agent I** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-i`):
+```
+Read PARALLEL_AGENTS.md — you are Agent I of Run 77. Your task: Tests for the Admin Panel Revolution.
+
+Create these test files:
+
+1. **bot/src/__tests__/routes/admin-players.test.ts** (20+ tests):
+   - Test: GET /admin/players (pagination, search, sort, filters), GET /admin/players/:userId (full detail, not found), POST award-xp (success, invalid amount), POST unlock-achievement (success, already unlocked), PATCH tier (success, invalid tier), POST message, GET audit-log
+   - All require Basic Auth header mock
+
+2. **bot/src/__tests__/routes/admin-bulk.test.ts** (10+ tests):
+   - Test: bulk award XP (multiple users), bulk tier change, bulk message, empty user_ids, invalid input
+
+3. **bot/src/__tests__/routes/admin-notifications.test.ts** (10+ tests):
+   - Test: GET notifications (paginated, filtered), PATCH mark read, POST mark-all-read, GET unread-count
+
+4. **mini-app/src/__tests__/pages/admin/AdminPlayerList.test.tsx** (10+ tests):
+   - Mock useAdminPlayers. Test: loading, table rendering, search, sort click, filter panel, row selection, pagination, CSV export, row click navigation
+
+5. **mini-app/src/__tests__/pages/admin/AdminPlayerDetail.test.tsx** (8+ tests):
+   - Mock fetch. Test: loading, breadcrumb, tab rendering, tab switching, overview stats, quest history, error state
+
+6. **mini-app/src/__tests__/components/admin/AdminPlayerActions.test.tsx** (10+ tests):
+   - Mock API. Test: award XP modal open/close/submit, unlock achievement, change tier, send message, deactivate confirmation, success/error toasts
+
+Run existing tests first and fix any pre-existing failures.
+
+OWNED: all test files listed above. FORBIDDEN: source files. After done, write retrospective.
+```
+
+### Run 77 File Ownership Matrix
+
+| File/Dir | Owner | Access |
+|----------|-------|--------|
+| database/migrations/run77_admin.sql | E | NEW |
+| database/migrations/run77_admin_notifications.sql | G | NEW |
+| bot/src/api/routes/admin-players.ts | E | NEW |
+| bot/src/api/routes/admin-bulk.ts | F | NEW |
+| bot/src/api/routes/admin-notifications.ts | G | NEW |
+| bot/src/api/routes/admin.ts | E, F, G | MODIFY (register sub-routers) |
+| mini-app/src/components/admin/AdminLayout.tsx | A | NEW |
+| mini-app/src/components/admin/AdminSidebar.tsx | A | NEW |
+| mini-app/src/components/admin/AdminPlayerActions.tsx | D | NEW |
+| mini-app/src/components/admin/AdminBulkActions.tsx | F | NEW |
+| mini-app/src/components/admin/AdminNotifications.tsx | G | NEW |
+| mini-app/src/pages/admin/AdminDashboard.tsx | A | NEW |
+| mini-app/src/pages/admin/AdminPlayerList.tsx | B | NEW |
+| mini-app/src/pages/admin/AdminPlayerDetail.tsx | C | NEW |
+| mini-app/src/hooks/useAdminPlayers.ts | B | NEW |
+| mini-app/src/App.tsx | H | MODIFY (add admin routes) |
+| mini-app/src/i18n/en.ts, ru.ts, zh.ts | H | MODIFY (add admin keys) |
+| bot/src/__tests__/** | I | NEW test files |
+| mini-app/src/__tests__/** | I | NEW test files |
+| PARALLEL_AGENTS.md | ALL | Retrospective section only |
+
+### Run 77 Merge Order
+
+1. **E** (DB migration + admin-players API — foundational backend)
+2. **G** (Notifications API + migration — independent backend)
+3. **F** (Bulk API + UI component — depends on E's patterns)
+4. **A** (AdminLayout + Dashboard — foundational UI)
+5. **B** (Player list — depends on A's layout + E's API)
+6. **C** (Player detail — depends on A's layout + E's API)
+7. **D** (Player actions — used inside C's detail page)
+8. **H** (i18n + routing — touches App.tsx, merge late)
+9. **I** (Tests — always last)
+
+### Run 77 Retrospectives
+
+#### Agent A Retrospective
+*(To be filled by Agent A)*
+
+#### Agent B Retrospective
+*(To be filled by Agent B)*
+
+#### Agent C Retrospective
+*(To be filled by Agent C)*
+
+#### Agent D Retrospective
+*(To be filled by Agent D)*
+
+#### Agent E Retrospective
+*(To be filled by Agent E)*
+
+#### Agent F Retrospective
+*(To be filled by Agent F)*
+
+#### Agent G Retrospective
+*(To be filled by Agent G)*
+
+#### Agent H Retrospective
+*(To be filled by Agent H)*
+
+#### Agent I Retrospective
+*(To be filled by Agent I)*
 
 #### Agent 0 Retrospective
 *(To be filled by Agent 0 after merge)*
