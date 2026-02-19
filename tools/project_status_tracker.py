@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Project Status Tracker for Wibecode
-Tracks FEATURE-LEVEL completion, not just file existence.
+Tracks MVP recovery progress: core features + re-enablement of disabled features.
 """
 
 import os
@@ -43,311 +43,189 @@ class ProjectStatusTracker:
         except Exception:
             return False
 
-    def _seed_has_mode(self, mode_name: str) -> bool:
-        """Check if a mode is seeded (uncommented) in seed_data.sql"""
-        path = self.project_root / "database" / "seed_data.sql"
-        if not path.is_file():
-            return False
-        try:
-            content = path.read_text(encoding='utf-8')
-            # Match uncommented INSERT with this mode name
-            for line in content.split('\n'):
-                stripped = line.strip()
-                if stripped.startswith('--'):
-                    continue
-                if f"'{mode_name}'" in stripped and 'INSERT' not in stripped:
-                    # Check if it's part of an active VALUES clause
-                    return True
-                if f"'{mode_name}'" in stripped:
-                    return True
-            # Also check if it appears in a commented-out future section
-            commented = [l for l in content.split('\n')
-                         if l.strip().startswith('--') and f"'{mode_name}'" in l]
-            if commented and not any(
-                f"'{mode_name}'" in l for l in content.split('\n')
-                if not l.strip().startswith('--') and f"'{mode_name}'" in l
-            ):
-                return False
-            return f"'{mode_name}'" in content and \
-                   not all(l.strip().startswith('--') for l in content.split('\n') if f"'{mode_name}'" in l)
-        except Exception:
-            return False
-
-    def _has_onboarding_questions(self, mode_prefix: str) -> bool:
-        """Check if onboarding questions exist for a given mode prefix (e.g. 'FITNESS', 'HYDRATION')"""
-        path = self.project_root / "mini-app" / "src" / "data" / "onboardingQuestions.ts"
-        if not path.is_file():
-            return False
-        try:
-            content = path.read_text(encoding='utf-8')
-            return f"{mode_prefix}_QUESTIONS" in content
-        except Exception:
-            return False
-
-    def _has_achievements_for_mode(self, mode_name: str) -> bool:
-        """Check if achievements exist for a mode in seed_data.sql"""
-        return self._file_contains("database/seed_data.sql", f'"mode": "{mode_name}"')
-
-    def _has_quest_templates(self, mode_name: str) -> bool:
-        """Check if quest templates reference a mode in seed_data.sql"""
-        path = self.project_root / "database" / "seed_data.sql"
-        if not path.is_file():
-            return False
-        try:
-            content = path.read_text(encoding='utf-8')
-            return f"{mode_name}_mode_id" in content
-        except Exception:
-            return False
-
-    def _route_has_logic(self, path: str, min_lines: int = 20) -> bool:
-        """Check if a route file has actual logic (not just a stub)"""
-        full_path = self.project_root / path
+    def _route_is_enabled(self, route_text: str) -> bool:
+        """Check if a route is active (NOT commented with [MVP-DISABLED]) in server.ts"""
+        full_path = self.project_root / "bot" / "src" / "api" / "server.ts"
         if not full_path.is_file():
             return False
         try:
             content = full_path.read_text(encoding='utf-8')
-            lines = [l for l in content.split('\n') if l.strip() and not l.strip().startswith('//')]
-            return len(lines) >= min_lines
+            for line in content.split('\n'):
+                if route_text in line:
+                    stripped = line.strip()
+                    if stripped.startswith('// [MVP-DISABLED]'):
+                        return False
+                    return True
+            return False
+        except Exception:
+            return False
+
+    def _page_is_enabled(self, page_name: str) -> bool:
+        """Check if a page lazy import is active (NOT commented) in App.tsx"""
+        full_path = self.project_root / "mini-app" / "src" / "App.tsx"
+        if not full_path.is_file():
+            return False
+        try:
+            content = full_path.read_text(encoding='utf-8')
+            for line in content.split('\n'):
+                if f"import('@/pages/{page_name}" in line or f"import(\"@/pages/{page_name}" in line:
+                    stripped = line.strip()
+                    if stripped.startswith('// [MVP-DISABLED]') or stripped.startswith('{/* [MVP-DISABLED]'):
+                        return False
+                    return True
+            return False
+        except Exception:
+            return False
+
+    def _job_is_enabled(self, job_name: str) -> bool:
+        """Check if a job import is active (NOT commented) in registerJobs.ts"""
+        full_path = self.project_root / "bot" / "src" / "jobs" / "registerJobs.ts"
+        if not full_path.is_file():
+            return False
+        try:
+            content = full_path.read_text(encoding='utf-8')
+            for line in content.split('\n'):
+                if job_name in line and 'import' in line:
+                    stripped = line.strip()
+                    if stripped.startswith('// [MVP-DISABLED]'):
+                        return False
+                    return True
+            return False
         except Exception:
             return False
 
     def _get_milestones(self) -> Dict[str, Dict]:
         return {
-            "infra": {
-                "name": "Core Infrastructure",
-                "emoji": "🏗️",
-                "weight": 5,
+            "mvp_core": {
+                "name": "MVP Core",
+                "emoji": "\U0001F3D7\uFE0F",
+                "weight": 20,
                 "tasks": [
-                    {"name": "Bot framework (Grammy + Express)", "check": lambda: self._file_exists("bot/src/index.ts")},
+                    {"name": "Bot framework running", "check": lambda: self._file_exists("bot/src/index.ts")},
                     {"name": "Database schema", "check": lambda: self._file_exists("database/schema.sql")},
-                    {"name": "PM2 + deployment config", "check": lambda: self._file_exists("ecosystem.config.js")},
-                    {"name": "CI/CD pipeline", "check": lambda: self._file_exists(".github/workflows/deploy.yml")},
-                    {"name": "SSL + domain (yakutsa.ru)", "check": lambda: self._file_contains("ecosystem.config.js", "yakutsa.ru")},
-                    {"name": "Notification bot", "check": lambda: self._file_exists("tools/notification_bot_handler.py")},
+                    {"name": "Deploy config (yakutsa.ru)", "check": lambda: self._file_contains("ecosystem.config.js", "yakutsa.ru")},
+                    {"name": "User routes enabled", "check": lambda: self._route_is_enabled("userRouter")},
+                    {"name": "Quest routes enabled", "check": lambda: self._route_is_enabled("questRouter")},
+                    {"name": "Mode routes enabled", "check": lambda: self._route_is_enabled("modeRouter")},
+                    {"name": "Leaderboard routes enabled", "check": lambda: self._route_is_enabled("leaderboardRouter")},
+                    {"name": "Onboarding routes enabled", "check": lambda: self._route_is_enabled("onboardingRouter")},
+                    {"name": "Check-in routes enabled", "check": lambda: self._route_is_enabled("checkinRouter")},
+                    {"name": "Dashboard page", "check": lambda: self._file_exists("mini-app/src/pages/Dashboard.tsx")},
+                    {"name": "Quests page", "check": lambda: self._file_exists("mini-app/src/pages/Quests.tsx")},
+                    {"name": "Profile page", "check": lambda: self._file_exists("mini-app/src/pages/Profile.tsx")},
+                    {"name": "Leaderboard page", "check": lambda: self._file_exists("mini-app/src/pages/Leaderboard.tsx")},
+                    {"name": "Settings page", "check": lambda: self._file_exists("mini-app/src/pages/Settings.tsx")},
                 ]
             },
-            "fitness": {
-                "name": "Fitness Mode",
-                "emoji": "🏋️",
-                "weight": 10,
-                "tasks": [
-                    {"name": "Mode in database seed", "check": lambda: self._seed_has_mode("fitness")},
-                    {"name": "Quest templates (daily/weekly)", "check": lambda: self._has_quest_templates("fitness")},
-                    {"name": "Onboarding quiz (12 questions)", "check": lambda: self._has_onboarding_questions("FITNESS")},
-                    {"name": "Achievements (5 fitness)", "check": lambda: self._has_achievements_for_mode("fitness")},
-                    {"name": "Personalized plan generation", "check": lambda: self._file_exists("bot/src/utils/planGenerator.ts")},
-                    {"name": "Smart quest recommendations", "check": lambda: self._file_exists("bot/src/utils/questRecommender.ts")},
-                    {"name": "Progress analytics per mode", "check": lambda: self._file_exists("bot/src/api/routes/analytics.ts")},
-                ]
-            },
-            "hydration": {
-                "name": "Hydration Mode",
-                "emoji": "💧",
-                "weight": 10,
-                "tasks": [
-                    {"name": "Mode in database seed", "check": lambda: self._seed_has_mode("hydration")},
-                    {"name": "Quest templates (daily/weekly)", "check": lambda: self._has_quest_templates("hydration")},
-                    {"name": "Onboarding quiz (7 questions)", "check": lambda: self._has_onboarding_questions("HYDRATION")},
-                    {"name": "Achievements (5 hydration)", "check": lambda: self._has_achievements_for_mode("hydration")},
-                    {"name": "Personalized plan generation", "check": lambda: self._file_exists("bot/src/utils/planGenerator.ts")},
-                    {"name": "Smart reminder scheduling", "check": lambda: self._file_exists("bot/src/utils/smartReminder.ts")},
-                    {"name": "Progress analytics per mode", "check": lambda: self._file_exists("bot/src/api/routes/analytics.ts")},
-                ]
-            },
-            "medication": {
-                "name": "Medication Mode",
-                "emoji": "💊",
+            "achievements": {
+                "name": "Achievements & Trophies",
+                "emoji": "\U0001F3C6",
                 "weight": 12,
                 "tasks": [
-                    {"name": "Mode in database seed", "check": lambda: self._seed_has_mode("medication")},
-                    {"name": "Onboarding quiz questions", "check": lambda: self._has_onboarding_questions("MEDICATION")},
-                    {"name": "Quest templates", "check": lambda: self._has_quest_templates("medication")},
-                    {"name": "Achievements", "check": lambda: self._has_achievements_for_mode("medication")},
-                    {"name": "Medication schedule reminders", "check": lambda: self._file_contains_pattern("bot/src/jobs/definitions/questReminders.ts", r"medication|med.*remind") or self._file_contains_pattern("database/seed_data.sql", r"medication.*timer_window|medication_mode_id.*requires_timer.*TRUE")},
-                    {"name": "Dosage tracking", "check": lambda: self._file_contains("database/seed_data.sql", "dosage") or self._file_contains("mini-app/src/data/onboardingQuestions.ts", "dosage")},
-                    {"name": "Refill alerts", "check": lambda: self._file_contains("database/seed_data.sql", "refill")},
+                    {"name": "Achievement route enabled", "check": lambda: self._route_is_enabled("achievementRouter")},
+                    {"name": "Trophy route enabled", "check": lambda: self._route_is_enabled("trophyRouter")},
+                    {"name": "Achievements page enabled", "check": lambda: self._page_is_enabled("Achievements")},
+                    {"name": "TrophyCase page enabled", "check": lambda: self._page_is_enabled("TrophyCase")},
+                    {"name": "Achievement batch job enabled", "check": lambda: self._job_is_enabled("achievementBatchCheck")},
+                    {"name": "Achievement notifier job enabled", "check": lambda: self._job_is_enabled("achievementNotifier")},
+                    {"name": "Achievement tests exist", "check": lambda: self._file_exists("bot/src/__tests__/routes/achievements.test.ts")},
+                ]
+            },
+            "payments": {
+                "name": "Payments & Subscriptions",
+                "emoji": "\U0001F4B3",
+                "weight": 10,
+                "tasks": [
+                    {"name": "Payment route enabled", "check": lambda: self._route_is_enabled("paymentRouter")},
+                    {"name": "Payment route file exists", "check": lambda: self._file_exists("bot/src/api/routes/payments.ts")},
+                    {"name": "Premium gate middleware", "check": lambda: self._file_exists("bot/src/api/middleware/premiumGate.ts")},
+                    {"name": "Payment DB tables", "check": lambda: self._file_contains_pattern("database/schema.sql", r"CREATE TABLE.*payment")},
+                    {"name": "Subscription management", "check": lambda: self._file_contains_pattern("bot/src/api/routes/payments.ts", r"subscription|upgrade|cancel")},
+                ]
+            },
+            "shop_inventory": {
+                "name": "Shop & Inventory",
+                "emoji": "\U0001F6D2",
+                "weight": 10,
+                "tasks": [
+                    {"name": "Shop route enabled", "check": lambda: self._route_is_enabled("shopRouter")},
+                    {"name": "Inventory route enabled", "check": lambda: self._route_is_enabled("inventoryRouter")},
+                    {"name": "Avatar route enabled", "check": lambda: self._route_is_enabled("avatarRouter")},
+                    {"name": "Shop page enabled", "check": lambda: self._page_is_enabled("Shop")},
+                    {"name": "Inventory page enabled", "check": lambda: self._page_is_enabled("Inventory")},
+                    {"name": "AvatarCustomizer page enabled", "check": lambda: self._page_is_enabled("AvatarCustomizer")},
+                ]
+            },
+            "social": {
+                "name": "Social Features",
+                "emoji": "\U0001F465",
+                "weight": 10,
+                "tasks": [
+                    {"name": "Social route enabled", "check": lambda: self._route_is_enabled("socialRouter")},
+                    {"name": "Social page enabled", "check": lambda: self._page_is_enabled("Social")},
+                    {"name": "Friend requests table", "check": lambda: self._file_contains_pattern("database/schema.sql", r"friend_requests")},
+                    {"name": "Challenges table", "check": lambda: self._file_contains_pattern("database/schema.sql", r"CREATE TABLE.*challenges")},
+                    {"name": "Challenge participants table", "check": lambda: self._file_contains_pattern("database/schema.sql", r"challenge_participants")},
                 ]
             },
             "finance": {
                 "name": "Finance Mode",
-                "emoji": "💰",
-                "weight": 12,
+                "emoji": "\U0001F4B0",
+                "weight": 8,
                 "tasks": [
-                    {"name": "Mode in database seed", "check": lambda: self._seed_has_mode("finance")},
-                    {"name": "Onboarding quiz questions", "check": lambda: self._has_onboarding_questions("FINANCE")},
-                    {"name": "Quest templates (saving goals)", "check": lambda: self._has_quest_templates("finance")},
-                    {"name": "Achievements", "check": lambda: self._has_achievements_for_mode("finance")},
-                    {"name": "Budget tracking", "check": lambda: self._file_exists("mini-app/src/components/finance/BudgetTracker.tsx")},
-                    {"name": "Savings goal dashboard", "check": lambda: self._file_exists("mini-app/src/components/finance/SavingsGoal.tsx")},
-                    {"name": "Expense categories", "check": lambda: self._file_contains_pattern("bot/src/api/routes/finance.ts", r"categories|expense")},
+                    {"name": "Finance route enabled", "check": lambda: self._route_is_enabled("financeRouter")},
+                    {"name": "Finance page enabled", "check": lambda: self._page_is_enabled("Finance")},
+                    {"name": "Budget tracker component", "check": lambda: self._file_exists("mini-app/src/components/finance/BudgetTracker.tsx")},
+                    {"name": "Savings goal component", "check": lambda: self._file_exists("mini-app/src/components/finance/SavingsGoal.tsx")},
                 ]
             },
-            "habits": {
-                "name": "New Habits Mode",
-                "emoji": "🎯",
-                "weight": 12,
-                "tasks": [
-                    {"name": "Mode in database seed", "check": lambda: self._seed_has_mode("habits")},
-                    {"name": "Onboarding quiz questions", "check": lambda: self._has_onboarding_questions("HABITS")},
-                    {"name": "Quest templates (custom habits)", "check": lambda: self._has_quest_templates("habits")},
-                    {"name": "Achievements", "check": lambda: self._has_achievements_for_mode("habits")},
-                    {"name": "Custom habit builder UI", "check": lambda: self._file_exists("mini-app/src/components/habits/HabitBuilder.tsx")},
-                    {"name": "Habit streak visualization", "check": lambda: self._file_exists("mini-app/src/components/habits/HabitStreak.tsx")},
-                ]
-            },
-            "payments": {
-                "name": "Payment System",
-                "emoji": "💳",
+            "content_activities": {
+                "name": "Content & Activities",
+                "emoji": "\U0001F4DA",
                 "weight": 10,
                 "tasks": [
-                    {"name": "Payment provider integration", "check": lambda: self._file_contains_pattern("bot/src/api/routes/payments.ts", r"webhook|provider|charge")},
-                    {"name": "Premium tiers defined", "check": lambda: self._file_contains_pattern("database/schema.sql", r"subscriptions.*tier|tier.*VARCHAR") or self._file_contains("database/seed_data.sql", "premium")},
-                    {"name": "Subscription management", "check": lambda: self._file_contains_pattern("bot/src/api/routes/payments.ts", r"subscription|upgrade|cancel")},
-                    {"name": "Payment DB tables", "check": lambda: self._file_contains_pattern("database/schema.sql", r"CREATE TABLE.*payment")},
-                    {"name": "Payment API routes", "check": lambda: self._file_exists("bot/src/api/routes/payments.ts")},
-                    {"name": "Premium features gating", "check": lambda: self._file_exists("bot/src/api/middleware/premiumGate.ts")},
+                    {"name": "Content route enabled", "check": lambda: self._route_is_enabled("contentRouter")},
+                    {"name": "Activity route enabled", "check": lambda: self._route_is_enabled("activityRouter")},
+                    {"name": "ContentFeed page enabled", "check": lambda: self._page_is_enabled("ContentFeed")},
+                    {"name": "ActivityHub page enabled", "check": lambda: self._page_is_enabled("ActivityHub")},
+                    {"name": "ActivityHistory page enabled", "check": lambda: self._page_is_enabled("ActivityHistory")},
+                    {"name": "Recommendations route enabled", "check": lambda: self._route_is_enabled("recommendationRouter")},
                 ]
             },
-            "sheets": {
-                "name": "Google Sheets & Analytics",
-                "emoji": "📊",
-                "weight": 8,
-                "tasks": [
-                    {"name": "Export tool script", "check": lambda: self._file_exists("tools/sheets_analytics_export.py")},
-                    {"name": "Google service account configured", "check": lambda: self._file_exists("service_account.json")},
-                    {"name": "Spreadsheet ID in .env", "check": lambda: self._file_contains(".env", "GOOGLE_SHEETS_SPREADSHEET_ID")},
-                    {"name": "Onboarding Q&A sheet per module", "check": lambda: self._file_contains_pattern("tools/sheets_analytics_export.py", r"quiz_responses|onboarding.*export|qa.*sheet")},
-                    {"name": "Auto-scheduled weekly export", "check": lambda: self._file_exists("bot/src/jobs/definitions/analyticsExport.ts")},
-                    {"name": "All player answers organized", "check": lambda: self._file_contains_pattern("tools/sheets_analytics_export.py", r"mode_configs|organized|per.?mode")},
-                ]
-            },
-            "onboarding_qa": {
-                "name": "Onboarding Q&A Organization",
-                "emoji": "📝",
-                "weight": 8,
-                "tasks": [
-                    {"name": "Fitness questions defined (12)", "check": lambda: self._has_onboarding_questions("FITNESS")},
-                    {"name": "Hydration questions defined (7)", "check": lambda: self._has_onboarding_questions("HYDRATION")},
-                    {"name": "Medication questions defined", "check": lambda: self._has_onboarding_questions("MEDICATION")},
-                    {"name": "Finance questions defined", "check": lambda: self._has_onboarding_questions("FINANCE")},
-                    {"name": "Habits questions defined", "check": lambda: self._has_onboarding_questions("HABITS")},
-                    {"name": "All Q&A exported to Google Sheets", "check": lambda: self._file_contains_pattern("tools/sheets_analytics_export.py", r"quiz_responses|onboarding.*export|qa.*sheet")},
-                    {"name": "Answer analytics dashboard", "check": lambda: self._file_exists("mini-app/src/components/admin/AnswerAnalytics.tsx")},
-                ]
-            },
-            "leaderboard": {
-                "name": "Leaderboard & Social",
-                "emoji": "🏆",
-                "weight": 8,
-                "tasks": [
-                    {"name": "Leaderboard route exists", "check": lambda: self._file_exists("bot/src/api/routes/leaderboard.ts")},
-                    {"name": "Ranking logic implemented", "check": lambda: self._route_has_logic("bot/src/api/routes/leaderboard.ts", 30)},
-                    {"name": "Mini app leaderboard page", "check": lambda: self._file_exists("mini-app/src/pages/Leaderboard.tsx")},
-                    {"name": "Friend system", "check": lambda: self._file_exists("bot/src/api/routes/social.ts") and self._file_contains_pattern("database/schema.sql", r"friend_requests")},
-                    {"name": "Shared challenges", "check": lambda: self._file_contains_pattern("database/schema.sql", r"CREATE TABLE challenges|CREATE TABLE challenge")},
-                    {"name": "Leaderboard sharing", "check": lambda: self._file_contains_pattern("mini-app/src/pages/Leaderboard.tsx", r"[Ss]hare")},
-                ]
-            },
-            "bug_fixes": {
-                "name": "Bug Fixes",
-                "emoji": "🐛",
-                "weight": 8,
-                "tasks": [
-                    {
-                        "name": "Barrel wheel swipe-to-close conflict",
-                        "check": lambda: self._file_contains(
-                            "mini-app/src/hooks/useTelegram.ts", "disableVerticalSwipes"
-                        ),
-                    },
-                    {
-                        "name": "Drum/slider/time defaults not saved on skip",
-                        "check": lambda: self._file_contains(
-                            "mini-app/src/components/onboarding/quiz/useQuizState.ts",
-                            "Persist default values on mount"
-                        ),
-                    },
-                    {
-                        "name": "DaySelector allows over-selecting past required count",
-                        "check": lambda: self._file_contains_pattern(
-                            "mini-app/src/components/onboarding/ui/DaySelector.tsx",
-                            r"requiredCount.*selected\.length\s*>=|disabled.*requiredCount"
-                        ),
-                    },
-                    {
-                        "name": "Double animation on quiz screens (Onboarding + QuizScreen)",
-                        "check": lambda: not (
-                            self._file_contains("mini-app/src/pages/Onboarding.tsx", "motion.div") and
-                            self._file_contains_pattern(
-                                "mini-app/src/components/onboarding/QuizScreen.tsx",
-                                r"motion\.div.*initial.*opacity.*0.*x"
-                            )
-                        ),
-                    },
-                    {
-                        "name": "Back button history lost on state restore",
-                        "check": lambda: not self._file_contains_pattern(
-                            "mini-app/src/hooks/useOnboarding.ts",
-                            r"restoreState.*stepHistory:\s*\[step\]"
-                        ),
-                    },
-                    {
-                        "name": "SliderInput hardcoded 'workouts a week' text",
-                        "check": lambda: not self._file_contains(
-                            "mini-app/src/components/onboarding/ui/SliderInput.tsx",
-                            "workouts a week"
-                        ),
-                    },
-                ]
-            },
-            "russian_language": {
-                "name": "Russian Language Support",
-                "emoji": "🇷🇺",
-                "weight": 8,
-                "tasks": [
-                    {"name": "i18n framework setup", "check": lambda: self._file_exists("mini-app/src/i18n/index.ts")},
-                    {"name": "Russian translation file", "check": lambda: self._file_exists("mini-app/src/i18n/ru.ts")},
-                    {"name": "Onboarding translated", "check": lambda: self._file_contains("mini-app/src/i18n/ru.ts", "onboarding")},
-                    {"name": "Dashboard translated", "check": lambda: self._file_contains("mini-app/src/i18n/ru.ts", "dashboard")},
-                    {"name": "Quest UI translated", "check": lambda: self._file_contains("mini-app/src/i18n/ru.ts", "quest")},
-                    {"name": "Bot messages in Russian", "check": lambda: self._file_contains_pattern("bot/src/i18n/messages.ts", r"[а-яА-Я]{3,}") or self._file_contains_pattern("bot/src/handlers/start.ts", r"[а-яА-Я]{3,}")},
-                ]
-            },
-            "chinese_language": {
-                "name": "Chinese Language Support",
-                "emoji": "🇨🇳",
-                "weight": 8,
-                "tasks": [
-                    {"name": "Chinese translation file", "check": lambda: self._file_exists("mini-app/src/i18n/zh.ts")},
-                    {"name": "Onboarding translated", "check": lambda: self._file_contains("mini-app/src/i18n/zh.ts", "onboarding")},
-                    {"name": "Dashboard translated", "check": lambda: self._file_contains("mini-app/src/i18n/zh.ts", "dashboard")},
-                    {"name": "Quest UI translated", "check": lambda: self._file_contains("mini-app/src/i18n/zh.ts", "quest")},
-                    {"name": "Bot messages in Chinese", "check": lambda: self._file_contains_pattern("bot/src/i18n/messages.ts", r"[\u4e00-\u9fff]{2,}") or self._file_contains_pattern("bot/src/handlers/start.ts", r"[\u4e00-\u9fff]{2,}")},
-                ]
-            },
-            "admin_panel": {
-                "name": "Admin Panel Mini App",
-                "emoji": "⚙️",
+            "admin": {
+                "name": "Admin Panel",
+                "emoji": "\u2699\uFE0F",
                 "weight": 10,
                 "tasks": [
-                    {"name": "Admin API routes", "check": lambda: self._file_exists("bot/src/api/routes/admin.ts")},
-                    {"name": "Admin authentication", "check": lambda: self._file_exists("bot/src/api/middleware/adminAuth.ts")},
-                    {"name": "User management dashboard", "check": lambda: self._file_exists("mini-app/src/components/AdminUserList.tsx")},
-                    {"name": "Quest/mode editor", "check": lambda: self._file_exists("mini-app/src/components/admin/AdminQuestEditor.tsx")},
-                    {"name": "Analytics overview", "check": lambda: self._file_exists("mini-app/src/components/AdminStatsCard.tsx")},
-                    {"name": "Admin mini app frontend", "check": lambda: self._dir_exists("admin-app/src")},
+                    {"name": "Admin route enabled", "check": lambda: self._route_is_enabled("adminRouter")},
+                    {"name": "Admin auth middleware", "check": lambda: self._file_exists("bot/src/api/middleware/adminAuth.ts")},
+                    {"name": "AdminDashboard page enabled", "check": lambda: self._page_is_enabled("AdminDashboard")},
+                    {"name": "AdminPlayerList page enabled", "check": lambda: self._page_is_enabled("AdminPlayerList")},
+                    {"name": "AdminPlayerDetail page enabled", "check": lambda: self._page_is_enabled("AdminPlayerDetail")},
                 ]
             },
-            "miniapp_polish": {
-                "name": "Mini App Polish",
-                "emoji": "✨",
+            "i18n": {
+                "name": "i18n & Localization",
+                "emoji": "\U0001F310",
                 "weight": 5,
                 "tasks": [
-                    {"name": "Core pages (Dashboard, Quests, Profile)", "check": lambda: self._file_exists("mini-app/src/pages/Dashboard.tsx")},
-                    {"name": "Onboarding flow complete", "check": lambda: self._file_exists("mini-app/src/pages/Onboarding.tsx")},
+                    {"name": "i18n framework", "check": lambda: self._file_exists("mini-app/src/i18n/index.ts")},
+                    {"name": "Russian translations", "check": lambda: self._file_exists("mini-app/src/i18n/ru.ts") and self._file_contains("mini-app/src/i18n/ru.ts", "onboarding")},
+                    {"name": "Chinese translations", "check": lambda: self._file_exists("mini-app/src/i18n/zh.ts") and self._file_contains("mini-app/src/i18n/zh.ts", "onboarding")},
+                    {"name": "Bot messages localized", "check": lambda: self._file_exists("bot/src/i18n/messages.ts")},
+                ]
+            },
+            "quality": {
+                "name": "Quality & Polish",
+                "emoji": "\u2728",
+                "weight": 5,
+                "tasks": [
+                    {"name": "Core pages exist", "check": lambda: self._file_exists("mini-app/src/pages/Dashboard.tsx") and self._file_exists("mini-app/src/pages/Quests.tsx")},
+                    {"name": "PWA manifest", "check": lambda: self._file_exists("mini-app/public/manifest.json")},
+                    {"name": "Onboarding flow", "check": lambda: self._file_exists("mini-app/src/pages/Onboarding.tsx")},
                     {"name": "Settings page", "check": lambda: self._file_exists("mini-app/src/pages/Settings.tsx")},
-                    {"name": "Theme customization (dark mode)", "check": lambda: self._file_contains_pattern("mini-app/src/pages/Settings.tsx", r"theme|dark.?mode|themeParams")},
-                    {"name": "Localization (i18n)", "check": lambda: self._file_exists("mini-app/src/i18n/index.ts")},
-                    {"name": "Offline support / PWA", "check": lambda: self._file_exists("mini-app/public/manifest.json")},
+                    {"name": "Theme support", "check": lambda: self._file_contains_pattern("mini-app/src/pages/Settings.tsx", r"theme|themeParams")},
+                    {"name": "Notification bot", "check": lambda: self._file_exists("tools/notification_bot_handler.py")},
                 ]
             },
         }
