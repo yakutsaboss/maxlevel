@@ -38,15 +38,22 @@ router.get('/items', authenticateTelegram, readLimiter, asyncHandler(async (_req
 }));
 
 // GET /api/avatars/:userId — get user's equipped avatar
+// Note: :userId is the Telegram user ID (bigint) sent by the mini-app
 router.get('/:userId', authenticateTelegram, readLimiter, asyncHandler(async (req: Request, res: Response) => {
-  const userId = safeParseInt(req.params.userId, 0);
-  if (userId <= 0) {
+  const telegramId = req.params.userId;
+  if (!telegramId || !/^\d+$/.test(telegramId)) {
     throw new BadRequestError('Invalid userId');
+  }
+
+  // Resolve telegram_id → DB user_id
+  const user = await queryOne<{ id: number }>('SELECT id FROM users WHERE telegram_id = $1', [telegramId]);
+  if (!user) {
+    throw new NotFoundError('User not found');
   }
 
   const avatar = await queryOne<UserAvatar>(
     'SELECT equipped_items FROM user_avatar WHERE user_id = $1',
-    [userId]
+    [user.id]
   );
 
   res.json(successResponse(
@@ -55,10 +62,17 @@ router.get('/:userId', authenticateTelegram, readLimiter, asyncHandler(async (re
 }));
 
 // PATCH /api/avatars/:userId/equip — equip an item
+// Note: :userId is the Telegram user ID (bigint) sent by the mini-app
 router.patch('/:userId/equip', authenticateTelegram, authorizeUser, mutationLimiter, asyncHandler(async (req: Request, res: Response) => {
-  const userId = safeParseInt(req.params.userId, 0);
-  if (userId <= 0) {
+  const telegramId = req.params.userId;
+  if (!telegramId || !/^\d+$/.test(telegramId)) {
     throw new BadRequestError('Invalid userId');
+  }
+
+  // Resolve telegram_id → DB user_id
+  const user = await queryOne<{ id: number }>('SELECT id FROM users WHERE telegram_id = $1', [telegramId]);
+  if (!user) {
+    throw new NotFoundError('User not found');
   }
 
   const { category, itemId } = req.body;
@@ -92,7 +106,7 @@ router.patch('/:userId/equip', authenticateTelegram, authorizeUser, mutationLimi
      ON CONFLICT (user_id)
      DO UPDATE SET equipped_items = jsonb_set(user_avatar.equipped_items, ARRAY[$2], $3::jsonb), updated_at = NOW()
      RETURNING equipped_items`,
-    [userId, category, JSON.stringify(resolvedItemId)]
+    [user.id, category, JSON.stringify(resolvedItemId)]
   );
 
   res.json(successResponse(result?.equipped_items));
