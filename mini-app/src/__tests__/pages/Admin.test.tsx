@@ -10,8 +10,23 @@ vi.mock('@/api/adminClient', () => ({
 }));
 
 // Mock child components to isolate Admin page logic
-vi.mock('@/components/AdminStatsCard', () => ({
-  AdminStatsCard: ({ stats }: { stats: unknown }) => (
+vi.mock('@/components/admin/AdminLoginForm', () => ({
+  AdminLoginForm: ({ onLoginSuccess }: any) => (
+    <div>
+      <span>Admin Panel</span>
+      <span>Enter your admin credentials</span>
+      <input placeholder="Username" data-testid="username" onChange={() => {}} />
+      <input placeholder="Password" data-testid="password" onChange={() => {}} />
+      <button onClick={() => {
+        const mockStats = { total_users: 10, active_users_7d: 5, total_quests_completed: 20, total_achievements_unlocked: 3 };
+        onLoginSuccess(btoa('admin:pass'), mockStats);
+      }}>Login</button>
+    </div>
+  ),
+}));
+
+vi.mock('@/components/admin/AdminOverview', () => ({
+  AdminOverview: ({ stats }: { stats: unknown }) => (
     <div data-testid="admin-stats-card">Stats: {stats ? 'loaded' : 'null'}</div>
   ),
 }));
@@ -51,18 +66,8 @@ describe('Admin', () => {
     expect(screen.getByText('Login')).toBeInTheDocument();
   });
 
-  it('shows error toast on invalid credentials', async () => {
-    mockAdminFetch.mockResolvedValue({ status: 401, ok: false });
-    render(<Admin />);
-
-    fireEvent.change(screen.getByPlaceholderText('Username'), { target: { value: 'admin' } });
-    fireEvent.change(screen.getByPlaceholderText('Password'), { target: { value: 'wrong' } });
-    fireEvent.click(screen.getByText('Login'));
-
-    await waitFor(() => {
-      expect(screen.getByTestId('toast')).toHaveTextContent('Invalid credentials');
-    });
-  });
+  // "shows error toast on invalid credentials" removed — error handling
+  // lives inside AdminLoginForm (mocked), not the Admin page component.
 
   it('authenticates and renders admin dashboard with tabs', async () => {
     const mockStats = { total_users: 100, active_users_7d: 50, total_quests_completed: 200, total_achievements_unlocked: 30 };

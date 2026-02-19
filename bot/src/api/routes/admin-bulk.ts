@@ -16,7 +16,6 @@ import {
 } from '../utils/errors.js';
 import { logger } from '../../utils/logger.js';
 import { isValidTier, type Tier } from '../../utils/paymentHelpers.js';
-import { bot } from '../../bot.js';
 
 const log = logger.child({ component: 'adminBulk' });
 
@@ -127,6 +126,9 @@ router.post('/players/bulk/message', requirePermission('users:update'), asyncHan
     'SELECT id, telegram_id FROM users WHERE id = ANY($1) AND is_active = true',
     [user_ids]
   );
+
+  // Lazy-import bot to avoid TELEGRAM_BOT_TOKEN check at module load time (breaks HTTP tests)
+  const { bot } = await import('../../bot.js');
 
   const results: { userId: number; success: boolean; error?: string }[] = [];
 

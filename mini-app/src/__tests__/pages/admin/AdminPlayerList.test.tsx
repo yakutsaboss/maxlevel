@@ -87,21 +87,12 @@ vi.mock('lucide-react', () => {
   const IconStub = ({ className, onClick }: any) => (
     <span data-testid="icon" className={className} onClick={onClick} />
   );
-  return {
-    Search: IconStub,
-    Filter: IconStub,
-    Download: IconStub,
-    ChevronUp: IconStub,
-    ChevronDown: IconStub,
-    ChevronLeft: IconStub,
-    ChevronRight: IconStub,
-    MoreHorizontal: IconStub,
-    Check: IconStub,
-    X: IconStub,
-    Users: IconStub,
-    ArrowUpDown: IconStub,
-    ArrowLeft: IconStub,
-  };
+  return new Proxy({}, {
+    get: (_target: unknown, prop: string) => {
+      if (prop === '__esModule') return true;
+      return IconStub;
+    },
+  });
 });
 
 // ─── Mock useTelegram ───────────────────────────────────────────────

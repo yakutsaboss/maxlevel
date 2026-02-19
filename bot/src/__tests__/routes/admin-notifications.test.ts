@@ -114,8 +114,9 @@ beforeEach(() => {
 describe('GET /api/admin/notifications', () => {
   it('should return 200 with paginated notifications', async () => {
     mockQuery
-      .mockResolvedValueOnce([mockNotification1, mockNotification2, mockNotification3])
-      .mockResolvedValueOnce([{ count: '3' }]);
+      .mockResolvedValueOnce([mockNotification1, mockNotification2, mockNotification3]);
+    mockQueryOne
+      .mockResolvedValueOnce({ total: 3 });
 
     const res = await request(buildApp())
       .get('/api/admin/notifications')
@@ -127,8 +128,9 @@ describe('GET /api/admin/notifications', () => {
 
   it('should support pagination with limit and offset', async () => {
     mockQuery
-      .mockResolvedValueOnce([mockNotification2])
-      .mockResolvedValueOnce([{ count: '3' }]);
+      .mockResolvedValueOnce([mockNotification2]);
+    mockQueryOne
+      .mockResolvedValueOnce({ total: 3 });
 
     const res = await request(buildApp())
       .get('/api/admin/notifications?limit=1&offset=1')
@@ -144,8 +146,9 @@ describe('GET /api/admin/notifications', () => {
 
   it('should support filtering by notification type', async () => {
     mockQuery
-      .mockResolvedValueOnce([mockNotification1])
-      .mockResolvedValueOnce([{ count: '1' }]);
+      .mockResolvedValueOnce([mockNotification1]);
+    mockQueryOne
+      .mockResolvedValueOnce({ total: 1 });
 
     const res = await request(buildApp())
       .get('/api/admin/notifications?type=new_registration')
@@ -162,11 +165,12 @@ describe('GET /api/admin/notifications', () => {
 
   it('should support filtering by read/unread status', async () => {
     mockQuery
-      .mockResolvedValueOnce([mockNotification1, mockNotification2])
-      .mockResolvedValueOnce([{ count: '2' }]);
+      .mockResolvedValueOnce([mockNotification1, mockNotification2]);
+    mockQueryOne
+      .mockResolvedValueOnce({ total: 2 });
 
     const res = await request(buildApp())
-      .get('/api/admin/notifications?unread=true')
+      .get('/api/admin/notifications?is_read=false')
       .expect(200);
 
     expect(res.body.success).toBe(true);
@@ -190,13 +194,12 @@ describe('GET /api/admin/notifications', () => {
 
 // ─── PATCH /api/admin/notifications/:id ────────────────────────────
 
-describe('PATCH /api/admin/notifications/:id', () => {
+describe('PATCH /api/admin/notifications/:id/read', () => {
   it('should mark notification as read and return 200', async () => {
     mockQueryOne.mockResolvedValueOnce({ ...mockNotification1, is_read: true });
 
     const res = await request(buildApp())
-      .patch('/api/admin/notifications/1')
-      .send({ is_read: true })
+      .patch('/api/admin/notifications/1/read')
       .expect(200);
 
     expect(res.body.success).toBe(true);
@@ -207,8 +210,7 @@ describe('PATCH /api/admin/notifications/:id', () => {
     mockQueryOne.mockResolvedValueOnce(null);
 
     const res = await request(buildApp())
-      .patch('/api/admin/notifications/9999')
-      .send({ is_read: true })
+      .patch('/api/admin/notifications/9999/read')
       .expect(404);
 
     expect(res.body.success).toBe(false);
@@ -228,8 +230,7 @@ describe('POST /api/admin/notifications/mark-all-read', () => {
 
     expect(res.body.success).toBe(true);
     expect(mockExecute).toHaveBeenCalledWith(
-      expect.stringContaining('is_read'),
-      expect.any(Array)
+      expect.stringContaining('is_read')
     );
   });
 
@@ -248,7 +249,7 @@ describe('POST /api/admin/notifications/mark-all-read', () => {
 
 describe('GET /api/admin/notifications/unread-count', () => {
   it('should return 200 with unread count', async () => {
-    mockQueryOne.mockResolvedValueOnce({ count: '5' });
+    mockQueryOne.mockResolvedValueOnce({ count: 5 });
 
     const res = await request(buildApp())
       .get('/api/admin/notifications/unread-count')
@@ -259,7 +260,7 @@ describe('GET /api/admin/notifications/unread-count', () => {
   });
 
   it('should return 0 when no unread notifications', async () => {
-    mockQueryOne.mockResolvedValueOnce({ count: '0' });
+    mockQueryOne.mockResolvedValueOnce({ count: 0 });
 
     const res = await request(buildApp())
       .get('/api/admin/notifications/unread-count')

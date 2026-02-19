@@ -83,7 +83,7 @@ export function Admin() {
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2">
             <Shield size={22} className="text-telegram-button" aria-hidden="true" />
-            <h1 className="text-lg font-bold">{t('admin.dashboard')}</h1>
+            <h1 className="text-lg font-bold">{t('admin.dashboard.title')}</h1>
           </div>
           <button
             onClick={handleLogout}

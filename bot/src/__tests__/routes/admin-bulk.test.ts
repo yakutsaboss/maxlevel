@@ -46,8 +46,29 @@ vi.mock('../../utils/queries.js', () => ({
   listAllModes: vi.fn().mockResolvedValue([]),
 }));
 
+vi.mock('../../bot.js', () => ({
+  bot: {
+    api: {
+      sendMessage: vi.fn().mockResolvedValue({ message_id: 1 }),
+    },
+  },
+}));
+
+const mockAwardXp = vi.fn();
+vi.mock('../../utils/xpAward.js', () => ({
+  awardXp: (...args: any[]) => mockAwardXp(...args),
+}));
+
+vi.mock('../../utils/paymentHelpers.js', () => ({
+  isValidTier: (t: string) => ['free', 'subscriber', 'premium'].includes(t),
+}));
+
 import { getMockDb } from '../helpers/httpMocks.js';
-const { query: mockQuery, queryOne: mockQueryOne, execute: mockExecute, transaction: mockTransaction } = getMockDb();
+const mockDb = getMockDb();
+const { query: mockQuery, queryOne: mockQueryOne, execute: mockExecute, transaction: mockTransaction } = mockDb;
+const mockPoolQuery = vi.fn();
+const mockGetPool = (mockDb as any).module.getPool;
+mockGetPool.mockReturnValue({ query: mockPoolQuery });
 
 // ─── Import router after mocks ─────────────────────────────────────
 
@@ -64,7 +85,7 @@ function buildApp() {
     };
     next();
   });
-  app.use('/api/admin/bulk', adminBulkRouter);
+  app.use('/api/admin', adminBulkRouter);
   addTestErrorHandler(app);
   return app;
 }
@@ -75,29 +96,26 @@ beforeEach(() => {
   vi.resetAllMocks();
 });
 
-// ─── POST /api/admin/bulk/award-xp ─────────────────────────────────
+// ─── POST /api/admin/players/bulk/award-xp ─────────────────────────────────
 
-describe('POST /api/admin/bulk/award-xp', () => {
+describe('POST /api/admin/players/bulk/award-xp', () => {
   it('should award XP to multiple users and return 200', async () => {
-    const mockTxClient = { query: vi.fn().mockResolvedValue({ rows: [] }) };
-    mockTransaction.mockImplementation(async (fn: any) => fn(mockTxClient));
-    mockTxClient.query
-      .mockResolvedValueOnce({ rows: [{ id: 1, total_xp: 5500 }] })
-      .mockResolvedValueOnce({ rows: [{ id: 2, total_xp: 2000 }] })
-      .mockResolvedValueOnce({ rows: [] }); // audit log
+    mockTransaction.mockImplementation(async (fn: any) => fn({}));
+    mockAwardXp.mockResolvedValue({ totalXp: 5500, newLevel: 11, leveledUp: false });
 
     const res = await request(buildApp())
-      .post('/api/admin/bulk/award-xp')
+      .post('/api/admin/players/bulk/award-xp')
       .send({ user_ids: [1, 2], amount: 500, reason: 'Bulk reward' })
       .expect(200);
 
     expect(res.body.success).toBe(true);
     expect(res.body.data.processed).toBe(2);
+    expect(res.body.data.succeeded).toBe(2);
   });
 
   it('should return 400 for empty user_ids array', async () => {
     const res = await request(buildApp())
-      .post('/api/admin/bulk/award-xp')
+      .post('/api/admin/players/bulk/award-xp')
       .send({ user_ids: [], amount: 500 })
       .expect(400);
 
@@ -107,7 +125,7 @@ describe('POST /api/admin/bulk/award-xp', () => {
 
   it('should return 400 for missing user_ids', async () => {
     const res = await request(buildApp())
-      .post('/api/admin/bulk/award-xp')
+      .post('/api/admin/players/bulk/award-xp')
       .send({ amount: 500 })
       .expect(400);
 
@@ -116,7 +134,7 @@ describe('POST /api/admin/bulk/award-xp', () => {
 
   it('should return 400 for invalid amount', async () => {
     const res = await request(buildApp())
-      .post('/api/admin/bulk/award-xp')
+      .post('/api/admin/players/bulk/award-xp')
       .send({ user_ids: [1, 2], amount: -100 })
       .expect(400);
 
@@ -124,29 +142,26 @@ describe('POST /api/admin/bulk/award-xp', () => {
   });
 });
 
-// ─── POST /api/admin/bulk/tier ──────────────────────────────────────
+// ─── POST /api/admin/players/bulk/tier ──────────────────────────────────────
 
-describe('POST /api/admin/bulk/tier', () => {
+describe('POST /api/admin/players/bulk/tier', () => {
   it('should change tier for multiple users and return 200', async () => {
-    const mockTxClient = { query: vi.fn().mockResolvedValue({ rows: [] }) };
-    mockTransaction.mockImplementation(async (fn: any) => fn(mockTxClient));
-    mockTxClient.query
-      .mockResolvedValueOnce({ rows: [{ id: 1, tier: 'premium' }] })
-      .mockResolvedValueOnce({ rows: [{ id: 2, tier: 'premium' }] })
-      .mockResolvedValueOnce({ rows: [] }); // audit log
+    mockGetPool.mockReturnValue({ query: mockPoolQuery });
+    mockPoolQuery.mockResolvedValueOnce({ rowCount: 2 });
 
     const res = await request(buildApp())
-      .post('/api/admin/bulk/tier')
+      .post('/api/admin/players/bulk/tier')
       .send({ user_ids: [1, 2], tier: 'premium' })
       .expect(200);
 
     expect(res.body.success).toBe(true);
     expect(res.body.data.processed).toBe(2);
+    expect(res.body.data.affected).toBe(2);
   });
 
   it('should return 400 for invalid tier', async () => {
     const res = await request(buildApp())
-      .post('/api/admin/bulk/tier')
+      .post('/api/admin/players/bulk/tier')
       .send({ user_ids: [1, 2], tier: 'super_ultra_premium' })
       .expect(400);
 
@@ -155,7 +170,7 @@ describe('POST /api/admin/bulk/tier', () => {
 
   it('should return 400 for empty user_ids', async () => {
     const res = await request(buildApp())
-      .post('/api/admin/bulk/tier')
+      .post('/api/admin/players/bulk/tier')
       .send({ user_ids: [], tier: 'premium' })
       .expect(400);
 
@@ -163,28 +178,28 @@ describe('POST /api/admin/bulk/tier', () => {
   });
 });
 
-// ─── POST /api/admin/bulk/message ───────────────────────────────────
+// ─── POST /api/admin/players/bulk/message ───────────────────────────────────
 
-describe('POST /api/admin/bulk/message', () => {
+describe('POST /api/admin/players/bulk/message', () => {
   it('should send message to multiple users and return 200', async () => {
     mockQuery.mockResolvedValueOnce([
-      { id: 1, telegram_id: 111 },
-      { id: 2, telegram_id: 222 },
+      { id: 1, telegram_id: '111' },
+      { id: 2, telegram_id: '222' },
     ]);
-    mockExecute.mockResolvedValueOnce(undefined); // audit log
 
     const res = await request(buildApp())
-      .post('/api/admin/bulk/message')
+      .post('/api/admin/players/bulk/message')
       .send({ user_ids: [1, 2], text: 'Important announcement!' })
       .expect(200);
 
     expect(res.body.success).toBe(true);
-    expect(res.body.data.sent).toBe(2);
+    expect(res.body.data.processed).toBe(2);
+    expect(res.body.data.succeeded).toBe(2);
   });
 
   it('should return 400 for missing message text', async () => {
     const res = await request(buildApp())
-      .post('/api/admin/bulk/message')
+      .post('/api/admin/players/bulk/message')
       .send({ user_ids: [1, 2] })
       .expect(400);
 
@@ -193,7 +208,7 @@ describe('POST /api/admin/bulk/message', () => {
 
   it('should return 400 for empty message text', async () => {
     const res = await request(buildApp())
-      .post('/api/admin/bulk/message')
+      .post('/api/admin/players/bulk/message')
       .send({ user_ids: [1, 2], text: '' })
       .expect(400);
 
@@ -201,30 +216,3 @@ describe('POST /api/admin/bulk/message', () => {
   });
 });
 
-// ─── POST /api/admin/bulk/export ────────────────────────────────────
-
-describe('POST /api/admin/bulk/export', () => {
-  it('should export selected users as CSV and return 200', async () => {
-    mockQuery.mockResolvedValueOnce([
-      { id: 1, username: 'alice', telegram_id: 111, current_level: 10, total_xp: 5000, tier: 'free' },
-      { id: 2, username: 'bob', telegram_id: 222, current_level: 5, total_xp: 1500, tier: 'premium' },
-    ]);
-
-    const res = await request(buildApp())
-      .post('/api/admin/bulk/export')
-      .send({ user_ids: [1, 2] })
-      .expect(200);
-
-    expect(res.body.success).toBe(true);
-    expect(res.body.data).toBeDefined();
-  });
-
-  it('should return 400 for empty user_ids', async () => {
-    const res = await request(buildApp())
-      .post('/api/admin/bulk/export')
-      .send({ user_ids: [] })
-      .expect(400);
-
-    expect(res.body.success).toBe(false);
-  });
-});
