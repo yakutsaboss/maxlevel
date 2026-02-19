@@ -92,9 +92,14 @@ beforeEach(() => {
 describe('PATCH /api/quests/:questId/progress', () => {
   it('should update progress without completing when below target', async () => {
     const instance = QUEST_INSTANCE({ target: 5 });
-    db.queryOne
-      .mockResolvedValueOnce(instance)              // fetch quest
-      .mockResolvedValueOnce({ id: 1 });             // UPDATE RETURNING
+    db.transaction.mockImplementationOnce(async (fn: any) => {
+      const mockClient = {
+        query: vi.fn()
+          .mockResolvedValueOnce({ rows: [instance] })  // SELECT FOR UPDATE
+          .mockResolvedValueOnce({ rowCount: 1 }),       // UPDATE progress
+      };
+      return fn(mockClient);
+    });
 
     const res = await request(buildApp())
       .patch('/api/quests/1/progress')
@@ -107,23 +112,22 @@ describe('PATCH /api/quests/:questId/progress', () => {
     expect(res.body.data.target).toBe(5);
     expect(res.body.data.xpEarned).toBe(0);
     expect(res.body.data.leveledUp).toBe(false);
-    // Should NOT have called transaction or awardXp
-    expect(db.transaction).not.toHaveBeenCalled();
     expect(mockAwardXp).not.toHaveBeenCalled();
   });
 
   it('should auto-complete and award XP when progress reaches target', async () => {
     const instance = QUEST_INSTANCE({ target: 5, xp_reward: 100 });
-    db.queryOne.mockResolvedValueOnce(instance);    // fetch quest
+    mockAwardXp.mockResolvedValueOnce({
+      totalXp: 600, newLevel: 2, oldLevel: 1, leveledUp: true,
+    });
 
     db.transaction.mockImplementationOnce(async (fn: any) => {
       const mockClient = {
-        query: vi.fn().mockResolvedValueOnce({ rowCount: 1 }),  // UPDATE
+        query: vi.fn()
+          .mockResolvedValueOnce({ rows: [instance] })  // SELECT FOR UPDATE
+          .mockResolvedValueOnce({ rowCount: 1 }),       // UPDATE completed
       };
       return fn(mockClient);
-    });
-    mockAwardXp.mockResolvedValueOnce({
-      totalXp: 600, newLevel: 2, oldLevel: 1, leveledUp: true,
     });
 
     const res = await request(buildApp())
@@ -143,16 +147,17 @@ describe('PATCH /api/quests/:questId/progress', () => {
 
   it('should clamp progress to target when exceeding it', async () => {
     const instance = QUEST_INSTANCE({ target: 3, xp_reward: 75 });
-    db.queryOne.mockResolvedValueOnce(instance);
+    mockAwardXp.mockResolvedValueOnce({
+      totalXp: 200, newLevel: 1, oldLevel: 1, leveledUp: false,
+    });
 
     db.transaction.mockImplementationOnce(async (fn: any) => {
       const mockClient = {
-        query: vi.fn().mockResolvedValueOnce({ rowCount: 1 }),
+        query: vi.fn()
+          .mockResolvedValueOnce({ rows: [instance] })  // SELECT FOR UPDATE
+          .mockResolvedValueOnce({ rowCount: 1 }),       // UPDATE completed
       };
       return fn(mockClient);
-    });
-    mockAwardXp.mockResolvedValueOnce({
-      totalXp: 200, newLevel: 1, oldLevel: 1, leveledUp: false,
     });
 
     const res = await request(buildApp())
@@ -170,7 +175,12 @@ describe('PATCH /api/quests/:questId/progress', () => {
   it('should return 403 when user does not own the quest', async () => {
     // authorizeUser sets req.dbUser.id = 42, but quest belongs to user 99
     const instance = QUEST_INSTANCE({ user_id: 99 });
-    db.queryOne.mockResolvedValueOnce(instance);
+    db.transaction.mockImplementationOnce(async (fn: any) => {
+      const mockClient = {
+        query: vi.fn().mockResolvedValueOnce({ rows: [instance] }),
+      };
+      return fn(mockClient);
+    });
 
     const res = await request(buildApp())
       .patch('/api/quests/1/progress')
@@ -204,7 +214,12 @@ describe('PATCH /api/quests/:questId/progress', () => {
   });
 
   it('should return 404 when quest not found', async () => {
-    db.queryOne.mockResolvedValueOnce(null);
+    db.transaction.mockImplementationOnce(async (fn: any) => {
+      const mockClient = {
+        query: vi.fn().mockResolvedValueOnce({ rows: [] }),  // no rows
+      };
+      return fn(mockClient);
+    });
 
     const res = await request(buildApp())
       .patch('/api/quests/999/progress')

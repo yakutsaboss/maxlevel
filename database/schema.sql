@@ -4,6 +4,14 @@
 -- Drop existing tables and views (for fresh install)
 DROP VIEW IF EXISTS user_stats CASCADE;
 DROP MATERIALIZED VIEW IF EXISTS leaderboard_mv CASCADE;
+DROP TABLE IF EXISTS activity_logs CASCADE;
+DROP TABLE IF EXISTS activity_types CASCADE;
+DROP TABLE IF EXISTS user_purchases CASCADE;
+DROP TABLE IF EXISTS shop_items CASCADE;
+DROP TABLE IF EXISTS user_trophies CASCADE;
+DROP TABLE IF EXISTS trophies CASCADE;
+DROP TABLE IF EXISTS user_avatar CASCADE;
+DROP TABLE IF EXISTS avatar_items CASCADE;
 DROP TABLE IF EXISTS channel_subscriptions CASCADE;
 DROP TABLE IF EXISTS subscriptions CASCADE;
 DROP TABLE IF EXISTS payments CASCADE;
@@ -408,3 +416,118 @@ CREATE TABLE IF NOT EXISTS finance_savings_goals (
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 CREATE INDEX IF NOT EXISTS idx_savings_goals_user ON finance_savings_goals(user_id);
+
+-- Avatar items catalog (added Run 66)
+CREATE TABLE IF NOT EXISTS avatar_items (
+    id SERIAL PRIMARY KEY,
+    category VARCHAR(20) NOT NULL,
+    name VARCHAR(50) NOT NULL,
+    sprite_key VARCHAR(50) NOT NULL UNIQUE,
+    rarity VARCHAR(20) NOT NULL DEFAULT 'common',
+    unlock_type VARCHAR(20) NOT NULL DEFAULT 'free',
+    unlock_criteria JSONB DEFAULT '{}',
+    sort_order INTEGER DEFAULT 0,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_avatar_items_category ON avatar_items(category);
+CREATE INDEX IF NOT EXISTS idx_avatar_items_rarity ON avatar_items(rarity);
+
+-- User avatar equipped state (added Run 66)
+CREATE TABLE IF NOT EXISTS user_avatar (
+    user_id INTEGER PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+    equipped_items JSONB NOT NULL DEFAULT '{"hairstyle": null, "outfit": null, "accessory": null, "background": null}',
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Trophies catalog (added Run 67)
+CREATE TABLE IF NOT EXISTS trophies (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(100) NOT NULL,
+    description TEXT,
+    icon_emoji VARCHAR(10) NOT NULL,
+    rarity VARCHAR(20) NOT NULL DEFAULT 'common',
+    criteria JSONB NOT NULL DEFAULT '{}',
+    sort_order INT NOT NULL DEFAULT 0,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- User earned trophies (added Run 67)
+CREATE TABLE IF NOT EXISTS user_trophies (
+    id SERIAL PRIMARY KEY,
+    user_id INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    trophy_id INT NOT NULL REFERENCES trophies(id) ON DELETE CASCADE,
+    earned_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    UNIQUE(user_id, trophy_id)
+);
+CREATE INDEX IF NOT EXISTS idx_user_trophies_user_id ON user_trophies(user_id);
+CREATE INDEX IF NOT EXISTS idx_user_trophies_trophy_id ON user_trophies(trophy_id);
+
+-- Shop items for purchases (added Run 68)
+CREATE TABLE IF NOT EXISTS shop_items (
+    id SERIAL PRIMARY KEY,
+    type VARCHAR(30) NOT NULL,
+    reference_id INT,
+    name VARCHAR(100) NOT NULL,
+    description TEXT,
+    price_stars INT NOT NULL DEFAULT 0,
+    price_xp INT NOT NULL DEFAULT 0,
+    is_featured BOOLEAN NOT NULL DEFAULT false,
+    is_active BOOLEAN NOT NULL DEFAULT true,
+    rarity VARCHAR(20) NOT NULL DEFAULT 'common',
+    icon_emoji VARCHAR(10),
+    sort_order INT NOT NULL DEFAULT 0,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_shop_items_type ON shop_items(type);
+CREATE INDEX IF NOT EXISTS idx_shop_items_active ON shop_items(is_active) WHERE is_active = true;
+
+-- User purchase history (added Run 68)
+CREATE TABLE IF NOT EXISTS user_purchases (
+    id SERIAL PRIMARY KEY,
+    user_id INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    shop_item_id INT NOT NULL REFERENCES shop_items(id),
+    payment_method VARCHAR(20) NOT NULL,
+    amount_paid INT NOT NULL,
+    purchased_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_user_purchases_user_id ON user_purchases(user_id);
+
+-- Activity types catalog (added Run 75)
+CREATE TABLE IF NOT EXISTS activity_types (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(100) NOT NULL,
+    category VARCHAR(50) NOT NULL,
+    icon_emoji VARCHAR(10),
+    description TEXT,
+    default_duration_min INTEGER,
+    calories_per_min NUMERIC(5,2),
+    requires_timer BOOLEAN DEFAULT false,
+    requires_gps BOOLEAN DEFAULT false,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- User activity log entries (added Run 75)
+CREATE TABLE IF NOT EXISTS activity_logs (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    activity_type_id INTEGER NOT NULL REFERENCES activity_types(id),
+    started_at TIMESTAMPTZ NOT NULL,
+    ended_at TIMESTAMPTZ,
+    duration_min INTEGER,
+    distance_km NUMERIC(8,3),
+    calories_burned INTEGER,
+    notes TEXT,
+    gps_data JSONB,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_activity_logs_user_started ON activity_logs(user_id, started_at DESC);
+CREATE INDEX IF NOT EXISTS idx_activity_logs_type ON activity_logs(activity_type_id);
+
+COMMENT ON TABLE avatar_items IS 'Avatar customization item catalog (hairstyles, outfits, accessories, backgrounds)';
+COMMENT ON TABLE user_avatar IS 'Per-user avatar equipped state';
+COMMENT ON TABLE trophies IS 'Trophy/badge catalog with rarity and unlock criteria';
+COMMENT ON TABLE user_trophies IS 'User earned trophies';
+COMMENT ON TABLE shop_items IS 'In-app shop item catalog (purchasable with Stars or XP)';
+COMMENT ON TABLE user_purchases IS 'User purchase history';
+COMMENT ON TABLE activity_types IS 'Activity/sport type catalog (running, yoga, etc.)';
+COMMENT ON TABLE activity_logs IS 'User activity/workout log entries';

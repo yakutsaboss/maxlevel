@@ -7,10 +7,9 @@ interface ProfileAchievementsProps {
   achievements: UserAchievement[];
   allAchievements: Achievement[];
   haptic: HapticImpactOnly;
-  onViewAll: () => void;
 }
 
-export function ProfileAchievements({ achievements, allAchievements, haptic, onViewAll }: ProfileAchievementsProps) {
+export function ProfileAchievements({ achievements, allAchievements, haptic }: ProfileAchievementsProps) {
   const total = allAchievements.length || achievements.length;
   const unlocked = achievements.length;
   const pct = total > 0 ? Math.min(Math.round((unlocked / total) * 100), 100) : 0;
@@ -68,12 +67,6 @@ export function ProfileAchievements({ achievements, allAchievements, haptic, onV
         ) : (
           <p className="text-sm text-telegram-hint mb-3">Complete quests to earn achievements!</p>
         )}
-        <button
-          onClick={() => { haptic.impact('light'); onViewAll(); }}
-          className="w-full py-2.5 rounded-xl bg-telegram-link/10 text-telegram-link text-sm font-semibold active:scale-[0.98] transition-transform"
-        >
-          View all achievements
-        </button>
       </motion.div>
     </div>
   );

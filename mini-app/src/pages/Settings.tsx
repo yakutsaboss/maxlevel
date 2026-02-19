@@ -7,7 +7,7 @@ import { useBackButton, isHapticEnabled } from '@/hooks/useTelegram';
 import { useOnboarding } from '@/hooks/useOnboarding';
 import { useSettingsData } from '@/hooks/useSettingsData';
 import { usePullToRefresh, PullIndicator } from '@/hooks/usePullToRefresh';
-import { Loader2, Bell, ChevronRight } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 import { Toast } from '@/components/Toast';
 import { ErrorSection } from '@/components/ErrorSection';
 import { NotificationSettings } from '@/components/settings/NotificationSettings';
@@ -18,7 +18,6 @@ import { AboutSection } from '@/components/settings/AboutSection';
 import { ThemeSettings } from '@/components/settings/ThemeSettings';
 import { DangerZone } from '@/components/settings/DangerZone';
 import { SettingsSkeleton } from '@/components/settings/SettingsSkeleton';
-import { SubscriptionSettings } from '@/components/settings/SubscriptionSettings';
 
 export function Settings() {
   const { t } = useTranslation();
@@ -63,7 +62,6 @@ export function Settings() {
       </div>
 
       <div className="px-4 mt-6 space-y-4">
-        <SubscriptionSettings />
         <NotificationSettings prefs={prefs} onPrefsChange={setPrefs} haptic={haptic} />
         <DoNotDisturbSettings
           dnd={{ dnd_enabled: prefs.dnd_enabled, dnd_start: prefs.dnd_start, dnd_end: prefs.dnd_end }}
@@ -71,26 +69,6 @@ export function Settings() {
           haptic={haptic}
           telegramId={user?.id}
         />
-        {/* Notification History Link */}
-        <button
-          onClick={() => {
-            haptic.selection();
-            navigate('/notifications');
-          }}
-          className="w-full bg-telegram-secondaryBg rounded-2xl p-4 border border-telegram-hint/10 flex items-center justify-between active:scale-[0.98] transition-transform"
-        >
-          <div className="flex items-center gap-3">
-            <div className="bg-blue-500/20 w-10 h-10 rounded-xl flex items-center justify-center">
-              <Bell className="w-5 h-5 text-blue-500" />
-            </div>
-            <div className="text-left">
-              <h3 className="font-semibold text-sm">{t('settings.notificationHistory')}</h3>
-              <p className="text-xs text-telegram-hint">{t('settings.notificationHistoryDesc')}</p>
-            </div>
-          </div>
-          <ChevronRight className="w-5 h-5 text-telegram-hint" />
-        </button>
-
         <HapticFeedbackSettings enabled={hapticEnabled} onChange={setHapticEnabled} />
         <ThemeSettings colorScheme={colorScheme} themeParams={themeParams} haptic={haptic} />
         <AccountabilitySettings

@@ -68,21 +68,17 @@ beforeEach(() => {
 
 describe('POST /api/checkins', () => {
   it('should return 200 and create a check-in with progress', async () => {
-    db.queryOne.mockResolvedValueOnce({
-      id: 10,
-      user_id: 1,
-      status: 'in_progress',
-      check_in_count: 0,
-      xp_reward: 50,
-      title: 'Morning Run',
-      target: 1,
-    });
+    const quest = {
+      id: 10, user_id: 1, status: 'in_progress',
+      check_in_count: 0, xp_reward: 50, title: 'Morning Run', target: 1,
+    };
 
     db.transaction.mockImplementationOnce(async (fn: any) => {
       const mockClient = {
         query: vi.fn()
+          .mockResolvedValueOnce({ rows: [quest] })                                            // SELECT FOR UPDATE
           .mockResolvedValueOnce({ rows: [{ id: 1, check_in_time: '2026-02-10T08:00:00Z' }] }) // INSERT check_in
-          .mockResolvedValueOnce({ rows: [] }), // UPDATE quest_instances (completed)
+          .mockResolvedValueOnce({ rows: [] })                                                  // UPDATE completed
       };
       return fn(mockClient);
     });
@@ -102,21 +98,17 @@ describe('POST /api/checkins', () => {
   });
 
   it('should increment progress without completing when target not reached', async () => {
-    db.queryOne.mockResolvedValueOnce({
-      id: 10,
-      user_id: 1,
-      status: 'in_progress',
-      check_in_count: 1,
-      xp_reward: 50,
-      title: 'Study',
-      target: 5,
-    });
+    const quest = {
+      id: 10, user_id: 1, status: 'in_progress',
+      check_in_count: 1, xp_reward: 50, title: 'Study', target: 5,
+    };
 
     db.transaction.mockImplementationOnce(async (fn: any) => {
       const mockClient = {
         query: vi.fn()
+          .mockResolvedValueOnce({ rows: [quest] })                                            // SELECT FOR UPDATE
           .mockResolvedValueOnce({ rows: [{ id: 2, check_in_time: '2026-02-10T09:00:00Z' }] }) // INSERT
-          .mockResolvedValueOnce({ rows: [] }), // UPDATE check_in_count
+          .mockResolvedValueOnce({ rows: [] }),                                                 // UPDATE check_in_count
       };
       return fn(mockClient);
     });
@@ -136,14 +128,16 @@ describe('POST /api/checkins', () => {
   });
 
   it('should return 400 for already completed quest', async () => {
-    db.queryOne.mockResolvedValueOnce({
-      id: 10,
-      user_id: 1,
-      status: 'completed',
-      check_in_count: 1,
-      xp_reward: 50,
-      title: 'Done Quest',
-      target: 1,
+    const quest = {
+      id: 10, user_id: 1, status: 'completed',
+      check_in_count: 1, xp_reward: 50, title: 'Done Quest', target: 1,
+    };
+
+    db.transaction.mockImplementationOnce(async (fn: any) => {
+      const mockClient = {
+        query: vi.fn().mockResolvedValueOnce({ rows: [quest] }),  // SELECT FOR UPDATE
+      };
+      return fn(mockClient);
     });
 
     const res = await request(buildApp())
@@ -156,7 +150,12 @@ describe('POST /api/checkins', () => {
   });
 
   it('should return 404 for non-existent quest_instance', async () => {
-    db.queryOne.mockResolvedValueOnce(null);
+    db.transaction.mockImplementationOnce(async (fn: any) => {
+      const mockClient = {
+        query: vi.fn().mockResolvedValueOnce({ rows: [] }),  // no rows
+      };
+      return fn(mockClient);
+    });
 
     const res = await request(buildApp())
       .post('/api/checkins')
@@ -188,7 +187,7 @@ describe('POST /api/checkins', () => {
   });
 
   it('should return 500 when database throws', async () => {
-    db.queryOne.mockRejectedValueOnce(new Error('DB down'));
+    db.transaction.mockRejectedValueOnce(new Error('DB down'));
 
     const res = await request(buildApp())
       .post('/api/checkins')

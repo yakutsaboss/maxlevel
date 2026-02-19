@@ -1,7 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { authenticateTelegram, requireOwnership } from '../middleware/auth.js';
 import { mutationLimiter, readLimiter } from '../middleware/rateLimiter.js';
-import { query, queryOne, transaction } from '../../utils/db.js';
+import { query, transaction } from '../../utils/db.js';
 import { invalidateUserCache, invalidatePrefix } from '../../utils/cache.js';
 import {
   asyncHandler,
@@ -32,30 +32,32 @@ router.post('/', authenticateTelegram, mutationLimiter, asyncHandler(async (req:
     throw new ForbiddenError('You do not have permission to access this resource');
   }
 
-  // Fetch quest instance with user verification
-  const quest = await queryOne<{ id: number; user_id: number; status: string; check_in_count: number; xp_reward: number; title: string; target: number }>(
-    `SELECT qi.id, qi.user_id, qi.status, qi.check_in_count,
-            q.xp_reward, q.title, qi.target
-     FROM quest_instances qi
-     JOIN quests q ON qi.quest_id = q.id
-     JOIN users u ON qi.user_id = u.id
-     WHERE qi.id = $1 AND u.telegram_id = $2`,
-    [quest_instance_id, telegram_id]
-  );
-
-  if (!quest) {
-    throw new NotFoundError('Quest instance not found or does not belong to this user');
-  }
-
-  if (quest.status === 'completed') {
-    throw new BadRequestError('Quest is already completed');
-  }
-
-  const newCount = (quest.check_in_count || 0) + 1;
-  const target = quest.target || 1;
-  const completed = newCount >= target;
-
+  // Use transaction with FOR UPDATE to prevent concurrent check-in races
   const result = await transaction(async (client) => {
+    // Fetch quest instance with row lock to prevent concurrent check-ins
+    const questRow = await client.query(
+      `SELECT qi.id, qi.user_id, qi.status, qi.check_in_count,
+              q.xp_reward, q.title, qi.target
+       FROM quest_instances qi
+       JOIN quests q ON qi.quest_id = q.id
+       JOIN users u ON qi.user_id = u.id
+       WHERE qi.id = $1 AND u.telegram_id = $2
+       FOR UPDATE OF qi`,
+      [quest_instance_id, telegram_id]
+    );
+    const quest = questRow.rows[0] as { id: number; user_id: number; status: string; check_in_count: number; xp_reward: number; title: string; target: number } | undefined;
+
+    if (!quest) {
+      throw new NotFoundError('Quest instance not found or does not belong to this user');
+    }
+    if (quest.status === 'completed') {
+      throw new BadRequestError('Quest is already completed');
+    }
+
+    const newCount = (quest.check_in_count || 0) + 1;
+    const target = quest.target || 1;
+    const completed = newCount >= target;
+
     // Insert check-in record
     const checkInResult = await client.query(
       `INSERT INTO check_ins (quest_instance_id, notes)
@@ -82,24 +84,28 @@ router.post('/', authenticateTelegram, mutationLimiter, asyncHandler(async (req:
     }
 
     return {
+      userId: quest.user_id,
       check_in_id: checkInResult.rows[0].id,
       check_in_time: checkInResult.rows[0].check_in_time,
+      newCount,
+      target,
+      completed,
     };
   });
 
-  invalidateUserCache(quest.user_id);
-  invalidatePrefix(`analytics:mode:${quest.user_id}:`);
-  invalidatePrefix(`analytics:modes:${quest.user_id}`);
-  invalidatePrefix(`analytics:summary:${quest.user_id}`);
+  invalidateUserCache(result.userId);
+  invalidatePrefix(`analytics:mode:${result.userId}:`);
+  invalidatePrefix(`analytics:modes:${result.userId}`);
+  invalidatePrefix(`analytics:summary:${result.userId}`);
 
-  if (completed) {
-    await checkAndUnlockAchievements(quest.user_id);
+  if (result.completed) {
+    await checkAndUnlockAchievements(result.userId);
   }
 
   res.json(successResponse({
     check_in_id: result.check_in_id,
-    quest_progress: { current: newCount, target },
-    completed,
+    quest_progress: { current: result.newCount, target: result.target },
+    completed: result.completed,
   }));
 }));
 

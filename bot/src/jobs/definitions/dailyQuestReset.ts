@@ -104,7 +104,8 @@ async function assignDailyQuestsWithRetry(userId: number): Promise<boolean> {
         const target = { easy: 1, medium: 3, hard: 5 }[t.difficulty as string] || 1;
         await execute(
           `INSERT INTO quest_instances (user_id, quest_id, instance_date, status, target)
-           VALUES ($1, $2, $3, 'pending', $4)`,
+           VALUES ($1, $2, $3, 'pending', $4)
+           ON CONFLICT (user_id, quest_id, instance_date) DO NOTHING`,
           [userId, t.id, today, target]
         );
       }
@@ -153,7 +154,8 @@ async function assignWeeklyQuests(userId: number): Promise<boolean> {
       const target = { easy: 1, medium: 3, hard: 5 }[t.difficulty as string] || 1;
       await execute(
         `INSERT INTO quest_instances (user_id, quest_id, instance_date, status, target)
-         VALUES ($1, $2, $3, 'pending', $4)`,
+         VALUES ($1, $2, $3, 'pending', $4)
+         ON CONFLICT (user_id, quest_id, instance_date) DO NOTHING`,
         [userId, t.id, today, target]
       );
     }

@@ -267,11 +267,18 @@ describe('POST /api/quests/users/:userId/assign', () => {
 
 describe('PATCH /api/quests/:questId/progress', () => {
   it('should return 200 with updated progress', async () => {
-    db.queryOne.mockResolvedValueOnce({
+    const quest = {
       id: 5, user_id: 10, status: 'in_progress',
       current_progress: 0, xp_reward: 100, title: 'Walk', target: 1,
+    };
+    db.transaction.mockImplementationOnce(async (fn: any) => {
+      const mockClient = {
+        query: vi.fn()
+          .mockResolvedValueOnce({ rows: [quest] })  // SELECT FOR UPDATE
+          .mockResolvedValueOnce({ rowCount: 1 }),    // UPDATE progress
+      };
+      return fn(mockClient);
     });
-    db.queryOne.mockResolvedValueOnce({ id: 5 }); // UPDATE result
 
     const res = await request(buildApp())
       .patch('/api/quests/5/progress')
@@ -284,15 +291,17 @@ describe('PATCH /api/quests/:questId/progress', () => {
   });
 
   it('should auto-complete when progress reaches target', async () => {
-    db.queryOne.mockResolvedValueOnce({
+    const quest = {
       id: 5, user_id: 10, status: 'in_progress',
       current_progress: 0, xp_reward: 100, title: 'Walk', target: 1,
-    });
+    };
     db.transaction.mockImplementationOnce(async (fn: any) => {
       const mockClient = {
         query: vi.fn()
-          .mockResolvedValueOnce({}) // UPDATE quest_instances
-          .mockResolvedValueOnce({ rows: [{ total_xp: 500, current_level: 1 }] }), // UPDATE users (awardXp: total_xp=500 → level 2, was 1 → leveledUp)
+          .mockResolvedValueOnce({ rows: [quest] })                                // SELECT FOR UPDATE
+          .mockResolvedValueOnce({})                                                // UPDATE quest_instances
+          .mockResolvedValueOnce({ rows: [{ total_xp: 500, current_level: 1 }] })  // awardXp: UPDATE users RETURNING
+          .mockResolvedValueOnce({}),                                               // awardXp: UPDATE users SET current_level (level-up)
       };
       return fn(mockClient);
     });
@@ -336,7 +345,12 @@ describe('PATCH /api/quests/:questId/progress', () => {
   });
 
   it('should return 404 when quest not found', async () => {
-    db.queryOne.mockResolvedValueOnce(null);
+    db.transaction.mockImplementationOnce(async (fn: any) => {
+      const mockClient = {
+        query: vi.fn().mockResolvedValueOnce({ rows: [] }),
+      };
+      return fn(mockClient);
+    });
 
     const res = await request(buildApp())
       .patch('/api/quests/999/progress')
@@ -347,9 +361,14 @@ describe('PATCH /api/quests/:questId/progress', () => {
   });
 
   it('should return 403 when quest belongs to another user', async () => {
-    db.queryOne.mockResolvedValueOnce({
-      id: 5, user_id: 99, status: 'in_progress',
-      current_progress: 0, xp_reward: 100, title: 'Walk', target: 1,
+    db.transaction.mockImplementationOnce(async (fn: any) => {
+      const mockClient = {
+        query: vi.fn().mockResolvedValueOnce({ rows: [{
+          id: 5, user_id: 99, status: 'in_progress',
+          current_progress: 0, xp_reward: 100, title: 'Walk', target: 1,
+        }] }),
+      };
+      return fn(mockClient);
     });
 
     const res = await request(buildApp())
@@ -361,9 +380,14 @@ describe('PATCH /api/quests/:questId/progress', () => {
   });
 
   it('should return 400 when quest is already completed', async () => {
-    db.queryOne.mockResolvedValueOnce({
-      id: 5, user_id: 10, status: 'completed',
-      current_progress: 1, xp_reward: 100, title: 'Walk', target: 1,
+    db.transaction.mockImplementationOnce(async (fn: any) => {
+      const mockClient = {
+        query: vi.fn().mockResolvedValueOnce({ rows: [{
+          id: 5, user_id: 10, status: 'completed',
+          current_progress: 1, xp_reward: 100, title: 'Walk', target: 1,
+        }] }),
+      };
+      return fn(mockClient);
     });
 
     const res = await request(buildApp())
@@ -375,7 +399,7 @@ describe('PATCH /api/quests/:questId/progress', () => {
   });
 
   it('should return 500 when database throws', async () => {
-    db.queryOne.mockRejectedValueOnce(new Error('DB down'));
+    db.transaction.mockRejectedValueOnce(new Error('DB down'));
 
     const res = await request(buildApp())
       .patch('/api/quests/5/progress')
