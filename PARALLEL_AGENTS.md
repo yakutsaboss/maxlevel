@@ -1979,7 +1979,25 @@ OWNED: all test files listed above. FORBIDDEN: source files. After done, write r
 *(To be filled by Agent F)*
 
 #### Agent G Retrospective
-*(To be filled by Agent G)*
+**Status:** COMPLETE — Admin notification center (backend + frontend). Build: 0 errors (bot + mini-app).
+
+| # | Task | Status |
+|---|------|--------|
+| 1 | DB migration `run77_admin_notifications.sql` | Done |
+| 2 | API routes `admin-notifications.ts` (4 endpoints) | Done |
+| 3 | Register router in `admin.ts` | Done |
+| 4 | Frontend `AdminNotifications.tsx` (bell + dropdown) | Done |
+| 5 | Verify builds (bot + mini-app) | Done — 0 errors |
+
+**Files created/modified:**
+- `database/migrations/run77_admin_notifications.sql` (NEW) — table with type check constraint + 4 indexes
+- `bot/src/api/routes/admin-notifications.ts` (NEW) — GET paginated+filtered, GET unread-count, PATCH mark-read, POST mark-all-read
+- `bot/src/api/routes/admin.ts` (MODIFIED) — added import + mount `/notifications`
+- `mini-app/src/components/admin/AdminNotifications.tsx` (NEW) — bell icon with animated badge, dropdown with filter tabs, time-ago formatting, 30s polling, load-more pagination, outside-click close
+
+**Dependencies:** Agent A's AdminLayout should integrate the `<AdminNotifications credentials={...} />` component in its header bar. Agent H may add i18n keys under `admin.notifications.*` namespace.
+
+**No issues or blockers.**
 
 #### Agent H Retrospective
 *(To be filled by Agent H)*
