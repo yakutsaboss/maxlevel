@@ -1982,7 +1982,28 @@ OWNED: all test files listed above. FORBIDDEN: source files. After done, write r
 *(To be filled by Agent G)*
 
 #### Agent H Retrospective
-*(To be filled by Agent H)*
+**Status**: Complete. Build passes.
+
+**Part 1 — i18n (68 new keys per language):**
+Added 7 nested namespaces to `admin` in en.ts, ru.ts, zh.ts:
+- `admin.sidebar.*` (7 keys) — sidebar navigation labels
+- `admin.dashboard.*` (10 keys) — converted from string to object, added stat card labels + quick action labels
+- `admin.players.*` (16 keys) — player list table headers, search, filters, pagination
+- `admin.playerDetail.*` (8 keys) — detail page tab labels
+- `admin.actions.*` (11 keys) — action modal labels (award XP, unlock achievement, change tier, etc.)
+- `admin.bulk.*` (7 keys) — bulk operations labels
+- `admin.notifications.*` (8 keys) — notification center labels
+
+**Part 2 — Routing:**
+- Added lazy imports for `AdminDashboard`, `AdminPlayerList`, `AdminPlayerDetail`
+- `/admin` → redirects to `/admin/dashboard`
+- `/admin/dashboard` → AdminDashboard (Agent A)
+- `/admin/players` → AdminPlayerList (Agent B)
+- `/admin/players/:userId` → AdminPlayerDetail (Agent C)
+- All routes wrapped in `<LazyPageWrapper>` (no ProtectedRoute — admin has own auth)
+- Removed unused `Admin` import (old page no longer routed directly)
+
+**Note for Agent 0:** `admin.dashboard` was converted from a string (`"Admin Dashboard"`) to a nested object with `title` sub-key. Any existing code using `t('admin.dashboard')` must update to `t('admin.dashboard.title')`. The old Admin.tsx page import was removed from App.tsx since `/admin` now redirects. Stub files created in `pages/admin/` will be overwritten by Agents A, B, C during merge.
 
 #### Agent I Retrospective
 *(To be filled by Agent I)*
