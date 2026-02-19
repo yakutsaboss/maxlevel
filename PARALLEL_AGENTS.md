@@ -1978,7 +1978,37 @@ OWNED: all test files listed above. FORBIDDEN: source files. After done, write r
 *(To be filled by Agent B)*
 
 #### Agent C Retrospective
-*(To be filled by Agent C)*
+**Task**: Player detail view — `AdminPlayerDetail.tsx`
+**Status**: Complete
+
+Created `mini-app/src/pages/admin/AdminPlayerDetail.tsx` (~480 lines) with:
+- **Header**: Avatar placeholder, display name, username/telegram ID, tier badge (color-coded), level, XP progress bar with gradient, member since date, status badge
+- **Breadcrumb**: Players > Player Name (back button navigates to previous page)
+- **8 tabbed sections** with horizontal scrollable tab bar + framer-motion AnimatePresence transitions:
+  1. **Overview** — 6 stat summary cards (total quests, streak, achievements, XP, activities, articles read) with staggered fade-in
+  2. **Activity Timeline** — chronological event list with type-specific icons (quest complete, achievement, activity, content read, level up) and relative timestamps
+  3. **Mode Progress** — cards per active mode showing quest completion rate, streak, quests done/total, animated progress bar
+  4. **Quest History** — table grid (quest name, status badge, date, XP earned) with color-coded status
+  5. **Achievements** — grid of unlocked achievements with emoji icons/dates, grayed-out locked ones
+  6. **Financial Summary** — income/expenses cards, savings rate bar, budget count (shows placeholder if finance mode inactive)
+  7. **Social** — friends count, challenges sent/received, leaderboard rank
+  8. **Admin Actions** — placeholder for Agent D's `AdminPlayerActions` component
+- Loading skeleton for initial load + per-tab skeleton
+- Error state with retry + go back buttons
+- Data fetched from `GET /admin/players/:userId` (Agent E's endpoint) via `adminFetch`
+
+**Build verification**: `npx tsc --noEmit` — 0 errors. `npx vite build` — success.
+
+**Dependencies**:
+- Agent E's `GET /admin/players/:userId` endpoint for data
+- Agent D's `AdminPlayerActions` component (currently a placeholder in the Actions tab)
+- Agent H should add route `/admin/players/:userId` in App.tsx pointing to this page
+- Agent A's `AdminLayout` could wrap this page (currently standalone — Agent 0 can integrate at merge)
+
+**Notes for Agent 0**:
+- The Actions tab has a placeholder. After merging Agent D, replace it with `<AdminPlayerActions userId={userId} currentTier={data.user.tier} currentXp={data.user.xp} onActionComplete={loadPlayerData} />`
+- The page reads `admin_credentials` from sessionStorage (same pattern as existing Admin.tsx)
+- No i18n keys used — all labels are English strings. Agent H can wrap with `t()` calls during i18n integration if needed
 
 #### Agent D Retrospective
 *(To be filled by Agent D)*
