@@ -10,6 +10,7 @@ import { adminStatsRouter } from './admin-stats.js';
 import { adminUsersRouter } from './admin-users.js';
 import { adminJobsRouter } from './admin-jobs.js';
 import { adminQuestsRouter } from './admin-quests.js';
+import { adminPlayersRouter } from './admin-players.js';
 
 const router = Router();
 
@@ -21,5 +22,6 @@ router.use('/', adminStatsRouter);           // GET /stats, POST /analytics/expo
 router.use('/users', adminUsersRouter);      // GET/PATCH/DELETE /users, modes, broadcast, logs
 router.use('/jobs', adminJobsRouter);        // GET /jobs, POST /jobs/:name/trigger
 router.use('/quests', adminQuestsRouter);    // GET/POST/PATCH/DELETE /quests
+router.use('/players', adminPlayersRouter); // GET /players, GET /players/:id, POST award-xp/unlock-achievement/message, PATCH tier, GET audit-log
 
 export { router as adminRouter };
