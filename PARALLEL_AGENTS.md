@@ -634,10 +634,40 @@ After done, verify: cd bot && npm run test:mvp && cd ../mini-app && npm run test
 ### Run 79 Retrospectives
 
 #### Agent A Retrospective
-*(To be filled by Agent A)*
+**Task**: Re-enable achievements, payments, and trophies on the backend.
+
+**Changes made**:
+- `bot/src/api/server.ts`: Uncommented 6 lines — 3 imports (`achievementRouter`, `paymentsRouter`, `trophyRouter`) and 3 route mounts (`/api/achievements`, `/api/payments`, `/api/trophies`). All other `[MVP-DISABLED]` lines left untouched.
+- `bot/src/jobs/registerJobs.ts`: Uncommented 5 lines — 2 imports (`achievementBatchCheck`, `achievementNotifier`), 2 job registrations in the `jobs` array, and `achievementNotifier.setBotInstance(bot)`.
+
+**Verification**:
+- All 7 dependent files confirmed to exist: `achievements.ts`, `payments.ts`, `trophies.ts` (routes), `achievementBatchCheck.ts`, `achievementNotifier.ts` (jobs), `achievementEngine.ts`, `paymentHelpers.ts` (utils).
+- `npx tsc --noEmit` passed with zero errors.
+
+**Issues**: None. Clean re-enablement — all files were already in place from pre-MVP development.
 
 #### Agent B Retrospective
-*(To be filled by Agent B)*
+**Completed:**
+| Task | Status |
+|------|--------|
+| Uncomment Achievements lazy import in App.tsx (line 22) | ✅ |
+| Uncomment TrophyCase lazy import in App.tsx (line 28) | ✅ |
+| Uncomment /achievements route in App.tsx (line 150) | ✅ |
+| Uncomment /trophies route in App.tsx (line 153) | ✅ |
+| Add "View All" navigation link in ProfileAchievements.tsx → /achievements | ✅ |
+| Verify all page components exist (Achievements, TrophyCase) | ✅ |
+| Verify all achievement/trophy components exist (6 + 3 files) | ✅ |
+| Verify hooks exist (useAchievements, useTrophies, usePayment) | ✅ |
+| TypeScript check passes (tsc --noEmit) | ✅ |
+| Vite production build passes (Achievements + TrophyCase chunks output) | ✅ |
+
+**Notes:**
+- No trophies component exists on the Profile page — only ProfileAchievements. Added "View All" link with ChevronRight icon and haptic feedback there.
+- No separate payments page in mini-app (payments are subscription-flow-based, not a standalone page). Nothing to uncomment for payments.
+- Both Achievements and TrophyCase are properly code-split as separate lazy chunks.
+- Zero TypeScript errors, zero build warnings.
+
+**Recommendations:** None — straightforward re-enablement.
 
 #### Agent C Retrospective
 *(To be filled by Agent C)*

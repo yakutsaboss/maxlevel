@@ -1,5 +1,6 @@
-import { Trophy } from 'lucide-react';
+import { Trophy, ChevronRight } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { useNavigate } from 'react-router-dom';
 import { UserAchievement, Achievement } from '@/types';
 import type { HapticImpactOnly } from '@/types/telegram';
 
@@ -10,15 +11,25 @@ interface ProfileAchievementsProps {
 }
 
 export function ProfileAchievements({ achievements, allAchievements, haptic }: ProfileAchievementsProps) {
+  const navigate = useNavigate();
   const total = allAchievements.length || achievements.length;
   const unlocked = achievements.length;
   const pct = total > 0 ? Math.min(Math.round((unlocked / total) * 100), 100) : 0;
 
   return (
     <div className="px-4 mt-6 mb-6">
-      <h2 className="text-lg font-semibold mb-3 flex items-center gap-2">
-        <Trophy className="w-5 h-5 text-telegram-link" aria-hidden="true" />Achievements
-      </h2>
+      <div className="flex items-center justify-between mb-3">
+        <h2 className="text-lg font-semibold flex items-center gap-2">
+          <Trophy className="w-5 h-5 text-telegram-link" aria-hidden="true" />Achievements
+        </h2>
+        <button
+          type="button"
+          onClick={() => { haptic.impact('light'); navigate('/achievements'); }}
+          className="text-sm text-telegram-link flex items-center gap-0.5"
+        >
+          View All <ChevronRight className="w-4 h-4" />
+        </button>
+      </div>
       <motion.div
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
