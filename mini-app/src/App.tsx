@@ -5,7 +5,7 @@ import { lazy, Suspense, useCallback, useEffect, useState } from 'react';
 import { Onboarding } from '@/pages/Onboarding';
 import { Navigation } from '@/components/Navigation';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
-import { LazyPageWrapper } from '@/components/LazyPageWrapper';
+// [MVP-DISABLED] import { LazyPageWrapper } from '@/components/LazyPageWrapper';
 import { ProtectedRoute } from '@/components/ProtectedRoute';
 import { OfflineBanner } from '@/components/OfflineBanner';
 import { InstallPrompt } from '@/components/InstallPrompt';
@@ -19,25 +19,25 @@ import type { OnboardingStep } from '@/hooks/useOnboarding';
 const Dashboard = lazy(() => import('@/pages/Dashboard').then(m => ({ default: m.Dashboard })));
 const Quests = lazy(() => import('@/pages/Quests').then(m => ({ default: m.Quests })));
 const Profile = lazy(() => import('@/pages/Profile').then(m => ({ default: m.Profile })));
-const Achievements = lazy(() => import('@/pages/Achievements').then(m => ({ default: m.Achievements })));
+// [MVP-DISABLED] const Achievements = lazy(() => import('@/pages/Achievements').then(m => ({ default: m.Achievements })));
 const Leaderboard = lazy(() => import('@/pages/Leaderboard').then(m => ({ default: m.Leaderboard })));
 const Settings = lazy(() => import('@/pages/Settings').then(m => ({ default: m.Settings })));
-const Social = lazy(() => import('@/pages/Social').then(m => ({ default: m.Social })));
-const Finance = lazy(() => import('@/pages/Finance').then(m => ({ default: m.Finance })));
-const AvatarCustomizer = lazy(() => import('@/pages/AvatarCustomizer').then(m => ({ default: m.AvatarCustomizer })));
-const TrophyCase = lazy(() => import('@/pages/TrophyCase').then(m => ({ default: m.TrophyCase })));
-const Inventory = lazy(() => import('@/pages/Inventory').then(m => ({ default: m.Inventory })));
-const Shop = lazy(() => import('@/pages/Shop').then(m => ({ default: m.Shop })));
-const Analytics = lazy(() => import('@/pages/Analytics').then(m => ({ default: m.Analytics })));
-const NotificationHistory = lazy(() => import('@/pages/NotificationHistory').then(m => ({ default: m.NotificationHistory })));
-const ActivityHub = lazy(() => import('@/pages/ActivityHub').then(m => ({ default: m.ActivityHub })));
-const ActivityHistory = lazy(() => import('@/pages/ActivityHistory').then(m => ({ default: m.ActivityHistory })));
-const ContentFeed = lazy(() => import('@/pages/ContentFeed').then(m => ({ default: m.ContentFeed })));
-const ArticleReader = lazy(() => import('@/pages/ArticleReader').then(m => ({ default: m.ArticleReader })));
-const ReadingHistory = lazy(() => import('@/pages/ReadingHistory').then(m => ({ default: m.ReadingHistory })));
-const AdminDashboard = lazy(() => import('@/pages/admin/AdminDashboard').then(m => ({ default: m.AdminDashboard })));
-const AdminPlayerList = lazy(() => import('@/pages/admin/AdminPlayerList').then(m => ({ default: m.AdminPlayerList })));
-const AdminPlayerDetail = lazy(() => import('@/pages/admin/AdminPlayerDetail').then(m => ({ default: m.AdminPlayerDetail })));
+// [MVP-DISABLED] const Social = lazy(() => import('@/pages/Social').then(m => ({ default: m.Social })));
+// [MVP-DISABLED] const Finance = lazy(() => import('@/pages/Finance').then(m => ({ default: m.Finance })));
+// [MVP-DISABLED] const AvatarCustomizer = lazy(() => import('@/pages/AvatarCustomizer').then(m => ({ default: m.AvatarCustomizer })));
+// [MVP-DISABLED] const TrophyCase = lazy(() => import('@/pages/TrophyCase').then(m => ({ default: m.TrophyCase })));
+// [MVP-DISABLED] const Inventory = lazy(() => import('@/pages/Inventory').then(m => ({ default: m.Inventory })));
+// [MVP-DISABLED] const Shop = lazy(() => import('@/pages/Shop').then(m => ({ default: m.Shop })));
+// [MVP-DISABLED] const Analytics = lazy(() => import('@/pages/Analytics').then(m => ({ default: m.Analytics })));
+// [MVP-DISABLED] const NotificationHistory = lazy(() => import('@/pages/NotificationHistory').then(m => ({ default: m.NotificationHistory })));
+// [MVP-DISABLED] const ActivityHub = lazy(() => import('@/pages/ActivityHub').then(m => ({ default: m.ActivityHub })));
+// [MVP-DISABLED] const ActivityHistory = lazy(() => import('@/pages/ActivityHistory').then(m => ({ default: m.ActivityHistory })));
+// [MVP-DISABLED] const ContentFeed = lazy(() => import('@/pages/ContentFeed').then(m => ({ default: m.ContentFeed })));
+// [MVP-DISABLED] const ArticleReader = lazy(() => import('@/pages/ArticleReader').then(m => ({ default: m.ArticleReader })));
+// [MVP-DISABLED] const ReadingHistory = lazy(() => import('@/pages/ReadingHistory').then(m => ({ default: m.ReadingHistory })));
+// [MVP-DISABLED] const AdminDashboard = lazy(() => import('@/pages/admin/AdminDashboard').then(m => ({ default: m.AdminDashboard })));
+// [MVP-DISABLED] const AdminPlayerList = lazy(() => import('@/pages/admin/AdminPlayerList').then(m => ({ default: m.AdminPlayerList })));
+// [MVP-DISABLED] const AdminPlayerDetail = lazy(() => import('@/pages/admin/AdminPlayerDetail').then(m => ({ default: m.AdminPlayerDetail })));
 
 // Create React Query client
 const queryClient = new QueryClient({
@@ -145,26 +145,26 @@ function AppContent() {
         <Route path="/quests" element={<ProtectedRoute needsOnboarding={effectiveNeedsOnboarding} lazy><Quests /></ProtectedRoute>} />
         <Route path="/profile" element={<ProtectedRoute needsOnboarding={effectiveNeedsOnboarding} lazy><Profile /></ProtectedRoute>} />
         <Route path="/leaderboard" element={<ProtectedRoute needsOnboarding={effectiveNeedsOnboarding} lazy><Leaderboard /></ProtectedRoute>} />
-        <Route path="/social" element={<ProtectedRoute needsOnboarding={effectiveNeedsOnboarding} lazy><Social /></ProtectedRoute>} />
-        <Route path="/finance" element={<ProtectedRoute needsOnboarding={effectiveNeedsOnboarding} lazy><Finance /></ProtectedRoute>} />
-        <Route path="/achievements" element={<ProtectedRoute needsOnboarding={effectiveNeedsOnboarding} lazy><Achievements /></ProtectedRoute>} />
+        {/* [MVP-DISABLED] <Route path="/social" element={<ProtectedRoute needsOnboarding={effectiveNeedsOnboarding} lazy><Social /></ProtectedRoute>} /> */}
+        {/* [MVP-DISABLED] <Route path="/finance" element={<ProtectedRoute needsOnboarding={effectiveNeedsOnboarding} lazy><Finance /></ProtectedRoute>} /> */}
+        {/* [MVP-DISABLED] <Route path="/achievements" element={<ProtectedRoute needsOnboarding={effectiveNeedsOnboarding} lazy><Achievements /></ProtectedRoute>} /> */}
         <Route path="/settings" element={<ProtectedRoute needsOnboarding={effectiveNeedsOnboarding} lazy><Settings /></ProtectedRoute>} />
-        <Route path="/avatar" element={<ProtectedRoute needsOnboarding={effectiveNeedsOnboarding} lazy><AvatarCustomizer /></ProtectedRoute>} />
-        <Route path="/trophies" element={<ProtectedRoute needsOnboarding={effectiveNeedsOnboarding} lazy><TrophyCase /></ProtectedRoute>} />
-        <Route path="/inventory" element={<ProtectedRoute needsOnboarding={effectiveNeedsOnboarding} lazy><Inventory /></ProtectedRoute>} />
-        <Route path="/shop" element={<ProtectedRoute needsOnboarding={effectiveNeedsOnboarding} lazy><Shop /></ProtectedRoute>} />
-        <Route path="/shop/:itemId" element={<ProtectedRoute needsOnboarding={effectiveNeedsOnboarding} lazy><Shop /></ProtectedRoute>} />
-        <Route path="/analytics" element={<ProtectedRoute needsOnboarding={effectiveNeedsOnboarding} lazy><Analytics /></ProtectedRoute>} />
-        <Route path="/notifications" element={<ProtectedRoute needsOnboarding={effectiveNeedsOnboarding} lazy><NotificationHistory /></ProtectedRoute>} />
-        <Route path="/activity" element={<ProtectedRoute needsOnboarding={effectiveNeedsOnboarding} lazy><ActivityHub /></ProtectedRoute>} />
-        <Route path="/activity/history" element={<ProtectedRoute needsOnboarding={effectiveNeedsOnboarding} lazy><ActivityHistory /></ProtectedRoute>} />
-        <Route path="/content" element={<ProtectedRoute needsOnboarding={effectiveNeedsOnboarding} lazy><ContentFeed /></ProtectedRoute>} />
-        <Route path="/content/:articleId" element={<ProtectedRoute needsOnboarding={effectiveNeedsOnboarding} lazy><ArticleReader /></ProtectedRoute>} />
-        <Route path="/content/bookmarks" element={<ProtectedRoute needsOnboarding={effectiveNeedsOnboarding} lazy><ReadingHistory /></ProtectedRoute>} />
-        <Route path="/admin" element={<Navigate to="/admin/dashboard" replace />} />
-        <Route path="/admin/dashboard" element={<LazyPageWrapper><AdminDashboard /></LazyPageWrapper>} />
-        <Route path="/admin/players" element={<LazyPageWrapper><AdminPlayerList /></LazyPageWrapper>} />
-        <Route path="/admin/players/:userId" element={<LazyPageWrapper><AdminPlayerDetail /></LazyPageWrapper>} />
+        {/* [MVP-DISABLED] <Route path="/avatar" element={<ProtectedRoute needsOnboarding={effectiveNeedsOnboarding} lazy><AvatarCustomizer /></ProtectedRoute>} /> */}
+        {/* [MVP-DISABLED] <Route path="/trophies" element={<ProtectedRoute needsOnboarding={effectiveNeedsOnboarding} lazy><TrophyCase /></ProtectedRoute>} /> */}
+        {/* [MVP-DISABLED] <Route path="/inventory" element={<ProtectedRoute needsOnboarding={effectiveNeedsOnboarding} lazy><Inventory /></ProtectedRoute>} /> */}
+        {/* [MVP-DISABLED] <Route path="/shop" element={<ProtectedRoute needsOnboarding={effectiveNeedsOnboarding} lazy><Shop /></ProtectedRoute>} /> */}
+        {/* [MVP-DISABLED] <Route path="/shop/:itemId" element={<ProtectedRoute needsOnboarding={effectiveNeedsOnboarding} lazy><Shop /></ProtectedRoute>} /> */}
+        {/* [MVP-DISABLED] <Route path="/analytics" element={<ProtectedRoute needsOnboarding={effectiveNeedsOnboarding} lazy><Analytics /></ProtectedRoute>} /> */}
+        {/* [MVP-DISABLED] <Route path="/notifications" element={<ProtectedRoute needsOnboarding={effectiveNeedsOnboarding} lazy><NotificationHistory /></ProtectedRoute>} /> */}
+        {/* [MVP-DISABLED] <Route path="/activity" element={<ProtectedRoute needsOnboarding={effectiveNeedsOnboarding} lazy><ActivityHub /></ProtectedRoute>} /> */}
+        {/* [MVP-DISABLED] <Route path="/activity/history" element={<ProtectedRoute needsOnboarding={effectiveNeedsOnboarding} lazy><ActivityHistory /></ProtectedRoute>} /> */}
+        {/* [MVP-DISABLED] <Route path="/content" element={<ProtectedRoute needsOnboarding={effectiveNeedsOnboarding} lazy><ContentFeed /></ProtectedRoute>} /> */}
+        {/* [MVP-DISABLED] <Route path="/content/:articleId" element={<ProtectedRoute needsOnboarding={effectiveNeedsOnboarding} lazy><ArticleReader /></ProtectedRoute>} /> */}
+        {/* [MVP-DISABLED] <Route path="/content/bookmarks" element={<ProtectedRoute needsOnboarding={effectiveNeedsOnboarding} lazy><ReadingHistory /></ProtectedRoute>} /> */}
+        {/* [MVP-DISABLED] <Route path="/admin" element={<Navigate to="/admin/dashboard" replace />} /> */}
+        {/* [MVP-DISABLED] <Route path="/admin/dashboard" element={<LazyPageWrapper><AdminDashboard /></LazyPageWrapper>} /> */}
+        {/* [MVP-DISABLED] <Route path="/admin/players" element={<LazyPageWrapper><AdminPlayerList /></LazyPageWrapper>} /> */}
+        {/* [MVP-DISABLED] <Route path="/admin/players/:userId" element={<LazyPageWrapper><AdminPlayerDetail /></LazyPageWrapper>} /> */}
       </Routes>
       </main>
       <InstallPrompt />

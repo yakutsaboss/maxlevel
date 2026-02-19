@@ -9,6 +9,8 @@
     "preview": "vite preview",
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
     "test": "vitest --run",
+    "test:mvp": "vitest --run src/__tests__/App.test.tsx src/__tests__/pages/Dashboard.test.tsx src/__tests__/pages/Quests.test.tsx src/__tests__/pages/Profile.test.tsx src/__tests__/pages/Leaderboard.test.tsx src/__tests__/pages/Onboarding.test.tsx src/__tests__/components/dashboard src/__tests__/components/profile src/__tests__/components/leaderboard src/__tests__/components/onboarding src/__tests__/components/quests src/__tests__/components/settings src/__tests__/components/QuestCard.test.tsx src/__tests__/components/CheckInButton.test.tsx src/__tests__/components/ProtectedRoute.test.tsx src/__tests__/components/Toast.test.tsx src/__tests__/components/ErrorBoundary.test.tsx src/__tests__/components/ErrorSection.test.tsx src/__tests__/components/QuestDifficultyBadge.test.tsx src/__tests__/components/LazyPageWrapper.test.tsx",
+    "test:full": "vitest --run",
     "test:watch": "vitest"
   },
   "dependencies": {

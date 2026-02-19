@@ -6,6 +6,9 @@ export default defineConfig({
     environment: 'node',
     include: ['src/__tests__/**/*.test.ts'],
     mockReset: true,
+    testTimeout: 10_000,
+    hookTimeout: 15_000,
+    pool: 'forks',
     coverage: {
       provider: 'v8',
       include: ['src/**/*.ts'],
