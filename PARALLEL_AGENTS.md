@@ -1976,7 +1976,39 @@ OWNED: all test files listed above. FORBIDDEN: source files. After done, write r
 *(To be filled by Agent E)*
 
 #### Agent F Retrospective
-*(To be filled by Agent F)*
+**Task**: Bulk operations toolbar (backend API + frontend component)
+
+**Created files**:
+- `bot/src/api/routes/admin-bulk.ts` — 3 bulk API endpoints:
+  - `POST /admin/players/bulk/award-xp` — Awards XP to multiple users via transaction loop, returns per-user success/failure results
+  - `POST /admin/players/bulk/tier` — Batch upserts subscription tier using `INSERT ... ON CONFLICT` for efficiency
+  - `POST /admin/players/bulk/message` — Sends Telegram messages via bot API, resolves user_ids to telegram_ids first
+- `mini-app/src/components/admin/AdminBulkActions.tsx` — Floating toolbar + modal system:
+  - Animated toolbar slides up from bottom when 1+ rows selected (framer-motion)
+  - 4 action buttons: Award XP (yellow), Change Tier (purple), Send Message (blue), Export CSV (green)
+  - Each action opens a bottom-sheet modal with FocusTrap for accessibility
+  - Progress feedback via Toast component (success/info/error)
+  - CSV export uses Blob API for client-side download
+  - All buttons disabled during loading state to prevent double-submission
+
+**Modified files**:
+- `bot/src/api/routes/admin.ts` — Added `adminBulkRouter` import + mount at `'/'`
+
+**Architecture decisions**:
+- Used `transaction()` wrapper for individual XP awards (each user gets its own transaction for isolation)
+- Tier change uses a single batch SQL with `unnest()` for efficiency instead of looping
+- Message sending is sequential (Telegram API rate limits) with per-user error handling
+- Component accepts `credentials` as prop (consistent with existing admin pattern)
+- i18n keys used: `admin.bulk.*`, `admin.actions.*`, `admin.players.*` (Agent H provides these)
+
+**Dependencies on other agents**:
+- Agent E's `admin-players.ts` routes define the base `/admin/players` pattern — bulk routes mounted separately at `/admin/players/bulk/*` via the main admin router
+- Agent H provides i18n keys (`admin.bulk.awardXp`, `admin.bulk.changeTier`, etc.)
+- Agent B's `AdminPlayerList` integrates this component via `selectedUserIds` prop
+
+**Build verification**: TypeScript `--noEmit` passes for both bot and mini-app from main repo. Worktree lacks node_modules (installed by Agent 0 during setup), but source files verified manually.
+
+**No issues encountered.**
 
 #### Agent G Retrospective
 *(To be filled by Agent G)*
