@@ -12,6 +12,7 @@ import { adminJobsRouter } from './admin-jobs.js';
 import { adminQuestsRouter } from './admin-quests.js';
 import { adminPlayersRouter } from './admin-players.js';
 import { adminNotificationsRouter } from './admin-notifications.js';
+import { adminBulkRouter } from './admin-bulk.js';
 
 const router = Router();
 
@@ -25,5 +26,6 @@ router.use('/jobs', adminJobsRouter);        // GET /jobs, POST /jobs/:name/trig
 router.use('/quests', adminQuestsRouter);    // GET/POST/PATCH/DELETE /quests
 router.use('/players', adminPlayersRouter); // GET /players, GET /players/:id, POST award-xp/unlock-achievement/message, PATCH tier, GET audit-log
 router.use('/notifications', adminNotificationsRouter); // GET/PATCH/POST notifications
+router.use('/', adminBulkRouter);            // POST /players/bulk/*
 
 export { router as adminRouter };
