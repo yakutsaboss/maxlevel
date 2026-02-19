@@ -38,6 +38,9 @@ CREATE TABLE users (
     notification_enabled BOOLEAN DEFAULT true,      -- Daily summary notifications, added in Run 4
     reminder_time INTEGER DEFAULT 9,                -- Preferred reminder hour (UTC), added in Run 4
     updated_at TIMESTAMPTZ DEFAULT NOW(),           -- Last update timestamp, added for auth middleware
+    dnd_enabled BOOLEAN DEFAULT FALSE,              -- Do Not Disturb toggle for notifications
+    dnd_start INTEGER DEFAULT 22,                   -- DND start hour (0-23, UTC)
+    dnd_end INTEGER DEFAULT 8,                      -- DND end hour (0-23, UTC)
     CONSTRAINT check_level_positive CHECK (current_level >= 1),
     CONSTRAINT check_xp_non_negative CHECK (total_xp >= 0)
 );
