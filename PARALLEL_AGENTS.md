@@ -296,7 +296,7 @@ All disabled code is PRESERVED — just commented out. Each run below re-enables
 
 | Run | Focus | Agents | Status |
 |-----|-------|--------|--------|
-| **78** | MVP Hardening — fix bugs, e2e test core flow in Telegram | 3 | ⬜ |
+| **78** | MVP Hardening — fix bugs, e2e test core flow in Telegram | serial | ✅ |
 | **79** | Re-enable Achievements + Payments + Trophies | 3 | ⬜ |
 | **80** | Re-enable Shop + Inventory + Avatars | 3 | ⬜ |
 | **81** | Re-enable Social + Finance | 3 | ⬜ |
@@ -422,16 +422,27 @@ After done, verify: npm run test:mvp in both bot/ and mini-app/. Write retrospec
 2. Agent C (test fixes — may depend on Agent A's changes)
 3. Agent B (frontend fixes)
 
-### Run 78 Retrospectives
+### Run 78 Retrospective (Serial — Agent 0 only)
 
-#### Agent A Retrospective
-*(To be filled by Agent A)*
+**Approach**: All 3 parallel agents got stuck (0 commits across all worktrees). Switched to serial execution by Agent 0.
 
-#### Agent B Retrospective
-*(To be filled by Agent B)*
+**Completed**:
+| Task | Status |
+|------|--------|
+| Fix race condition in quest-progress.ts (SELECT FOR UPDATE) | ✅ |
+| Fix race condition in checkins.ts (SELECT FOR UPDATE) | ✅ |
+| Add ON CONFLICT to dailyQuestReset.ts | ✅ |
+| Remove 4 dead navigation buttons from Profile.tsx | ✅ |
+| Remove dead notification history link from Settings.tsx | ✅ |
+| Remove SubscriptionSettings from Settings.tsx | ✅ |
+| Remove onViewAll from ProfileAchievements.tsx | ✅ |
+| Add 8 missing tables to schema.sql | ✅ |
+| Update 3 test files for new transaction patterns | ✅ |
+| Clean up stuck worktrees + branches | ✅ |
+| Deploy + verify (90d976d) | ✅ |
 
-#### Agent C Retrospective
-*(To be filled by Agent C)*
+**Tests**: 573 bot + 337 mini-app = 910 passing (test:mvp)
 
-#### Agent 0 Retrospective
-*(To be filled by Agent 0)*
+**Recommendations for next run**:
+- Run 79 per roadmap: Re-enable Achievements + Payments + Trophies
+- Consider serial execution again if parallel agents continue to get stuck
