@@ -101,6 +101,9 @@ describe('GET /api/avatars/items', () => {
 describe('GET /api/avatars/:userId', () => {
   it('should return saved equipped items for existing user', async () => {
     const equipped = { hairstyle: 'hair-spiky', outfit: 'outfit-armor', accessory: null, background: 'bg-sunset' };
+    // First queryOne: resolve telegram_id → DB user_id
+    db.queryOne.mockResolvedValueOnce({ id: 1 });
+    // Second queryOne: fetch equipped_items from user_avatar
     db.queryOne.mockResolvedValueOnce({ equipped_items: equipped });
 
     const res = await request(buildApp())
@@ -114,7 +117,10 @@ describe('GET /api/avatars/:userId', () => {
     expect(res.body.data.background).toBe('bg-sunset');
   });
 
-  it('should return default equipped items for new user (no row)', async () => {
+  it('should return default equipped items for new user (no avatar row)', async () => {
+    // First queryOne: user exists
+    db.queryOne.mockResolvedValueOnce({ id: 999 });
+    // Second queryOne: no avatar row
     db.queryOne.mockResolvedValueOnce(null);
 
     const res = await request(buildApp())
@@ -146,9 +152,11 @@ describe('GET /api/avatars/:userId', () => {
 describe('PATCH /api/avatars/:userId/equip', () => {
   it('should equip an item and return updated equipped items', async () => {
     const updatedEquipped = { hairstyle: 'hair-mohawk', outfit: null, accessory: null, background: null };
-    // Verify item exists
+    // First queryOne: resolve telegram_id → DB user_id
+    db.queryOne.mockResolvedValueOnce({ id: 1 });
+    // Second queryOne: verify item exists
     db.queryOne.mockResolvedValueOnce({ id: 3, category: 'hairstyle', sprite_key: 'hair-mohawk' });
-    // UPSERT returns
+    // Third queryOne: UPSERT returns
     db.queryOne.mockResolvedValueOnce({ equipped_items: updatedEquipped });
 
     const res = await request(buildApp())
@@ -162,7 +170,9 @@ describe('PATCH /api/avatars/:userId/equip', () => {
 
   it('should unequip an item when itemId is null', async () => {
     const updatedEquipped = { hairstyle: null, outfit: null, accessory: null, background: null };
-    // UPSERT returns
+    // First queryOne: resolve telegram_id → DB user_id
+    db.queryOne.mockResolvedValueOnce({ id: 1 });
+    // Second queryOne: UPSERT returns (no item verification needed for null)
     db.queryOne.mockResolvedValueOnce({ equipped_items: updatedEquipped });
 
     const res = await request(buildApp())
@@ -175,6 +185,9 @@ describe('PATCH /api/avatars/:userId/equip', () => {
   });
 
   it('should reject invalid category', async () => {
+    // First queryOne: resolve telegram_id → DB user_id
+    db.queryOne.mockResolvedValueOnce({ id: 1 });
+
     const res = await request(buildApp())
       .patch('/api/avatars/1/equip')
       .send({ category: 'weapon', itemId: 1 })
@@ -184,6 +197,9 @@ describe('PATCH /api/avatars/:userId/equip', () => {
   });
 
   it('should reject when category is missing', async () => {
+    // First queryOne: resolve telegram_id → DB user_id
+    db.queryOne.mockResolvedValueOnce({ id: 1 });
+
     const res = await request(buildApp())
       .patch('/api/avatars/1/equip')
       .send({ itemId: 1 })
