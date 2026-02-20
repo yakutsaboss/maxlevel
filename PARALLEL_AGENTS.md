@@ -670,7 +670,18 @@ After done, verify: cd bot && npm run test:mvp && cd ../mini-app && npm run test
 **Recommendations:** None — straightforward re-enablement.
 
 #### Agent C Retrospective
-*(To be filled by Agent C)*
+**Status:** COMPLETE
+**Duration:** ~5 minutes
+**What was done:**
+- Ran all 10 bot test files (achievements, payments, trophies) — all passed immediately (0 fixes needed)
+- Ran all 9 mini-app test files — 8 passed, 1 failed (ProfileAchievements.test.tsx)
+- Fixed ProfileAchievements.test.tsx: added `MemoryRouter` wrapper (component uses `useNavigate()`) and added missing `ChevronRight` to lucide-react mock
+- Updated bot `test:mvp` script: added 9 new test entries (achievements routes, payments HTTP, payment-webhook, paymentHelpers, achievementEngine, achievementBatchCheck, achievementNotifier, achievement-trophy-flow)
+- Updated mini-app `test:mvp` script: added 7 new entries (Achievements page, TrophyCase page, achievements components dir, AchievementCard, AchievementToast, useAchievements hook)
+- Final verification: bot test:mvp = 61 files / 713 tests ALL PASS; mini-app test:mvp = 82 files / 391 tests ALL PASS
+- bot test:full = 92/93 pass (only avatars.http.test.ts fails — disabled feature, not in scope)
+**Files changed:** ProfileAchievements.test.tsx (test fix), bot/package.json (test:mvp), mini-app/package.json (test:mvp)
+**Recommendations:** avatars.http.test.ts has 6 failures in test:full — should be fixed when avatars feature is re-enabled.
 
 #### Agent 0 Retrospective
 *(To be filled by Agent 0)*

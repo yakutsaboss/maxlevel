@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
+import { MemoryRouter } from 'react-router-dom';
 
 // Mock framer-motion
 vi.mock('framer-motion', () => ({
@@ -16,6 +17,7 @@ vi.mock('framer-motion', () => ({
 // Mock lucide-react
 vi.mock('lucide-react', () => ({
   Trophy: ({ className }: any) => <span data-testid="trophy-icon" className={className} />,
+  ChevronRight: ({ className }: any) => <span data-testid="chevron-right-icon" className={className} />,
 }));
 
 import { ProfileAchievements } from '@/components/profile/ProfileAchievements';
@@ -77,12 +79,14 @@ describe('ProfileAchievements', () => {
 
   it('renders achievement badges and progress', () => {
     render(
-      <ProfileAchievements
-        achievements={mockAchievements}
-        allAchievements={mockAllAchievements}
-        haptic={mockHaptic}
-        onViewAll={mockOnViewAll}
-      />
+      <MemoryRouter>
+        <ProfileAchievements
+          achievements={mockAchievements}
+          allAchievements={mockAllAchievements}
+          haptic={mockHaptic}
+          onViewAll={mockOnViewAll}
+        />
+      </MemoryRouter>
     );
 
     expect(screen.getByText('Achievements')).toBeInTheDocument();
@@ -94,12 +98,14 @@ describe('ProfileAchievements', () => {
 
   it('shows count of unlocked achievements and percentage', () => {
     render(
-      <ProfileAchievements
-        achievements={mockAchievements}
-        allAchievements={mockAllAchievements}
-        haptic={mockHaptic}
-        onViewAll={mockOnViewAll}
-      />
+      <MemoryRouter>
+        <ProfileAchievements
+          achievements={mockAchievements}
+          allAchievements={mockAllAchievements}
+          haptic={mockHaptic}
+          onViewAll={mockOnViewAll}
+        />
+      </MemoryRouter>
     );
 
     expect(screen.getByText('2/3 unlocked')).toBeInTheDocument();
@@ -111,12 +117,14 @@ describe('ProfileAchievements', () => {
 
   it('handles no achievements', () => {
     render(
-      <ProfileAchievements
-        achievements={[]}
-        allAchievements={mockAllAchievements}
-        haptic={mockHaptic}
-        onViewAll={mockOnViewAll}
-      />
+      <MemoryRouter>
+        <ProfileAchievements
+          achievements={[]}
+          allAchievements={mockAllAchievements}
+          haptic={mockHaptic}
+          onViewAll={mockOnViewAll}
+        />
+      </MemoryRouter>
     );
 
     expect(screen.getByText('Complete quests to earn achievements!')).toBeInTheDocument();
