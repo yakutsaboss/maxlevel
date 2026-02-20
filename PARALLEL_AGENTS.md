@@ -870,13 +870,33 @@ After done, verify: cd bot && npm run test:mvp && cd ../mini-app && npm run test
 ### Run 80 Retrospectives
 
 #### Agent A Retrospective
-*(To be filled by Agent A)*
+- **Task**: Re-enable shop, inventory, and avatars on the backend
+- **Changes**: Uncommented 6 lines in `bot/src/api/server.ts` — 3 imports (avatarRouter, shopRouter, inventoryRouter) and 3 route mounts (`/api/avatars`, `/api/shop`, `/api/inventory`)
+- **Verification**: All 3 route files exist. `npx tsc --noEmit` passed with zero errors.
+- **Issues**: None. Clean uncomment, no dependency or type issues.
+- **Time**: ~2 minutes
 
 #### Agent B Retrospective
-*(To be filled by Agent B)*
+- **Task**: Re-enable shop, inventory, and avatars on the frontend (mini-app)
+- **Changes**: Uncommented 7 lines in `mini-app/src/App.tsx` — 3 lazy imports (AvatarCustomizer, Inventory, Shop) and 4 route definitions (`/avatar`, `/inventory`, `/shop`, `/shop/:itemId`)
+- **Verification**: All page components, hooks (useAvatar, useInventory, useShop), and sub-components (avatar/*, shop/*) confirmed present. `npx tsc --noEmit` passed with zero errors. `npm run build` succeeded — new chunks: AvatarCustomizer (7.91 kB), AvatarRenderer (7.87 kB), Inventory (8.41 kB), Shop (15.17 kB).
+- **Issues**: None. Clean uncomment, all files were already in place from pre-MVP development.
+- **Time**: ~3 minutes
 
 #### Agent C Retrospective
-*(To be filled by Agent C)*
+**Status:** COMPLETE
+
+**What was done:**
+- Ran all 4 bot test files: shop (21 pass), inventory (15 pass), shop-purchase-equip integration (20 pass), avatars (6 failed / 5 passed)
+- Fixed avatars.http.test.ts: 6 tests failed because the avatar route resolves `telegram_id → DB user_id` via an initial `queryOne` call, but tests only mocked the second query. Added user lookup mock (`{ id: N }`) as the first `mockResolvedValueOnce` in all 6 failing tests.
+- Ran all 8 mini-app test files: AvatarCustomizer (8 pass), Inventory (11 pass), Shop (11 pass), AvatarRenderer (8 pass), AvatarAnimator (14 pass), useAvatar (10 pass), useShop (12 pass), avatarOptions (11 pass) — ALL passed immediately, 0 fixes needed.
+- Updated bot `test:mvp` script: added 4 entries (avatars.http, shop.http, inventory.http, shop-purchase-equip)
+- Updated mini-app `test:mvp` script: added 7 entries (AvatarCustomizer, Inventory, Shop pages + avatar components dir + useAvatar, useShop hooks + avatarOptions data)
+- Final verification: bot test:mvp = 65 files / 780 tests ALL PASS; mini-app test:mvp = 90 files / 476 tests ALL PASS
+
+**Files changed:** bot/src/__tests__/routes/http/avatars.http.test.ts (test fix), bot/package.json (test:mvp), mini-app/package.json (test:mvp)
+
+**Recommendations:** None — all shop/inventory/avatar tests passing cleanly.
 
 #### Agent 0 Retrospective
 *(To be filled by Agent 0)*
