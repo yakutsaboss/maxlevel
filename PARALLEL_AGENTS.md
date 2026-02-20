@@ -297,7 +297,7 @@ All disabled code is PRESERVED — just commented out. Each run below re-enables
 | Run | Focus | Agents | Status |
 |-----|-------|--------|--------|
 | **78** | MVP Hardening — fix bugs, e2e test core flow in Telegram | serial | ✅ |
-| **79** | Re-enable Achievements + Payments + Trophies | 3 | ⬜ |
+| **79** | Re-enable Achievements + Payments + Trophies | 3 | ✅ |
 | **80** | Re-enable Shop + Inventory + Avatars | 3 | ⬜ |
 | **81** | Re-enable Social + Finance | 3 | ⬜ |
 | **82** | Re-enable Content + Activities | 3 | ⬜ |
@@ -682,6 +682,201 @@ After done, verify: cd bot && npm run test:mvp && cd ../mini-app && npm run test
 - bot test:full = 92/93 pass (only avatars.http.test.ts fails — disabled feature, not in scope)
 **Files changed:** ProfileAchievements.test.tsx (test fix), bot/package.json (test:mvp), mini-app/package.json (test:mvp)
 **Recommendations:** avatars.http.test.ts has 6 failures in test:full — should be fixed when avatars feature is re-enabled.
+
+#### Agent 0 Retrospective
+**Approach**: Agents A, B, C all worked directly in main repo (not their worktrees). Agent B committed (73b152e), Agents A and C left changes uncommitted. Agent 0 verified all diffs, committed the remaining changes, built, tested, and deployed.
+
+**Completed**:
+| Task | Status |
+|------|--------|
+| Verify agent branches (all 3 empty — 0 commits) | ✅ |
+| Discover agents worked in main repo instead | ✅ |
+| Verify all diffs correct (server.ts, registerJobs.ts, package.json x2, test fix) | ✅ |
+| Commit all uncommitted agent work (fc3c4ee) | ✅ |
+| Build verification — tsc --noEmit passes both projects | ✅ |
+| Tests: bot 61 files / 713 tests, mini-app 82 files / 391 tests = 1104 total | ✅ |
+| Deploy + verify (fc3c4ee, uptime 10s) | ✅ |
+| Telegram notification sent | ✅ |
+| Worktree + branch cleanup | ✅ |
+
+**Issues**:
+- Agents wrote to main repo, not worktrees (same pattern as Run 78). Worktrees were unused.
+- Agent retros were accurate despite this — changes were real, just in the wrong directory.
+
+**Recommendations**:
+- Run 80 per roadmap: Re-enable Shop + Inventory + Avatars
+- Consider whether worktrees add value — agents consistently ignore them
+
+---
+
+## RUN 80: Re-enable Shop + Inventory + Avatars (3 Agents + Agent 0)
+
+### Focus: Uncomment all [MVP-DISABLED] code for shop, inventory, and avatars across backend, frontend, and tests
+
+### Copy-Paste Prompts
+
+**Agent 0** (open in: `c:\Users\Asus\Desktop\Wibecode`):
+```
+Read PARALLEL_AGENTS.md — you are Agent 0 for Run 80.
+```
+
+**Agent A** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-a`):
+```
+Read PARALLEL_AGENTS.md — you are Agent A of Run 80. Your task: Re-enable shop, inventory, and avatars on the BACKEND.
+
+## What to do
+
+### 1. Uncomment routes in `bot/src/api/server.ts`
+Uncomment these 6 lines (remove `// [MVP-DISABLED] ` prefix):
+- Line 23: `import { avatarRouter } from './routes/avatars.js';`
+- Line 25: `import { shopRouter } from './routes/shop.js';`
+- Line 26: `import { inventoryRouter } from './routes/inventory.js';`
+- Line 127: `app.use('/api/avatars', avatarRouter);`
+- Line 129: `app.use('/api/shop', shopRouter);`
+- Line 130: `app.use('/api/inventory', inventoryRouter);`
+
+### 2. No jobs to uncomment
+Shop/inventory/avatars have no background jobs in registerJobs.ts.
+
+### 3. Verify route files exist and compile
+Check that these files exist and have no TypeScript errors:
+- `bot/src/api/routes/avatars.ts`
+- `bot/src/api/routes/shop.ts`
+- `bot/src/api/routes/inventory.ts`
+
+### 4. Build verification
+Run: `cd bot && npx tsc --noEmit`
+Fix any TypeScript errors that arise from re-enabling these features.
+
+OWNED: bot/src/api/server.ts, bot/src/api/routes/avatars.ts, bot/src/api/routes/shop.ts, bot/src/api/routes/inventory.ts
+FORBIDDEN: mini-app/*, bot/src/__tests__/* (test files), PARALLEL_AGENTS.md (except your retrospective section)
+GRAY AREA: bot/src/api/server.ts — ONLY uncomment the 6 lines listed above. Do NOT touch other [MVP-DISABLED] lines.
+After done, verify build: cd bot && npx tsc --noEmit. Write retrospective.
+```
+
+**Agent B** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-b`):
+```
+Read PARALLEL_AGENTS.md — you are Agent B of Run 80. Your task: Re-enable shop, inventory, and avatars on the FRONTEND (mini-app).
+
+## What to do
+
+### 1. Uncomment pages in `mini-app/src/App.tsx`
+Uncomment these lines (remove comment markers):
+
+Lazy imports:
+- Line 27: `const AvatarCustomizer = lazy(() => import('@/pages/AvatarCustomizer').then(m => ({ default: m.AvatarCustomizer })));`
+- Line 29: `const Inventory = lazy(() => import('@/pages/Inventory').then(m => ({ default: m.Inventory })));`
+- Line 30: `const Shop = lazy(() => import('@/pages/Shop').then(m => ({ default: m.Shop })));`
+
+Routes (inside the <Routes> block):
+- Line 152: `<Route path="/avatar" element={<ProtectedRoute needsOnboarding={effectiveNeedsOnboarding} lazy><AvatarCustomizer /></ProtectedRoute>} />`
+- Line 154: `<Route path="/inventory" element={<ProtectedRoute needsOnboarding={effectiveNeedsOnboarding} lazy><Inventory /></ProtectedRoute>} />`
+- Line 155: `<Route path="/shop" element={<ProtectedRoute needsOnboarding={effectiveNeedsOnboarding} lazy><Shop /></ProtectedRoute>} />`
+- Line 156: `<Route path="/shop/:itemId" element={<ProtectedRoute needsOnboarding={effectiveNeedsOnboarding} lazy><Shop /></ProtectedRoute>} />`
+
+### 2. Verify page components and hooks exist
+Check these files exist and compile:
+- `mini-app/src/pages/AvatarCustomizer.tsx`
+- `mini-app/src/pages/Inventory.tsx`
+- `mini-app/src/pages/Shop.tsx`
+- `mini-app/src/components/avatar/*` (AvatarRenderer, AvatarAnimator, AvatarSprites)
+- `mini-app/src/components/shop/*` (PurchaseModal, PurchaseSuccessAnimation)
+- `mini-app/src/hooks/useAvatar.ts`
+- `mini-app/src/hooks/useInventory.ts`
+- `mini-app/src/hooks/useShop.ts`
+
+### 3. Build verification
+Run: `cd mini-app && npx tsc --noEmit && npm run build`
+Fix any TypeScript errors.
+
+OWNED: mini-app/src/App.tsx, mini-app/src/pages/AvatarCustomizer.tsx, mini-app/src/pages/Inventory.tsx, mini-app/src/pages/Shop.tsx, mini-app/src/components/avatar/*, mini-app/src/components/shop/*, mini-app/src/hooks/useAvatar.ts, mini-app/src/hooks/useInventory.ts, mini-app/src/hooks/useShop.ts
+FORBIDDEN: bot/*, PARALLEL_AGENTS.md (except your retrospective section)
+GRAY AREA: mini-app/src/App.tsx — ONLY uncomment the 7 lines listed above. Do NOT touch other [MVP-DISABLED] lines.
+After done, verify build: cd mini-app && npx tsc --noEmit && npm run build. Write retrospective.
+```
+
+**Agent C** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-c`):
+```
+Read PARALLEL_AGENTS.md — you are Agent C of Run 80. Your task: Fix and verify ALL tests for shop, inventory, and avatars.
+
+## What to do
+
+### 1. Run all shop/inventory/avatar tests individually
+Run each test file and fix failures:
+
+Bot tests:
+- `cd bot && npx vitest --run src/__tests__/routes/http/avatars.http.test.ts`
+- `cd bot && npx vitest --run src/__tests__/routes/http/shop.http.test.ts`
+- `cd bot && npx vitest --run src/__tests__/routes/http/inventory.http.test.ts`
+- `cd bot && npx vitest --run src/__tests__/integration/shop-purchase-equip.test.ts`
+
+Mini-app tests:
+- `cd mini-app && npx vitest --run src/__tests__/pages/AvatarCustomizer.test.tsx`
+- `cd mini-app && npx vitest --run src/__tests__/pages/Inventory.test.tsx`
+- `cd mini-app && npx vitest --run src/__tests__/pages/Shop.test.tsx`
+- `cd mini-app && npx vitest --run src/__tests__/components/avatar/AvatarRenderer.test.tsx`
+- `cd mini-app && npx vitest --run src/__tests__/components/avatar/AvatarAnimator.test.tsx`
+- `cd mini-app && npx vitest --run src/__tests__/hooks/useAvatar.test.ts`
+- `cd mini-app && npx vitest --run src/__tests__/hooks/useShop.test.ts`
+- `cd mini-app && npx vitest --run src/__tests__/data/avatarOptions.test.ts`
+
+Note: `avatars.http.test.ts` had 6 failures in Run 79 test:full — these MUST be fixed.
+
+### 2. Fix any failing tests
+Common issues to watch for:
+- Mock/spy setups that reference old API patterns
+- Missing database table mocks
+- Component import errors if page structure changed
+
+### 3. Update test:mvp scripts
+After fixing tests, update `test:mvp` in BOTH package.json files to include shop/inventory/avatar test files:
+- `bot/package.json` — add avatars, shop, inventory, shop-purchase-equip test files
+- `mini-app/package.json` — add AvatarCustomizer, Shop, Inventory pages + avatar components + hooks
+
+### 4. Verify everything passes
+- Run: `cd bot && npm run test:mvp` — ALL must pass
+- Run: `cd mini-app && npm run test:mvp` — ALL must pass
+
+OWNED: bot/src/__tests__/routes/http/avatars.http.test.ts, bot/src/__tests__/routes/http/shop.http.test.ts, bot/src/__tests__/routes/http/inventory.http.test.ts, bot/src/__tests__/integration/shop-purchase-equip.test.ts, mini-app/src/__tests__/pages/AvatarCustomizer.test.tsx, mini-app/src/__tests__/pages/Inventory.test.tsx, mini-app/src/__tests__/pages/Shop.test.tsx, mini-app/src/__tests__/components/avatar/*.test.tsx, mini-app/src/__tests__/hooks/useAvatar.test.ts, mini-app/src/__tests__/hooks/useShop.test.ts, mini-app/src/__tests__/data/avatarOptions.test.ts, bot/package.json (ONLY test:mvp script), mini-app/package.json (ONLY test:mvp script)
+FORBIDDEN: bot/src/api/*, bot/src/jobs/*, mini-app/src/pages/*, mini-app/src/components/* (source code — only test files), PARALLEL_AGENTS.md (except your retrospective section)
+After done, verify: cd bot && npm run test:mvp && cd ../mini-app && npm run test:mvp. Write retrospective.
+```
+
+### Run 80 File Ownership Matrix
+
+| File/Dir | Agent A | Agent B | Agent C |
+|----------|---------|---------|---------|
+| bot/src/api/server.ts | OWNED | ❌ | ❌ |
+| bot/src/api/routes/avatars.ts | OWNED | ❌ | ❌ |
+| bot/src/api/routes/shop.ts | OWNED | ❌ | ❌ |
+| bot/src/api/routes/inventory.ts | OWNED | ❌ | ❌ |
+| mini-app/src/App.tsx | ❌ | OWNED | ❌ |
+| mini-app/src/pages/AvatarCustomizer.tsx | ❌ | OWNED | ❌ |
+| mini-app/src/pages/Shop.tsx | ❌ | OWNED | ❌ |
+| mini-app/src/pages/Inventory.tsx | ❌ | OWNED | ❌ |
+| mini-app/src/components/avatar/* | ❌ | OWNED | ❌ |
+| mini-app/src/components/shop/* | ❌ | OWNED | ❌ |
+| mini-app/src/hooks/use{Avatar,Shop,Inventory}.ts | ❌ | OWNED | ❌ |
+| bot/src/__tests__/** (avatar/shop/inventory) | ❌ | ❌ | OWNED |
+| mini-app/src/__tests__/** (avatar/shop/inventory) | ❌ | ❌ | OWNED |
+| bot/package.json (test:mvp only) | ❌ | ❌ | OWNED |
+| mini-app/package.json (test:mvp only) | ❌ | ❌ | OWNED |
+
+### Run 80 Merge Order
+1. Agent A (backend — re-enable routes)
+2. Agent B (frontend — re-enable pages)
+3. Agent C (tests — fix tests + update test:mvp scripts)
+
+### Run 80 Retrospectives
+
+#### Agent A Retrospective
+*(To be filled by Agent A)*
+
+#### Agent B Retrospective
+*(To be filled by Agent B)*
+
+#### Agent C Retrospective
+*(To be filled by Agent C)*
 
 #### Agent 0 Retrospective
 *(To be filled by Agent 0)*
