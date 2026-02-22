@@ -68,7 +68,7 @@ describe('POST /api/medication-logs', () => {
       logged_at: '2026-02-20T08:05:00Z',
     };
 
-    db.query.mockResolvedValueOnce([{ id: 1 }]); // user lookup / ownership
+    db.queryOne.mockResolvedValueOnce({ id: 1, user_id: 1 }); // ownership check (queryOne)
     db.query.mockResolvedValueOnce([logEntry]); // UPSERT RETURNING
 
     const res = await request(buildApp())
@@ -95,7 +95,7 @@ describe('POST /api/medication-logs', () => {
       logged_at: '2026-02-20T08:30:00Z',
     };
 
-    db.query.mockResolvedValueOnce([{ id: 1 }]);
+    db.queryOne.mockResolvedValueOnce({ id: 1, user_id: 1 }); // ownership check (queryOne)
     db.query.mockResolvedValueOnce([logEntry]);
 
     const res = await request(buildApp())
@@ -151,7 +151,7 @@ describe('POST /api/medication-logs', () => {
   });
 
   it('should return 500 when database throws', async () => {
-    db.query.mockRejectedValueOnce(new Error('DB connection lost'));
+    db.queryOne.mockRejectedValueOnce(new Error('DB connection lost'));
 
     const res = await request(buildApp())
       .post('/api/medication-logs')
