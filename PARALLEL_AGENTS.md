@@ -1357,7 +1357,26 @@ Write retrospective when done.
 *(To be filled by Agent B)*
 
 #### Agent C Retrospective
-*(To be filled by Agent C)*
+**Status:** COMPLETE
+
+**What was done:**
+Created 3 standalone Python export tools for onboarding reference data:
+
+1. **`tools/onboarding_text_export.py`** — Parses i18n files (en.ts, ru.ts) and onboardingQuestions.ts. Outputs bilingual table (Key | English | Russian) for all onboarding UI text, plus questions organized by mode with options. Supports `--format markdown` (default) and `--format telegram` (chunked for 4096-char Telegram limit).
+
+2. **`tools/onboarding_flow_export.py`** — Reads onboardingQuestions.ts and useOnboardingNavigation.ts. Produces a complete flow diagram showing: step sequence, conditional branching based on mode selection, dataKey/nestedKey storage mapping, special conditionals (fitness_target_weight), DB storage reference, and an ASCII flow tree. Supports `--format markdown` and `--format telegram`.
+
+3. **`tools/punishment_reference_export.py`** — Reads punishment constants from frontend (constants.ts) and backend (constants.ts, punishmentCheck.ts). Produces reference tables for: punishment types with difficulty labels, XP multipliers per intensity, Stars penalty rates, safe mode caps, processing flow, and DB table schemas. Supports `--format markdown` and `--format telegram`.
+
+**Key fixes during development:**
+- Fixed Windows cp1251 encoding issue: all tools use `io.TextIOWrapper` for UTF-8 stdout
+- Fixed regex for double-quoted strings with apostrophes (e.g., "What's Your Goal?")
+- Made XP multiplier descriptions dynamic (derived from actual values, not hardcoded)
+
+**Files created:** `tools/onboarding_text_export.py`, `tools/onboarding_flow_export.py`, `tools/punishment_reference_export.py`
+**Files modified:** None (read-only access to mini-app/src and bot/src as required)
+**Tests:** All 3 tools tested with both `--format markdown` and `--format telegram` — all pass
+**Issues:** None
 
 #### Agent D Retrospective
 **Task**: Add `/onboarding`, `/punishments`, `/flow` reference doc commands to notification bot.
@@ -1403,7 +1422,23 @@ Write retrospective when done.
 **Note for Agent H:** Punishment tests will need updated values — old XP multipliers (0.5/1.0/1.5/2.0 → 0.25/0.5/1.0/1.5), old Stars rates (1/3/5/10 → 0/1/3/5), and new level-based scaling logic.
 
 #### Agent F Retrospective
-*(To be filled by Agent F)*
+**Task**: Fix quest check-in lag by migrating to React Query with optimistic updates.
+
+**What was done**:
+1. Created `mini-app/src/hooks/useQuestsQuery.ts` — new file with React Query hooks:
+   - `useActiveQuests(userId)` — staleTime 2min
+   - `useCompletedQuests(userId)` — staleTime 5min
+   - `useTodayCheckins(userId)` — staleTime 1min
+   - `useCheckinMutation()` — POST check-in with optimistic update (increments progress in cache instantly, rollback on error, invalidates on settle)
+   - `useCompleteQuestMutation()` — complete quest + invalidate active/completed
+   - Exported `questKeys` for consistent cache key management
+2. Refactored `mini-app/src/hooks/useQuestsData.ts` — replaced all manual `useState` + `apiClient` calls with React Query hooks while preserving the exact same public API (return shape). No changes needed in `Quests.tsx` page.
+3. Updated `mini-app/src/components/CheckInButton.tsx` — replaced direct `apiClient.createCheckin()` with `useCheckinMutation()`, removed manual `loading` state.
+4. Updated both test files (`useQuestsData.test.ts`, `useQuestsData-difficulty.test.ts`) to wrap `renderHook` with `QueryClientProvider`.
+
+**Results**: All 13 tests pass. TypeScript clean. Build succeeds. Check-in now shows instant UI feedback (optimistic cache update) instead of 3 full API refetches.
+
+**Files changed**: `mini-app/src/hooks/useQuestsQuery.ts` (new), `mini-app/src/hooks/useQuestsData.ts`, `mini-app/src/components/CheckInButton.tsx`, `mini-app/src/__tests__/hooks/useQuestsData.test.ts`, `mini-app/src/__tests__/hooks/useQuestsData-difficulty.test.ts`
 
 #### Agent G Retrospective
 *(To be filled by Agent G)*
