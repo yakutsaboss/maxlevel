@@ -870,7 +870,22 @@ Write retrospective when done.
 - History days clamped to [1, 90] to prevent excessive queries
 
 #### Agent C Retrospective
-*(To be filled by Agent C)*
+**Status**: Complete — 2 test files fixed, 14/14 medication tests pass, `tsc --noEmit` clean.
+
+**Fixed in `useMedicationData.test.ts`** (1 failure → 0):
+- `logMedication` test passed an object `{telegram_id, medication_id, ...}` but the hook expects individual args `(medicationId, scheduledTime, status)`. Changed to `logMedication(1, '08:00', 'taken')`.
+
+**Fixed in `Medications.test.tsx`** (7 failures → 0):
+- Import used `{ default as MedicationsPage }` but the page only exports a named `Medications` function. Changed to `{ Medications as MedicationsPage }`.
+- Added `Pencil` to lucide-react mock (used by MedicationCard component, was missing).
+- Three tests used `getByText` for text that appears in both DailyMedTracker AND MedicationCard sections (e.g., "Aspirin", "100mg"). Changed to `getAllByText` with `toBeGreaterThanOrEqual(1)`.
+- Improved `shows today's schedule section` test to assert on "Today's Schedule" heading and "1/3 taken" progress text instead of ambiguous medication name.
+
+**Full test suite results**:
+- Mini-app: 912 passed, 24 failed (6 test files) — all 24 failures are **pre-existing** in Navigation, Dashboard, Profile, Onboarding, A11y, and Regression test files (not medication-related).
+- Bot: 1089 passed, 11 failed (2 test files) — all 11 failures are in `medications.http.test.ts` and `medication-logs.http.test.ts` (Agent B's domain — response shape mismatches).
+
+**No issues encountered.**
 
 #### Agent D Retrospective
 **Status**: Complete (no retro written by agent — filled by Agent 0).
