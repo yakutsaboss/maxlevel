@@ -1182,7 +1182,21 @@ A → E → B → C → D → F → G (G always last — runs full verification)
 ### Run 85 Retrospectives
 
 #### Agent A Retrospective
-*(To be filled by Agent A)*
+**Task**: Remove Finance, Content, Recommendations routes + admin/finance test files from bot backend
+
+**What was done:**
+1. **Deleted 4 source files**: `routes/finance.ts`, `routes/content.ts`, `routes/recommendations.ts`, `utils/contentRecommender.ts`
+2. **Deleted 11 test files**: 1 finance HTTP test + 8 admin test files (admin.test, admin-bulk, admin-notifications, admin-players, adminAuth, admin.http, admin-jobs.http, admin-stats.http, admin-users.http, admin-quests.http)
+3. **Modified `server.ts`**: Removed 3 imports (financeRouter, contentRouter, recommendationsRouter) and 3 `app.use()` lines. Kept all other routes (admin, users, quests, modes, leaderboard, etc.)
+4. **TypeScript verification**: `tsc --noEmit` — zero errors
+
+**Files deleted (15):** 4 source + 11 tests = 4,391 lines removed
+**Files modified (1):** `bot/src/api/server.ts` — removed 6 lines (3 imports + 3 routes)
+
+**Notes:**
+- Admin ROUTES and middleware are preserved — only admin TEST files were deleted (as instructed)
+- Punishment-related code untouched
+- No other files reference the deleted routes, so no cascading breakages
 
 #### Agent B Retrospective
 *(To be filled by Agent B)*
