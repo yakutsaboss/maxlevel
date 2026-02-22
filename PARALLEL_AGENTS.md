@@ -1199,7 +1199,30 @@ A → E → B → C → D → F → G (G always last — runs full verification)
 - No other files reference the deleted routes, so no cascading breakages
 
 #### Agent B Retrospective
-*(To be filled by Agent B)*
+**Task**: Delete removed feature pages and clean up App.tsx routes
+
+**What was done:**
+1. **Deleted 5 page files**: Finance.tsx, AvatarCustomizer.tsx, ContentFeed.tsx, ArticleReader.tsx, ReadingHistory.tsx
+2. **Deleted 1 API file**: mini-app/src/api/content.ts
+3. **Cleaned up App.tsx**: Removed 5 lazy() imports (Finance, AvatarCustomizer, ContentFeed, ArticleReader, ReadingHistory) and 6 Route entries (/finance, /avatar, /content, /content/:articleId, /content/bookmarks)
+4. **Verified**: No tsc errors from Agent B's files. All other routes preserved (Dashboard, Quests, Profile, Leaderboard, Social, Achievements, Settings, TrophyCase, Inventory, Shop, Analytics, Notifications, Activity, Admin pages).
+
+**Files deleted (6):**
+- `mini-app/src/pages/Finance.tsx` (5,250 bytes)
+- `mini-app/src/pages/AvatarCustomizer.tsx` (10,365 bytes)
+- `mini-app/src/pages/ContentFeed.tsx` (6,340 bytes)
+- `mini-app/src/pages/ArticleReader.tsx` (20,034 bytes)
+- `mini-app/src/pages/ReadingHistory.tsx` (16,482 bytes)
+- `mini-app/src/api/content.ts` (4,615 bytes)
+
+**Files modified (1):**
+- `mini-app/src/App.tsx` — removed 5 lazy imports + 6 route entries (210→200 lines)
+
+**Total lines removed**: 1,768
+
+**Notes:**
+- Navigation.tsx does NOT reference any deleted pages — no changes needed
+- Pre-existing tsc errors in onboarding files are from Agent C/D domains, not Agent B
 
 #### Agent C Retrospective
 *(To be filled by Agent C)*
