@@ -2302,7 +2302,13 @@ Write retrospective when done.
 ### Run 87 Retrospectives
 
 #### Agent A Retrospective
-*(To be filled by Agent A)*
+**Status**: Complete — 3 new tables + migration script + seed quests.
+
+- Added 3 new tables to `database/schema.sql`: `medications`, `medication_logs`, `notification_log` — all placed after `mode_unlocks` with `IF NOT EXISTS` guards, proper indexes, and table comments.
+- Added DROP TABLE statements for the 3 new tables at the top of schema.sql (for fresh installs).
+- Added 3 medication tracker quest templates to `database/seed_data.sql`: "Take morning medications" (daily, easy, 30 XP), "Take evening medications" (daily, easy, 30 XP), "Perfect medication week" (weekly, hard, 200 XP).
+- Created `database/migrations/run87_medication.sql` — wraps all 3 CREATE TABLE + indexes + seed quests in a single transaction (BEGIN/COMMIT) for safe production deployment.
+- No issues encountered.
 
 #### Agent B Retrospective
 **Status**: Complete — 2 new route files created, server.ts updated, `tsc --noEmit` clean.
