@@ -7,6 +7,8 @@
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook, waitFor, act } from '@testing-library/react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import React from 'react';
 
 vi.mock('@/api/client', () => ({
   apiClient: {
@@ -14,6 +16,7 @@ vi.mock('@/api/client', () => ({
     getCompletedQuests: vi.fn(),
     completeQuest: vi.fn(),
     getTodayCheckins: vi.fn(),
+    createCheckin: vi.fn(),
   },
 }));
 
@@ -29,6 +32,17 @@ vi.mock('@/utils/logger', () => ({
 import { apiClient } from '@/api/client';
 import { useQuestsData } from '@/hooks/useQuestsData';
 import type { Quest } from '@/types';
+
+function createWrapper() {
+  const queryClient = new QueryClient({
+    defaultOptions: {
+      queries: { retry: false, staleTime: 0, gcTime: 0 },
+      mutations: { retry: false },
+    },
+  });
+  return ({ children }: { children: React.ReactNode }) =>
+    React.createElement(QueryClientProvider, { client: queryClient }, children);
+}
 
 const mockGetActiveQuests = vi.mocked(apiClient.getActiveQuests);
 const mockGetCompletedQuests = vi.mocked(apiClient.getCompletedQuests);
@@ -75,7 +89,7 @@ describe('useQuestsData — difficulty filter', () => {
   it('selectedDifficulty should be null initially (shows all quests)', async () => {
     setupMocks(allQuests);
 
-    const { result } = renderHook(() => useQuestsData(123, mockHaptic));
+    const { result } = renderHook(() => useQuestsData(123, mockHaptic), { wrapper: createWrapper() });
 
     await waitFor(() => {
       expect(result.current.loading).toBe(false);
@@ -88,7 +102,7 @@ describe('useQuestsData — difficulty filter', () => {
   it('should filter by easy difficulty', async () => {
     setupMocks(allQuests);
 
-    const { result } = renderHook(() => useQuestsData(123, mockHaptic));
+    const { result } = renderHook(() => useQuestsData(123, mockHaptic), { wrapper: createWrapper() });
 
     await waitFor(() => {
       expect(result.current.loading).toBe(false);
@@ -106,7 +120,7 @@ describe('useQuestsData — difficulty filter', () => {
   it('should filter by medium difficulty', async () => {
     setupMocks(allQuests);
 
-    const { result } = renderHook(() => useQuestsData(123, mockHaptic));
+    const { result } = renderHook(() => useQuestsData(123, mockHaptic), { wrapper: createWrapper() });
 
     await waitFor(() => {
       expect(result.current.loading).toBe(false);
@@ -123,7 +137,7 @@ describe('useQuestsData — difficulty filter', () => {
   it('should filter by hard difficulty', async () => {
     setupMocks(allQuests);
 
-    const { result } = renderHook(() => useQuestsData(123, mockHaptic));
+    const { result } = renderHook(() => useQuestsData(123, mockHaptic), { wrapper: createWrapper() });
 
     await waitFor(() => {
       expect(result.current.loading).toBe(false);
@@ -140,7 +154,7 @@ describe('useQuestsData — difficulty filter', () => {
   it('should show all quests when difficulty is reset to null', async () => {
     setupMocks(allQuests);
 
-    const { result } = renderHook(() => useQuestsData(123, mockHaptic));
+    const { result } = renderHook(() => useQuestsData(123, mockHaptic), { wrapper: createWrapper() });
 
     await waitFor(() => {
       expect(result.current.loading).toBe(false);
@@ -175,7 +189,7 @@ describe('useQuestsData — difficulty filter', () => {
 
     setupMocks([fitnessEasy, fitnessHard, learningEasy]);
 
-    const { result } = renderHook(() => useQuestsData(123, mockHaptic));
+    const { result } = renderHook(() => useQuestsData(123, mockHaptic), { wrapper: createWrapper() });
 
     await waitFor(() => {
       expect(result.current.loading).toBe(false);
@@ -200,7 +214,7 @@ describe('useQuestsData — difficulty filter', () => {
     // Only easy and medium quests
     setupMocks([easyQuest, mediumQuest]);
 
-    const { result } = renderHook(() => useQuestsData(123, mockHaptic));
+    const { result } = renderHook(() => useQuestsData(123, mockHaptic), { wrapper: createWrapper() });
 
     await waitFor(() => {
       expect(result.current.loading).toBe(false);
@@ -218,7 +232,7 @@ describe('useQuestsData — difficulty filter', () => {
     const completedHard = makeQuest({ id: 11, difficulty: 'hard', status: 'completed', title: 'Done Hard' });
     setupMocks(allQuests, [completedEasy, completedHard]);
 
-    const { result } = renderHook(() => useQuestsData(123, mockHaptic));
+    const { result } = renderHook(() => useQuestsData(123, mockHaptic), { wrapper: createWrapper() });
 
     await waitFor(() => {
       expect(result.current.loading).toBe(false);

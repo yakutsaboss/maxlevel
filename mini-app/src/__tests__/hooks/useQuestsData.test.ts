@@ -1,5 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook, waitFor, act } from '@testing-library/react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import React from 'react';
 
 vi.mock('@/api/client', () => ({
   apiClient: {
@@ -7,6 +9,7 @@ vi.mock('@/api/client', () => ({
     getCompletedQuests: vi.fn(),
     completeQuest: vi.fn(),
     getTodayCheckins: vi.fn(),
+    createCheckin: vi.fn(),
   },
 }));
 
@@ -22,6 +25,17 @@ vi.mock('@/utils/logger', () => ({
 import { apiClient } from '@/api/client';
 import { useQuestsData } from '@/hooks/useQuestsData';
 import type { Quest } from '@/types';
+
+function createWrapper() {
+  const queryClient = new QueryClient({
+    defaultOptions: {
+      queries: { retry: false, staleTime: 0, gcTime: 0 },
+      mutations: { retry: false },
+    },
+  });
+  return ({ children }: { children: React.ReactNode }) =>
+    React.createElement(QueryClientProvider, { client: queryClient }, children);
+}
 
 const mockGetActiveQuests = vi.mocked(apiClient.getActiveQuests);
 const mockGetCompletedQuests = vi.mocked(apiClient.getCompletedQuests);
@@ -69,7 +83,7 @@ describe('useQuestsData', () => {
     mockGetActiveQuests.mockReturnValue(new Promise(() => {}) as any);
     mockGetCompletedQuests.mockReturnValue(new Promise(() => {}) as any);
 
-    const { result } = renderHook(() => useQuestsData(123, mockHaptic));
+    const { result } = renderHook(() => useQuestsData(123, mockHaptic), { wrapper: createWrapper() });
 
     expect(result.current.loading).toBe(true);
     expect(result.current.error).toBe(false);
@@ -82,7 +96,7 @@ describe('useQuestsData', () => {
     const completed = [makeQuest({ id: 3, title: 'Old Quest', status: 'completed' })];
     setupMocks(active, completed);
 
-    const { result } = renderHook(() => useQuestsData(123, mockHaptic));
+    const { result } = renderHook(() => useQuestsData(123, mockHaptic), { wrapper: createWrapper() });
 
     await waitFor(() => {
       expect(result.current.loading).toBe(false);
@@ -101,7 +115,7 @@ describe('useQuestsData', () => {
     setupMocks([quest]);
     mockCompleteQuest.mockResolvedValue({ success: true } as any);
 
-    const { result } = renderHook(() => useQuestsData(123, mockHaptic));
+    const { result } = renderHook(() => useQuestsData(123, mockHaptic), { wrapper: createWrapper() });
 
     await waitFor(() => {
       expect(result.current.loading).toBe(false);
@@ -128,7 +142,7 @@ describe('useQuestsData', () => {
     const learningQuest = makeQuest({ id: 2, mode_id: 2, title: 'Learning Quest', mode: { id: 2, name: 'learning', display_name: 'Learning', description: '', icon: '📚', is_active: true } });
     setupMocks([fitnessQuest, learningQuest]);
 
-    const { result } = renderHook(() => useQuestsData(123, mockHaptic));
+    const { result } = renderHook(() => useQuestsData(123, mockHaptic), { wrapper: createWrapper() });
 
     await waitFor(() => {
       expect(result.current.loading).toBe(false);
@@ -158,7 +172,7 @@ describe('useQuestsData', () => {
     const midXp = makeQuest({ id: 3, xp_reward: 50, progress: 3, target: 5 });
     setupMocks([lowXp, highXp, midXp]);
 
-    const { result } = renderHook(() => useQuestsData(123, mockHaptic));
+    const { result } = renderHook(() => useQuestsData(123, mockHaptic), { wrapper: createWrapper() });
 
     await waitFor(() => {
       expect(result.current.loading).toBe(false);
