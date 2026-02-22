@@ -261,7 +261,21 @@ Use this structure when creating a new run. Copy and adapt:
 *(To be filled by Agent B)*
 
 #### Agent C Retrospective
-*(To be filled by Agent C)*
+**Status**: Complete — all 4 files done, `tsc --noEmit` passes (exit 0).
+
+**Created**:
+- `bot/src/jobs/definitions/medicationReminder.ts` — every 15 min, queries `medications` table, matches `time_of_day` entries within ±7 min of user's local time, skips DND + already-logged meds, sends via `medicationReminderTemplate`, logs to `notification_log`.
+- `bot/src/jobs/definitions/streakMilestone.ts` — daily at 1 AM UTC, queries `streaks` table for `current_streak` in [7,14,30,60,100], skips DND, sends via `streakMilestoneTemplate`, logs to `notification_log`.
+
+**Modified**:
+- `bot/src/utils/notificationTemplates.ts` — added `MedicationReminderInfo`/`StreakMilestoneInfo` interfaces + 2 template functions with InlineKeyboard buttons.
+- `bot/src/jobs/registerJobs.ts` — imported both new jobs, added to `jobs` array + `setBotInstance` calls.
+
+**Patterns followed**: Exact same structure as `questReminders.ts` — `sendWithRetry`, `isInDndWindow`, `BATCH_RATE=30`, `logger.child`, typed `query<>`, parameterized SQL.
+
+**Dependencies**: Requires Agent A's `medications`, `medication_logs`, and `notification_log` tables to exist. SQL uses `unnest(m.time_of_day)` for the `TIME[]` column and `LEFT JOIN medication_logs` to skip already-logged entries.
+
+**No issues encountered.**
 
 #### Agent 0 Retrospective
 *(To be filled by Agent 0)*
