@@ -299,7 +299,7 @@ All disabled code is PRESERVED — just commented out. Each run below re-enables
 | **78** | MVP Hardening — fix bugs, e2e test core flow in Telegram | serial | ✅ |
 | **79** | Re-enable Achievements + Payments + Trophies | 3 | ✅ |
 | **80** | Re-enable Shop + Inventory + Avatars | 3 | ✅ |
-| **81** | Re-enable Social + Finance | 3 | ⬜ |
+| **81** | Re-enable Social + Finance | 3 | ✅ |
 | **82** | Re-enable Content + Activities | 3 | ⬜ |
 | **83** | Re-enable Admin Panel | 3 | ⬜ |
 | **84** | Polish + Performance Optimization | 3 | ⬜ |
@@ -700,6 +700,216 @@ After done, verify: cd bot && npm run test:mvp && cd ../mini-app && npm run test
 **Files changed:** bot/package.json (test:mvp script), mini-app/package.json (test:mvp script)
 
 **Recommendations:** None — all social/finance tests passing cleanly with zero fixes required. Total test count now 1,513 (up from 1,256 in Run 80).
+
+#### Agent 0 Retrospective
+- **Merge**: Agents A+B committed to main (3 commits). Agent C left uncommitted package.json changes (test:mvp updates). Committed as ed0d4b1.
+- **Build**: Both projects pass `tsc --noEmit`.
+- **Tests**: Bot 67 files / 857 tests, Mini-app 108 files / 656 tests. Total: 1,513 tests (up from 1,256 in Run 80).
+- **Deploy**: 4132021 deployed, health OK, mini-app API URL verified.
+- **Note**: Finance chunk is 405.91 kB — may need code splitting in a future optimization run.
+
+**Recommendations**:
+- Run 82 per roadmap: Re-enable Content + Activities
+
+---
+
+## RUN 82: Re-enable Content + Activities (3 Agents + Agent 0)
+
+### Focus: Uncomment ALL remaining [MVP-DISABLED] code EXCEPT admin panel. This includes: analytics, export, channel, activities, content, recommendations, punishment, and all remaining background jobs.
+
+### Copy-Paste Prompts
+
+**Agent 0** (open in: `c:\Users\Asus\Desktop\Wibecode`):
+```
+Read PARALLEL_AGENTS.md — you are Agent 0 for Run 82.
+```
+
+**Agent A** (open in: `c:\Users\Asus\Desktop\Wibecode`):
+```
+Read PARALLEL_AGENTS.md — you are Agent A of Run 82. Your task: Re-enable ALL remaining non-admin backend routes and background jobs.
+
+## What to do
+
+### 1. Uncomment routes in `bot/src/api/server.ts`
+Uncomment these 14 lines (remove `// [MVP-DISABLED] ` prefix):
+
+Imports:
+- Line 20: `import { punishmentRouter } from './routes/punishment.js';`
+- Line 27: `import { analyticsRouter } from './routes/analytics.js';`
+- Line 28: `import { exportRouter } from './routes/export.js';`
+- Line 30: `import { channelRouter } from './routes/channel.js';`
+- Line 31: `import { activityRouter } from './routes/activities.js';`
+- Line 32: `import { contentRouter } from './routes/content.js';`
+- Line 33: `import { recommendationsRouter } from './routes/recommendations.js';`
+
+Routes:
+- Line 124: `app.use('/api/punishment', punishmentRouter);`
+- Line 131: `app.use('/api/analytics', analyticsRouter);`
+- Line 132: `app.use('/api/export', exportRouter);`
+- Line 134: `app.use('/api/channel', channelRouter);`
+- Line 135: `app.use('/api/activities', activityRouter);`
+- Line 136: `app.use('/api/content', contentRouter);`
+- Line 137: `app.use('/api/recommendations', recommendationsRouter);`
+
+⚠️ Do NOT uncomment line 16 (adminRouter import) or line 120 (admin route) — those are for Run 83.
+
+### 2. Uncomment jobs in `bot/src/jobs/registerJobs.ts`
+Uncomment these 8 lines:
+
+Imports:
+- Line 18: `import * as analyticsExport from './definitions/analyticsExport.js';`
+- Line 19: `import * as dailySummary from './definitions/dailySummary.js';`
+- Line 22: `import * as punishmentCheck from './definitions/punishmentCheck.js';`
+
+Job definitions:
+- Line 36: `{ name: analyticsExport.JOB_NAME, cron: analyticsExport.CRON_SCHEDULE, handler: analyticsExport.handler },`
+- Line 37: `{ name: dailySummary.JOB_NAME, cron: dailySummary.CRON_SCHEDULE, handler: dailySummary.handler },`
+- Line 40: `{ name: punishmentCheck.JOB_NAME, cron: punishmentCheck.CRON_SCHEDULE, handler: punishmentCheck.handler },`
+
+Bot instance setters:
+- Line 46: `dailySummary.setBotInstance(bot);`
+- Line 48: `punishmentCheck.setBotInstance(bot);`
+
+### 3. Verify route and job files exist
+Check these all compile: analytics.ts, export.ts, channel.ts, activities.ts, content.ts, recommendations.ts, punishment.ts, analyticsExport.ts, dailySummary.ts, punishmentCheck.ts
+
+### 4. Build verification
+Run: `cd bot && npx tsc --noEmit`
+
+OWNED: bot/src/api/server.ts, bot/src/jobs/registerJobs.ts, bot/src/api/routes/{analytics,export,channel,activities,content,recommendations,punishment}.ts, bot/src/jobs/definitions/{analyticsExport,dailySummary,punishmentCheck}.ts
+FORBIDDEN: mini-app/*, bot/src/__tests__/*, PARALLEL_AGENTS.md (except your retrospective section)
+GRAY AREA: server.ts — ONLY uncomment the 14 lines listed. Do NOT touch adminRouter. registerJobs.ts — uncomment ALL 8 lines listed.
+After done, verify build: cd bot && npx tsc --noEmit. Write retrospective.
+```
+
+**Agent B** (open in: `c:\Users\Asus\Desktop\Wibecode`):
+```
+Read PARALLEL_AGENTS.md — you are Agent B of Run 82. Your task: Re-enable ALL remaining non-admin frontend pages.
+
+## What to do
+
+### 1. Uncomment pages in `mini-app/src/App.tsx`
+
+Component import (line 8):
+- `import { LazyPageWrapper } from '@/components/LazyPageWrapper';`
+
+Lazy page imports (lines 31-37):
+- Line 31: `const Analytics = lazy(() => import('@/pages/Analytics').then(m => ({ default: m.Analytics })));`
+- Line 32: `const NotificationHistory = lazy(() => import('@/pages/NotificationHistory').then(m => ({ default: m.NotificationHistory })));`
+- Line 33: `const ActivityHub = lazy(() => import('@/pages/ActivityHub').then(m => ({ default: m.ActivityHub })));`
+- Line 34: `const ActivityHistory = lazy(() => import('@/pages/ActivityHistory').then(m => ({ default: m.ActivityHistory })));`
+- Line 35: `const ContentFeed = lazy(() => import('@/pages/ContentFeed').then(m => ({ default: m.ContentFeed })));`
+- Line 36: `const ArticleReader = lazy(() => import('@/pages/ArticleReader').then(m => ({ default: m.ArticleReader })));`
+- Line 37: `const ReadingHistory = lazy(() => import('@/pages/ReadingHistory').then(m => ({ default: m.ReadingHistory })));`
+
+Routes (lines 157-163):
+- Line 157: `<Route path="/analytics" element={...} />`
+- Line 158: `<Route path="/notifications" element={...} />`
+- Line 159: `<Route path="/activity" element={...} />`
+- Line 160: `<Route path="/activity/history" element={...} />`
+- Line 161: `<Route path="/content" element={...} />`
+- Line 162: `<Route path="/content/:articleId" element={...} />`
+- Line 163: `<Route path="/content/bookmarks" element={...} />`
+
+⚠️ Do NOT uncomment lines 38-40 (admin pages) or lines 164-167 (admin routes) — those are for Run 83.
+
+### 2. Verify page components exist
+Check these files compile: Analytics.tsx, NotificationHistory.tsx, ActivityHub.tsx, ActivityHistory.tsx, ContentFeed.tsx, ArticleReader.tsx, ReadingHistory.tsx, and their hooks/components.
+
+### 3. Build verification
+Run: `cd mini-app && npx tsc --noEmit && npm run build`
+
+OWNED: mini-app/src/App.tsx, mini-app/src/pages/{Analytics,NotificationHistory,ActivityHub,ActivityHistory,ContentFeed,ArticleReader,ReadingHistory}.tsx, mini-app/src/components/{activity,content}/*, mini-app/src/hooks/{useAnalytics,useContentFeed,useNotificationHistory,useActivities,useReadingHistory}.ts
+FORBIDDEN: bot/*, PARALLEL_AGENTS.md (except your retrospective section)
+GRAY AREA: App.tsx — ONLY uncomment the 15 lines listed. Do NOT touch admin pages (lines 38-40, 164-167).
+After done, verify build: cd mini-app && npx tsc --noEmit && npm run build. Write retrospective.
+```
+
+**Agent C** (open in: `c:\Users\Asus\Desktop\Wibecode`):
+```
+Read PARALLEL_AGENTS.md — you are Agent C of Run 82. Your task: Fix and verify ALL tests for content, activities, analytics, punishment, and related features.
+
+## What to do
+
+### 1. Run all tests individually and fix failures
+
+Bot tests (10 files):
+- `cd bot && npx vitest --run src/__tests__/routes/http/analytics.http.test.ts`
+- `cd bot && npx vitest --run src/__tests__/routes/http/channel.http.test.ts`
+- `cd bot && npx vitest --run src/__tests__/routes/http/punishment.http.test.ts`
+- `cd bot && npx vitest --run src/__tests__/routes/http/punishment-deduct.http.test.ts`
+- `cd bot && npx vitest --run src/__tests__/routes/activities.test.ts`
+- `cd bot && npx vitest --run src/__tests__/utils/activityQuestMatcher.test.ts`
+- `cd bot && npx vitest --run src/__tests__/jobs/analyticsExport.test.ts`
+- `cd bot && npx vitest --run src/__tests__/jobs/dailySummary.test.ts`
+- `cd bot && npx vitest --run src/__tests__/jobs/punishmentCheck.test.ts`
+- `cd bot && npx vitest --run src/__tests__/handlers/dailySummary.test.ts`
+
+Mini-app tests (11 files):
+- `cd mini-app && npx vitest --run src/__tests__/pages/ActivityHub.test.tsx`
+- `cd mini-app && npx vitest --run src/__tests__/pages/ActivityHistory.test.tsx`
+- `cd mini-app && npx vitest --run src/__tests__/pages/ContentFeed.test.tsx`
+- `cd mini-app && npx vitest --run src/__tests__/pages/ArticleReader.test.tsx`
+- `cd mini-app && npx vitest --run src/__tests__/pages/ReadingHistory.test.tsx`
+- `cd mini-app && npx vitest --run src/__tests__/hooks/useContentFeed.test.ts`
+- `cd mini-app && npx vitest --run src/__tests__/hooks/useReadingHistory.test.ts`
+- `cd mini-app && npx vitest --run src/__tests__/api/content.test.ts`
+- `cd mini-app && npx vitest --run src/__tests__/components/content/ContentQuiz.test.tsx`
+- `cd mini-app && npx vitest --run src/__tests__/components/analytics/ModeAnalytics.test.tsx`
+- `cd mini-app && npx vitest --run src/__tests__/components/analytics/useModeAnalytics.test.ts`
+
+### 2. Fix any failing tests
+Common issues:
+- Mock setups referencing old API patterns
+- Missing database table mocks for activities/content/punishment tables
+- Timer-related issues in punishment/dailySummary tests
+
+### 3. Update test:mvp scripts
+Update `test:mvp` in BOTH package.json files:
+- `bot/package.json` — add: analytics.http, channel.http, punishment.http, punishment-deduct.http, activities, activityQuestMatcher, analyticsExport, dailySummary (job), dailySummary (handler), punishmentCheck
+- `mini-app/package.json` — add: ActivityHub, ActivityHistory, ContentFeed, ArticleReader, ReadingHistory pages + useContentFeed, useReadingHistory hooks + content API test + content/ContentQuiz component + analytics dir
+
+### 4. Verify everything passes
+- Run: `cd bot && npm run test:mvp` — ALL must pass
+- Run: `cd mini-app && npm run test:mvp` — ALL must pass
+
+OWNED: All test files listed above, bot/package.json (ONLY test:mvp script), mini-app/package.json (ONLY test:mvp script)
+FORBIDDEN: bot/src/api/*, bot/src/jobs/*, mini-app/src/pages/*, mini-app/src/components/* (source code), PARALLEL_AGENTS.md (except your retrospective section)
+After done, verify: cd bot && npm run test:mvp && cd ../mini-app && npm run test:mvp. Write retrospective.
+```
+
+### Run 82 File Ownership Matrix
+
+| File/Dir | Agent A | Agent B | Agent C |
+|----------|---------|---------|---------|
+| bot/src/api/server.ts | OWNED | ❌ | ❌ |
+| bot/src/jobs/registerJobs.ts | OWNED | ❌ | ❌ |
+| bot/src/api/routes/{analytics,export,channel,activities,content,recommendations,punishment}.ts | OWNED | ❌ | ❌ |
+| bot/src/jobs/definitions/{analyticsExport,dailySummary,punishmentCheck}.ts | OWNED | ❌ | ❌ |
+| mini-app/src/App.tsx | ❌ | OWNED | ❌ |
+| mini-app/src/pages/{Analytics,NotificationHistory,ActivityHub,ActivityHistory,ContentFeed,ArticleReader,ReadingHistory}.tsx | ❌ | OWNED | ❌ |
+| mini-app/src/components/{activity,content}/* | ❌ | OWNED | ❌ |
+| mini-app/src/hooks/{useAnalytics,useContentFeed,useNotificationHistory,useActivities,useReadingHistory}.ts | ❌ | OWNED | ❌ |
+| bot/src/__tests__/** (content/activities/analytics/punishment) | ❌ | ❌ | OWNED |
+| mini-app/src/__tests__/** (content/activities/analytics) | ❌ | ❌ | OWNED |
+| bot/package.json (test:mvp only) | ❌ | ❌ | OWNED |
+| mini-app/package.json (test:mvp only) | ❌ | ❌ | OWNED |
+
+### Run 82 Merge Order
+1. Agent A (backend — re-enable routes + jobs)
+2. Agent B (frontend — re-enable pages)
+3. Agent C (tests — fix tests + update test:mvp scripts)
+
+### Run 82 Retrospectives
+
+#### Agent A Retrospective
+*(To be filled by Agent A)*
+
+#### Agent B Retrospective
+*(To be filled by Agent B)*
+
+#### Agent C Retrospective
+*(To be filled by Agent C)*
 
 #### Agent 0 Retrospective
 *(To be filled by Agent 0)*
