@@ -36,24 +36,6 @@ INSERT INTO achievements (name, description, badge_icon, criteria, xp_bonus, rar
 ('hydration_legend', 'Hydration Legend', '👑', '{"type": "quest_complete_consecutive", "mode": "hydration", "days": 21}', 450, 'legendary')
 ON CONFLICT (name) DO NOTHING;
 
--- Finance Achievements
-INSERT INTO achievements (name, description, badge_icon, criteria, xp_bonus, rarity) VALUES
-('first_saving', 'First Saving', '💰', '{"type": "quest_complete", "mode": "finance", "count": 1}', 50, 'common'),
-('budget_master', 'Budget Master', '📊', '{"type": "streak", "mode": "finance", "days": 7}', 100, 'rare'),
-('finance_guru', 'Finance Guru', '🏦', '{"type": "streak", "mode": "finance", "days": 30}', 500, 'epic'),
-('penny_pincher', 'Penny Pincher', '🪙', '{"type": "quest_complete", "mode": "finance", "count": 50}', 300, 'rare'),
-('wall_street', 'Wall Street', '📈', '{"type": "quest_complete_consecutive", "mode": "finance", "days": 14}', 200, 'epic')
-ON CONFLICT (name) DO NOTHING;
-
--- Learning Achievements
-INSERT INTO achievements (name, description, badge_icon, criteria, xp_bonus, rarity) VALUES
-('first_lesson', 'First Lesson', '📚', '{"type": "quest_complete", "mode": "learning", "count": 1}', 50, 'common'),
-('study_streak', 'Study Streak', '📖', '{"type": "streak", "mode": "learning", "days": 7}', 100, 'rare'),
-('scholar', 'Scholar', '🎓', '{"type": "streak", "mode": "learning", "days": 30}', 500, 'epic'),
-('bookworm', 'Bookworm', '📗', '{"type": "quest_complete", "mode": "learning", "count": 50}', 300, 'rare'),
-('lifelong_learner', 'Lifelong Learner', '🧠', '{"type": "quest_complete_consecutive", "mode": "learning", "days": 14}', 200, 'epic')
-ON CONFLICT (name) DO NOTHING;
-
 -- Medication Achievements
 INSERT INTO achievements (name, description, badge_icon, criteria, xp_bonus, rarity) VALUES
 ('first_dose', 'First Dose', '💊', '{"type": "quest_complete", "mode": "medication", "count": 1}', 50, 'common'),
@@ -227,37 +209,6 @@ BEGIN
     -- Hard
     (hydration_mode_id, 'Drink 3L Water Today', 'Track and drink at least 3 liters of water in a single day', 'daily', 80, 'hard', FALSE, NULL, NULL, FALSE, NULL, FALSE),
     (hydration_mode_id, 'Weekly: Perfect Hydration Streak', 'Hit your daily water target every single day this week', 'weekly', 250, 'hard', FALSE, NULL, NULL, FALSE, NULL, TRUE)
-    ON CONFLICT DO NOTHING;
-
-    -- Finance Quest Templates (added in Run 5, active in production)
-    INSERT INTO quests (mode_id, title, description, quest_type, xp_reward, difficulty, requires_timer, timer_window_start, timer_window_end, readiness_check_enabled, readiness_check_time, is_mandatory) VALUES
-    -- Easy (existing)
-    (finance_mode_id, 'Track Daily Expenses', 'Log all your expenses for today', 'daily', 40, 'easy', FALSE, NULL, NULL, FALSE, NULL, TRUE),
-    (finance_mode_id, 'Review Budget', 'Review your budget and adjust categories if needed', 'daily', 30, 'easy', FALSE, NULL, NULL, FALSE, NULL, FALSE),
-    -- Medium (existing)
-    (finance_mode_id, 'Weekly Savings Check', 'Check your savings progress and transfer to savings account', 'weekly', 150, 'medium', FALSE, NULL, NULL, FALSE, NULL, TRUE),
-    (finance_mode_id, 'Weekly Finance Review', 'Review all spending categories and plan next week', 'weekly', 200, 'medium', FALSE, NULL, NULL, FALSE, NULL, TRUE),
-    -- Medium (new)
-    (finance_mode_id, 'No-Spend Day', 'Avoid all unnecessary spending for the entire day', 'daily', 50, 'medium', FALSE, NULL, NULL, FALSE, NULL, FALSE),
-    -- Hard
-    (finance_mode_id, 'Complete Weekly Budget Review', 'Review all spending categories with receipts and plan next week in detail', 'daily', 80, 'hard', FALSE, NULL, NULL, FALSE, NULL, FALSE),
-    (finance_mode_id, 'Weekly: 3 No-Spend Days', 'Have at least 3 no-spend days this week', 'weekly', 250, 'hard', FALSE, NULL, NULL, FALSE, NULL, TRUE)
-    ON CONFLICT DO NOTHING;
-
-    -- Learning Quest Templates (added in Run 5, active in production)
-    INSERT INTO quests (mode_id, title, description, quest_type, xp_reward, difficulty, requires_timer, timer_window_start, timer_window_end, readiness_check_enabled, readiness_check_time, is_mandatory) VALUES
-    -- Easy
-    (learning_mode_id, 'Read for 10 Minutes', 'Read a book or article for at least 10 minutes today', 'daily', 20, 'easy', FALSE, NULL, NULL, FALSE, NULL, FALSE),
-    (learning_mode_id, 'Watch Educational Video', 'Watch one educational video or tutorial today', 'daily', 15, 'easy', FALSE, NULL, NULL, FALSE, NULL, FALSE),
-    (learning_mode_id, 'Weekly Goal: 3 Sessions', 'Complete at least 3 study sessions this week', 'weekly', 80, 'easy', FALSE, NULL, NULL, FALSE, NULL, TRUE),
-    -- Medium (existing)
-    (learning_mode_id, 'Daily Study Session', 'Complete your daily study or reading session', 'daily', 50, 'medium', FALSE, NULL, NULL, FALSE, NULL, TRUE),
-    (learning_mode_id, 'Practice Skills', 'Practice what you learned with exercises or projects', 'daily', 40, 'medium', FALSE, NULL, NULL, FALSE, NULL, FALSE),
-    (learning_mode_id, 'Weekly Learning Review', 'Review what you learned this week and plan next topics', 'weekly', 150, 'medium', FALSE, NULL, NULL, FALSE, NULL, TRUE),
-    (learning_mode_id, 'Weekly Goal: 5 Sessions', 'Complete at least 5 study sessions this week', 'weekly', 200, 'medium', FALSE, NULL, NULL, FALSE, NULL, TRUE),
-    -- Hard
-    (learning_mode_id, 'Deep Work: 2-Hour Focus', 'Complete a 2-hour uninterrupted deep work session on a single topic', 'daily', 100, 'hard', FALSE, NULL, NULL, FALSE, NULL, FALSE),
-    (learning_mode_id, 'Weekly: Teach What You Learned', 'Explain or teach one concept you studied this week to someone else', 'weekly', 250, 'hard', FALSE, NULL, NULL, FALSE, NULL, TRUE)
     ON CONFLICT DO NOTHING;
 
     -- Medication Quest Templates (added in Run 41)

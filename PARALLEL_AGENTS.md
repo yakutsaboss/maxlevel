@@ -1264,7 +1264,25 @@ A → E → B → C → D → F → G (G always last — runs full verification)
 **Onboarding flow after changes:** splash → hero_intro → avatar → paths → [fitness/hydration/medication/habits quiz steps based on selected modes] → punishments → notifications → summary → launch
 
 #### Agent E Retrospective
-*(To be filled by Agent E)*
+**Task**: Clean up data files, i18n translations, mode badges, and seed data
+
+**What was done:**
+1. **onboardingQuestions.ts** — Removed FINANCE_QUESTIONS (5 questions), LEARNING_QUESTIONS (6 questions), REFERRAL_OPTIONS array. Updated header comment and getQuestionForStep() spread.
+2. **PathSelect.tsx** — Removed finance and learning entries from MODES array (only fitness + hydration remain).
+3. **modeBadges.ts** — Removed finance and learning from MODE_BADGES record (only fitness + hydration remain).
+4. **i18n en.ts** — Removed nav.finance, nav.knowledge, onboarding mode entries, referral keys, settings.notifModes, achievements categories, entire finance section (~60 keys), content/article/quiz/reading/recommendation sections, onboardingQuiz finance (5 groups) + learning (6 groups) + referral sections, flavor.dailyLearner.
+5. **i18n ru.ts** — Same removals as en.ts (Russian translations).
+6. **i18n zh.ts** — Same removals as en.ts (Chinese translations).
+7. **seed_data.sql** — Removed finance achievements (5 rows), learning achievements (5 rows), finance quest templates (7 rows), learning quest templates (9 rows). Kept mode rows and variable declarations for FK safety.
+
+**Preserved (not removed):**
+- social.mode_finance / social.mode_learning (Social challenge mode filters, owned by Agent C)
+- admin.sidebar.content (general admin UI term)
+- admin.playerDetail.financial (admin panel functionality)
+- Punishment-related keys (money, book) kept
+- All fitness/hydration/medication/habits/discipline/social keys kept
+
+**Verification**: `npx tsc --noEmit` passes cleanly.
 
 #### Agent F Retrospective
 **Task**: Delete all test files for removed features and fix remaining test files that reference them
