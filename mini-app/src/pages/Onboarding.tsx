@@ -15,7 +15,6 @@ import { SplashScreen } from '@/components/onboarding/SplashScreen';
 import { HeroIntro } from '@/components/onboarding/HeroIntro';
 import { AvatarSelect } from '@/components/onboarding/AvatarSelect';
 import { PathSelect } from '@/components/onboarding/PathSelect';
-import { ReferralSource } from '@/components/onboarding/ReferralSource';
 import { QuizScreen } from '@/components/onboarding/QuizScreen';
 import { PunishmentConfig } from '@/components/onboarding/PunishmentConfig';
 import { NotificationPrefs } from '@/components/onboarding/NotificationPrefs';
@@ -66,21 +65,7 @@ function StepRenderer({
           stepLabel={stepLabel}
           value={store.data.selected_modes}
           onSelect={(modes) => store.updateData({ selected_modes: modes })}
-          onNext={() => goToStep('referral')}
-        />
-      );
-
-    case 'referral':
-      return (
-        <ReferralSource
-          progress={progress}
-          stepLabel={stepLabel}
-          value={store.data.referral_source}
-          otherValue={store.data.referral_source_other}
-          onSelect={(src, other) =>
-            store.updateData({ referral_source: src, referral_source_other: other })
-          }
-          onNext={() => advanceFrom('referral')}
+          onNext={() => advanceFrom('paths')}
         />
       );
 
@@ -131,7 +116,7 @@ function StepRenderer({
       return null;
 
     default: {
-      // Quiz screens (fitness_*, hydration_*, finance_*, learning_*)
+      // Quiz screens (fitness_*, hydration_*, medication_*, habits_*)
       const questionConfig = getQuestionForStep(step);
       if (questionConfig) {
         return (
