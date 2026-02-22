@@ -1,10 +1,9 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { X, Check, Loader2, AlertCircle, Palette } from 'lucide-react';
+import { X, Check, Loader2, AlertCircle } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { apiClient } from '@/api/client';
-import { AvatarRenderer, type EquippedItems } from '@/components/avatar';
+import type { EquippedItems } from '@/components/avatar';
 import { FocusTrap } from '@/components/FocusTrap';
 
 interface ProfileEditModalProps {
@@ -43,9 +42,8 @@ const AVATAR_KEYS = [
 
 export const AVATAR_OPTIONS = AVATAR_KEYS.map(a => ({ icon: a.icon, color: a.color, label: a.labelKey }));
 
-export function ProfileEditModal({ isOpen, onClose, onSaved, telegramId, currentName, currentAvatarId, equippedItems, haptic }: ProfileEditModalProps) {
+export function ProfileEditModal({ isOpen, onClose, onSaved, telegramId, currentName, currentAvatarId, haptic }: ProfileEditModalProps) {
   const { t } = useTranslation();
-  const navigate = useNavigate();
   const [nickname, setNickname] = useState(currentName);
   const [saving, setSaving] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
@@ -87,14 +85,6 @@ export function ProfileEditModal({ isOpen, onClose, onSaved, telegramId, current
     onClose();
   };
 
-  const handleOpenAvatarStudio = () => {
-    haptic.impact('light');
-    onClose();
-    navigate('/avatar');
-  };
-
-  const currentAvatar = AVATAR_KEYS[Math.min(Math.max(0, currentAvatarId - 1), AVATAR_KEYS.length - 1)];
-
   return (
     <AnimatePresence>
       {isOpen && (
@@ -133,31 +123,6 @@ export function ProfileEditModal({ isOpen, onClose, onSaved, telegramId, current
                 placeholder={t('profile.enterNickname')}
               />
               <span className="text-xs text-telegram-hint mt-1 block">{nickname.length}/32</span>
-            </div>
-
-            {/* Avatar Section — preview + link to Avatar Studio */}
-            <div className="mb-6">
-              <label className="text-sm text-telegram-hint mb-3 block">{t('profile.chooseAvatar')}</label>
-              <button
-                onClick={handleOpenAvatarStudio}
-                className="w-full flex items-center gap-4 bg-telegram-bg rounded-2xl p-4 border border-telegram-hint/20 active:scale-[0.98] transition-transform"
-              >
-                {equippedItems ? (
-                  <AvatarRenderer equipped={equippedItems} size="lg" />
-                ) : (
-                  <div className={`w-12 h-12 rounded-full ${currentAvatar.color} flex items-center justify-center flex-shrink-0`}>
-                    <span className="text-2xl">{currentAvatar.icon}</span>
-                  </div>
-                )}
-                <div className="flex-1 text-left">
-                  <span className="font-semibold text-sm flex items-center gap-1.5">
-                    <Palette className="w-4 h-4 text-purple-500" />
-                    {t('profile.openAvatarStudio')}
-                  </span>
-                  <p className="text-xs text-telegram-hint mt-0.5">{t('profile.customizeAvatarDesc')}</p>
-                </div>
-                <span className="text-telegram-hint text-lg">&rsaquo;</span>
-              </button>
             </div>
 
             {errorMsg && (
