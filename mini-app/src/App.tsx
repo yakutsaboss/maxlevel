@@ -29,6 +29,7 @@ const Inventory = lazy(() => import('@/pages/Inventory').then(m => ({ default: m
 const Shop = lazy(() => import('@/pages/Shop').then(m => ({ default: m.Shop })));
 const Analytics = lazy(() => import('@/pages/Analytics').then(m => ({ default: m.Analytics })));
 const NotificationHistory = lazy(() => import('@/pages/NotificationHistory').then(m => ({ default: m.NotificationHistory })));
+const Medications = lazy(() => import('@/pages/Medications').then(m => ({ default: m.Medications })));
 const ActivityHub = lazy(() => import('@/pages/ActivityHub').then(m => ({ default: m.ActivityHub })));
 const ActivityHistory = lazy(() => import('@/pages/ActivityHistory').then(m => ({ default: m.ActivityHistory })));
 const AdminDashboard = lazy(() => import('@/pages/admin/AdminDashboard').then(m => ({ default: m.AdminDashboard })));
@@ -150,6 +151,7 @@ function AppContent() {
           <Route path="/shop" element={<ProtectedRoute needsOnboarding={effectiveNeedsOnboarding} lazy><Shop /></ProtectedRoute>} />
           <Route path="/shop/:itemId" element={<ProtectedRoute needsOnboarding={effectiveNeedsOnboarding} lazy><Shop /></ProtectedRoute>} />
           <Route path="/analytics" element={<ProtectedRoute needsOnboarding={effectiveNeedsOnboarding} lazy><Analytics /></ProtectedRoute>} />
+          <Route path="/medications" element={<ProtectedRoute needsOnboarding={effectiveNeedsOnboarding} lazy><Medications /></ProtectedRoute>} />
           <Route path="/notifications" element={<ProtectedRoute needsOnboarding={effectiveNeedsOnboarding} lazy><NotificationHistory /></ProtectedRoute>} />
           <Route path="/activity" element={<ProtectedRoute needsOnboarding={effectiveNeedsOnboarding} lazy><ActivityHub /></ProtectedRoute>} />
           <Route path="/activity/history" element={<ProtectedRoute needsOnboarding={effectiveNeedsOnboarding} lazy><ActivityHistory /></ProtectedRoute>} />
