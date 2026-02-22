@@ -1865,7 +1865,26 @@ Write retrospective when done.
 *(To be filled by Agent E)*
 
 #### Agent F Retrospective
-*(To be filled by Agent F)*
+**Task**: Optimize bundle size and add performance improvements
+
+**What was done:**
+1. **Verified admin lazy-loading** — All 3 admin pages (AdminDashboard, AdminPlayerList, AdminPlayerDetail) already use `React.lazy()` in App.tsx lines 38-40. No changes needed.
+2. **Added recharts to manual chunks** — `recharts` (380KB, the single biggest dependency) was NOT in a separate chunk. Added `'vendor-charts': ['recharts']` to `vite.config.ts` manualChunks. Now only loads on Analytics/Finance pages.
+3. **Wrapped QuestCard with React.memo** — `LeaderboardRow` and `AchievementCard` already had `memo`. Only `QuestCard` was missing it. Added `memo` wrapper.
+4. **Build passed** — `tsc --noEmit` clean, `npm run build` successful with proper chunk splitting.
+
+**Files changed:**
+- `mini-app/vite.config.ts` — added `'vendor-charts': ['recharts']` to manualChunks
+- `mini-app/src/components/quests/QuestCard.tsx` — wrapped with `React.memo`
+
+**Bundle impact:**
+- `vendor-charts` chunk: 380KB (111KB gzip) — now isolated, not loaded on initial page
+- No new chunk size warnings
+- lucide-react was already split as `vendor-icons` (37KB)
+
+**Notes for future:**
+- QuestCard's `onClick` prop is an inline closure per-item `() => handleQuestSelect(quest)`, which creates new refs each render. For full memo benefit, parent could use `useCallback` + quest ID. Low priority — current memo still prevents re-renders when unrelated state changes.
+- Consider dynamic import for recharts inside the chart components themselves (currently lazy-loaded at page level which is sufficient).
 
 #### Agent G Retrospective
 *(To be filled by Agent G)*

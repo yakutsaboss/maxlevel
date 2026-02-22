@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import { Quest } from '@/types';
 import { Zap, CheckCircle } from 'lucide-react';
 import { motion } from 'framer-motion';
@@ -11,7 +12,7 @@ interface QuestCardProps {
   onClick: () => void;
 }
 
-export function QuestCard({ quest, index, isSelected, onClick }: QuestCardProps) {
+export const QuestCard = memo(function QuestCard({ quest, index, isSelected, onClick }: QuestCardProps) {
   const progress = quest.target > 0 ? (quest.progress / quest.target) * 100 : 0;
   const isComplete = quest.status === 'completed';
 
@@ -57,4 +58,4 @@ export function QuestCard({ quest, index, isSelected, onClick }: QuestCardProps)
       </div>
     </motion.div>
   );
-}
+});
