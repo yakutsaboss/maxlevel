@@ -123,8 +123,8 @@ describe('useMedicationData', () => {
   });
 
   it('loads medications successfully', async () => {
-    mockGetMedications.mockResolvedValueOnce({ success: true, data: mockMedications });
-    mockGetTodaySchedule.mockResolvedValueOnce({ success: true, data: mockSchedule });
+    mockGetMedications.mockResolvedValueOnce({ success: true, data: { medications: mockMedications, count: mockMedications.length } });
+    mockGetTodaySchedule.mockResolvedValueOnce({ success: true, data: { schedule: mockSchedule, summary: { total: 3, taken: 1, skipped: 0, pending: 2 } } });
 
     const { result } = renderHook(() => useMedicationData(123), { wrapper: createWrapper() });
 
@@ -137,8 +137,8 @@ describe('useMedicationData', () => {
   });
 
   it('loads today schedule successfully', async () => {
-    mockGetMedications.mockResolvedValueOnce({ success: true, data: mockMedications });
-    mockGetTodaySchedule.mockResolvedValueOnce({ success: true, data: mockSchedule });
+    mockGetMedications.mockResolvedValueOnce({ success: true, data: { medications: mockMedications, count: mockMedications.length } });
+    mockGetTodaySchedule.mockResolvedValueOnce({ success: true, data: { schedule: mockSchedule, summary: { total: 3, taken: 1, skipped: 0, pending: 2 } } });
 
     const { result } = renderHook(() => useMedicationData(123), { wrapper: createWrapper() });
 
