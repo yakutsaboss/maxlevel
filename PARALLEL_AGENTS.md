@@ -303,7 +303,7 @@ All disabled code is PRESERVED — just commented out. Each run below re-enables
 | **82** | Re-enable Content + Activities | 3 | ✅ |
 | **83** | Re-enable Admin Panel + Big Polish (8 agents, G skipped) | 7 | ✅ |
 | **84** | React Query Migration + Admin Refactor + Performance | 5 (A,G skip) | ✅ |
-| **85** | Big Feature Removal (Finance, Learning, Content, Referral, Avatar Customizer, Admin Tests) | 7 | ⬜ |
+| **85** | Big Feature Removal (Finance, Learning, Content, Referral, Avatar Customizer, Admin Tests) | 7 | ✅ |
 
 ### Re-enable Pattern (Runs 79-83)
 Each re-enable run follows the same 3-agent pattern:
@@ -1339,4 +1339,11 @@ A → E → B → C → D → F → G (G always last — runs full verification)
 - Agent E's i18n changes (ru.ts, zh.ts) were left uncommitted — committed by Agent G
 
 #### Agent 0 Retrospective
-*(To be filled by Agent 0)*
+- **Merge**: All 7 agents committed directly to main. 17 commits total. Agent G merged before Agent E finished (out of order) — but no issues resulted since E's remaining work was i18n data files that don't affect TypeScript builds.
+- **Build**: Bot `tsc --noEmit` clean. Mini-app `tsc --noEmit` clean. Vite build clean (index bundle: 255KB → 222KB, -13%).
+- **Tests**: Bot 75 files / 953 tests. Mini-app 102 files / 615 tests. Total: 1,568 (down from 1,803 — removed 235 tests with deleted features).
+- **Deploy**: 316e8df deployed, health OK. 97 files changed, -17,700 lines.
+- **What was removed**: Finance mode, Learning/Content mode (5 pages, 14 components, 3 hooks, 3 bot routes, 1 utility, ~750 i18n keys, 49 seed rows, 34 test files, 15 admin test files)
+- **What was kept**: Money/book punishments, avatar display in profile/leaderboard, admin page/routes, all other modes (fitness, hydration, medication, habits, discipline, social)
+- **Merge order issue**: Agent G (final verification) committed at 7bc159f, but Agent E's last 2 commits (60bea59, 316e8df) came after. G actually committed E's uncommitted work too. No test failures resulted — verified clean by Agent 0.
+- **Note for Run 86**: PathSelect.tsx now only shows fitness + hydration modes. The user may want medication + habits added back — Agent E removed them along with finance/learning. Need to verify onboarding shows all 4 intended modes.
