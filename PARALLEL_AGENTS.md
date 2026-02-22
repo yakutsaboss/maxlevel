@@ -920,7 +920,18 @@ After done, verify: cd bot && npm run test:mvp && cd ../mini-app && npm run test
 - **Time**: ~3 minutes
 
 #### Agent C Retrospective
-*(To be filled by Agent C)*
+**Status:** COMPLETE
+
+**What was done:**
+- Ran all 10 bot test files: analytics (10 pass), channel (8 pass), punishment (24 pass), punishment-deduct (11 pass), activities (24 pass), activityQuestMatcher (10 pass), analyticsExport (6 pass), dailySummary job (16 pass), punishmentCheck (6 pass), dailySummary handler (8 pass) — ALL passed immediately, 0 fixes needed.
+- Ran all 11 mini-app test files: ActivityHub (12 pass), ActivityHistory (8 pass), ContentFeed (13 pass), ArticleReader (11 pass), ReadingHistory (14 pass), useContentFeed (11 pass), useReadingHistory (14 pass), content API (26 pass), ContentQuiz (22 pass), ModeAnalytics (8 pass), useModeAnalytics (10 pass) — ALL passed immediately, 0 fixes needed.
+- Updated bot `test:mvp` script: added 9 entries (analytics.http, channel.http, punishment.http, punishment-deduct.http, activities, activityQuestMatcher, analyticsExport, dailySummary job, punishmentCheck). Note: dailySummary handler was already covered by `src/__tests__/handlers` dir entry.
+- Updated mini-app `test:mvp` script: added 10 entries (ActivityHub, ActivityHistory, ContentFeed, ArticleReader, ReadingHistory pages + useContentFeed, useReadingHistory hooks + content API test + content components dir + analytics components dir)
+- Final verification: bot test:mvp = 76 files / 972 tests ALL PASS; mini-app test:mvp = 121 files / 831 tests ALL PASS
+
+**Files changed:** bot/package.json (test:mvp script), mini-app/package.json (test:mvp script)
+
+**Recommendations:** None — all content/activities/analytics/punishment tests passing cleanly with zero fixes required. Total test count now 1,803 (up from 1,513 in Run 81).
 
 #### Agent 0 Retrospective
 *(To be filled by Agent 0)*
