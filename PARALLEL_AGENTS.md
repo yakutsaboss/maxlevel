@@ -301,8 +301,8 @@ All disabled code is PRESERVED — just commented out. Each run below re-enables
 | **80** | Re-enable Shop + Inventory + Avatars | 3 | ✅ |
 | **81** | Re-enable Social + Finance | 3 | ✅ |
 | **82** | Re-enable Content + Activities | 3 | ✅ |
-| **83** | Re-enable Admin Panel | 3 | ⬜ |
-| **84** | Polish + Performance Optimization | 3 | ⬜ |
+| **83** | Re-enable Admin Panel + Big Polish (8 agents, G skipped) | 7 | ✅ |
+| **84** | Admin Tests + Polish + Performance | 7 | ⬜ |
 | **85** | Launch Prep + Final QA | 3 | ⬜ |
 
 ### Re-enable Pattern (Runs 79-83)
@@ -1463,7 +1463,7 @@ Created 3 standalone Python export tools for onboarding reference data:
 **Files changed**: `mini-app/src/hooks/useQuestsQuery.ts` (new), `mini-app/src/hooks/useQuestsData.ts`, `mini-app/src/components/CheckInButton.tsx`, `mini-app/src/__tests__/hooks/useQuestsData.test.ts`, `mini-app/src/__tests__/hooks/useQuestsData-difficulty.test.ts`
 
 #### Agent G Retrospective
-*(To be filled by Agent G)*
+**SKIPPED** — Agent got stuck in both launch attempts. Admin test integration deferred to Run 84.
 
 #### Agent H Retrospective
 **Task**: Fix tests broken by Agent B (i18n), Agent E (punishment rebalance), Agent F (React Query migration)
@@ -1480,6 +1480,395 @@ Created 3 standalone Python export tools for onboarding reference data:
 **Key lesson**: When Agent B added i18n, the test setup already initializes real i18n (`import '@/i18n'`), so `useTranslation().t()` returns actual English strings. Only tests checking data rendered WITHOUT `t()` (like ReferralSource's `option.label`) needed key-string assertions.
 
 **Results**: mini-app 121 files / 831 tests pass, bot 76 files / 972 tests pass
+
+#### Agent 0 Retrospective
+- **Merge result**: 7 of 8 agents merged successfully. Agent G (admin tests) was stuck — user tried 2 launches, both failed. Deferred to Run 84.
+- **Commits merged**: 7 agent commits (on main) + 3 uncommitted change commits (Agent A's server.ts/App.tsx, Agent F's React Query files, Agent H's test fixes). Total 10 commits.
+- **Build**: Bot tsc clean, mini-app tsc + vite build clean.
+- **Tests**: Bot 76/972, mini-app 121/831, total 1,803 (same as Run 82 — no new tests added since Agent G was skipped).
+- **Deploy**: a4b67d2 deployed, health OK, API URL verified in mini-app build.
+- **MVP-DISABLED**: ZERO lines remaining in entire codebase — roadmap objective COMPLETE.
+- **Key milestone**: All features from the MVP recovery (Runs 78-83) are now re-enabled. The recovery roadmap is done.
+- **Carried forward**: Agent G work (27 admin test files not in test:mvp) → Run 84.
+
+**Recommendations**:
+- Run 84: Integrate admin tests into test:mvp + polish/performance work (7 agents per user request)
+
+---
+
+## RUN 84: Admin Tests + Polish + Performance (7 Agents + Agent 0)
+
+### Focus: Fix admin tests (deferred from Run 83 Agent G) + React Query migration for remaining hooks + admin component refactoring + notification bot enhancements + bundle optimization
+
+### Copy-Paste Prompts
+
+**Agent 0** (open in: `c:\Users\Asus\Desktop\Wibecode`):
+```
+Read PARALLEL_AGENTS.md — you are Agent 0 for Run 84.
+```
+
+**Agent A** (open in: `c:\Users\Asus\Desktop\Wibecode`):
+```
+Read PARALLEL_AGENTS.md — you are Agent A of Run 84. Your task: Fix ALL admin test files and add them to test:mvp scripts. This is deferred work from Run 83 Agent G.
+
+## What to do
+
+### 1. Fix bot admin tests (10 files)
+Run each individually and fix any failures:
+- `cd bot && npx vitest --run src/__tests__/routes/admin.test.ts`
+- `cd bot && npx vitest --run src/__tests__/routes/admin-bulk.test.ts`
+- `cd bot && npx vitest --run src/__tests__/routes/admin-notifications.test.ts`
+- `cd bot && npx vitest --run src/__tests__/routes/admin-players.test.ts`
+- `cd bot && npx vitest --run src/__tests__/middleware/adminAuth.test.ts`
+- `cd bot && npx vitest --run src/__tests__/routes/http/admin.http.test.ts`
+- `cd bot && npx vitest --run src/__tests__/routes/http/admin-jobs.http.test.ts`
+- `cd bot && npx vitest --run src/__tests__/routes/http/admin-stats.http.test.ts`
+- `cd bot && npx vitest --run src/__tests__/routes/http/admin-users.http.test.ts`
+- `cd bot && npx vitest --run src/__tests__/routes/http/admin-quests.http.test.ts`
+
+### 2. Fix mini-app admin tests (22+ files)
+Run each individually and fix any failures:
+- `cd mini-app && npx vitest --run src/__tests__/api/adminClient.test.tsx`
+- `cd mini-app && npx vitest --run src/__tests__/components/AdminBroadcast.test.tsx`
+- `cd mini-app && npx vitest --run src/__tests__/components/AdminJobs.test.tsx`
+- `cd mini-app && npx vitest --run src/__tests__/components/AdminLogs.test.tsx`
+- `cd mini-app && npx vitest --run src/__tests__/components/AdminPagination.test.tsx`
+- `cd mini-app && npx vitest --run src/__tests__/components/AdminStatsCard.test.tsx`
+- `cd mini-app && npx vitest --run src/__tests__/components/AdminUserList.test.tsx`
+- `cd mini-app && npx vitest --run src/__tests__/components/AdminUserRow.test.tsx`
+- `cd mini-app && npx vitest --run src/__tests__/components/AdminUserSearch.test.tsx`
+- `cd mini-app && npx vitest --run src/__tests__/components/admin/AdminLoginForm.test.tsx`
+- `cd mini-app && npx vitest --run src/__tests__/components/admin/AdminOverview.test.tsx`
+- `cd mini-app && npx vitest --run src/__tests__/components/admin/AdminPlayerActions.test.tsx`
+- `cd mini-app && npx vitest --run src/__tests__/components/admin/AdminQuestEditor.test.tsx`
+- `cd mini-app && npx vitest --run src/__tests__/components/admin/AdminUserDetail.test.tsx`
+- `cd mini-app && npx vitest --run src/__tests__/components/admin/AnswerAnalytics.test.tsx`
+- `cd mini-app && npx vitest --run src/__tests__/components/admin/answer-analytics/`
+- `cd mini-app && npx vitest --run src/__tests__/components/admin/quest-editor/`
+- `cd mini-app && npx vitest --run src/__tests__/pages/admin/AdminPlayerDetail.test.tsx`
+- `cd mini-app && npx vitest --run src/__tests__/pages/admin/AdminPlayerList.test.tsx`
+
+### 3. Add ALL admin tests to test:mvp scripts
+In `bot/package.json` test:mvp, add all 10 bot admin test paths.
+In `mini-app/package.json` test:mvp, add all 22+ mini-app admin test paths.
+
+### 4. Verify
+`cd bot && npm run test:mvp` — ALL must pass
+`cd mini-app && npm run test:mvp` — ALL must pass
+
+In your retrospective, report the final test counts (test:mvp for both projects).
+
+OWNED: All admin test files listed above, bot/package.json (test:mvp only), mini-app/package.json (test:mvp only)
+FORBIDDEN: bot/src/api/*, bot/src/jobs/*, mini-app/src/pages/*, mini-app/src/components/* (source code), i18n files, tools/, hooks/
+Write retrospective when done.
+```
+
+**Agent B** (open in: `c:\Users\Asus\Desktop\Wibecode`):
+```
+Read PARALLEL_AGENTS.md — you are Agent B of Run 84. Your task: Migrate Dashboard and Profile data hooks to React Query.
+
+## Context
+In Run 83, Agent F migrated quest hooks to React Query with great results (instant check-in, no lag). Now extend that pattern to Dashboard and Profile.
+
+## What to do
+
+### 1. Create `mini-app/src/hooks/useDashboardQuery.ts` (new file)
+React Query hooks for dashboard data. Follow the pattern from `useQuestsQuery.ts`:
+- `useDashboardStats(userId)` — staleTime 2min, fetches user stats
+- `useDashboardQuests(userId)` — staleTime 2min, fetches active quests preview
+- `useDashboardAchievements(userId)` — staleTime 5min
+- Export query keys for cache management
+
+### 2. Refactor `mini-app/src/hooks/useDashboardData.ts`
+- Replace useState + apiClient calls with React Query hooks from step 1
+- Keep the public API the same (return shape) so Dashboard.tsx needs minimal changes
+- Remove manual loading/error state — use React Query's isLoading/isError
+- Keep pull-to-refresh callback (use refetchQueries instead of manual fetch)
+
+### 3. Create `mini-app/src/hooks/useProfileQuery.ts` (new file)
+- `useProfileStats(userId)` — staleTime 2min
+- `useProfileAchievements(userId)` — staleTime 5min
+- `useProfilePunishments(userId)` — staleTime 5min
+- Export query keys
+
+### 4. Refactor `mini-app/src/hooks/useProfileData.ts`
+- Same pattern: replace useState + apiClient with React Query hooks
+- Keep public API unchanged
+
+### 5. Build verify
+`cd mini-app && npx tsc --noEmit && npm run build`
+
+OWNED: mini-app/src/hooks/useDashboardData.ts, mini-app/src/hooks/useDashboardQuery.ts (new), mini-app/src/hooks/useProfileData.ts, mini-app/src/hooks/useProfileQuery.ts (new)
+FORBIDDEN: bot/, tools/, App.tsx, server.ts, test files, i18n files, admin components, useQuestsData.ts, useQuestsQuery.ts
+Write retrospective when done.
+```
+
+**Agent C** (open in: `c:\Users\Asus\Desktop\Wibecode`):
+```
+Read PARALLEL_AGENTS.md — you are Agent C of Run 84. Your task: Migrate Social, Shop, and Leaderboard hooks to React Query.
+
+## Context
+Run 83 Agent F migrated quest hooks to React Query. Run 84 Agent B handles Dashboard + Profile. You handle Social + Shop + Leaderboard.
+
+## What to do
+
+### 1. Create `mini-app/src/hooks/useSocialQuery.ts` (new file)
+- `useFriendsList(userId)` — staleTime 2min
+- `useFriendRequests(userId)` — staleTime 1min (changes frequently)
+- `useChallenges(userId)` — staleTime 2min
+- `useSendFriendRequestMutation()` — optimistic update (add to pending list instantly)
+- `useAcceptFriendRequestMutation()` — optimistic update (move to friends list)
+- Export query keys
+
+### 2. Refactor `mini-app/src/hooks/useSocial.ts`
+- Replace useState + apiClient with React Query hooks
+- Keep public API the same
+- Mutations get optimistic updates
+
+### 3. Create `mini-app/src/hooks/useShopQuery.ts` (new file)
+- `useShopItems(category?, page?)` — staleTime 5min, supports pagination
+- `useInventory(userId)` — staleTime 2min
+- `usePurchaseMutation()` — optimistic update (deduct balance, add to inventory)
+- Export query keys
+
+### 4. Refactor `mini-app/src/hooks/useShop.ts`
+- Replace manual state with React Query hooks
+- Keep public API
+
+### 5. Extract Leaderboard data into hook
+Currently `mini-app/src/pages/Leaderboard.tsx` has inline useState + apiClient.
+- Create `mini-app/src/hooks/useLeaderboardQuery.ts` (new file)
+  - `useLeaderboard(period, limit)` — staleTime 3min
+  - `useUserRank(userId)` — staleTime 2min
+- Refactor Leaderboard.tsx to use the new hook (reduce page size)
+
+### 6. Build verify
+`cd mini-app && npx tsc --noEmit && npm run build`
+
+OWNED: mini-app/src/hooks/useSocial.ts, mini-app/src/hooks/useSocialQuery.ts (new), mini-app/src/hooks/useShop.ts, mini-app/src/hooks/useShopQuery.ts (new), mini-app/src/hooks/useLeaderboardQuery.ts (new), mini-app/src/pages/Leaderboard.tsx
+FORBIDDEN: bot/, tools/, App.tsx, server.ts, test files, i18n files, admin components, Dashboard.tsx, Profile.tsx, useQuestsData.ts, useDashboardData.ts, useProfileData.ts
+Write retrospective when done.
+```
+
+**Agent D** (open in: `c:\Users\Asus\Desktop\Wibecode`):
+```
+Read PARALLEL_AGENTS.md — you are Agent D of Run 84. Your task: Refactor large admin components into smaller pieces.
+
+## The Problem
+Three admin components are 640-716 lines each. They're hard to maintain and test.
+
+## What to do
+
+### 1. Refactor `mini-app/src/pages/admin/AdminPlayerDetail.tsx` (716 lines)
+Split into sub-components:
+- `AdminPlayerHeader.tsx` — player name, avatar, level badge
+- `AdminPlayerStats.tsx` — XP, streaks, quest completion stats
+- `AdminPlayerActions.tsx` — ban, reset, adjust XP, send message (if not already in separate file)
+- `AdminPlayerDetail.tsx` — orchestrator that composes the above
+Each sub-component should be in `mini-app/src/components/admin/player-detail/`
+
+### 2. Refactor `mini-app/src/pages/admin/AdminPlayerList.tsx` (642 lines)
+Split into:
+- `AdminPlayerSearch.tsx` — search bar + filters
+- `AdminPlayerTable.tsx` — table/card list of players
+- `AdminBulkActions.tsx` — bulk action buttons
+- `AdminPlayerList.tsx` — orchestrator
+Sub-components in `mini-app/src/components/admin/player-list/`
+
+### 3. Add React.memo to list item components
+Wrap frequently-rendered child components in React.memo:
+- Player row/card components
+- Any stat cards rendered in loops
+- Only memo components that receive primitive or stable props
+
+### 4. Build verify
+`cd mini-app && npx tsc --noEmit && npm run build`
+
+OWNED: mini-app/src/pages/admin/AdminPlayerDetail.tsx, mini-app/src/pages/admin/AdminPlayerList.tsx, mini-app/src/components/admin/player-detail/ (new dir), mini-app/src/components/admin/player-list/ (new dir)
+FORBIDDEN: bot/, tools/, test files, i18n files, hooks/, non-admin pages
+Write retrospective when done.
+```
+
+**Agent E** (open in: `c:\Users\Asus\Desktop\Wibecode`):
+```
+Read PARALLEL_AGENTS.md — you are Agent E of Run 84. Your task: Enhance the notification bot with health monitoring features.
+
+## What to do
+
+### 1. Add PM2 crash detection to `/ping`
+In `tools/notification_bot_handler.py`, enhance the `ping_command`:
+- Check PM2 process info for `telegram-rpg-bot`: if `restart_time > 0` and last restart was within 60 minutes, add a warning line
+- Use `subprocess.run(['pm2', 'jlist'], capture_output=True)` → parse JSON → check `pm2_env.restart_time`
+- Show in ping output: "⚠️ Bot restarted N times in last hour" or "✅ No recent restarts"
+
+### 2. Add SSL certificate expiration check
+- New command `/ssl` OR add to `/ping` output
+- Use subprocess: `openssl s_client -connect yakutsa.ru:443 -servername yakutsa.ru </dev/null 2>/dev/null | openssl x509 -noout -enddate`
+- Parse expiry date, show days remaining
+- Warn if <30 days: "⚠️ SSL cert expires in N days"
+
+### 3. Add disk usage trend
+- Enhance `/metrics` output
+- Run `df -h /` to get current usage
+- Store last 5 readings in a simple JSON file (`/tmp/wibecode_disk_history.json`)
+- Show: "Disk: 45% (↑2% since yesterday)" or "Disk: 45% (stable)"
+
+### 4. Add `/deploy` command
+- Shows last deploy info: git log -1 (commit hash, message, time)
+- PM2 uptime for telegram-rpg-bot
+- Last restart time
+
+### 5. Update `/help` with new commands/features
+
+OWNED: tools/notification_bot_handler.py
+FORBIDDEN: mini-app/src/, bot/src/, i18n files, test files, package.json files
+Write retrospective when done.
+```
+
+**Agent F** (open in: `c:\Users\Asus\Desktop\Wibecode`):
+```
+Read PARALLEL_AGENTS.md — you are Agent F of Run 84. Your task: Optimize bundle size and add performance improvements.
+
+## What to do
+
+### 1. Verify admin pages are lazy-loaded
+Check `mini-app/src/App.tsx` — admin routes should already use `React.lazy()` (they were enabled in Run 83). Verify they produce separate chunks in the build output. If they're NOT lazy-loaded, add lazy loading.
+
+### 2. Optimize Vite chunk splitting
+Read `mini-app/vite.config.ts` and check the manual chunks config.
+- Verify recharts/chart library is in its own chunk (it's 359KB — biggest chunk!)
+- If not already split, add recharts to its own manual chunk
+- Consider splitting: `lucide-react` icons into a separate chunk if >30KB
+
+### 3. Add React.memo to high-traffic list components
+Find components rendered in loops/lists and wrap with React.memo where beneficial:
+- `mini-app/src/components/QuestCard.tsx` or similar quest list items
+- `mini-app/src/components/AchievementCard.tsx`
+- Leaderboard row components
+- Only where the component receives primitive/stable props
+
+### 4. Verify code splitting works end-to-end
+Run `cd mini-app && npm run build` and check output:
+- Admin chunks should be separate (AdminDashboard-*.js, AdminPlayerList-*.js, AdminPlayerDetail-*.js)
+- BarChart/recharts chunk should be separate
+- Total gzip size of index-*.js should ideally be <80KB
+
+### 5. Build verify
+`cd mini-app && npx tsc --noEmit && npm run build`
+
+OWNED: mini-app/vite.config.ts, mini-app/src/components/QuestCard.tsx (React.memo only), mini-app/src/components/AchievementCard.tsx (React.memo only)
+GRAY AREA: Any component file — ONLY add React.memo wrapper, no other changes
+FORBIDDEN: bot/, tools/, test files, i18n files, hooks/, admin page source (Agent D owns those)
+Write retrospective when done.
+```
+
+**Agent G** (open in: `c:\Users\Asus\Desktop\Wibecode`):
+```
+Read PARALLEL_AGENTS.md — you are Agent G of Run 84. Your task: Fix tests broken by other agents' changes (React Query migrations, admin refactoring).
+
+## Context
+Other agents in this run make breaking changes:
+- Agent B: Migrates Dashboard + Profile hooks to React Query
+- Agent C: Migrates Social + Shop + Leaderboard hooks to React Query
+- Agent D: Refactors admin components (splits large files into smaller pieces)
+
+Your job is to fix any tests that break because of these changes.
+
+## What to do
+
+### 1. Fix Dashboard tests (broken by Agent B's React Query migration)
+- `cd mini-app && npx vitest --run src/__tests__/pages/Dashboard.test.tsx`
+- `cd mini-app && npx vitest --run src/__tests__/components/dashboard/`
+- Tests may need QueryClientProvider wrapper
+- Mock React Query hooks if asserting on loading/error states
+
+### 2. Fix Profile tests (broken by Agent B's React Query migration)
+- `cd mini-app && npx vitest --run src/__tests__/pages/Profile.test.tsx`
+- `cd mini-app && npx vitest --run src/__tests__/components/profile/`
+- Same pattern: add QueryClientProvider, update mocks
+
+### 3. Fix Social/Shop tests (broken by Agent C's React Query migration)
+- `cd mini-app && npx vitest --run src/__tests__/pages/Social.test.tsx`
+- `cd mini-app && npx vitest --run src/__tests__/components/social/`
+- `cd mini-app && npx vitest --run src/__tests__/pages/Shop.test.tsx`
+- `cd mini-app && npx vitest --run src/__tests__/hooks/useShop.test.ts`
+- `cd mini-app && npx vitest --run src/__tests__/hooks/useSocial.test.ts`
+- `cd mini-app && npx vitest --run src/__tests__/pages/Leaderboard.test.tsx`
+
+### 4. Fix admin tests if Agent D's refactoring breaks them
+- Admin component tests may need updated imports if components moved to sub-directories
+- Check: `cd mini-app && npx vitest --run src/__tests__/pages/admin/`
+- Check: `cd mini-app && npx vitest --run src/__tests__/components/admin/`
+
+### 5. Verify full test:mvp passes
+- `cd bot && npm run test:mvp` — ALL must pass
+- `cd mini-app && npm run test:mvp` — ALL must pass
+
+OWNED: mini-app/src/__tests__/pages/Dashboard.test.tsx, mini-app/src/__tests__/components/dashboard/*, mini-app/src/__tests__/pages/Profile.test.tsx, mini-app/src/__tests__/components/profile/*, mini-app/src/__tests__/pages/Social.test.tsx, mini-app/src/__tests__/components/social/*, mini-app/src/__tests__/pages/Shop.test.tsx, mini-app/src/__tests__/hooks/useShop.test.ts, mini-app/src/__tests__/hooks/useSocial.test.ts, mini-app/src/__tests__/pages/Leaderboard.test.tsx, mini-app/src/__tests__/pages/admin/*.test.tsx, mini-app/src/__tests__/components/admin/**/*.test.tsx
+FORBIDDEN: Source code files (only test files), App.tsx, server.ts, i18n files, tools/, bot/src/ (test files only)
+Write retrospective when done.
+```
+
+### Run 84 File Ownership Matrix
+
+| File/Dir | A | B | C | D | E | F | G |
+|----------|---|---|---|---|---|---|---|
+| bot admin test files (10) | OWN | - | - | - | - | - | - |
+| mini-app admin test files (22+) | OWN | - | - | - | - | - | - |
+| bot/package.json (test:mvp) | OWN | - | - | - | - | - | - |
+| mini-app/package.json (test:mvp) | OWN | - | - | - | - | - | - |
+| hooks/useDashboardData.ts | - | OWN | - | - | - | - | - |
+| hooks/useDashboardQuery.ts (new) | - | OWN | - | - | - | - | - |
+| hooks/useProfileData.ts | - | OWN | - | - | - | - | - |
+| hooks/useProfileQuery.ts (new) | - | OWN | - | - | - | - | - |
+| hooks/useSocial.ts | - | - | OWN | - | - | - | - |
+| hooks/useSocialQuery.ts (new) | - | - | OWN | - | - | - | - |
+| hooks/useShop.ts | - | - | OWN | - | - | - | - |
+| hooks/useShopQuery.ts (new) | - | - | OWN | - | - | - | - |
+| hooks/useLeaderboardQuery.ts (new) | - | - | OWN | - | - | - | - |
+| pages/Leaderboard.tsx | - | - | OWN | - | - | - | - |
+| pages/admin/AdminPlayerDetail.tsx | - | - | - | OWN | - | - | - |
+| pages/admin/AdminPlayerList.tsx | - | - | - | OWN | - | - | - |
+| components/admin/player-detail/ (new) | - | - | - | OWN | - | - | - |
+| components/admin/player-list/ (new) | - | - | - | OWN | - | - | - |
+| tools/notification_bot_handler.py | - | - | - | - | OWN | - | - |
+| mini-app/vite.config.ts | - | - | - | - | - | OWN | - |
+| components (React.memo only) | - | - | - | - | - | OWN | - |
+| Dashboard/Profile/Social/Shop test files | - | - | - | - | - | - | OWN |
+| Leaderboard test files | - | - | - | - | - | - | OWN |
+| Admin test files (post-refactor fixes) | - | - | - | - | - | - | OWN |
+
+### Run 84 Merge Order
+1. Agent A (admin tests — independent, no source code changes)
+2. Agent D (admin refactoring — affects admin component structure)
+3. Agent B (Dashboard + Profile React Query migration)
+4. Agent C (Social + Shop + Leaderboard React Query migration)
+5. Agent F (bundle optimization, React.memo — independent)
+6. Agent E (notification bot — fully independent Python)
+7. Agent G (test fixes — depends on B, C, D all being done)
+
+### Run 84 Retrospectives
+
+#### Agent A Retrospective
+*(To be filled by Agent A)*
+
+#### Agent B Retrospective
+*(To be filled by Agent B)*
+
+#### Agent C Retrospective
+*(To be filled by Agent C)*
+
+#### Agent D Retrospective
+*(To be filled by Agent D)*
+
+#### Agent E Retrospective
+*(To be filled by Agent E)*
+
+#### Agent F Retrospective
+*(To be filled by Agent F)*
+
+#### Agent G Retrospective
+*(To be filled by Agent G)*
 
 #### Agent 0 Retrospective
 *(To be filled by Agent 0)*
