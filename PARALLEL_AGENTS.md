@@ -2,7 +2,7 @@
 
 This file is the single source of truth for running parallel Claude Code agents on the Wibecode RPG bot project. Each "Run" launches 2-6 agents (A, B, C, D, E, F) in separate git worktrees, plus Agent 0 (orchestrator) in the main repo.
 
-For completed run history (Runs 2–79), see `PARALLEL_AGENTS_HISTORY.md`.
+For completed run history (Runs 2–83), see `PARALLEL_AGENTS_HISTORY.md`.
 
 ---
 
@@ -302,8 +302,8 @@ All disabled code is PRESERVED — just commented out. Each run below re-enables
 | **81** | Re-enable Social + Finance | 3 | ✅ |
 | **82** | Re-enable Content + Activities | 3 | ✅ |
 | **83** | Re-enable Admin Panel + Big Polish (8 agents, G skipped) | 7 | ✅ |
-| **84** | Admin Tests + Polish + Performance | 7 | ⬜ |
-| **85** | Launch Prep + Final QA | 3 | ⬜ |
+| **84** | React Query Migration + Admin Refactor + Performance | 5 (A,G skip) | ✅ |
+| **85** | Big Feature Removal (Finance, Learning, Content, Referral, Avatar Customizer, Admin Tests) | 7 | ⬜ |
 
 ### Re-enable Pattern (Runs 79-83)
 Each re-enable run follows the same 3-agent pattern:
@@ -312,1188 +312,6 @@ Each re-enable run follows the same 3-agent pattern:
 - **Agent C (Tests)**: Run `npm run test:full` for both bot and mini-app. Fix ALL broken tests for re-enabled features. Verify `test:mvp` still passes too.
 
 ---
-
-
-## RUN 80: Re-enable Shop + Inventory + Avatars (3 Agents + Agent 0)
-
-### Focus: Uncomment all [MVP-DISABLED] code for shop, inventory, and avatars across backend, frontend, and tests
-
-### Copy-Paste Prompts
-
-**Agent 0** (open in: `c:\Users\Asus\Desktop\Wibecode`):
-```
-Read PARALLEL_AGENTS.md — you are Agent 0 for Run 80.
-```
-
-**Agent A** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-a`):
-```
-Read PARALLEL_AGENTS.md — you are Agent A of Run 80. Your task: Re-enable shop, inventory, and avatars on the BACKEND.
-
-## What to do
-
-### 1. Uncomment routes in `bot/src/api/server.ts`
-Uncomment these 6 lines (remove `// [MVP-DISABLED] ` prefix):
-- Line 23: `import { avatarRouter } from './routes/avatars.js';`
-- Line 25: `import { shopRouter } from './routes/shop.js';`
-- Line 26: `import { inventoryRouter } from './routes/inventory.js';`
-- Line 127: `app.use('/api/avatars', avatarRouter);`
-- Line 129: `app.use('/api/shop', shopRouter);`
-- Line 130: `app.use('/api/inventory', inventoryRouter);`
-
-### 2. No jobs to uncomment
-Shop/inventory/avatars have no background jobs in registerJobs.ts.
-
-### 3. Verify route files exist and compile
-Check that these files exist and have no TypeScript errors:
-- `bot/src/api/routes/avatars.ts`
-- `bot/src/api/routes/shop.ts`
-- `bot/src/api/routes/inventory.ts`
-
-### 4. Build verification
-Run: `cd bot && npx tsc --noEmit`
-Fix any TypeScript errors that arise from re-enabling these features.
-
-OWNED: bot/src/api/server.ts, bot/src/api/routes/avatars.ts, bot/src/api/routes/shop.ts, bot/src/api/routes/inventory.ts
-FORBIDDEN: mini-app/*, bot/src/__tests__/* (test files), PARALLEL_AGENTS.md (except your retrospective section)
-GRAY AREA: bot/src/api/server.ts — ONLY uncomment the 6 lines listed above. Do NOT touch other [MVP-DISABLED] lines.
-After done, verify build: cd bot && npx tsc --noEmit. Write retrospective.
-```
-
-**Agent B** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-b`):
-```
-Read PARALLEL_AGENTS.md — you are Agent B of Run 80. Your task: Re-enable shop, inventory, and avatars on the FRONTEND (mini-app).
-
-## What to do
-
-### 1. Uncomment pages in `mini-app/src/App.tsx`
-Uncomment these lines (remove comment markers):
-
-Lazy imports:
-- Line 27: `const AvatarCustomizer = lazy(() => import('@/pages/AvatarCustomizer').then(m => ({ default: m.AvatarCustomizer })));`
-- Line 29: `const Inventory = lazy(() => import('@/pages/Inventory').then(m => ({ default: m.Inventory })));`
-- Line 30: `const Shop = lazy(() => import('@/pages/Shop').then(m => ({ default: m.Shop })));`
-
-Routes (inside the <Routes> block):
-- Line 152: `<Route path="/avatar" element={<ProtectedRoute needsOnboarding={effectiveNeedsOnboarding} lazy><AvatarCustomizer /></ProtectedRoute>} />`
-- Line 154: `<Route path="/inventory" element={<ProtectedRoute needsOnboarding={effectiveNeedsOnboarding} lazy><Inventory /></ProtectedRoute>} />`
-- Line 155: `<Route path="/shop" element={<ProtectedRoute needsOnboarding={effectiveNeedsOnboarding} lazy><Shop /></ProtectedRoute>} />`
-- Line 156: `<Route path="/shop/:itemId" element={<ProtectedRoute needsOnboarding={effectiveNeedsOnboarding} lazy><Shop /></ProtectedRoute>} />`
-
-### 2. Verify page components and hooks exist
-Check these files exist and compile:
-- `mini-app/src/pages/AvatarCustomizer.tsx`
-- `mini-app/src/pages/Inventory.tsx`
-- `mini-app/src/pages/Shop.tsx`
-- `mini-app/src/components/avatar/*` (AvatarRenderer, AvatarAnimator, AvatarSprites)
-- `mini-app/src/components/shop/*` (PurchaseModal, PurchaseSuccessAnimation)
-- `mini-app/src/hooks/useAvatar.ts`
-- `mini-app/src/hooks/useInventory.ts`
-- `mini-app/src/hooks/useShop.ts`
-
-### 3. Build verification
-Run: `cd mini-app && npx tsc --noEmit && npm run build`
-Fix any TypeScript errors.
-
-OWNED: mini-app/src/App.tsx, mini-app/src/pages/AvatarCustomizer.tsx, mini-app/src/pages/Inventory.tsx, mini-app/src/pages/Shop.tsx, mini-app/src/components/avatar/*, mini-app/src/components/shop/*, mini-app/src/hooks/useAvatar.ts, mini-app/src/hooks/useInventory.ts, mini-app/src/hooks/useShop.ts
-FORBIDDEN: bot/*, PARALLEL_AGENTS.md (except your retrospective section)
-GRAY AREA: mini-app/src/App.tsx — ONLY uncomment the 7 lines listed above. Do NOT touch other [MVP-DISABLED] lines.
-After done, verify build: cd mini-app && npx tsc --noEmit && npm run build. Write retrospective.
-```
-
-**Agent C** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-c`):
-```
-Read PARALLEL_AGENTS.md — you are Agent C of Run 80. Your task: Fix and verify ALL tests for shop, inventory, and avatars.
-
-## What to do
-
-### 1. Run all shop/inventory/avatar tests individually
-Run each test file and fix failures:
-
-Bot tests:
-- `cd bot && npx vitest --run src/__tests__/routes/http/avatars.http.test.ts`
-- `cd bot && npx vitest --run src/__tests__/routes/http/shop.http.test.ts`
-- `cd bot && npx vitest --run src/__tests__/routes/http/inventory.http.test.ts`
-- `cd bot && npx vitest --run src/__tests__/integration/shop-purchase-equip.test.ts`
-
-Mini-app tests:
-- `cd mini-app && npx vitest --run src/__tests__/pages/AvatarCustomizer.test.tsx`
-- `cd mini-app && npx vitest --run src/__tests__/pages/Inventory.test.tsx`
-- `cd mini-app && npx vitest --run src/__tests__/pages/Shop.test.tsx`
-- `cd mini-app && npx vitest --run src/__tests__/components/avatar/AvatarRenderer.test.tsx`
-- `cd mini-app && npx vitest --run src/__tests__/components/avatar/AvatarAnimator.test.tsx`
-- `cd mini-app && npx vitest --run src/__tests__/hooks/useAvatar.test.ts`
-- `cd mini-app && npx vitest --run src/__tests__/hooks/useShop.test.ts`
-- `cd mini-app && npx vitest --run src/__tests__/data/avatarOptions.test.ts`
-
-Note: `avatars.http.test.ts` had 6 failures in Run 79 test:full — these MUST be fixed.
-
-### 2. Fix any failing tests
-Common issues to watch for:
-- Mock/spy setups that reference old API patterns
-- Missing database table mocks
-- Component import errors if page structure changed
-
-### 3. Update test:mvp scripts
-After fixing tests, update `test:mvp` in BOTH package.json files to include shop/inventory/avatar test files:
-- `bot/package.json` — add avatars, shop, inventory, shop-purchase-equip test files
-- `mini-app/package.json` — add AvatarCustomizer, Shop, Inventory pages + avatar components + hooks
-
-### 4. Verify everything passes
-- Run: `cd bot && npm run test:mvp` — ALL must pass
-- Run: `cd mini-app && npm run test:mvp` — ALL must pass
-
-OWNED: bot/src/__tests__/routes/http/avatars.http.test.ts, bot/src/__tests__/routes/http/shop.http.test.ts, bot/src/__tests__/routes/http/inventory.http.test.ts, bot/src/__tests__/integration/shop-purchase-equip.test.ts, mini-app/src/__tests__/pages/AvatarCustomizer.test.tsx, mini-app/src/__tests__/pages/Inventory.test.tsx, mini-app/src/__tests__/pages/Shop.test.tsx, mini-app/src/__tests__/components/avatar/*.test.tsx, mini-app/src/__tests__/hooks/useAvatar.test.ts, mini-app/src/__tests__/hooks/useShop.test.ts, mini-app/src/__tests__/data/avatarOptions.test.ts, bot/package.json (ONLY test:mvp script), mini-app/package.json (ONLY test:mvp script)
-FORBIDDEN: bot/src/api/*, bot/src/jobs/*, mini-app/src/pages/*, mini-app/src/components/* (source code — only test files), PARALLEL_AGENTS.md (except your retrospective section)
-After done, verify: cd bot && npm run test:mvp && cd ../mini-app && npm run test:mvp. Write retrospective.
-```
-
-### Run 80 File Ownership Matrix
-
-| File/Dir | Agent A | Agent B | Agent C |
-|----------|---------|---------|---------|
-| bot/src/api/server.ts | OWNED | ❌ | ❌ |
-| bot/src/api/routes/avatars.ts | OWNED | ❌ | ❌ |
-| bot/src/api/routes/shop.ts | OWNED | ❌ | ❌ |
-| bot/src/api/routes/inventory.ts | OWNED | ❌ | ❌ |
-| mini-app/src/App.tsx | ❌ | OWNED | ❌ |
-| mini-app/src/pages/AvatarCustomizer.tsx | ❌ | OWNED | ❌ |
-| mini-app/src/pages/Shop.tsx | ❌ | OWNED | ❌ |
-| mini-app/src/pages/Inventory.tsx | ❌ | OWNED | ❌ |
-| mini-app/src/components/avatar/* | ❌ | OWNED | ❌ |
-| mini-app/src/components/shop/* | ❌ | OWNED | ❌ |
-| mini-app/src/hooks/use{Avatar,Shop,Inventory}.ts | ❌ | OWNED | ❌ |
-| bot/src/__tests__/** (avatar/shop/inventory) | ❌ | ❌ | OWNED |
-| mini-app/src/__tests__/** (avatar/shop/inventory) | ❌ | ❌ | OWNED |
-| bot/package.json (test:mvp only) | ❌ | ❌ | OWNED |
-| mini-app/package.json (test:mvp only) | ❌ | ❌ | OWNED |
-
-### Run 80 Merge Order
-1. Agent A (backend — re-enable routes)
-2. Agent B (frontend — re-enable pages)
-3. Agent C (tests — fix tests + update test:mvp scripts)
-
-### Run 80 Retrospectives
-
-#### Agent A Retrospective
-- **Task**: Re-enable shop, inventory, and avatars on the backend
-- **Changes**: Uncommented 6 lines in `bot/src/api/server.ts` — 3 imports (avatarRouter, shopRouter, inventoryRouter) and 3 route mounts (`/api/avatars`, `/api/shop`, `/api/inventory`)
-- **Verification**: All 3 route files exist. `npx tsc --noEmit` passed with zero errors.
-- **Issues**: None. Clean uncomment, no dependency or type issues.
-- **Time**: ~2 minutes
-
-#### Agent B Retrospective
-- **Task**: Re-enable shop, inventory, and avatars on the frontend (mini-app)
-- **Changes**: Uncommented 7 lines in `mini-app/src/App.tsx` — 3 lazy imports (AvatarCustomizer, Inventory, Shop) and 4 route definitions (`/avatar`, `/inventory`, `/shop`, `/shop/:itemId`)
-- **Verification**: All page components, hooks (useAvatar, useInventory, useShop), and sub-components (avatar/*, shop/*) confirmed present. `npx tsc --noEmit` passed with zero errors. `npm run build` succeeded — new chunks: AvatarCustomizer (7.91 kB), AvatarRenderer (7.87 kB), Inventory (8.41 kB), Shop (15.17 kB).
-- **Issues**: None. Clean uncomment, all files were already in place from pre-MVP development.
-- **Time**: ~3 minutes
-
-#### Agent C Retrospective
-**Status:** COMPLETE
-
-**What was done:**
-- Ran all 4 bot test files: shop (21 pass), inventory (15 pass), shop-purchase-equip integration (20 pass), avatars (6 failed / 5 passed)
-- Fixed avatars.http.test.ts: 6 tests failed because the avatar route resolves `telegram_id → DB user_id` via an initial `queryOne` call, but tests only mocked the second query. Added user lookup mock (`{ id: N }`) as the first `mockResolvedValueOnce` in all 6 failing tests.
-- Ran all 8 mini-app test files: AvatarCustomizer (8 pass), Inventory (11 pass), Shop (11 pass), AvatarRenderer (8 pass), AvatarAnimator (14 pass), useAvatar (10 pass), useShop (12 pass), avatarOptions (11 pass) — ALL passed immediately, 0 fixes needed.
-- Updated bot `test:mvp` script: added 4 entries (avatars.http, shop.http, inventory.http, shop-purchase-equip)
-- Updated mini-app `test:mvp` script: added 7 entries (AvatarCustomizer, Inventory, Shop pages + avatar components dir + useAvatar, useShop hooks + avatarOptions data)
-- Final verification: bot test:mvp = 65 files / 780 tests ALL PASS; mini-app test:mvp = 90 files / 476 tests ALL PASS
-
-**Files changed:** bot/src/__tests__/routes/http/avatars.http.test.ts (test fix), bot/package.json (test:mvp), mini-app/package.json (test:mvp)
-
-**Recommendations:** None — all shop/inventory/avatar tests passing cleanly.
-
-#### Agent 0 Retrospective
-- **Merge**: Agents A & B left uncommitted changes in main repo (same pattern as Run 79 — agents ignore worktrees). Agent C made 3 commits to main. Committed A+B changes as a6a4266.
-- **Build**: Both projects pass `tsc --noEmit`. Initial server deploy failed (`tsc: not found`) because `npm install --omit=dev` was used — fixed by running `npm install` (with dev deps).
-- **Tests**: Bot 65 files / 780 tests, Mini-app 90 files / 476 tests. Total: 1,256 tests (up from 1,104 in Run 79).
-- **Deploy**: a6a4266 deployed, health OK, mini-app API URL verified.
-- **Archive**: Moved Runs 75-79 to PARALLEL_AGENTS_HISTORY.md (archive point after Run 80). History now covers Runs 2-79, main file has Run 80 only.
-- **Cleanup**: Removed 3 worktrees + deleted feature/r80-* branches (local + remote).
-
-**Recommendations**:
-- Run 81 per roadmap: Re-enable Social + Finance
-- Drop worktree creation — agents consistently work in main repo. Just create branches for documentation purposes.
-
----
-
-## RUN 81: Re-enable Social + Finance (3 Agents + Agent 0)
-
-### Focus: Uncomment all [MVP-DISABLED] code for social and finance features across backend, frontend, and tests
-
-### Copy-Paste Prompts
-
-**Agent 0** (open in: `c:\Users\Asus\Desktop\Wibecode`):
-```
-Read PARALLEL_AGENTS.md — you are Agent 0 for Run 81.
-```
-
-**Agent A** (open in: `c:\Users\Asus\Desktop\Wibecode`):
-```
-Read PARALLEL_AGENTS.md — you are Agent A of Run 81. Your task: Re-enable social and finance on the BACKEND.
-
-## What to do
-
-### 1. Uncomment routes in `bot/src/api/server.ts`
-Uncomment these 4 lines (remove `// [MVP-DISABLED] ` prefix):
-- Line 22: `import { socialRouter } from './routes/social.js';`
-- Line 29: `import { financeRouter } from './routes/finance.js';`
-- Line 126: `app.use('/api/social', socialRouter);`
-- Line 133: `app.use('/api/finance', financeRouter);`
-
-### 2. No jobs to uncomment
-Social/finance have no specific background jobs in registerJobs.ts.
-
-### 3. Verify route files exist and compile
-Check that these files exist and have no TypeScript errors:
-- `bot/src/api/routes/social.ts`
-- `bot/src/api/routes/finance.ts`
-
-### 4. Build verification
-Run: `cd bot && npx tsc --noEmit`
-Fix any TypeScript errors that arise from re-enabling these features.
-
-OWNED: bot/src/api/server.ts, bot/src/api/routes/social.ts, bot/src/api/routes/finance.ts
-FORBIDDEN: mini-app/*, bot/src/__tests__/* (test files), PARALLEL_AGENTS.md (except your retrospective section)
-GRAY AREA: bot/src/api/server.ts — ONLY uncomment the 4 lines listed above. Do NOT touch other [MVP-DISABLED] lines.
-After done, verify build: cd bot && npx tsc --noEmit. Write retrospective in PARALLEL_AGENTS.md under "Run 81 Retrospectives > Agent A Retrospective".
-```
-
-**Agent B** (open in: `c:\Users\Asus\Desktop\Wibecode`):
-```
-Read PARALLEL_AGENTS.md — you are Agent B of Run 81. Your task: Re-enable social and finance on the FRONTEND (mini-app).
-
-## What to do
-
-### 1. Uncomment pages in `mini-app/src/App.tsx`
-Uncomment these lines (remove comment markers):
-
-Lazy imports:
-- Line 25: `const Social = lazy(() => import('@/pages/Social').then(m => ({ default: m.Social })));`
-- Line 26: `const Finance = lazy(() => import('@/pages/Finance').then(m => ({ default: m.Finance })));`
-
-Routes (inside the <Routes> block):
-- Line 148: `<Route path="/social" element={<ProtectedRoute needsOnboarding={effectiveNeedsOnboarding} lazy><Social /></ProtectedRoute>} />`
-- Line 149: `<Route path="/finance" element={<ProtectedRoute needsOnboarding={effectiveNeedsOnboarding} lazy><Finance /></ProtectedRoute>} />`
-
-### 2. Verify page components and hooks exist
-Check these files exist and compile:
-- `mini-app/src/pages/Social.tsx`
-- `mini-app/src/pages/Finance.tsx`
-- `mini-app/src/hooks/useSocial.ts`
-- `mini-app/src/hooks/useFinanceAnalytics.ts`
-- `mini-app/src/components/social/*` (ChallengeCard, ChallengeDetailModal, ChallengeForm, ChallengesList, FriendRequestForm, FriendsList)
-- `mini-app/src/components/finance/*` (BudgetForm, BudgetSummary, BudgetTracker, GoalCard, GoalContribution, GoalForm, SavingsGoal)
-
-### 3. Build verification
-Run: `cd mini-app && npx tsc --noEmit && npm run build`
-Fix any TypeScript errors.
-
-OWNED: mini-app/src/App.tsx, mini-app/src/pages/Social.tsx, mini-app/src/pages/Finance.tsx, mini-app/src/components/social/*, mini-app/src/components/finance/*, mini-app/src/hooks/useSocial.ts, mini-app/src/hooks/useFinanceAnalytics.ts
-FORBIDDEN: bot/*, PARALLEL_AGENTS.md (except your retrospective section)
-GRAY AREA: mini-app/src/App.tsx — ONLY uncomment the 4 lines listed above. Do NOT touch other [MVP-DISABLED] lines.
-After done, verify build: cd mini-app && npx tsc --noEmit && npm run build. Write retrospective in PARALLEL_AGENTS.md under "Run 81 Retrospectives > Agent B Retrospective".
-```
-
-**Agent C** (open in: `c:\Users\Asus\Desktop\Wibecode`):
-```
-Read PARALLEL_AGENTS.md — you are Agent C of Run 81. Your task: Fix and verify ALL tests for social and finance features.
-
-## What to do
-
-### 1. Run all social/finance tests individually
-Run each test file and fix failures:
-
-Bot tests:
-- `cd bot && npx vitest --run src/__tests__/routes/http/social.http.test.ts`
-- `cd bot && npx vitest --run src/__tests__/routes/http/finance.http.test.ts`
-
-Mini-app tests:
-- `cd mini-app && npx vitest --run src/__tests__/pages/Social.test.tsx`
-- `cd mini-app && npx vitest --run src/__tests__/pages/Finance.test.tsx`
-- `cd mini-app && npx vitest --run src/__tests__/hooks/useSocial.test.ts`
-- `cd mini-app && npx vitest --run src/__tests__/components/social/ChallengeCard.test.tsx`
-- `cd mini-app && npx vitest --run src/__tests__/components/social/ChallengeDetailModal.test.tsx`
-- `cd mini-app && npx vitest --run src/__tests__/components/social/ChallengeForm.test.tsx`
-- `cd mini-app && npx vitest --run src/__tests__/components/social/ChallengesList.test.tsx`
-- `cd mini-app && npx vitest --run src/__tests__/components/social/FriendRequestForm.test.tsx`
-- `cd mini-app && npx vitest --run src/__tests__/components/social/FriendsList.test.tsx`
-- `cd mini-app && npx vitest --run src/__tests__/components/finance/BudgetForm.test.tsx`
-- `cd mini-app && npx vitest --run src/__tests__/components/finance/BudgetSummary.test.tsx`
-- `cd mini-app && npx vitest --run src/__tests__/components/finance/BudgetTracker.test.tsx`
-- `cd mini-app && npx vitest --run src/__tests__/components/finance/GoalCard.test.tsx`
-- `cd mini-app && npx vitest --run src/__tests__/components/finance/GoalContribution.test.tsx`
-- `cd mini-app && npx vitest --run src/__tests__/components/finance/GoalForm.test.tsx`
-- `cd mini-app && npx vitest --run src/__tests__/components/finance/SavingsGoal.test.tsx`
-- `cd mini-app && npx vitest --run src/__tests__/components/finance/useBudget.test.ts`
-- `cd mini-app && npx vitest --run src/__tests__/components/finance/useSavingsGoals.test.ts`
-
-### 2. Fix any failing tests
-Common issues to watch for:
-- Mock/spy setups that reference old API patterns
-- Missing database table mocks (social has friends/challenges tables)
-- Component import errors if page structure changed
-
-### 3. Update test:mvp scripts
-After fixing tests, update `test:mvp` in BOTH package.json files to include social/finance test files:
-- `bot/package.json` — add social.http, finance.http test files
-- `mini-app/package.json` — add Social, Finance pages + social components dir + finance components dir + useSocial hook
-
-### 4. Verify everything passes
-- Run: `cd bot && npm run test:mvp` — ALL must pass
-- Run: `cd mini-app && npm run test:mvp` — ALL must pass
-
-OWNED: bot/src/__tests__/routes/http/social.http.test.ts, bot/src/__tests__/routes/http/finance.http.test.ts, mini-app/src/__tests__/pages/Social.test.tsx, mini-app/src/__tests__/pages/Finance.test.tsx, mini-app/src/__tests__/hooks/useSocial.test.ts, mini-app/src/__tests__/components/social/*.test.tsx, mini-app/src/__tests__/components/finance/*.test.tsx, mini-app/src/__tests__/components/finance/*.test.ts, bot/package.json (ONLY test:mvp script), mini-app/package.json (ONLY test:mvp script)
-FORBIDDEN: bot/src/api/*, bot/src/jobs/*, mini-app/src/pages/*, mini-app/src/components/* (source code — only test files), PARALLEL_AGENTS.md (except your retrospective section)
-After done, verify: cd bot && npm run test:mvp && cd ../mini-app && npm run test:mvp. Write retrospective in PARALLEL_AGENTS.md under "Run 81 Retrospectives > Agent C Retrospective".
-```
-
-### Run 81 File Ownership Matrix
-
-| File/Dir | Agent A | Agent B | Agent C |
-|----------|---------|---------|---------|
-| bot/src/api/server.ts | OWNED | ❌ | ❌ |
-| bot/src/api/routes/social.ts | OWNED | ❌ | ❌ |
-| bot/src/api/routes/finance.ts | OWNED | ❌ | ❌ |
-| mini-app/src/App.tsx | ❌ | OWNED | ❌ |
-| mini-app/src/pages/Social.tsx | ❌ | OWNED | ❌ |
-| mini-app/src/pages/Finance.tsx | ❌ | OWNED | ❌ |
-| mini-app/src/components/social/* | ❌ | OWNED | ❌ |
-| mini-app/src/components/finance/* | ❌ | OWNED | ❌ |
-| mini-app/src/hooks/use{Social,FinanceAnalytics}.ts | ❌ | OWNED | ❌ |
-| bot/src/__tests__/** (social/finance) | ❌ | ❌ | OWNED |
-| mini-app/src/__tests__/** (social/finance) | ❌ | ❌ | OWNED |
-| bot/package.json (test:mvp only) | ❌ | ❌ | OWNED |
-| mini-app/package.json (test:mvp only) | ❌ | ❌ | OWNED |
-
-### Run 81 Merge Order
-1. Agent A (backend — re-enable routes)
-2. Agent B (frontend — re-enable pages)
-3. Agent C (tests — fix tests + update test:mvp scripts)
-
-### Run 81 Retrospectives
-
-#### Agent A Retrospective
-- **Task**: Re-enable social and finance on the backend
-- **Changes**: Uncommented 4 lines in `bot/src/api/server.ts` — 2 imports (socialRouter, financeRouter) and 2 route mounts (`/api/social`, `/api/finance`)
-- **Verification**: Both route files exist (`social.ts`, `finance.ts`). `npx tsc --noEmit` passed with zero errors.
-- **Issues**: None. Clean uncomment, no dependency or type issues.
-- **Time**: ~2 minutes
-
-#### Agent B Retrospective
-- **Task**: Re-enable social and finance on the frontend (mini-app)
-- **Changes**: Uncommented 4 lines in `mini-app/src/App.tsx` — 2 lazy imports (Social, Finance) and 2 route definitions (`/social`, `/finance`)
-- **Verification**: All page components (Social.tsx, Finance.tsx), hooks (useSocial.ts, useFinanceAnalytics.ts), and sub-components (social/6 files, finance/11 files) confirmed present. `npx tsc --noEmit` passed with zero errors. `npm run build` succeeded — new chunks: Social (33.56 kB), Finance (405.91 kB).
-- **Issues**: None. Clean uncomment, all files were already in place from pre-MVP development.
-- **Time**: ~3 minutes
-
-#### Agent C Retrospective
-**Status:** COMPLETE
-
-**What was done:**
-- Ran all 2 bot test files: social (58 pass), finance (19 pass) — ALL passed immediately, 0 fixes needed.
-- Ran all 19 mini-app test files: Social page (22 pass), Finance page (11 pass), useSocial hook (19 pass), 6 social components (48 pass: ChallengeCard 10, ChallengeDetailModal 12, ChallengeForm 10, ChallengesList 4, FriendRequestForm 7, FriendsList 5), 9 finance components (80 pass: BudgetForm 6, BudgetSummary 5, BudgetTracker 8, GoalCard 11, GoalContribution 9, GoalForm 5, SavingsGoal 8, useBudget 12, useSavingsGoals 16) — ALL passed immediately, 0 fixes needed.
-- Updated bot `test:mvp` script: added 2 entries (social.http, finance.http)
-- Updated mini-app `test:mvp` script: added 5 entries (Social page, Finance page, useSocial hook, social components dir, finance components dir)
-- Final verification: bot test:mvp = 67 files / 857 tests ALL PASS; mini-app test:mvp = 108 files / 656 tests ALL PASS
-
-**Files changed:** bot/package.json (test:mvp script), mini-app/package.json (test:mvp script)
-
-**Recommendations:** None — all social/finance tests passing cleanly with zero fixes required. Total test count now 1,513 (up from 1,256 in Run 80).
-
-#### Agent 0 Retrospective
-- **Merge**: Agents A+B committed to main (3 commits). Agent C left uncommitted package.json changes (test:mvp updates). Committed as ed0d4b1.
-- **Build**: Both projects pass `tsc --noEmit`.
-- **Tests**: Bot 67 files / 857 tests, Mini-app 108 files / 656 tests. Total: 1,513 tests (up from 1,256 in Run 80).
-- **Deploy**: 4132021 deployed, health OK, mini-app API URL verified.
-- **Note**: Finance chunk is 405.91 kB — may need code splitting in a future optimization run.
-
-**Recommendations**:
-- Run 82 per roadmap: Re-enable Content + Activities
-
----
-
-## RUN 82: Re-enable Content + Activities (3 Agents + Agent 0)
-
-### Focus: Uncomment ALL remaining [MVP-DISABLED] code EXCEPT admin panel. This includes: analytics, export, channel, activities, content, recommendations, punishment, and all remaining background jobs.
-
-### Copy-Paste Prompts
-
-**Agent 0** (open in: `c:\Users\Asus\Desktop\Wibecode`):
-```
-Read PARALLEL_AGENTS.md — you are Agent 0 for Run 82.
-```
-
-**Agent A** (open in: `c:\Users\Asus\Desktop\Wibecode`):
-```
-Read PARALLEL_AGENTS.md — you are Agent A of Run 82. Your task: Re-enable ALL remaining non-admin backend routes and background jobs.
-
-## What to do
-
-### 1. Uncomment routes in `bot/src/api/server.ts`
-Uncomment these 14 lines (remove `// [MVP-DISABLED] ` prefix):
-
-Imports:
-- Line 20: `import { punishmentRouter } from './routes/punishment.js';`
-- Line 27: `import { analyticsRouter } from './routes/analytics.js';`
-- Line 28: `import { exportRouter } from './routes/export.js';`
-- Line 30: `import { channelRouter } from './routes/channel.js';`
-- Line 31: `import { activityRouter } from './routes/activities.js';`
-- Line 32: `import { contentRouter } from './routes/content.js';`
-- Line 33: `import { recommendationsRouter } from './routes/recommendations.js';`
-
-Routes:
-- Line 124: `app.use('/api/punishment', punishmentRouter);`
-- Line 131: `app.use('/api/analytics', analyticsRouter);`
-- Line 132: `app.use('/api/export', exportRouter);`
-- Line 134: `app.use('/api/channel', channelRouter);`
-- Line 135: `app.use('/api/activities', activityRouter);`
-- Line 136: `app.use('/api/content', contentRouter);`
-- Line 137: `app.use('/api/recommendations', recommendationsRouter);`
-
-⚠️ Do NOT uncomment line 16 (adminRouter import) or line 120 (admin route) — those are for Run 83.
-
-### 2. Uncomment jobs in `bot/src/jobs/registerJobs.ts`
-Uncomment these 8 lines:
-
-Imports:
-- Line 18: `import * as analyticsExport from './definitions/analyticsExport.js';`
-- Line 19: `import * as dailySummary from './definitions/dailySummary.js';`
-- Line 22: `import * as punishmentCheck from './definitions/punishmentCheck.js';`
-
-Job definitions:
-- Line 36: `{ name: analyticsExport.JOB_NAME, cron: analyticsExport.CRON_SCHEDULE, handler: analyticsExport.handler },`
-- Line 37: `{ name: dailySummary.JOB_NAME, cron: dailySummary.CRON_SCHEDULE, handler: dailySummary.handler },`
-- Line 40: `{ name: punishmentCheck.JOB_NAME, cron: punishmentCheck.CRON_SCHEDULE, handler: punishmentCheck.handler },`
-
-Bot instance setters:
-- Line 46: `dailySummary.setBotInstance(bot);`
-- Line 48: `punishmentCheck.setBotInstance(bot);`
-
-### 3. Verify route and job files exist
-Check these all compile: analytics.ts, export.ts, channel.ts, activities.ts, content.ts, recommendations.ts, punishment.ts, analyticsExport.ts, dailySummary.ts, punishmentCheck.ts
-
-### 4. Build verification
-Run: `cd bot && npx tsc --noEmit`
-
-OWNED: bot/src/api/server.ts, bot/src/jobs/registerJobs.ts, bot/src/api/routes/{analytics,export,channel,activities,content,recommendations,punishment}.ts, bot/src/jobs/definitions/{analyticsExport,dailySummary,punishmentCheck}.ts
-FORBIDDEN: mini-app/*, bot/src/__tests__/*, PARALLEL_AGENTS.md (except your retrospective section)
-GRAY AREA: server.ts — ONLY uncomment the 14 lines listed. Do NOT touch adminRouter. registerJobs.ts — uncomment ALL 8 lines listed.
-After done, verify build: cd bot && npx tsc --noEmit. Write retrospective.
-```
-
-**Agent B** (open in: `c:\Users\Asus\Desktop\Wibecode`):
-```
-Read PARALLEL_AGENTS.md — you are Agent B of Run 82. Your task: Re-enable ALL remaining non-admin frontend pages.
-
-## What to do
-
-### 1. Uncomment pages in `mini-app/src/App.tsx`
-
-Component import (line 8):
-- `import { LazyPageWrapper } from '@/components/LazyPageWrapper';`
-
-Lazy page imports (lines 31-37):
-- Line 31: `const Analytics = lazy(() => import('@/pages/Analytics').then(m => ({ default: m.Analytics })));`
-- Line 32: `const NotificationHistory = lazy(() => import('@/pages/NotificationHistory').then(m => ({ default: m.NotificationHistory })));`
-- Line 33: `const ActivityHub = lazy(() => import('@/pages/ActivityHub').then(m => ({ default: m.ActivityHub })));`
-- Line 34: `const ActivityHistory = lazy(() => import('@/pages/ActivityHistory').then(m => ({ default: m.ActivityHistory })));`
-- Line 35: `const ContentFeed = lazy(() => import('@/pages/ContentFeed').then(m => ({ default: m.ContentFeed })));`
-- Line 36: `const ArticleReader = lazy(() => import('@/pages/ArticleReader').then(m => ({ default: m.ArticleReader })));`
-- Line 37: `const ReadingHistory = lazy(() => import('@/pages/ReadingHistory').then(m => ({ default: m.ReadingHistory })));`
-
-Routes (lines 157-163):
-- Line 157: `<Route path="/analytics" element={...} />`
-- Line 158: `<Route path="/notifications" element={...} />`
-- Line 159: `<Route path="/activity" element={...} />`
-- Line 160: `<Route path="/activity/history" element={...} />`
-- Line 161: `<Route path="/content" element={...} />`
-- Line 162: `<Route path="/content/:articleId" element={...} />`
-- Line 163: `<Route path="/content/bookmarks" element={...} />`
-
-⚠️ Do NOT uncomment lines 38-40 (admin pages) or lines 164-167 (admin routes) — those are for Run 83.
-
-### 2. Verify page components exist
-Check these files compile: Analytics.tsx, NotificationHistory.tsx, ActivityHub.tsx, ActivityHistory.tsx, ContentFeed.tsx, ArticleReader.tsx, ReadingHistory.tsx, and their hooks/components.
-
-### 3. Build verification
-Run: `cd mini-app && npx tsc --noEmit && npm run build`
-
-OWNED: mini-app/src/App.tsx, mini-app/src/pages/{Analytics,NotificationHistory,ActivityHub,ActivityHistory,ContentFeed,ArticleReader,ReadingHistory}.tsx, mini-app/src/components/{activity,content}/*, mini-app/src/hooks/{useAnalytics,useContentFeed,useNotificationHistory,useActivities,useReadingHistory}.ts
-FORBIDDEN: bot/*, PARALLEL_AGENTS.md (except your retrospective section)
-GRAY AREA: App.tsx — ONLY uncomment the 15 lines listed. Do NOT touch admin pages (lines 38-40, 164-167).
-After done, verify build: cd mini-app && npx tsc --noEmit && npm run build. Write retrospective.
-```
-
-**Agent C** (open in: `c:\Users\Asus\Desktop\Wibecode`):
-```
-Read PARALLEL_AGENTS.md — you are Agent C of Run 82. Your task: Fix and verify ALL tests for content, activities, analytics, punishment, and related features.
-
-## What to do
-
-### 1. Run all tests individually and fix failures
-
-Bot tests (10 files):
-- `cd bot && npx vitest --run src/__tests__/routes/http/analytics.http.test.ts`
-- `cd bot && npx vitest --run src/__tests__/routes/http/channel.http.test.ts`
-- `cd bot && npx vitest --run src/__tests__/routes/http/punishment.http.test.ts`
-- `cd bot && npx vitest --run src/__tests__/routes/http/punishment-deduct.http.test.ts`
-- `cd bot && npx vitest --run src/__tests__/routes/activities.test.ts`
-- `cd bot && npx vitest --run src/__tests__/utils/activityQuestMatcher.test.ts`
-- `cd bot && npx vitest --run src/__tests__/jobs/analyticsExport.test.ts`
-- `cd bot && npx vitest --run src/__tests__/jobs/dailySummary.test.ts`
-- `cd bot && npx vitest --run src/__tests__/jobs/punishmentCheck.test.ts`
-- `cd bot && npx vitest --run src/__tests__/handlers/dailySummary.test.ts`
-
-Mini-app tests (11 files):
-- `cd mini-app && npx vitest --run src/__tests__/pages/ActivityHub.test.tsx`
-- `cd mini-app && npx vitest --run src/__tests__/pages/ActivityHistory.test.tsx`
-- `cd mini-app && npx vitest --run src/__tests__/pages/ContentFeed.test.tsx`
-- `cd mini-app && npx vitest --run src/__tests__/pages/ArticleReader.test.tsx`
-- `cd mini-app && npx vitest --run src/__tests__/pages/ReadingHistory.test.tsx`
-- `cd mini-app && npx vitest --run src/__tests__/hooks/useContentFeed.test.ts`
-- `cd mini-app && npx vitest --run src/__tests__/hooks/useReadingHistory.test.ts`
-- `cd mini-app && npx vitest --run src/__tests__/api/content.test.ts`
-- `cd mini-app && npx vitest --run src/__tests__/components/content/ContentQuiz.test.tsx`
-- `cd mini-app && npx vitest --run src/__tests__/components/analytics/ModeAnalytics.test.tsx`
-- `cd mini-app && npx vitest --run src/__tests__/components/analytics/useModeAnalytics.test.ts`
-
-### 2. Fix any failing tests
-Common issues:
-- Mock setups referencing old API patterns
-- Missing database table mocks for activities/content/punishment tables
-- Timer-related issues in punishment/dailySummary tests
-
-### 3. Update test:mvp scripts
-Update `test:mvp` in BOTH package.json files:
-- `bot/package.json` — add: analytics.http, channel.http, punishment.http, punishment-deduct.http, activities, activityQuestMatcher, analyticsExport, dailySummary (job), dailySummary (handler), punishmentCheck
-- `mini-app/package.json` — add: ActivityHub, ActivityHistory, ContentFeed, ArticleReader, ReadingHistory pages + useContentFeed, useReadingHistory hooks + content API test + content/ContentQuiz component + analytics dir
-
-### 4. Verify everything passes
-- Run: `cd bot && npm run test:mvp` — ALL must pass
-- Run: `cd mini-app && npm run test:mvp` — ALL must pass
-
-OWNED: All test files listed above, bot/package.json (ONLY test:mvp script), mini-app/package.json (ONLY test:mvp script)
-FORBIDDEN: bot/src/api/*, bot/src/jobs/*, mini-app/src/pages/*, mini-app/src/components/* (source code), PARALLEL_AGENTS.md (except your retrospective section)
-After done, verify: cd bot && npm run test:mvp && cd ../mini-app && npm run test:mvp. Write retrospective.
-```
-
-### Run 82 File Ownership Matrix
-
-| File/Dir | Agent A | Agent B | Agent C |
-|----------|---------|---------|---------|
-| bot/src/api/server.ts | OWNED | ❌ | ❌ |
-| bot/src/jobs/registerJobs.ts | OWNED | ❌ | ❌ |
-| bot/src/api/routes/{analytics,export,channel,activities,content,recommendations,punishment}.ts | OWNED | ❌ | ❌ |
-| bot/src/jobs/definitions/{analyticsExport,dailySummary,punishmentCheck}.ts | OWNED | ❌ | ❌ |
-| mini-app/src/App.tsx | ❌ | OWNED | ❌ |
-| mini-app/src/pages/{Analytics,NotificationHistory,ActivityHub,ActivityHistory,ContentFeed,ArticleReader,ReadingHistory}.tsx | ❌ | OWNED | ❌ |
-| mini-app/src/components/{activity,content}/* | ❌ | OWNED | ❌ |
-| mini-app/src/hooks/{useAnalytics,useContentFeed,useNotificationHistory,useActivities,useReadingHistory}.ts | ❌ | OWNED | ❌ |
-| bot/src/__tests__/** (content/activities/analytics/punishment) | ❌ | ❌ | OWNED |
-| mini-app/src/__tests__/** (content/activities/analytics) | ❌ | ❌ | OWNED |
-| bot/package.json (test:mvp only) | ❌ | ❌ | OWNED |
-| mini-app/package.json (test:mvp only) | ❌ | ❌ | OWNED |
-
-### Run 82 Merge Order
-1. Agent A (backend — re-enable routes + jobs)
-2. Agent B (frontend — re-enable pages)
-3. Agent C (tests — fix tests + update test:mvp scripts)
-
-### Run 82 Retrospectives
-
-#### Agent A Retrospective
-- **Task**: Re-enable all remaining non-admin backend routes and background jobs
-- **Changes in server.ts**: Uncommented 14 lines — 7 imports (punishmentRouter, analyticsRouter, exportRouter, channelRouter, activityRouter, contentRouter, recommendationsRouter) and 7 route mounts (`/api/punishment`, `/api/analytics`, `/api/export`, `/api/channel`, `/api/activities`, `/api/content`, `/api/recommendations`)
-- **Changes in registerJobs.ts**: Uncommented 8 lines — 3 imports (analyticsExport, dailySummary, punishmentCheck), 3 job definitions in the jobs array, and 2 bot instance setters (dailySummary.setBotInstance, punishmentCheck.setBotInstance)
-- **Remaining disabled**: Only admin lines remain in server.ts (line 16 import + line 120 route mount) — reserved for Run 83
-- **Verification**: All 7 route files and 3 job definition files exist. `npx tsc --noEmit` passed with zero errors.
-- **Issues**: None. Clean uncomment, no dependency or type issues.
-- **Time**: ~3 minutes
-
-#### Agent B Retrospective
-- **Task**: Re-enable all remaining non-admin frontend pages (analytics, notifications, activities, content)
-- **Changes**: Uncommented 14 lines in `mini-app/src/App.tsx` — 7 lazy imports (Analytics, NotificationHistory, ActivityHub, ActivityHistory, ContentFeed, ArticleReader, ReadingHistory) and 7 route definitions (`/analytics`, `/notifications`, `/activity`, `/activity/history`, `/content`, `/content/:articleId`, `/content/bookmarks`)
-- **Note**: Did NOT uncomment `LazyPageWrapper` import (line 8) — it's only used by admin routes (Run 83) and TypeScript flagged it as unused (TS6133). Left it commented to keep a clean build.
-- **Verification**: All 7 page components, 5 hooks (useAnalytics, useContentFeed, useNotificationHistory, useActivities, useReadingHistory), and 6 sub-components (activity/3, content/3) confirmed present. `npx tsc --noEmit` passed with zero errors. `npm run build` succeeded — new chunks: Analytics (9.44 kB), NotificationHistory (4.29 kB), ActivityHub (10.43 kB), ActivityHistory (14.57 kB), ContentFeed (8.33 kB), ArticleReader (11.95 kB), ReadingHistory (13.06 kB).
-- **Issues**: None. Clean uncomment, all files were already in place from pre-MVP development.
-- **Time**: ~3 minutes
-
-#### Agent C Retrospective
-**Status:** COMPLETE
-
-**What was done:**
-- Ran all 10 bot test files: analytics (10 pass), channel (8 pass), punishment (24 pass), punishment-deduct (11 pass), activities (24 pass), activityQuestMatcher (10 pass), analyticsExport (6 pass), dailySummary job (16 pass), punishmentCheck (6 pass), dailySummary handler (8 pass) — ALL passed immediately, 0 fixes needed.
-- Ran all 11 mini-app test files: ActivityHub (12 pass), ActivityHistory (8 pass), ContentFeed (13 pass), ArticleReader (11 pass), ReadingHistory (14 pass), useContentFeed (11 pass), useReadingHistory (14 pass), content API (26 pass), ContentQuiz (22 pass), ModeAnalytics (8 pass), useModeAnalytics (10 pass) — ALL passed immediately, 0 fixes needed.
-- Updated bot `test:mvp` script: added 9 entries (analytics.http, channel.http, punishment.http, punishment-deduct.http, activities, activityQuestMatcher, analyticsExport, dailySummary job, punishmentCheck). Note: dailySummary handler was already covered by `src/__tests__/handlers` dir entry.
-- Updated mini-app `test:mvp` script: added 10 entries (ActivityHub, ActivityHistory, ContentFeed, ArticleReader, ReadingHistory pages + useContentFeed, useReadingHistory hooks + content API test + content components dir + analytics components dir)
-- Final verification: bot test:mvp = 76 files / 972 tests ALL PASS; mini-app test:mvp = 121 files / 831 tests ALL PASS
-
-**Files changed:** bot/package.json (test:mvp script), mini-app/package.json (test:mvp script)
-
-**Recommendations:** None — all content/activities/analytics/punishment tests passing cleanly with zero fixes required. Total test count now 1,803 (up from 1,513 in Run 81).
-
-#### Agent 0 Retrospective
-- **Merge**: All 4 agent commits already on main (clean tree). No uncommitted changes this time.
-- **Build**: Both projects pass `tsc --noEmit`.
-- **Tests**: Bot 76 files / 972 tests, Mini-app 121 files / 831 tests. Total: 1,803 tests (up from 1,513 in Run 81).
-- **Deploy**: 6da1490 deployed, health OK.
-- **Note**: All non-admin features now re-enabled. Only adminRouter (2 lines) and admin pages (8 lines) remain disabled. All 3 background jobs (analyticsExport, dailySummary, punishmentCheck) restored.
-
-**Recommendations**:
-- Run 83 per roadmap: Re-enable Admin Panel + expanded scope (8 agents) — onboarding i18n fix, punishment rebalance, quest performance, reference docs export
-
----
-
-## RUN 83: Admin Panel + Big Polish (8 Agents + Agent 0)
-
-### Focus: Complete MVP recovery (admin re-enable) + fix onboarding i18n + rebalance punishments + fix quest performance + create reference docs + optimize tests
-
-### Copy-Paste Prompts
-
-**Agent 0** (open in: `c:\Users\Asus\Desktop\Wibecode`):
-```
-Read PARALLEL_AGENTS.md — you are Agent 0 for Run 83.
-```
-
-**Agent A** (open in: `c:\Users\Asus\Desktop\Wibecode`):
-```
-Read PARALLEL_AGENTS.md — you are Agent A of Run 83. Your task: Re-enable the Admin Panel (backend + frontend) — the FINAL MVP-DISABLED uncomment.
-
-## What to do
-
-### 1. Uncomment admin in `bot/src/api/server.ts`
-- Line 16: `import { adminRouter } from './routes/admin.js';`
-- Line 120: `app.use('/api/admin', adminRouter);`
-
-### 2. Uncomment admin in `mini-app/src/App.tsx`
-- Line 8: `import { LazyPageWrapper } from '@/components/LazyPageWrapper';`
-- Line 38: `const AdminDashboard = lazy(...)`
-- Line 39: `const AdminPlayerList = lazy(...)`
-- Line 40: `const AdminPlayerDetail = lazy(...)`
-- Line 164: `<Route path="/admin" element={<Navigate to="/admin/dashboard" replace />} />`
-- Line 165: `<Route path="/admin/dashboard" element={<LazyPageWrapper><AdminDashboard /></LazyPageWrapper>} />`
-- Line 166: `<Route path="/admin/players" element={<LazyPageWrapper><AdminPlayerList /></LazyPageWrapper>} />`
-- Line 167: `<Route path="/admin/players/:userId" element={<LazyPageWrapper><AdminPlayerDetail /></LazyPageWrapper>} />`
-
-### 3. Build verify
-- `cd bot && npx tsc --noEmit`
-- `cd mini-app && npx tsc --noEmit && npm run build`
-
-After this, there should be ZERO `[MVP-DISABLED]` lines left in the entire codebase.
-
-OWNED: bot/src/api/server.ts, mini-app/src/App.tsx
-FORBIDDEN: All test files, i18n files, onboarding components, tools/, hooks/
-Write retrospective when done.
-```
-
-**Agent B** (open in: `c:\Users\Asus\Desktop\Wibecode`):
-```
-Read PARALLEL_AGENTS.md — you are Agent B of Run 83. Your task: Fix onboarding i18n — all onboarding text must use proper i18n keys with correct Russian translations.
-
-## The Problem
-The user did onboarding and half was in Russian, half in English. Russian translations have mistakes. Many strings are hardcoded English in components and data files.
-
-## What to do
-
-### 1. Convert onboarding question text to i18n keys
-File: `mini-app/src/data/onboardingQuestions.ts`
-- All ~41 questions have hardcoded `title` and `subtitle` strings in English
-- All question `options` have hardcoded `label` and `sublabel` strings
-- Convert these to i18n key strings (e.g., `'onboardingQuiz.fitness.motivation.title'`)
-- The QuizScreen.tsx component will call `t()` on these keys
-
-### 2. Update QuizScreen.tsx to use t()
-File: `mini-app/src/components/onboarding/QuizScreen.tsx`
-- Import `useTranslation` from react-i18next
-- Call `t()` on `config.title`, `config.subtitle`, and option labels/sublabels
-- This means the data file stores i18n keys, and QuizScreen resolves them
-
-### 3. Fix hardcoded text in summary components
-- `SummaryStats.tsx`: avatar labels ("Gym Warrior" etc.), "Level", "XP"
-- `SummarySchedule.tsx`: "Accountability", "Notifications", "No accountability enabled", "Safe Mode ON"
-- `SummaryModeCard.tsx`: "Focus Areas", mode names
-- Add all these strings as i18n keys
-
-### 4. Fix hardcoded text in punishment components
-- `punishment/constants.ts`: "Workout", "Book", "Money", "20 pushups" (NOTE: change values to "3 pushups" per user request — ultra-light for easy), "Read 10 pages" → "Read 3 pages", "Donate $1" → "Donate $0.25"
-- `DifficultySelector.tsx`: "How tough?", "Change type", "Safe Mode", "Limits daily losses..."
-- Wrap all in i18n keys
-
-### 5. Enable Russian in SplashScreen
-File: `mini-app/src/components/onboarding/SplashScreen.tsx`
-- Change Russian `available: false` → `available: true`
-
-### 6. Add i18n keys to en.ts
-Add ~400+ new keys under `onboardingQuiz` section organized by mode:
-- `onboardingQuiz.fitness.motivation.title`, `.subtitle`, `.options.lose_weight`, etc.
-- `onboardingQuiz.hydration.*`, `onboardingQuiz.finance.*`, etc.
-- `onboardingQuiz.summary.*` for summary screen text
-- `onboardingQuiz.punishment.*` for punishment config text
-
-### 7. Add Russian translations to ru.ts
-- Add all new keys with CORRECT, high-quality Russian translations
-- Review existing Russian onboarding keys for mistakes and fix them
-- Pay attention to: proper grammar, natural phrasing, correct verb forms
-
-### 8. Add English placeholder to zh.ts
-- Add all new keys but use the ENGLISH text as placeholder (to be translated later)
-
-### 9. Build verify
-`cd mini-app && npx tsc --noEmit && npm run build`
-
-OWNED: mini-app/src/i18n/en.ts, mini-app/src/i18n/ru.ts, mini-app/src/i18n/zh.ts, mini-app/src/data/onboardingQuestions.ts, mini-app/src/components/onboarding/QuizScreen.tsx, mini-app/src/components/onboarding/summary/SummaryStats.tsx, mini-app/src/components/onboarding/summary/SummarySchedule.tsx, mini-app/src/components/onboarding/summary/SummaryModeCard.tsx, mini-app/src/components/onboarding/punishment/constants.ts (i18n wrapping + value changes), mini-app/src/components/onboarding/punishment/DifficultySelector.tsx, mini-app/src/components/onboarding/SplashScreen.tsx, mini-app/src/components/onboarding/PunishmentConfig.tsx
-FORBIDDEN: bot/, tools/, test files, App.tsx, server.ts, hooks/useQuestsData.ts
-Write retrospective when done.
-```
-
-**Agent C** (open in: `c:\Users\Asus\Desktop\Wibecode`):
-```
-Read PARALLEL_AGENTS.md — you are Agent C of Run 83. Your task: Create Python export tools for onboarding reference data.
-
-## What to do
-
-### 1. Create `tools/onboarding_text_export.py`
-Reads i18n files (en.ts, ru.ts) and onboardingQuestions.ts. Outputs a table with columns: Key, English Text, Russian Text. Organized by mode (Fitness, Hydration, Finance, Learning, Medication, Habits) then by question.
-- Parse TypeScript files using regex (extract key-value pairs from i18n objects)
-- Support `--format markdown` (default) and `--format telegram` (formatted for Telegram message, split into chunks if >4096 chars)
-
-### 2. Create `tools/onboarding_flow_export.py`
-Reads onboardingQuestions.ts and useOnboarding.ts to create a flow diagram showing:
-- Step sequence (splash → hero_intro → avatar → paths → referral → [mode questions] → punishments → notifications → summary → launch)
-- Conditional branching (which mode questions appear based on paths selection)
-- What each answer affects (dataKey, nestedKey, stored in which DB table)
-- Special conditionals (e.g., fitness_target_weight only shows if motivation includes lose_weight/build_muscle)
-- Output as structured text/markdown tree
-
-### 3. Create `tools/punishment_reference_export.py`
-Reads punishment constants from frontend and backend to create a reference table:
-- All punishment types (workout, book, money) with their labels per difficulty
-- XP multipliers per intensity (low=0.25, medium=0.5, high=1.0, extreme=1.5)
-- Stars penalty rates per intensity
-- Safe mode caps
-- Level-based scaling formula
-- Output as markdown table
-
-Each tool should:
-- Be standalone (runnable with `python tools/tool_name.py`)
-- Accept `--format markdown` or `--format telegram` flag
-- Read source files relative to project root
-- Handle missing files gracefully with clear error messages
-
-OWNED: tools/onboarding_text_export.py (new), tools/onboarding_flow_export.py (new), tools/punishment_reference_export.py (new)
-FORBIDDEN: mini-app/src/ (source code — READ ONLY), bot/src/ (READ ONLY), notification_bot_handler.py
-Write retrospective when done.
-```
-
-**Agent D** (open in: `c:\Users\Asus\Desktop\Wibecode`):
-```
-Read PARALLEL_AGENTS.md — you are Agent D of Run 83. Your task: Add reference doc commands to the notification bot.
-
-## What to do
-
-### 1. Add `/onboarding` command
-In `tools/notification_bot_handler.py`:
-- Add handler for `/onboarding` command
-- Calls `tools/onboarding_text_export.py --format telegram` via subprocess
-- Sends the output as Telegram message(s) (split if >4096 chars)
-- If the tool doesn't exist yet (Agent C hasn't committed), show: "Export tool not available yet. Run from project root: python tools/onboarding_text_export.py"
-
-### 2. Add `/punishments` command
-- Calls `tools/punishment_reference_export.py --format telegram`
-- Same pattern as /onboarding
-
-### 3. Add `/flow` command
-- Calls `tools/onboarding_flow_export.py --format telegram`
-- Same pattern as /onboarding
-
-### 4. Update `/help` and `/start`
-- Add descriptions for the 3 new commands in the help text
-- Update the command list in /start
-
-### 5. Register commands with Telegram
-- If there's a `set_my_commands` call, add the new commands
-- If not, add one during bot startup
-
-OWNED: tools/notification_bot_handler.py
-FORBIDDEN: mini-app/src/, bot/src/, i18n files, App.tsx, server.ts, export tools (Agent C owns those)
-Write retrospective when done.
-```
-
-**Agent E** (open in: `c:\Users\Asus\Desktop\Wibecode`):
-```
-Read PARALLEL_AGENTS.md — you are Agent E of Run 83. Your task: Rebalance the punishment system to be ultra-light for beginners.
-
-## User feedback: "20 pushups as punishment for a beginner is too much"
-
-## New target values
-
-### Frontend display labels (punishment/constants.ts)
-NOTE: Agent B may have already wrapped these in i18n keys. If so, update the i18n VALUES in en.ts/ru.ts instead.
-- Easy: 3 pushups / Read 3 pages / Donate $0.25
-- Medium: 10 pushups / Read 10 pages / Donate $1
-- Hard: 25 pushups / Read 25 pages / Donate $3
-- Extreme: 50 pushups / Read 50 pages / Donate $10
-
-### Backend XP multipliers (bot/src/api/utils/constants.ts)
-Change STARS_PENALTY_RATES to: light=0, moderate=1, strict=3, extreme=5
-
-### Backend punishment job (bot/src/jobs/definitions/punishmentCheck.ts)
-1. Change INTENSITY_MULTIPLIER: low=0.25, medium=0.5, high=1.0, extreme=1.5
-2. Add level-based scaling AFTER calculating base penalty:
-   ```
-   const levelScale = Math.min(1.0, (userLevel || 1) / 10);
-   xpPenalty = Math.round(xpPenalty * levelScale);
-   ```
-   This means: Level 1 = 10% penalty, Level 5 = 50%, Level 10+ = full penalty
-3. The user query already has access to user data. Add `u.level` to the SELECT if not already there.
-
-### Build verify
-`cd bot && npx tsc --noEmit`
-
-OWNED: bot/src/api/utils/constants.ts, bot/src/jobs/definitions/punishmentCheck.ts
-GRAY AREA: mini-app/src/components/onboarding/punishment/constants.ts — ONLY change numerical values and display text. If Agent B has wrapped in i18n, update the i18n key values in en.ts instead. Coordinate with Agent B.
-FORBIDDEN: App.tsx, server.ts, test files, tools/, hooks/
-Write retrospective when done.
-```
-
-**Agent F** (open in: `c:\Users\Asus\Desktop\Wibecode`):
-```
-Read PARALLEL_AGENTS.md — you are Agent F of Run 83. Your task: Fix quest check-in lag by migrating to React Query.
-
-## The Problem
-Every quest check-in triggers 3 full API refetches (active quests, completed quests, today checkins). No caching, no optimistic updates. Result: lag and slow refresh.
-
-## What to do
-
-### 1. Create `mini-app/src/hooks/useQuestsQuery.ts` (new file)
-React Query hooks for quest data. NOTE: QueryClient is already configured in App.tsx with staleTime: 5 minutes.
-
-```typescript
-// Query keys
-const questKeys = {
-  all: ['quests'] as const,
-  active: (userId: number) => ['quests', 'active', userId] as const,
-  completed: (userId: number) => ['quests', 'completed', userId] as const,
-  todayCheckins: (userId: number) => ['checkins', 'today', userId] as const,
-};
-
-// Hooks using useQuery/useMutation from @tanstack/react-query
-// - useActiveQuests(userId) — fetches active quests, staleTime 2min
-// - useCompletedQuests(userId) — fetches completed quests, staleTime 5min
-// - useTodayCheckins(userId) — fetches today's checkin count, staleTime 1min
-// - useCheckinMutation() — POST check-in with optimistic update:
-//     onMutate: increment progress in cache instantly
-//     onError: rollback
-//     onSettled: invalidate active + checkins queries
-```
-
-### 2. Refactor `mini-app/src/hooks/useQuestsData.ts`
-- Replace useState for activeQuests/completedQuests/todayCheckinCount with data from React Query hooks
-- Replace loadQuests() calls with queryClient.invalidateQueries()
-- Keep the filtering/sorting useMemo logic (it's fine)
-- Keep the handleRefresh callback (just call refetchQueries instead of loadQuests)
-- Remove manual loading/error state — React Query provides these via isLoading/isError
-- The hook's public API should remain the same so Quests.tsx doesn't need major changes
-
-### 3. Add request cancellation
-React Query automatically passes AbortSignal to query functions. Make sure apiClient methods accept and forward the signal.
-Check `mini-app/src/api/client.ts` — the deduplicatedGet method already accepts a signal config. Ensure the query functions pass it through.
-
-### 4. Build verify
-`cd mini-app && npx tsc --noEmit && npm run build`
-
-OWNED: mini-app/src/hooks/useQuestsData.ts, mini-app/src/hooks/useQuestsQuery.ts (new)
-GRAY AREA: mini-app/src/api/client.ts — ONLY if signal forwarding needs a small fix
-FORBIDDEN: bot/, tools/, App.tsx, server.ts, i18n files, onboarding components, test files
-Write retrospective when done.
-```
-
-**Agent G** (open in: `c:\Users\Asus\Desktop\Wibecode`):
-```
-Read PARALLEL_AGENTS.md — you are Agent G of Run 83. Your task: Fix admin tests and update test:mvp scripts to include ALL tests.
-
-## What to do
-
-### 1. Run all admin test files individually and fix failures
-
-Bot admin tests (10 files):
-- `cd bot && npx vitest --run src/__tests__/routes/admin.test.ts`
-- `cd bot && npx vitest --run src/__tests__/middleware/adminAuth.test.ts`
-- `cd bot && npx vitest --run src/__tests__/routes/http/admin.http.test.ts`
-- `cd bot && npx vitest --run src/__tests__/routes/http/admin-jobs.http.test.ts`
-- `cd bot && npx vitest --run src/__tests__/routes/http/admin-stats.http.test.ts`
-- `cd bot && npx vitest --run src/__tests__/routes/http/admin-users.http.test.ts`
-- `cd bot && npx vitest --run src/__tests__/routes/http/admin-quests.http.test.ts`
-- `cd bot && npx vitest --run src/__tests__/routes/http/admin-notifications.test.ts`
-- `cd bot && npx vitest --run src/__tests__/routes/http/admin-players.test.ts`
-- `cd bot && npx vitest --run src/__tests__/routes/http/admin-bulk.test.ts`
-
-Mini-app admin tests (17 files):
-- `cd mini-app && npx vitest --run src/__tests__/api/adminClient.test.tsx`
-- `cd mini-app && npx vitest --run src/__tests__/components/AdminUserList.test.tsx`
-- `cd mini-app && npx vitest --run src/__tests__/components/AdminJobs.test.tsx`
-- `cd mini-app && npx vitest --run src/__tests__/components/AdminLogs.test.tsx`
-- `cd mini-app && npx vitest --run src/__tests__/components/AdminStatsCard.test.tsx`
-- `cd mini-app && npx vitest --run src/__tests__/components/AdminBroadcast.test.tsx`
-- `cd mini-app && npx vitest --run src/__tests__/components/AdminUserSearch.test.tsx`
-- `cd mini-app && npx vitest --run src/__tests__/components/AdminPagination.test.tsx`
-- `cd mini-app && npx vitest --run src/__tests__/components/AdminUserRow.test.tsx`
-- `cd mini-app && npx vitest --run src/__tests__/components/admin/AdminUserDetail.test.tsx`
-- `cd mini-app && npx vitest --run src/__tests__/components/admin/AdminLoginForm.test.tsx`
-- `cd mini-app && npx vitest --run src/__tests__/components/admin/AdminOverview.test.tsx`
-- `cd mini-app && npx vitest --run src/__tests__/components/admin/AdminQuestEditor.test.tsx`
-- `cd mini-app && npx vitest --run src/__tests__/components/Admin.test.tsx`
-- `cd mini-app && npx vitest --run src/__tests__/components/admin/AdminPlayerActions.test.tsx`
-- `cd mini-app && npx vitest --run src/__tests__/pages/admin/AdminPlayerDetail.test.tsx`
-- `cd mini-app && npx vitest --run src/__tests__/pages/admin/AdminPlayerList.test.tsx`
-
-### 2. Update test:mvp scripts
-Add ALL admin test files to both package.json test:mvp scripts.
-
-### 3. Test suite analysis
-After fixing, run `cd bot && npm run test:full` and `cd mini-app && npm run test:full`.
-In your retrospective, document:
-- Total test count (test:mvp vs test:full)
-- Any obviously redundant test files
-- Recommendations for test consolidation (but do NOT delete tests — just document)
-
-### 4. Verify
-`cd bot && npm run test:mvp && cd ../mini-app && npm run test:mvp` — ALL must pass
-
-OWNED: All admin test files listed above, bot/package.json (test:mvp only), mini-app/package.json (test:mvp only)
-FORBIDDEN: bot/src/api/*, bot/src/jobs/*, mini-app/src/pages/*, mini-app/src/components/* (source code), i18n files, tools/
-Write retrospective when done.
-```
-
-**Agent H** (open in: `c:\Users\Asus\Desktop\Wibecode`):
-```
-Read PARALLEL_AGENTS.md — you are Agent H of Run 83. Your task: Fix tests broken by other agents' changes (i18n, punishment rebalance, React Query migration).
-
-## Context
-Other agents in this run make breaking changes that affect tests:
-- Agent B: Converts hardcoded onboarding strings to i18n keys
-- Agent E: Changes punishment XP multipliers and Stars rates
-- Agent F: Migrates quest data hooks from manual state to React Query
-
-Your job is to fix any tests that break because of these changes.
-
-## What to do
-
-### 1. Fix onboarding tests (broken by Agent B's i18n changes)
-- `cd mini-app && npx vitest --run src/__tests__/components/onboarding/`
-- `cd mini-app && npx vitest --run src/__tests__/pages/Onboarding.test.tsx`
-- Tests may assert on English strings that are now i18n keys
-- Fix: Mock i18n or update assertions to match new key-based rendering
-
-### 2. Fix punishment tests (broken by Agent E's rebalance)
-- `cd bot && npx vitest --run src/__tests__/routes/http/punishment.http.test.ts`
-- `cd bot && npx vitest --run src/__tests__/routes/http/punishment-deduct.http.test.ts`
-- `cd bot && npx vitest --run src/__tests__/jobs/punishmentCheck.test.ts`
-- Tests may assert on old XP multiplier values (was 0.5/1.0/1.5/2.0, now 0.25/0.5/1.0/1.5)
-- Tests may assert on old Stars rates (was 1/3/5/10, now 0/1/3/5)
-
-### 3. Fix quest tests (broken by Agent F's React Query migration)
-- `cd mini-app && npx vitest --run src/__tests__/pages/Quests.test.tsx`
-- `cd mini-app && npx vitest --run src/__tests__/components/quests/`
-- `cd mini-app && npx vitest --run src/__tests__/components/CheckInButton.test.tsx`
-- Tests may need QueryClientProvider wrapper if they don't have one
-- Mock React Query hooks if needed
-
-### 4. Verify full test:mvp passes
-- `cd bot && npm run test:mvp` — ALL must pass
-- `cd mini-app && npm run test:mvp` — ALL must pass
-
-OWNED: mini-app/src/__tests__/components/onboarding/*, mini-app/src/__tests__/pages/Onboarding.test.tsx, bot/src/__tests__/routes/http/punishment.http.test.ts, bot/src/__tests__/routes/http/punishment-deduct.http.test.ts, bot/src/__tests__/jobs/punishmentCheck.test.ts, mini-app/src/__tests__/pages/Quests.test.tsx, mini-app/src/__tests__/components/quests/*, mini-app/src/__tests__/components/CheckInButton.test.tsx
-FORBIDDEN: Source code files (only test files), App.tsx, server.ts, i18n files, tools/
-Write retrospective when done.
-```
-
-### Run 83 File Ownership Matrix
-
-| File/Dir | A | B | C | D | E | F | G | H |
-|----------|---|---|---|---|---|---|---|---|
-| bot/src/api/server.ts | OWN | - | - | - | - | - | - | - |
-| mini-app/src/App.tsx | OWN | - | - | - | - | - | - | - |
-| mini-app/src/i18n/{en,ru,zh}.ts | - | OWN | - | - | - | - | - | - |
-| mini-app/src/data/onboardingQuestions.ts | - | OWN | R | - | - | - | - | - |
-| onboarding components (QuizScreen, summary, punishment, Splash) | - | OWN | - | - | - | - | - | - |
-| tools/onboarding_*_export.py (new) | - | - | OWN | - | - | - | - | - |
-| tools/punishment_reference_export.py (new) | - | - | OWN | - | - | - | - | - |
-| tools/notification_bot_handler.py | - | - | - | OWN | - | - | - | - |
-| bot/src/api/utils/constants.ts | - | - | R | - | OWN | - | - | - |
-| bot/src/jobs/definitions/punishmentCheck.ts | - | - | R | - | OWN | - | - | - |
-| punishment/constants.ts (values) | - | i18n | - | - | vals | - | - | - |
-| mini-app/src/hooks/useQuestsData.ts | - | - | - | - | - | OWN | - | - |
-| mini-app/src/hooks/useQuestsQuery.ts (new) | - | - | - | - | - | OWN | - | - |
-| Admin test files (27) | - | - | - | - | - | - | OWN | - |
-| bot/package.json (test:mvp) | - | - | - | - | - | - | OWN | - |
-| mini-app/package.json (test:mvp) | - | - | - | - | - | - | OWN | - |
-| Onboarding test files | - | - | - | - | - | - | - | OWN |
-| Punishment test files | - | - | - | - | - | - | - | OWN |
-| Quest test files | - | - | - | - | - | - | - | OWN |
-
-### Run 83 Merge Order
-1. Agent A (admin re-enable — touches server.ts + App.tsx)
-2. Agent B (onboarding i18n — large change, must precede E)
-3. Agent E (punishment rebalance — depends on B for constants.ts)
-4. Agent F (quest performance — independent React Query migration)
-5. Agent C (export tools — independent Python, no conflicts)
-6. Agent D (notification bot — depends on C's tools existing)
-7. Agent G (admin tests — depends on A for admin code)
-8. Agent H (test fixes — depends on B, E, F for broken tests)
-
-### Run 83 Retrospectives
-
-#### Agent A Retrospective
-- **Task**: Re-enable admin panel (backend + frontend) — the FINAL MVP-DISABLED uncomment
-- **Changes in server.ts**: Uncommented 2 lines — 1 import (`adminRouter`) and 1 route mount (`/api/admin`)
-- **Changes in App.tsx**: Uncommented 8 lines — 1 import (`LazyPageWrapper`), 3 lazy component declarations (`AdminDashboard`, `AdminPlayerList`, `AdminPlayerDetail`), and 4 route definitions (`/admin`, `/admin/dashboard`, `/admin/players`, `/admin/players/:userId`)
-- **Build**: `tsc --noEmit` passes for both bot and mini-app; `npm run build` succeeds for mini-app (admin chunks visible: `AdminDashboard-DYCU0WmR.js`, `AdminPlayerList-B9Gi-cTu.js`, `AdminPlayerDetail-BioXi3hq.js`)
-- **MVP-DISABLED scan**: Grep for `[MVP-DISABLED]` across all `*.ts` and `*.tsx` files returns **zero matches** — milestone complete
-- **No issues encountered** — clean uncomment, no dependency or type errors
-
-#### Agent B Retrospective
-**Status:** COMPLETE
-
-**Task:** Fix onboarding i18n — convert all hardcoded English strings to proper i18n keys with Russian translations.
-
-**What was done:**
-1. **onboardingQuestions.ts** — Converted all 41 questions (6 modes) from hardcoded English to i18n key strings. Titles, subtitles, option labels, option sublabels, flavorText values, and valueSuffix all use `onboardingQuiz.[step].title` naming convention. Platform names (TikTok, Instagram etc.) and time ranges (5:00-8:00) kept as-is.
-
-2. **QuizScreen.tsx** — Added `useMemo` + `useTranslation` to create `translatedConfig` that resolves all option labels/sublabels, flavorText values, and valueSuffix through `t()` before passing to AnswerInput.
-
-3. **Punishment components** — `constants.ts`: changed `label`→`labelKey`, `tagline`→`taglineKey`. `TypeSelector.tsx`, `DifficultySelector.tsx`, `ConsentToggle.tsx`: added `useTranslation`, all text wrapped in `t()`.
-
-4. **Summary components** — `SummaryStats.tsx`, `SummarySchedule.tsx`, `SummaryModeCard.tsx`: all hardcoded English converted to i18n keys.
-
-5. **SplashScreen.tsx** — Russian `available: false` → `true`.
-
-6. **i18n files** — Added ~400 `onboardingQuiz` keys to en.ts (English), ru.ts (natural Russian), zh.ts (English placeholders).
-
-**Key decisions:**
-- i18n keys in data file, resolved in QuizScreen via `translatedConfig` useMemo — avoids touching AnswerInput (forbidden file)
-- `valueSuffix` field for translatable units ("workouts a week" / "тренировок в неделю")
-- Volume/time sublabels kept as plain strings (universally understood)
-
-**Build:** `tsc --noEmit` + `npm run build` pass clean. Deployed to server.
-
-#### Agent C Retrospective
-**Status:** COMPLETE
-
-**What was done:**
-Created 3 standalone Python export tools for onboarding reference data:
-
-1. **`tools/onboarding_text_export.py`** — Parses i18n files (en.ts, ru.ts) and onboardingQuestions.ts. Outputs bilingual table (Key | English | Russian) for all onboarding UI text, plus questions organized by mode with options. Supports `--format markdown` (default) and `--format telegram` (chunked for 4096-char Telegram limit).
-
-2. **`tools/onboarding_flow_export.py`** — Reads onboardingQuestions.ts and useOnboardingNavigation.ts. Produces a complete flow diagram showing: step sequence, conditional branching based on mode selection, dataKey/nestedKey storage mapping, special conditionals (fitness_target_weight), DB storage reference, and an ASCII flow tree. Supports `--format markdown` and `--format telegram`.
-
-3. **`tools/punishment_reference_export.py`** — Reads punishment constants from frontend (constants.ts) and backend (constants.ts, punishmentCheck.ts). Produces reference tables for: punishment types with difficulty labels, XP multipliers per intensity, Stars penalty rates, safe mode caps, processing flow, and DB table schemas. Supports `--format markdown` and `--format telegram`.
-
-**Key fixes during development:**
-- Fixed Windows cp1251 encoding issue: all tools use `io.TextIOWrapper` for UTF-8 stdout
-- Fixed regex for double-quoted strings with apostrophes (e.g., "What's Your Goal?")
-- Made XP multiplier descriptions dynamic (derived from actual values, not hardcoded)
-
-**Files created:** `tools/onboarding_text_export.py`, `tools/onboarding_flow_export.py`, `tools/punishment_reference_export.py`
-**Files modified:** None (read-only access to mini-app/src and bot/src as required)
-**Tests:** All 3 tools tested with both `--format markdown` and `--format telegram` — all pass
-**Issues:** None
-
-#### Agent D Retrospective
-**Task**: Add `/onboarding`, `/punishments`, `/flow` reference doc commands to notification bot.
-
-**What was done:**
-1. Added reusable `_run_export_tool()` helper that:
-   - Checks if the export tool file exists; if not, shows a friendly "not available yet" message (graceful fallback for when Agent C's tools aren't merged yet)
-   - Runs the tool via `subprocess` with `--format telegram` flag
-   - Splits output into multiple messages if >4096 chars (Telegram limit), splitting on newlines
-   - Handles timeouts and subprocess errors
-2. Added 3 command handlers: `onboarding_command`, `punishments_command`, `flow_command` — all using the shared helper
-3. Updated `/start` and `/help` text with descriptions for all 3 new commands
-4. Registered all 3 commands in `post_init` via `set_my_commands` (appears in Telegram's / menu)
-5. Added handlers in `main()` function
-
-**Files changed:** `tools/notification_bot_handler.py` (+94 lines)
-
-**Merge notes:** No conflicts expected — only file touched is `tools/notification_bot_handler.py` which is exclusively owned by Agent D. Depends on Agent C's export tools existing at runtime (not at merge time — the fallback handles missing tools gracefully).
-
-**Issues:** None. Clean implementation, follows existing patterns in the file.
-
-#### Agent E Retrospective
-**Task:** Rebalance punishment system to be ultra-light for beginners.
-
-**Changes made (3 files):**
-
-1. **`mini-app/src/components/onboarding/punishment/constants.ts`** — Updated DIFFICULTY_MAP display labels:
-   - Workout: 3 / 10 / 25 / 50 pushups (was 20 / 50 / 100 / 200+plank)
-   - Book: 3 / 10 / 25 / 50 pages (was 10 / 30 / 50 / 100)
-   - Money: $0.25 / $1 / $3 / $10 (was $1 / $5 / $10 / $25)
-   - Agent B had NOT wrapped these in i18n yet, so edited the constants file directly.
-
-2. **`bot/src/api/utils/constants.ts`** — Changed STARS_PENALTY_RATES:
-   - light: 0 (was 1), moderate: 1 (was 3), strict: 3 (was 5), extreme: 5 (was 10)
-
-3. **`bot/src/jobs/definitions/punishmentCheck.ts`** — Three changes:
-   - INTENSITY_MULTIPLIER: low=0.25, medium=0.5, high=1.0, extreme=1.5 (was 0.5/1.0/1.5/2.0)
-   - Added `u.level` to SQL SELECT and FailedQuestRow type
-   - Added level-based scaling: `levelScale = min(1.0, userLevel / 10)` — Level 1 gets only 10% of penalty, Level 5 gets 50%, Level 10+ gets full penalty
-
-**Build verification:** Both `bot` and `mini-app` tsc --noEmit pass with zero errors.
-
-**Note for Agent H:** Punishment tests will need updated values — old XP multipliers (0.5/1.0/1.5/2.0 → 0.25/0.5/1.0/1.5), old Stars rates (1/3/5/10 → 0/1/3/5), and new level-based scaling logic.
-
-#### Agent F Retrospective
-**Task**: Fix quest check-in lag by migrating to React Query with optimistic updates.
-
-**What was done**:
-1. Created `mini-app/src/hooks/useQuestsQuery.ts` — new file with React Query hooks:
-   - `useActiveQuests(userId)` — staleTime 2min
-   - `useCompletedQuests(userId)` — staleTime 5min
-   - `useTodayCheckins(userId)` — staleTime 1min
-   - `useCheckinMutation()` — POST check-in with optimistic update (increments progress in cache instantly, rollback on error, invalidates on settle)
-   - `useCompleteQuestMutation()` — complete quest + invalidate active/completed
-   - Exported `questKeys` for consistent cache key management
-2. Refactored `mini-app/src/hooks/useQuestsData.ts` — replaced all manual `useState` + `apiClient` calls with React Query hooks while preserving the exact same public API (return shape). No changes needed in `Quests.tsx` page.
-3. Updated `mini-app/src/components/CheckInButton.tsx` — replaced direct `apiClient.createCheckin()` with `useCheckinMutation()`, removed manual `loading` state.
-4. Updated both test files (`useQuestsData.test.ts`, `useQuestsData-difficulty.test.ts`) to wrap `renderHook` with `QueryClientProvider`.
-
-**Results**: All 13 tests pass. TypeScript clean. Build succeeds. Check-in now shows instant UI feedback (optimistic cache update) instead of 3 full API refetches.
-
-**Files changed**: `mini-app/src/hooks/useQuestsQuery.ts` (new), `mini-app/src/hooks/useQuestsData.ts`, `mini-app/src/components/CheckInButton.tsx`, `mini-app/src/__tests__/hooks/useQuestsData.test.ts`, `mini-app/src/__tests__/hooks/useQuestsData-difficulty.test.ts`
-
-#### Agent G Retrospective
-**SKIPPED** — Agent got stuck in both launch attempts. Admin test integration deferred to Run 84.
-
-#### Agent H Retrospective
-**Task**: Fix tests broken by Agent B (i18n), Agent E (punishment rebalance), Agent F (React Query migration)
-
-**Files modified** (7 test files):
-- `mini-app/src/__tests__/components/onboarding/punishment/DifficultySelector.test.tsx` — updated workout values (20/50/100/200 → 3/10/25/50) and book values (10/30/50/100 → 3/10/25/50)
-- `mini-app/src/__tests__/components/onboarding/PunishmentConfig.test.tsx` — updated workout values (20/50/100 → 3/10/25)
-- `mini-app/src/__tests__/components/onboarding/summary/SummarySchedule.test.tsx` — updated medium workout (50→10), hard money ($10→$3), extreme workout (200→50)
-- `mini-app/src/__tests__/components/onboarding/ReferralSource.test.tsx` — two options now render i18n keys as literal text (data file uses keys without `t()`)
-- `mini-app/src/__tests__/components/CheckInButton.test.tsx` — rewrote to mock `useCheckinMutation` from React Query instead of `apiClient.createCheckin`
-- `mini-app/src/__tests__/pages/Quests.test.tsx` — added `QueryClientProvider` wrapper for React Query
-- `bot/src/__tests__/routes/http/punishment-deduct.http.test.ts` — updated STARS_PENALTY_RATES (1/3/5/10 → 0/1/3/5)
-
-**Key lesson**: When Agent B added i18n, the test setup already initializes real i18n (`import '@/i18n'`), so `useTranslation().t()` returns actual English strings. Only tests checking data rendered WITHOUT `t()` (like ReferralSource's `option.label`) needed key-string assertions.
-
-**Results**: mini-app 121 files / 831 tests pass, bot 76 files / 972 tests pass
-
-#### Agent 0 Retrospective
-- **Merge result**: 7 of 8 agents merged successfully. Agent G (admin tests) was stuck — user tried 2 launches, both failed. Deferred to Run 84.
-- **Commits merged**: 7 agent commits (on main) + 3 uncommitted change commits (Agent A's server.ts/App.tsx, Agent F's React Query files, Agent H's test fixes). Total 10 commits.
-- **Build**: Bot tsc clean, mini-app tsc + vite build clean.
-- **Tests**: Bot 76/972, mini-app 121/831, total 1,803 (same as Run 82 — no new tests added since Agent G was skipped).
-- **Deploy**: a4b67d2 deployed, health OK, API URL verified in mini-app build.
-- **MVP-DISABLED**: ZERO lines remaining in entire codebase — roadmap objective COMPLETE.
-- **Key milestone**: All features from the MVP recovery (Runs 78-83) are now re-enabled. The recovery roadmap is done.
-- **Carried forward**: Agent G work (27 admin test files not in test:mvp) → Run 84.
-
-**Recommendations**:
-- Run 84: Integrate admin tests into test:mvp + polish/performance work (7 agents per user request)
-
 ---
 
 ## RUN 84: Admin Tests + Polish + Performance (7 Agents + Agent 0)
@@ -1850,7 +668,7 @@ Write retrospective when done.
 ### Run 84 Retrospectives
 
 #### Agent A Retrospective
-*(To be filled by Agent A)*
+**SKIPPED** — Agent A was assigned admin test fixing but got stuck both attempts. User decided to delete all 27 admin test files in Run 85 instead.
 
 #### Agent B Retrospective
 **Task**: Migrate Dashboard and Profile data hooks to React Query
@@ -1908,7 +726,53 @@ Write retrospective when done.
 - No changes to Social.tsx or Shop.tsx pages — the public API of useSocial and useShop is fully preserved
 
 #### Agent D Retrospective
-*(To be filled by Agent D)*
+**Task**: Refactor large admin components into smaller pieces
+
+**What was done:**
+1. **Split AdminPlayerDetail.tsx (716→155 lines)** — Extracted into 5 sub-modules in `components/admin/player-detail/`:
+   - `types.ts` (82 lines) — all interfaces (PlayerUser, PlayerMode, QuestInstance, etc.) + TabId type
+   - `helpers.ts` (27 lines) — tierColor, xpForLevel, relativeTime utilities
+   - `AdminPlayerHeader.tsx` (91 lines) — breadcrumb + player card (avatar, name, tier badge, level/XP bar), wrapped in `React.memo`
+   - `AdminPlayerStats.tsx` (43 lines) — overview stat grid (6 cards), wrapped in `React.memo`
+   - `PlayerTabContent.tsx` (280 lines) — Timeline, Modes, Quests, Achievements, Finance, Social tabs + TabSkeleton, all wrapped in `React.memo`
+   - Orchestrator now uses the existing `AdminPlayerActions` component instead of the placeholder
+
+2. **Split AdminPlayerList.tsx (642→170 lines)** — Extracted into 4 sub-modules in `components/admin/player-list/`:
+   - `helpers.ts` (34 lines) — formatRelativeDate, TIER_BADGE_STYLES, generatePageNumbers
+   - `AdminPlayerSearch.tsx` (168 lines) — search bar + FilterPanel with all filter controls
+   - `AdminPlayerTable.tsx` (218 lines) — table header + rows + SortHeader, KebabMenu, TierBadge
+   - `AdminBulkActions.tsx` (33 lines) — selected count indicator with clear button
+
+3. **React.memo applied to all frequently-rendered components:**
+   - `AdminPlayerHeader`, `AdminPlayerStats` — detail page header/stats
+   - `TimelineTab`, `ModesTab`, `QuestsTab`, `AchievementsTab`, `FinanceTab`, `SocialTab` — all tab content
+   - `PlayerTableRow` — individual table rows in player list (most impactful)
+   - `AdminPlayerSearch`, `AdminPlayerTable`, `AdminBulkActions` — list page sections
+
+4. **Build verified** — `tsc --noEmit` clean, `npm run build` successful.
+
+**Files created (9):**
+- `mini-app/src/components/admin/player-detail/types.ts`
+- `mini-app/src/components/admin/player-detail/helpers.ts`
+- `mini-app/src/components/admin/player-detail/AdminPlayerHeader.tsx`
+- `mini-app/src/components/admin/player-detail/AdminPlayerStats.tsx`
+- `mini-app/src/components/admin/player-detail/PlayerTabContent.tsx`
+- `mini-app/src/components/admin/player-list/helpers.ts`
+- `mini-app/src/components/admin/player-list/AdminPlayerSearch.tsx`
+- `mini-app/src/components/admin/player-list/AdminPlayerTable.tsx`
+- `mini-app/src/components/admin/player-list/AdminBulkActions.tsx`
+
+**Files modified (2):**
+- `mini-app/src/pages/admin/AdminPlayerDetail.tsx` — rewritten as 155-line orchestrator
+- `mini-app/src/pages/admin/AdminPlayerList.tsx` — rewritten as 170-line orchestrator
+
+**Line count reduction:**
+- AdminPlayerDetail: 716 → 155 lines (−78%)
+- AdminPlayerList: 642 → 170 lines (−74%)
+
+**Notes:**
+- Wired the existing `AdminPlayerActions` component into the detail page's "Admin" tab, replacing the placeholder
+- All extracted types in shared `types.ts` — other agents can import from there if needed
 
 #### Agent E Retrospective
 **Task**: Enhance notification bot with health monitoring features
@@ -1944,6 +808,396 @@ Write retrospective when done.
 **Notes for future:**
 - QuestCard's `onClick` prop is an inline closure per-item `() => handleQuestSelect(quest)`, which creates new refs each render. For full memo benefit, parent could use `useCallback` + quest ID. Low priority — current memo still prevents re-renders when unrelated state changes.
 - Consider dynamic import for recharts inside the chart components themselves (currently lazy-loaded at page level which is sufficient).
+
+#### Agent G Retrospective
+**SKIPPED** — Agent G was assigned test fixing but didn't complete. Agent 0 fixed the 3 test files that needed QueryClientProvider wrappers after React Query migration.
+
+#### Agent 0 Retrospective
+- **Merge**: 5 agent commits on main (B, F already committed by agents; C, D, E committed by Agent 0). Agent A and G skipped.
+- **Build**: Both projects pass `tsc --noEmit`. Mini-app vite build clean.
+- **Tests**: Bot 76 files / 972 tests PASS. Mini-app 121 files / 831 tests PASS. Total: 1,803.
+- **Test fixes (Agent G's work)**: 3 test files needed QueryClientProvider wrappers after React Query migration:
+  - `useShop.test.ts` — added createWrapper with QueryClientProvider
+  - `useSocial.test.ts` — same wrapper + fixed error test (must reject all 3 queries, not just friends) + fixed discoverChallenges tests (need waitFor for async React Query state)
+  - `Leaderboard.test.tsx` — added renderWithQuery helper
+- **Deploy**: e7bf1bd deployed, health OK.
+- **Key stats**: React Query migration now covers Dashboard, Profile, Social, Shop, Leaderboard, and Quests hooks. Admin pages split from 700+ lines to ~150-line orchestrators with extracted sub-components.
+
+**Next**: Run 85 — Big Feature Removal (Finance, Learning, Content, Referral onboarding, AvatarCustomizer, all admin tests)
+
+---
+
+## RUN 85: Big Feature Removal (7 Agents + Agent 0)
+
+### Focus: Remove Finance mode, Learning/Content mode, Referral onboarding step, AvatarCustomizer page, and ALL broken admin test files. Keep money/book punishments, keep avatar display in profile/leaderboard.
+
+### Copy-Paste Prompts
+
+#### Agent A — Bot Backend Cleanup
+```
+Read PARALLEL_AGENTS.md — you are Agent A of Run 85. Your task: Clean up bot backend by removing Finance, Content, and Recommendations routes.
+
+## Context
+The user decided to remove Finance mode, Learning/Content mode from the app entirely. The bot backend has routes and utilities that serve these features.
+
+## What to do
+
+### DELETE these files:
+- `bot/src/api/routes/finance.ts`
+- `bot/src/api/routes/content.ts`
+- `bot/src/api/routes/recommendations.ts`
+- `bot/src/utils/contentRecommender.ts`
+
+### DELETE these test files:
+- `bot/src/__tests__/routes/http/finance.http.test.ts`
+- `bot/src/__tests__/routes/admin.test.ts`
+- `bot/src/__tests__/middleware/adminAuth.test.ts`
+- `bot/src/__tests__/routes/http/admin.http.test.ts`
+- `bot/src/__tests__/routes/http/admin-jobs.http.test.ts`
+- `bot/src/__tests__/routes/http/admin-stats.http.test.ts`
+- `bot/src/__tests__/routes/http/admin-users.http.test.ts`
+- `bot/src/__tests__/routes/http/admin-quests.http.test.ts`
+- `bot/src/__tests__/routes/admin-notifications.test.ts`
+- `bot/src/__tests__/routes/admin-players.test.ts`
+- `bot/src/__tests__/routes/admin-bulk.test.ts`
+
+### MODIFY `bot/src/api/server.ts`:
+- Remove the import for `financeRouter` (and its `app.use()` line)
+- Remove the import for `contentRouter` (and its `app.use()` line)
+- Remove the import for `recommendationsRouter` (and its `app.use()` line)
+- Keep ALL other routes (admin, users, quests, modes, leaderboard, onboarding, etc.)
+
+### Verify:
+- `cd bot && npx tsc --noEmit` — zero errors
+
+### IMPORTANT:
+- Do NOT delete admin ROUTES or admin middleware — only admin TEST files
+- Do NOT touch any punishment-related code (money punishment, book punishment)
+- Write your retrospective in PARALLEL_AGENTS.md under Run 85 Retrospectives
+```
+
+#### Agent B — Mini-App Page Deletions + App.tsx
+```
+Read PARALLEL_AGENTS.md — you are Agent B of Run 85. Your task: Delete removed feature pages and clean up App.tsx routes.
+
+## Context
+The user decided to remove: Finance page, AvatarCustomizer page, ContentFeed page, ArticleReader page, ReadingHistory page. Also remove the content API client.
+
+## What to do
+
+### DELETE these page files:
+- `mini-app/src/pages/Finance.tsx`
+- `mini-app/src/pages/AvatarCustomizer.tsx`
+- `mini-app/src/pages/ContentFeed.tsx`
+- `mini-app/src/pages/ArticleReader.tsx`
+- `mini-app/src/pages/ReadingHistory.tsx`
+
+### DELETE this API file:
+- `mini-app/src/api/content.ts`
+
+### MODIFY `mini-app/src/App.tsx`:
+- Remove the lazy() imports for all 5 deleted pages
+- Remove the <Route> entries for all 5 deleted pages (and any /article/:id route for ArticleReader)
+- Keep ALL other routes (Dashboard, Quests, Profile, Leaderboard, Settings, Onboarding, Social, Shop, Admin pages, etc.)
+
+### Verify:
+- `cd mini-app && npx tsc --noEmit` — zero errors
+
+### IMPORTANT:
+- Do NOT delete Social.tsx, Shop.tsx, or any admin pages
+- Do NOT modify Navigation.tsx unless it references deleted pages
+- Write your retrospective in PARALLEL_AGENTS.md under Run 85 Retrospectives
+```
+
+#### Agent C — Component Deletions + ProfileEditModal
+```
+Read PARALLEL_AGENTS.md — you are Agent C of Run 85. Your task: Delete removed feature components and clean up ProfileEditModal.
+
+## Context
+The user decided to remove Finance components, Content components, and the ReferralSource onboarding component. Also remove the "Avatar Studio" button from ProfileEditModal (keep avatar DISPLAY, just remove the customizer link).
+
+## What to do
+
+### DELETE these directories (all files inside):
+- `mini-app/src/components/finance/` — entire directory (11 files: BudgetTracker.tsx, BudgetForm.tsx, BudgetSummary.tsx, SpendingChart.tsx, CategoryBreakdown.tsx, SavingsGoal.tsx, GoalForm.tsx, GoalCard.tsx, GoalContribution.tsx, useBudget.ts, useSavingsGoals.ts)
+- `mini-app/src/components/content/` — entire directory (3 files: ContentCard.tsx, TodaysReadWidget.tsx, ContentQuiz.tsx)
+
+### DELETE this component:
+- `mini-app/src/components/onboarding/ReferralSource.tsx`
+
+### MODIFY `mini-app/src/components/ProfileEditModal.tsx`:
+- Find and remove the "Avatar Studio" or "Customize Avatar" button/link that navigates to AvatarCustomizer
+- Keep all other profile editing functionality
+- If there's an import for AvatarCustomizer or a navigate('/avatar-customizer') call, remove it
+
+### Verify:
+- `cd mini-app && npx tsc --noEmit` — zero errors
+
+### IMPORTANT:
+- Do NOT delete avatar DISPLAY components (UserAvatar, etc.) — only the customizer link in ProfileEditModal
+- Do NOT delete onboarding components other than ReferralSource
+- Write your retrospective in PARALLEL_AGENTS.md under Run 85 Retrospectives
+```
+
+#### Agent D — Hook Deletions + Onboarding Flow
+```
+Read PARALLEL_AGENTS.md — you are Agent D of Run 85. Your task: Delete removed hooks and simplify onboarding flow.
+
+## Context
+The user decided to remove Finance mode and Learning/Content mode entirely. The onboarding flow currently has steps for choosing finance mode, learning mode, and a "referral source" page. These must be removed. Keep: fitness, hydration, medication, habits modes. Also keep "discipline" and "social" modes if they exist.
+
+## What to do
+
+### DELETE these hook files:
+- `mini-app/src/hooks/useFinanceAnalytics.ts`
+- `mini-app/src/hooks/useContentFeed.ts`
+- `mini-app/src/hooks/useReadingHistory.ts`
+
+### MODIFY `mini-app/src/hooks/useOnboarding.ts`:
+- Remove any step types related to finance, learning, referral (e.g., 'finance_setup', 'learning_setup', 'referral_source')
+- Remove any data fields that store finance/learning preferences
+- Keep all other onboarding steps intact
+
+### MODIFY `mini-app/src/hooks/useOnboardingNavigation.ts`:
+- Remove finance, learning, and referral steps from the step sequence
+- The flow should go from path selection (where only fitness/hydration/medication/habits are shown) straight to the next step, skipping finance/learning/referral setup
+
+### MODIFY `mini-app/src/pages/Onboarding.tsx`:
+- Remove the referral source case from the step renderer
+- Remove any finance/learning setup step rendering
+- Remove imports for ReferralSource component
+- Rewire navigation so skipping removed steps goes to the next valid step
+
+### MODIFY `mini-app/src/hooks/useOnboardingFlow.ts`:
+- Remove finance and learning badge/mode mappings if they exist
+- Keep fitness, hydration, medication, habits mappings
+
+### Verify:
+- `cd mini-app && npx tsc --noEmit` — zero errors
+
+### IMPORTANT:
+- Do NOT remove fitness, hydration, medication, habits, discipline, or social modes
+- Do NOT remove the punishment system (money punishment / book punishment)
+- The onboarding should still work: welcome → name → path select (4 modes) → quiz → complete
+- Write your retrospective in PARALLEL_AGENTS.md under Run 85 Retrospectives
+```
+
+#### Agent E — Data + i18n + Seed Cleanup
+```
+Read PARALLEL_AGENTS.md — you are Agent E of Run 85. Your task: Clean up data files, i18n translations, mode badges, and seed data.
+
+## Context
+Finance mode and Learning/Content mode are being removed. All references in data files, i18n, path selection, and seed data must be cleaned up.
+
+## What to do
+
+### MODIFY `mini-app/src/data/onboardingQuestions.ts`:
+- DELETE the FINANCE_QUESTIONS array/section entirely
+- DELETE the LEARNING_QUESTIONS array/section entirely
+- DELETE REFERRAL_OPTIONS if it exists
+- Keep questions for fitness, hydration, medication, habits
+
+### MODIFY `mini-app/src/components/onboarding/PathSelect.tsx`:
+- Remove 'finance' and 'learning' from the MODES array (or whatever array lists available paths)
+- Keep fitness, hydration, medication, habits (and discipline/social if present)
+
+### MODIFY `mini-app/src/data/modeBadges.ts`:
+- Remove finance and learning entries
+- Keep all other mode badge definitions
+
+### MODIFY i18n files — remove ALL finance/learning/referral/content translation keys:
+- `mini-app/src/i18n/en.ts` — remove finance, learning, content, referral sections
+- `mini-app/src/i18n/ru.ts` — remove finance, learning, content, referral sections
+- `mini-app/src/i18n/zh.ts` — remove finance, learning, content, referral sections
+- Be careful: search for keys containing 'finance', 'learning', 'content', 'referral', 'article', 'reading', 'budget', 'savings', 'goal' (in context of finance goals)
+- Do NOT remove 'content' if it's used in a general UI sense (like "content area") — only remove content-as-learning-feature keys
+
+### MODIFY `database/seed_data.sql`:
+- Remove finance-related quest templates (mode = 'finance')
+- Remove learning-related quest templates (mode = 'learning')
+- Remove finance/learning achievement seed data
+- Keep the mode rows themselves in the modes table for FK safety (just remove quests/achievements that reference them)
+- Do NOT remove punishment-related seed data
+
+### Verify:
+- `cd mini-app && npx tsc --noEmit` — zero errors
+
+### IMPORTANT:
+- Do NOT remove i18n keys for punishment (money, book)
+- Do NOT remove i18n keys for modes that are kept (fitness, hydration, medication, habits, discipline, social)
+- Write your retrospective in PARALLEL_AGENTS.md under Run 85 Retrospectives
+```
+
+#### Agent F — Test File Deletions
+```
+Read PARALLEL_AGENTS.md — you are Agent F of Run 85. Your task: Delete all test files for removed features and fix remaining test files that reference them.
+
+## Context
+Finance, Learning/Content, AvatarCustomizer, and ReferralSource are being removed. All their test files must be deleted. Some surviving test files (Onboarding, App) may reference removed features and need updating.
+
+## What to do
+
+### DELETE all mini-app admin test files (27 files):
+- `mini-app/src/__tests__/pages/admin/AdminPlayerDetail.test.tsx`
+- `mini-app/src/__tests__/pages/admin/AdminPlayerList.test.tsx`
+- `mini-app/src/__tests__/components/admin/AdminUserDetail.test.tsx`
+- `mini-app/src/__tests__/components/admin/AdminLoginForm.test.tsx`
+- `mini-app/src/__tests__/components/admin/AdminOverview.test.tsx`
+- `mini-app/src/__tests__/components/admin/AdminQuestEditor.test.tsx`
+- `mini-app/src/__tests__/components/admin/AnswerAnalytics.test.tsx`
+- `mini-app/src/__tests__/components/admin/AdminPlayerActions.test.tsx`
+- `mini-app/src/__tests__/components/admin/answer-analytics/AnswerChart.test.tsx`
+- `mini-app/src/__tests__/components/admin/answer-analytics/AnswerTable.test.tsx`
+- `mini-app/src/__tests__/components/admin/answer-analytics/useAnswerAnalytics.test.ts`
+- `mini-app/src/__tests__/components/admin/quest-editor/QuestForm.test.tsx`
+- `mini-app/src/__tests__/components/admin/quest-editor/QuestList.test.tsx`
+- `mini-app/src/__tests__/components/admin/quest-editor/QuestPreview.test.tsx`
+- `mini-app/src/__tests__/components/admin/quest-editor/useQuestEditor.test.ts`
+
+### DELETE all finance test files:
+- `mini-app/src/__tests__/pages/Finance.test.tsx`
+- `mini-app/src/__tests__/components/finance/BudgetTracker.test.tsx`
+- `mini-app/src/__tests__/components/finance/BudgetForm.test.tsx`
+- `mini-app/src/__tests__/components/finance/BudgetSummary.test.tsx`
+- `mini-app/src/__tests__/components/finance/SavingsGoal.test.tsx`
+- `mini-app/src/__tests__/components/finance/GoalForm.test.tsx`
+- `mini-app/src/__tests__/components/finance/GoalCard.test.tsx`
+- `mini-app/src/__tests__/components/finance/GoalContribution.test.tsx`
+- `mini-app/src/__tests__/components/finance/useBudget.test.ts`
+- `mini-app/src/__tests__/components/finance/useSavingsGoals.test.ts`
+
+### DELETE all content/learning test files:
+- `mini-app/src/__tests__/pages/ContentFeed.test.tsx`
+- `mini-app/src/__tests__/pages/ArticleReader.test.tsx`
+- `mini-app/src/__tests__/pages/ReadingHistory.test.tsx`
+- `mini-app/src/__tests__/hooks/useContentFeed.test.ts`
+- `mini-app/src/__tests__/hooks/useReadingHistory.test.ts`
+- `mini-app/src/__tests__/api/content.test.ts`
+- `mini-app/src/__tests__/components/content/ContentQuiz.test.tsx`
+
+### DELETE avatar/referral test files:
+- `mini-app/src/__tests__/pages/AvatarCustomizer.test.tsx`
+- `mini-app/src/__tests__/components/onboarding/ReferralSource.test.tsx`
+
+### MODIFY surviving test files (remove finance/learning/referral assertions):
+- `mini-app/src/__tests__/pages/Onboarding.test.tsx` — remove any test cases that test finance/learning/referral steps
+- `mini-app/src/__tests__/hooks/useOnboardingFlow.test.ts` — remove finance/learning badge mapping tests
+- `mini-app/src/__tests__/App.test.tsx` — remove route assertions for deleted pages (Finance, ContentFeed, ArticleReader, ReadingHistory, AvatarCustomizer)
+- `mini-app/src/__tests__/components/onboarding/PathSelect.test.tsx` — remove finance/learning mode assertions if present
+
+### Verify:
+- `cd mini-app && npx vitest run src/__tests__/pages/Onboarding.test.tsx src/__tests__/hooks/useOnboardingFlow.test.ts src/__tests__/App.test.tsx` — all pass
+
+### IMPORTANT:
+- Do NOT delete test files for kept features (Social, Shop, Leaderboard, Dashboard, Profile, etc.)
+- Do NOT delete analytics test files unless they specifically test finance analytics
+- Write your retrospective in PARALLEL_AGENTS.md under Run 85 Retrospectives
+```
+
+#### Agent G — Test-Fixer + Package.json + Final Verification (MERGE LAST)
+```
+Read PARALLEL_AGENTS.md — you are Agent G of Run 85. Your task: Update test:mvp scripts, fix any remaining test failures, and verify everything works. YOU MERGE LAST after all other agents.
+
+## Context
+Agents A-F are deleting Finance, Learning/Content, AvatarCustomizer, ReferralSource, and admin test files. You need to update both package.json test:mvp scripts to remove references to deleted files, then verify all remaining tests pass.
+
+## What to do
+
+### STEP 1: MODIFY `bot/package.json`:
+- In the `test:mvp` script, remove ALL paths referencing deleted test files:
+  - Remove finance test paths
+  - Remove admin test paths (admin.test, adminAuth.test, admin-*.test, admin.http.test)
+- Keep all other test paths
+
+### STEP 2: MODIFY `mini-app/package.json`:
+- In the `test:mvp` script, remove ALL paths referencing deleted test/dirs:
+  - Remove: Finance page test, ContentFeed test, ArticleReader test, ReadingHistory test
+  - Remove: AvatarCustomizer test
+  - Remove: ALL admin test paths (pages/admin, components/admin)
+  - Remove: content API test, content component tests
+  - Remove: finance component test paths
+  - Remove: useContentFeed test, useReadingHistory test
+  - Remove: ReferralSource test
+- Keep all other test paths
+
+### STEP 3: Run full verification:
+- `cd bot && npx tsc --noEmit` — zero errors
+- `cd mini-app && npx tsc --noEmit` — zero errors
+- `cd mini-app && npm run build` — build succeeds
+- `cd bot && npm run test:mvp` — all pass
+- `cd mini-app && npm run test:mvp` — all pass
+- Report final test counts for both
+
+### STEP 4: Fix any failures:
+- If any test imports a deleted file, update the test
+- If any source file imports from a deleted module, fix the import
+- If tsc reports missing module errors, trace and fix
+
+### IMPORTANT:
+- You MERGE LAST — wait for all other agents to finish
+- Report final test counts in your retrospective
+- Write your retrospective in PARALLEL_AGENTS.md under Run 85 Retrospectives
+```
+
+### Run 85 File Ownership Matrix
+
+| File/Dir | A | B | C | D | E | F | G |
+|----------|---|---|---|---|---|---|---|
+| bot/src/api/server.ts | OWN | - | - | - | - | - | - |
+| bot/src/api/routes/finance.ts | DEL | - | - | - | - | - | - |
+| bot/src/api/routes/content.ts | DEL | - | - | - | - | - | - |
+| bot/src/api/routes/recommendations.ts | DEL | - | - | - | - | - | - |
+| bot/src/utils/contentRecommender.ts | DEL | - | - | - | - | - | - |
+| bot/__tests__/ (admin+finance tests) | DEL | - | - | - | - | - | - |
+| mini-app/src/App.tsx | - | OWN | - | - | - | - | - |
+| 5 deleted pages | - | DEL | - | - | - | - | - |
+| mini-app/src/api/content.ts | - | DEL | - | - | - | - | - |
+| components/finance/ (11 files) | - | - | DEL | - | - | - | - |
+| components/content/ (3 files) | - | - | DEL | - | - | - | - |
+| components/onboarding/ReferralSource.tsx | - | - | DEL | - | - | - | - |
+| ProfileEditModal.tsx | - | - | OWN | - | - | - | - |
+| useFinanceAnalytics.ts | - | - | - | DEL | - | - | - |
+| useContentFeed.ts | - | - | - | DEL | - | - | - |
+| useReadingHistory.ts | - | - | - | DEL | - | - | - |
+| useOnboarding.ts | - | - | - | OWN | - | - | - |
+| useOnboardingNavigation.ts | - | - | - | OWN | - | - | - |
+| Onboarding.tsx | - | - | - | OWN | - | - | - |
+| useOnboardingFlow.ts | - | - | - | OWN | - | - | - |
+| onboardingQuestions.ts | - | - | - | - | OWN | - | - |
+| PathSelect.tsx | - | - | - | - | OWN | - | - |
+| modeBadges.ts | - | - | - | - | OWN | - | - |
+| i18n/en.ts, ru.ts, zh.ts | - | - | - | - | OWN | - | - |
+| seed_data.sql | - | - | - | - | OWN | - | - |
+| All deleted test files (~50) | - | - | - | - | - | DEL | - |
+| Onboarding.test.tsx | - | - | - | - | - | OWN | - |
+| useOnboardingFlow.test.ts | - | - | - | - | - | OWN | - |
+| App.test.tsx | - | - | - | - | - | OWN | - |
+| PathSelect.test.tsx | - | - | - | - | - | OWN | - |
+| bot/package.json (test:mvp) | - | - | - | - | - | - | OWN |
+| mini-app/package.json (test:mvp) | - | - | - | - | - | - | OWN |
+
+### Run 85 Merge Order
+A → E → B → C → D → F → G (G always last — runs full verification)
+
+### Run 85 Retrospectives
+
+#### Agent A Retrospective
+*(To be filled by Agent A)*
+
+#### Agent B Retrospective
+*(To be filled by Agent B)*
+
+#### Agent C Retrospective
+*(To be filled by Agent C)*
+
+#### Agent D Retrospective
+*(To be filled by Agent D)*
+
+#### Agent E Retrospective
+*(To be filled by Agent E)*
+
+#### Agent F Retrospective
+*(To be filled by Agent F)*
 
 #### Agent G Retrospective
 *(To be filled by Agent G)*
