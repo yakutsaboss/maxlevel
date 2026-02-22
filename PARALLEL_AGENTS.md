@@ -1748,7 +1748,22 @@ A → B → C → D → E → F → G (G always last)
 **No issues or blockers.**
 
 #### Agent F Retrospective
-*(To be filled by Agent F)*
+**Created:**
+- `mini-app/src/hooks/useModeUnlock.ts` — Hook that fetches unlocked modes from `GET /api/modes/unlocks/:userId`, provides `unlockWithStars()` (opens Telegram Stars invoice via WebApp.openInvoice) and `unlockWithXP()` (calls backend XP deduction). Gracefully degrades to showing medication as locked if backend endpoint returns 404 (Agent E not deployed yet). Exports `MODE_PRICES` config.
+- `mini-app/src/components/ModeUnlockModal.tsx` — Premium-feeling modal with framer-motion spring animation (scale 0.9→1). Shows mode icon, two unlock options: Stars (yellow gradient) and XP (purple gradient, disabled if insufficient XP with current/needed display). Uses FocusTrap for accessibility.
+
+**Modified:**
+- `mini-app/src/components/onboarding/PathSelect.tsx` — Removed hardcoded `available: true` from MODES array. Added `unlockedModes`, `userXP`, `isUnlocking`, `unlockError`, `onUnlockWithStars`, `onUnlockWithXP` props. Free modes (fitness/hydration/habits) always available, medication available only if in `unlockedModes`. Tapping locked mode opens unlock modal (if callbacks provided) or falls back to existing toast. Preserved all of Agent D's animation work (shake, glow ring, box shadow).
+- `mini-app/src/pages/Onboarding.tsx` — Wired `useModeUnlock` hook, passes unlock data to PathSelect via StepRenderer.
+- `mini-app/src/i18n/{en,ru,zh}.ts` — Added `modeUnlock` translation section (description, unlockWithStars, starsHint, unlockWithXP, xpReady, xpNotEnough, or).
+
+**Verified:** `npx tsc --noEmit` — zero errors.
+
+**Notes:**
+- PathSelect shared with Agent D — preserved D's animation additions (shakeKeyframes, pulse glow, box shadow), only changed `available` logic from static to dynamic.
+- Dashboard/Profile/Settings don't need changes — they only show already-activated modes, not mode selection.
+- i18n used `{{amount}}` instead of `{{count}}` to avoid conflict with i18next's built-in `count` (which must be a number for pluralization).
+- A linter auto-fixed `toLocaleString()` calls in ModeUnlockModal to pass raw numbers to i18n instead — this is fine, formatting is handled by i18n.
 
 #### Agent G Retrospective
 *(To be filled by Agent G)*

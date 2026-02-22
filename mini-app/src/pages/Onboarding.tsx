@@ -23,13 +23,24 @@ import { NotificationPrefs } from '@/components/onboarding/NotificationPrefs';
 import { Summary } from '@/components/onboarding/Summary';
 import { LaunchScreen } from '@/components/onboarding/LaunchScreen';
 
+interface UnlockData {
+  unlockedModes: string[];
+  userXP: number;
+  isUnlocking: boolean;
+  unlockError: string | null;
+  unlockWithStars: (modeName: string) => Promise<boolean>;
+  unlockWithXP: (modeName: string) => Promise<boolean>;
+}
+
 /** Renders the component for the given onboarding step. */
 function StepRenderer({
   step,
   flow,
+  unlock,
 }: {
   step: OnboardingStep;
   flow: ReturnType<typeof useOnboardingFlow>;
+  unlock: UnlockData;
 }) {
   const navigate = useNavigate();
   const { store, progress, stepLabel, goToStep, advanceFrom, handleAnswer, getModeBadge, handleLaunch, telegramId } = flow;
@@ -68,6 +79,12 @@ function StepRenderer({
           value={store.data.selected_modes}
           onSelect={(modes) => store.updateData({ selected_modes: modes })}
           onNext={() => advanceFrom('paths')}
+          unlockedModes={unlock.unlockedModes}
+          userXP={unlock.userXP}
+          isUnlocking={unlock.isUnlocking}
+          unlockError={unlock.unlockError}
+          onUnlockWithStars={(modeName) => unlock.unlockWithStars(modeName)}
+          onUnlockWithXP={(modeName) => unlock.unlockWithXP(modeName)}
         />
       );
 
@@ -146,8 +163,19 @@ function StepRenderer({
 
 export function Onboarding() {
   const { t } = useTranslation();
+  const { user } = useTelegram();
   const flow = useOnboardingFlow();
   const { mounted, telegramId, saveStatus, store } = flow;
+
+  const {
+    unlockedModes, userXP, isUnlocking, error: unlockError,
+    unlockWithStars, unlockWithXP,
+  } = useModeUnlock({ userId: user?.id });
+
+  const unlock: UnlockData = {
+    unlockedModes, userXP, isUnlocking,
+    unlockError, unlockWithStars, unlockWithXP,
+  };
 
   // Show error screen if Telegram user is not available after mount
   if (mounted && !telegramId) {
@@ -199,7 +227,7 @@ export function Onboarding() {
             ease: 'easeOut',
           }}
         >
-          <StepRenderer step={store.currentStep} flow={flow} />
+          <StepRenderer step={store.currentStep} flow={flow} unlock={unlock} />
         </motion.div>
       </AnimatePresence>
     </>

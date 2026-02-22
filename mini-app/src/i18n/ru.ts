@@ -1104,4 +1104,13 @@ export default {
       skippedNote: "Пропуск заданий уже снижает ваш XP. Это добавляет дополнительные последствия.",
     },
   },
+  modeUnlock: {
+    description: "Разблокируйте этот режим для умных напоминаний и отслеживания",
+    unlockWithStars: "Разблокировать за {{amount}} Stars",
+    starsHint: "Одноразовая покупка через Telegram Stars",
+    unlockWithXP: "Разблокировать за {{amount}} XP",
+    xpReady: "У вас достаточно XP!",
+    xpNotEnough: "У вас {{current}} / {{needed}} XP",
+    or: "или",
+  },
 };

@@ -1104,4 +1104,13 @@ export default {
       skippedNote: "Skipped quests already reduce your XP. This adds stronger consequences.",
     },
   },
+  modeUnlock: {
+    description: "Unlock this mode to access smart reminders and tracking",
+    unlockWithStars: "Unlock with {{amount}} Stars",
+    starsHint: "One-time purchase via Telegram Stars",
+    unlockWithXP: "Unlock with {{amount}} XP",
+    xpReady: "You have enough XP!",
+    xpNotEnough: "You have {{current}} / {{needed}} XP",
+    or: "or",
+  },
 };
