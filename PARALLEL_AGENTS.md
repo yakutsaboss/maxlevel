@@ -674,7 +674,11 @@ After done, verify: cd bot && npm run test:mvp && cd ../mini-app && npm run test
 ### Run 81 Retrospectives
 
 #### Agent A Retrospective
-*(To be filled by Agent A)*
+- **Task**: Re-enable social and finance on the backend
+- **Changes**: Uncommented 4 lines in `bot/src/api/server.ts` — 2 imports (socialRouter, financeRouter) and 2 route mounts (`/api/social`, `/api/finance`)
+- **Verification**: Both route files exist (`social.ts`, `finance.ts`). `npx tsc --noEmit` passed with zero errors.
+- **Issues**: None. Clean uncomment, no dependency or type issues.
+- **Time**: ~2 minutes
 
 #### Agent B Retrospective
 *(To be filled by Agent B)*
