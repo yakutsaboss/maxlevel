@@ -2305,7 +2305,26 @@ Write retrospective when done.
 *(To be filled by Agent A)*
 
 #### Agent B Retrospective
-*(To be filled by Agent B)*
+**Status**: Complete — 2 new route files created, server.ts updated, `tsc --noEmit` clean.
+
+**What was done**:
+- Created `bot/src/api/routes/medications.ts` with 5 endpoints:
+  - `GET /:telegramId` — list active medications sorted by first time_of_day
+  - `POST /` — add medication with frequency/time_of_day validation
+  - `PATCH /:id` — dynamic partial update with ownership check
+  - `DELETE /:id` — soft-delete (is_active=false) with ownership check
+  - `GET /:telegramId/today` — today's schedule via CROSS JOIN LATERAL unnest + LEFT JOIN medication_logs, returns per-dose status + summary counts
+- Created `bot/src/api/routes/medication-logs.ts` with 2 endpoints:
+  - `POST /` — UPSERT log (ON CONFLICT updates status so re-tapping toggles)
+  - `GET /:telegramId/history?days=7` — last N days grouped by date, adherence rate calculation
+- Registered both routers in `bot/src/api/server.ts` (2 imports + 2 app.use lines)
+- All routes follow existing patterns: authenticateTelegram, requireOwnership/ForbiddenError, readLimiter/mutationLimiter, asyncHandler, validateRequired, successResponse
+
+**Decisions**:
+- Used `telegramId` as URL param (not `userId`) to match checkins.ts pattern and enable requireOwnership helper
+- Used CROSS JOIN LATERAL unnest for today's schedule to expand time_of_day array into individual rows
+- Adherence rate calculated as taken/total (not taken/(taken+skipped)) to include pending doses in denominator
+- History days clamped to [1, 90] to prevent excessive queries
 
 #### Agent C Retrospective
 *(To be filled by Agent C)*
@@ -2314,13 +2333,53 @@ Write retrospective when done.
 *(To be filled by Agent D)*
 
 #### Agent E Retrospective
-*(To be filled by Agent E)*
+**Status**: Complete — all 3 files created/modified, `tsc --noEmit` clean (only error is in Dashboard.tsx — Agent F's domain).
+
+**Created/modified**:
+- `mini-app/src/types/medication.ts` (new) — 8 types/interfaces: Medication, MedicationLog, TodayScheduleItem, MedicationHistoryDay, MedicationHistoryResponse, AddMedicationData, LogMedicationData + frequency/status enums. Re-exported via `types/index.ts`.
+- `mini-app/src/api/client.ts` (modified) — Added 7 methods to ApiClient: getMedications, addMedication, updateMedication, deleteMedication, getTodaySchedule, logMedication, getMedicationHistory. Used deduplicatedGet for reads, TIMEOUT_FAST for user-facing endpoints.
+- `mini-app/src/hooks/useMedicationQuery.ts` (new) — 4 queries (useMedications 2min stale, useTodaySchedule 1min stale, useMedicationHistory 5min stale) + 4 mutations (add, update, delete with optimistic remove, log with optimistic status toggle). Exported `medicationKeys` for external cache management.
+- `mini-app/src/hooks/useMedicationData.ts` (new) — Wrapper hook exposing clean API: `{ medications, todaySchedule, history, loading, error, addMedication, updateMedication, deleteMedication, logMedication, refresh }`. Uses useCallback for stable function references.
+
+**Design decisions**:
+- Used `userId` (telegram_id) consistently as the user identifier, matching the pattern in Agent B's API routes
+- Optimistic updates on delete (remove from list) and log (toggle status) for instant feedback
+- AddMedicationVars extends AddMedicationData with userId for cache invalidation after mutation
+- deleteMedication sends telegram_id in request body (matching Agent B's ownership validation pattern)
+- useMedicationData wraps all queries/mutations so page components don't need to know about React Query internals
 
 #### Agent F Retrospective
-*(To be filled by Agent F)*
+**Status**: Complete — all 4 tasks done, `tsc --noEmit` passes with zero errors in my files.
+
+**What was done:**
+1. **Navigation.tsx** — Added conditional Pill tab (lucide-react `Pill` icon). Uses `useDashboardStats` hook to read cached stats and check if medication mode is in user's active modes. Tab inserts between Quests and Leaderboard. Adjusted padding when 6 items shown. Fixed `handleNavKeyDown` dependency array.
+2. **MedicationWidget.tsx** (new) — Compact dashboard card with emerald-themed pill icon, progress bar (taken/total), next-due medication with time-until, all-done checkmark state, empty state hint. Navigates to /medications on tap. Uses `memo` + framer-motion fade-in.
+3. **Dashboard.tsx** — Imported and rendered `MedicationWidget` after `StreakSection` inside `motion.div` with stagger delay. Conditionally shown only when `stats.modes` includes medication mode.
+4. **NotificationHistory.tsx** — Added 5 filter tabs (all/quest/achievement/medication/streak) with `FILTER_ACTIVITY_TYPES` mapping. Added medication & streak icons. Added `AnimatePresence mode="popLayout"` for smooth filter transitions. Added hint text when filter has no results.
+
+**Files changed:**
+- `mini-app/src/components/Navigation.tsx` — Added `Pill`, `useMemo`, `useDashboardStats` imports; conditional `MEDICATION_NAV_ITEM`; `hasMedicationMode` check.
+- `mini-app/src/components/dashboard/MedicationWidget.tsx` — NEW. ~120 lines.
+- `mini-app/src/pages/Dashboard.tsx` — Added `MedicationWidget` import + conditional render.
+- `mini-app/src/pages/NotificationHistory.tsx` — Rewritten with filter state, `FilterType` union, `AnimatePresence`.
+
+**Build**: Only remaining errors are in `Medications.tsx` (Agent D — dosage type mismatch). Agent H should fix.
 
 #### Agent G Retrospective
-*(To be filled by Agent G)*
+**Status**: Complete — all 3 i18n files updated, `tsc --noEmit` clean.
+
+**What was done**:
+- Added `medication` section (31 keys) to en.ts, ru.ts, zh.ts — covers medication CRUD, status labels (taken/skipped/postponed/pending), frequency options, progress strings with interpolation, empty states
+- Added `notifications` section (8 keys) — filter tabs (All/Quests/Achievements/Medication/Streaks), empty state, streak milestone template
+- Added `nav.medications` to all 3 files
+- Added 3 dashboard widget keys: `medicationWidget`, `medicationProgress`, `nextMedication`
+- Total: 141 lines added across 3 files
+
+**Russian translations**: Natural Russian with proper cases (принято/пропущено/отложено/ожидает, дозировка, частота приёма, etc.)
+**Chinese translations**: Simplified Chinese with natural phrasing (已服用/已跳过/已推迟/待服用, 剂量, 服用频率, etc.)
+
+**Issues**: None. Clean build, no conflicts with other agents' files.
+**Commit**: `61af2b4` on `feature/r87-i18n`
 
 #### Agent H Retrospective
 *(To be filled by Agent H)*
