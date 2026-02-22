@@ -20,6 +20,8 @@ import * as dailySummary from './definitions/dailySummary.js';
 import * as achievementBatchCheck from './definitions/achievementBatchCheck.js';
 import * as achievementNotifier from './definitions/achievementNotifier.js';
 import * as punishmentCheck from './definitions/punishmentCheck.js';
+import * as medicationReminder from './definitions/medicationReminder.js';
+import * as streakMilestone from './definitions/streakMilestone.js';
 
 interface JobDefinition {
   name: string;
@@ -38,6 +40,8 @@ const jobs: JobDefinition[] = [
   { name: achievementBatchCheck.JOB_NAME, cron: achievementBatchCheck.CRON_SCHEDULE, handler: achievementBatchCheck.handler },
   { name: achievementNotifier.JOB_NAME, cron: achievementNotifier.CRON_SCHEDULE, handler: achievementNotifier.handler },
   { name: punishmentCheck.JOB_NAME, cron: punishmentCheck.CRON_SCHEDULE, handler: punishmentCheck.handler },
+  { name: medicationReminder.JOB_NAME, cron: medicationReminder.CRON_SCHEDULE, handler: medicationReminder.handler },
+  { name: streakMilestone.JOB_NAME, cron: streakMilestone.CRON_SCHEDULE, handler: streakMilestone.handler },
 ];
 
 export async function registerAllJobs(boss: PgBoss, bot: Bot<MyContext>): Promise<void> {
@@ -46,6 +50,8 @@ export async function registerAllJobs(boss: PgBoss, bot: Bot<MyContext>): Promis
   dailySummary.setBotInstance(bot);
   achievementNotifier.setBotInstance(bot);
   punishmentCheck.setBotInstance(bot);
+  medicationReminder.setBotInstance(bot);
+  streakMilestone.setBotInstance(bot);
 
   for (const job of jobs) {
     await boss.createQueue(job.name);
