@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useTelegram } from '@/hooks/useTelegram';
-import { apiClient } from '@/api/client';
+import { useCheckinMutation } from '@/hooks/useQuestsQuery';
 import { CheckCircle, Loader2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { logger } from '@/utils/logger';
@@ -18,30 +18,30 @@ interface CheckInButtonProps {
 export function CheckInButton({ questInstanceId, telegramId, onSuccess, disabled, currentProgress, target }: CheckInButtonProps) {
   const { t } = useTranslation();
   const { haptic } = useTelegram();
-  const [loading, setLoading] = useState(false);
+  const checkinMutation = useCheckinMutation();
   const [showSuccess, setShowSuccess] = useState(false);
+
+  const loading = checkinMutation.isPending;
 
   const handleCheckin = async () => {
     if (loading || disabled) return;
     haptic.impact('medium');
-    setLoading(true);
     try {
-      const response = await apiClient.createCheckin(telegramId, questInstanceId);
-      if (response.success && response.data) {
-        haptic.notification('success');
-        setShowSuccess(true);
-        onSuccess({
-          completed: response.data.completed,
-          current: response.data.quest_progress?.current ?? 0,
-          target: response.data.quest_progress?.target ?? 1,
-        });
-        setTimeout(() => setShowSuccess(false), 1500);
-      }
+      const data = await checkinMutation.mutateAsync({
+        telegramId,
+        questInstanceId,
+      });
+      haptic.notification('success');
+      setShowSuccess(true);
+      onSuccess({
+        completed: data.completed,
+        current: data.quest_progress?.current ?? 0,
+        target: data.quest_progress?.target ?? 1,
+      });
+      setTimeout(() => setShowSuccess(false), 1500);
     } catch (error) {
       logger.error('Check-in failed', { error });
       haptic.notification('error');
-    } finally {
-      setLoading(false);
     }
   };
 

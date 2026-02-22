@@ -1,67 +1,50 @@
-import { useEffect, useState, useCallback, useMemo } from 'react';
-import { apiClient } from '@/api/client';
-import { Quest, Mode } from '@/types';
+import { useState, useCallback, useMemo } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
+import { Quest } from '@/types';
 import { SortOption } from '@/components/quests/QuestFilters';
 import type { HapticFeedback } from '@/types/telegram';
 import { logger } from '@/utils/logger';
+import {
+  useActiveQuests,
+  useCompletedQuests,
+  useTodayCheckins,
+  useCompleteQuestMutation,
+  questKeys,
+} from './useQuestsQuery';
 
 type QuestTab = 'active' | 'completed';
 
 export function useQuestsData(userId: number | undefined, haptic: HapticFeedback) {
+  const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState<QuestTab>('active');
-  const [activeQuests, setActiveQuests] = useState<Quest[]>([]);
-  const [completedQuests, setCompletedQuests] = useState<Quest[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(false);
   const [selectedQuest, setSelectedQuest] = useState<Quest | null>(null);
-  const [completing, setCompleting] = useState(false);
-  const [todayCheckinCount, setTodayCheckinCount] = useState(0);
   const [selectedModeId, setSelectedModeId] = useState<number | null>(null);
   const [sortBy, setSortBy] = useState<SortOption>('newest');
   const [selectedDifficulty, setSelectedDifficulty] = useState<string | null>(null);
 
-  const loadTodayCheckins = async () => {
+  // React Query hooks
+  const activeQuery = useActiveQuests(userId);
+  const completedQuery = useCompletedQuests(userId);
+  const checkinsQuery = useTodayCheckins(userId);
+  const completeQuestMutation = useCompleteQuestMutation();
+
+  const activeQuests = activeQuery.data ?? [];
+  const completedQuests = completedQuery.data ?? [];
+  const todayCheckinCount = checkinsQuery.data ?? 0;
+  const loading = activeQuery.isLoading || completedQuery.isLoading;
+  const error = activeQuery.isError && completedQuery.isError;
+  const completing = completeQuestMutation.isPending;
+
+  const handleRefresh = useCallback(async () => {
     if (!userId) return;
-    try {
-      const res = await apiClient.getTodayCheckins(userId);
-      if (res.success && res.data) { setTodayCheckinCount(res.data.count); }
-    } catch (err) {
-      logger.error('Failed to load today check-ins', { error: err });
-    }
-  };
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: questKeys.active(userId) }),
+      queryClient.invalidateQueries({ queryKey: questKeys.completed(userId) }),
+      queryClient.invalidateQueries({ queryKey: questKeys.todayCheckins(userId) }),
+    ]);
+  }, [userId, queryClient]);
 
-  const loadQuests = async () => {
-    if (!userId) { setLoading(false); return; }
-    try {
-      setLoading(true);
-      setError(false);
-      const [activeResult, completedResult] = await Promise.allSettled([
-        apiClient.getActiveQuests(userId),
-        apiClient.getCompletedQuests(userId, 50),
-      ]);
-      if (activeResult.status === 'fulfilled' && activeResult.value.success && activeResult.value.data) {
-        setActiveQuests(activeResult.value.data);
-      } else if (activeResult.status === 'rejected') {
-        logger.error('Failed to load active quests', { error: activeResult.reason });
-      }
-      if (completedResult.status === 'fulfilled' && completedResult.value.success && completedResult.value.data) {
-        setCompletedQuests(completedResult.value.data);
-      } else if (completedResult.status === 'rejected') {
-        logger.error('Failed to load completed quests', { error: completedResult.reason });
-      }
-      if (activeResult.status === 'rejected' && completedResult.status === 'rejected') {
-        setError(true);
-      }
-      loadTodayCheckins();
-    } catch (error) {
-      logger.error('Failed to load quests', { error });
-      setError(true);
-    } finally { setLoading(false); }
-  };
-
-  const handleRefresh = useCallback(async () => { await loadQuests(); }, []);
-
-  useEffect(() => { loadQuests(); }, [userId]);
+  const loadQuests = handleRefresh;
 
   const handleQuestSelect = useCallback((quest: Quest) => {
     haptic.impact('light');
@@ -69,33 +52,37 @@ export function useQuestsData(userId: number | undefined, haptic: HapticFeedback
   }, [haptic]);
 
   const handleCompleteQuest = useCallback(async () => {
-    if (!selectedQuest || completing) return;
+    if (!selectedQuest || completing || !userId) return;
     try {
-      setCompleting(true);
-      const response = await apiClient.completeQuest(selectedQuest.id, selectedQuest.target);
-      if (response.success) {
-        haptic.notification('success');
-        await loadQuests();
-        setSelectedQuest(null);
-      }
+      await completeQuestMutation.mutateAsync({
+        questId: selectedQuest.id,
+        progress: selectedQuest.target,
+        userId,
+      });
+      haptic.notification('success');
+      setSelectedQuest(null);
     } catch (error) {
       logger.error('Failed to complete quest', { error });
       haptic.notification('error');
-    } finally { setCompleting(false); }
-  }, [selectedQuest, completing, haptic]);
+    }
+  }, [selectedQuest, completing, userId, completeQuestMutation, haptic]);
 
   const handleCheckinSuccess = useCallback((result: { completed: boolean; current: number; target: number }) => {
     if (selectedQuest) {
       setSelectedQuest({ ...selectedQuest, progress: result.current, status: result.completed ? 'completed' : selectedQuest.status });
     }
-    loadTodayCheckins();
     if (result.completed) {
       haptic.notification('success');
-      loadQuests().then(() => setSelectedQuest(null));
-    } else {
-      loadQuests();
+      // After quest completion, wait for refetch then close modal
+      if (userId) {
+        queryClient.invalidateQueries({ queryKey: questKeys.active(userId) }).then(() => {
+          setSelectedQuest(null);
+        });
+        queryClient.invalidateQueries({ queryKey: questKeys.completed(userId) });
+      }
     }
-  }, [selectedQuest, haptic]);
+    // Checkin count + active quests are already invalidated by useCheckinMutation.onSettled
+  }, [selectedQuest, haptic, userId, queryClient]);
 
   const closeSelectedQuest = useCallback(() => {
     haptic.impact('light');
@@ -104,7 +91,7 @@ export function useQuestsData(userId: number | undefined, haptic: HapticFeedback
 
   // Extract unique modes from all quests
   const availableModes = useMemo(() => {
-    const modeMap = new Map<number, Mode>();
+    const modeMap = new Map<number, NonNullable<Quest['mode']>>();
     [...activeQuests, ...completedQuests].forEach((q) => {
       if (q.mode) modeMap.set(q.mode.id, q.mode);
     });
