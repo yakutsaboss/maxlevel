@@ -1234,7 +1234,31 @@ A → E → B → C → D → F → G (G always last — runs full verification)
 *(To be filled by Agent E)*
 
 #### Agent F Retrospective
-*(To be filled by Agent F)*
+**Task**: Delete all test files for removed features and fix remaining test files that reference them
+
+**What was done:**
+1. **Deleted 15 mini-app admin test files** — all files in `__tests__/pages/admin/` (2) and `__tests__/components/admin/` (13 including subdirectories answer-analytics/ and quest-editor/)
+2. **Deleted 10 finance test files** — `Finance.test.tsx` page test + 9 component tests in `__tests__/components/finance/`
+3. **Deleted 7 content/learning test files** — `ContentFeed.test.tsx`, `ArticleReader.test.tsx`, `ReadingHistory.test.tsx` page tests + `useContentFeed.test.ts`, `useReadingHistory.test.ts` hook tests + `content.test.ts` API test + `ContentQuiz.test.tsx`
+4. **Deleted 2 avatar/referral test files** — `AvatarCustomizer.test.tsx` + `ReferralSource.test.tsx`
+5. **Fixed `Onboarding.test.tsx`** — removed `ReferralSource` component mock, removed 'referral' from `getAllSteps` mock, updated `getTotalSteps` from 7 to 6
+6. **Fixed `useOnboardingFlow.test.ts`** — removed `finance` and `learning` from `MODE_BADGES` mock
+7. **Fixed `PathSelect.test.tsx`** — changed "renders all 4 mode cards" to assert Finance/Learning are NOT present (using `queryByText().not.toBeInTheDocument()`)
+8. **App.test.tsx** — no changes needed (already had no route assertions for deleted pages)
+9. **Cleaned up empty directories** — removed `__tests__/components/admin/`, `__tests__/components/finance/`, `__tests__/components/content/`, `__tests__/pages/admin/`
+
+**Files deleted (34 total):**
+- 15 admin test files (pages + components + subdirectories)
+- 10 finance test files (page + 9 component tests)
+- 7 content/learning test files (3 pages + 2 hooks + 1 API + 1 component)
+- 2 avatar/referral test files
+
+**Files modified (3):**
+- `mini-app/src/__tests__/pages/Onboarding.test.tsx` — removed ReferralSource mock, updated step list
+- `mini-app/src/__tests__/hooks/useOnboardingFlow.test.ts` — removed finance/learning from MODE_BADGES
+- `mini-app/src/__tests__/components/onboarding/PathSelect.test.tsx` — updated mode assertions
+
+**Verification:** All 4 modified test files pass (20 tests, 2.1s)
 
 #### Agent G Retrospective
 *(To be filled by Agent G)*

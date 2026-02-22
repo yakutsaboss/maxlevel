@@ -106,7 +106,6 @@ export function useQuizState(
   const getRequiredDayCount = (): number => {
     switch (config.dataKey) {
       case 'fitness': return (data.fitness?.workout_frequency as number) || 0;
-      case 'learning': return (data.learning?.study_frequency as number) || 0;
       default: return 0;
     }
   };

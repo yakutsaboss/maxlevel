@@ -64,7 +64,7 @@ describe('PathSelect', () => {
     vi.clearAllMocks();
   });
 
-  it('renders all 4 mode cards with icons and names', () => {
+  it('renders mode cards with icons and names', () => {
     render(
       <PathSelect
         progress={0.2}
@@ -75,8 +75,8 @@ describe('PathSelect', () => {
 
     expect(screen.getByText('Fitness')).toBeInTheDocument();
     expect(screen.getByText('Hydration')).toBeInTheDocument();
-    expect(screen.getByText('Finance')).toBeInTheDocument();
-    expect(screen.getByText('Learning')).toBeInTheDocument();
+    expect(screen.queryByText('Finance')).not.toBeInTheDocument();
+    expect(screen.queryByText('Learning')).not.toBeInTheDocument();
   });
 
   it('clicking a mode toggles selection', () => {

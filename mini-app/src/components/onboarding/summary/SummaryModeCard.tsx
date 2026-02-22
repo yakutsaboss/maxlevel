@@ -5,8 +5,6 @@ import type { OnboardingData } from '@/hooks/useOnboarding';
 const MODE_INFO: Record<string, { icon: string; nameKey: string }> = {
   fitness: { icon: '🏋️', nameKey: 'onboarding.modeFitness' },
   hydration: { icon: '💧', nameKey: 'onboarding.modeHydration' },
-  finance: { icon: '💰', nameKey: 'onboarding.modeFinance' },
-  learning: { icon: '📚', nameKey: 'onboarding.modeLearning' },
 };
 
 function fitnessSummary(f: NonNullable<OnboardingData['fitness']>): string | null {
@@ -21,21 +19,6 @@ function hydrationSummary(h: NonNullable<OnboardingData['hydration']>): string |
   const parts: string[] = [];
   if (h.daily_target) parts.push(`${h.daily_target} glasses/day`);
   if (h.reminder_frequency) parts.push(`every ${h.reminder_frequency}`);
-  return parts.length ? parts.join(' | ') : null;
-}
-
-function financeSummary(f: NonNullable<OnboardingData['finance']>): string | null {
-  const parts: string[] = [];
-  if (f.goals?.length) parts.push(f.goals.slice(0, 3).join(', '));
-  if (f.tracking_frequency) parts.push(f.tracking_frequency.replace('_', ' '));
-  return parts.length ? parts.join(' | ') : null;
-}
-
-function learningSummary(l: NonNullable<OnboardingData['learning']>): string | null {
-  const parts: string[] = [];
-  if (l.goals?.length) parts.push(l.goals.slice(0, 3).join(', '));
-  if (l.study_frequency) parts.push(`${l.study_frequency}x/week`);
-  if (l.daily_minutes) parts.push(`${l.daily_minutes} min/day`);
   return parts.length ? parts.join(' | ') : null;
 }
 
@@ -78,17 +61,6 @@ export function SummaryModeCards({ data, onEdit }: SummaryModeCardProps) {
         </SectionCard>
       )}
 
-      {data.selected_modes?.includes('finance') && (
-        <SectionCard title={t('onboarding.modeFinance')} onEdit={() => onEdit('finance_goals')} delay={0.3}>
-          <p className="text-sm text-telegram-hint">{data.finance ? financeSummary(data.finance) : null}</p>
-        </SectionCard>
-      )}
-
-      {data.selected_modes?.includes('learning') && (
-        <SectionCard title={t('onboarding.modeLearning')} onEdit={() => onEdit('learning_goals')} delay={0.35}>
-          <p className="text-sm text-telegram-hint">{data.learning ? learningSummary(data.learning) : null}</p>
-        </SectionCard>
-      )}
     </>
   );
 }

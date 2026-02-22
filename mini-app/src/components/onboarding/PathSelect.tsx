@@ -23,22 +23,6 @@ const MODES = [
     color: 'border-blue-500 bg-blue-500/10',
     available: true,
   },
-  {
-    id: 'finance',
-    nameKey: 'onboarding.modeFinance',
-    descKey: 'onboarding.modeFinanceDesc',
-    icon: '💰',
-    color: 'border-yellow-500 bg-yellow-500/10',
-    available: true,
-  },
-  {
-    id: 'learning',
-    nameKey: 'onboarding.modeLearning',
-    descKey: 'onboarding.modeLearningDesc',
-    icon: '📚',
-    color: 'border-green-500 bg-green-500/10',
-    available: true,
-  },
 ];
 
 interface PathSelectProps {

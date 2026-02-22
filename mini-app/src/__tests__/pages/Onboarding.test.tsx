@@ -80,9 +80,9 @@ const mockStore = () => ({
   setCompleted: mockSetCompleted,
   reset: mockReset,
   restoreState: mockRestoreState,
-  getAllSteps: () => ['splash', 'hero_intro', 'avatar', 'paths', 'referral', 'summary', 'launch'],
+  getAllSteps: () => ['splash', 'hero_intro', 'avatar', 'paths', 'summary', 'launch'],
   getCurrentStepIndex: () => 0,
-  getTotalSteps: () => 7,
+  getTotalSteps: () => 6,
   getProgress: () => mockProgress,
 });
 
@@ -129,12 +129,6 @@ vi.mock('@/components/onboarding/AvatarSelect', () => ({
 vi.mock('@/components/onboarding/PathSelect', () => ({
   PathSelect: ({ onNext }: { onNext: () => void }) => (
     <div data-testid="path-select"><button onClick={onNext}>Next</button></div>
-  ),
-}));
-
-vi.mock('@/components/onboarding/ReferralSource', () => ({
-  ReferralSource: ({ onNext }: { onNext: () => void }) => (
-    <div data-testid="referral-source"><button onClick={onNext}>Next</button></div>
   ),
 }));
 

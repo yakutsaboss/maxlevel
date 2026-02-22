@@ -27,8 +27,6 @@ vi.mock('@/data/modeBadges', () => ({
   MODE_BADGES: {
     fitness: { icon: '🏋️', name: 'Fitness', color: 'bg-red-500' },
     hydration: { icon: '💧', name: 'Hydration', color: 'bg-blue-500' },
-    finance: { icon: '💰', name: 'Finance', color: 'bg-yellow-500' },
-    learning: { icon: '📚', name: 'Learning', color: 'bg-green-500' },
   },
 }));
 

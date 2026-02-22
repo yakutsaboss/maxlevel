@@ -9,11 +9,8 @@
  *
  *   FITNESS_QUESTIONS      — 12 questions for Fitness mode
  *   HYDRATION_QUESTIONS    — 7 questions for Hydration mode
- *   FINANCE_QUESTIONS      — 5 questions for Finance mode
- *   LEARNING_QUESTIONS     — 5 questions for Learning mode (6 with resources)
  *   MEDICATION_QUESTIONS   — 6 questions for Medication mode
  *   HABITS_QUESTIONS       — 6 questions for Habits mode
- *   REFERRAL_OPTIONS       — "How did you find us?" answer choices
  *
  * All title, subtitle, label, sublabel strings are i18n keys.
  * They get resolved via t() in QuizScreen.tsx's translatedConfig.
@@ -360,181 +357,6 @@ export const HYDRATION_QUESTIONS: QuestionConfig[] = [
   },
 ];
 
-export const FINANCE_QUESTIONS: QuestionConfig[] = [
-  {
-    step: 'finance_goals',
-    title: 'onboardingQuiz.finance_goals.title',
-    subtitle: 'onboardingQuiz.finance_goals.subtitle',
-    type: 'multi-select',
-    dataKey: 'finance',
-    nestedKey: 'goals',
-    options: [
-      { value: 'save_more', label: 'onboardingQuiz.finance_goals.opt.save_more', sublabel: 'onboardingQuiz.finance_goals.opt.save_more_sub' },
-      { value: 'reduce_debt', label: 'onboardingQuiz.finance_goals.opt.reduce_debt', sublabel: 'onboardingQuiz.finance_goals.opt.reduce_debt_sub' },
-      { value: 'invest', label: 'onboardingQuiz.finance_goals.opt.invest', sublabel: 'onboardingQuiz.finance_goals.opt.invest_sub' },
-      { value: 'budget_better', label: 'onboardingQuiz.finance_goals.opt.budget_better', sublabel: 'onboardingQuiz.finance_goals.opt.budget_better_sub' },
-      { value: 'emergency_fund', label: 'onboardingQuiz.finance_goals.opt.emergency_fund', sublabel: 'onboardingQuiz.finance_goals.opt.emergency_fund_sub' },
-      { value: 'track_spending', label: 'onboardingQuiz.finance_goals.opt.track_spending', sublabel: 'onboardingQuiz.finance_goals.opt.track_spending_sub' },
-    ],
-  },
-  {
-    step: 'finance_income',
-    title: 'onboardingQuiz.finance_income.title',
-    subtitle: 'onboardingQuiz.finance_income.subtitle',
-    type: 'single-select',
-    dataKey: 'finance',
-    nestedKey: 'income_level',
-    options: [
-      { value: 'student', label: 'onboardingQuiz.finance_income.opt.student', sublabel: 'onboardingQuiz.finance_income.opt.student_sub' },
-      { value: 'low', label: 'onboardingQuiz.finance_income.opt.low', sublabel: 'onboardingQuiz.finance_income.opt.low_sub' },
-      { value: 'medium', label: 'onboardingQuiz.finance_income.opt.medium', sublabel: 'onboardingQuiz.finance_income.opt.medium_sub' },
-      { value: 'high', label: 'onboardingQuiz.finance_income.opt.high', sublabel: 'onboardingQuiz.finance_income.opt.high_sub' },
-      { value: 'prefer_not_to_say', label: 'onboardingQuiz.finance_income.opt.prefer_not_to_say', sublabel: 'onboardingQuiz.finance_income.opt.prefer_not_to_say_sub' },
-    ],
-  },
-  {
-    step: 'finance_spending',
-    title: 'onboardingQuiz.finance_spending.title',
-    subtitle: 'onboardingQuiz.finance_spending.subtitle',
-    type: 'multi-select',
-    dataKey: 'finance',
-    nestedKey: 'spending_categories',
-    options: [
-      { value: 'food', label: 'onboardingQuiz.finance_spending.opt.food', sublabel: 'onboardingQuiz.finance_spending.opt.food_sub' },
-      { value: 'entertainment', label: 'onboardingQuiz.finance_spending.opt.entertainment', sublabel: 'onboardingQuiz.finance_spending.opt.entertainment_sub' },
-      { value: 'shopping', label: 'onboardingQuiz.finance_spending.opt.shopping', sublabel: 'onboardingQuiz.finance_spending.opt.shopping_sub' },
-      { value: 'transport', label: 'onboardingQuiz.finance_spending.opt.transport', sublabel: 'onboardingQuiz.finance_spending.opt.transport_sub' },
-      { value: 'subscriptions', label: 'onboardingQuiz.finance_spending.opt.subscriptions', sublabel: 'onboardingQuiz.finance_spending.opt.subscriptions_sub' },
-      { value: 'other', label: 'onboardingQuiz.finance_spending.opt.other', sublabel: 'onboardingQuiz.finance_spending.opt.other_sub' },
-    ],
-  },
-  {
-    step: 'finance_savings_target',
-    title: 'onboardingQuiz.finance_savings_target.title',
-    subtitle: 'onboardingQuiz.finance_savings_target.subtitle',
-    type: 'drum-roller',
-    dataKey: 'finance',
-    nestedKey: 'savings_target',
-    min: 0,
-    max: 100000,
-    defaultValue: 10000,
-    formatValue: (v) => v.toLocaleString(),
-  },
-  {
-    step: 'finance_frequency',
-    title: 'onboardingQuiz.finance_frequency.title',
-    subtitle: 'onboardingQuiz.finance_frequency.subtitle',
-    type: 'single-select',
-    dataKey: 'finance',
-    nestedKey: 'tracking_frequency',
-    options: [
-      { value: 'daily_tracking', label: 'onboardingQuiz.finance_frequency.opt.daily_tracking', sublabel: 'onboardingQuiz.finance_frequency.opt.daily_tracking_sub' },
-      { value: 'weekly_review', label: 'onboardingQuiz.finance_frequency.opt.weekly_review', sublabel: 'onboardingQuiz.finance_frequency.opt.weekly_review_sub' },
-      { value: 'monthly_only', label: 'onboardingQuiz.finance_frequency.opt.monthly_only', sublabel: 'onboardingQuiz.finance_frequency.opt.monthly_only_sub' },
-    ],
-  },
-];
-
-export const LEARNING_QUESTIONS: QuestionConfig[] = [
-  {
-    step: 'learning_goals',
-    title: 'onboardingQuiz.learning_goals.title',
-    subtitle: 'onboardingQuiz.learning_goals.subtitle',
-    type: 'multi-select',
-    dataKey: 'learning',
-    nestedKey: 'goals',
-    options: [
-      { value: 'new_language', label: 'onboardingQuiz.learning_goals.opt.new_language', sublabel: 'onboardingQuiz.learning_goals.opt.new_language_sub' },
-      { value: 'programming', label: 'onboardingQuiz.learning_goals.opt.programming', sublabel: 'onboardingQuiz.learning_goals.opt.programming_sub' },
-      { value: 'reading', label: 'onboardingQuiz.learning_goals.opt.reading', sublabel: 'onboardingQuiz.learning_goals.opt.reading_sub' },
-      { value: 'professional_skills', label: 'onboardingQuiz.learning_goals.opt.professional_skills', sublabel: 'onboardingQuiz.learning_goals.opt.professional_skills_sub' },
-      { value: 'creativity', label: 'onboardingQuiz.learning_goals.opt.creativity', sublabel: 'onboardingQuiz.learning_goals.opt.creativity_sub' },
-      { value: 'science', label: 'onboardingQuiz.learning_goals.opt.science', sublabel: 'onboardingQuiz.learning_goals.opt.science_sub' },
-      { value: 'other', label: 'onboardingQuiz.learning_goals.opt.other', sublabel: 'onboardingQuiz.learning_goals.opt.other_sub' },
-    ],
-  },
-  {
-    step: 'learning_style',
-    title: 'onboardingQuiz.learning_style.title',
-    subtitle: 'onboardingQuiz.learning_style.subtitle',
-    type: 'single-select',
-    dataKey: 'learning',
-    nestedKey: 'learning_style',
-    options: [
-      { value: 'visual', label: 'onboardingQuiz.learning_style.opt.visual', sublabel: 'onboardingQuiz.learning_style.opt.visual_sub', icon: '👁️' },
-      { value: 'reading', label: 'onboardingQuiz.learning_style.opt.reading', sublabel: 'onboardingQuiz.learning_style.opt.reading_sub', icon: '📖' },
-      { value: 'hands_on', label: 'onboardingQuiz.learning_style.opt.hands_on', sublabel: 'onboardingQuiz.learning_style.opt.hands_on_sub', icon: '🛠️' },
-      { value: 'audio', label: 'onboardingQuiz.learning_style.opt.audio', sublabel: 'onboardingQuiz.learning_style.opt.audio_sub', icon: '🎧' },
-      { value: 'mixed', label: 'onboardingQuiz.learning_style.opt.mixed', sublabel: 'onboardingQuiz.learning_style.opt.mixed_sub', icon: '🔀' },
-    ],
-  },
-  {
-    step: 'learning_time',
-    title: 'onboardingQuiz.learning_time.title',
-    subtitle: 'onboardingQuiz.learning_time.subtitle',
-    type: 'drum-roller',
-    dataKey: 'learning',
-    nestedKey: 'daily_minutes',
-    min: 10,
-    max: 180,
-    defaultValue: 30,
-    formatValue: (v) => {
-      if (v >= 60) {
-        const h = Math.floor(v / 60);
-        const m = v % 60;
-        return m > 0 ? `${h}h ${m}min` : `${h} hour${h > 1 ? 's' : ''}`;
-      }
-      return `${v} min`;
-    },
-  },
-  {
-    step: 'learning_frequency',
-    title: 'onboardingQuiz.learning_frequency.title',
-    subtitle: 'onboardingQuiz.learning_frequency.subtitle',
-    type: 'slider',
-    dataKey: 'learning',
-    nestedKey: 'study_frequency',
-    min: 1,
-    max: 7,
-    defaultValue: 5,
-    step_size: 1,
-    flavorText: {
-      '1': 'onboardingQuiz.flavor.easyStart',
-      '2': 'onboardingQuiz.flavor.easyStart',
-      '3': 'onboardingQuiz.flavor.balanced',
-      '4': 'onboardingQuiz.flavor.balanced',
-      '5': 'onboardingQuiz.flavor.solidRoutine',
-      '6': 'onboardingQuiz.flavor.dailyLearner',
-      '7': 'onboardingQuiz.flavor.fullDedication',
-    },
-    valueSuffix: 'onboardingQuiz.learning_frequency.suffix',
-  },
-  {
-    step: 'learning_days',
-    title: 'onboardingQuiz.learning_days.title',
-    subtitle: 'onboardingQuiz.learning_days.subtitle',
-    type: 'day-grid',
-    dataKey: 'learning',
-    nestedKey: 'study_days',
-  },
-  {
-    step: 'learning_resources',
-    title: 'onboardingQuiz.learning_resources.title',
-    subtitle: 'onboardingQuiz.learning_resources.subtitle',
-    type: 'multi-select',
-    dataKey: 'learning',
-    nestedKey: 'resources',
-    options: [
-      { value: 'books', label: 'onboardingQuiz.learning_resources.opt.books', sublabel: 'onboardingQuiz.learning_resources.opt.books_sub' },
-      { value: 'online_courses', label: 'onboardingQuiz.learning_resources.opt.online_courses', sublabel: 'onboardingQuiz.learning_resources.opt.online_courses_sub' },
-      { value: 'videos', label: 'onboardingQuiz.learning_resources.opt.videos', sublabel: 'onboardingQuiz.learning_resources.opt.videos_sub' },
-      { value: 'podcasts', label: 'onboardingQuiz.learning_resources.opt.podcasts', sublabel: 'onboardingQuiz.learning_resources.opt.podcasts_sub' },
-      { value: 'practice_projects', label: 'onboardingQuiz.learning_resources.opt.practice_projects', sublabel: 'onboardingQuiz.learning_resources.opt.practice_projects_sub' },
-      { value: 'tutoring', label: 'onboardingQuiz.learning_resources.opt.tutoring', sublabel: 'onboardingQuiz.learning_resources.opt.tutoring_sub' },
-    ],
-  },
-];
-
 export const MEDICATION_QUESTIONS: QuestionConfig[] = [
   {
     step: 'medication_count',
@@ -707,16 +529,6 @@ export const HABITS_QUESTIONS: QuestionConfig[] = [
   },
 ];
 
-export const REFERRAL_OPTIONS: QuestionOption[] = [
-  { value: 'tiktok', label: 'TikTok' },
-  { value: 'instagram', label: 'Instagram' },
-  { value: 'telegram', label: 'Telegram' },
-  { value: 'youtube', label: 'YouTube' },
-  { value: 'web', label: 'Web' },
-  { value: 'friend_family', label: 'onboardingQuiz.referral.friend_family' },
-  { value: 'other', label: 'onboardingQuiz.referral.other' },
-];
-
 export function getQuestionForStep(step: OnboardingStep): QuestionConfig | undefined {
-  return [...FITNESS_QUESTIONS, ...HYDRATION_QUESTIONS, ...FINANCE_QUESTIONS, ...LEARNING_QUESTIONS, ...MEDICATION_QUESTIONS, ...HABITS_QUESTIONS].find((q) => q.step === step);
+  return [...FITNESS_QUESTIONS, ...HYDRATION_QUESTIONS, ...MEDICATION_QUESTIONS, ...HABITS_QUESTIONS].find((q) => q.step === step);
 }
