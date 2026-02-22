@@ -24,10 +24,10 @@ const Leaderboard = lazy(() => import('@/pages/Leaderboard').then(m => ({ defaul
 const Settings = lazy(() => import('@/pages/Settings').then(m => ({ default: m.Settings })));
 // [MVP-DISABLED] const Social = lazy(() => import('@/pages/Social').then(m => ({ default: m.Social })));
 // [MVP-DISABLED] const Finance = lazy(() => import('@/pages/Finance').then(m => ({ default: m.Finance })));
-// [MVP-DISABLED] const AvatarCustomizer = lazy(() => import('@/pages/AvatarCustomizer').then(m => ({ default: m.AvatarCustomizer })));
+const AvatarCustomizer = lazy(() => import('@/pages/AvatarCustomizer').then(m => ({ default: m.AvatarCustomizer })));
 const TrophyCase = lazy(() => import('@/pages/TrophyCase').then(m => ({ default: m.TrophyCase })));
-// [MVP-DISABLED] const Inventory = lazy(() => import('@/pages/Inventory').then(m => ({ default: m.Inventory })));
-// [MVP-DISABLED] const Shop = lazy(() => import('@/pages/Shop').then(m => ({ default: m.Shop })));
+const Inventory = lazy(() => import('@/pages/Inventory').then(m => ({ default: m.Inventory })));
+const Shop = lazy(() => import('@/pages/Shop').then(m => ({ default: m.Shop })));
 // [MVP-DISABLED] const Analytics = lazy(() => import('@/pages/Analytics').then(m => ({ default: m.Analytics })));
 // [MVP-DISABLED] const NotificationHistory = lazy(() => import('@/pages/NotificationHistory').then(m => ({ default: m.NotificationHistory })));
 // [MVP-DISABLED] const ActivityHub = lazy(() => import('@/pages/ActivityHub').then(m => ({ default: m.ActivityHub })));
@@ -149,11 +149,11 @@ function AppContent() {
         {/* [MVP-DISABLED] <Route path="/finance" element={<ProtectedRoute needsOnboarding={effectiveNeedsOnboarding} lazy><Finance /></ProtectedRoute>} /> */}
         <Route path="/achievements" element={<ProtectedRoute needsOnboarding={effectiveNeedsOnboarding} lazy><Achievements /></ProtectedRoute>} />
         <Route path="/settings" element={<ProtectedRoute needsOnboarding={effectiveNeedsOnboarding} lazy><Settings /></ProtectedRoute>} />
-        {/* [MVP-DISABLED] <Route path="/avatar" element={<ProtectedRoute needsOnboarding={effectiveNeedsOnboarding} lazy><AvatarCustomizer /></ProtectedRoute>} /> */}
+        <Route path="/avatar" element={<ProtectedRoute needsOnboarding={effectiveNeedsOnboarding} lazy><AvatarCustomizer /></ProtectedRoute>} />
         <Route path="/trophies" element={<ProtectedRoute needsOnboarding={effectiveNeedsOnboarding} lazy><TrophyCase /></ProtectedRoute>} />
-        {/* [MVP-DISABLED] <Route path="/inventory" element={<ProtectedRoute needsOnboarding={effectiveNeedsOnboarding} lazy><Inventory /></ProtectedRoute>} /> */}
-        {/* [MVP-DISABLED] <Route path="/shop" element={<ProtectedRoute needsOnboarding={effectiveNeedsOnboarding} lazy><Shop /></ProtectedRoute>} /> */}
-        {/* [MVP-DISABLED] <Route path="/shop/:itemId" element={<ProtectedRoute needsOnboarding={effectiveNeedsOnboarding} lazy><Shop /></ProtectedRoute>} /> */}
+        <Route path="/inventory" element={<ProtectedRoute needsOnboarding={effectiveNeedsOnboarding} lazy><Inventory /></ProtectedRoute>} />
+        <Route path="/shop" element={<ProtectedRoute needsOnboarding={effectiveNeedsOnboarding} lazy><Shop /></ProtectedRoute>} />
+        <Route path="/shop/:itemId" element={<ProtectedRoute needsOnboarding={effectiveNeedsOnboarding} lazy><Shop /></ProtectedRoute>} />
         {/* [MVP-DISABLED] <Route path="/analytics" element={<ProtectedRoute needsOnboarding={effectiveNeedsOnboarding} lazy><Analytics /></ProtectedRoute>} /> */}
         {/* [MVP-DISABLED] <Route path="/notifications" element={<ProtectedRoute needsOnboarding={effectiveNeedsOnboarding} lazy><NotificationHistory /></ProtectedRoute>} /> */}
         {/* [MVP-DISABLED] <Route path="/activity" element={<ProtectedRoute needsOnboarding={effectiveNeedsOnboarding} lazy><ActivityHub /></ProtectedRoute>} /> */}
