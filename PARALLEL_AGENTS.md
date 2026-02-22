@@ -1124,7 +1124,18 @@ Write retrospective when done.
 ### Run 88 Retrospectives
 
 #### Agent A Retrospective
-*(To be filled by Agent A)*
+**Status**: Complete — 2 files changed, `tsc --noEmit` clean (exit 0).
+
+**Fixed**:
+- `mini-app/src/hooks/useMedicationQuery.ts` — `useMedications` now extracts `(res.data as any).medications` instead of returning the full `{ medications, count }` wrapper. `useTodaySchedule` now extracts `(res.data as any).schedule` instead of returning `{ schedule, summary }`. This fixes `useMedicationData` which does `medicationsQuery.data ?? []` expecting arrays.
+- `mini-app/src/components/dashboard/MedicationWidget.tsx` — Removed `memo` wrapper and props interface. Now self-contained: imports `useMedicationData` + `useTelegram` hooks internally. Removed local `ScheduleItem` interface in favor of `TodayScheduleItem` from `@/types`. Fixed field access from `medication_name` to `name` to match API response.
+
+**Verified**:
+- `TodayScheduleItem` type already matches API SQL output (fields: `medication_id`, `name`, `dosage`, `color`, `scheduled_time`, `status`). No type changes needed.
+- Optimistic updates in `useDeleteMedicationMutation` and `useLogMedicationMutation` correctly operate on `Medication[]` and `TodayScheduleItem[]` after the extraction fix.
+- `useMedicationHistory` left unchanged — `useMedicationData` does `?? null` which works with the full response object.
+
+**No issues encountered.**
 
 #### Agent B Retrospective
 *(To be filled by Agent B)*

@@ -1,26 +1,14 @@
-import { memo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { Pill, ChevronRight, Check, Clock } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { useMedicationData } from '@/hooks/useMedicationData.js';
+import { useTelegram } from '@/hooks/useTelegram.js';
+import type { TodayScheduleItem } from '@/types';
 
-interface ScheduleItem {
-  medication_id: number;
-  medication_name: string;
-  scheduled_time: string;
-  status: 'taken' | 'skipped' | 'pending' | 'postponed';
-  color?: string;
-}
-
-interface MedicationWidgetProps {
-  todaySchedule?: ScheduleItem[];
-  loading?: boolean;
-}
-
-function getNextDue(schedule: ScheduleItem[]): ScheduleItem | null {
+function getNextDue(schedule: TodayScheduleItem[]): TodayScheduleItem | null {
   const pending = schedule.filter((s) => s.status === 'pending');
   if (pending.length === 0) return null;
-  // Sort by scheduled_time and return the earliest
   return pending.sort((a, b) => a.scheduled_time.localeCompare(b.scheduled_time))[0];
 }
 
@@ -38,9 +26,11 @@ function formatTimeUntil(scheduledTime: string): string {
   return remainMins > 0 ? `${diffHours}h ${remainMins}m` : `${diffHours}h`;
 }
 
-export const MedicationWidget = memo(function MedicationWidget({ todaySchedule, loading }: MedicationWidgetProps) {
+export function MedicationWidget() {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const { user } = useTelegram();
+  const { todaySchedule, loading } = useMedicationData(user?.id);
 
   if (loading) {
     return (
@@ -114,7 +104,7 @@ export const MedicationWidget = memo(function MedicationWidget({ todaySchedule, 
             <div className="flex items-center gap-1.5">
               <Clock className="w-3.5 h-3.5 text-telegram-hint" />
               <span className="text-xs text-telegram-hint">
-                {t('dashboard.nextMedication', { name: nextDue.medication_name })} — {formatTimeUntil(nextDue.scheduled_time)}
+                {t('dashboard.nextMedication', { name: nextDue.name })} — {formatTimeUntil(nextDue.scheduled_time)}
               </span>
             </div>
           ) : null}
@@ -122,4 +112,4 @@ export const MedicationWidget = memo(function MedicationWidget({ todaySchedule, 
       )}
     </motion.button>
   );
-});
+}
