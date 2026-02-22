@@ -1380,7 +1380,27 @@ Write retrospective when done.
 **Issues:** None. Clean implementation, follows existing patterns in the file.
 
 #### Agent E Retrospective
-*(To be filled by Agent E)*
+**Task:** Rebalance punishment system to be ultra-light for beginners.
+
+**Changes made (3 files):**
+
+1. **`mini-app/src/components/onboarding/punishment/constants.ts`** — Updated DIFFICULTY_MAP display labels:
+   - Workout: 3 / 10 / 25 / 50 pushups (was 20 / 50 / 100 / 200+plank)
+   - Book: 3 / 10 / 25 / 50 pages (was 10 / 30 / 50 / 100)
+   - Money: $0.25 / $1 / $3 / $10 (was $1 / $5 / $10 / $25)
+   - Agent B had NOT wrapped these in i18n yet, so edited the constants file directly.
+
+2. **`bot/src/api/utils/constants.ts`** — Changed STARS_PENALTY_RATES:
+   - light: 0 (was 1), moderate: 1 (was 3), strict: 3 (was 5), extreme: 5 (was 10)
+
+3. **`bot/src/jobs/definitions/punishmentCheck.ts`** — Three changes:
+   - INTENSITY_MULTIPLIER: low=0.25, medium=0.5, high=1.0, extreme=1.5 (was 0.5/1.0/1.5/2.0)
+   - Added `u.level` to SQL SELECT and FailedQuestRow type
+   - Added level-based scaling: `levelScale = min(1.0, userLevel / 10)` — Level 1 gets only 10% of penalty, Level 5 gets 50%, Level 10+ gets full penalty
+
+**Build verification:** Both `bot` and `mini-app` tsc --noEmit pass with zero errors.
+
+**Note for Agent H:** Punishment tests will need updated values — old XP multipliers (0.5/1.0/1.5/2.0 → 0.25/0.5/1.0/1.5), old Stars rates (1/3/5/10 → 0/1/3/5), and new level-based scaling logic.
 
 #### Agent F Retrospective
 *(To be filled by Agent F)*

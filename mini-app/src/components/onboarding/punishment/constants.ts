@@ -41,21 +41,21 @@ export const PUNISHMENT_TYPES: {
 
 export const DIFFICULTY_MAP: Record<PunishmentType, { value: Difficulty; label: string; dot: string }[]> = {
   workout: [
-    { value: 'easy', label: '20 pushups', dot: '\uD83D\uDFE2' },
-    { value: 'medium', label: '50 pushups', dot: '\uD83D\uDFE1' },
-    { value: 'hard', label: '100 pushups', dot: '\uD83D\uDFE0' },
-    { value: 'extreme', label: '200 pushups + 1 min plank', dot: '\uD83D\uDD34' },
+    { value: 'easy', label: '3 pushups', dot: '\uD83D\uDFE2' },
+    { value: 'medium', label: '10 pushups', dot: '\uD83D\uDFE1' },
+    { value: 'hard', label: '25 pushups', dot: '\uD83D\uDFE0' },
+    { value: 'extreme', label: '50 pushups', dot: '\uD83D\uDD34' },
   ],
   book: [
-    { value: 'easy', label: 'Read 10 pages', dot: '\uD83D\uDFE2' },
-    { value: 'medium', label: 'Read 30 pages', dot: '\uD83D\uDFE1' },
-    { value: 'hard', label: 'Read 50 pages', dot: '\uD83D\uDFE0' },
-    { value: 'extreme', label: 'Read 100 pages', dot: '\uD83D\uDD34' },
+    { value: 'easy', label: 'Read 3 pages', dot: '\uD83D\uDFE2' },
+    { value: 'medium', label: 'Read 10 pages', dot: '\uD83D\uDFE1' },
+    { value: 'hard', label: 'Read 25 pages', dot: '\uD83D\uDFE0' },
+    { value: 'extreme', label: 'Read 50 pages', dot: '\uD83D\uDD34' },
   ],
   money: [
-    { value: 'easy', label: 'Donate $1', dot: '\uD83D\uDFE2' },
-    { value: 'medium', label: 'Donate $5', dot: '\uD83D\uDFE1' },
-    { value: 'hard', label: 'Donate $10', dot: '\uD83D\uDFE0' },
-    { value: 'extreme', label: 'Donate $25', dot: '\uD83D\uDD34' },
+    { value: 'easy', label: 'Donate $0.25', dot: '\uD83D\uDFE2' },
+    { value: 'medium', label: 'Donate $1', dot: '\uD83D\uDFE1' },
+    { value: 'hard', label: 'Donate $3', dot: '\uD83D\uDFE0' },
+    { value: 'extreme', label: 'Donate $10', dot: '\uD83D\uDD34' },
   ],
 };

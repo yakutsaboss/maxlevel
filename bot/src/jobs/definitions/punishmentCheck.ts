@@ -37,17 +37,18 @@ type FailedQuestRow = {
   telegram_id: string;
   title: string;
   xp_reward: number;
+  level: number;
 };
 
 const BATCH_SIZE = 50;
 const DELAY_BETWEEN_SENDS_MS = 200;
 
-/** Intensity level → XP multiplier */
+/** Intensity level → XP multiplier (rebalanced: ultra-light for beginners) */
 const INTENSITY_MULTIPLIER: Record<string, number> = {
-  low: 0.5,
-  medium: 1.0,
-  high: 1.5,
-  extreme: 2.0,
+  low: 0.25,
+  medium: 0.5,
+  high: 1.0,
+  extreme: 1.5,
 };
 
 /** Map DB intensity levels to STARS_PENALTY_RATES keys */
@@ -69,7 +70,7 @@ export async function handler(jobs: Job[]): Promise<void> {
   // Step 1: Find quests that expired yesterday and were not completed
   const failedQuests = await query<FailedQuestRow>(
     `SELECT qi.id AS quest_instance_id, qi.user_id, u.telegram_id,
-            q.title, q.xp_reward
+            q.title, q.xp_reward, u.level
      FROM quest_instances qi
      JOIN quests q ON qi.quest_id = q.id
      JOIN users u ON qi.user_id = u.id
@@ -95,7 +96,7 @@ export async function handler(jobs: Job[]): Promise<void> {
   log.info(`Marked ${failedIds.length} quests as failed`);
 
   // Step 3: Group by user for punishment processing
-  const userQuests = new Map<number, Array<{ quest_instance_id: number; telegram_id: string; title: string; xp_reward: number }>>();
+  const userQuests = new Map<number, Array<{ quest_instance_id: number; telegram_id: string; title: string; xp_reward: number; level: number }>>();
   for (const fq of failedQuests) {
     if (!userQuests.has(fq.user_id)) {
       userQuests.set(fq.user_id, []);
@@ -105,6 +106,7 @@ export async function handler(jobs: Job[]): Promise<void> {
       telegram_id: fq.telegram_id,
       title: fq.title,
       xp_reward: fq.xp_reward,
+      level: fq.level,
     });
   }
 
@@ -169,6 +171,11 @@ export async function handler(jobs: Job[]): Promise<void> {
 
       for (const quest of quests) {
         let xpPenalty = Math.round(quest.xp_reward * multiplier);
+
+        // Level-based scaling: beginners get reduced penalties
+        // Level 1 = 10% penalty, Level 5 = 50%, Level 10+ = full penalty
+        const levelScale = Math.min(1.0, (quest.level || 1) / 10);
+        xpPenalty = Math.round(xpPenalty * levelScale);
 
         // Cap to max_xp_penalty per quest
         xpPenalty = Math.min(xpPenalty, maxDaily);
