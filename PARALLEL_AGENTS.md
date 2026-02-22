@@ -1853,16 +1853,75 @@ Write retrospective when done.
 *(To be filled by Agent A)*
 
 #### Agent B Retrospective
-*(To be filled by Agent B)*
+**Task**: Migrate Dashboard and Profile data hooks to React Query
+
+**What was done:**
+1. **Created `useDashboardQuery.ts`** — React Query hooks for dashboard data. All three hooks (`useDashboardStats`, `useDashboardQuests`, `useDashboardAchievements`) share the same query key and `queryFn` (since `getUserStats` returns all data in one API call), using `select` to extract subsets. Exported `dashboardKeys` for cache management.
+2. **Refactored `useDashboardData.ts`** — Replaced `useState` + `useEffect` + `AbortController` pattern with `useDashboardStats` from React Query. Removed manual loading/error state management. Preserved: pull-to-refresh (uses `invalidateQueries`), achievement check on refresh, `onDashboardData` callback (via `useEffect` on stats), navigation handler. Public API unchanged — Dashboard.tsx needs zero changes.
+3. **Created `useProfileQuery.ts`** — Three separate React Query hooks mapping to distinct API endpoints: `useProfileStats(userId)` (staleTime 2min, getUserStats), `useProfileAchievements(userId)` (staleTime 5min, getUserAchievements + getAchievements bundled), `useProfilePunishments(userId)` (staleTime 5min, getPunishmentSettings + getPunishmentHistory with silent error handling matching original behavior). Exported `profileKeys`.
+4. **Refactored `useProfileData.ts`** — Replaced all `useState` + `useEffect` + `AbortController` with the three React Query hooks. Removed manual loading/error/abort logic. `loadProfileData` now invalidates all three query keys. Public API unchanged — Profile.tsx needs zero changes.
+5. **Build verified** — `tsc --noEmit` clean, `npm run build` successful.
+
+**Files created:**
+- `mini-app/src/hooks/useDashboardQuery.ts` (44 lines) — 3 queries (shared cache key)
+- `mini-app/src/hooks/useProfileQuery.ts` (67 lines) — 3 queries
+
+**Files modified:**
+- `mini-app/src/hooks/useDashboardData.ts` — full rewrite to React Query (103→82 lines, -20%)
+- `mini-app/src/hooks/useProfileData.ts` — full rewrite to React Query (82→36 lines, -56%)
+
+**Key design decisions:**
+- Dashboard uses a single shared query key for all 3 hooks because the API returns everything in one `getUserStats` call. No wasted network requests.
+- Profile uses separate query keys per endpoint, enabling independent cache lifetimes and parallel fetching.
+- Punishment queries silently return defaults on failure (matching original try-catch behavior) — they never put React Query into error state.
+- `errorMessage` kept in return type (empty string) for API compat, though no consumer uses it.
 
 #### Agent C Retrospective
-*(To be filled by Agent C)*
+**Task**: Migrate Social, Shop, and Leaderboard hooks to React Query
+
+**What was done:**
+1. **Created `useSocialQuery.ts`** — React Query hooks for friends, friend requests, challenges, and discover challenges. Query keys exported as `socialKeys`. Mutations for send/accept/reject friend requests, remove friend, join/leave/update challenge progress — all with optimistic updates and rollback.
+2. **Refactored `useSocial.ts`** — Replaced all `useState` + `useEffect` + `apiClient` patterns with React Query hooks from `useSocialQuery.ts`. Kept the same public API (friends, pendingRequests, challenges, availableChallenges, all action callbacks). Discover challenges uses state-driven `useDiscoverChallenges(mode, enabled)` internally to support the imperative `discoverChallenges(mode)` callback that Social.tsx depends on.
+3. **Created `useShopQuery.ts`** — `useShopItems()` (staleTime 5min), `useInventory(userId)` (staleTime 2min), `usePurchaseMutation()` with optimistic inventory update. Query keys exported as `shopKeys`.
+4. **Refactored `useShop.ts`** — Replaced manual data fetching with React Query hooks. Preserved all filtering/sorting logic (`filteredItems`, `featuredItems`, `ownedItemIds`, category/search state). Same public API.
+5. **Created `useLeaderboardQuery.ts`** — `useLeaderboard(period, limit)` with staleTime 3min. Handles all three endpoints (all_time, weekly, monthly) based on period param. Exports `TimePeriod` type and `leaderboardKeys`.
+6. **Refactored `Leaderboard.tsx`** — Replaced inline `useState` + `apiClient` with `useLeaderboard` hook. Removed all manual loading/error state. Preserved pull-to-refresh, share, and user rank detection.
+7. **Build verified** — `tsc --noEmit` clean, `npm run build` successful.
+
+**Files created:**
+- `mini-app/src/hooks/useSocialQuery.ts` (250 lines) — 4 queries, 7 mutations
+- `mini-app/src/hooks/useShopQuery.ts` (85 lines) — 2 queries, 1 mutation
+- `mini-app/src/hooks/useLeaderboardQuery.ts` (28 lines) — 1 query
+
+**Files modified:**
+- `mini-app/src/hooks/useSocial.ts` — full rewrite to React Query
+- `mini-app/src/hooks/useShop.ts` — full rewrite to React Query
+- `mini-app/src/pages/Leaderboard.tsx` — refactored to use useLeaderboard
+
+**Stale times:**
+- Friends list: 2min | Friend requests: 1min | Challenges: 2min | Discover: 2min
+- Shop items: 5min | Inventory: 2min
+- Leaderboard: 3min
+
+**Notes:**
+- Social.tsx (not owned) imports `availableChallenges` and `discoverChallenges` from useSocial — kept working via state-driven React Query internally
+- No changes to Social.tsx or Shop.tsx pages — the public API of useSocial and useShop is fully preserved
 
 #### Agent D Retrospective
 *(To be filled by Agent D)*
 
 #### Agent E Retrospective
-*(To be filled by Agent E)*
+**Task**: Enhance notification bot with health monitoring features
+
+**What was done:**
+1. **PM2 crash detection in /ping** — Added `_check_pm2_restarts()` that runs `pm2 jlist` via SSH, parses JSON, and warns if the bot restarted within the last 60 minutes. Shows lifetime restart count when stable.
+2. **SSL certificate expiry in /ping** — Added `_check_ssl_expiry()` using Python's `ssl` + `socket` modules to check yakutsa.ru cert directly (no SSH needed). Shows days remaining with color-coded warnings (<7d = red, <30d = yellow, else green).
+3. **Disk usage trend in /metrics** — Added `_get_disk_trend()` that stores last 5 disk usage readings in `/tmp/wibecode_disk_history.json` on the server. Shows trend arrows (up/down/stable) compared to oldest reading.
+4. **New /deploy command** — Shows last git commit (hash, message, time) from `/opt/wibecode-bot` plus PM2 process info (status, uptime, memory, restart count) in a single SSH call.
+5. **Updated /help and /start** — Reorganized help into categories (Health & Monitoring, Project, Reference). Added /deploy to all command lists and Telegram menu registration.
+
+**Files changed:**
+- `tools/notification_bot_handler.py` — added imports (`ssl`, `socket`, `datetime`), 3 new helper functions, 1 new command handler, updated help/start text, updated BotCommand registration
 
 #### Agent F Retrospective
 **Task**: Optimize bundle size and add performance improvements
