@@ -221,7 +221,11 @@ BEGIN
     (medication_mode_id, 'Log Side Effects', 'Track any side effects or changes you noticed today', 'daily', 35, 'medium', FALSE, NULL, NULL, FALSE, NULL, FALSE),
     -- Hard
     (medication_mode_id, 'Full Medication Audit', 'Review all medications, check expiration dates, and update your medication list', 'daily', 80, 'hard', FALSE, NULL, NULL, FALSE, NULL, FALSE),
-    (medication_mode_id, 'Weekly: Perfect Adherence', 'Take all medications on time every single day this week', 'weekly', 250, 'hard', FALSE, NULL, NULL, FALSE, NULL, TRUE)
+    (medication_mode_id, 'Weekly: Perfect Adherence', 'Take all medications on time every single day this week', 'weekly', 250, 'hard', FALSE, NULL, NULL, FALSE, NULL, TRUE),
+    -- Medication tracker quests (added Run 87)
+    (medication_mode_id, 'Take morning medications', 'Log all your morning medications as taken in the medication tracker', 'daily', 30, 'easy', FALSE, NULL, NULL, FALSE, NULL, FALSE),
+    (medication_mode_id, 'Take evening medications', 'Log all your evening medications as taken in the medication tracker', 'daily', 30, 'easy', FALSE, NULL, NULL, FALSE, NULL, FALSE),
+    (medication_mode_id, 'Perfect medication week', 'No missed doses all week — every scheduled medication logged as taken', 'weekly', 200, 'hard', FALSE, NULL, NULL, FALSE, NULL, FALSE)
     ON CONFLICT DO NOTHING;
 
     -- Habits Quest Templates (added in Run 42)

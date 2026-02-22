@@ -4,6 +4,9 @@
 -- Drop existing tables and views (for fresh install)
 DROP VIEW IF EXISTS user_stats CASCADE;
 DROP MATERIALIZED VIEW IF EXISTS leaderboard_mv CASCADE;
+DROP TABLE IF EXISTS notification_log CASCADE;
+DROP TABLE IF EXISTS medication_logs CASCADE;
+DROP TABLE IF EXISTS medications CASCADE;
 DROP TABLE IF EXISTS activity_logs CASCADE;
 DROP TABLE IF EXISTS activity_types CASCADE;
 DROP TABLE IF EXISTS user_purchases CASCADE;
@@ -545,3 +548,50 @@ CREATE TABLE IF NOT EXISTS mode_unlocks (
 CREATE INDEX IF NOT EXISTS idx_mode_unlocks_user_id ON mode_unlocks(user_id);
 
 COMMENT ON TABLE mode_unlocks IS 'Per-mode unlock records (Stars or XP payment, added Run 86)';
+
+-- Medications tracker (added Run 87)
+CREATE TABLE IF NOT EXISTS medications (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    name VARCHAR(100) NOT NULL,
+    dosage VARCHAR(100),
+    frequency VARCHAR(20) CHECK (frequency IN ('daily', 'twice_daily', 'three_times', 'weekly', 'as_needed')) NOT NULL DEFAULT 'daily',
+    time_of_day TIME[] NOT NULL DEFAULT '{08:00}',
+    color VARCHAR(20) DEFAULT 'blue',
+    notes TEXT,
+    is_active BOOLEAN DEFAULT TRUE,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_medications_user ON medications(user_id);
+CREATE INDEX IF NOT EXISTS idx_medications_active ON medications(user_id, is_active);
+
+-- Medication intake logs (added Run 87)
+CREATE TABLE IF NOT EXISTS medication_logs (
+    id SERIAL PRIMARY KEY,
+    medication_id INTEGER NOT NULL REFERENCES medications(id) ON DELETE CASCADE,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    scheduled_date DATE NOT NULL DEFAULT CURRENT_DATE,
+    scheduled_time TIME NOT NULL,
+    status VARCHAR(20) CHECK (status IN ('taken', 'skipped', 'postponed')) NOT NULL,
+    logged_at TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_med_logs_user_date ON medication_logs(user_id, scheduled_date);
+CREATE INDEX IF NOT EXISTS idx_med_logs_medication ON medication_logs(medication_id, scheduled_date);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_med_logs_unique ON medication_logs(medication_id, scheduled_date, scheduled_time);
+
+-- Notification log (added Run 87)
+CREATE TABLE IF NOT EXISTS notification_log (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    type VARCHAR(50) NOT NULL,
+    title VARCHAR(255) NOT NULL,
+    body TEXT,
+    sent_at TIMESTAMPTZ DEFAULT NOW(),
+    read_at TIMESTAMPTZ
+);
+CREATE INDEX IF NOT EXISTS idx_notif_log_user ON notification_log(user_id, sent_at DESC);
+
+COMMENT ON TABLE medications IS 'User medication definitions with schedule and dosage (added Run 87)';
+COMMENT ON TABLE medication_logs IS 'Medication intake log entries — taken, skipped, or postponed (added Run 87)';
+COMMENT ON TABLE notification_log IS 'Notification history for in-app notification center (added Run 87)';

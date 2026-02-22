@@ -1788,3 +1788,12 @@ A → B → C → D → E → F → G (G always last)
 - **Key wins**: Smooth page transitions (AnimatePresence), nav bar icon animations (spring scale, gear rotation, badge pop-in, tap bounce), onboarding progress bar glow + directional step slide, avatar selection bounce + animated checkmark, PathSelect lock shake + glow ring + unlock modal. Medication unlock backend fully wired (Stars 300 / XP 10K).
 - **Issues**: Agent D and F both touched PathSelect.tsx — Agent D committed animation polish, Agent F committed unlock logic. F preserved D's work. No conflicts but shared file ownership should be avoided in future runs.
 - **Roadmap**: Run 86 was a user-requested feature run (post-roadmap). All mandatory roadmap runs (78-85) are ✅.
+
+### Run 87 Retrospectives
+
+#### Agent A Retrospective
+- Added 3 new tables to `database/schema.sql`: `medications`, `medication_logs`, `notification_log` — all placed after `mode_unlocks` with `IF NOT EXISTS` guards, proper indexes, and table comments.
+- Added DROP TABLE statements for the 3 new tables at the top of schema.sql (for fresh installs).
+- Added 3 medication tracker quest templates to `database/seed_data.sql`: "Take morning medications" (daily, easy, 30 XP), "Take evening medications" (daily, easy, 30 XP), "Perfect medication week" (weekly, hard, 200 XP).
+- Created `database/migrations/run87_medication.sql` — wraps all 3 CREATE TABLE + indexes + seed quests in a single transaction (BEGIN/COMMIT) for safe production deployment.
+- No issues encountered. All files owned by Agent A only (schema.sql, seed_data.sql, migration file).
