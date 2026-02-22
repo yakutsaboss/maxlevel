@@ -24,13 +24,11 @@ describe('SummaryFocusAreas', () => {
   });
 
   it('renders mode badges for selected modes', () => {
-    const data: OnboardingData = { selected_modes: ['fitness', 'hydration', 'finance', 'learning'] };
+    const data: OnboardingData = { selected_modes: ['fitness', 'hydration'] };
     render(<SummaryFocusAreas data={data} onEdit={mockOnEdit} />);
 
     expect(screen.getByText(/Fitness/)).toBeInTheDocument();
     expect(screen.getByText(/Hydration/)).toBeInTheDocument();
-    expect(screen.getByText(/Finance/)).toBeInTheDocument();
-    expect(screen.getByText(/Learning/)).toBeInTheDocument();
   });
 
   it('renders empty when no modes selected', () => {
@@ -92,31 +90,6 @@ describe('SummaryModeCards', () => {
     expect(screen.getByText(/every 2 hours/)).toBeInTheDocument();
   });
 
-  it('renders finance card when finance mode is selected', () => {
-    const data: OnboardingData = {
-      selected_modes: ['finance'],
-      finance: { goals: ['save money', 'budget'], tracking_frequency: 'every_day' },
-    };
-    render(<SummaryModeCards data={data} onEdit={mockOnEdit} />);
-
-    expect(screen.getByText('Finance')).toBeInTheDocument();
-    expect(screen.getByText(/save money/)).toBeInTheDocument();
-    expect(screen.getByText(/every day/)).toBeInTheDocument();
-  });
-
-  it('renders learning card when learning mode is selected', () => {
-    const data: OnboardingData = {
-      selected_modes: ['learning'],
-      learning: { goals: ['read more'], study_frequency: 3, daily_minutes: 30 },
-    };
-    render(<SummaryModeCards data={data} onEdit={mockOnEdit} />);
-
-    expect(screen.getByText('Learning')).toBeInTheDocument();
-    expect(screen.getByText(/read more/)).toBeInTheDocument();
-    expect(screen.getByText(/3x\/week/)).toBeInTheDocument();
-    expect(screen.getByText(/30 min\/day/)).toBeInTheDocument();
-  });
-
   it('renders nothing when no modes are selected', () => {
     const data: OnboardingData = { selected_modes: [] };
     const { container } = render(<SummaryModeCards data={data} onEdit={mockOnEdit} />);
@@ -146,11 +119,9 @@ describe('SummaryModeCards', () => {
 
   it('calls onEdit with correct step for each mode', () => {
     const data: OnboardingData = {
-      selected_modes: ['fitness', 'hydration', 'finance', 'learning'],
+      selected_modes: ['fitness', 'hydration'],
       fitness: { fitness_level: 'beginner' },
       hydration: { daily_target: 6 },
-      finance: { goals: ['budget'] },
-      learning: { goals: ['study'] },
     };
     render(<SummaryModeCards data={data} onEdit={mockOnEdit} />);
 
@@ -160,12 +131,6 @@ describe('SummaryModeCards', () => {
 
     fireEvent.click(editButtons[1]); // hydration
     expect(mockOnEdit).toHaveBeenCalledWith('hydration_intake');
-
-    fireEvent.click(editButtons[2]); // finance
-    expect(mockOnEdit).toHaveBeenCalledWith('finance_goals');
-
-    fireEvent.click(editButtons[3]); // learning
-    expect(mockOnEdit).toHaveBeenCalledWith('learning_goals');
   });
 
   it('truncates focus_areas to 3 items in fitness summary', () => {
