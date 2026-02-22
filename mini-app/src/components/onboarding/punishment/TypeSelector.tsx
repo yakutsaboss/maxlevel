@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import { motion } from 'framer-motion';
 import { PUNISHMENT_TYPES, type PunishmentType } from './constants';
 
@@ -8,6 +9,7 @@ interface TypeSelectorProps {
 }
 
 export function TypeSelector({ punishmentType, onSelectType, onNext }: TypeSelectorProps) {
+  const { t } = useTranslation();
   return (
     <motion.div
       key="type-step"
@@ -17,7 +19,7 @@ export function TypeSelector({ punishmentType, onSelectType, onNext }: TypeSelec
       className="space-y-3"
     >
       <p className="text-sm font-medium text-telegram-text mb-1">
-        Choose your punishment type
+        {t('onboardingQuiz.punishment.chooseType')}
       </p>
 
       {PUNISHMENT_TYPES.map((pt) => {
@@ -36,8 +38,8 @@ export function TypeSelector({ punishmentType, onSelectType, onNext }: TypeSelec
             <div className="flex items-center gap-4">
               <span className="text-4xl">{pt.emoji}</span>
               <div className="flex-1">
-                <p className="text-telegram-text font-bold text-lg">{pt.label}</p>
-                <p className="text-telegram-hint text-sm mt-0.5">{pt.tagline}</p>
+                <p className="text-telegram-text font-bold text-lg">{t(pt.labelKey)}</p>
+                <p className="text-telegram-hint text-sm mt-0.5">{t(pt.taglineKey)}</p>
               </div>
               {selected && (
                 <motion.div
@@ -60,7 +62,7 @@ export function TypeSelector({ punishmentType, onSelectType, onNext }: TypeSelec
           onClick={onNext}
           className="w-full py-3.5 mt-2 rounded-2xl text-base font-bold bg-telegram-button text-telegram-buttonText"
         >
-          Next
+          {t('common.next')}
         </motion.button>
       )}
     </motion.div>

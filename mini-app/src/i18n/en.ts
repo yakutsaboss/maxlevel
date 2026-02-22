@@ -941,4 +941,413 @@ export default {
     allCaughtUp: "All caught up!",
     readNow: "Read now",
   },
+  onboardingQuiz: {
+    // ── Fitness ──
+    fitness_motivation: {
+      title: "What's Your Goal?",
+      subtitle: "What do you want to achieve?",
+      opt: {
+        lose_weight: "Lose Weight", lose_weight_sub: "Burn fat & slim down",
+        build_muscle: "Build Muscle", build_muscle_sub: "Get stronger & bigger",
+        stay_healthy: "Stay Healthy", stay_healthy_sub: "General wellness",
+        feel_better: "Feel Better", feel_better_sub: "Boost mood & energy",
+        sport_performance: "Sports Performance", sport_performance_sub: "Get competitive edge",
+      },
+    },
+    fitness_focus: {
+      title: "Focus Areas",
+      subtitle: "Which body parts do you want to work on?",
+      opt: {
+        full_body: "Full Body", full_body_sub: "Everything",
+        upper_body: "Upper Body", upper_body_sub: "Arms, chest & back",
+        lower_body: "Lower Body", lower_body_sub: "Legs & glutes",
+        core: "Core", core_sub: "Abs & stability",
+        cardio: "Cardio", cardio_sub: "Heart & endurance",
+        flexibility: "Flexibility", flexibility_sub: "Stretching & mobility",
+      },
+    },
+    fitness_level: {
+      title: "Your Fitness Level",
+      subtitle: "Where are you right now?",
+      opt: {
+        beginner: "Beginner", beginner_sub: "New to working out",
+        intermediate: "Intermediate", intermediate_sub: "Some experience",
+        advanced: "Advanced", advanced_sub: "Regular gym-goer",
+        expert: "Expert", expert_sub: "Years of training",
+      },
+    },
+    fitness_activity: {
+      title: "Daily Activity",
+      subtitle: "How active is your typical day?",
+      opt: {
+        sedentary: "Mostly Sitting", sedentary_sub: "Desk job, little movement",
+        light: "Light Activity", light_sub: "Some walking throughout the day",
+        moderate: "Moderately Active", moderate_sub: "Regular movement & walking",
+        very_active: "Very Active", very_active_sub: "Physically demanding day",
+      },
+    },
+    fitness_age: { title: "Your Age", subtitle: "How old are you?" },
+    fitness_height: { title: "Your Height", subtitle: "How tall are you?" },
+    fitness_weight: { title: "Current Weight", subtitle: "What do you weigh right now?" },
+    fitness_target_weight: { title: "Goal Weight", subtitle: "What weight do you want to reach?" },
+    fitness_equipment: {
+      title: "Available Equipment",
+      subtitle: "What do you have access to?",
+      opt: {
+        full_gym: "Full Gym", full_gym_sub: "Machines & free weights",
+        home_basics: "Home Setup", home_basics_sub: "Dumbbells & bands",
+        bodyweight: "No Equipment", bodyweight_sub: "Bodyweight only",
+        cardio_machines: "Cardio Machines", cardio_machines_sub: "Treadmill, bike, etc.",
+        outdoor: "Outdoors", outdoor_sub: "Parks & trails",
+        pool: "Pool", pool_sub: "Swimming pool access",
+      },
+    },
+    fitness_frequency: {
+      title: "Workout Frequency",
+      subtitle: "How many days per week can you train?",
+      valueSuffix: "workouts a week",
+    },
+    fitness_days: { title: "Workout Days", subtitle: "Which days will you train?" },
+    fitness_time: {
+      title: "Preferred Time",
+      subtitle: "When do you prefer to work out?",
+      opt: {
+        early_morning: "Early Morning",
+        morning: "Morning",
+        afternoon: "Afternoon",
+        evening: "Evening",
+      },
+    },
+
+    // ── Hydration ──
+    hydration_intake: {
+      title: "Current Intake",
+      subtitle: "How much water do you currently drink daily?",
+      opt: {
+        very_low: "Almost None", very_low_sub: "Less than 2 glasses",
+        low: "A Little", low_sub: "2-4 glasses",
+        average: "Moderate", average_sub: "4-6 glasses",
+        good: "Good Amount", good_sub: "6-8 glasses",
+        high: "Plenty", high_sub: "8+ glasses",
+      },
+    },
+    hydration_goals: {
+      title: "Why Drink More?",
+      subtitle: "What benefits are you looking for?",
+      opt: {
+        skin: "Better Skin", skin_sub: "Improve skin health",
+        energy: "More Energy", energy_sub: "Feel less tired",
+        weight_loss: "Weight Management", weight_loss_sub: "Support metabolism",
+        health: "General Health", health_sub: "Overall wellness",
+        habit: "Build a Habit", habit_sub: "Consistency is key",
+        athletic: "Workout Recovery", athletic_sub: "Better performance",
+      },
+    },
+    hydration_target: { title: "Daily Water Goal", subtitle: "How many glasses per day is your target?" },
+    hydration_reminder: {
+      title: "Reminder Frequency",
+      subtitle: "How often should we remind you to drink?",
+      opt: {
+        "30min": "Every 30 min", "30min_sub": "Maximum reminders",
+        "1h": "Every 1 hour", "1h_sub": "Frequent check-ins",
+        "2h": "Every 2 hours", "2h_sub": "Balanced",
+        "3h": "Every 3 hours", "3h_sub": "Light reminders",
+      },
+    },
+    hydration_schedule: { title: "Your Schedule", subtitle: "When does your day begin and end?" },
+    hydration_vessel: {
+      title: "Your Drink Size",
+      subtitle: "What do you usually drink from?",
+      opt: {
+        glass: "Small Glass",
+        bottle: "Water Bottle",
+        large_bottle: "Large Bottle",
+        jug: "Big Jug",
+      },
+    },
+    hydration_barriers: {
+      title: "What Gets in the Way?",
+      subtitle: "What makes staying hydrated difficult?",
+      opt: {
+        forget: "I Just Forget", forget_sub: "Simply slips my mind",
+        taste: "Don't Like Water", taste_sub: "Prefer other drinks",
+        access: "No Easy Access", access_sub: "Hard to get water nearby",
+        busy: "Too Busy", busy_sub: "No time to stop and drink",
+        bathroom: "Bathroom Trips", bathroom_sub: "Don't want frequent breaks",
+      },
+    },
+
+    // ── Finance ──
+    finance_goals: {
+      title: "Financial Goals",
+      subtitle: "What do you want to achieve?",
+      opt: {
+        save_more: "Save More", save_more_sub: "Build up savings",
+        reduce_debt: "Reduce Debt", reduce_debt_sub: "Pay off what you owe",
+        invest: "Start Investing", invest_sub: "Grow your money",
+        budget_better: "Budget Better", budget_better_sub: "Know where money goes",
+        emergency_fund: "Emergency Fund", emergency_fund_sub: "Safety net for surprises",
+        track_spending: "Track Spending", track_spending_sub: "See your habits",
+      },
+    },
+    finance_income: {
+      title: "Income Level",
+      subtitle: "What best describes your situation?",
+      opt: {
+        student: "Student", student_sub: "Limited or no income",
+        low: "Starting Out", low_sub: "Entry-level income",
+        medium: "Comfortable", medium_sub: "Stable income",
+        high: "Well Off", high_sub: "Strong income",
+        prefer_not: "Prefer Not to Say", prefer_not_sub: "Skip this one",
+      },
+    },
+    finance_spending: {
+      title: "Biggest Expenses",
+      subtitle: "Where does most of your money go?",
+      opt: {
+        food: "Food & Dining", food_sub: "Groceries & restaurants",
+        entertainment: "Entertainment", entertainment_sub: "Fun & going out",
+        shopping: "Shopping", shopping_sub: "Clothes & stuff",
+        transport: "Transport", transport_sub: "Car, gas, transit",
+        subscriptions: "Subscriptions", subscriptions_sub: "Streaming & apps",
+        other: "Other", other_sub: "Rent, bills, etc.",
+      },
+    },
+    finance_savings_target: { title: "Monthly Savings Goal", subtitle: "How much do you want to save per month?" },
+    finance_frequency: {
+      title: "Tracking Style",
+      subtitle: "How often do you want to review finances?",
+      opt: {
+        daily: "Daily", daily_sub: "Log every expense",
+        weekly: "Weekly", weekly_sub: "Review once a week",
+        monthly: "Monthly", monthly_sub: "Big picture only",
+      },
+    },
+
+    // ── Learning ──
+    learning_goals: {
+      title: "Learning Goals",
+      subtitle: "What do you want to learn?",
+      opt: {
+        new_language: "New Language", new_language_sub: "Learn to speak another language",
+        programming: "Programming", programming_sub: "Code & software skills",
+        reading: "Read More", reading_sub: "Books & articles",
+        professional_skills: "Career Skills", professional_skills_sub: "Level up professionally",
+        creativity: "Creativity", creativity_sub: "Art, music, writing",
+        science: "Science & Math", science_sub: "STEM knowledge",
+        other: "Other", other_sub: "Something else",
+      },
+    },
+    learning_style: {
+      title: "Learning Style",
+      subtitle: "How do you learn best?",
+      opt: {
+        visual: "Visual", visual_sub: "Diagrams & videos",
+        reading: "Reading", reading_sub: "Books & articles",
+        hands_on: "Hands-On", hands_on_sub: "Practice & projects",
+        audio: "Audio", audio_sub: "Podcasts & lectures",
+        mixed: "Mixed", mixed_sub: "A bit of everything",
+      },
+    },
+    learning_time: { title: "Daily Study Time", subtitle: "How many minutes per day can you study?" },
+    learning_frequency: {
+      title: "Study Frequency",
+      subtitle: "How many days per week will you study?",
+      valueSuffix: "days a week",
+    },
+    learning_days: { title: "Study Days", subtitle: "Which days will you study?" },
+    learning_resources: {
+      title: "Preferred Resources",
+      subtitle: "What tools do you like to use?",
+      opt: {
+        books: "Books", books_sub: "Physical or digital",
+        online_courses: "Online Courses", online_courses_sub: "Coursera, Udemy, etc.",
+        videos: "Videos", videos_sub: "YouTube & tutorials",
+        podcasts: "Podcasts", podcasts_sub: "Audio learning",
+        practice_projects: "Practice Projects", practice_projects_sub: "Learn by doing",
+        tutoring: "Tutoring", tutoring_sub: "One-on-one help",
+      },
+    },
+
+    // ── Medication ──
+    medication_count: {
+      title: "Daily Medications",
+      subtitle: "How many medications do you take daily?",
+      opt: {
+        one: "One medication", one_sub: "Just one",
+        few: "A few medications", few_sub: "2-3 daily",
+        several: "Several medications", several_sub: "4-6 daily",
+        many: "Many medications", many_sub: "7 or more",
+      },
+    },
+    medication_types: {
+      title: "Medication Types",
+      subtitle: "What types of medication do you take?",
+      opt: {
+        prescription: "Prescription", prescription_sub: "Doctor-prescribed meds",
+        otc: "Over-the-counter", otc_sub: "No prescription needed",
+        supplements: "Vitamins & Supplements", supplements_sub: "Daily vitamins & more",
+        herbal: "Herbal remedies", herbal_sub: "Natural alternatives",
+      },
+    },
+    medication_schedule: {
+      title: "Medication Schedule",
+      subtitle: "When do you take your medications?",
+      opt: {
+        morning: "Morning only", morning_sub: "Once in the AM",
+        evening: "Evening only", evening_sub: "Once in the PM",
+        both: "Morning & Evening", both_sub: "Twice daily",
+        multiple: "3+ times daily", multiple_sub: "Multiple doses",
+      },
+    },
+    medication_goals: {
+      title: "Management Goals",
+      subtitle: "What are your medication management goals?",
+      opt: {
+        never_miss: "Never miss a dose", never_miss_sub: "Perfect adherence",
+        track_effects: "Track side effects", track_effects_sub: "Monitor how you feel",
+        manage_refills: "Manage refills", manage_refills_sub: "Never run out",
+        reduce: "Simplify my routine", reduce_sub: "Streamline your schedule",
+      },
+    },
+    medication_barriers: {
+      title: "Adherence Challenges",
+      subtitle: "What makes medication adherence hard?",
+      opt: {
+        forget: "I forget to take them", forget_sub: "Simply slips my mind",
+        side_effects: "Side effects", side_effects_sub: "Unpleasant reactions",
+        cost: "Cost/insurance issues", cost_sub: "Financial barriers",
+        too_many: "Too many to track", too_many_sub: "Overwhelming number",
+      },
+    },
+    medication_reminders: {
+      title: "Reminder Preference",
+      subtitle: "How would you like to be reminded?",
+      opt: {
+        "15min": "15 min before", "15min_sub": "Quick heads-up",
+        "30min": "30 min before", "30min_sub": "Some lead time",
+        "1hour": "1 hour before", "1hour_sub": "Plenty of notice",
+        exact: "At exact time", exact_sub: "Right on schedule",
+      },
+    },
+
+    // ── Habits ──
+    habits_type: {
+      title: "Habit Types",
+      subtitle: "What kinds of habits do you want to build?",
+      opt: {
+        health: "Health & Wellness", health_sub: "Exercise, sleep, diet",
+        productivity: "Productivity", productivity_sub: "Focus, time management",
+        mindfulness: "Mindfulness", mindfulness_sub: "Meditation, journaling",
+        social: "Social", social_sub: "Relationships, networking",
+      },
+    },
+    habits_frequency: {
+      title: "Habit Frequency",
+      subtitle: "How often do you want to practice your habits?",
+      opt: {
+        daily: "Every day", daily_sub: "Daily practice",
+        weekdays: "Weekdays only", weekdays_sub: "Monday through Friday",
+        custom: "Custom schedule", custom_sub: "Pick your own days",
+        flexible: "As often as possible", flexible_sub: "No fixed schedule",
+      },
+    },
+    habits_count: { title: "Habit Count", subtitle: "How many habits do you want to track simultaneously?" },
+    habits_trigger: {
+      title: "Habit Triggers",
+      subtitle: "What helps you stick to habits?",
+      opt: {
+        time: "Set times", time_sub: "Specific time reminders",
+        routine: "After routines", routine_sub: "After meals, workouts, etc.",
+        location: "Places", location_sub: "When arriving at gym, office",
+        social: "Accountability", social_sub: "Partner or group tracking",
+      },
+    },
+    habits_goals: {
+      title: "Habit Goals",
+      subtitle: "What are your habit-building goals?",
+      opt: {
+        consistency: "Build consistency", consistency_sub: "Stick to daily routines",
+        replace_bad: "Replace bad habits", replace_bad_sub: "Swap out unhealthy patterns",
+        track_progress: "Track my progress", track_progress_sub: "See how far you've come",
+        feel_better: "Feel better overall", feel_better_sub: "Improve quality of life",
+      },
+    },
+    habits_barriers: {
+      title: "Habit Barriers",
+      subtitle: "What usually stops you from building habits?",
+      opt: {
+        motivation: "Lack of motivation", motivation_sub: "Hard to get started",
+        forget: "I forget", forget_sub: "Simply slips my mind",
+        time: "No time", time_sub: "Too busy to fit it in",
+        overwhelmed: "Too many at once", overwhelmed_sub: "Trying to change everything",
+      },
+    },
+
+    // ── Flavor text (shared) ──
+    flavor: {
+      easyStart: "Easy Start",
+      solidRoutine: "Solid Routine",
+      seriousCommitment: "Serious Commitment",
+      fullDedication: "Full Dedication",
+      balanced: "Balanced",
+      dailyLearner: "Daily Learner",
+    },
+
+    // ── Referral ──
+    referral: {
+      friend_family: "Friend & Family",
+      other: "Other",
+    },
+
+    // ── Summary screen ──
+    summary: {
+      level: "Level",
+      xp: "XP",
+      focusAreas: "Focus Areas",
+      accountability: "Accountability",
+      notifications: "Notifications",
+      noAccountability: "No accountability enabled",
+      safeModeOn: "Safe Mode ON",
+      enabled: "Enabled",
+      allEnabled: "All enabled",
+      enabledCount: "{{count}}/4 enabled",
+      avatar: {
+        gym_warrior: "Gym Warrior",
+        office_boss: "Office Boss",
+        magic_pet: "Magic Pet",
+        night_owl: "Night Owl",
+        couch_hero: "Couch Hero",
+        male: "Warrior",
+        female: "Sorceress",
+        other: "Shapeshifter",
+        unknown: "Unknown",
+      },
+    },
+
+    // ── Punishment config ──
+    punishment: {
+      type: {
+        workout: "Workout",
+        workoutTagline: "Missed a task? Drop and give me pushups!",
+        book: "Book",
+        bookTagline: "Skipped your goal? Time to read.",
+        money: "Money",
+        moneyTagline: "Failed today? Donate to a good cause.",
+      },
+      diff: {
+        workout: { easy: "3 pushups", medium: "10 pushups", hard: "25 pushups", extreme: "50 pushups" },
+        book: { easy: "Read 3 pages", medium: "Read 10 pages", hard: "Read 25 pages", extreme: "Read 50 pages" },
+        money: { easy: "Donate $0.25", medium: "Donate $1", hard: "Donate $3", extreme: "Donate $10" },
+      },
+      howTough: "How tough?",
+      changeType: "Change type",
+      safeMode: "Safe Mode",
+      safeModeDesc: "Limits daily losses so you can't lose everything",
+      chooseType: "Choose your punishment type",
+      enableAccountability: "Enable accountability",
+      chooseReal: "Choose a real punishment you'll actually do",
+      skippedNote: "Skipped quests already reduce your XP. This adds stronger consequences.",
+    },
+  },
 };

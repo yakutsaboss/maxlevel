@@ -1,8 +1,11 @@
 /**
  * Generic quiz screen — renders any question type based on config.
  * All questions & answer options are defined in: data/onboardingQuestions.ts
+ * Strings are i18n keys resolved here via t().
  */
 
+import { useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import { motion } from 'framer-motion';
 import { useTelegram } from '@/hooks/useTelegram';
 import { ProgressBar } from './ui/ProgressBar';
@@ -24,8 +27,25 @@ interface QuizScreenProps {
 }
 
 export function QuizScreen({ config, progress, stepLabel, data, modeBadge, onAnswer, onNext }: QuizScreenProps) {
+  const { t } = useTranslation();
   const { haptic } = useTelegram();
   const state = useQuizState(config, data, onAnswer, haptic);
+
+  // Translate i18n keys in options, flavorText so AnswerInput gets resolved strings
+  const translatedConfig = useMemo((): QuestionConfig => ({
+    ...config,
+    options: config.options?.map((opt) => ({
+      ...opt,
+      label: t(opt.label),
+      sublabel: opt.sublabel ? t(opt.sublabel) : undefined,
+    })),
+    flavorText: config.flavorText
+      ? Object.fromEntries(Object.entries(config.flavorText).map(([k, v]) => [k, t(v)]))
+      : undefined,
+    valueLabel: config.valueSuffix
+      ? (v: number) => `${config.valueLabel ? config.valueLabel(v) : v} ${t(config.valueSuffix!)}`
+      : config.valueLabel,
+  }), [config, t]);
 
   const handleNext = () => {
     haptic.impact('medium');
@@ -53,14 +73,14 @@ export function QuizScreen({ config, progress, stepLabel, data, modeBadge, onAns
           transition={{ duration: 0.25 }}
         >
           <h2 className="text-2xl font-bold text-telegram-text text-center mb-1">
-            {config.title}
+            {t(config.title)}
           </h2>
           <p className="text-telegram-hint text-center mb-6">
-            {config.subtitle}
+            {t(config.subtitle)}
           </p>
 
           <AnswerInput
-            config={config}
+            config={translatedConfig}
             singleValue={state.singleValue}
             multiValue={state.multiValue}
             drumValue={state.drumValue}

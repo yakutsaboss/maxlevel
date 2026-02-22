@@ -941,4 +941,413 @@ export default {
     allCaughtUp: "Всё прочитано!",
     readNow: "Читать",
   },
+  onboardingQuiz: {
+    // ── Фитнес ──
+    fitness_motivation: {
+      title: "Какая у вас цель?",
+      subtitle: "Чего вы хотите достичь?",
+      opt: {
+        lose_weight: "Похудеть", lose_weight_sub: "Сжечь жир и стать стройнее",
+        build_muscle: "Набрать мышцы", build_muscle_sub: "Стать сильнее и больше",
+        stay_healthy: "Быть здоровым", stay_healthy_sub: "Общее самочувствие",
+        feel_better: "Чувствовать себя лучше", feel_better_sub: "Поднять настроение и энергию",
+        sport_performance: "Спортивные результаты", sport_performance_sub: "Конкурентное преимущество",
+      },
+    },
+    fitness_focus: {
+      title: "Зоны внимания",
+      subtitle: "Над какими частями тела хотите работать?",
+      opt: {
+        full_body: "Всё тело", full_body_sub: "Комплексно",
+        upper_body: "Верх тела", upper_body_sub: "Руки, грудь и спина",
+        lower_body: "Низ тела", lower_body_sub: "Ноги и ягодицы",
+        core: "Кор", core_sub: "Пресс и стабилизация",
+        cardio: "Кардио", cardio_sub: "Сердце и выносливость",
+        flexibility: "Гибкость", flexibility_sub: "Растяжка и подвижность",
+      },
+    },
+    fitness_level: {
+      title: "Ваш уровень",
+      subtitle: "На каком вы сейчас этапе?",
+      opt: {
+        beginner: "Новичок", beginner_sub: "Только начинаю тренироваться",
+        intermediate: "Средний", intermediate_sub: "Есть опыт",
+        advanced: "Продвинутый", advanced_sub: "Регулярно хожу в зал",
+        expert: "Эксперт", expert_sub: "Годы тренировок",
+      },
+    },
+    fitness_activity: {
+      title: "Ежедневная активность",
+      subtitle: "Насколько активен ваш обычный день?",
+      opt: {
+        sedentary: "Сидячий образ жизни", sedentary_sub: "Офис, мало движения",
+        light: "Лёгкая активность", light_sub: "Немного ходьбы в течение дня",
+        moderate: "Умеренная активность", moderate_sub: "Регулярное движение и ходьба",
+        very_active: "Очень активный", very_active_sub: "Физически насыщенный день",
+      },
+    },
+    fitness_age: { title: "Ваш возраст", subtitle: "Сколько вам лет?" },
+    fitness_height: { title: "Ваш рост", subtitle: "Какой у вас рост?" },
+    fitness_weight: { title: "Текущий вес", subtitle: "Сколько вы сейчас весите?" },
+    fitness_target_weight: { title: "Целевой вес", subtitle: "Какого веса хотите достичь?" },
+    fitness_equipment: {
+      title: "Доступное оборудование",
+      subtitle: "Что у вас есть?",
+      opt: {
+        full_gym: "Полный зал", full_gym_sub: "Тренажёры и свободные веса",
+        home_basics: "Домашний набор", home_basics_sub: "Гантели и резинки",
+        bodyweight: "Без оборудования", bodyweight_sub: "Только вес тела",
+        cardio_machines: "Кардиотренажёры", cardio_machines_sub: "Беговая, велосипед и т.д.",
+        outdoor: "На улице", outdoor_sub: "Парки и тропы",
+        pool: "Бассейн", pool_sub: "Доступ к бассейну",
+      },
+    },
+    fitness_frequency: {
+      title: "Частота тренировок",
+      subtitle: "Сколько дней в неделю можете тренироваться?",
+      valueSuffix: "тренировок в неделю",
+    },
+    fitness_days: { title: "Дни тренировок", subtitle: "В какие дни будете тренироваться?" },
+    fitness_time: {
+      title: "Предпочтительное время",
+      subtitle: "Когда предпочитаете тренироваться?",
+      opt: {
+        early_morning: "Раннее утро",
+        morning: "Утро",
+        afternoon: "День",
+        evening: "Вечер",
+      },
+    },
+
+    // ── Гидратация ──
+    hydration_intake: {
+      title: "Текущее потребление",
+      subtitle: "Сколько воды вы сейчас пьёте в день?",
+      opt: {
+        very_low: "Почти ничего", very_low_sub: "Меньше 2 стаканов",
+        low: "Немного", low_sub: "2-4 стакана",
+        average: "Умеренно", average_sub: "4-6 стаканов",
+        good: "Хорошо", good_sub: "6-8 стаканов",
+        high: "Много", high_sub: "8+ стаканов",
+      },
+    },
+    hydration_goals: {
+      title: "Зачем пить больше?",
+      subtitle: "Какие преимущества вас интересуют?",
+      opt: {
+        skin: "Здоровая кожа", skin_sub: "Улучшить состояние кожи",
+        energy: "Больше энергии", energy_sub: "Меньше усталости",
+        weight_loss: "Контроль веса", weight_loss_sub: "Поддержка метаболизма",
+        health: "Общее здоровье", health_sub: "Общее самочувствие",
+        habit: "Сформировать привычку", habit_sub: "Постоянство — ключ к успеху",
+        athletic: "Восстановление после тренировок", athletic_sub: "Лучшие результаты",
+      },
+    },
+    hydration_target: { title: "Цель по воде", subtitle: "Сколько стаканов в день — ваша цель?" },
+    hydration_reminder: {
+      title: "Частота напоминаний",
+      subtitle: "Как часто напоминать вам пить?",
+      opt: {
+        "30min": "Каждые 30 мин", "30min_sub": "Максимум напоминаний",
+        "1h": "Каждый час", "1h_sub": "Частые напоминания",
+        "2h": "Каждые 2 часа", "2h_sub": "Сбалансированно",
+        "3h": "Каждые 3 часа", "3h_sub": "Лёгкие напоминания",
+      },
+    },
+    hydration_schedule: { title: "Ваш распорядок", subtitle: "Когда начинается и заканчивается ваш день?" },
+    hydration_vessel: {
+      title: "Размер ёмкости",
+      subtitle: "Из чего вы обычно пьёте?",
+      opt: {
+        glass: "Маленький стакан",
+        bottle: "Бутылка",
+        large_bottle: "Большая бутылка",
+        jug: "Кувшин",
+      },
+    },
+    hydration_barriers: {
+      title: "Что мешает?",
+      subtitle: "Что мешает пить достаточно воды?",
+      opt: {
+        forget: "Просто забываю", forget_sub: "Вылетает из головы",
+        taste: "Не люблю воду", taste_sub: "Предпочитаю другие напитки",
+        access: "Нет доступа", access_sub: "Сложно найти воду рядом",
+        busy: "Слишком занят", busy_sub: "Нет времени остановиться и попить",
+        bathroom: "Частые походы в туалет", bathroom_sub: "Не хочу отвлекаться",
+      },
+    },
+
+    // ── Финансы ──
+    finance_goals: {
+      title: "Финансовые цели",
+      subtitle: "Чего вы хотите достичь?",
+      opt: {
+        save_more: "Больше копить", save_more_sub: "Наращивать сбережения",
+        reduce_debt: "Уменьшить долги", reduce_debt_sub: "Погасить задолженности",
+        invest: "Начать инвестировать", invest_sub: "Приумножить деньги",
+        budget_better: "Лучше планировать бюджет", budget_better_sub: "Знать куда уходят деньги",
+        emergency_fund: "Резервный фонд", emergency_fund_sub: "Подушка безопасности",
+        track_spending: "Отслеживать расходы", track_spending_sub: "Видеть свои привычки",
+      },
+    },
+    finance_income: {
+      title: "Уровень дохода",
+      subtitle: "Что лучше описывает вашу ситуацию?",
+      opt: {
+        student: "Студент", student_sub: "Ограниченный или нет дохода",
+        low: "Начинающий", low_sub: "Начальный доход",
+        medium: "Стабильный", medium_sub: "Стабильный доход",
+        high: "Обеспеченный", high_sub: "Высокий доход",
+        prefer_not: "Не хочу говорить", prefer_not_sub: "Пропустить этот вопрос",
+      },
+    },
+    finance_spending: {
+      title: "Основные расходы",
+      subtitle: "На что уходит большая часть денег?",
+      opt: {
+        food: "Еда и рестораны", food_sub: "Продукты и кафе",
+        entertainment: "Развлечения", entertainment_sub: "Отдых и досуг",
+        shopping: "Покупки", shopping_sub: "Одежда и прочее",
+        transport: "Транспорт", transport_sub: "Авто, бензин, проезд",
+        subscriptions: "Подписки", subscriptions_sub: "Стриминг и приложения",
+        other: "Другое", other_sub: "Аренда, счета и т.д.",
+      },
+    },
+    finance_savings_target: { title: "Цель накоплений в месяц", subtitle: "Сколько хотите откладывать ежемесячно?" },
+    finance_frequency: {
+      title: "Стиль отслеживания",
+      subtitle: "Как часто хотите проверять финансы?",
+      opt: {
+        daily: "Ежедневно", daily_sub: "Записывать каждый расход",
+        weekly: "Еженедельно", weekly_sub: "Обзор раз в неделю",
+        monthly: "Ежемесячно", monthly_sub: "Только общая картина",
+      },
+    },
+
+    // ── Обучение ──
+    learning_goals: {
+      title: "Цели обучения",
+      subtitle: "Что вы хотите изучить?",
+      opt: {
+        new_language: "Новый язык", new_language_sub: "Выучить иностранный язык",
+        programming: "Программирование", programming_sub: "Код и навыки разработки",
+        reading: "Больше читать", reading_sub: "Книги и статьи",
+        professional_skills: "Карьерные навыки", professional_skills_sub: "Профессиональный рост",
+        creativity: "Творчество", creativity_sub: "Искусство, музыка, письмо",
+        science: "Наука и математика", science_sub: "Точные науки",
+        other: "Другое", other_sub: "Что-то другое",
+      },
+    },
+    learning_style: {
+      title: "Стиль обучения",
+      subtitle: "Как вы лучше всего учитесь?",
+      opt: {
+        visual: "Визуально", visual_sub: "Схемы и видео",
+        reading: "Чтение", reading_sub: "Книги и статьи",
+        hands_on: "На практике", hands_on_sub: "Практика и проекты",
+        audio: "Аудио", audio_sub: "Подкасты и лекции",
+        mixed: "Смешанный", mixed_sub: "Всего понемногу",
+      },
+    },
+    learning_time: { title: "Время учёбы в день", subtitle: "Сколько минут в день можете учиться?" },
+    learning_frequency: {
+      title: "Частота занятий",
+      subtitle: "Сколько дней в неделю будете учиться?",
+      valueSuffix: "дней в неделю",
+    },
+    learning_days: { title: "Дни занятий", subtitle: "В какие дни будете учиться?" },
+    learning_resources: {
+      title: "Ресурсы для обучения",
+      subtitle: "Какие инструменты предпочитаете?",
+      opt: {
+        books: "Книги", books_sub: "Бумажные или электронные",
+        online_courses: "Онлайн-курсы", online_courses_sub: "Coursera, Udemy и т.д.",
+        videos: "Видео", videos_sub: "YouTube и туториалы",
+        podcasts: "Подкасты", podcasts_sub: "Аудиообучение",
+        practice_projects: "Практические проекты", practice_projects_sub: "Учиться на деле",
+        tutoring: "Репетитор", tutoring_sub: "Индивидуальные занятия",
+      },
+    },
+
+    // ── Лекарства ──
+    medication_count: {
+      title: "Ежедневные лекарства",
+      subtitle: "Сколько лекарств вы принимаете ежедневно?",
+      opt: {
+        one: "Одно лекарство", one_sub: "Только одно",
+        few: "Несколько", few_sub: "2-3 в день",
+        several: "Много", several_sub: "4-6 в день",
+        many: "Очень много", many_sub: "7 и более",
+      },
+    },
+    medication_types: {
+      title: "Типы лекарств",
+      subtitle: "Какие лекарства вы принимаете?",
+      opt: {
+        prescription: "По рецепту", prescription_sub: "Назначенные врачом",
+        otc: "Без рецепта", otc_sub: "Доступные без рецепта",
+        supplements: "Витамины и добавки", supplements_sub: "Ежедневные витамины",
+        herbal: "Травяные средства", herbal_sub: "Натуральные средства",
+      },
+    },
+    medication_schedule: {
+      title: "Расписание приёма",
+      subtitle: "Когда вы принимаете лекарства?",
+      opt: {
+        morning: "Только утром", morning_sub: "Один раз утром",
+        evening: "Только вечером", evening_sub: "Один раз вечером",
+        both: "Утром и вечером", both_sub: "Два раза в день",
+        multiple: "3+ раз в день", multiple_sub: "Несколько приёмов",
+      },
+    },
+    medication_goals: {
+      title: "Цели по лекарствам",
+      subtitle: "Каковы ваши цели по приёму лекарств?",
+      opt: {
+        never_miss: "Не пропускать приём", never_miss_sub: "Идеальное соблюдение",
+        track_effects: "Отслеживать побочные эффекты", track_effects_sub: "Контролировать самочувствие",
+        manage_refills: "Следить за запасами", manage_refills_sub: "Не допускать нехватки",
+        reduce: "Упростить режим", reduce_sub: "Оптимизировать расписание",
+      },
+    },
+    medication_barriers: {
+      title: "Сложности с приёмом",
+      subtitle: "Что мешает регулярно принимать лекарства?",
+      opt: {
+        forget: "Забываю принять", forget_sub: "Просто вылетает из головы",
+        side_effects: "Побочные эффекты", side_effects_sub: "Неприятные реакции",
+        cost: "Стоимость/страховка", cost_sub: "Финансовые трудности",
+        too_many: "Слишком много", too_many_sub: "Сложно уследить за всем",
+      },
+    },
+    medication_reminders: {
+      title: "Настройка напоминаний",
+      subtitle: "Как вам удобно получать напоминания?",
+      opt: {
+        "15min": "За 15 минут", "15min_sub": "Быстрое напоминание",
+        "30min": "За 30 минут", "30min_sub": "С запасом времени",
+        "1hour": "За 1 час", "1hour_sub": "Заблаговременно",
+        exact: "Точно вовремя", exact_sub: "Строго по расписанию",
+      },
+    },
+
+    // ── Привычки ──
+    habits_type: {
+      title: "Типы привычек",
+      subtitle: "Какие привычки хотите развить?",
+      opt: {
+        health: "Здоровье", health_sub: "Спорт, сон, питание",
+        productivity: "Продуктивность", productivity_sub: "Фокус, управление временем",
+        mindfulness: "Осознанность", mindfulness_sub: "Медитация, дневник",
+        social: "Социальные", social_sub: "Отношения, нетворкинг",
+      },
+    },
+    habits_frequency: {
+      title: "Частота привычек",
+      subtitle: "Как часто хотите практиковать привычки?",
+      opt: {
+        daily: "Каждый день", daily_sub: "Ежедневная практика",
+        weekdays: "Только будни", weekdays_sub: "С понедельника по пятницу",
+        custom: "Своё расписание", custom_sub: "Выбрать свои дни",
+        flexible: "Как можно чаще", flexible_sub: "Без фиксированного графика",
+      },
+    },
+    habits_count: { title: "Количество привычек", subtitle: "Сколько привычек хотите отслеживать одновременно?" },
+    habits_trigger: {
+      title: "Триггеры привычек",
+      subtitle: "Что помогает вам придерживаться привычек?",
+      opt: {
+        time: "Определённое время", time_sub: "Напоминания по времени",
+        routine: "После рутины", routine_sub: "После еды, тренировки и т.д.",
+        location: "Места", location_sub: "При приходе в зал, офис",
+        social: "Ответственность", social_sub: "Партнёр или группа",
+      },
+    },
+    habits_goals: {
+      title: "Цели привычек",
+      subtitle: "Каковы ваши цели по привычкам?",
+      opt: {
+        consistency: "Постоянство", consistency_sub: "Придерживаться распорядка",
+        replace_bad: "Заменить вредные", replace_bad_sub: "Избавиться от плохих привычек",
+        track_progress: "Отслеживать прогресс", track_progress_sub: "Видеть свой путь",
+        feel_better: "Чувствовать себя лучше", feel_better_sub: "Улучшить качество жизни",
+      },
+    },
+    habits_barriers: {
+      title: "Препятствия",
+      subtitle: "Что обычно мешает формировать привычки?",
+      opt: {
+        motivation: "Нет мотивации", motivation_sub: "Трудно начать",
+        forget: "Забываю", forget_sub: "Просто вылетает из головы",
+        time: "Нет времени", time_sub: "Слишком занят",
+        overwhelmed: "Слишком много сразу", overwhelmed_sub: "Пытаюсь изменить всё разом",
+      },
+    },
+
+    // ── Flavor text ──
+    flavor: {
+      easyStart: "Лёгкий старт",
+      solidRoutine: "Стабильный режим",
+      seriousCommitment: "Серьёзный подход",
+      fullDedication: "Полная отдача",
+      balanced: "Сбалансированно",
+      dailyLearner: "Ежедневный ученик",
+    },
+
+    // ── Реферал ──
+    referral: {
+      friend_family: "Друзья и семья",
+      other: "Другое",
+    },
+
+    // ── Сводка ──
+    summary: {
+      level: "Уровень",
+      xp: "XP",
+      focusAreas: "Направления",
+      accountability: "Ответственность",
+      notifications: "Уведомления",
+      noAccountability: "Ответственность не включена",
+      safeModeOn: "Безопасный режим ВКЛ",
+      enabled: "Включено",
+      allEnabled: "Все включены",
+      enabledCount: "{{count}}/4 включено",
+      avatar: {
+        gym_warrior: "Воин зала",
+        office_boss: "Босс офиса",
+        magic_pet: "Магический питомец",
+        night_owl: "Ночная сова",
+        couch_hero: "Герой дивана",
+        male: "Воин",
+        female: "Волшебница",
+        other: "Перевёртыш",
+        unknown: "Неизвестный",
+      },
+    },
+
+    // ── Наказание ──
+    punishment: {
+      type: {
+        workout: "Тренировка",
+        workoutTagline: "Пропустили задание? Отжимайтесь!",
+        book: "Книга",
+        bookTagline: "Пропустили цель? Время читать.",
+        money: "Деньги",
+        moneyTagline: "Провалили день? Пожертвуйте на доброе дело.",
+      },
+      diff: {
+        workout: { easy: "3 отжимания", medium: "10 отжиманий", hard: "25 отжиманий", extreme: "50 отжиманий" },
+        book: { easy: "Прочитать 3 страницы", medium: "Прочитать 10 страниц", hard: "Прочитать 25 страниц", extreme: "Прочитать 50 страниц" },
+        money: { easy: "Пожертвовать $0.25", medium: "Пожертвовать $1", hard: "Пожертвовать $3", extreme: "Пожертвовать $10" },
+      },
+      howTough: "Насколько строго?",
+      changeType: "Изменить тип",
+      safeMode: "Безопасный режим",
+      safeModeDesc: "Ограничивает дневные потери, чтобы не потерять всё",
+      chooseType: "Выберите тип наказания",
+      enableAccountability: "Включить ответственность",
+      chooseReal: "Выберите реальное наказание, которое будете выполнять",
+      skippedNote: "Пропуск заданий уже снижает ваш XP. Это добавляет дополнительные последствия.",
+    },
+  },
 };

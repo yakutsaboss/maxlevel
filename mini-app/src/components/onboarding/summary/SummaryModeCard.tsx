@@ -1,11 +1,12 @@
+import { useTranslation } from 'react-i18next';
 import { SectionCard } from './SectionCard';
 import type { OnboardingData } from '@/hooks/useOnboarding';
 
-const MODE_INFO: Record<string, { icon: string; name: string }> = {
-  fitness: { icon: '🏋️', name: 'Fitness' },
-  hydration: { icon: '💧', name: 'Hydration' },
-  finance: { icon: '💰', name: 'Finance' },
-  learning: { icon: '📚', name: 'Learning' },
+const MODE_INFO: Record<string, { icon: string; nameKey: string }> = {
+  fitness: { icon: '🏋️', nameKey: 'onboarding.modeFitness' },
+  hydration: { icon: '💧', nameKey: 'onboarding.modeHydration' },
+  finance: { icon: '💰', nameKey: 'onboarding.modeFinance' },
+  learning: { icon: '📚', nameKey: 'onboarding.modeLearning' },
 };
 
 function fitnessSummary(f: NonNullable<OnboardingData['fitness']>): string | null {
@@ -44,14 +45,15 @@ interface SummaryModeCardProps {
 }
 
 export function SummaryFocusAreas({ data, onEdit }: SummaryModeCardProps) {
+  const { t } = useTranslation();
   return (
-    <SectionCard title="Focus Areas" onEdit={() => onEdit('paths')} delay={0.15}>
+    <SectionCard title={t('onboardingQuiz.summary.focusAreas')} onEdit={() => onEdit('paths')} delay={0.15}>
       <div className="flex flex-wrap gap-2">
         {(data.selected_modes || []).map((mode) => {
           const info = MODE_INFO[mode];
           return (
             <span key={mode} className="bg-telegram-hint/10 rounded-full px-3 py-1 text-sm">
-              {info?.icon} {info?.name || mode}
+              {info?.icon} {info ? t(info.nameKey) : mode}
             </span>
           );
         })}
@@ -61,28 +63,29 @@ export function SummaryFocusAreas({ data, onEdit }: SummaryModeCardProps) {
 }
 
 export function SummaryModeCards({ data, onEdit }: SummaryModeCardProps) {
+  const { t } = useTranslation();
   return (
     <>
       {data.selected_modes?.includes('fitness') && (
-        <SectionCard title="Fitness" onEdit={() => onEdit('fitness_motivation')} delay={0.2}>
+        <SectionCard title={t('onboarding.modeFitness')} onEdit={() => onEdit('fitness_motivation')} delay={0.2}>
           <p className="text-sm text-telegram-hint">{data.fitness ? fitnessSummary(data.fitness) : null}</p>
         </SectionCard>
       )}
 
       {data.selected_modes?.includes('hydration') && (
-        <SectionCard title="Hydration" onEdit={() => onEdit('hydration_intake')} delay={0.25}>
+        <SectionCard title={t('onboarding.modeHydration')} onEdit={() => onEdit('hydration_intake')} delay={0.25}>
           <p className="text-sm text-telegram-hint">{data.hydration ? hydrationSummary(data.hydration) : null}</p>
         </SectionCard>
       )}
 
       {data.selected_modes?.includes('finance') && (
-        <SectionCard title="Finance" onEdit={() => onEdit('finance_goals')} delay={0.3}>
+        <SectionCard title={t('onboarding.modeFinance')} onEdit={() => onEdit('finance_goals')} delay={0.3}>
           <p className="text-sm text-telegram-hint">{data.finance ? financeSummary(data.finance) : null}</p>
         </SectionCard>
       )}
 
       {data.selected_modes?.includes('learning') && (
-        <SectionCard title="Learning" onEdit={() => onEdit('learning_goals')} delay={0.35}>
+        <SectionCard title={t('onboarding.modeLearning')} onEdit={() => onEdit('learning_goals')} delay={0.35}>
           <p className="text-sm text-telegram-hint">{data.learning ? learningSummary(data.learning) : null}</p>
         </SectionCard>
       )}

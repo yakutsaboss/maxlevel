@@ -1,15 +1,15 @@
+import { useTranslation } from 'react-i18next';
 import { motion } from 'framer-motion';
 
-const AVATAR_LABELS: Record<string, string> = {
-  gym_warrior: 'Gym Warrior',
-  office_boss: 'Office Boss',
-  magic_pet: 'Magic Pet',
-  night_owl: 'Night Owl',
-  couch_hero: 'Couch Hero',
-  // Legacy values
-  male: 'Warrior',
-  female: 'Sorceress',
-  other: 'Shapeshifter',
+const AVATAR_KEYS: Record<string, string> = {
+  gym_warrior: 'onboardingQuiz.summary.avatar.gym_warrior',
+  office_boss: 'onboardingQuiz.summary.avatar.office_boss',
+  magic_pet: 'onboardingQuiz.summary.avatar.magic_pet',
+  night_owl: 'onboardingQuiz.summary.avatar.night_owl',
+  couch_hero: 'onboardingQuiz.summary.avatar.couch_hero',
+  male: 'onboardingQuiz.summary.avatar.male',
+  female: 'onboardingQuiz.summary.avatar.female',
+  other: 'onboardingQuiz.summary.avatar.other',
 };
 
 interface SummaryStatsProps {
@@ -18,7 +18,9 @@ interface SummaryStatsProps {
 }
 
 export function SummaryStats({ name, gender }: SummaryStatsProps) {
-  const avatarLabel = AVATAR_LABELS[gender || ''] || gender || 'Unknown';
+  const { t } = useTranslation();
+  const avatarKey = AVATAR_KEYS[gender || ''];
+  const avatarLabel = avatarKey ? t(avatarKey) : (gender || t('onboardingQuiz.summary.avatar.unknown'));
 
   return (
     <motion.div
@@ -34,13 +36,13 @@ export function SummaryStats({ name, gender }: SummaryStatsProps) {
         </div>
         <div className="bg-white/20 rounded-xl px-3 py-1.5 text-center">
           <div className="text-white text-2xl font-bold">1</div>
-          <div className="text-purple-200 text-xs">Level</div>
+          <div className="text-purple-200 text-xs">{t('onboardingQuiz.summary.level')}</div>
         </div>
       </div>
       <div className="mt-3 bg-white/20 rounded-full h-2">
         <div className="h-full bg-yellow-400 rounded-full" style={{ width: '10%' }} />
       </div>
-      <p className="text-purple-200 text-xs mt-1 text-right">0 / 500 XP</p>
+      <p className="text-purple-200 text-xs mt-1 text-right">0 / 500 {t('onboardingQuiz.summary.xp')}</p>
     </motion.div>
   );
 }

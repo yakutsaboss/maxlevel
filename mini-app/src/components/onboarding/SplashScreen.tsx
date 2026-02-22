@@ -10,7 +10,7 @@ interface SplashScreenProps {
 
 const LANGUAGES = [
   { code: 'en', flag: '🇺🇸', label: 'English', available: true },
-  { code: 'ru', flag: '🇷🇺', label: 'Русский', available: false },
+  { code: 'ru', flag: '🇷🇺', label: 'Русский', available: true },
   { code: 'zh', flag: '🇨🇳', label: '中文', available: false },
 ] as const;
 

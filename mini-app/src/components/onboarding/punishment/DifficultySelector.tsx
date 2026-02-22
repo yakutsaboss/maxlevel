@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import { motion } from 'framer-motion';
 import { PUNISHMENT_TYPES, DIFFICULTY_MAP, type PunishmentType, type Difficulty } from './constants';
 
@@ -14,7 +15,8 @@ export function DifficultySelector({
   punishmentType, difficulty, safeMode,
   onSelectDifficulty, onToggleSafe, onBack,
 }: DifficultySelectorProps) {
-  const typeInfo = PUNISHMENT_TYPES.find((t) => t.value === punishmentType);
+  const { t } = useTranslation();
+  const typeInfo = PUNISHMENT_TYPES.find((pt) => pt.value === punishmentType);
 
   return (
     <motion.div
@@ -25,11 +27,11 @@ export function DifficultySelector({
       className="space-y-3"
     >
       <button onClick={onBack} className="text-sm text-telegram-link font-medium mb-1">
-        &larr; Change type
+        &larr; {t('onboardingQuiz.punishment.changeType')}
       </button>
 
       <p className="text-sm font-medium text-telegram-text">
-        How tough? ({typeInfo?.emoji} {typeInfo?.label})
+        {t('onboardingQuiz.punishment.howTough')} ({typeInfo?.emoji} {typeInfo ? t(typeInfo.labelKey) : ''})
       </p>
 
       {DIFFICULTY_MAP[punishmentType].map((d) => {
@@ -49,7 +51,7 @@ export function DifficultySelector({
             <div className="flex items-center gap-3">
               <span className="text-lg">{d.dot}</span>
               <span className="text-telegram-text font-semibold text-sm flex-1">
-                {d.label}
+                {t(d.labelKey)}
               </span>
               <span className="text-telegram-hint text-xs capitalize">{d.value}</span>
             </div>
@@ -57,13 +59,12 @@ export function DifficultySelector({
         );
       })}
 
-      {/* Safe mode toggle */}
       <div className="bg-telegram-secondaryBg rounded-2xl p-4 mt-2">
         <div className="flex items-center justify-between">
           <div>
-            <p className="font-semibold text-telegram-text text-sm">Safe Mode</p>
+            <p className="font-semibold text-telegram-text text-sm">{t('onboardingQuiz.punishment.safeMode')}</p>
             <p className="text-xs text-telegram-hint mt-0.5">
-              Limits daily losses so you can't lose everything
+              {t('onboardingQuiz.punishment.safeModeDesc')}
             </p>
           </div>
           <button
