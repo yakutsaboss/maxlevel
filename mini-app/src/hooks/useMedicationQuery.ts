@@ -18,7 +18,8 @@ export function useMedications(userId: number | undefined) {
     queryFn: async () => {
       const res = await apiClient.getMedications(userId!);
       if (!res.success || !res.data) throw new Error('Failed to load medications');
-      return res.data;
+      // API returns { medications: [...], count: N } — extract the array
+      return (res.data as any).medications as Medication[];
     },
     enabled: !!userId,
     staleTime: 2 * 60 * 1000, // 2 minutes
@@ -31,7 +32,8 @@ export function useTodaySchedule(userId: number | undefined) {
     queryFn: async () => {
       const res = await apiClient.getTodaySchedule(userId!);
       if (!res.success || !res.data) throw new Error('Failed to load today schedule');
-      return res.data;
+      // API returns { schedule: [...], summary: {...} } — extract the array
+      return (res.data as any).schedule as TodayScheduleItem[];
     },
     enabled: !!userId,
     staleTime: 1 * 60 * 1000, // 1 minute — changes frequently as user logs
