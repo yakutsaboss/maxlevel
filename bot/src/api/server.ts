@@ -26,11 +26,8 @@ import { shopRouter } from './routes/shop.js';
 import { inventoryRouter } from './routes/inventory.js';
 import { analyticsRouter } from './routes/analytics.js';
 import { exportRouter } from './routes/export.js';
-import { financeRouter } from './routes/finance.js';
 import { channelRouter } from './routes/channel.js';
 import { activityRouter } from './routes/activities.js';
-import { contentRouter } from './routes/content.js';
-import { recommendationsRouter } from './routes/recommendations.js';
 import { healthRouter } from './routes/health.js';
 import { metricsRouter, collectMetrics } from './routes/metrics.js';
 import { apiLimiter } from './middleware/rateLimiter.js';
@@ -130,11 +127,8 @@ app.use('/api/shop', shopRouter);
 app.use('/api/inventory', inventoryRouter);
 app.use('/api/analytics', analyticsRouter);
 app.use('/api/export', exportRouter);
-app.use('/api/finance', financeRouter);
 app.use('/api/channel', channelRouter);
 app.use('/api/activities', activityRouter);
-app.use('/api/content', contentRouter);
-app.use('/api/recommendations', recommendationsRouter);
 
 // Webhook route (mounted dynamically when webhook handler is provided)
 let _webhookMounted = false;
