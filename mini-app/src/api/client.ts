@@ -1,5 +1,5 @@
 import axios, { AxiosError, AxiosInstance, InternalAxiosRequestConfig } from 'axios';
-import type { ApiResponse, UserStats, User, Mode, Quest, Achievement, UserAchievement, QuestCompleteResponse, CheckinResponse, CheckinListResponse, UserPreferences, PunishmentSettings, PunishmentHistoryResponse, OnboardingState, LeaderboardEntry, Subscription, ChannelStatus, TierInfo, PaymentHistoryEntry, NotificationHistoryEntry } from '@/types';
+import type { ApiResponse, UserStats, User, Mode, Quest, Achievement, UserAchievement, QuestCompleteResponse, CheckinResponse, CheckinListResponse, UserPreferences, PunishmentSettings, PunishmentHistoryResponse, OnboardingState, LeaderboardEntry, Subscription, ChannelStatus, TierInfo, PaymentHistoryEntry, NotificationHistoryEntry, Medication, TodayScheduleItem, MedicationHistoryResponse, AddMedicationData, LogMedicationData } from '@/types';
 import { ApiError } from '@/types/errors';
 
 interface RetryableAxiosConfig extends InternalAxiosRequestConfig {
@@ -272,6 +272,39 @@ class ApiClient {
   async deleteAccount(telegramId: number): Promise<ApiResponse<{ message: string }>> {
     const response = await this.client.delete(`/users/${telegramId}/account`);
     return response.data;
+  }
+
+  // Medication endpoints
+  async getMedications(userId: number, config?: { signal?: AbortSignal }): Promise<ApiResponse<Medication[]>> {
+    return this.deduplicatedGet(`/medications/${userId}`, undefined, { ...withTimeout(TIMEOUT_FAST), ...config });
+  }
+
+  async addMedication(data: AddMedicationData): Promise<ApiResponse<Medication>> {
+    const response = await this.client.post('/medications', data);
+    return response.data;
+  }
+
+  async updateMedication(id: number, data: Partial<AddMedicationData>): Promise<ApiResponse<Medication>> {
+    const response = await this.client.patch(`/medications/${id}`, data);
+    return response.data;
+  }
+
+  async deleteMedication(id: number, telegramId: number): Promise<ApiResponse<{ message: string }>> {
+    const response = await this.client.delete(`/medications/${id}`, { data: { telegram_id: telegramId } });
+    return response.data;
+  }
+
+  async getTodaySchedule(userId: number, config?: { signal?: AbortSignal }): Promise<ApiResponse<TodayScheduleItem[]>> {
+    return this.deduplicatedGet(`/medications/${userId}/today`, undefined, { ...withTimeout(TIMEOUT_FAST), ...config });
+  }
+
+  async logMedication(data: LogMedicationData): Promise<ApiResponse<{ status: string }>> {
+    const response = await this.client.post('/medication-logs', data);
+    return response.data;
+  }
+
+  async getMedicationHistory(userId: number, days = 7, config?: { signal?: AbortSignal }): Promise<ApiResponse<MedicationHistoryResponse>> {
+    return this.deduplicatedGet(`/medication-logs/${userId}/history`, { days }, config);
   }
 }
 

@@ -6,3 +6,4 @@ export * from './mode.js';
 export * from './api.js';
 export * from './telegram.js';
 export * from './subscription.js';
+export * from './medication.js';
