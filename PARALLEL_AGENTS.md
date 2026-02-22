@@ -283,44 +283,61 @@ Use this structure when creating a new run. Copy and adapt:
 
 ---
 
-## MANDATORY ROADMAP (Runs 78-85) — MVP Recovery & Feature Re-enablement
+## MANDATORY ROADMAP — Test Debt + Polish + Medication Deep Dive
 
 ⚠️ **This roadmap is NON-NEGOTIABLE. Agent 0 must execute these runs IN ORDER.**
 ⚠️ **Do NOT skip, reorder, or replace runs with "more important" work.**
 ⚠️ **If you are Agent 0 and you are about to design a new run, the NEXT unexecuted run below is your ONLY option.**
 
-### Background
-The project grew to 41 API routes, 24 pages, 2387 tests and became unstable. On 2026-02-19, an MVP recovery was performed:
-- Disabled 16 non-MVP API routes (marked with `// [MVP-DISABLED]` in `server.ts`)
-- Disabled 5 non-MVP background jobs (marked in `registerJobs.ts`)
-- Disabled 17 non-MVP mini-app pages (marked in `App.tsx`)
-- Simplified navigation to 5 tabs: Dashboard, Quests, Leaderboard, Profile, Settings
-- Created `test:mvp` scripts (910 tests, ~21 seconds)
+### Previous Roadmap (78-88) — COMPLETED
+Runs 78-85: MVP recovery + feature re-enablement. Run 86: Animation polish + medication unlock. Run 87: Full medication system (DB, API, jobs, UI, i18n, tests). Run 88: Medication integration fixes.
 
-All disabled code is PRESERVED — just commented out. Each run below re-enables one batch of features, fixes any broken tests, and verifies everything works end-to-end.
-
-### Current MVP State
-- **Active pages**: Onboarding, Dashboard, Quests, Profile, Leaderboard, Settings
-- **Active API routes**: users, quests, modes, leaderboard, onboarding, checkins, health, metrics
-- **Active jobs**: dailyQuestReset, streakCheck, questReminders, leaderboardRefresh, dbCleanup
-- **Tests**: 910 MVP tests passing in ~21s (`npm run test:mvp`)
-- **Disabled**: achievements, admin, payments, social, avatars, trophies, shop, inventory, analytics, export, finance, channel, activities, content, recommendations, punishment
+### Current State (post-Run 88)
+- **17 pages**, 5+1 nav tabs (medication conditional), medication system fully operational
+- **Bot tests**: 1100/1100 pass. **Mini-app MVP**: 627/629 pass.
+- **24 pre-existing mini-app test failures** across 6 files (Navigation, Dashboard hooks, Profile hooks, Onboarding hooks, A11y, Regression)
+- **Medication system**: CRUD + logging + reminders + streak milestones + dashboard widget + nav tab + i18n — but NO history/analytics UI
 
 ### The Roadmap
 
 | Run | Focus | Agents | Status |
 |-----|-------|--------|--------|
-| **78** | MVP Hardening — fix bugs, e2e test core flow in Telegram | serial | ✅ |
-| **79** | Re-enable Achievements + Payments + Trophies | 3 | ✅ |
-| **80** | Re-enable Shop + Inventory + Avatars | 3 | ✅ |
-| **81** | Re-enable Social + Finance | 3 | ✅ |
-| **82** | Re-enable Content + Activities | 3 | ✅ |
-| **83** | Re-enable Admin Panel + Big Polish (8 agents, G skipped) | 7 | ✅ |
-| **84** | React Query Migration + Admin Refactor + Performance | 5 (A,G skip) | ✅ |
-| **85** | Big Feature Removal (Finance, Learning, Content, Referral, Avatar Customizer, Admin Tests) | 7 | ✅ |
-| **86** | Animation Polish + Medication Premium Unlock (Stars/XP) | 7 | ✅ |
-| **87** | Medication Mode + Notification Enhancements | 8 | ⬜ |
-| **88** | Social Polish + Dashboard Widgets + Test Coverage | 8 | ⬜ |
+| **78-88** | MVP Recovery → Feature Re-enable → Medication System | varies | ✅ |
+| **89** | Test Debt Cleanup — fix all 24 pre-existing mini-app failures | 4 | ⬜ |
+| **90** | UX Polish — error states, loading skeletons, transitions, accessibility | 5 | ⬜ |
+| **91** | Medication Analytics — history page, adherence charts, weekly/monthly views | 4 | ⬜ |
+| **92** | Medication Reminders UI — in-app notification center, reminder preferences | 3 | ⬜ |
+| **93** | Final Polish — performance, bundle optimization, remaining test coverage | 4 | ⬜ |
+
+### Run 89 Plan: Test Debt Cleanup (4 agents)
+- **Agent A**: Fix `useDashboardData.test.ts` (5 failures) + `useProfileData.test.ts` (6 failures) — hook mocks need updating after React Query migration
+- **Agent B**: Fix `useOnboardingNavigation.test.ts` (5 failures) + `run50-bugs.test.tsx` (5 failures) — onboarding step sequence + punishment transparency tests
+- **Agent C**: Fix `Navigation.test.tsx` (all failures) + `aria-audit.test.tsx` (3 failures) — navigation tab changes + leaderboard a11y
+- **Agent D**: Run full test suite, fix any remaining failures, ensure test:mvp stays green
+
+### Run 90 Plan: UX Polish (5 agents)
+- **Agent A**: Global error handling polish — error boundaries on all pages, retry patterns, offline banners
+- **Agent B**: Loading state audit — ensure every page has skeleton loaders, shimmer effects
+- **Agent C**: Page transitions — consistent AnimatePresence on route changes, stagger animations
+- **Agent D**: Accessibility pass — ARIA labels, keyboard navigation, screen reader support
+- **Agent E**: Toast/feedback polish — success toasts on mutations, haptic patterns, undo support
+
+### Run 91 Plan: Medication Analytics (4 agents)
+- **Agent A**: Add `GET /api/medication-logs/:userId/analytics` endpoint — weekly/monthly adherence rates, per-medication stats, streak data
+- **Agent B**: Create `MedicationHistory.tsx` page — calendar view, daily log details, medication adherence trend
+- **Agent C**: Create adherence chart component — weekly bar chart using recharts (already in deps), monthly trend line
+- **Agent D**: Add history tab to Medications page, integrate analytics hooks, i18n strings
+
+### Run 92 Plan: Medication Reminders UI (3 agents)
+- **Agent A**: In-app notification center — real-time list from notification_log, mark-as-read, badge count in nav
+- **Agent B**: Reminder preferences in Settings — per-medication reminder toggles, DND hours picker, sound/vibration options
+- **Agent C**: Tests for notification UI + reminder preferences + integration testing
+
+### Run 93 Plan: Final Polish (4 agents)
+- **Agent A**: Bundle optimization — lazy load heavy chunks, tree-shake unused icons, optimize images
+- **Agent B**: Performance audit — React.memo review, unnecessary re-renders, query deduplication
+- **Agent C**: Remaining test coverage — target 90%+ on critical paths (medication, dashboard, auth)
+- **Agent D**: Final integration testing — full e2e flow in Telegram, cross-browser, responsive
 
 ### Re-enable Pattern (Runs 79-83)
 Each re-enable run follows the same 3-agent pattern:
