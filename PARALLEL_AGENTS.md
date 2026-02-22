@@ -955,3 +955,182 @@ Write retrospective when done.
 **Deploy**: Migration ran successfully (3 tables created). Both bot and mini-app built clean. PM2 restarted.
 
 **Key issue for future runs**: 3 agents (B, D, E) worked in the main worktree instead of their assigned worktrees. This likely happened because VS Code opened the wrong directory. Consider adding a self-check in agent prompts: "Verify your working directory is `Wibecode-agent-X`, NOT `Wibecode`."
+
+---
+
+## RUN 88: Medication Integration Fixes (3 Agents + Agent 0)
+
+### Focus: Fix data flow mismatches between API responses, React Query hooks, and UI components from Run 87
+
+### Known Issues to Fix
+1. **React Query hooks return wrong data shape** — `useMedications` returns `{ medications: [], count: N }` but `useMedicationData` does `medicationsQuery.data ?? []`, expecting an array. Same issue for `useTodaySchedule` (returns `{ schedule: [], summary: {} }`)
+2. **MedicationWidget receives no data** — Dashboard renders `<MedicationWidget />` with no props. Widget should fetch its own data internally
+3. **11 medication API tests fail** — Tests expect `res.body.data` to be arrays but API returns `{ medications: [...] }` / `{ schedule: [...] }`
+
+### Copy-Paste Prompts
+
+**Agent 0** (open in: `c:\Users\Asus\Desktop\Wibecode`):
+```
+Read PARALLEL_AGENTS.md — you are Agent 0 for Run 88.
+```
+
+**Agent A** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-a`):
+```
+Read PARALLEL_AGENTS.md — you are Agent A of Run 88. Your task: Fix React Query hooks data extraction and MedicationWidget integration.
+
+IMPORTANT: Before doing anything, verify your working directory: run `pwd` and confirm it ends with `Wibecode-agent-a`, NOT `Wibecode`. If wrong, STOP and tell the user.
+
+## Problem 1: React Query hooks return wrong shape
+
+The API returns these shapes:
+- GET /api/medications/:id → `{ success: true, data: { medications: [...], count: N } }`
+- GET /api/medications/:id/today → `{ success: true, data: { schedule: [...], summary: { total, taken, skipped, pending } } }`
+- GET /api/medication-logs/:id/history → `{ success: true, data: { days: [...], adherence_rate: N } }`
+
+In `mini-app/src/hooks/useMedicationQuery.ts`, the hooks do `return res.data` which returns the full data object. But `useMedicationData.ts` does `medicationsQuery.data ?? []` expecting an array.
+
+### Fix in `useMedicationQuery.ts`:
+- `useMedications`: change `return res.data` to `return res.data.medications` (typed as `Medication[]`)
+- `useTodaySchedule`: change `return res.data` to `return res.data.schedule` (typed as `TodayScheduleItem[]`)
+- `useMedicationHistory`: change `return res.data` to `return res.data` (keep as-is — `useMedicationData` does `?? null`)
+- Also fix the optimistic update in `useDeleteMedicationMutation` — it reads `queryClient.getQueryData` expecting an array. After the fix, the cached data IS an array, so it should work correctly.
+- Fix `useLogMedicationMutation` optimistic update similarly — cached todaySchedule data should now be `TodayScheduleItem[]`
+
+## Problem 2: MedicationWidget receives no data
+
+In `mini-app/src/components/dashboard/MedicationWidget.tsx`:
+- Change it to be self-contained: import `useMedicationData` from `@/hooks/useMedicationData.js` and `useTelegram` from `@/hooks/useTelegram.js`
+- Call `const { user } = useTelegram()` and `const { todaySchedule, loading } = useMedicationData(user?.id)`
+- Remove the `todaySchedule` and `loading` props from the interface
+- Remove the `memo` wrapper (since it now has internal hooks, memo won't help)
+- The schedule data type from `useMedicationData` should match `ScheduleItem` — verify and adjust types if needed (may need to import `TodayScheduleItem` from types instead of re-defining `ScheduleItem`)
+
+In `mini-app/src/pages/Dashboard.tsx`:
+- Remove any props passed to `<MedicationWidget />` (it's already rendered with no props, just confirm it's clean)
+
+## Problem 3: Type alignment
+
+In `mini-app/src/types/medication.ts`, verify `TodayScheduleItem` has fields: `medication_id`, `medication_name` (or `name`), `scheduled_time`, `status`, `color`. Cross-check with the API response from `bot/src/api/routes/medications.ts` GET /:telegramId/today endpoint.
+
+If the field names don't match (e.g., API returns `name` but type says `medication_name`), fix the type to match the API.
+
+### Build verify
+`cd mini-app && npx tsc --noEmit`
+
+OWNED: `mini-app/src/hooks/useMedicationQuery.ts`, `mini-app/src/hooks/useMedicationData.ts`, `mini-app/src/components/dashboard/MedicationWidget.tsx`, `mini-app/src/types/medication.ts`
+FORBIDDEN: bot/src/*, test files, i18n files, App.tsx, Navigation.tsx
+Write retrospective when done.
+```
+
+**Agent B** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-b`):
+```
+Read PARALLEL_AGENTS.md — you are Agent B of Run 88. Your task: Fix medication API tests to match actual response shapes.
+
+IMPORTANT: Before doing anything, verify your working directory: run `pwd` and confirm it ends with `Wibecode-agent-b`, NOT `Wibecode`. If wrong, STOP and tell the user.
+
+## Problem: 11 tests fail due to response shape mismatch
+
+The API routes use `successResponse()` which wraps data as `{ success: true, data: <your-data> }`.
+
+The actual response shapes are:
+- `GET /api/medications/:telegramId` → `{ success: true, data: { medications: [...], count: N } }`
+- `POST /api/medications` → `{ success: true, data: { medication: {...} } }`
+- `PATCH /api/medications/:id` → `{ success: true, data: { medication: {...} } }`
+- `DELETE /api/medications/:id` → `{ success: true, data: { message: "..." } }` or `{ success: true, message: "..." }`
+- `GET /api/medications/:telegramId/today` → `{ success: true, data: { schedule: [...], summary: {...} } }`
+- `POST /api/medication-logs` → `{ success: true, data: { log: {...} } }`
+- `GET /api/medication-logs/:telegramId/history` → `{ success: true, data: { days: [...], adherence_rate: N } }`
+
+### What to do
+
+1. Read `bot/src/api/routes/medications.ts` and `bot/src/api/routes/medication-logs.ts` to confirm exact response shapes from each endpoint
+2. Read `bot/src/__tests__/routes/http/medications.http.test.ts` and `bot/src/__tests__/routes/http/medication-logs.http.test.ts`
+3. Fix EVERY assertion that references `res.body.data` — it should destructure the correct nested shape:
+   - Instead of `expect(res.body.data).toHaveLength(1)` → `expect(res.body.data.medications).toHaveLength(1)`
+   - Instead of `expect(res.body.data[0].name)` → `expect(res.body.data.medications[0].name)`
+   - For today: `expect(res.body.data.schedule)` instead of `expect(res.body.data)`
+   - For history: `expect(res.body.data.days)` instead of `expect(res.body.data)`
+4. Also verify the mock setup — check that the database mock (`vi.mock('../../utils/db.js')`) returns data in the right shape. The `query()` mock needs to return arrays (since the route code does `const medications = await query(...)` and then wraps it).
+5. Run tests: `cd bot && npx vitest --run src/__tests__/routes/http/medications.http.test.ts src/__tests__/routes/http/medication-logs.http.test.ts`
+6. All tests must pass
+
+### Build verify
+`cd bot && npx tsc --noEmit`
+
+OWNED: `bot/src/__tests__/routes/http/medications.http.test.ts`, `bot/src/__tests__/routes/http/medication-logs.http.test.ts`
+FORBIDDEN: mini-app/src/*, bot/src/api/routes/* (source files), i18n files
+Write retrospective when done.
+```
+
+**Agent C** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-c`):
+```
+Read PARALLEL_AGENTS.md — you are Agent C of Run 88. Your task: Fix mini-app medication tests and run full test suite.
+
+IMPORTANT: Before doing anything, verify your working directory: run `pwd` and confirm it ends with `Wibecode-agent-c`, NOT `Wibecode`. If wrong, STOP and tell the user.
+
+## What to do
+
+### 1. Fix `mini-app/src/__tests__/hooks/useMedicationData.test.ts`
+After Agent A's fixes, the hooks return different shapes:
+- `useMedications` now returns `Medication[]` (not `{ medications: [], count: N }`)
+- `useTodaySchedule` now returns `TodayScheduleItem[]` (not `{ schedule: [], summary: {} }`)
+
+The test mocks `apiClient.getMedications` etc. but the test assertions may expect the old data shapes. Update:
+- Mock return values should match what the API actually returns (`{ success: true, data: { medications: [...] } }`)
+- Assertions on `result.current.medications` should expect the extracted array
+- Assertions on `result.current.todaySchedule` should expect the extracted schedule array
+
+### 2. Fix `mini-app/src/__tests__/pages/Medications.test.tsx`
+- The page mock of `useMedicationData` should return `{ medications: [...], todaySchedule: [...], ... }` where medications is a `Medication[]` and todaySchedule is a `TodayScheduleItem[]`
+- Check that field names match the actual types (medication_name vs name, etc.)
+
+### 3. Run full test suites
+After fixing tests:
+```bash
+cd mini-app && npx vitest --run
+cd ../bot && npx vitest --run
+```
+Report total pass/fail counts.
+
+### 4. Fix any other test failures
+If other tests break (not just medication tests), fix them too. Report what you fixed.
+
+### Build verify
+`cd mini-app && npx tsc --noEmit`
+
+OWNED: `mini-app/src/__tests__/hooks/useMedicationData.test.ts`, `mini-app/src/__tests__/pages/Medications.test.tsx`
+FORBIDDEN: bot/src/api/*, mini-app/src/hooks/*, mini-app/src/components/*, mini-app/src/pages/* (source files)
+Write retrospective when done.
+```
+
+### Run 88 File Ownership Matrix
+
+| File/Dir | A | B | C |
+|----------|---|---|---|
+| mini-app/src/hooks/useMedicationQuery.ts | OWN | - | - |
+| mini-app/src/hooks/useMedicationData.ts | OWN | - | - |
+| mini-app/src/components/dashboard/MedicationWidget.tsx | OWN | - | - |
+| mini-app/src/types/medication.ts | OWN | - | - |
+| bot/src/__tests__/routes/http/medications.http.test.ts | - | OWN | - |
+| bot/src/__tests__/routes/http/medication-logs.http.test.ts | - | OWN | - |
+| mini-app/src/__tests__/hooks/useMedicationData.test.ts | - | - | OWN |
+| mini-app/src/__tests__/pages/Medications.test.tsx | - | - | OWN |
+
+### Run 88 Merge Order
+1. Agent A (hooks + widget fix — foundation for correct data flow)
+2. Agent B (API tests — independent, can merge in any order)
+3. Agent C (mini-app tests — depends on Agent A's hook changes)
+
+### Run 88 Retrospectives
+
+#### Agent A Retrospective
+*(To be filled by Agent A)*
+
+#### Agent B Retrospective
+*(To be filled by Agent B)*
+
+#### Agent C Retrospective
+*(To be filled by Agent C)*
+
+#### Agent 0 Retrospective
+*(To be filled by Agent 0)*
