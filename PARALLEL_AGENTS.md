@@ -304,6 +304,7 @@ All disabled code is PRESERVED — just commented out. Each run below re-enables
 | **83** | Re-enable Admin Panel + Big Polish (8 agents, G skipped) | 7 | ✅ |
 | **84** | React Query Migration + Admin Refactor + Performance | 5 (A,G skip) | ✅ |
 | **85** | Big Feature Removal (Finance, Learning, Content, Referral, Avatar Customizer, Admin Tests) | 7 | ✅ |
+| **86** | Animation Polish + Medication Premium Unlock (Stars/XP) | 7 | ✅ |
 
 ### Re-enable Pattern (Runs 79-83)
 Each re-enable run follows the same 3-agent pattern:
@@ -1780,4 +1781,10 @@ A → B → C → D → E → F → G (G always last)
 **Builds**: Both `bot` and `mini-app` compile and build cleanly.
 
 #### Agent 0 Retrospective
-*(To be filled by Agent 0)*
+- **Merge**: 7 agent commits on main. Agents B, C, E, F, G committed directly to main. Agent A (PageTransition.tsx + App.tsx) and Agent D (AvatarSelect.tsx) had uncommitted changes — committed by Agent 0 as 6f2100c and e7f2bb4.
+- **Build**: Both projects pass `tsc --noEmit`. Mini-app vite build clean (index 234KB).
+- **Tests**: Bot 75 files / 953 tests PASS. Mini-app 102 files / 615 tests PASS. Total: 1,568.
+- **Deploy**: e7f2bb4 deployed, mode_unlocks table created on production, health OK.
+- **Key wins**: Smooth page transitions (AnimatePresence), nav bar icon animations (spring scale, gear rotation, badge pop-in, tap bounce), onboarding progress bar glow + directional step slide, avatar selection bounce + animated checkmark, PathSelect lock shake + glow ring + unlock modal. Medication unlock backend fully wired (Stars 300 / XP 10K).
+- **Issues**: Agent D and F both touched PathSelect.tsx — Agent D committed animation polish, Agent F committed unlock logic. F preserved D's work. No conflicts but shared file ownership should be avoided in future runs.
+- **Roadmap**: Run 86 was a user-requested feature run (post-roadmap). All mandatory roadmap runs (78-85) are ✅.
