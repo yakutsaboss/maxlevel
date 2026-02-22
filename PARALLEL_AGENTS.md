@@ -681,7 +681,11 @@ After done, verify: cd bot && npm run test:mvp && cd ../mini-app && npm run test
 - **Time**: ~2 minutes
 
 #### Agent B Retrospective
-*(To be filled by Agent B)*
+- **Task**: Re-enable social and finance on the frontend (mini-app)
+- **Changes**: Uncommented 4 lines in `mini-app/src/App.tsx` — 2 lazy imports (Social, Finance) and 2 route definitions (`/social`, `/finance`)
+- **Verification**: All page components (Social.tsx, Finance.tsx), hooks (useSocial.ts, useFinanceAnalytics.ts), and sub-components (social/6 files, finance/11 files) confirmed present. `npx tsc --noEmit` passed with zero errors. `npm run build` succeeded — new chunks: Social (33.56 kB), Finance (405.91 kB).
+- **Issues**: None. Clean uncomment, all files were already in place from pre-MVP development.
+- **Time**: ~3 minutes
 
 #### Agent C Retrospective
 *(To be filled by Agent C)*

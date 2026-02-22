@@ -22,8 +22,8 @@ const Profile = lazy(() => import('@/pages/Profile').then(m => ({ default: m.Pro
 const Achievements = lazy(() => import('@/pages/Achievements').then(m => ({ default: m.Achievements })));
 const Leaderboard = lazy(() => import('@/pages/Leaderboard').then(m => ({ default: m.Leaderboard })));
 const Settings = lazy(() => import('@/pages/Settings').then(m => ({ default: m.Settings })));
-// [MVP-DISABLED] const Social = lazy(() => import('@/pages/Social').then(m => ({ default: m.Social })));
-// [MVP-DISABLED] const Finance = lazy(() => import('@/pages/Finance').then(m => ({ default: m.Finance })));
+const Social = lazy(() => import('@/pages/Social').then(m => ({ default: m.Social })));
+const Finance = lazy(() => import('@/pages/Finance').then(m => ({ default: m.Finance })));
 const AvatarCustomizer = lazy(() => import('@/pages/AvatarCustomizer').then(m => ({ default: m.AvatarCustomizer })));
 const TrophyCase = lazy(() => import('@/pages/TrophyCase').then(m => ({ default: m.TrophyCase })));
 const Inventory = lazy(() => import('@/pages/Inventory').then(m => ({ default: m.Inventory })));
@@ -145,8 +145,8 @@ function AppContent() {
         <Route path="/quests" element={<ProtectedRoute needsOnboarding={effectiveNeedsOnboarding} lazy><Quests /></ProtectedRoute>} />
         <Route path="/profile" element={<ProtectedRoute needsOnboarding={effectiveNeedsOnboarding} lazy><Profile /></ProtectedRoute>} />
         <Route path="/leaderboard" element={<ProtectedRoute needsOnboarding={effectiveNeedsOnboarding} lazy><Leaderboard /></ProtectedRoute>} />
-        {/* [MVP-DISABLED] <Route path="/social" element={<ProtectedRoute needsOnboarding={effectiveNeedsOnboarding} lazy><Social /></ProtectedRoute>} /> */}
-        {/* [MVP-DISABLED] <Route path="/finance" element={<ProtectedRoute needsOnboarding={effectiveNeedsOnboarding} lazy><Finance /></ProtectedRoute>} /> */}
+        <Route path="/social" element={<ProtectedRoute needsOnboarding={effectiveNeedsOnboarding} lazy><Social /></ProtectedRoute>} />
+        <Route path="/finance" element={<ProtectedRoute needsOnboarding={effectiveNeedsOnboarding} lazy><Finance /></ProtectedRoute>} />
         <Route path="/achievements" element={<ProtectedRoute needsOnboarding={effectiveNeedsOnboarding} lazy><Achievements /></ProtectedRoute>} />
         <Route path="/settings" element={<ProtectedRoute needsOnboarding={effectiveNeedsOnboarding} lazy><Settings /></ProtectedRoute>} />
         <Route path="/avatar" element={<ProtectedRoute needsOnboarding={effectiveNeedsOnboarding} lazy><AvatarCustomizer /></ProtectedRoute>} />
