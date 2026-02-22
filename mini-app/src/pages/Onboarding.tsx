@@ -8,6 +8,8 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import { useOnboardingFlow } from '@/hooks/useOnboardingFlow';
+import { useModeUnlock } from '@/hooks/useModeUnlock';
+import { useTelegram } from '@/hooks/useTelegram';
 import { getQuestionForStep } from '@/data/onboardingQuestions';
 import type { OnboardingStep } from '@/hooks/useOnboarding';
 
@@ -184,13 +186,18 @@ export function Onboarding() {
         )}
       </AnimatePresence>
 
-      <AnimatePresence mode="sync">
+      <AnimatePresence mode="wait">
         <motion.div
           key={store.currentStep}
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          transition={{ duration: 0.15 }}
+          initial={{ opacity: 0, x: 40 }}
+          animate={{ opacity: 1, x: 0 }}
+          exit={{ opacity: 0, x: -20 }}
+          transition={{
+            enter: { duration: 0.2, ease: 'easeOut' },
+            exit: { duration: 0.15, ease: 'easeIn' },
+            duration: 0.2,
+            ease: 'easeOut',
+          }}
         >
           <StepRenderer step={store.currentStep} flow={flow} />
         </motion.div>

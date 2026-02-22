@@ -1689,7 +1689,18 @@ A → B → C → D → E → F → G (G always last)
 **No new dependencies added** — `AnimatePresence` was already available from `framer-motion`; `LucideIcon` type from `lucide-react`.
 
 #### Agent C Retrospective
-*(To be filled by Agent C)*
+**ProgressBar.tsx** — 4 enhancements:
+1. Glow effect: persistent `boxShadow` (yellow/orange) on the fill bar for depth
+2. Step completion pulse: `glowOpacity` MotionValue animates 0→0.8→0 on each progress increase via an overlay div
+3. Animated percentage counter: `animate()` + `onUpdate` callback drives `displayPercent` state for smooth number counting (avoids MotionValue-as-children anti-pattern)
+4. Thicker bar: `h-2` → `h-2.5`, added `tabular-nums` to prevent layout shift during counting
+
+**Onboarding.tsx** — step transition overhaul:
+- Changed `AnimatePresence mode="sync"` → `mode="wait"` for clean sequential transitions (old step fully exits before new enters)
+- Directional slide: enter from right (`x: 40→0`, 200ms easeOut), exit to left (`x: 0→-20`, 150ms easeIn)
+- Gives a clear sense of forward progression through the onboarding flow
+
+**No files outside ownership touched.** Zero TS errors in my files (pre-existing PathSelect errors belong to Agent D).
 
 #### Agent D Retrospective
 *(To be filled by Agent D)*
