@@ -19,7 +19,6 @@ import {
   MODE_PRICES,
 } from '../middleware/premiumGate.js';
 import { logger } from '../../utils/logger.js';
-import { bot } from '../../bot.js';
 
 const router = Router();
 const log = logger.child({ component: 'modes' });
@@ -159,6 +158,7 @@ router.post('/unlock', authenticateTelegram, asyncHandler(async (req: Request, r
     const modeLabel = modeName.charAt(0).toUpperCase() + modeName.slice(1);
     let invoiceUrl: string;
     try {
+      const { bot } = await import('../../bot.js');
       invoiceUrl = await bot.api.createInvoiceLink(
         `Unlock ${modeLabel} Mode`,
         `Unlock ${modeLabel} mode — track your ${modeName} habits and quests`,

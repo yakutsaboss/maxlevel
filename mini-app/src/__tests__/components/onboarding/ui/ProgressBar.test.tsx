@@ -1,14 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import { render, screen } from '@testing-library/react';
+import { framerMotionMock } from '@/test/mocks/framer-motion';
 
-// Mock framer-motion
-vi.mock('framer-motion', () => ({
-  motion: {
-    div: ({ children, className, style, ...props }: any) => (
-      <div className={className} style={style} {...props}>{children}</div>
-    ),
-  },
-}));
+vi.mock('framer-motion', () => framerMotionMock);
 
 import { ProgressBar } from '@/components/onboarding/ui/ProgressBar';
 

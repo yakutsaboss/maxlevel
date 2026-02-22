@@ -24,15 +24,8 @@ vi.mock('@twa-dev/sdk', () => ({
   },
 }));
 
-// Mock framer-motion
-vi.mock('framer-motion', () => ({
-  motion: {
-    div: ({ children, ...props }: any) => <div {...props}>{children}</div>,
-    button: ({ children, onClick, className, ...props }: any) => (
-      <button onClick={onClick} className={className} {...props}>{children}</button>
-    ),
-  },
-}));
+import { framerMotionMock } from '@/test/mocks/framer-motion';
+vi.mock('framer-motion', () => framerMotionMock);
 
 // Mock ProgressBar and ContinueButton
 vi.mock('@/components/onboarding/ui/ProgressBar', () => ({

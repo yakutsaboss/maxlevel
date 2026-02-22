@@ -24,15 +24,8 @@ vi.mock('@twa-dev/sdk', () => ({
   },
 }));
 
-// Mock framer-motion to avoid animation issues in tests
-vi.mock('framer-motion', () => ({
-  motion: {
-    div: ({ children, ...props }: any) => <div {...props}>{children}</div>,
-    button: ({ children, onClick, ...props }: any) => (
-      <button onClick={onClick} {...props}>{children}</button>
-    ),
-  },
-}));
+import { framerMotionMock } from '@/test/mocks/framer-motion';
+vi.mock('framer-motion', () => framerMotionMock);
 
 import { Summary } from '@/components/onboarding/Summary';
 import type { OnboardingData } from '@/hooks/useOnboarding';

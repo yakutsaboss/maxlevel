@@ -175,18 +175,19 @@ describe('POST /api/modes/users/:userId', () => {
     expect(res.body.error).toContain('modes');
   });
 
-  it('should return 200 with failed entry when mode not found', async () => {
-    // Batch mode lookup returns empty → mode not found in DB
-    db.query.mockResolvedValueOnce([]);
+  it('should return 400 when mode is not free and not unlocked', async () => {
+    // isModeFreeOrUnlocked checks mode_unlocks + subscriptions
+    // 'nonexistent' is not in FREE_MODES, so it queries mode_unlocks (returns null)
+    db.queryOne.mockResolvedValueOnce(null);
+    // then checks subscriptions (returns null)
+    db.queryOne.mockResolvedValueOnce(null);
 
     const res = await request(buildApp())
       .post('/api/modes/users/42')
       .send({ modes: ['nonexistent'] })
-      .expect(200);
+      .expect(400);
 
-    expect(res.body.data.message).toBe('Modes added successfully');
-    expect(res.body.data.failed).toHaveLength(1);
-    expect(res.body.data.failed[0].reason).toBe('Mode not found');
+    expect(res.body.error).toContain('requires unlock');
   });
 });
 

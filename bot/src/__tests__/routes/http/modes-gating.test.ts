@@ -29,12 +29,17 @@ vi.mock('../../../api/middleware/auth.js', () => ({
 vi.mock('../../../api/middleware/rateLimiter.js', async () =>
   (await import('../../helpers/httpMocks.js')).createMockRateLimiters().module);
 
-// Mock premiumGate for getUserEffectiveTier + MODE_LIMITS
+// Mock premiumGate for getUserEffectiveTier + MODE_LIMITS + unlock checks
 const mockGetUserEffectiveTier = vi.fn();
 vi.mock('../../../api/middleware/premiumGate.js', () => ({
   getUserEffectiveTier: (...args: unknown[]) => mockGetUserEffectiveTier(...args),
   MODE_LIMITS: { free: 2, subscriber: 3, premium: 6 },
   requirePremium: () => (_req: any, _res: any, next: any) => next(),
+  isModeFreeOrUnlocked: () => Promise.resolve(true),
+  getUserUnlockedModes: () => Promise.resolve(['fitness', 'hydration', 'habits']),
+  FREE_MODES: ['fitness', 'hydration', 'habits'],
+  PAID_MODES: ['medication'],
+  MODE_PRICES: { medication: { stars: 300, xp: 10000 } },
 }));
 
 // ─── Import router after mocks ──────────────────────────────────────

@@ -1766,7 +1766,18 @@ A → B → C → D → E → F → G (G always last)
 - A linter auto-fixed `toLocaleString()` calls in ModeUnlockModal to pass raw numbers to i18n instead — this is fine, formatting is handled by i18n.
 
 #### Agent G Retrospective
-*(To be filled by Agent G)*
+**Status**: Complete — all tests green, DB migration done, TypeScript clean
+
+**What was done**:
+1. **Fixed 4 mini-app test files** (19 tests) — AvatarSelect, PathSelect, Summary, ProgressBar all had incomplete inline framer-motion mocks missing `AnimatePresence` and `useMotionValue`. Replaced with the shared mock from `src/test/mocks/framer-motion.ts`.
+2. **Fixed TypeScript error in ModeUnlockModal.tsx** — Agent F passed `toLocaleString()` (string) to `t()` interpolation where i18next types expected number. Changed to pass raw numbers.
+3. **Fixed bot import crash** — Agent E added `import { bot } from '../../bot.js'` at top level of `modes.ts`, which throws `TELEGRAM_BOT_TOKEN not set` during tests. Converted to dynamic `await import()` inside the handler that uses it.
+4. **Fixed modes-gating.test.ts** (6 tests) — Mock of premiumGate.js was missing new exports: `isModeFreeOrUnlocked`, `getUserUnlockedModes`, `FREE_MODES`, `PAID_MODES`, `MODE_PRICES`.
+5. **Fixed modes.http.test.ts** (1 test) — Updated "mode not found" test to reflect new behavior: unknown modes now get 400 "requires unlock" instead of silently failing.
+6. **Ran DB migration** — Created `mode_unlocks` table on production server.
+
+**Final counts**: Bot 75 files / 953 tests, Mini-app 102 files / 615 tests — ALL PASSING.
+**Builds**: Both `bot` and `mini-app` compile and build cleanly.
 
 #### Agent 0 Retrospective
 *(To be filled by Agent 0)*
