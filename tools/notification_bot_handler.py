@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Wibecode Notification Bot (yakutsawibecode_bot)
-Handles /status, /ping, /sheets, /metrics, /onboarding, /punishments, /flow commands
+Handles /status, /ping, /sheets, /metrics, /onboarding, /punishments, /flow, /deploy commands
 and receives session notifications.
 """
 
@@ -10,7 +10,10 @@ import sys
 import json
 import subprocess
 import time
+import ssl
+import socket
 import urllib.request
+from datetime import datetime, timezone
 from pathlib import Path
 from telegram import BotCommand, BotCommandScopeAllPrivateChats, Update
 from telegram.ext import Application, CommandHandler, ContextTypes
@@ -60,6 +63,121 @@ def _run_cmd(cmd: str, timeout: int = 10) -> subprocess.CompletedProcess:
          f"root@{SERVER_IP}", cmd],
         capture_output=True, text=True, timeout=timeout, encoding='utf-8'
     )
+
+
+DISK_HISTORY_PATH = "/tmp/wibecode_disk_history.json"
+
+
+def _check_pm2_restarts() -> str:
+    """Check if telegram-rpg-bot had recent restarts (last 60 min)."""
+    try:
+        proc = _run_cmd("pm2 jlist 2>/dev/null", timeout=10)
+        if proc.returncode != 0 or not proc.stdout.strip():
+            return "\u26A0\uFE0F PM2 \u2014 could not check"
+        data = json.loads(proc.stdout.strip())
+        for p in data:
+            if p.get("name") == "telegram-rpg-bot":
+                restart_time = p.get("pm2_env", {}).get("restart_time", 0)
+                unstable_restarts = p.get("pm2_env", {}).get("unstable_restarts", 0)
+                pm_uptime = p.get("pm2_env", {}).get("pm_uptime", 0)
+                now_ms = time.time() * 1000
+                # Check if last restart was within 60 minutes
+                if pm_uptime and (now_ms - pm_uptime) < 3600000:
+                    uptime_min = int((now_ms - pm_uptime) / 60000)
+                    return (
+                        f"\u26A0\uFE0F PM2 \u2014 restarted {uptime_min}m ago "
+                        f"(total restarts: {restart_time})"
+                    )
+                if restart_time > 0:
+                    return f"\u2705 PM2 stable \u2014 {restart_time} lifetime restarts"
+                return "\u2705 PM2 stable \u2014 no restarts"
+        return "\u26A0\uFE0F PM2 \u2014 telegram-rpg-bot process not found"
+    except Exception as e:
+        return f"\u26A0\uFE0F PM2 \u2014 {str(e)[:40]}"
+
+
+def _check_ssl_expiry() -> str:
+    """Check SSL certificate expiry for yakutsa.ru."""
+    try:
+        ctx = ssl.create_default_context()
+        with socket.create_connection(("yakutsa.ru", 443), timeout=5) as sock:
+            with ctx.wrap_socket(sock, server_hostname="yakutsa.ru") as ssock:
+                cert = ssock.getpeercert()
+                expiry_str = cert.get("notAfter", "")
+                if not expiry_str:
+                    return "\u26A0\uFE0F SSL \u2014 no expiry date found"
+                # Parse: 'Mar 15 23:59:59 2026 GMT'
+                expiry = datetime.strptime(expiry_str, "%b %d %H:%M:%S %Y %Z")
+                expiry = expiry.replace(tzinfo=timezone.utc)
+                now = datetime.now(timezone.utc)
+                days_left = (expiry - now).days
+                if days_left < 7:
+                    return f"\u274C SSL cert expires in {days_left} days!"
+                if days_left < 30:
+                    return f"\u26A0\uFE0F SSL cert expires in {days_left} days"
+                return f"\u2705 SSL cert \u2014 {days_left} days remaining"
+    except Exception as e:
+        return f"\u26A0\uFE0F SSL check \u2014 {str(e)[:40]}"
+
+
+def _get_disk_trend() -> str:
+    """Get disk usage with trend compared to previous readings.
+
+    Stores last 5 readings in /tmp/wibecode_disk_history.json on the server.
+    Returns a formatted string like "Disk: 45% (↑2% since yesterday)" or "Disk: 45% (stable)".
+    """
+    try:
+        # Get current disk usage percentage
+        proc = _run_cmd("df -h / | tail -1 | awk '{print $5}' | tr -d '%'", timeout=10)
+        if proc.returncode != 0 or not proc.stdout.strip():
+            return ""
+        current_pct = int(proc.stdout.strip())
+
+        # Read existing history from server
+        history = []
+        read_proc = _run_cmd(f"cat {DISK_HISTORY_PATH} 2>/dev/null", timeout=5)
+        if read_proc.returncode == 0 and read_proc.stdout.strip():
+            try:
+                history = json.loads(read_proc.stdout.strip())
+            except json.JSONDecodeError:
+                history = []
+
+        # Append current reading
+        now_iso = datetime.now(timezone.utc).isoformat()
+        history.append({"pct": current_pct, "ts": now_iso})
+        # Keep only last 5
+        history = history[-5:]
+
+        # Save updated history
+        history_json = json.dumps(history)
+        _run_cmd(f"echo '{history_json}' > {DISK_HISTORY_PATH}", timeout=5)
+
+        # Calculate trend
+        if len(history) >= 2:
+            oldest = history[0]
+            diff = current_pct - oldest["pct"]
+            # Parse how long ago the oldest reading was
+            try:
+                oldest_dt = datetime.fromisoformat(oldest["ts"])
+                now_dt = datetime.now(timezone.utc)
+                hours_ago = (now_dt - oldest_dt).total_seconds() / 3600
+                if hours_ago >= 24:
+                    time_label = f"{int(hours_ago / 24)}d ago"
+                else:
+                    time_label = f"{int(hours_ago)}h ago"
+            except Exception:
+                time_label = "prev reading"
+
+            if diff > 0:
+                return f"\n\n\U0001F4C8 <b>Disk trend:</b> {current_pct}% (\u2191{diff}% since {time_label})"
+            elif diff < 0:
+                return f"\n\n\U0001F4C9 <b>Disk trend:</b> {current_pct}% (\u2193{abs(diff)}% since {time_label})"
+            else:
+                return f"\n\n\U0001F4CA <b>Disk trend:</b> {current_pct}% (stable)"
+        else:
+            return f"\n\n\U0001F4CA <b>Disk trend:</b> {current_pct}% (first reading)"
+    except Exception:
+        return ""
 
 
 TELEGRAM_MAX_MSG_LENGTH = 4096
@@ -134,8 +252,9 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "<b>Wibecode Notification Bot</b>\n\n"
         "Commands:\n"
         "/status \u2014 Project completion status\n"
-        "/ping \u2014 Health check (server, bot, DB, mini app)\n"
-        "/metrics \u2014 Current server resource usage\n"
+        "/ping \u2014 Health check (VDS, bot, DB, SSL, PM2)\n"
+        "/metrics \u2014 Server resource usage + disk trend\n"
+        "/deploy \u2014 Last deploy info + process status\n"
         "/sheets \u2014 Export analytics to Google Sheets\n"
         "/onboarding \u2014 Onboarding questions reference\n"
         "/punishments \u2014 Punishment system reference\n"
@@ -151,14 +270,17 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     await update.message.reply_html(
         "<b>Commands</b>\n\n"
+        "<b>Health & Monitoring</b>\n"
+        "<b>/ping</b> \u2014 Health check: VDS, bot API, mini app, DB, SSL cert, PM2 stability\n"
+        "<b>/metrics</b> \u2014 CPU, RAM, disk usage + disk trend over time\n"
+        "<b>/deploy</b> \u2014 Last deploy: commit, uptime, restarts, memory\n\n"
+        "<b>Project</b>\n"
         "<b>/status</b> \u2014 Project milestones, completion %, what's left\n"
-        "<b>/ping</b> \u2014 Health check: VDS, bot API, mini app, database\n"
-        "<b>/metrics</b> \u2014 Current CPU, RAM, disk, PM2 process stats\n"
-        "<b>/sheets</b> \u2014 Export analytics data to Google Sheets\n"
+        "<b>/sheets</b> \u2014 Export analytics data to Google Sheets\n\n"
+        "<b>Reference</b>\n"
         "<b>/onboarding</b> \u2014 Onboarding questions & answers reference\n"
         "<b>/punishments</b> \u2014 Punishment tiers, XP penalties, Stars costs\n"
-        "<b>/flow</b> \u2014 Onboarding flow: screens, logic, branching\n"
-        "<b>/help</b> \u2014 This message\n\n"
+        "<b>/flow</b> \u2014 Onboarding flow: screens, logic, branching\n\n"
         "<b>Auto-notifications:</b>\n"
         "\u2022 Claude Code session started (with VDS metrics)\n"
         "\u2022 Claude Code session finished (with metrics delta)"
@@ -255,7 +377,15 @@ async def ping_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     except Exception:
         results.append(f"\u274C Database \u2014 timeout")
 
-    # 5. Last backup info (Timeweb API)
+    # 5. PM2 crash detection
+    pm2_line = _check_pm2_restarts()
+    results.append(pm2_line)
+
+    # 6. SSL certificate expiry
+    ssl_line = _check_ssl_expiry()
+    results.append(ssl_line)
+
+    # 7. Last backup info (Timeweb API)
     backup_line = ""
     try:
         tw_token = os.getenv('TIMEWEB_CLOUD_API_TOKEN', '')
@@ -315,6 +445,10 @@ async def metrics_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         if result.returncode == 0 and result.stdout.strip():
             msg = "\U0001F5A5\uFE0F " + result.stdout.strip()
+            # Append disk trend info
+            disk_trend = _get_disk_trend()
+            if disk_trend:
+                msg += disk_trend
             await update.message.reply_html(msg)
         else:
             error = result.stderr.strip() if result.stderr else "Unknown error"
@@ -416,12 +550,102 @@ async def flow_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await _run_export_tool(update, "onboarding_flow_export.py", "Loading onboarding flow...")
 
 
+async def deploy_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not is_authorized(update):
+        await update.message.reply_text("Unauthorized.")
+        return
+
+    thinking = await update.message.reply_text("\U0001F680 Fetching deploy info...")
+
+    try:
+        # Gather deploy info in a single SSH call
+        cmd = (
+            "echo MARK_GIT && "
+            "cd /opt/wibecode-bot && git log -1 --format='%h|%s|%ar|%ai' && "
+            "echo MARK_PM2 && pm2 jlist 2>/dev/null"
+        )
+        proc = _run_cmd(cmd, timeout=15)
+
+        await thinking.delete()
+
+        if proc.returncode != 0:
+            await update.message.reply_html(
+                "\u274C Could not fetch deploy info from server."
+            )
+            return
+
+        raw = proc.stdout
+        lines = []
+
+        # Parse git info
+        git_section = ""
+        if "MARK_GIT" in raw and "MARK_PM2" in raw:
+            git_section = raw.split("MARK_GIT", 1)[1].split("MARK_PM2", 1)[0].strip()
+        if git_section:
+            parts = git_section.split("|", 3)
+            if len(parts) == 4:
+                commit_hash, message, relative_time, absolute_time = parts
+                lines.append(f"<b>\U0001F4E6 Last Deploy</b>\n")
+                lines.append(f"Commit: <code>{commit_hash}</code>")
+                lines.append(f"Message: {message}")
+                lines.append(f"When: {relative_time}")
+                lines.append(f"Date: {absolute_time[:16]}")
+            else:
+                lines.append("<b>\U0001F4E6 Last Deploy</b>\n")
+                lines.append(f"Git: {git_section}")
+
+        # Parse PM2 info
+        pm2_section = ""
+        if "MARK_PM2" in raw:
+            pm2_section = raw.split("MARK_PM2", 1)[1].strip()
+        if pm2_section:
+            try:
+                pm2_data = json.loads(pm2_section)
+                for p in pm2_data:
+                    if p.get("name") == "telegram-rpg-bot":
+                        status = p.get("pm2_env", {}).get("status", "unknown")
+                        restart_count = p.get("pm2_env", {}).get("restart_time", 0)
+                        pm_uptime = p.get("pm2_env", {}).get("pm_uptime", 0)
+                        memory_mb = round(
+                            p.get("monit", {}).get("memory", 0) / (1024 * 1024), 1
+                        )
+                        # Calculate uptime
+                        if pm_uptime:
+                            uptime_sec = (time.time() * 1000 - pm_uptime) / 1000
+                            days = int(uptime_sec // 86400)
+                            hours = int((uptime_sec % 86400) // 3600)
+                            mins = int((uptime_sec % 3600) // 60)
+                            uptime_str = f"{days}d {hours}h {mins}m"
+                        else:
+                            uptime_str = "unknown"
+
+                        lines.append(f"\n<b>\u2699\uFE0F Process Info</b>\n")
+                        lines.append(f"Status: {status}")
+                        lines.append(f"Uptime: {uptime_str}")
+                        lines.append(f"Memory: {memory_mb} MB")
+                        lines.append(f"Restarts: {restart_count}")
+                        break
+            except (json.JSONDecodeError, IndexError):
+                lines.append("\n\u26A0\uFE0F Could not parse PM2 data")
+
+        if lines:
+            await update.message.reply_html("\n".join(lines))
+        else:
+            await update.message.reply_html("\u26A0\uFE0F No deploy info available.")
+
+    except subprocess.TimeoutExpired:
+        await thinking.edit_text("Timed out connecting to server.")
+    except Exception as e:
+        await thinking.edit_text(f"Error: {e}")
+
+
 async def post_init(application):
     """Register bot commands with Telegram so they appear in the menu and / hint."""
     commands = [
         BotCommand("status", "Project completion status"),
-        BotCommand("ping", "Health check: VDS, bot, DB, mini app"),
-        BotCommand("metrics", "Server resource usage"),
+        BotCommand("ping", "Health check: VDS, bot, DB, SSL, PM2"),
+        BotCommand("metrics", "Server resource usage + disk trend"),
+        BotCommand("deploy", "Last deploy info + process status"),
         BotCommand("sheets", "Export analytics to Google Sheets"),
         BotCommand("onboarding", "Onboarding questions reference"),
         BotCommand("punishments", "Punishment system reference"),
@@ -445,6 +669,7 @@ def main():
     app.add_handler(CommandHandler("ping", ping_command))
     app.add_handler(CommandHandler("metrics", metrics_command))
     app.add_handler(CommandHandler("sheets", sheets_command))
+    app.add_handler(CommandHandler("deploy", deploy_command))
     app.add_handler(CommandHandler("onboarding", onboarding_command))
     app.add_handler(CommandHandler("punishments", punishments_command))
     app.add_handler(CommandHandler("flow", flow_command))
