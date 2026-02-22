@@ -1228,7 +1228,20 @@ A → E → B → C → D → F → G (G always last — runs full verification)
 *(To be filled by Agent C)*
 
 #### Agent D Retrospective
-*(To be filled by Agent D)*
+**Task**: Delete removed hooks and simplify onboarding flow
+
+**What was done:**
+1. **Deleted 3 hook files**: `useFinanceAnalytics.ts` (135 lines), `useContentFeed.ts` (111 lines), `useReadingHistory.ts` (201 lines) — 447 lines removed
+2. **Modified `useOnboarding.ts`**: Removed 11 finance/learning step types from `OnboardingStep` union, removed `'referral'` step, removed `referral_source`, `referral_source_other`, `finance`, and `learning` fields from `OnboardingData` interface (−35 lines)
+3. **Modified `useOnboardingNavigation.ts`**: Removed `'referral'` from initial step sequence, removed finance (5 steps) and learning (6 steps) conditional blocks from `buildStepSequence()` (−22 lines)
+4. **Modified `Onboarding.tsx`**: Removed `ReferralSource` import, removed entire `case 'referral':` block, changed PathSelect's `onNext` from `goToStep('referral')` to `advanceFrom('paths')` so it skips directly to the first quiz step for the selected mode (−15 lines)
+5. **Modified `useOnboardingFlow.ts`**: Removed finance/learning badge mappings from `getModeBadge()`, kept only fitness/hydration (the only modes with entries in `MODE_BADGES`) (−2 lines)
+6. **TypeScript verification**: `tsc --noEmit` — zero errors
+
+**Files deleted (3):** 447 lines removed
+**Files modified (4):** `useOnboarding.ts`, `useOnboardingNavigation.ts`, `Onboarding.tsx`, `useOnboardingFlow.ts` — 74 lines removed total
+
+**Onboarding flow after changes:** splash → hero_intro → avatar → paths → [fitness/hydration/medication/habits quiz steps based on selected modes] → punishments → notifications → summary → launch
 
 #### Agent E Retrospective
 *(To be filled by Agent E)*
