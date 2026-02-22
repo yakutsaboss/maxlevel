@@ -305,6 +305,8 @@ All disabled code is PRESERVED — just commented out. Each run below re-enables
 | **84** | React Query Migration + Admin Refactor + Performance | 5 (A,G skip) | ✅ |
 | **85** | Big Feature Removal (Finance, Learning, Content, Referral, Avatar Customizer, Admin Tests) | 7 | ✅ |
 | **86** | Animation Polish + Medication Premium Unlock (Stars/XP) | 7 | ✅ |
+| **87** | Medication Mode + Notification Enhancements | 8 | ⬜ |
+| **88** | Social Polish + Dashboard Widgets + Test Coverage | 8 | ⬜ |
 
 ### Re-enable Pattern (Runs 79-83)
 Each re-enable run follows the same 3-agent pattern:
@@ -1788,3 +1790,540 @@ A → B → C → D → E → F → G (G always last)
 - **Key wins**: Smooth page transitions (AnimatePresence), nav bar icon animations (spring scale, gear rotation, badge pop-in, tap bounce), onboarding progress bar glow + directional step slide, avatar selection bounce + animated checkmark, PathSelect lock shake + glow ring + unlock modal. Medication unlock backend fully wired (Stars 300 / XP 10K).
 - **Issues**: Agent D and F both touched PathSelect.tsx — Agent D committed animation polish, Agent F committed unlock logic. F preserved D's work. No conflicts but shared file ownership should be avoided in future runs.
 - **Roadmap**: Run 86 was a user-requested feature run (post-roadmap). All mandatory roadmap runs (78-85) are ✅.
+
+---
+
+## RUN 87: Medication Mode + Notification Enhancements (8 Agents + Agent 0)
+
+### Focus: Full medication tracking system (DB, API, jobs, UI) + streak milestone notifications + notification history polish
+
+### Copy-Paste Prompts
+
+**Agent 0** (open in: `c:\Users\Asus\Desktop\Wibecode`):
+```
+Read PARALLEL_AGENTS.md — you are Agent 0 for Run 87.
+```
+
+**Agent A** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-a`):
+```
+Read PARALLEL_AGENTS.md — you are Agent A of Run 87. Your task: Add medication database tables and seed data.
+
+## What to do
+
+### 1. Add `medications` table to `database/schema.sql`
+Add after the `mode_unlocks` table:
+```sql
+CREATE TABLE medications (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    name VARCHAR(100) NOT NULL,
+    dosage VARCHAR(100),
+    frequency VARCHAR(20) CHECK (frequency IN ('daily', 'twice_daily', 'three_times', 'weekly', 'as_needed')) NOT NULL DEFAULT 'daily',
+    time_of_day TIME[] NOT NULL DEFAULT '{08:00}',
+    color VARCHAR(20) DEFAULT 'blue',
+    notes TEXT,
+    is_active BOOLEAN DEFAULT TRUE,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE INDEX idx_medications_user ON medications(user_id);
+CREATE INDEX idx_medications_active ON medications(user_id, is_active);
+```
+
+### 2. Add `medication_logs` table
+```sql
+CREATE TABLE medication_logs (
+    id SERIAL PRIMARY KEY,
+    medication_id INTEGER NOT NULL REFERENCES medications(id) ON DELETE CASCADE,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    scheduled_date DATE NOT NULL DEFAULT CURRENT_DATE,
+    scheduled_time TIME NOT NULL,
+    status VARCHAR(20) CHECK (status IN ('taken', 'skipped', 'postponed')) NOT NULL,
+    logged_at TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE INDEX idx_med_logs_user_date ON medication_logs(user_id, scheduled_date);
+CREATE INDEX idx_med_logs_medication ON medication_logs(medication_id, scheduled_date);
+CREATE UNIQUE INDEX idx_med_logs_unique ON medication_logs(medication_id, scheduled_date, scheduled_time);
+```
+
+### 3. Add `notification_log` table
+```sql
+CREATE TABLE notification_log (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    type VARCHAR(50) NOT NULL,
+    title VARCHAR(255) NOT NULL,
+    body TEXT,
+    sent_at TIMESTAMPTZ DEFAULT NOW(),
+    read_at TIMESTAMPTZ
+);
+CREATE INDEX idx_notif_log_user ON notification_log(user_id, sent_at DESC);
+```
+
+### 4. Add medication quest templates to `database/seed_data.sql`
+Find the medication mode ID from the `modes` INSERT, then add quests:
+- Daily: "Take morning medications" (easy, 30 XP)
+- Daily: "Take evening medications" (easy, 30 XP)
+- Weekly: "Perfect medication week — no missed doses" (hard, 200 XP)
+
+### 5. Create migration script `database/migrations/run87_medication.sql`
+Combine all 3 CREATE TABLE statements + indexes + seed quests in one file for production deployment.
+
+OWNED: `database/schema.sql`, `database/seed_data.sql`, `database/migrations/run87_medication.sql` (new dir + file)
+FORBIDDEN: bot/src/*, mini-app/src/*, i18n files
+Write retrospective when done.
+```
+
+**Agent B** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-b`):
+```
+Read PARALLEL_AGENTS.md — you are Agent B of Run 87. Your task: Create medication CRUD API routes.
+
+## Context
+Agent A adds the `medications` and `medication_logs` tables. You create the Express routes. Follow the pattern in `bot/src/api/routes/checkins.ts` (auth, validation, error handling).
+
+## What to do
+
+### 1. Create `bot/src/api/routes/medications.ts`
+Endpoints:
+- `GET /api/medications/:userId` — list user's active medications (sorted by time_of_day[0])
+- `POST /api/medications` — add medication { telegram_id, name, dosage, frequency, time_of_day, color, notes }
+- `PATCH /api/medications/:id` — edit medication (validate ownership via telegram_id)
+- `DELETE /api/medications/:id` — soft-delete (SET is_active=false, validate ownership)
+- `GET /api/medications/:userId/today` — today's schedule: JOIN medications with medication_logs for current date, return each med with status (taken/skipped/pending)
+
+Use: `authenticateTelegram`, `requireOwnership` (or validate telegram_id), `mutationLimiter`, `readLimiter`, `asyncHandler`, `validateRequired`, `successResponse`, error classes from `../utils/errors.js`. Use `query` from `../../utils/db.js`.
+
+### 2. Create `bot/src/api/routes/medication-logs.ts`
+Endpoints:
+- `POST /api/medication-logs` — log taken/skipped/postponed { telegram_id, medication_id, scheduled_time, status }. Use UPSERT (ON CONFLICT UPDATE) so re-tapping toggles status.
+- `GET /api/medication-logs/:userId/history?days=7` — last N days of logs grouped by date, include medication names via JOIN. Calculate adherence rate (taken / total scheduled).
+
+### 3. Register in `bot/src/api/server.ts`
+Add 2 lines at the import section:
+```typescript
+import { medicationRouter } from './routes/medications.js';
+import { medicationLogRouter } from './routes/medication-logs.js';
+```
+Add 2 lines in the route registration section:
+```typescript
+app.use('/api/medications', medicationRouter);
+app.use('/api/medication-logs', medicationLogRouter);
+```
+
+### 4. Build verify
+`cd bot && npx tsc --noEmit`
+
+IMPORTANT: Use ESM imports with `.js` extensions for all local imports.
+
+OWNED: `bot/src/api/routes/medications.ts` (new), `bot/src/api/routes/medication-logs.ts` (new), `bot/src/api/server.ts` (add 2 imports + 2 app.use only)
+FORBIDDEN: mini-app/src/*, i18n files, jobs/, test files
+Write retrospective when done.
+```
+
+**Agent C** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-c`):
+```
+Read PARALLEL_AGENTS.md — you are Agent C of Run 87. Your task: Create medication reminder job and streak milestone notification job.
+
+## Context
+Follow the pattern in `bot/src/jobs/definitions/questReminders.ts` exactly:
+- Export JOB_NAME, CRON_SCHEDULE, handler, setBotInstance
+- DND-aware + timezone-aware
+- Rate-limited batching (30 msg/sec)
+- Use `logger.child({ component: '...' })`
+
+## What to do
+
+### 1. Create `bot/src/jobs/definitions/medicationReminder.ts`
+- JOB_NAME: 'medication-reminders'
+- CRON_SCHEDULE: '*/15 * * * *' (every 15 minutes)
+- Handler logic:
+  1. Query users with active medication mode AND notification_enabled=true
+  2. For each user, check if any medication's time_of_day is within ±7 min of current time in user's timezone
+  3. Skip users in DND window
+  4. Send Telegram message with medication name + dosage using medicationReminderTemplate
+  5. Log to notification_log table (type='medication_reminder')
+  6. Batch at 30 msg/sec, handle 429 rate limits
+
+### 2. Create `bot/src/jobs/definitions/streakMilestone.ts`
+- JOB_NAME: 'streak-milestones'
+- CRON_SCHEDULE: '0 1 * * *' (daily at 1 AM UTC)
+- Handler logic:
+  1. Query users whose current_streak is exactly 7, 14, 30, 60, or 100
+  2. Skip users with notification_enabled=false or in DND
+  3. Send congratulatory message using streakMilestoneTemplate
+  4. Log to notification_log table (type='streak_milestone')
+
+### 3. Add notification templates to `bot/src/utils/notificationTemplates.ts`
+Add 2 new exported template functions:
+- `medicationReminderTemplate(medName, dosage)` — "💊 Time for {medName}! Dosage: {dosage}. Tap to mark as taken."
+- `streakMilestoneTemplate(days, mode)` — "🔥 {days}-day streak! You're on fire with {mode}!"
+Both should return HTML strings matching the existing template style.
+
+### 4. Register both jobs in `bot/src/jobs/registerJobs.ts`
+- Add imports for medicationReminder and streakMilestone
+- Add both to the `jobs` array
+- Add `medicationReminder.setBotInstance(bot)` and `streakMilestone.setBotInstance(bot)` in registerAllJobs
+
+### 5. Build verify
+`cd bot && npx tsc --noEmit`
+
+OWNED: `bot/src/jobs/definitions/medicationReminder.ts` (new), `bot/src/jobs/definitions/streakMilestone.ts` (new), `bot/src/jobs/registerJobs.ts`, `bot/src/utils/notificationTemplates.ts`
+FORBIDDEN: mini-app/src/*, server.ts, API routes, test files
+Write retrospective when done.
+```
+
+**Agent D** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-d`):
+```
+Read PARALLEL_AGENTS.md — you are Agent D of Run 87. Your task: Create the Medications page and components for the mini-app.
+
+## Context
+This is a new page for managing medications. Follow existing page patterns (see Dashboard.tsx, Quests page). Use Tailwind + framer-motion for animations. Components should use i18n keys (Agent G adds translations).
+
+## What to do
+
+### 1. Create `mini-app/src/pages/Medications.tsx`
+Full medication management page:
+- Header with 💊 icon and page title
+- "Today's Schedule" section at top — shows DailyMedTracker component
+- "My Medications" section — list of MedicationCard components
+- FAB (floating action button) to add new medication
+- Empty state when no medications ("Add your first medication")
+- Pull-to-refresh support
+- Loading skeleton while fetching
+- Uses `useMedicationData` hook (Agent E creates it)
+
+### 2. Create `mini-app/src/components/medication/MedicationCard.tsx`
+Individual medication card:
+- Color dot (user-chosen color), medication name, dosage
+- Schedule times shown as chips (e.g., "8:00 AM", "8:00 PM")
+- Frequency label (Daily, Twice daily, etc.)
+- Swipe or long-press to reveal edit/delete actions
+- framer-motion entry animation (stagger from list)
+
+### 3. Create `mini-app/src/components/medication/MedicationForm.tsx`
+Add/edit medication form (slide-up modal):
+- Name input (required)
+- Dosage input (e.g., "500mg", "2 tablets")
+- Frequency selector (daily, twice_daily, three_times, weekly, as_needed)
+- Time picker(s) — show 1-3 time inputs based on frequency
+- Color picker (6 preset colors)
+- Notes textarea (optional)
+- Save/Cancel buttons
+- framer-motion slide-up animation
+
+### 4. Create `mini-app/src/components/medication/DailyMedTracker.tsx`
+Today's medication checklist:
+- List of medications due today with times
+- Each item has a checkbox (tap to mark taken)
+- Skipped button (tap to mark skipped)
+- Visual progress: "3/5 taken" with progress bar
+- Color-coded: green=taken, red=skipped, gray=pending
+- Uses `useMedicationData` hook for today's schedule + logging
+
+### 5. Add lazy route in `mini-app/src/App.tsx`
+Add after the existing lazy imports:
+```typescript
+const Medications = lazy(() => import('@/pages/Medications').then(m => ({ default: m.Medications })));
+```
+Add route inside Routes:
+```tsx
+<Route path="/medications" element={<ProtectedRoute needsOnboarding={effectiveNeedsOnboarding} lazy><Medications /></ProtectedRoute>} />
+```
+
+### 6. Build verify
+`cd mini-app && npx tsc --noEmit`
+
+OWNED: `mini-app/src/pages/Medications.tsx` (new), `mini-app/src/components/medication/MedicationCard.tsx` (new), `mini-app/src/components/medication/MedicationForm.tsx` (new), `mini-app/src/components/medication/DailyMedTracker.tsx` (new), `mini-app/src/App.tsx` (add 1 import + 1 route)
+FORBIDDEN: bot/src/*, Dashboard.tsx, hooks/, i18n files, Navigation.tsx, test files
+Write retrospective when done.
+```
+
+**Agent E** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-e`):
+```
+Read PARALLEL_AGENTS.md — you are Agent E of Run 87. Your task: Create medication React Query hooks and API client methods.
+
+## Context
+Follow the pattern in `mini-app/src/hooks/useDashboardQuery.ts` and `mini-app/src/hooks/useSocialQuery.ts` for React Query hooks. Follow `mini-app/src/api/client.ts` for API client methods.
+
+## What to do
+
+### 1. Add medication API methods to `mini-app/src/api/client.ts`
+Add these methods to the apiClient object:
+- `getMedications(userId: number)` — GET /api/medications/:userId
+- `addMedication(data: { telegram_id: number, name: string, dosage?: string, frequency: string, time_of_day: string[], color?: string, notes?: string })` — POST /api/medications
+- `updateMedication(id: number, data: Partial<...>)` — PATCH /api/medications/:id
+- `deleteMedication(id: number, telegramId: number)` — DELETE /api/medications/:id
+- `getTodaySchedule(userId: number)` — GET /api/medications/:userId/today
+- `logMedication(data: { telegram_id: number, medication_id: number, scheduled_time: string, status: string })` — POST /api/medication-logs
+- `getMedicationHistory(userId: number, days?: number)` — GET /api/medication-logs/:userId/history?days=N
+
+### 2. Create `mini-app/src/hooks/useMedicationQuery.ts`
+React Query hooks:
+- `useMedications(userId)` — staleTime 2min, queries getMedications
+- `useTodaySchedule(userId)` — staleTime 1min (changes frequently as user logs)
+- `useMedicationHistory(userId, days)` — staleTime 5min
+- `useAddMedicationMutation()` — invalidates medications + todaySchedule queries on success
+- `useUpdateMedicationMutation()` — invalidates medications query
+- `useDeleteMedicationMutation()` — optimistic remove from list
+- `useLogMedicationMutation()` — optimistic status update in todaySchedule
+- Export `medicationKeys` for cache management
+
+### 3. Create `mini-app/src/hooks/useMedicationData.ts`
+Wrapper hook providing a clean public API:
+```typescript
+export function useMedicationData(userId?: number) {
+  // Use React Query hooks internally
+  // Return: { medications, todaySchedule, history, loading, error, addMedication, updateMedication, deleteMedication, logMedication, refresh }
+}
+```
+
+### 4. Build verify
+`cd mini-app && npx tsc --noEmit`
+
+OWNED: `mini-app/src/api/client.ts` (add medication methods), `mini-app/src/hooks/useMedicationQuery.ts` (new), `mini-app/src/hooks/useMedicationData.ts` (new)
+FORBIDDEN: bot/src/*, pages/, components/, i18n files, test files
+Write retrospective when done.
+```
+
+**Agent F** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-f`):
+```
+Read PARALLEL_AGENTS.md — you are Agent F of Run 87. Your task: Add Medications to navigation, create dashboard widget, polish notification history.
+
+## Context
+The Medications page (Agent D) and hooks (Agent E) are being created in parallel. You handle the integration points: navigation tab, dashboard widget, and notification history page.
+
+## What to do
+
+### 1. Add Medications tab to `mini-app/src/components/Navigation.tsx`
+- Add a 💊 Pill icon tab (use `Pill` from lucide-react, or fallback to a custom icon)
+- Place it between Quests and Leaderboard in the nav order
+- Only show this tab if user has medication mode active (check user's active modes from stats data or add a simple check)
+- Follow existing animation patterns (motion.button, whileTap, icon scale)
+- Label: use i18n key `nav.medications`
+
+### 2. Create `mini-app/src/components/dashboard/MedicationWidget.tsx`
+Dashboard widget showing today's medication status:
+- Title: "Today's Medications" with 💊 icon
+- Progress circle or bar: "3/5 taken"
+- Next medication due: "Aspirin — in 2 hours"
+- Tap to navigate to /medications page
+- Uses `useMedicationData` hook (Agent E) or direct API call
+- Compact design (fits in dashboard flow)
+- framer-motion fade-in animation
+
+### 3. Add MedicationWidget to `mini-app/src/pages/Dashboard.tsx`
+- Import and render MedicationWidget after StreakSection
+- Only render if user has medication mode active (check stats.activeModes or similar)
+- Wrap in motion.div with stagger animation matching other sections
+
+### 4. Polish `mini-app/src/pages/NotificationHistory.tsx`
+- Read the current implementation first
+- Ensure it shows notifications from the API (notification_log table)
+- Add type filter (all, quest, achievement, medication, streak)
+- Mark notifications as read when viewed
+- Empty state for no notifications
+- Pull-to-refresh
+
+### 5. Build verify
+`cd mini-app && npx tsc --noEmit`
+
+OWNED: `mini-app/src/components/Navigation.tsx`, `mini-app/src/components/dashboard/MedicationWidget.tsx` (new), `mini-app/src/pages/Dashboard.tsx` (add widget), `mini-app/src/pages/NotificationHistory.tsx`
+FORBIDDEN: bot/src/*, hooks/, api/client.ts, App.tsx, i18n files, test files
+Write retrospective when done.
+```
+
+**Agent G** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-g`):
+```
+Read PARALLEL_AGENTS.md — you are Agent G of Run 87. Your task: Add i18n translations for all medication and notification strings.
+
+## What to do
+
+### 1. Add medication strings to `mini-app/src/i18n/en.ts`
+Add a `medication` section:
+- `medication.title` — "Medications"
+- `medication.todaySchedule` — "Today's Schedule"
+- `medication.myMedications` — "My Medications"
+- `medication.addMedication` — "Add Medication"
+- `medication.editMedication` — "Edit Medication"
+- `medication.name` — "Medication Name"
+- `medication.dosage` — "Dosage"
+- `medication.frequency` — "Frequency"
+- `medication.timeOfDay` — "Time of Day"
+- `medication.color` — "Color"
+- `medication.notes` — "Notes (optional)"
+- `medication.save` — "Save"
+- `medication.cancel` — "Cancel"
+- `medication.delete` — "Delete"
+- `medication.deleteConfirm` — "Remove this medication?"
+- `medication.taken` — "Taken"
+- `medication.skipped` — "Skipped"
+- `medication.postponed` — "Postponed"
+- `medication.pending` — "Pending"
+- `medication.progress` — "{{taken}}/{{total}} taken"
+- `medication.nextDue` — "Next: {{name}} in {{time}}"
+- `medication.noDue` — "All done for today!"
+- `medication.emptyState` — "No medications added yet"
+- `medication.emptyHint` — "Tap + to add your first medication"
+- `medication.adherence` — "Adherence: {{rate}}%"
+- `medication.history` — "History"
+- `medication.frequencyDaily` — "Daily"
+- `medication.frequencyTwice` — "Twice daily"
+- `medication.frequencyThree` — "Three times daily"
+- `medication.frequencyWeekly` — "Weekly"
+- `medication.frequencyAsNeeded` — "As needed"
+
+Add navigation key:
+- `nav.medications` — "Medications"
+
+Add dashboard widget keys:
+- `dashboard.medicationWidget` — "Today's Medications"
+- `dashboard.medicationProgress` — "{{taken}}/{{total}} taken"
+- `dashboard.nextMedication` — "Next: {{name}}"
+
+Add notification keys:
+- `notifications.title` — "Notifications"
+- `notifications.filterAll` — "All"
+- `notifications.filterQuest` — "Quests"
+- `notifications.filterAchievement` — "Achievements"
+- `notifications.filterMedication` — "Medication"
+- `notifications.filterStreak` — "Streaks"
+- `notifications.empty` — "No notifications yet"
+- `notifications.streakMilestone` — "🔥 {{days}}-day streak!"
+
+### 2. Add same strings to `mini-app/src/i18n/ru.ts` (Russian)
+Translate all keys to Russian.
+
+### 3. Add same strings to `mini-app/src/i18n/zh.ts` (Chinese)
+Translate all keys to Chinese.
+
+### 4. Build verify
+`cd mini-app && npx tsc --noEmit`
+
+OWNED: `mini-app/src/i18n/en.ts`, `mini-app/src/i18n/ru.ts`, `mini-app/src/i18n/zh.ts`
+FORBIDDEN: bot/src/*, pages/, components/, hooks/, test files
+Write retrospective when done.
+```
+
+**Agent H** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-h`):
+```
+Read PARALLEL_AGENTS.md — you are Agent H of Run 87. Your task: Write tests for all new medication code and fix any build/test failures.
+
+## What to do
+
+### 1. Create `bot/src/__tests__/routes/http/medications.http.test.ts`
+Test medication CRUD API:
+- GET /api/medications/:userId — returns list
+- POST /api/medications — creates medication, validates required fields
+- PATCH /api/medications/:id — updates medication
+- DELETE /api/medications/:id — soft-deletes
+- GET /api/medications/:userId/today — returns today's schedule
+Follow pattern from existing http tests (e.g., `checkins.http.test.ts` or `modes.http.test.ts`).
+
+### 2. Create `bot/src/__tests__/routes/http/medication-logs.http.test.ts`
+Test logging API:
+- POST /api/medication-logs — logs taken/skipped
+- GET /api/medication-logs/:userId/history — returns history with adherence rate
+
+### 3. Create `mini-app/src/__tests__/hooks/useMedicationData.test.ts`
+Test the medication data hook:
+- Fetches medications on mount
+- Fetches today's schedule
+- addMedication mutation works
+- logMedication mutation works
+- Wrap in QueryClientProvider (follow useShop.test.ts pattern)
+
+### 4. Create `mini-app/src/__tests__/pages/Medications.test.tsx`
+Test the Medications page:
+- Renders medication list
+- Shows empty state when no medications
+- Add medication button works
+- Daily tracker shows today's schedule
+Mock useMedicationData hook. Mock framer-motion with shared mock from `src/test/mocks/framer-motion.ts`.
+
+### 5. Add test paths to package.json test:mvp
+In `bot/package.json` test:mvp, add:
+- `src/__tests__/routes/http/medications.http.test.ts`
+- `src/__tests__/routes/http/medication-logs.http.test.ts`
+
+In `mini-app/package.json` test:mvp, add:
+- `src/__tests__/hooks/useMedicationData.test.ts`
+- `src/__tests__/pages/Medications.test.tsx`
+
+### 6. Fix any build/test failures from other agents
+Run full test suites and fix any issues:
+- `cd bot && npm run test:mvp`
+- `cd mini-app && npm run test:mvp`
+Report final test counts.
+
+OWNED: All new test files listed above, `bot/package.json` (test:mvp), `mini-app/package.json` (test:mvp)
+FORBIDDEN: Source code files (except to fix build errors from other agents)
+Write retrospective when done.
+```
+
+### Run 87 File Ownership Matrix
+
+| File/Dir | A | B | C | D | E | F | G | H |
+|----------|---|---|---|---|---|---|---|---|
+| database/schema.sql | OWN | - | - | - | - | - | - | - |
+| database/seed_data.sql | OWN | - | - | - | - | - | - | - |
+| database/migrations/run87_medication.sql | NEW | - | - | - | - | - | - | - |
+| bot/src/api/routes/medications.ts | - | NEW | - | - | - | - | - | - |
+| bot/src/api/routes/medication-logs.ts | - | NEW | - | - | - | - | - | - |
+| bot/src/api/server.ts | - | OWN | - | - | - | - | - | - |
+| bot/src/jobs/definitions/medicationReminder.ts | - | - | NEW | - | - | - | - | - |
+| bot/src/jobs/definitions/streakMilestone.ts | - | - | NEW | - | - | - | - | - |
+| bot/src/jobs/registerJobs.ts | - | - | OWN | - | - | - | - | - |
+| bot/src/utils/notificationTemplates.ts | - | - | OWN | - | - | - | - | - |
+| mini-app/src/pages/Medications.tsx | - | - | - | NEW | - | - | - | - |
+| mini-app/src/components/medication/ (3 files) | - | - | - | NEW | - | - | - | - |
+| mini-app/src/App.tsx | - | - | - | OWN | - | - | - | - |
+| mini-app/src/hooks/useMedicationQuery.ts | - | - | - | - | NEW | - | - | - |
+| mini-app/src/hooks/useMedicationData.ts | - | - | - | - | NEW | - | - | - |
+| mini-app/src/api/client.ts | - | - | - | - | OWN | - | - | - |
+| mini-app/src/components/Navigation.tsx | - | - | - | - | - | OWN | - | - |
+| mini-app/src/pages/Dashboard.tsx | - | - | - | - | - | OWN | - | - |
+| mini-app/src/components/dashboard/MedicationWidget.tsx | - | - | - | - | - | NEW | - | - |
+| mini-app/src/pages/NotificationHistory.tsx | - | - | - | - | - | OWN | - | - |
+| mini-app/src/i18n/en.ts, ru.ts, zh.ts | - | - | - | - | - | - | OWN | - |
+| New test files (4) | - | - | - | - | - | - | - | NEW |
+| bot/package.json (test:mvp) | - | - | - | - | - | - | - | OWN |
+| mini-app/package.json (test:mvp) | - | - | - | - | - | - | - | OWN |
+
+### Run 87 Merge Order
+1. Agent A (DB schema — foundation for everything)
+2. Agent B (API routes — depends on schema)
+3. Agent C (Jobs — depends on schema, uses bot patterns)
+4. Agent E (Hooks + API client — depends on API routes)
+5. Agent G (i18n — independent strings)
+6. Agent D (Pages + components — depends on hooks)
+7. Agent F (Navigation + Dashboard widget — depends on pages + hooks)
+8. Agent H (Tests — depends on all source code)
+
+### Run 87 Retrospectives
+
+#### Agent A Retrospective
+*(To be filled by Agent A)*
+
+#### Agent B Retrospective
+*(To be filled by Agent B)*
+
+#### Agent C Retrospective
+*(To be filled by Agent C)*
+
+#### Agent D Retrospective
+*(To be filled by Agent D)*
+
+#### Agent E Retrospective
+*(To be filled by Agent E)*
+
+#### Agent F Retrospective
+*(To be filled by Agent F)*
+
+#### Agent G Retrospective
+*(To be filled by Agent G)*
+
+#### Agent H Retrospective
+*(To be filled by Agent H)*
+
+#### Agent 0 Retrospective
+*(To be filled by Agent 0)*
