@@ -9,6 +9,19 @@
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook, act, waitFor } from '@testing-library/react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import React from 'react';
+
+function createWrapper() {
+  const queryClient = new QueryClient({
+    defaultOptions: {
+      queries: { retry: false, staleTime: 0, gcTime: 0 },
+      mutations: { retry: false },
+    },
+  });
+  return ({ children }: { children: React.ReactNode }) =>
+    React.createElement(QueryClientProvider, { client: queryClient }, children);
+}
 
 // ─── Mock logger ────────────────────────────────────────────────────
 
@@ -101,7 +114,7 @@ beforeEach(() => {
 
 describe('useSocial', () => {
   it('loads friends on mount', async () => {
-    const { result } = renderHook(() => useSocial({ userId: 1 }));
+    const { result } = renderHook(() => useSocial({ userId: 1 }), { wrapper: createWrapper() });
 
     await waitFor(() => {
       expect(result.current.loading).toBe(false);
@@ -112,7 +125,7 @@ describe('useSocial', () => {
   });
 
   it('loads pending requests on mount', async () => {
-    const { result } = renderHook(() => useSocial({ userId: 1 }));
+    const { result } = renderHook(() => useSocial({ userId: 1 }), { wrapper: createWrapper() });
 
     await waitFor(() => {
       expect(result.current.loading).toBe(false);
@@ -123,7 +136,7 @@ describe('useSocial', () => {
   });
 
   it('loads challenges on mount', async () => {
-    const { result } = renderHook(() => useSocial({ userId: 1 }));
+    const { result } = renderHook(() => useSocial({ userId: 1 }), { wrapper: createWrapper() });
 
     await waitFor(() => {
       expect(result.current.loading).toBe(false);
@@ -137,7 +150,7 @@ describe('useSocial', () => {
     let resolveFriends: (v: unknown[]) => void;
     mockGetFriends.mockReturnValue(new Promise(r => { resolveFriends = r; }));
 
-    const { result } = renderHook(() => useSocial({ userId: 1 }));
+    const { result } = renderHook(() => useSocial({ userId: 1 }), { wrapper: createWrapper() });
 
     // Should be loading initially
     expect(result.current.loading).toBe(true);
@@ -154,8 +167,10 @@ describe('useSocial', () => {
 
   it('handles API errors and sets error state', async () => {
     mockGetFriends.mockRejectedValue(new Error('Network error'));
+    mockGetPendingRequests.mockRejectedValue(new Error('Network error'));
+    mockGetChallenges.mockRejectedValue(new Error('Network error'));
 
-    const { result } = renderHook(() => useSocial({ userId: 1 }));
+    const { result } = renderHook(() => useSocial({ userId: 1 }), { wrapper: createWrapper() });
 
     await waitFor(() => {
       expect(result.current.loading).toBe(false);
@@ -167,7 +182,7 @@ describe('useSocial', () => {
   it('acceptRequest calls API and refreshes data', async () => {
     mockAcceptFriendRequest.mockResolvedValue(undefined);
 
-    const { result } = renderHook(() => useSocial({ userId: 1 }));
+    const { result } = renderHook(() => useSocial({ userId: 1 }), { wrapper: createWrapper() });
 
     await waitFor(() => {
       expect(result.current.loading).toBe(false);
@@ -193,7 +208,7 @@ describe('useSocial', () => {
   it('rejectRequest calls API and refreshes data', async () => {
     mockRejectFriendRequest.mockResolvedValue(undefined);
 
-    const { result } = renderHook(() => useSocial({ userId: 1 }));
+    const { result } = renderHook(() => useSocial({ userId: 1 }), { wrapper: createWrapper() });
 
     await waitFor(() => {
       expect(result.current.loading).toBe(false);
@@ -213,7 +228,7 @@ describe('useSocial', () => {
   it('joinChallenge calls API and refreshes data', async () => {
     mockJoinChallenge.mockResolvedValue(undefined);
 
-    const { result } = renderHook(() => useSocial({ userId: 1 }));
+    const { result } = renderHook(() => useSocial({ userId: 1 }), { wrapper: createWrapper() });
 
     await waitFor(() => {
       expect(result.current.loading).toBe(false);
@@ -231,7 +246,7 @@ describe('useSocial', () => {
   });
 
   it('refresh reloads all data', async () => {
-    const { result } = renderHook(() => useSocial({ userId: 1 }));
+    const { result } = renderHook(() => useSocial({ userId: 1 }), { wrapper: createWrapper() });
 
     await waitFor(() => {
       expect(result.current.loading).toBe(false);
@@ -256,7 +271,7 @@ describe('useSocial', () => {
   // ── Discover Challenges (Run 62 — Agent B adds discoverChallenges to hook) ──
 
   it('exposes availableChallenges state', async () => {
-    const { result } = renderHook(() => useSocial({ userId: 1 }));
+    const { result } = renderHook(() => useSocial({ userId: 1 }), { wrapper: createWrapper() });
 
     await waitFor(() => {
       expect(result.current.loading).toBe(false);
@@ -267,7 +282,7 @@ describe('useSocial', () => {
   });
 
   it('exposes discoverChallenges function', async () => {
-    const { result } = renderHook(() => useSocial({ userId: 1 }));
+    const { result } = renderHook(() => useSocial({ userId: 1 }), { wrapper: createWrapper() });
 
     await waitFor(() => {
       expect(result.current.loading).toBe(false);
@@ -279,7 +294,7 @@ describe('useSocial', () => {
   it('discoverChallenges calls API and updates availableChallenges', async () => {
     mockDiscoverChallenges.mockResolvedValue(mockAvailableChallengesData);
 
-    const { result } = renderHook(() => useSocial({ userId: 1 }));
+    const { result } = renderHook(() => useSocial({ userId: 1 }), { wrapper: createWrapper() });
 
     await waitFor(() => {
       expect(result.current.loading).toBe(false);
@@ -289,14 +304,17 @@ describe('useSocial', () => {
       await result.current.discoverChallenges();
     });
 
+    await waitFor(() => {
+      expect(result.current.availableChallenges).toEqual(mockAvailableChallengesData);
+    });
+
     expect(mockDiscoverChallenges).toHaveBeenCalled();
-    expect(result.current.availableChallenges).toEqual(mockAvailableChallengesData);
   });
 
   it('discoverChallenges passes mode filter to API', async () => {
     mockDiscoverChallenges.mockResolvedValue([mockAvailableChallengesData[0]]);
 
-    const { result } = renderHook(() => useSocial({ userId: 1 }));
+    const { result } = renderHook(() => useSocial({ userId: 1 }), { wrapper: createWrapper() });
 
     await waitFor(() => {
       expect(result.current.loading).toBe(false);
@@ -306,15 +324,18 @@ describe('useSocial', () => {
       await result.current.discoverChallenges('fitness');
     });
 
+    await waitFor(() => {
+      expect(result.current.availableChallenges).toHaveLength(1);
+    });
+
     expect(mockDiscoverChallenges).toHaveBeenCalledWith('fitness');
-    expect(result.current.availableChallenges).toHaveLength(1);
     expect(result.current.availableChallenges[0].mode).toBe('fitness');
   });
 
   // ── Update Progress (Run 63 — Agent B adds updateProgress to hook) ──
 
   it('exposes updateProgress function', async () => {
-    const { result } = renderHook(() => useSocial({ userId: 1 }));
+    const { result } = renderHook(() => useSocial({ userId: 1 }), { wrapper: createWrapper() });
 
     await waitFor(() => {
       expect(result.current.loading).toBe(false);
@@ -326,7 +347,7 @@ describe('useSocial', () => {
   it('updateProgress calls API with correct params and refreshes data', async () => {
     mockUpdateChallengeProgress.mockResolvedValue(undefined);
 
-    const { result } = renderHook(() => useSocial({ userId: 1 }));
+    const { result } = renderHook(() => useSocial({ userId: 1 }), { wrapper: createWrapper() });
 
     await waitFor(() => {
       expect(result.current.loading).toBe(false);
@@ -350,7 +371,7 @@ describe('useSocial', () => {
   });
 
   it('updateProgress is a no-op when userId is undefined', async () => {
-    const { result } = renderHook(() => useSocial({ userId: undefined }));
+    const { result } = renderHook(() => useSocial({ userId: undefined }), { wrapper: createWrapper() });
 
     // userId is falsy so loadData returns early — loading stays at initial true
     // Just give a tick to settle
@@ -366,7 +387,7 @@ describe('useSocial', () => {
   // ── Leave Challenge (Run 64 — Agent B adds leaveChallenge to hook) ──
 
   it('exposes leaveChallenge function', async () => {
-    const { result } = renderHook(() => useSocial({ userId: 1 }));
+    const { result } = renderHook(() => useSocial({ userId: 1 }), { wrapper: createWrapper() });
 
     await waitFor(() => {
       expect(result.current.loading).toBe(false);
@@ -378,7 +399,7 @@ describe('useSocial', () => {
   it('leaveChallenge calls API and refreshes data', async () => {
     mockLeaveChallenge.mockResolvedValue(undefined);
 
-    const { result } = renderHook(() => useSocial({ userId: 1 }));
+    const { result } = renderHook(() => useSocial({ userId: 1 }), { wrapper: createWrapper() });
 
     await waitFor(() => {
       expect(result.current.loading).toBe(false);
@@ -402,7 +423,7 @@ describe('useSocial', () => {
   });
 
   it('leaveChallenge is a no-op when userId is undefined', async () => {
-    const { result } = renderHook(() => useSocial({ userId: undefined }));
+    const { result } = renderHook(() => useSocial({ userId: undefined }), { wrapper: createWrapper() });
 
     // userId is falsy so loadData returns early
     await act(async () => {});

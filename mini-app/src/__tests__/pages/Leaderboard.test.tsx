@@ -1,6 +1,24 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor, fireEvent } from '@testing-library/react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import React from 'react';
 import { Leaderboard } from '@/pages/Leaderboard';
+
+function createQueryClient() {
+  return new QueryClient({
+    defaultOptions: {
+      queries: { retry: false, staleTime: 0, gcTime: 0 },
+      mutations: { retry: false },
+    },
+  });
+}
+
+function renderWithQuery(ui: React.ReactElement) {
+  const queryClient = createQueryClient();
+  return render(
+    React.createElement(QueryClientProvider, { client: queryClient }, ui)
+  );
+}
 
 // Mock @twa-dev/sdk
 vi.mock('@twa-dev/sdk', () => ({
@@ -103,14 +121,14 @@ describe('Leaderboard', () => {
 
   it('renders loading skeleton initially', () => {
     mockGetLeaderboard.mockReturnValue(new Promise(() => {})); // never resolves
-    render(<Leaderboard />);
+    renderWithQuery(<Leaderboard />);
     // Main heading is only in the loaded state
     expect(screen.queryByText('Leaderboard')).not.toBeInTheDocument();
   });
 
   it('renders top-3 cards and leaderboard rows after data loads', async () => {
     mockGetLeaderboard.mockResolvedValue({ success: true, data: mockEntries } as any);
-    render(<Leaderboard />);
+    renderWithQuery(<Leaderboard />);
 
     await waitFor(() => {
       expect(screen.getByText('Alice')).toBeInTheDocument();
@@ -125,7 +143,7 @@ describe('Leaderboard', () => {
 
   it('renders time period tabs for switching', async () => {
     mockGetLeaderboard.mockResolvedValue({ success: true, data: mockEntries } as any);
-    render(<Leaderboard />);
+    renderWithQuery(<Leaderboard />);
 
     await waitFor(() => {
       expect(screen.getByText('Leaderboard')).toBeInTheDocument();
@@ -140,7 +158,7 @@ describe('Leaderboard', () => {
   it('switches to weekly leaderboard on tab click', async () => {
     mockGetLeaderboard.mockResolvedValue({ success: true, data: mockEntries } as any);
     mockGetWeeklyLeaderboard.mockResolvedValue({ success: true, data: mockEntries } as any);
-    render(<Leaderboard />);
+    renderWithQuery(<Leaderboard />);
 
     await waitFor(() => {
       expect(screen.getByText('Leaderboard')).toBeInTheDocument();
@@ -156,7 +174,7 @@ describe('Leaderboard', () => {
 
   it('displays Your Rank card when user is in leaderboard', async () => {
     mockGetLeaderboard.mockResolvedValue({ success: true, data: mockEntries } as any);
-    render(<Leaderboard />);
+    renderWithQuery(<Leaderboard />);
 
     await waitFor(() => {
       expect(screen.getByText('Alice')).toBeInTheDocument();

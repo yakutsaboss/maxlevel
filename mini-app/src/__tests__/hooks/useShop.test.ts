@@ -7,6 +7,19 @@
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook, act, waitFor } from '@testing-library/react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import React from 'react';
+
+function createWrapper() {
+  const queryClient = new QueryClient({
+    defaultOptions: {
+      queries: { retry: false, staleTime: 0, gcTime: 0 },
+      mutations: { retry: false },
+    },
+  });
+  return ({ children }: { children: React.ReactNode }) =>
+    React.createElement(QueryClientProvider, { client: queryClient }, children);
+}
 
 // ─── Mock the shop API ──────────────────────────────────────────────
 
@@ -77,7 +90,7 @@ describe('useShop', () => {
     mockFetchShopItems.mockResolvedValueOnce(mockItems);
     mockFetchPurchaseHistory.mockResolvedValueOnce(mockPurchases);
 
-    const { result } = renderHook(() => useShop(1));
+    const { result } = renderHook(() => useShop(1), { wrapper: createWrapper() });
 
     // Initially loading
     expect(result.current.loading).toBe(true);
@@ -96,7 +109,7 @@ describe('useShop', () => {
     mockFetchShopItems.mockReturnValueOnce(itemsPromise);
     mockFetchPurchaseHistory.mockResolvedValueOnce([]);
 
-    const { result } = renderHook(() => useShop(1));
+    const { result } = renderHook(() => useShop(1), { wrapper: createWrapper() });
 
     expect(result.current.loading).toBe(true);
 
@@ -113,7 +126,7 @@ describe('useShop', () => {
     mockFetchShopItems.mockResolvedValueOnce(mockItems);
     mockFetchPurchaseHistory.mockResolvedValueOnce([]);
 
-    const { result } = renderHook(() => useShop(1));
+    const { result } = renderHook(() => useShop(1), { wrapper: createWrapper() });
 
     await waitFor(() => {
       expect(result.current.loading).toBe(false);
@@ -128,7 +141,7 @@ describe('useShop', () => {
     mockFetchShopItems.mockResolvedValueOnce(mockItems);
     mockFetchPurchaseHistory.mockResolvedValueOnce(mockPurchases);
 
-    const { result } = renderHook(() => useShop(1));
+    const { result } = renderHook(() => useShop(1), { wrapper: createWrapper() });
 
     await waitFor(() => {
       expect(result.current.loading).toBe(false);
@@ -144,7 +157,7 @@ describe('useShop', () => {
     mockFetchShopItems.mockResolvedValueOnce(mockItems);
     mockFetchPurchaseHistory.mockResolvedValueOnce([]);
 
-    const { result } = renderHook(() => useShop(1));
+    const { result } = renderHook(() => useShop(1), { wrapper: createWrapper() });
 
     await waitFor(() => {
       expect(result.current.loading).toBe(false);
@@ -163,7 +176,7 @@ describe('useShop', () => {
     mockFetchShopItems.mockResolvedValueOnce(mockItems);
     mockFetchPurchaseHistory.mockResolvedValueOnce([]);
 
-    const { result } = renderHook(() => useShop(1));
+    const { result } = renderHook(() => useShop(1), { wrapper: createWrapper() });
 
     await waitFor(() => {
       expect(result.current.loading).toBe(false);
@@ -178,7 +191,7 @@ describe('useShop', () => {
     mockFetchShopItems.mockResolvedValueOnce(mockItems);
     mockFetchPurchaseHistory.mockResolvedValueOnce([]);
 
-    const { result } = renderHook(() => useShop(1));
+    const { result } = renderHook(() => useShop(1), { wrapper: createWrapper() });
 
     await waitFor(() => {
       expect(result.current.loading).toBe(false);
@@ -197,7 +210,7 @@ describe('useShop', () => {
     mockFetchShopItems.mockResolvedValueOnce(mockItems);
     mockFetchPurchaseHistory.mockResolvedValueOnce([]);
 
-    const { result } = renderHook(() => useShop(1));
+    const { result } = renderHook(() => useShop(1), { wrapper: createWrapper() });
 
     await waitFor(() => {
       expect(result.current.loading).toBe(false);
@@ -215,7 +228,7 @@ describe('useShop', () => {
     mockFetchShopItems.mockResolvedValueOnce(mockItems);
     mockFetchPurchaseHistory.mockResolvedValueOnce([]);
 
-    const { result } = renderHook(() => useShop(1));
+    const { result } = renderHook(() => useShop(1), { wrapper: createWrapper() });
 
     await waitFor(() => {
       expect(result.current.loading).toBe(false);
@@ -235,7 +248,7 @@ describe('useShop', () => {
     mockFetchShopItems.mockRejectedValueOnce(new Error('Network error'));
     mockFetchPurchaseHistory.mockRejectedValueOnce(new Error('Network error'));
 
-    const { result } = renderHook(() => useShop(1));
+    const { result } = renderHook(() => useShop(1), { wrapper: createWrapper() });
 
     await waitFor(() => {
       expect(result.current.loading).toBe(false);
@@ -249,7 +262,7 @@ describe('useShop', () => {
     mockFetchShopItems.mockResolvedValueOnce(mockItems);
     mockFetchPurchaseHistory.mockResolvedValueOnce([]);
 
-    const { result } = renderHook(() => useShop(1));
+    const { result } = renderHook(() => useShop(1), { wrapper: createWrapper() });
 
     await waitFor(() => {
       expect(result.current.loading).toBe(false);
@@ -272,7 +285,7 @@ describe('useShop', () => {
     mockFetchShopItems.mockResolvedValueOnce(mockItems);
     mockFetchPurchaseHistory.mockResolvedValueOnce([]);
 
-    const { result } = renderHook(() => useShop(1));
+    const { result } = renderHook(() => useShop(1), { wrapper: createWrapper() });
 
     await waitFor(() => {
       expect(result.current.loading).toBe(false);
