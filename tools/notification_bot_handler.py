@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """
 Wibecode Notification Bot (yakutsawibecode_bot)
-Handles /status, /ping, /sheets, /metrics commands and receives session notifications.
+Handles /status, /ping, /sheets, /metrics, /onboarding, /punishments, /flow commands
+and receives session notifications.
 """
 
 import os
@@ -61,6 +62,65 @@ def _run_cmd(cmd: str, timeout: int = 10) -> subprocess.CompletedProcess:
     )
 
 
+TELEGRAM_MAX_MSG_LENGTH = 4096
+
+
+async def _run_export_tool(update: Update, tool_name: str, thinking_text: str):
+    """Run an export tool and send its output as Telegram message(s).
+
+    Handles: missing tool, subprocess errors, message splitting for >4096 chars.
+    """
+    thinking = await update.message.reply_text(thinking_text)
+    tool_path = PROJECT_ROOT / "tools" / tool_name
+
+    if not tool_path.exists():
+        await thinking.delete()
+        base_name = tool_name.replace('.py', '')
+        await update.message.reply_html(
+            f"<b>Export tool not available yet.</b>\n\n"
+            f"Run from project root:\n"
+            f"<code>python tools/{tool_name}</code>"
+        )
+        return
+
+    try:
+        result = subprocess.run(
+            [sys.executable, str(tool_path), "--format", "telegram"],
+            capture_output=True, text=True, timeout=30,
+            encoding='utf-8', cwd=str(PROJECT_ROOT)
+        )
+
+        await thinking.delete()
+
+        if result.returncode == 0 and result.stdout.strip():
+            text = result.stdout.strip()
+            # Split into chunks if too long for Telegram
+            if len(text) <= TELEGRAM_MAX_MSG_LENGTH:
+                await update.message.reply_html(text)
+            else:
+                chunks = []
+                while text:
+                    if len(text) <= TELEGRAM_MAX_MSG_LENGTH:
+                        chunks.append(text)
+                        break
+                    # Find a good split point (newline near the limit)
+                    split_at = text.rfind('\n', 0, TELEGRAM_MAX_MSG_LENGTH)
+                    if split_at == -1:
+                        split_at = TELEGRAM_MAX_MSG_LENGTH
+                    chunks.append(text[:split_at])
+                    text = text[split_at:].lstrip('\n')
+                for chunk in chunks:
+                    await update.message.reply_html(chunk)
+        else:
+            error = result.stderr.strip() if result.stderr else "Unknown error"
+            await update.message.reply_html(f"Error:\n<code>{error[:500]}</code>")
+
+    except subprocess.TimeoutExpired:
+        await thinking.edit_text("Timed out. Try again.")
+    except Exception as e:
+        await thinking.edit_text(f"Error: {e}")
+
+
 def is_authorized(update: Update) -> bool:
     return update.effective_chat.id == CHAT_ID
 
@@ -77,6 +137,9 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "/ping \u2014 Health check (server, bot, DB, mini app)\n"
         "/metrics \u2014 Current server resource usage\n"
         "/sheets \u2014 Export analytics to Google Sheets\n"
+        "/onboarding \u2014 Onboarding questions reference\n"
+        "/punishments \u2014 Punishment system reference\n"
+        "/flow \u2014 Onboarding flow diagram\n"
         "/help \u2014 Show help\n\n"
         "You'll get notified when Claude starts/finishes work."
     )
@@ -92,6 +155,9 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "<b>/ping</b> \u2014 Health check: VDS, bot API, mini app, database\n"
         "<b>/metrics</b> \u2014 Current CPU, RAM, disk, PM2 process stats\n"
         "<b>/sheets</b> \u2014 Export analytics data to Google Sheets\n"
+        "<b>/onboarding</b> \u2014 Onboarding questions & answers reference\n"
+        "<b>/punishments</b> \u2014 Punishment tiers, XP penalties, Stars costs\n"
+        "<b>/flow</b> \u2014 Onboarding flow: screens, logic, branching\n"
         "<b>/help</b> \u2014 This message\n\n"
         "<b>Auto-notifications:</b>\n"
         "\u2022 Claude Code session started (with VDS metrics)\n"
@@ -329,6 +395,27 @@ async def sheets_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await thinking.edit_text(f"Error: {e}")
 
 
+async def onboarding_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not is_authorized(update):
+        await update.message.reply_text("Unauthorized.")
+        return
+    await _run_export_tool(update, "onboarding_text_export.py", "Loading onboarding reference...")
+
+
+async def punishments_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not is_authorized(update):
+        await update.message.reply_text("Unauthorized.")
+        return
+    await _run_export_tool(update, "punishment_reference_export.py", "Loading punishment reference...")
+
+
+async def flow_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not is_authorized(update):
+        await update.message.reply_text("Unauthorized.")
+        return
+    await _run_export_tool(update, "onboarding_flow_export.py", "Loading onboarding flow...")
+
+
 async def post_init(application):
     """Register bot commands with Telegram so they appear in the menu and / hint."""
     commands = [
@@ -336,6 +423,9 @@ async def post_init(application):
         BotCommand("ping", "Health check: VDS, bot, DB, mini app"),
         BotCommand("metrics", "Server resource usage"),
         BotCommand("sheets", "Export analytics to Google Sheets"),
+        BotCommand("onboarding", "Onboarding questions reference"),
+        BotCommand("punishments", "Punishment system reference"),
+        BotCommand("flow", "Onboarding flow diagram"),
         BotCommand("help", "Show available commands"),
     ]
     await application.bot.set_my_commands(commands)
@@ -355,6 +445,9 @@ def main():
     app.add_handler(CommandHandler("ping", ping_command))
     app.add_handler(CommandHandler("metrics", metrics_command))
     app.add_handler(CommandHandler("sheets", sheets_command))
+    app.add_handler(CommandHandler("onboarding", onboarding_command))
+    app.add_handler(CommandHandler("punishments", punishments_command))
+    app.add_handler(CommandHandler("flow", flow_command))
     async def error_handler(update, context):
         print(f"Error: {context.error}")
     app.add_error_handler(error_handler)
