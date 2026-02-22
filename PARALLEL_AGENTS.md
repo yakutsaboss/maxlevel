@@ -912,7 +912,12 @@ After done, verify: cd bot && npm run test:mvp && cd ../mini-app && npm run test
 - **Time**: ~3 minutes
 
 #### Agent B Retrospective
-*(To be filled by Agent B)*
+- **Task**: Re-enable all remaining non-admin frontend pages (analytics, notifications, activities, content)
+- **Changes**: Uncommented 14 lines in `mini-app/src/App.tsx` — 7 lazy imports (Analytics, NotificationHistory, ActivityHub, ActivityHistory, ContentFeed, ArticleReader, ReadingHistory) and 7 route definitions (`/analytics`, `/notifications`, `/activity`, `/activity/history`, `/content`, `/content/:articleId`, `/content/bookmarks`)
+- **Note**: Did NOT uncomment `LazyPageWrapper` import (line 8) — it's only used by admin routes (Run 83) and TypeScript flagged it as unused (TS6133). Left it commented to keep a clean build.
+- **Verification**: All 7 page components, 5 hooks (useAnalytics, useContentFeed, useNotificationHistory, useActivities, useReadingHistory), and 6 sub-components (activity/3, content/3) confirmed present. `npx tsc --noEmit` passed with zero errors. `npm run build` succeeded — new chunks: Analytics (9.44 kB), NotificationHistory (4.29 kB), ActivityHub (10.43 kB), ActivityHistory (14.57 kB), ContentFeed (8.33 kB), ArticleReader (11.95 kB), ReadingHistory (13.06 kB).
+- **Issues**: None. Clean uncomment, all files were already in place from pre-MVP development.
+- **Time**: ~3 minutes
 
 #### Agent C Retrospective
 *(To be filled by Agent C)*
