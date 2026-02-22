@@ -186,6 +186,82 @@ export function achievementUnlockedTemplate(achievement: AchievementInfo): {
 /**
  * Streak at risk warning — urgent message when a streak might break.
  */
+// ─── Medication & Streak Milestone Types ─────────────────────────────
+
+export interface MedicationReminderInfo {
+  med_name: string;
+  dosage: string | null;
+}
+
+export interface StreakMilestoneInfo {
+  days: number;
+  mode: string;
+  first_name: string | null;
+}
+
+// ─── Medication & Streak Milestone Templates ─────────────────────────
+
+/**
+ * Medication reminder — time to take a specific medication.
+ */
+export function medicationReminderTemplate(info: MedicationReminderInfo): {
+  text: string;
+  keyboard: InlineKeyboard;
+} {
+  const name = escapeHtml(info.med_name);
+  const dosage = info.dosage ? escapeHtml(info.dosage) : null;
+
+  const lines: string[] = [];
+
+  lines.push('💊 <b>Medication Reminder</b>');
+  lines.push('');
+  lines.push(`Time for <b>${name}</b>!${dosage ? ` Dosage: <b>${dosage}</b>.` : ''}`);
+  lines.push('');
+  lines.push('Tap below to mark as taken.');
+
+  const keyboard = new InlineKeyboard()
+    .webApp('✅ Mark as Taken', `${MINI_APP_URL}/medications`);
+
+  return { text: lines.join('\n'), keyboard };
+}
+
+/**
+ * Streak milestone — congratulatory message for hitting 7, 14, 30, 60, or 100 day streak.
+ */
+export function streakMilestoneTemplate(info: StreakMilestoneInfo): {
+  text: string;
+  keyboard: InlineKeyboard;
+} {
+  const name = escapeHtml(info.first_name || 'Adventurer');
+  const mode = escapeHtml(info.mode);
+  const days = info.days;
+
+  const lines: string[] = [];
+
+  lines.push('🔥 <b>Streak Milestone!</b>');
+  lines.push('');
+  lines.push(`Congratulations, ${name}! You hit a <b>${days}-day streak</b>!`);
+  lines.push(`You're on fire with <b>${mode}</b>! 🎉`);
+  lines.push('');
+
+  if (days >= 100) {
+    lines.push('🏆 <b>LEGENDARY!</b> 100 days of pure dedication!');
+  } else if (days >= 60) {
+    lines.push('💎 Two months strong — you\'re unstoppable!');
+  } else if (days >= 30) {
+    lines.push('🏅 A full month! That\'s real commitment.');
+  } else if (days >= 14) {
+    lines.push('⭐ Two weeks in — keep the momentum going!');
+  } else {
+    lines.push('✨ First week milestone! Great start!');
+  }
+
+  const keyboard = new InlineKeyboard()
+    .webApp('🎮 View Progress', `${MINI_APP_URL}/profile`);
+
+  return { text: lines.join('\n'), keyboard };
+}
+
 export function streakWarningTemplate(streak: StreakInfo): {
   text: string;
   keyboard: InlineKeyboard;
