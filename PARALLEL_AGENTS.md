@@ -1225,7 +1225,27 @@ A → E → B → C → D → F → G (G always last — runs full verification)
 - Pre-existing tsc errors in onboarding files are from Agent C/D domains, not Agent B
 
 #### Agent C Retrospective
-*(To be filled by Agent C)*
+**Task**: Delete removed feature components and clean up ProfileEditModal
+
+**What was done:**
+1. **Deleted `mini-app/src/components/finance/` directory** — 11 files (BudgetTracker, BudgetForm, BudgetSummary, SpendingChart, CategoryBreakdown, SavingsGoal, GoalForm, GoalCard, GoalContribution, useBudget, useSavingsGoals)
+2. **Deleted `mini-app/src/components/content/` directory** — 3 files (ContentCard, TodaysReadWidget, ContentQuiz)
+3. **Deleted `mini-app/src/components/onboarding/ReferralSource.tsx`**
+4. **Modified `ProfileEditModal.tsx`** — removed Avatar Studio button/link:
+   - Removed `useNavigate`, `Palette`, `AvatarRenderer` imports
+   - Removed `handleOpenAvatarStudio` function and entire Avatar Section JSX
+   - Removed unused `currentAvatar` variable
+   - Kept `equippedItems` optional prop in interface (avoids breaking callers)
+   - Kept `AVATAR_KEYS` + `AVATAR_OPTIONS` export (used by `ProfileHeader.tsx`)
+
+**Files deleted (15):** 11 finance + 3 content + 1 referral = 2,076 lines removed
+**Files modified (1):** `ProfileEditModal.tsx` — 197 to 162 lines (-35 lines)
+
+**Build verification:** `tsc --noEmit` — zero new errors from my changes. Pre-existing errors from Agent D's onboarding type changes only.
+
+**Notes:**
+- `ProfileEditModal.test.tsx` references `profile.customizeAvatar` — may need Agent G update
+- i18n keys `openAvatarStudio`/`customizeAvatarDesc` still in en/ru/zh — Agent E's domain
 
 #### Agent D Retrospective
 **Task**: Delete removed hooks and simplify onboarding flow
