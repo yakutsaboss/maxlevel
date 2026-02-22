@@ -4,6 +4,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { lazy, Suspense, useCallback, useEffect, useState } from 'react';
 import { Onboarding } from '@/pages/Onboarding';
 import { Navigation } from '@/components/Navigation';
+import { PageTransition } from '@/components/PageTransition';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { LazyPageWrapper } from '@/components/LazyPageWrapper';
 import { ProtectedRoute } from '@/components/ProtectedRoute';
@@ -126,36 +127,38 @@ function AppContent() {
       <SkipLink />
       <OfflineBanner />
       <main id="main-content">
-      <Routes>
-        <Route
-          path="/"
-          element={
-            effectiveNeedsOnboarding
-              ? <Navigate to="/onboarding" replace />
-              : <Navigate to="/dashboard" replace />
-          }
-        />
-        <Route path="/onboarding" element={<Onboarding />} />
-        <Route path="/dashboard" element={<ProtectedRoute needsOnboarding={effectiveNeedsOnboarding} lazy><Dashboard /></ProtectedRoute>} />
-        <Route path="/quests" element={<ProtectedRoute needsOnboarding={effectiveNeedsOnboarding} lazy><Quests /></ProtectedRoute>} />
-        <Route path="/profile" element={<ProtectedRoute needsOnboarding={effectiveNeedsOnboarding} lazy><Profile /></ProtectedRoute>} />
-        <Route path="/leaderboard" element={<ProtectedRoute needsOnboarding={effectiveNeedsOnboarding} lazy><Leaderboard /></ProtectedRoute>} />
-        <Route path="/social" element={<ProtectedRoute needsOnboarding={effectiveNeedsOnboarding} lazy><Social /></ProtectedRoute>} />
-        <Route path="/achievements" element={<ProtectedRoute needsOnboarding={effectiveNeedsOnboarding} lazy><Achievements /></ProtectedRoute>} />
-        <Route path="/settings" element={<ProtectedRoute needsOnboarding={effectiveNeedsOnboarding} lazy><Settings /></ProtectedRoute>} />
-        <Route path="/trophies" element={<ProtectedRoute needsOnboarding={effectiveNeedsOnboarding} lazy><TrophyCase /></ProtectedRoute>} />
-        <Route path="/inventory" element={<ProtectedRoute needsOnboarding={effectiveNeedsOnboarding} lazy><Inventory /></ProtectedRoute>} />
-        <Route path="/shop" element={<ProtectedRoute needsOnboarding={effectiveNeedsOnboarding} lazy><Shop /></ProtectedRoute>} />
-        <Route path="/shop/:itemId" element={<ProtectedRoute needsOnboarding={effectiveNeedsOnboarding} lazy><Shop /></ProtectedRoute>} />
-        <Route path="/analytics" element={<ProtectedRoute needsOnboarding={effectiveNeedsOnboarding} lazy><Analytics /></ProtectedRoute>} />
-        <Route path="/notifications" element={<ProtectedRoute needsOnboarding={effectiveNeedsOnboarding} lazy><NotificationHistory /></ProtectedRoute>} />
-        <Route path="/activity" element={<ProtectedRoute needsOnboarding={effectiveNeedsOnboarding} lazy><ActivityHub /></ProtectedRoute>} />
-        <Route path="/activity/history" element={<ProtectedRoute needsOnboarding={effectiveNeedsOnboarding} lazy><ActivityHistory /></ProtectedRoute>} />
-        <Route path="/admin" element={<Navigate to="/admin/dashboard" replace />} />
-        <Route path="/admin/dashboard" element={<LazyPageWrapper><AdminDashboard /></LazyPageWrapper>} />
-        <Route path="/admin/players" element={<LazyPageWrapper><AdminPlayerList /></LazyPageWrapper>} />
-        <Route path="/admin/players/:userId" element={<LazyPageWrapper><AdminPlayerDetail /></LazyPageWrapper>} />
-      </Routes>
+      <PageTransition>
+        <Routes location={location}>
+          <Route
+            path="/"
+            element={
+              effectiveNeedsOnboarding
+                ? <Navigate to="/onboarding" replace />
+                : <Navigate to="/dashboard" replace />
+            }
+          />
+          <Route path="/onboarding" element={<Onboarding />} />
+          <Route path="/dashboard" element={<ProtectedRoute needsOnboarding={effectiveNeedsOnboarding} lazy><Dashboard /></ProtectedRoute>} />
+          <Route path="/quests" element={<ProtectedRoute needsOnboarding={effectiveNeedsOnboarding} lazy><Quests /></ProtectedRoute>} />
+          <Route path="/profile" element={<ProtectedRoute needsOnboarding={effectiveNeedsOnboarding} lazy><Profile /></ProtectedRoute>} />
+          <Route path="/leaderboard" element={<ProtectedRoute needsOnboarding={effectiveNeedsOnboarding} lazy><Leaderboard /></ProtectedRoute>} />
+          <Route path="/social" element={<ProtectedRoute needsOnboarding={effectiveNeedsOnboarding} lazy><Social /></ProtectedRoute>} />
+          <Route path="/achievements" element={<ProtectedRoute needsOnboarding={effectiveNeedsOnboarding} lazy><Achievements /></ProtectedRoute>} />
+          <Route path="/settings" element={<ProtectedRoute needsOnboarding={effectiveNeedsOnboarding} lazy><Settings /></ProtectedRoute>} />
+          <Route path="/trophies" element={<ProtectedRoute needsOnboarding={effectiveNeedsOnboarding} lazy><TrophyCase /></ProtectedRoute>} />
+          <Route path="/inventory" element={<ProtectedRoute needsOnboarding={effectiveNeedsOnboarding} lazy><Inventory /></ProtectedRoute>} />
+          <Route path="/shop" element={<ProtectedRoute needsOnboarding={effectiveNeedsOnboarding} lazy><Shop /></ProtectedRoute>} />
+          <Route path="/shop/:itemId" element={<ProtectedRoute needsOnboarding={effectiveNeedsOnboarding} lazy><Shop /></ProtectedRoute>} />
+          <Route path="/analytics" element={<ProtectedRoute needsOnboarding={effectiveNeedsOnboarding} lazy><Analytics /></ProtectedRoute>} />
+          <Route path="/notifications" element={<ProtectedRoute needsOnboarding={effectiveNeedsOnboarding} lazy><NotificationHistory /></ProtectedRoute>} />
+          <Route path="/activity" element={<ProtectedRoute needsOnboarding={effectiveNeedsOnboarding} lazy><ActivityHub /></ProtectedRoute>} />
+          <Route path="/activity/history" element={<ProtectedRoute needsOnboarding={effectiveNeedsOnboarding} lazy><ActivityHistory /></ProtectedRoute>} />
+          <Route path="/admin" element={<Navigate to="/admin/dashboard" replace />} />
+          <Route path="/admin/dashboard" element={<LazyPageWrapper><AdminDashboard /></LazyPageWrapper>} />
+          <Route path="/admin/players" element={<LazyPageWrapper><AdminPlayerList /></LazyPageWrapper>} />
+          <Route path="/admin/players/:userId" element={<LazyPageWrapper><AdminPlayerDetail /></LazyPageWrapper>} />
+        </Routes>
+      </PageTransition>
       </main>
       <InstallPrompt />
       {showNavigation && <Navigation questBadgeCount={questBadgeCount} />}
