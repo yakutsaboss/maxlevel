@@ -903,7 +903,13 @@ After done, verify: cd bot && npm run test:mvp && cd ../mini-app && npm run test
 ### Run 82 Retrospectives
 
 #### Agent A Retrospective
-*(To be filled by Agent A)*
+- **Task**: Re-enable all remaining non-admin backend routes and background jobs
+- **Changes in server.ts**: Uncommented 14 lines — 7 imports (punishmentRouter, analyticsRouter, exportRouter, channelRouter, activityRouter, contentRouter, recommendationsRouter) and 7 route mounts (`/api/punishment`, `/api/analytics`, `/api/export`, `/api/channel`, `/api/activities`, `/api/content`, `/api/recommendations`)
+- **Changes in registerJobs.ts**: Uncommented 8 lines — 3 imports (analyticsExport, dailySummary, punishmentCheck), 3 job definitions in the jobs array, and 2 bot instance setters (dailySummary.setBotInstance, punishmentCheck.setBotInstance)
+- **Remaining disabled**: Only admin lines remain in server.ts (line 16 import + line 120 route mount) — reserved for Run 83
+- **Verification**: All 7 route files and 3 job definition files exist. `npx tsc --noEmit` passed with zero errors.
+- **Issues**: None. Clean uncomment, no dependency or type issues.
+- **Time**: ~3 minutes
 
 #### Agent B Retrospective
 *(To be filled by Agent B)*
