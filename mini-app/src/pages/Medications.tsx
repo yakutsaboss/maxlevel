@@ -9,7 +9,8 @@ import { DailyMedTracker } from '@/components/medication/DailyMedTracker';
 import { MedicationCard } from '@/components/medication/MedicationCard';
 import { MedicationForm } from '@/components/medication/MedicationForm';
 import { useMedicationData } from '@/hooks/useMedicationData';
-import type { Medication, AddMedicationData, MedicationLogStatus } from '@/types';
+import type { Medication, AddMedicationData } from '@/types';
+import type { MedicationLogStatus } from '@/types/medication';
 
 function MedicationsSkeleton() {
   return (
@@ -105,7 +106,7 @@ export function Medications() {
     }
   };
 
-  const handleLog = async (medicationId: number, scheduledTime: string, status: 'taken' | 'skipped') => {
+  const handleLog = async (medicationId: number, scheduledTime: string, status: MedicationLogStatus) => {
     await logMedication(medicationId, scheduledTime, status);
   };
 
