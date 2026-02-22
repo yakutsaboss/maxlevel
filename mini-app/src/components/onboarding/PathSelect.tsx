@@ -23,6 +23,22 @@ const MODES = [
     color: 'border-blue-500 bg-blue-500/10',
     available: true,
   },
+  {
+    id: 'medication',
+    nameKey: 'onboarding.modeMedication',
+    descKey: 'onboarding.modeMedicationDesc',
+    icon: '💊',
+    color: 'border-green-500 bg-green-500/10',
+    available: true,
+  },
+  {
+    id: 'habits',
+    nameKey: 'onboarding.modeHabits',
+    descKey: 'onboarding.modeHabitsDesc',
+    icon: '🎯',
+    color: 'border-purple-500 bg-purple-500/10',
+    available: true,
+  },
 ];
 
 interface PathSelectProps {
