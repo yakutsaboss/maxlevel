@@ -28,13 +28,13 @@ const AvatarCustomizer = lazy(() => import('@/pages/AvatarCustomizer').then(m =>
 const TrophyCase = lazy(() => import('@/pages/TrophyCase').then(m => ({ default: m.TrophyCase })));
 const Inventory = lazy(() => import('@/pages/Inventory').then(m => ({ default: m.Inventory })));
 const Shop = lazy(() => import('@/pages/Shop').then(m => ({ default: m.Shop })));
-// [MVP-DISABLED] const Analytics = lazy(() => import('@/pages/Analytics').then(m => ({ default: m.Analytics })));
-// [MVP-DISABLED] const NotificationHistory = lazy(() => import('@/pages/NotificationHistory').then(m => ({ default: m.NotificationHistory })));
-// [MVP-DISABLED] const ActivityHub = lazy(() => import('@/pages/ActivityHub').then(m => ({ default: m.ActivityHub })));
-// [MVP-DISABLED] const ActivityHistory = lazy(() => import('@/pages/ActivityHistory').then(m => ({ default: m.ActivityHistory })));
-// [MVP-DISABLED] const ContentFeed = lazy(() => import('@/pages/ContentFeed').then(m => ({ default: m.ContentFeed })));
-// [MVP-DISABLED] const ArticleReader = lazy(() => import('@/pages/ArticleReader').then(m => ({ default: m.ArticleReader })));
-// [MVP-DISABLED] const ReadingHistory = lazy(() => import('@/pages/ReadingHistory').then(m => ({ default: m.ReadingHistory })));
+const Analytics = lazy(() => import('@/pages/Analytics').then(m => ({ default: m.Analytics })));
+const NotificationHistory = lazy(() => import('@/pages/NotificationHistory').then(m => ({ default: m.NotificationHistory })));
+const ActivityHub = lazy(() => import('@/pages/ActivityHub').then(m => ({ default: m.ActivityHub })));
+const ActivityHistory = lazy(() => import('@/pages/ActivityHistory').then(m => ({ default: m.ActivityHistory })));
+const ContentFeed = lazy(() => import('@/pages/ContentFeed').then(m => ({ default: m.ContentFeed })));
+const ArticleReader = lazy(() => import('@/pages/ArticleReader').then(m => ({ default: m.ArticleReader })));
+const ReadingHistory = lazy(() => import('@/pages/ReadingHistory').then(m => ({ default: m.ReadingHistory })));
 // [MVP-DISABLED] const AdminDashboard = lazy(() => import('@/pages/admin/AdminDashboard').then(m => ({ default: m.AdminDashboard })));
 // [MVP-DISABLED] const AdminPlayerList = lazy(() => import('@/pages/admin/AdminPlayerList').then(m => ({ default: m.AdminPlayerList })));
 // [MVP-DISABLED] const AdminPlayerDetail = lazy(() => import('@/pages/admin/AdminPlayerDetail').then(m => ({ default: m.AdminPlayerDetail })));
@@ -154,13 +154,13 @@ function AppContent() {
         <Route path="/inventory" element={<ProtectedRoute needsOnboarding={effectiveNeedsOnboarding} lazy><Inventory /></ProtectedRoute>} />
         <Route path="/shop" element={<ProtectedRoute needsOnboarding={effectiveNeedsOnboarding} lazy><Shop /></ProtectedRoute>} />
         <Route path="/shop/:itemId" element={<ProtectedRoute needsOnboarding={effectiveNeedsOnboarding} lazy><Shop /></ProtectedRoute>} />
-        {/* [MVP-DISABLED] <Route path="/analytics" element={<ProtectedRoute needsOnboarding={effectiveNeedsOnboarding} lazy><Analytics /></ProtectedRoute>} /> */}
-        {/* [MVP-DISABLED] <Route path="/notifications" element={<ProtectedRoute needsOnboarding={effectiveNeedsOnboarding} lazy><NotificationHistory /></ProtectedRoute>} /> */}
-        {/* [MVP-DISABLED] <Route path="/activity" element={<ProtectedRoute needsOnboarding={effectiveNeedsOnboarding} lazy><ActivityHub /></ProtectedRoute>} /> */}
-        {/* [MVP-DISABLED] <Route path="/activity/history" element={<ProtectedRoute needsOnboarding={effectiveNeedsOnboarding} lazy><ActivityHistory /></ProtectedRoute>} /> */}
-        {/* [MVP-DISABLED] <Route path="/content" element={<ProtectedRoute needsOnboarding={effectiveNeedsOnboarding} lazy><ContentFeed /></ProtectedRoute>} /> */}
-        {/* [MVP-DISABLED] <Route path="/content/:articleId" element={<ProtectedRoute needsOnboarding={effectiveNeedsOnboarding} lazy><ArticleReader /></ProtectedRoute>} /> */}
-        {/* [MVP-DISABLED] <Route path="/content/bookmarks" element={<ProtectedRoute needsOnboarding={effectiveNeedsOnboarding} lazy><ReadingHistory /></ProtectedRoute>} /> */}
+        <Route path="/analytics" element={<ProtectedRoute needsOnboarding={effectiveNeedsOnboarding} lazy><Analytics /></ProtectedRoute>} />
+        <Route path="/notifications" element={<ProtectedRoute needsOnboarding={effectiveNeedsOnboarding} lazy><NotificationHistory /></ProtectedRoute>} />
+        <Route path="/activity" element={<ProtectedRoute needsOnboarding={effectiveNeedsOnboarding} lazy><ActivityHub /></ProtectedRoute>} />
+        <Route path="/activity/history" element={<ProtectedRoute needsOnboarding={effectiveNeedsOnboarding} lazy><ActivityHistory /></ProtectedRoute>} />
+        <Route path="/content" element={<ProtectedRoute needsOnboarding={effectiveNeedsOnboarding} lazy><ContentFeed /></ProtectedRoute>} />
+        <Route path="/content/:articleId" element={<ProtectedRoute needsOnboarding={effectiveNeedsOnboarding} lazy><ArticleReader /></ProtectedRoute>} />
+        <Route path="/content/bookmarks" element={<ProtectedRoute needsOnboarding={effectiveNeedsOnboarding} lazy><ReadingHistory /></ProtectedRoute>} />
         {/* [MVP-DISABLED] <Route path="/admin" element={<Navigate to="/admin/dashboard" replace />} /> */}
         {/* [MVP-DISABLED] <Route path="/admin/dashboard" element={<LazyPageWrapper><AdminDashboard /></LazyPageWrapper>} /> */}
         {/* [MVP-DISABLED] <Route path="/admin/players" element={<LazyPageWrapper><AdminPlayerList /></LazyPageWrapper>} /> */}
