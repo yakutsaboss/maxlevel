@@ -1294,7 +1294,31 @@ A → E → B → C → D → F → G (G always last — runs full verification)
 **Verification:** All 4 modified test files pass (20 tests, 2.1s)
 
 #### Agent G Retrospective
-*(To be filled by Agent G)*
+**Task**: Update test:mvp scripts, fix tsc errors and broken tests from feature removal
+
+**What was done:**
+1. **Updated bot/package.json test:mvp** — removed `finance.http.test.ts` path (deleted by Agent A)
+2. **Updated mini-app/package.json test:mvp** — removed 10 test paths: AvatarCustomizer, Finance, ContentFeed, ArticleReader, ReadingHistory page tests; content API test; finance + content component directories; useContentFeed + useReadingHistory hook tests
+3. **Fixed tsc errors in 2 source files** — `useQuizState.ts` (removed `learning` case from `getRequiredDayCount`) and `SummaryModeCard.tsx` (removed finance/learning MODE_INFO entries, summary functions, and render blocks). These files fell between agent ownership boundaries.
+4. **Fixed SummaryModeCard.test.tsx** — removed 2 finance/learning test cases + updated combined test to only test fitness/hydration modes
+5. **Committed Agent E's uncommitted i18n work** — ru.ts (237 lines removed) + zh.ts (13 lines removed) were staged but uncommitted
+6. **Full verification passed**:
+   - Bot: `tsc --noEmit` clean, 75 test files / **953 tests** PASS
+   - Mini-app: `tsc --noEmit` clean, `npm run build` clean, 102 test files / **615 tests** PASS
+   - **Total: 177 test files / 1,568 tests**
+
+**Files modified (4):**
+- `bot/package.json` — removed 1 test path from test:mvp
+- `mini-app/package.json` — removed 10 test paths from test:mvp
+- `mini-app/src/components/onboarding/quiz/useQuizState.ts` — removed `learning` case
+- `mini-app/src/components/onboarding/summary/SummaryModeCard.tsx` — removed finance/learning code
+
+**Files fixed (1 test):**
+- `mini-app/src/__tests__/components/onboarding/summary/SummaryModeCard.test.tsx` — removed finance/learning assertions
+
+**Issues found:**
+- 2 source files (`useQuizState.ts`, `SummaryModeCard.tsx`) were not owned by any agent but referenced removed `OnboardingData` fields — fell through agent boundaries
+- Agent E's i18n changes (ru.ts, zh.ts) were left uncommitted — committed by Agent G
 
 #### Agent 0 Retrospective
 *(To be filled by Agent 0)*
