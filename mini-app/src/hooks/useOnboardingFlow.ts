@@ -121,8 +121,6 @@ export function useOnboardingFlow() {
   const getModeBadge = (step: OnboardingStep) => {
     if (step.startsWith('fitness_')) return MODE_BADGES.fitness;
     if (step.startsWith('hydration_')) return MODE_BADGES.hydration;
-    if (step.startsWith('finance_')) return MODE_BADGES.finance;
-    if (step.startsWith('learning_')) return MODE_BADGES.learning;
     return undefined;
   };
 
