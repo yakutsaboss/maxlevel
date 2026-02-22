@@ -134,6 +134,7 @@ vi.mock('lucide-react', () => {
     Calendar: IconStub,
     ChevronRight: IconStub,
     Edit: IconStub,
+    Pencil: IconStub,
     Trash2: IconStub,
     AlertCircle: IconStub,
     RefreshCw: IconStub,
@@ -177,7 +178,7 @@ vi.mock('@/hooks/useMedicationData', () => ({
 
 // ─── Import page after mocks ────────────────────────────────────────
 
-import { default as MedicationsPage } from '@/pages/Medications';
+import { Medications as MedicationsPage } from '@/pages/Medications';
 
 // ─── Test helpers ───────────────────────────────────────────────────
 
@@ -243,8 +244,9 @@ describe('Medications Page', () => {
   it('renders medication list', () => {
     renderWithProviders(<MedicationsPage />);
 
-    expect(screen.getByText('Aspirin')).toBeInTheDocument();
-    expect(screen.getByText('Vitamin D')).toBeInTheDocument();
+    // Names appear in both DailyMedTracker and MedicationCard sections
+    expect(screen.getAllByText('Aspirin').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText('Vitamin D').length).toBeGreaterThanOrEqual(1);
   });
 
   it('shows empty state when no medications', () => {
@@ -270,8 +272,10 @@ describe('Medications Page', () => {
   it('shows today\'s schedule section', () => {
     renderWithProviders(<MedicationsPage />);
 
-    // Should show schedule with status info
-    expect(screen.getByText('Aspirin')).toBeInTheDocument();
+    // The "Today's Schedule" heading should be visible
+    expect(screen.getByText("Today's Schedule")).toBeInTheDocument();
+    // Progress text from DailyMedTracker
+    expect(screen.getByText('1/3 taken')).toBeInTheDocument();
   });
 
   it('shows loading state', () => {
@@ -308,7 +312,8 @@ describe('Medications Page', () => {
   it('shows medication dosage info', () => {
     renderWithProviders(<MedicationsPage />);
 
-    expect(screen.getByText('100mg')).toBeInTheDocument();
-    expect(screen.getByText('1000IU')).toBeInTheDocument();
+    // Dosages appear in both DailyMedTracker and MedicationCard sections
+    expect(screen.getAllByText('100mg').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText('1000IU').length).toBeGreaterThanOrEqual(1);
   });
 });

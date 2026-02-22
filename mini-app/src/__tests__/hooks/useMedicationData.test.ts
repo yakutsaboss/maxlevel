@@ -209,12 +209,7 @@ describe('useMedicationData', () => {
     });
 
     await act(async () => {
-      await result.current.logMedication({
-        telegram_id: 123,
-        medication_id: 1,
-        scheduled_time: '08:00',
-        status: 'taken',
-      });
+      await result.current.logMedication(1, '08:00', 'taken');
     });
 
     expect(mockLogMedication).toHaveBeenCalledWith({
