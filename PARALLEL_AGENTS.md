@@ -688,7 +688,18 @@ After done, verify: cd bot && npm run test:mvp && cd ../mini-app && npm run test
 - **Time**: ~3 minutes
 
 #### Agent C Retrospective
-*(To be filled by Agent C)*
+**Status:** COMPLETE
+
+**What was done:**
+- Ran all 2 bot test files: social (58 pass), finance (19 pass) — ALL passed immediately, 0 fixes needed.
+- Ran all 19 mini-app test files: Social page (22 pass), Finance page (11 pass), useSocial hook (19 pass), 6 social components (48 pass: ChallengeCard 10, ChallengeDetailModal 12, ChallengeForm 10, ChallengesList 4, FriendRequestForm 7, FriendsList 5), 9 finance components (80 pass: BudgetForm 6, BudgetSummary 5, BudgetTracker 8, GoalCard 11, GoalContribution 9, GoalForm 5, SavingsGoal 8, useBudget 12, useSavingsGoals 16) — ALL passed immediately, 0 fixes needed.
+- Updated bot `test:mvp` script: added 2 entries (social.http, finance.http)
+- Updated mini-app `test:mvp` script: added 5 entries (Social page, Finance page, useSocial hook, social components dir, finance components dir)
+- Final verification: bot test:mvp = 67 files / 857 tests ALL PASS; mini-app test:mvp = 108 files / 656 tests ALL PASS
+
+**Files changed:** bot/package.json (test:mvp script), mini-app/package.json (test:mvp script)
+
+**Recommendations:** None — all social/finance tests passing cleanly with zero fixes required. Total test count now 1,513 (up from 1,256 in Run 80).
 
 #### Agent 0 Retrospective
 *(To be filled by Agent 0)*
