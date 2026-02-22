@@ -11,7 +11,6 @@ export function buildStepSequence(selectedModes: string[]): OnboardingStep[] {
     'hero_intro',
     'avatar',
     'paths',
-    'referral',
   ];
 
   if (selectedModes.includes('fitness')) {
@@ -40,27 +39,6 @@ export function buildStepSequence(selectedModes: string[]): OnboardingStep[] {
       'hydration_schedule',
       'hydration_vessel',
       'hydration_barriers'
-    );
-  }
-
-  if (selectedModes.includes('finance')) {
-    steps.push(
-      'finance_goals',
-      'finance_income',
-      'finance_spending',
-      'finance_savings_target',
-      'finance_frequency'
-    );
-  }
-
-  if (selectedModes.includes('learning')) {
-    steps.push(
-      'learning_goals',
-      'learning_style',
-      'learning_time',
-      'learning_frequency',
-      'learning_days',
-      'learning_resources'
     );
   }
 
