@@ -1346,7 +1346,12 @@ Write retrospective when done.
 ### Run 83 Retrospectives
 
 #### Agent A Retrospective
-*(To be filled by Agent A)*
+- **Task**: Re-enable admin panel (backend + frontend) — the FINAL MVP-DISABLED uncomment
+- **Changes in server.ts**: Uncommented 2 lines — 1 import (`adminRouter`) and 1 route mount (`/api/admin`)
+- **Changes in App.tsx**: Uncommented 8 lines — 1 import (`LazyPageWrapper`), 3 lazy component declarations (`AdminDashboard`, `AdminPlayerList`, `AdminPlayerDetail`), and 4 route definitions (`/admin`, `/admin/dashboard`, `/admin/players`, `/admin/players/:userId`)
+- **Build**: `tsc --noEmit` passes for both bot and mini-app; `npm run build` succeeds for mini-app (admin chunks visible: `AdminDashboard-DYCU0WmR.js`, `AdminPlayerList-B9Gi-cTu.js`, `AdminPlayerDetail-BioXi3hq.js`)
+- **MVP-DISABLED scan**: Grep for `[MVP-DISABLED]` across all `*.ts` and `*.tsx` files returns **zero matches** — milestone complete
+- **No issues encountered** — clean uncomment, no dependency or type errors
 
 #### Agent B Retrospective
 *(To be filled by Agent B)*
@@ -1355,7 +1360,24 @@ Write retrospective when done.
 *(To be filled by Agent C)*
 
 #### Agent D Retrospective
-*(To be filled by Agent D)*
+**Task**: Add `/onboarding`, `/punishments`, `/flow` reference doc commands to notification bot.
+
+**What was done:**
+1. Added reusable `_run_export_tool()` helper that:
+   - Checks if the export tool file exists; if not, shows a friendly "not available yet" message (graceful fallback for when Agent C's tools aren't merged yet)
+   - Runs the tool via `subprocess` with `--format telegram` flag
+   - Splits output into multiple messages if >4096 chars (Telegram limit), splitting on newlines
+   - Handles timeouts and subprocess errors
+2. Added 3 command handlers: `onboarding_command`, `punishments_command`, `flow_command` — all using the shared helper
+3. Updated `/start` and `/help` text with descriptions for all 3 new commands
+4. Registered all 3 commands in `post_init` via `set_my_commands` (appears in Telegram's / menu)
+5. Added handlers in `main()` function
+
+**Files changed:** `tools/notification_bot_handler.py` (+94 lines)
+
+**Merge notes:** No conflicts expected — only file touched is `tools/notification_bot_handler.py` which is exclusively owned by Agent D. Depends on Agent C's export tools existing at runtime (not at merge time — the fallback handles missing tools gracefully).
+
+**Issues:** None. Clean implementation, follows existing patterns in the file.
 
 #### Agent E Retrospective
 *(To be filled by Agent E)*
