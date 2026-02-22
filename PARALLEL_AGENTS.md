@@ -1354,7 +1354,29 @@ Write retrospective when done.
 - **No issues encountered** — clean uncomment, no dependency or type errors
 
 #### Agent B Retrospective
-*(To be filled by Agent B)*
+**Status:** COMPLETE
+
+**Task:** Fix onboarding i18n — convert all hardcoded English strings to proper i18n keys with Russian translations.
+
+**What was done:**
+1. **onboardingQuestions.ts** — Converted all 41 questions (6 modes) from hardcoded English to i18n key strings. Titles, subtitles, option labels, option sublabels, flavorText values, and valueSuffix all use `onboardingQuiz.[step].title` naming convention. Platform names (TikTok, Instagram etc.) and time ranges (5:00-8:00) kept as-is.
+
+2. **QuizScreen.tsx** — Added `useMemo` + `useTranslation` to create `translatedConfig` that resolves all option labels/sublabels, flavorText values, and valueSuffix through `t()` before passing to AnswerInput.
+
+3. **Punishment components** — `constants.ts`: changed `label`→`labelKey`, `tagline`→`taglineKey`. `TypeSelector.tsx`, `DifficultySelector.tsx`, `ConsentToggle.tsx`: added `useTranslation`, all text wrapped in `t()`.
+
+4. **Summary components** — `SummaryStats.tsx`, `SummarySchedule.tsx`, `SummaryModeCard.tsx`: all hardcoded English converted to i18n keys.
+
+5. **SplashScreen.tsx** — Russian `available: false` → `true`.
+
+6. **i18n files** — Added ~400 `onboardingQuiz` keys to en.ts (English), ru.ts (natural Russian), zh.ts (English placeholders).
+
+**Key decisions:**
+- i18n keys in data file, resolved in QuizScreen via `translatedConfig` useMemo — avoids touching AnswerInput (forbidden file)
+- `valueSuffix` field for translatable units ("workouts a week" / "тренировок в неделю")
+- Volume/time sublabels kept as plain strings (universally understood)
+
+**Build:** `tsc --noEmit` + `npm run build` pass clean. Deployed to server.
 
 #### Agent C Retrospective
 **Status:** COMPLETE
