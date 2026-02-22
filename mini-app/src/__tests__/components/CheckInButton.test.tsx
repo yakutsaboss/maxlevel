@@ -24,12 +24,14 @@ vi.mock('@/hooks/useTelegram', () => ({
   useTelegram: () => ({ haptic: mockHaptic }),
 }));
 
-// Mock apiClient
-const mockCreateCheckin = vi.fn();
-vi.mock('@/api/client', () => ({
-  apiClient: {
-    createCheckin: (...args: any[]) => mockCreateCheckin(...args),
-  },
+// Mock useCheckinMutation from React Query migration
+const mockMutateAsync = vi.fn();
+let mockIsPending = false;
+vi.mock('@/hooks/useQuestsQuery', () => ({
+  useCheckinMutation: () => ({
+    mutateAsync: mockMutateAsync,
+    isPending: mockIsPending,
+  }),
 }));
 
 import { CheckInButton } from '@/components/CheckInButton';
@@ -43,6 +45,7 @@ const defaultProps = {
 describe('CheckInButton', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockIsPending = false;
   });
 
   it('renders check-in button with default text', () => {
@@ -58,19 +61,19 @@ describe('CheckInButton', () => {
   });
 
   it('calls API and onSuccess on click', async () => {
-    mockCreateCheckin.mockResolvedValueOnce({
-      success: true,
-      data: {
-        completed: false,
-        quest_progress: { current: 3, target: 5 },
-      },
+    mockMutateAsync.mockResolvedValueOnce({
+      completed: false,
+      quest_progress: { current: 3, target: 5 },
     });
 
     render(<CheckInButton {...defaultProps} />);
     fireEvent.click(screen.getByText('Check In'));
 
     await waitFor(() => {
-      expect(mockCreateCheckin).toHaveBeenCalledWith(123, 42);
+      expect(mockMutateAsync).toHaveBeenCalledWith({
+        telegramId: 123,
+        questInstanceId: 42,
+      });
     });
 
     await waitFor(() => {
@@ -82,27 +85,16 @@ describe('CheckInButton', () => {
     });
   });
 
-  it('shows loading state during check-in', async () => {
-    // Create a promise we control to keep loading state visible
-    let resolveCheckin!: (value: any) => void;
-    mockCreateCheckin.mockReturnValueOnce(
-      new Promise((resolve) => { resolveCheckin = resolve; })
-    );
+  it('shows loading state when mutation is pending', () => {
+    mockIsPending = true;
 
     render(<CheckInButton {...defaultProps} />);
-    fireEvent.click(screen.getByText('Check In'));
 
-    await waitFor(() => {
-      expect(screen.getByText('Checking in...')).toBeInTheDocument();
-    });
-
-    // Resolve to clean up
-    resolveCheckin({ success: true, data: { completed: false, quest_progress: { current: 1, target: 1 } } });
+    expect(screen.getByText('Checking in...')).toBeInTheDocument();
   });
 
   it('handles API error gracefully', async () => {
-    mockCreateCheckin.mockRejectedValueOnce(new Error('Network error'));
-    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    mockMutateAsync.mockRejectedValueOnce(new Error('Network error'));
 
     render(<CheckInButton {...defaultProps} />);
     fireEvent.click(screen.getByText('Check In'));
@@ -115,7 +107,5 @@ describe('CheckInButton', () => {
     await waitFor(() => {
       expect(screen.getByText('Check In')).toBeInTheDocument();
     });
-
-    consoleSpy.mockRestore();
   });
 });

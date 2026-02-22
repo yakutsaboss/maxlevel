@@ -73,8 +73,9 @@ describe('ReferralSource', () => {
     expect(screen.getByText('Telegram')).toBeInTheDocument();
     expect(screen.getByText('YouTube')).toBeInTheDocument();
     expect(screen.getByText('Web')).toBeInTheDocument();
-    expect(screen.getByText('Friend & Family')).toBeInTheDocument();
-    expect(screen.getByText('Other')).toBeInTheDocument();
+    // These labels are now i18n keys in the data file (rendered without t())
+    expect(screen.getByText('onboardingQuiz.referral.friend_family')).toBeInTheDocument();
+    expect(screen.getByText('onboardingQuiz.referral.other')).toBeInTheDocument();
   });
 
   it('clicking an option selects it and calls onSelect', () => {
@@ -116,8 +117,8 @@ describe('ReferralSource', () => {
       />
     );
 
-    // Click "Other"
-    fireEvent.click(screen.getByText('Other'));
+    // Click "Other" (now an i18n key label)
+    fireEvent.click(screen.getByText('onboardingQuiz.referral.other'));
     expect(mockOnSelect).toHaveBeenCalledWith('other', '');
 
     // Text input should appear

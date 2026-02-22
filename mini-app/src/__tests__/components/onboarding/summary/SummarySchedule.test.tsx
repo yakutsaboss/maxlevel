@@ -52,7 +52,8 @@ describe('SummarySchedule', () => {
 
     expect(screen.getByText(/Workout/)).toBeInTheDocument();
     expect(screen.getByText(/Medium/)).toBeInTheDocument();
-    expect(screen.getByText(/50 pushups/)).toBeInTheDocument();
+    // Agent E rebalanced: medium workout = 10 pushups (was 50)
+    expect(screen.getByText(/10 pushups/)).toBeInTheDocument();
   });
 
   it('shows punishment summary with safe mode indicator', () => {
@@ -82,7 +83,8 @@ describe('SummarySchedule', () => {
     render(<SummarySchedule data={data} onEdit={mockOnEdit} />);
 
     expect(screen.getByText(/Money/)).toBeInTheDocument();
-    expect(screen.getByText(/\$10/)).toBeInTheDocument();
+    // Agent E rebalanced: hard money = Donate $3 (was $10)
+    expect(screen.getByText(/\$3/)).toBeInTheDocument();
   });
 
   it('falls back to intensity_level when difficulty is missing', () => {
@@ -96,7 +98,8 @@ describe('SummarySchedule', () => {
     render(<SummarySchedule data={data} onEdit={mockOnEdit} />);
 
     expect(screen.getByText(/Extreme/)).toBeInTheDocument();
-    expect(screen.getByText(/200 pushups/)).toBeInTheDocument();
+    // Agent E rebalanced: extreme workout = 50 pushups (was 200)
+    expect(screen.getByText(/50 pushups/)).toBeInTheDocument();
   });
 
   it('shows "All enabled" when notification_preferences is undefined', () => {

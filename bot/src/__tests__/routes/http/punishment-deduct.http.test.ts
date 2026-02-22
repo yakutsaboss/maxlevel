@@ -73,10 +73,11 @@ beforeEach(() => {
 describe('STARS_PENALTY_RATES', () => {
   it('should define penalty rates for all intensity levels', () => {
     expect(STARS_PENALTY_RATES).toBeDefined();
-    expect(STARS_PENALTY_RATES.light).toBe(1);
-    expect(STARS_PENALTY_RATES.moderate).toBe(3);
-    expect(STARS_PENALTY_RATES.strict).toBe(5);
-    expect(STARS_PENALTY_RATES.extreme).toBe(10);
+    // Agent E rebalanced: light=0, moderate=1, strict=3, extreme=5
+    expect(STARS_PENALTY_RATES.light).toBe(0);
+    expect(STARS_PENALTY_RATES.moderate).toBe(1);
+    expect(STARS_PENALTY_RATES.strict).toBe(3);
+    expect(STARS_PENALTY_RATES.extreme).toBe(5);
   });
 
   it('should have exactly 4 intensity levels', () => {

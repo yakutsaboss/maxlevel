@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Quests } from '@/pages/Quests';
 import type { Quest } from '@/types';
 
@@ -79,6 +80,15 @@ vi.mock('@/components/quests/QuestDetailModal', () => ({
   QuestDetailModal: () => <div data-testid="quest-detail-modal" />,
 }));
 
+function renderWithQueryClient(ui: React.ReactElement) {
+  const queryClient = new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  });
+  return render(
+    <QueryClientProvider client={queryClient}>{ui}</QueryClientProvider>
+  );
+}
+
 const makeQuest = (overrides: Partial<Quest> = {}): Quest => ({
   id: 1,
   user_id: 1,
@@ -108,7 +118,7 @@ describe('Quests', () => {
     // Make API calls hang to keep loading state
     mockGetActiveQuests.mockReturnValue(new Promise(() => {}));
     mockGetCompletedQuests.mockReturnValue(new Promise(() => {}));
-    render(<Quests />);
+    renderWithQueryClient(<Quests />);
     // QuestsSkeleton renders pulse placeholders; quest list content not yet visible
     expect(screen.queryByText('Quests')).not.toBeInTheDocument();
     expect(screen.queryByText('No Active Quests')).not.toBeInTheDocument();
@@ -122,7 +132,7 @@ describe('Quests', () => {
     mockGetActiveQuests.mockResolvedValue({ success: true, data: quests });
     mockGetCompletedQuests.mockResolvedValue({ success: true, data: [] });
 
-    render(<Quests />);
+    renderWithQueryClient(<Quests />);
 
     await waitFor(() => {
       expect(screen.getByText('Morning Run')).toBeInTheDocument();
@@ -140,7 +150,7 @@ describe('Quests', () => {
     ];
     mockGetActiveQuests.mockResolvedValue({ success: true, data: quests });
 
-    render(<Quests />);
+    renderWithQueryClient(<Quests />);
 
     await waitFor(() => {
       expect(screen.getByText(/2 of 3 quests ready to claim/)).toBeInTheDocument();
@@ -151,7 +161,7 @@ describe('Quests', () => {
     mockGetActiveQuests.mockResolvedValue({ success: true, data: [] });
     mockGetCompletedQuests.mockResolvedValue({ success: true, data: [] });
 
-    render(<Quests />);
+    renderWithQueryClient(<Quests />);
 
     await waitFor(() => {
       expect(screen.getByText('No Active Quests')).toBeInTheDocument();
@@ -168,7 +178,7 @@ describe('Quests', () => {
     mockGetActiveQuests.mockResolvedValue({ success: true, data: activeQuests });
     mockGetCompletedQuests.mockResolvedValue({ success: true, data: completedQuests });
 
-    render(<Quests />);
+    renderWithQueryClient(<Quests />);
 
     await waitFor(() => {
       expect(screen.getByText('Active Quest')).toBeInTheDocument();
@@ -182,7 +192,7 @@ describe('Quests', () => {
     mockGetActiveQuests.mockRejectedValue(new Error('Network error'));
     mockGetCompletedQuests.mockRejectedValue(new Error('Network error'));
 
-    render(<Quests />);
+    renderWithQueryClient(<Quests />);
 
     await waitFor(() => {
       expect(screen.getByText('Could not load your quests')).toBeInTheDocument();

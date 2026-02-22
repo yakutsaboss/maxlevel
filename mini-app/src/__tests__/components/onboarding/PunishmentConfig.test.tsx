@@ -121,10 +121,10 @@ describe('PunishmentConfig', () => {
       />
     );
 
-    // Difficulty options should be visible
-    expect(screen.getByText('20 pushups')).toBeInTheDocument();
-    expect(screen.getByText('50 pushups')).toBeInTheDocument();
-    expect(screen.getByText('100 pushups')).toBeInTheDocument();
+    // Difficulty options should be visible (Agent E rebalanced: 3/10/25 pushups)
+    expect(screen.getByText('3 pushups')).toBeInTheDocument();
+    expect(screen.getByText('10 pushups')).toBeInTheDocument();
+    expect(screen.getByText('25 pushups')).toBeInTheDocument();
 
     // Safe Mode toggle should be present
     expect(screen.getByText('Safe Mode')).toBeInTheDocument();

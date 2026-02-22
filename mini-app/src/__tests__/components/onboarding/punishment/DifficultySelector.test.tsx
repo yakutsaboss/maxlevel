@@ -31,21 +31,22 @@ describe('DifficultySelector', () => {
 
   it('renders difficulty options for workout type', () => {
     render(<DifficultySelector {...defaultProps} />);
-    expect(screen.getByText('20 pushups')).toBeInTheDocument();
+    // Agent E rebalanced: 3/10/25/50 pushups (was 20/50/100/200)
+    expect(screen.getByText('3 pushups')).toBeInTheDocument();
+    expect(screen.getByText('10 pushups')).toBeInTheDocument();
+    expect(screen.getByText('25 pushups')).toBeInTheDocument();
     expect(screen.getByText('50 pushups')).toBeInTheDocument();
-    expect(screen.getByText('100 pushups')).toBeInTheDocument();
-    expect(screen.getByText('200 pushups + 1 min plank')).toBeInTheDocument();
   });
 
   it('calls onSelectDifficulty when an option is clicked', () => {
     render(<DifficultySelector {...defaultProps} />);
-    fireEvent.click(screen.getByText('50 pushups'));
+    fireEvent.click(screen.getByText('10 pushups'));
     expect(defaultProps.onSelectDifficulty).toHaveBeenCalledWith('medium');
   });
 
   it('shows selected state styling for current difficulty', () => {
     render(<DifficultySelector {...defaultProps} difficulty="easy" />);
-    const easyButton = screen.getByText('20 pushups').closest('button')!;
+    const easyButton = screen.getByText('3 pushups').closest('button')!;
     expect(easyButton.className).toContain('border-telegram-button');
   });
 
@@ -64,9 +65,10 @@ describe('DifficultySelector', () => {
 
   it('renders difficulty options for book type', () => {
     render(<DifficultySelector {...defaultProps} punishmentType="book" />);
+    // Agent E rebalanced: 3/10/25/50 pages (was 10/30/50/100)
+    expect(screen.getByText('Read 3 pages')).toBeInTheDocument();
     expect(screen.getByText('Read 10 pages')).toBeInTheDocument();
-    expect(screen.getByText('Read 30 pages')).toBeInTheDocument();
+    expect(screen.getByText('Read 25 pages')).toBeInTheDocument();
     expect(screen.getByText('Read 50 pages')).toBeInTheDocument();
-    expect(screen.getByText('Read 100 pages')).toBeInTheDocument();
   });
 });
