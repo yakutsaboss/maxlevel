@@ -15,6 +15,7 @@ import { ErrorSection } from '@/components/ErrorSection';
 import { DailyGoalRing } from '@/components/dashboard/DailyGoalRing';
 import { TodaysProgress } from '@/components/dashboard/TodaysProgress';
 import { StreakSection } from '@/components/dashboard/StreakSection';
+import { MedicationWidget } from '@/components/dashboard/MedicationWidget';
 import { StatCard } from '@/components/dashboard/StatCard';
 import { ModeCard } from '@/components/dashboard/ModeCard';
 import { QuestCardMini } from '@/components/dashboard/QuestCardMini';
@@ -159,6 +160,18 @@ export function Dashboard() {
       </div>
 
       <StreakSection streakData={stats.streakData} perModeStreaks={stats.perModeStreaks} />
+
+      {/* Medication widget — only when medication mode is active */}
+      {stats.modes.some((m) => m.mode.name === 'medication') && (
+        <motion.div
+          className="px-4 mt-4"
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.2 }}
+        >
+          <MedicationWidget />
+        </motion.div>
+      )}
 
       <div className="px-4 mt-6" role="region" aria-label="Active quests">
         <h2 className="text-lg font-semibold mb-3 flex items-center gap-2"><Target className="w-5 h-5 text-telegram-link" aria-hidden="true" />{t('dashboard.activeQuests')}</h2>

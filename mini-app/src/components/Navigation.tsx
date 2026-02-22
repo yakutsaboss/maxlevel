@@ -1,9 +1,10 @@
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { Home, Target, User, Trophy, Settings, LucideIcon } from 'lucide-react';
+import { Home, Target, User, Trophy, Settings, Pill, LucideIcon } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useCallback } from 'react';
+import { useCallback, useMemo } from 'react';
 import { useTelegram } from '@/hooks/useTelegram';
+import { useDashboardStats } from '@/hooks/useDashboardQuery';
 
 interface NavItem {
   path: string;
@@ -11,13 +12,17 @@ interface NavItem {
   labelKey: string;
 }
 
-const navItems: NavItem[] = [
+const BASE_NAV_ITEMS: NavItem[] = [
   { path: '/dashboard', Icon: Home, labelKey: 'nav.home' },
   { path: '/quests', Icon: Target, labelKey: 'nav.quests' },
   { path: '/leaderboard', Icon: Trophy, labelKey: 'nav.ranks' },
   { path: '/profile', Icon: User, labelKey: 'nav.profile' },
   { path: '/settings', Icon: Settings, labelKey: 'nav.settings' },
 ];
+
+const MEDICATION_NAV_ITEM: NavItem = {
+  path: '/medications', Icon: Pill, labelKey: 'nav.medications',
+};
 
 const springTransition = { type: 'spring' as const, stiffness: 300, damping: 30 };
 
@@ -29,22 +34,42 @@ export function Navigation({ questBadgeCount = 0 }: NavigationProps) {
   const { t } = useTranslation();
   const location = useLocation();
   const navigate = useNavigate();
-  const { haptic } = useTelegram();
+  const { user, haptic } = useTelegram();
+  const { data: stats } = useDashboardStats(user?.id);
+
+  const hasMedicationMode = useMemo(() => {
+    if (!stats?.modes) return false;
+    return stats.modes.some((m) => m.mode.name === 'medication');
+  }, [stats?.modes]);
+
+  const navItems = useMemo(() => {
+    if (!hasMedicationMode) return BASE_NAV_ITEMS;
+    // Insert medication tab between Quests and Leaderboard
+    return [
+      BASE_NAV_ITEMS[0], // Home
+      BASE_NAV_ITEMS[1], // Quests
+      MEDICATION_NAV_ITEM,
+      BASE_NAV_ITEMS[2], // Leaderboard
+      BASE_NAV_ITEMS[3], // Profile
+      BASE_NAV_ITEMS[4], // Settings
+    ];
+  }, [hasMedicationMode]);
 
   const handleNavigate = (path: string) => {
     haptic.selection();
     navigate(path);
   };
 
+  const navCount = navItems.length;
   const handleNavKeyDown = useCallback((e: React.KeyboardEvent, index: number) => {
     let nextIndex = -1;
 
     if (e.key === 'ArrowRight') {
       e.preventDefault();
-      nextIndex = (index + 1) % navItems.length;
+      nextIndex = (index + 1) % navCount;
     } else if (e.key === 'ArrowLeft') {
       e.preventDefault();
-      nextIndex = (index - 1 + navItems.length) % navItems.length;
+      nextIndex = (index - 1 + navCount) % navCount;
     }
 
     if (nextIndex >= 0) {
@@ -52,7 +77,7 @@ export function Navigation({ questBadgeCount = 0 }: NavigationProps) {
       const buttons = nav?.querySelectorAll<HTMLElement>('[data-nav-index]');
       buttons?.[nextIndex]?.focus();
     }
-  }, []);
+  }, [navCount]);
 
   return (
     <nav
@@ -77,7 +102,7 @@ export function Navigation({ questBadgeCount = 0 }: NavigationProps) {
               role="tab"
               aria-selected={isActive}
               tabIndex={isActive ? 0 : -1}
-              className="relative flex flex-col items-center justify-center py-2 px-3 transition-colors"
+              className={`relative flex flex-col items-center justify-center py-2 transition-colors ${navCount > 5 ? 'px-2' : 'px-3'}`}
               whileTap={{ scale: 0.9, y: -1 }}
               transition={springTransition}
             >
