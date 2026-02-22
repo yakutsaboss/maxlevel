@@ -80,8 +80,9 @@ describe('GET /api/medications/:userId', () => {
       .expect(200);
 
     expect(res.body.success).toBe(true);
-    expect(res.body.data).toHaveLength(2);
-    expect(res.body.data[0].name).toBe('Aspirin');
+    expect(res.body.data.medications).toHaveLength(2);
+    expect(res.body.data.medications[0].name).toBe('Aspirin');
+    expect(res.body.data.count).toBe(2);
   });
 
   it('should return empty array when no medications', async () => {
@@ -92,7 +93,8 @@ describe('GET /api/medications/:userId', () => {
       .expect(200);
 
     expect(res.body.success).toBe(true);
-    expect(res.body.data).toHaveLength(0);
+    expect(res.body.data.medications).toHaveLength(0);
+    expect(res.body.data.count).toBe(0);
   });
 
   it('should return 400 for invalid user ID', async () => {
@@ -117,7 +119,7 @@ describe('GET /api/medications/:userId', () => {
 
 describe('POST /api/medications', () => {
   it('should return 200/201 and create a medication', async () => {
-    db.query.mockResolvedValueOnce([{ id: 1 }]); // user lookup
+    db.queryOne.mockResolvedValueOnce({ id: 1 }); // user lookup (queryOne)
     db.query.mockResolvedValueOnce([mockMedication]); // INSERT RETURNING
 
     const res = await request(buildApp())
@@ -162,7 +164,7 @@ describe('POST /api/medications', () => {
   });
 
   it('should return 500 when database throws', async () => {
-    db.query.mockRejectedValueOnce(new Error('DB down'));
+    db.queryOne.mockRejectedValueOnce(new Error('DB down'));
 
     const res = await request(buildApp())
       .post('/api/medications')
@@ -181,7 +183,7 @@ describe('POST /api/medications', () => {
 
 describe('PATCH /api/medications/:id', () => {
   it('should return 200 and update medication', async () => {
-    db.query.mockResolvedValueOnce([{ ...mockMedication, user_id: 1 }]); // ownership check
+    db.queryOne.mockResolvedValueOnce({ id: 1 }); // ownership check (queryOne)
     db.query.mockResolvedValueOnce([{ ...mockMedication, name: 'Aspirin Extra' }]); // UPDATE RETURNING
 
     const res = await request(buildApp())
@@ -193,7 +195,7 @@ describe('PATCH /api/medications/:id', () => {
   });
 
   it('should return 404 when medication not found', async () => {
-    db.query.mockResolvedValueOnce([]); // no rows
+    db.queryOne.mockResolvedValueOnce(null); // no rows (queryOne)
 
     const res = await request(buildApp())
       .patch('/api/medications/999')
@@ -204,7 +206,7 @@ describe('PATCH /api/medications/:id', () => {
   });
 
   it('should return 500 when database throws', async () => {
-    db.query.mockRejectedValueOnce(new Error('DB error'));
+    db.queryOne.mockRejectedValueOnce(new Error('DB error'));
 
     const res = await request(buildApp())
       .patch('/api/medications/1')
@@ -217,8 +219,7 @@ describe('PATCH /api/medications/:id', () => {
 
 describe('DELETE /api/medications/:id', () => {
   it('should return 200 and soft-delete medication', async () => {
-    db.query.mockResolvedValueOnce([{ ...mockMedication, user_id: 1 }]); // ownership check
-    db.query.mockResolvedValueOnce([{ ...mockMedication, is_active: false }]); // UPDATE RETURNING
+    db.query.mockResolvedValueOnce([{ id: 1 }]); // UPDATE RETURNING (single query in route)
 
     const res = await request(buildApp())
       .delete('/api/medications/1')
@@ -264,7 +265,10 @@ describe('GET /api/medications/:userId/today', () => {
       .expect(200);
 
     expect(res.body.success).toBe(true);
-    expect(res.body.data).toHaveLength(2);
+    expect(res.body.data.schedule).toHaveLength(2);
+    expect(res.body.data.summary).toBeDefined();
+    expect(res.body.data.summary.taken).toBe(1);
+    expect(res.body.data.summary.total).toBe(2);
   });
 
   it('should return empty array when no medications scheduled', async () => {
@@ -275,7 +279,8 @@ describe('GET /api/medications/:userId/today', () => {
       .expect(200);
 
     expect(res.body.success).toBe(true);
-    expect(res.body.data).toHaveLength(0);
+    expect(res.body.data.schedule).toHaveLength(0);
+    expect(res.body.data.summary.total).toBe(0);
   });
 
   it('should return 400 for invalid user ID', async () => {
