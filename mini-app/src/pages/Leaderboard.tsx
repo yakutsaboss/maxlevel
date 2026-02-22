@@ -1,47 +1,30 @@
-import { useEffect, useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useQueryClient } from '@tanstack/react-query';
 import { useTelegram } from '@/hooks/useTelegram';
 import { usePullToRefresh, PullIndicator } from '@/hooks/usePullToRefresh';
-import { apiClient } from '@/api/client';
+import { useLeaderboard, leaderboardKeys } from '@/hooks/useLeaderboardQuery';
+import type { TimePeriod } from '@/hooks/useLeaderboardQuery';
 import { Trophy, Share2 } from 'lucide-react';
-import type { LeaderboardEntry } from '@/types';
 import { ErrorSection } from '@/components/ErrorSection';
-import { TimePeriodTabs, type TimePeriod } from '@/components/leaderboard/TimePeriodTabs';
+import { TimePeriodTabs } from '@/components/leaderboard/TimePeriodTabs';
 import { TopThreeCard } from '@/components/leaderboard/TopThreeCard';
 import { LeaderboardRow } from '@/components/leaderboard/LeaderboardRow';
 import { LeaderboardSkeleton } from '@/components/leaderboard/LeaderboardSkeleton';
 import { YourRankCard } from '@/components/leaderboard/YourRankCard';
-import { logger } from '@/utils/logger';
 
 export function Leaderboard() {
   const { t } = useTranslation();
   const { user, haptic } = useTelegram();
-  const [entries, setEntries] = useState<LeaderboardEntry[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(false);
+  const queryClient = useQueryClient();
   const [timePeriod, setTimePeriod] = useState<TimePeriod>('all_time');
 
-  const loadLeaderboard = async () => {
-    try {
-      setLoading(true);
-      setError(false);
-      const response = timePeriod === 'weekly'
-        ? await apiClient.getWeeklyLeaderboard(50)
-        : timePeriod === 'monthly'
-          ? await apiClient.getMonthlyLeaderboard(50)
-          : await apiClient.getLeaderboard(50);
-      if (response.success && response.data) {
-        setEntries(response.data);
-      }
-    } catch (err) {
-      logger.error('Failed to load leaderboard', { error: err });
-      setError(true);
-    } finally {
-      setLoading(false);
-    }
-  };
+  const { data: entries = [], isLoading, isError, refetch } = useLeaderboard(timePeriod, 50);
 
-  const handleRefresh = useCallback(async () => { await loadLeaderboard(); }, []);
+  const handleRefresh = useCallback(async () => {
+    await queryClient.invalidateQueries({ queryKey: leaderboardKeys.list(timePeriod, 50) });
+  }, [timePeriod, queryClient]);
+
   const { containerRef, pullDistance, refreshing, pullThreshold, touchHandlers } = usePullToRefresh(handleRefresh, haptic);
 
   const currentUserId = user?.id;
@@ -74,10 +57,8 @@ export function Leaderboard() {
     haptic?.impact('light');
   }, [currentUserRank, currentUserEntry, haptic]);
 
-  useEffect(() => { loadLeaderboard(); }, [timePeriod]);
-
-  if (loading && !refreshing) return <LeaderboardSkeleton />;
-  if (error) return <ErrorSection message={t('leaderboard.couldNotLoad')} onRetry={loadLeaderboard} />;
+  if (isLoading && !refreshing) return <LeaderboardSkeleton />;
+  if (isError) return <ErrorSection message={t('leaderboard.couldNotLoad')} onRetry={() => refetch()} />;
 
   const isUserInList = currentUserEntry !== null;
 

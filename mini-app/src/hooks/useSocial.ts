@@ -1,112 +1,102 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useState, useCallback } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import {
-  getFriends,
-  getPendingRequests,
-  getChallenges,
-  sendFriendRequest,
-  acceptFriendRequest,
-  rejectFriendRequest,
-  removeFriend,
-  joinChallenge,
-  updateChallengeProgress,
-  discoverChallenges as discoverChallengesApi,
-  leaveChallenge as leaveChallengeApi,
-} from '@/api/social';
-import type { Friend, PendingRequest, Challenge, DiscoverChallenge } from '@/api/social';
-import { logger } from '@/utils/logger';
+  useFriendsList,
+  useFriendRequests,
+  useChallenges,
+  useDiscoverChallenges,
+  useSendFriendRequestMutation,
+  useAcceptFriendRequestMutation,
+  useRejectFriendRequestMutation,
+  useRemoveFriendMutation,
+  useJoinChallengeMutation,
+  useUpdateProgressMutation,
+  useLeaveChallengeMutation,
+  socialKeys,
+} from '@/hooks/useSocialQuery';
 
 interface UseSocialParams {
   userId: number | undefined;
 }
 
 export function useSocial({ userId }: UseSocialParams) {
-  const [friends, setFriends] = useState<Friend[]>([]);
-  const [pendingRequests, setPendingRequests] = useState<PendingRequest[]>([]);
-  const [challenges, setChallenges] = useState<Challenge[]>([]);
-  const [availableChallenges, setAvailableChallenges] = useState<DiscoverChallenge[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(false);
+  const queryClient = useQueryClient();
 
-  const loadData = useCallback(async () => {
-    if (!userId) return;
-    try {
-      setLoading(true);
-      setError(false);
+  // Local state for discover challenges (imperatively triggered by callers)
+  const [discoverMode, setDiscoverMode] = useState<string | undefined>(undefined);
+  const [discoverEnabled, setDiscoverEnabled] = useState(false);
 
-      const [friendsData, pendingData, challengesData] = await Promise.all([
-        getFriends(userId),
-        getPendingRequests(userId),
-        getChallenges(userId),
-      ]);
+  // React Query hooks
+  const friendsQuery = useFriendsList(userId);
+  const requestsQuery = useFriendRequests(userId);
+  const challengesQuery = useChallenges(userId);
+  const discoverQuery = useDiscoverChallenges(discoverMode, discoverEnabled);
 
-      setFriends(friendsData || []);
-      setPendingRequests(pendingData || []);
-      setChallenges(challengesData || []);
-    } catch (err) {
-      logger.error('Failed to load social data', { error: err });
-      setError(true);
-    } finally {
-      setLoading(false);
-    }
-  }, [userId]);
+  // Mutations
+  const sendRequestMutation = useSendFriendRequestMutation();
+  const acceptRequestMutation = useAcceptFriendRequestMutation();
+  const rejectRequestMutation = useRejectFriendRequestMutation();
+  const removeFriendMutation = useRemoveFriendMutation();
+  const joinChallengeMutation = useJoinChallengeMutation();
+  const updateProgressMutation = useUpdateProgressMutation();
+  const leaveChallengeMutation = useLeaveChallengeMutation();
 
-  useEffect(() => {
-    loadData();
-  }, [loadData]);
+  // Extract data with fallbacks
+  const friends = friendsQuery.data ?? [];
+  const pendingRequests = requestsQuery.data ?? [];
+  const challenges = challengesQuery.data ?? [];
+  const availableChallenges = discoverQuery.data ?? [];
+  const loading = friendsQuery.isLoading || requestsQuery.isLoading || challengesQuery.isLoading;
+  const error = friendsQuery.isError && requestsQuery.isError && challengesQuery.isError;
 
   const refresh = useCallback(async () => {
-    await loadData();
-  }, [loadData]);
+    if (!userId) return;
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: socialKeys.friends(userId) }),
+      queryClient.invalidateQueries({ queryKey: socialKeys.friendRequests(userId) }),
+      queryClient.invalidateQueries({ queryKey: socialKeys.challenges(userId) }),
+    ]);
+  }, [userId, queryClient]);
 
   const sendRequest = useCallback(async (toUserId: number) => {
     if (!userId) return;
-    await sendFriendRequest(userId, toUserId);
-    await loadData();
-  }, [userId, loadData]);
+    await sendRequestMutation.mutateAsync({ fromUserId: userId, toUserId });
+  }, [userId, sendRequestMutation]);
 
   const acceptRequest = useCallback(async (requestId: number) => {
     if (!userId) return;
-    await acceptFriendRequest(requestId, userId);
-    await loadData();
-  }, [userId, loadData]);
+    await acceptRequestMutation.mutateAsync({ requestId, userId });
+  }, [userId, acceptRequestMutation]);
 
   const rejectRequest = useCallback(async (requestId: number) => {
     if (!userId) return;
-    await rejectFriendRequest(requestId, userId);
-    await loadData();
-  }, [userId, loadData]);
+    await rejectRequestMutation.mutateAsync({ requestId, userId });
+  }, [userId, rejectRequestMutation]);
 
   const unfriend = useCallback(async (friendId: number) => {
     if (!userId) return;
-    await removeFriend(userId, friendId);
-    await loadData();
-  }, [userId, loadData]);
+    await removeFriendMutation.mutateAsync({ userId, friendId });
+  }, [userId, removeFriendMutation]);
 
   const joinChallengeAction = useCallback(async (challengeId: number) => {
     if (!userId) return;
-    await joinChallenge(challengeId, userId);
-    await loadData();
-  }, [userId, loadData]);
+    await joinChallengeMutation.mutateAsync({ challengeId, userId });
+  }, [userId, joinChallengeMutation]);
 
   const updateProgress = useCallback(async (challengeId: number, progress: number) => {
     if (!userId) return;
-    await updateChallengeProgress(challengeId, userId, progress);
-    await loadData();
-  }, [userId, loadData]);
+    await updateProgressMutation.mutateAsync({ challengeId, userId, progress });
+  }, [userId, updateProgressMutation]);
 
   const leaveChallengeAction = useCallback(async (challengeId: number) => {
     if (!userId) return;
-    await leaveChallengeApi(challengeId, userId);
-    await loadData();
-  }, [userId, loadData]);
+    await leaveChallengeMutation.mutateAsync({ challengeId, userId });
+  }, [userId, leaveChallengeMutation]);
 
   const loadDiscoverChallenges = useCallback(async (mode?: string) => {
-    try {
-      const data = await discoverChallengesApi(mode);
-      setAvailableChallenges(data || []);
-    } catch (err) {
-      logger.error('Failed to load discover challenges', { error: err });
-    }
+    setDiscoverMode(mode);
+    setDiscoverEnabled(true);
+    // React Query handles the fetch automatically when mode/enabled change
   }, []);
 
   return {

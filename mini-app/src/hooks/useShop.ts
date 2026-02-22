@@ -1,7 +1,8 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
-import { fetchShopItems, fetchPurchaseHistory } from '@/api/shop.js';
-import type { ShopItem, ShopItemType, Purchase } from '@/api/shop.js';
-import { logger } from '@/utils/logger.js';
+import { useState, useCallback, useMemo } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
+import { useShopItems, useInventory, shopKeys } from '@/hooks/useShopQuery';
+import type { ShopItem, Purchase } from '@/api/shop.js';
+import type { ShopItemType } from '@/api/shop.js';
 
 export type ShopCategory = 'all' | ShopItemType;
 
@@ -33,38 +34,21 @@ interface UseShopReturn {
 }
 
 export function useShop(userId: number | undefined): UseShopReturn {
-  const [items, setItems] = useState<ShopItem[]>([]);
-  const [purchases, setPurchases] = useState<Purchase[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const queryClient = useQueryClient();
   const [category, setCategory] = useState<ShopCategory>('all');
   const [searchQuery, setSearchQuery] = useState('');
 
-  const loadData = useCallback(async () => {
-    try {
-      setLoading(true);
-      setError(null);
+  // React Query hooks
+  const itemsQuery = useShopItems();
+  const inventoryQuery = useInventory(userId);
 
-      const requests: [Promise<ShopItem[]>, Promise<Purchase[]> | Promise<never[]>] = [
-        fetchShopItems(),
-        userId ? fetchPurchaseHistory(userId) : Promise.resolve([]),
-      ];
-
-      const [shopItems, purchaseHistory] = await Promise.all(requests);
-      setItems(shopItems);
-      setPurchases(purchaseHistory as Purchase[]);
-    } catch (err) {
-      const message = err instanceof Error ? err.message : 'Failed to load shop';
-      setError(message);
-      logger.error('Failed to load shop data', { error: err });
-    } finally {
-      setLoading(false);
-    }
-  }, [userId]);
-
-  useEffect(() => {
-    loadData();
-  }, [loadData]);
+  // Extract data with fallbacks
+  const items = itemsQuery.data ?? [];
+  const purchases = inventoryQuery.data ?? [];
+  const loading = itemsQuery.isLoading || inventoryQuery.isLoading;
+  const error = itemsQuery.isError
+    ? (itemsQuery.error instanceof Error ? itemsQuery.error.message : 'Failed to load shop')
+    : null;
 
   const ownedItemIds = useMemo(() => {
     return new Set(purchases.map((p) => p.shop_item_id));
@@ -94,8 +78,11 @@ export function useShop(userId: number | undefined): UseShopReturn {
   }, [items, category, searchQuery]);
 
   const refresh = useCallback(async () => {
-    await loadData();
-  }, [loadData]);
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: shopKeys.items() }),
+      ...(userId ? [queryClient.invalidateQueries({ queryKey: shopKeys.inventory(userId) })] : []),
+    ]);
+  }, [userId, queryClient]);
 
   return {
     items,
