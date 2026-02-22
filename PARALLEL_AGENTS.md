@@ -1346,4 +1346,350 @@ A → E → B → C → D → F → G (G always last — runs full verification)
 - **What was removed**: Finance mode, Learning/Content mode (5 pages, 14 components, 3 hooks, 3 bot routes, 1 utility, ~750 i18n keys, 49 seed rows, 34 test files, 15 admin test files)
 - **What was kept**: Money/book punishments, avatar display in profile/leaderboard, admin page/routes, all other modes (fitness, hydration, medication, habits, discipline, social)
 - **Merge order issue**: Agent G (final verification) committed at 7bc159f, but Agent E's last 2 commits (60bea59, 316e8df) came after. G actually committed E's uncommitted work too. No test failures resulted — verified clean by Agent 0.
-- **Note for Run 86**: PathSelect.tsx now only shows fitness + hydration modes. The user may want medication + habits added back — Agent E removed them along with finance/learning. Need to verify onboarding shows all 4 intended modes.
+- **Note for Run 86**: PathSelect.tsx was fixed by Agent 0 — restored medication + habits modes with i18n keys. Now shows 4 modes.
+
+---
+
+## RUN 86: Animation Polish + Medication Premium Unlock (7 Agents + Agent 0)
+
+### Focus: Polish animations across onboarding, page transitions, and navigation. Add medication as a premium module (300 stars or 10,000 XP to unlock). Replace tier system with per-mode pricing.
+
+### User Decisions:
+- Medication = 300 Telegram Stars OR 10,000 XP to unlock
+- Fitness, hydration, habits = free (no lock)
+- Replace the 599-star premium tier with per-mode pricing
+- Polish: page transitions, progress bar, avatar step, nav bar animations
+
+### Copy-Paste Prompts
+
+#### Agent A — Page Transition Animations
+```
+Read PARALLEL_AGENTS.md — you are Agent A of Run 86. Your task: Add smooth page transition animations to the app.
+
+## Context
+Currently, switching between tabs (Dashboard, Quests, Leaderboard, Profile, Settings) has NO page transition — pages just appear instantly. The user wants polished tab opening animations.
+
+## What to do
+
+### Create `mini-app/src/components/PageTransition.tsx`:
+A reusable wrapper component using framer-motion AnimatePresence + motion.div that wraps page content with a fade+slide animation.
+
+Animation spec:
+- Enter: opacity 0→1, y: 8→0, duration 200ms, ease "easeOut"
+- Exit: opacity 1→0, duration 100ms
+- Use `AnimatePresence mode="wait"` keyed on current pathname
+- Keep it lightweight — no heavy spring physics, just smooth fade+slide
+
+### MODIFY `mini-app/src/App.tsx`:
+- Import PageTransition
+- Wrap the `<Routes>` block inside `<PageTransition>` keyed on `location.pathname`
+- Use `useLocation()` from react-router-dom to get current path
+
+### Verify:
+- `cd mini-app && npx tsc --noEmit` — zero errors
+- `cd mini-app && npm run build` — no errors
+
+### IMPORTANT:
+- Do NOT change route definitions or lazy imports
+- Do NOT change Navigation.tsx (Agent B handles that)
+- Keep animation lightweight — this runs on every page switch
+- Write your retrospective in PARALLEL_AGENTS.md under Run 86 Retrospectives
+```
+
+#### Agent B — Navigation Bar Animation Polish
+```
+Read PARALLEL_AGENTS.md — you are Agent B of Run 86. Your task: Enhance the bottom navigation bar with better animations.
+
+## Context
+The nav bar at `mini-app/src/components/Navigation.tsx` already has spring-based layout animations for the active tab indicator. The user wants more polish.
+
+## Current state (Navigation.tsx):
+- 5 tabs: Home, Quests, Leaderboard, Profile, Settings (lucide-react icons)
+- Active tab: `layoutId="activeTab"` background + `layoutId="activeIndicator"` underline
+- Spring transition: stiffness 300, damping 30
+- Quest badge: red circle with count
+
+## What to do
+
+### MODIFY `mini-app/src/components/Navigation.tsx`:
+1. **Icon scale animation**: Active icon should scale up slightly (1.0 → 1.15) with spring transition when tab becomes active. Inactive icons scale back to 1.0.
+2. **Settings icon rotation**: When Settings tab is active, rotate the Settings gear icon 90 degrees with a spring animation. Use `motion.div` wrapper with `animate={{ rotate: isActive ? 90 : 0 }}`.
+3. **Quest badge pop-in**: When badge count changes from 0 to >0, add a scale pop animation (0→1.2→1) with spring physics.
+4. **Subtle bounce on tap**: Add `whileTap={{ scale: 0.9, y: -1 }}` to nav buttons for tactile feel.
+
+### Verify:
+- `cd mini-app && npx tsc --noEmit` — zero errors
+
+### IMPORTANT:
+- Keep existing layoutId animations (activeTab, activeIndicator) — enhance, don't replace
+- Keep keyboard navigation and ARIA attributes
+- Do NOT change the icon set or tab structure
+- Write your retrospective in PARALLEL_AGENTS.md under Run 86 Retrospectives
+```
+
+#### Agent C — Onboarding Progress Bar + Step Transitions
+```
+Read PARALLEL_AGENTS.md — you are Agent C of Run 86. Your task: Polish the onboarding progress bar and step transition animations.
+
+## Context
+The onboarding progress bar is at `mini-app/src/components/onboarding/ui/ProgressBar.tsx`. Step transitions in `mini-app/src/pages/Onboarding.tsx` use basic opacity fade (150ms). The user wants these polished.
+
+## Current state:
+- ProgressBar: yellow→orange gradient, width animates with 400ms easeOut, shows step label + percentage
+- Step transitions: `AnimatePresence mode="sync"` with `initial={{ opacity: 0 }}, animate={{ opacity: 1 }}, exit={{ opacity: 0 }}, transition={{ duration: 0.15 }}`
+
+## What to do
+
+### MODIFY `mini-app/src/components/onboarding/ui/ProgressBar.tsx`:
+1. **Glow effect**: Add a subtle glow/shadow on the progress bar fill that pulses when progress increases. Use `boxShadow` with the gradient color.
+2. **Step completion tick**: When progress jumps (step completes), briefly flash the bar brighter (opacity pulse from 1→0.7→1 over 300ms).
+3. **Percentage counter animation**: Animate the percentage number counting up smoothly instead of jumping. Use framer-motion's `useMotionValue` + `useTransform` + `animate` to smoothly interpolate between old and new values.
+4. **Make bar slightly thicker**: h-2 → h-2.5 for better visibility.
+
+### MODIFY `mini-app/src/pages/Onboarding.tsx`:
+1. **Better step transitions**: Replace plain opacity fade with directional slide:
+   - Forward (next step): slide from right (`x: 40→0`, opacity 0→1)
+   - Exit: fade + slide left (`x: 0→-20`, opacity 1→0)
+   - Duration: 200ms enter, 150ms exit
+   - Use `custom` prop to pass direction if needed
+2. Keep `AnimatePresence mode="wait"` (was "sync" — change to "wait" for cleaner transitions)
+
+### Verify:
+- `cd mini-app && npx tsc --noEmit` — zero errors
+
+### IMPORTANT:
+- Do NOT change step sequence, data flow, or component props
+- Do NOT modify any step components (AvatarSelect, PathSelect, etc.) — only Onboarding.tsx wrapper
+- Write your retrospective in PARALLEL_AGENTS.md under Run 86 Retrospectives
+```
+
+#### Agent D — Avatar Select + PathSelect Animation Polish
+```
+Read PARALLEL_AGENTS.md — you are Agent D of Run 86. Your task: Polish animations on avatar selection and path/mode selection screens.
+
+## Context
+- `mini-app/src/components/onboarding/AvatarSelect.tsx`: Avatar buttons stagger in from left (x: -20), scale 0.98 on tap
+- `mini-app/src/components/onboarding/PathSelect.tsx`: Mode cards animate with stagger + whileTap, has Lock icon pattern for locked modes
+
+## What to do
+
+### MODIFY `mini-app/src/components/onboarding/AvatarSelect.tsx`:
+1. **Selection animation**: When user selects an avatar, animate the selected card with a satisfying bounce: scale 1→1.05→1 over 300ms. Unselected cards should slightly dim (opacity 0.7).
+2. **Checkmark indicator**: Add an animated checkmark (or blue circle) that scales in (0→1) on the selected avatar card. Use `AnimatePresence` for mount/unmount.
+3. **Better stagger**: Increase stagger to 100ms (from 80ms) and add a slight y offset too (y: 10→0) for a cascade feel.
+
+### MODIFY `mini-app/src/components/onboarding/PathSelect.tsx`:
+1. **Card hover/press effect**: Add `whileHover={{ scale: 1.02 }}` and `whileTap={{ scale: 0.95 }}` (already has whileTap on some, make consistent).
+2. **Selection animation**: Selected cards should have a pulse glow effect on the border (use CSS animation or framer-motion).
+3. **Lock animation for medication**: When medication card is locked, add a subtle shake animation on tap attempt (like ContinueButton's disabled shake: `x: [0, -4, 4, -3, 3, 0]` over 300ms). Show a toast/tooltip "Unlock with 300 Stars or 10,000 XP".
+4. **Lock badge styling**: Update the lock badge to show the price: "300 ⭐ or 10K XP" instead of just "Soon".
+
+### Verify:
+- `cd mini-app && npx tsc --noEmit` — zero errors
+
+### IMPORTANT:
+- Do NOT change mode data (MODES array values) — those are set by Agent E
+- Do NOT change the `available` logic — Agent E handles that
+- Focus purely on visual animation polish
+- Write your retrospective in PARALLEL_AGENTS.md under Run 86 Retrospectives
+```
+
+#### Agent E — Medication Unlock System (Backend + Data)
+```
+Read PARALLEL_AGENTS.md — you are Agent E of Run 86. Your task: Build the medication unlock system — per-mode purchasing with Stars or XP.
+
+## Context
+The user wants to replace the 599-star premium tier with per-mode pricing. Medication costs 300 Telegram Stars OR 10,000 XP to unlock. Fitness, hydration, and habits are free.
+
+## Current state:
+- `bot/src/api/middleware/premiumGate.ts`: MODE_LIMITS = { free: 2, subscriber: 3, premium: 6 }
+- `bot/src/api/routes/payments.ts`: Creates invoice for premium tier (599 stars)
+- `bot/src/api/routes/modes.ts`: Validates mode count against tier limit
+- `database/schema.sql`: Has `subscriptions` table for tier tracking
+- PathSelect.tsx has `available` prop per mode — ready for dynamic locking
+
+## What to do
+
+### ADD to `database/schema.sql` — new table `mode_unlocks`:
+```sql
+CREATE TABLE IF NOT EXISTS mode_unlocks (
+  id SERIAL PRIMARY KEY,
+  user_id INTEGER NOT NULL REFERENCES users(id),
+  mode_name VARCHAR(50) NOT NULL,
+  unlock_method VARCHAR(20) NOT NULL, -- 'stars' or 'xp'
+  amount_paid INTEGER NOT NULL DEFAULT 0,
+  unlocked_at TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE(user_id, mode_name)
+);
+```
+
+### MODIFY `bot/src/api/routes/modes.ts`:
+1. Add new route `GET /api/modes/unlocks/:userId` — returns list of unlocked modes for this user
+2. Add new route `POST /api/modes/unlock` — unlock a mode with Stars or XP:
+   - Input: `{ userId, modeName, method: 'stars' | 'xp' }`
+   - For XP: check user has >= 10,000 XP, atomically deduct via `UPDATE users SET total_xp = total_xp - 10000 WHERE id = $1 AND total_xp >= 10000 RETURNING total_xp`
+   - For Stars: create a payment (300 stars) via same flow as existing payments, return invoice_url
+   - Insert into `mode_unlocks` on success
+3. Update the mode addition validation: remove tier-based mode limits. Instead, check that the mode is either free (fitness/hydration/habits) or unlocked in `mode_unlocks`
+
+### MODIFY `bot/src/api/middleware/premiumGate.ts`:
+- Update `MODE_LIMITS` concept — no longer tier-based. Instead:
+  - Free modes: ['fitness', 'hydration', 'habits'] — anyone can use
+  - Paid modes: ['medication'] — requires entry in `mode_unlocks`
+- Add helper: `isModeFreeOrUnlocked(userId, modeName): Promise<boolean>`
+
+### MODIFY `bot/src/api/routes/payments.ts`:
+- Update `POST /create` to support mode unlocks (not just tier upgrades):
+  - Accept `{ userId, amount: 300, type: 'mode_unlock', modeName: 'medication' }`
+  - Create invoice with title "Unlock Medication Mode" and 300 XTR price
+- Update `GET /tiers` to return mode pricing info instead of tier info
+
+### Verify:
+- `cd bot && npx tsc --noEmit` — zero errors
+
+### IMPORTANT:
+- Do NOT delete the subscriptions table (might have data)
+- Keep backward compatibility — existing premium users should still have access
+- The XP deduction must be atomic (single UPDATE with WHERE clause)
+- Write your retrospective in PARALLEL_AGENTS.md under Run 86 Retrospectives
+```
+
+#### Agent F — Medication Unlock UI (Mini-App)
+```
+Read PARALLEL_AGENTS.md — you are Agent F of Run 86. Your task: Build the medication unlock UI in the mini-app.
+
+## Context
+Agent E builds the backend. You build the frontend. Medication costs 300 Stars or 10,000 XP.
+
+## What to do
+
+### MODIFY `mini-app/src/components/onboarding/PathSelect.tsx`:
+1. The MODES array `medication` entry should have `available` driven by an `unlockedModes` prop:
+   - Add prop: `unlockedModes?: string[]`
+   - Set `available: unlockedModes ? unlockedModes.includes('medication') || mode.id !== 'medication' : mode.id !== 'medication'`
+   - For fitness/hydration/habits: always available
+   - For medication: available only if in unlockedModes
+
+### CREATE `mini-app/src/components/ModeUnlockModal.tsx`:
+A modal that appears when user taps a locked mode. Shows:
+- Mode icon + name (medication 💊)
+- Two unlock options:
+  1. "Unlock with 300 ⭐" button — calls payment API, opens Telegram Stars invoice
+  2. "Unlock with 10,000 XP" button — calls XP unlock API (disabled if user has < 10,000 XP, show current XP)
+- Framer-motion entrance animation (scale from 0.9→1, opacity 0→1)
+- Close button / tap outside to dismiss
+
+### CREATE `mini-app/src/hooks/useModeUnlock.ts`:
+Hook that:
+- Fetches user's unlocked modes via `GET /api/modes/unlocks/:userId`
+- Provides `unlockWithStars(modeName)` — calls backend, opens invoice
+- Provides `unlockWithXP(modeName)` — calls backend XP deduction
+- Returns: `{ unlockedModes, isUnlocking, unlockWithStars, unlockWithXP, userXP }`
+
+### MODIFY other pages that show modes:
+- If mode lock status is shown on Dashboard or Profile, update those too
+- Check if Settings page shows mode management — update if needed
+
+### Verify:
+- `cd mini-app && npx tsc --noEmit` — zero errors
+
+### IMPORTANT:
+- Use existing `usePayment` hook patterns for the Stars flow
+- The modal should feel premium — polish the design
+- Write your retrospective in PARALLEL_AGENTS.md under Run 86 Retrospectives
+```
+
+#### Agent G — Test Fixes + Final Verification (MERGE LAST)
+```
+Read PARALLEL_AGENTS.md — you are Agent G of Run 86. Your task: Fix tests, update test:mvp scripts, and verify everything works. YOU MERGE LAST.
+
+## Context
+Agents A-F are adding:
+- Page transition animations (Agent A)
+- Nav bar animation enhancements (Agent B)
+- Onboarding progress bar + step transitions (Agent C)
+- Avatar + PathSelect animation polish (Agent D)
+- Medication unlock backend (Agent E — new table, new routes, modified payment flow)
+- Medication unlock UI (Agent F — new modal, new hook, modified PathSelect)
+
+## What to do
+
+### STEP 1: Fix any TypeScript errors
+- `cd bot && npx tsc --noEmit` — fix all errors
+- `cd mini-app && npx tsc --noEmit` — fix all errors
+
+### STEP 2: Run the new DB migration on the server
+- SSH to 85.239.58.205
+- Run: `PGPASSWORD=postgres psql -h localhost -U postgres -d telegram_rpg -c "CREATE TABLE IF NOT EXISTS mode_unlocks (id SERIAL PRIMARY KEY, user_id INTEGER NOT NULL REFERENCES users(id), mode_name VARCHAR(50) NOT NULL, unlock_method VARCHAR(20) NOT NULL, amount_paid INTEGER NOT NULL DEFAULT 0, unlocked_at TIMESTAMPTZ DEFAULT NOW(), UNIQUE(user_id, mode_name));"`
+
+### STEP 3: Update test:mvp scripts if needed
+- Add any new test files created by other agents
+- Remove any test paths that reference deleted files
+
+### STEP 4: Fix failing tests
+- PathSelect tests may need updating for new `unlockedModes` prop
+- Payment tests may need updating for new payment types
+- Mode tests may need updating for new unlock flow
+
+### STEP 5: Full verification
+- `cd bot && npx tsc --noEmit` — zero errors
+- `cd mini-app && npx tsc --noEmit && npm run build` — zero errors
+- `cd bot && npm run test:mvp` — all pass
+- `cd mini-app && npm run test:mvp` — all pass
+- Report final test counts
+
+### IMPORTANT:
+- You MERGE LAST — after all other agents
+- Create the mode_unlocks table on the server
+- Write your retrospective in PARALLEL_AGENTS.md under Run 86 Retrospectives
+```
+
+### Run 86 File Ownership Matrix
+
+| File/Dir | A | B | C | D | E | F | G |
+|----------|---|---|---|---|---|---|---|
+| mini-app/src/components/PageTransition.tsx | NEW | - | - | - | - | - | - |
+| mini-app/src/App.tsx | OWN | - | - | - | - | - | - |
+| mini-app/src/components/Navigation.tsx | - | OWN | - | - | - | - | - |
+| mini-app/src/components/onboarding/ui/ProgressBar.tsx | - | - | OWN | - | - | - | - |
+| mini-app/src/pages/Onboarding.tsx | - | - | OWN | - | - | - | - |
+| mini-app/src/components/onboarding/AvatarSelect.tsx | - | - | - | OWN | - | - | - |
+| mini-app/src/components/onboarding/PathSelect.tsx | - | - | - | OWN | - | OWN | - |
+| database/schema.sql | - | - | - | - | OWN | - | - |
+| bot/src/api/routes/modes.ts | - | - | - | - | OWN | - | - |
+| bot/src/api/middleware/premiumGate.ts | - | - | - | - | OWN | - | - |
+| bot/src/api/routes/payments.ts | - | - | - | - | OWN | - | - |
+| mini-app/src/components/ModeUnlockModal.tsx | - | - | - | - | - | NEW | - |
+| mini-app/src/hooks/useModeUnlock.ts | - | - | - | - | - | NEW | - |
+| Both package.json (test:mvp) | - | - | - | - | - | - | OWN |
+
+**Note**: PathSelect.tsx is shared between D (animations) and F (unlock logic). D handles visual animations only, F handles the `available` prop logic. If conflicts arise, F's logic changes take priority.
+
+### Run 86 Merge Order
+A → B → C → D → E → F → G (G always last)
+
+### Run 86 Retrospectives
+
+#### Agent A Retrospective
+*(To be filled by Agent A)*
+
+#### Agent B Retrospective
+*(To be filled by Agent B)*
+
+#### Agent C Retrospective
+*(To be filled by Agent C)*
+
+#### Agent D Retrospective
+*(To be filled by Agent D)*
+
+#### Agent E Retrospective
+*(To be filled by Agent E)*
+
+#### Agent F Retrospective
+*(To be filled by Agent F)*
+
+#### Agent G Retrospective
+*(To be filled by Agent G)*
+
+#### Agent 0 Retrospective
+*(To be filled by Agent 0)*
