@@ -300,7 +300,7 @@ All disabled code is PRESERVED — just commented out. Each run below re-enables
 | **79** | Re-enable Achievements + Payments + Trophies | 3 | ✅ |
 | **80** | Re-enable Shop + Inventory + Avatars | 3 | ✅ |
 | **81** | Re-enable Social + Finance | 3 | ✅ |
-| **82** | Re-enable Content + Activities | 3 | ⬜ |
+| **82** | Re-enable Content + Activities | 3 | ✅ |
 | **83** | Re-enable Admin Panel | 3 | ⬜ |
 | **84** | Polish + Performance Optimization | 3 | ⬜ |
 | **85** | Launch Prep + Final QA | 3 | ⬜ |
@@ -932,6 +932,442 @@ After done, verify: cd bot && npm run test:mvp && cd ../mini-app && npm run test
 **Files changed:** bot/package.json (test:mvp script), mini-app/package.json (test:mvp script)
 
 **Recommendations:** None — all content/activities/analytics/punishment tests passing cleanly with zero fixes required. Total test count now 1,803 (up from 1,513 in Run 81).
+
+#### Agent 0 Retrospective
+- **Merge**: All 4 agent commits already on main (clean tree). No uncommitted changes this time.
+- **Build**: Both projects pass `tsc --noEmit`.
+- **Tests**: Bot 76 files / 972 tests, Mini-app 121 files / 831 tests. Total: 1,803 tests (up from 1,513 in Run 81).
+- **Deploy**: 6da1490 deployed, health OK.
+- **Note**: All non-admin features now re-enabled. Only adminRouter (2 lines) and admin pages (8 lines) remain disabled. All 3 background jobs (analyticsExport, dailySummary, punishmentCheck) restored.
+
+**Recommendations**:
+- Run 83 per roadmap: Re-enable Admin Panel + expanded scope (8 agents) — onboarding i18n fix, punishment rebalance, quest performance, reference docs export
+
+---
+
+## RUN 83: Admin Panel + Big Polish (8 Agents + Agent 0)
+
+### Focus: Complete MVP recovery (admin re-enable) + fix onboarding i18n + rebalance punishments + fix quest performance + create reference docs + optimize tests
+
+### Copy-Paste Prompts
+
+**Agent 0** (open in: `c:\Users\Asus\Desktop\Wibecode`):
+```
+Read PARALLEL_AGENTS.md — you are Agent 0 for Run 83.
+```
+
+**Agent A** (open in: `c:\Users\Asus\Desktop\Wibecode`):
+```
+Read PARALLEL_AGENTS.md — you are Agent A of Run 83. Your task: Re-enable the Admin Panel (backend + frontend) — the FINAL MVP-DISABLED uncomment.
+
+## What to do
+
+### 1. Uncomment admin in `bot/src/api/server.ts`
+- Line 16: `import { adminRouter } from './routes/admin.js';`
+- Line 120: `app.use('/api/admin', adminRouter);`
+
+### 2. Uncomment admin in `mini-app/src/App.tsx`
+- Line 8: `import { LazyPageWrapper } from '@/components/LazyPageWrapper';`
+- Line 38: `const AdminDashboard = lazy(...)`
+- Line 39: `const AdminPlayerList = lazy(...)`
+- Line 40: `const AdminPlayerDetail = lazy(...)`
+- Line 164: `<Route path="/admin" element={<Navigate to="/admin/dashboard" replace />} />`
+- Line 165: `<Route path="/admin/dashboard" element={<LazyPageWrapper><AdminDashboard /></LazyPageWrapper>} />`
+- Line 166: `<Route path="/admin/players" element={<LazyPageWrapper><AdminPlayerList /></LazyPageWrapper>} />`
+- Line 167: `<Route path="/admin/players/:userId" element={<LazyPageWrapper><AdminPlayerDetail /></LazyPageWrapper>} />`
+
+### 3. Build verify
+- `cd bot && npx tsc --noEmit`
+- `cd mini-app && npx tsc --noEmit && npm run build`
+
+After this, there should be ZERO `[MVP-DISABLED]` lines left in the entire codebase.
+
+OWNED: bot/src/api/server.ts, mini-app/src/App.tsx
+FORBIDDEN: All test files, i18n files, onboarding components, tools/, hooks/
+Write retrospective when done.
+```
+
+**Agent B** (open in: `c:\Users\Asus\Desktop\Wibecode`):
+```
+Read PARALLEL_AGENTS.md — you are Agent B of Run 83. Your task: Fix onboarding i18n — all onboarding text must use proper i18n keys with correct Russian translations.
+
+## The Problem
+The user did onboarding and half was in Russian, half in English. Russian translations have mistakes. Many strings are hardcoded English in components and data files.
+
+## What to do
+
+### 1. Convert onboarding question text to i18n keys
+File: `mini-app/src/data/onboardingQuestions.ts`
+- All ~41 questions have hardcoded `title` and `subtitle` strings in English
+- All question `options` have hardcoded `label` and `sublabel` strings
+- Convert these to i18n key strings (e.g., `'onboardingQuiz.fitness.motivation.title'`)
+- The QuizScreen.tsx component will call `t()` on these keys
+
+### 2. Update QuizScreen.tsx to use t()
+File: `mini-app/src/components/onboarding/QuizScreen.tsx`
+- Import `useTranslation` from react-i18next
+- Call `t()` on `config.title`, `config.subtitle`, and option labels/sublabels
+- This means the data file stores i18n keys, and QuizScreen resolves them
+
+### 3. Fix hardcoded text in summary components
+- `SummaryStats.tsx`: avatar labels ("Gym Warrior" etc.), "Level", "XP"
+- `SummarySchedule.tsx`: "Accountability", "Notifications", "No accountability enabled", "Safe Mode ON"
+- `SummaryModeCard.tsx`: "Focus Areas", mode names
+- Add all these strings as i18n keys
+
+### 4. Fix hardcoded text in punishment components
+- `punishment/constants.ts`: "Workout", "Book", "Money", "20 pushups" (NOTE: change values to "3 pushups" per user request — ultra-light for easy), "Read 10 pages" → "Read 3 pages", "Donate $1" → "Donate $0.25"
+- `DifficultySelector.tsx`: "How tough?", "Change type", "Safe Mode", "Limits daily losses..."
+- Wrap all in i18n keys
+
+### 5. Enable Russian in SplashScreen
+File: `mini-app/src/components/onboarding/SplashScreen.tsx`
+- Change Russian `available: false` → `available: true`
+
+### 6. Add i18n keys to en.ts
+Add ~400+ new keys under `onboardingQuiz` section organized by mode:
+- `onboardingQuiz.fitness.motivation.title`, `.subtitle`, `.options.lose_weight`, etc.
+- `onboardingQuiz.hydration.*`, `onboardingQuiz.finance.*`, etc.
+- `onboardingQuiz.summary.*` for summary screen text
+- `onboardingQuiz.punishment.*` for punishment config text
+
+### 7. Add Russian translations to ru.ts
+- Add all new keys with CORRECT, high-quality Russian translations
+- Review existing Russian onboarding keys for mistakes and fix them
+- Pay attention to: proper grammar, natural phrasing, correct verb forms
+
+### 8. Add English placeholder to zh.ts
+- Add all new keys but use the ENGLISH text as placeholder (to be translated later)
+
+### 9. Build verify
+`cd mini-app && npx tsc --noEmit && npm run build`
+
+OWNED: mini-app/src/i18n/en.ts, mini-app/src/i18n/ru.ts, mini-app/src/i18n/zh.ts, mini-app/src/data/onboardingQuestions.ts, mini-app/src/components/onboarding/QuizScreen.tsx, mini-app/src/components/onboarding/summary/SummaryStats.tsx, mini-app/src/components/onboarding/summary/SummarySchedule.tsx, mini-app/src/components/onboarding/summary/SummaryModeCard.tsx, mini-app/src/components/onboarding/punishment/constants.ts (i18n wrapping + value changes), mini-app/src/components/onboarding/punishment/DifficultySelector.tsx, mini-app/src/components/onboarding/SplashScreen.tsx, mini-app/src/components/onboarding/PunishmentConfig.tsx
+FORBIDDEN: bot/, tools/, test files, App.tsx, server.ts, hooks/useQuestsData.ts
+Write retrospective when done.
+```
+
+**Agent C** (open in: `c:\Users\Asus\Desktop\Wibecode`):
+```
+Read PARALLEL_AGENTS.md — you are Agent C of Run 83. Your task: Create Python export tools for onboarding reference data.
+
+## What to do
+
+### 1. Create `tools/onboarding_text_export.py`
+Reads i18n files (en.ts, ru.ts) and onboardingQuestions.ts. Outputs a table with columns: Key, English Text, Russian Text. Organized by mode (Fitness, Hydration, Finance, Learning, Medication, Habits) then by question.
+- Parse TypeScript files using regex (extract key-value pairs from i18n objects)
+- Support `--format markdown` (default) and `--format telegram` (formatted for Telegram message, split into chunks if >4096 chars)
+
+### 2. Create `tools/onboarding_flow_export.py`
+Reads onboardingQuestions.ts and useOnboarding.ts to create a flow diagram showing:
+- Step sequence (splash → hero_intro → avatar → paths → referral → [mode questions] → punishments → notifications → summary → launch)
+- Conditional branching (which mode questions appear based on paths selection)
+- What each answer affects (dataKey, nestedKey, stored in which DB table)
+- Special conditionals (e.g., fitness_target_weight only shows if motivation includes lose_weight/build_muscle)
+- Output as structured text/markdown tree
+
+### 3. Create `tools/punishment_reference_export.py`
+Reads punishment constants from frontend and backend to create a reference table:
+- All punishment types (workout, book, money) with their labels per difficulty
+- XP multipliers per intensity (low=0.25, medium=0.5, high=1.0, extreme=1.5)
+- Stars penalty rates per intensity
+- Safe mode caps
+- Level-based scaling formula
+- Output as markdown table
+
+Each tool should:
+- Be standalone (runnable with `python tools/tool_name.py`)
+- Accept `--format markdown` or `--format telegram` flag
+- Read source files relative to project root
+- Handle missing files gracefully with clear error messages
+
+OWNED: tools/onboarding_text_export.py (new), tools/onboarding_flow_export.py (new), tools/punishment_reference_export.py (new)
+FORBIDDEN: mini-app/src/ (source code — READ ONLY), bot/src/ (READ ONLY), notification_bot_handler.py
+Write retrospective when done.
+```
+
+**Agent D** (open in: `c:\Users\Asus\Desktop\Wibecode`):
+```
+Read PARALLEL_AGENTS.md — you are Agent D of Run 83. Your task: Add reference doc commands to the notification bot.
+
+## What to do
+
+### 1. Add `/onboarding` command
+In `tools/notification_bot_handler.py`:
+- Add handler for `/onboarding` command
+- Calls `tools/onboarding_text_export.py --format telegram` via subprocess
+- Sends the output as Telegram message(s) (split if >4096 chars)
+- If the tool doesn't exist yet (Agent C hasn't committed), show: "Export tool not available yet. Run from project root: python tools/onboarding_text_export.py"
+
+### 2. Add `/punishments` command
+- Calls `tools/punishment_reference_export.py --format telegram`
+- Same pattern as /onboarding
+
+### 3. Add `/flow` command
+- Calls `tools/onboarding_flow_export.py --format telegram`
+- Same pattern as /onboarding
+
+### 4. Update `/help` and `/start`
+- Add descriptions for the 3 new commands in the help text
+- Update the command list in /start
+
+### 5. Register commands with Telegram
+- If there's a `set_my_commands` call, add the new commands
+- If not, add one during bot startup
+
+OWNED: tools/notification_bot_handler.py
+FORBIDDEN: mini-app/src/, bot/src/, i18n files, App.tsx, server.ts, export tools (Agent C owns those)
+Write retrospective when done.
+```
+
+**Agent E** (open in: `c:\Users\Asus\Desktop\Wibecode`):
+```
+Read PARALLEL_AGENTS.md — you are Agent E of Run 83. Your task: Rebalance the punishment system to be ultra-light for beginners.
+
+## User feedback: "20 pushups as punishment for a beginner is too much"
+
+## New target values
+
+### Frontend display labels (punishment/constants.ts)
+NOTE: Agent B may have already wrapped these in i18n keys. If so, update the i18n VALUES in en.ts/ru.ts instead.
+- Easy: 3 pushups / Read 3 pages / Donate $0.25
+- Medium: 10 pushups / Read 10 pages / Donate $1
+- Hard: 25 pushups / Read 25 pages / Donate $3
+- Extreme: 50 pushups / Read 50 pages / Donate $10
+
+### Backend XP multipliers (bot/src/api/utils/constants.ts)
+Change STARS_PENALTY_RATES to: light=0, moderate=1, strict=3, extreme=5
+
+### Backend punishment job (bot/src/jobs/definitions/punishmentCheck.ts)
+1. Change INTENSITY_MULTIPLIER: low=0.25, medium=0.5, high=1.0, extreme=1.5
+2. Add level-based scaling AFTER calculating base penalty:
+   ```
+   const levelScale = Math.min(1.0, (userLevel || 1) / 10);
+   xpPenalty = Math.round(xpPenalty * levelScale);
+   ```
+   This means: Level 1 = 10% penalty, Level 5 = 50%, Level 10+ = full penalty
+3. The user query already has access to user data. Add `u.level` to the SELECT if not already there.
+
+### Build verify
+`cd bot && npx tsc --noEmit`
+
+OWNED: bot/src/api/utils/constants.ts, bot/src/jobs/definitions/punishmentCheck.ts
+GRAY AREA: mini-app/src/components/onboarding/punishment/constants.ts — ONLY change numerical values and display text. If Agent B has wrapped in i18n, update the i18n key values in en.ts instead. Coordinate with Agent B.
+FORBIDDEN: App.tsx, server.ts, test files, tools/, hooks/
+Write retrospective when done.
+```
+
+**Agent F** (open in: `c:\Users\Asus\Desktop\Wibecode`):
+```
+Read PARALLEL_AGENTS.md — you are Agent F of Run 83. Your task: Fix quest check-in lag by migrating to React Query.
+
+## The Problem
+Every quest check-in triggers 3 full API refetches (active quests, completed quests, today checkins). No caching, no optimistic updates. Result: lag and slow refresh.
+
+## What to do
+
+### 1. Create `mini-app/src/hooks/useQuestsQuery.ts` (new file)
+React Query hooks for quest data. NOTE: QueryClient is already configured in App.tsx with staleTime: 5 minutes.
+
+```typescript
+// Query keys
+const questKeys = {
+  all: ['quests'] as const,
+  active: (userId: number) => ['quests', 'active', userId] as const,
+  completed: (userId: number) => ['quests', 'completed', userId] as const,
+  todayCheckins: (userId: number) => ['checkins', 'today', userId] as const,
+};
+
+// Hooks using useQuery/useMutation from @tanstack/react-query
+// - useActiveQuests(userId) — fetches active quests, staleTime 2min
+// - useCompletedQuests(userId) — fetches completed quests, staleTime 5min
+// - useTodayCheckins(userId) — fetches today's checkin count, staleTime 1min
+// - useCheckinMutation() — POST check-in with optimistic update:
+//     onMutate: increment progress in cache instantly
+//     onError: rollback
+//     onSettled: invalidate active + checkins queries
+```
+
+### 2. Refactor `mini-app/src/hooks/useQuestsData.ts`
+- Replace useState for activeQuests/completedQuests/todayCheckinCount with data from React Query hooks
+- Replace loadQuests() calls with queryClient.invalidateQueries()
+- Keep the filtering/sorting useMemo logic (it's fine)
+- Keep the handleRefresh callback (just call refetchQueries instead of loadQuests)
+- Remove manual loading/error state — React Query provides these via isLoading/isError
+- The hook's public API should remain the same so Quests.tsx doesn't need major changes
+
+### 3. Add request cancellation
+React Query automatically passes AbortSignal to query functions. Make sure apiClient methods accept and forward the signal.
+Check `mini-app/src/api/client.ts` — the deduplicatedGet method already accepts a signal config. Ensure the query functions pass it through.
+
+### 4. Build verify
+`cd mini-app && npx tsc --noEmit && npm run build`
+
+OWNED: mini-app/src/hooks/useQuestsData.ts, mini-app/src/hooks/useQuestsQuery.ts (new)
+GRAY AREA: mini-app/src/api/client.ts — ONLY if signal forwarding needs a small fix
+FORBIDDEN: bot/, tools/, App.tsx, server.ts, i18n files, onboarding components, test files
+Write retrospective when done.
+```
+
+**Agent G** (open in: `c:\Users\Asus\Desktop\Wibecode`):
+```
+Read PARALLEL_AGENTS.md — you are Agent G of Run 83. Your task: Fix admin tests and update test:mvp scripts to include ALL tests.
+
+## What to do
+
+### 1. Run all admin test files individually and fix failures
+
+Bot admin tests (10 files):
+- `cd bot && npx vitest --run src/__tests__/routes/admin.test.ts`
+- `cd bot && npx vitest --run src/__tests__/middleware/adminAuth.test.ts`
+- `cd bot && npx vitest --run src/__tests__/routes/http/admin.http.test.ts`
+- `cd bot && npx vitest --run src/__tests__/routes/http/admin-jobs.http.test.ts`
+- `cd bot && npx vitest --run src/__tests__/routes/http/admin-stats.http.test.ts`
+- `cd bot && npx vitest --run src/__tests__/routes/http/admin-users.http.test.ts`
+- `cd bot && npx vitest --run src/__tests__/routes/http/admin-quests.http.test.ts`
+- `cd bot && npx vitest --run src/__tests__/routes/http/admin-notifications.test.ts`
+- `cd bot && npx vitest --run src/__tests__/routes/http/admin-players.test.ts`
+- `cd bot && npx vitest --run src/__tests__/routes/http/admin-bulk.test.ts`
+
+Mini-app admin tests (17 files):
+- `cd mini-app && npx vitest --run src/__tests__/api/adminClient.test.tsx`
+- `cd mini-app && npx vitest --run src/__tests__/components/AdminUserList.test.tsx`
+- `cd mini-app && npx vitest --run src/__tests__/components/AdminJobs.test.tsx`
+- `cd mini-app && npx vitest --run src/__tests__/components/AdminLogs.test.tsx`
+- `cd mini-app && npx vitest --run src/__tests__/components/AdminStatsCard.test.tsx`
+- `cd mini-app && npx vitest --run src/__tests__/components/AdminBroadcast.test.tsx`
+- `cd mini-app && npx vitest --run src/__tests__/components/AdminUserSearch.test.tsx`
+- `cd mini-app && npx vitest --run src/__tests__/components/AdminPagination.test.tsx`
+- `cd mini-app && npx vitest --run src/__tests__/components/AdminUserRow.test.tsx`
+- `cd mini-app && npx vitest --run src/__tests__/components/admin/AdminUserDetail.test.tsx`
+- `cd mini-app && npx vitest --run src/__tests__/components/admin/AdminLoginForm.test.tsx`
+- `cd mini-app && npx vitest --run src/__tests__/components/admin/AdminOverview.test.tsx`
+- `cd mini-app && npx vitest --run src/__tests__/components/admin/AdminQuestEditor.test.tsx`
+- `cd mini-app && npx vitest --run src/__tests__/components/Admin.test.tsx`
+- `cd mini-app && npx vitest --run src/__tests__/components/admin/AdminPlayerActions.test.tsx`
+- `cd mini-app && npx vitest --run src/__tests__/pages/admin/AdminPlayerDetail.test.tsx`
+- `cd mini-app && npx vitest --run src/__tests__/pages/admin/AdminPlayerList.test.tsx`
+
+### 2. Update test:mvp scripts
+Add ALL admin test files to both package.json test:mvp scripts.
+
+### 3. Test suite analysis
+After fixing, run `cd bot && npm run test:full` and `cd mini-app && npm run test:full`.
+In your retrospective, document:
+- Total test count (test:mvp vs test:full)
+- Any obviously redundant test files
+- Recommendations for test consolidation (but do NOT delete tests — just document)
+
+### 4. Verify
+`cd bot && npm run test:mvp && cd ../mini-app && npm run test:mvp` — ALL must pass
+
+OWNED: All admin test files listed above, bot/package.json (test:mvp only), mini-app/package.json (test:mvp only)
+FORBIDDEN: bot/src/api/*, bot/src/jobs/*, mini-app/src/pages/*, mini-app/src/components/* (source code), i18n files, tools/
+Write retrospective when done.
+```
+
+**Agent H** (open in: `c:\Users\Asus\Desktop\Wibecode`):
+```
+Read PARALLEL_AGENTS.md — you are Agent H of Run 83. Your task: Fix tests broken by other agents' changes (i18n, punishment rebalance, React Query migration).
+
+## Context
+Other agents in this run make breaking changes that affect tests:
+- Agent B: Converts hardcoded onboarding strings to i18n keys
+- Agent E: Changes punishment XP multipliers and Stars rates
+- Agent F: Migrates quest data hooks from manual state to React Query
+
+Your job is to fix any tests that break because of these changes.
+
+## What to do
+
+### 1. Fix onboarding tests (broken by Agent B's i18n changes)
+- `cd mini-app && npx vitest --run src/__tests__/components/onboarding/`
+- `cd mini-app && npx vitest --run src/__tests__/pages/Onboarding.test.tsx`
+- Tests may assert on English strings that are now i18n keys
+- Fix: Mock i18n or update assertions to match new key-based rendering
+
+### 2. Fix punishment tests (broken by Agent E's rebalance)
+- `cd bot && npx vitest --run src/__tests__/routes/http/punishment.http.test.ts`
+- `cd bot && npx vitest --run src/__tests__/routes/http/punishment-deduct.http.test.ts`
+- `cd bot && npx vitest --run src/__tests__/jobs/punishmentCheck.test.ts`
+- Tests may assert on old XP multiplier values (was 0.5/1.0/1.5/2.0, now 0.25/0.5/1.0/1.5)
+- Tests may assert on old Stars rates (was 1/3/5/10, now 0/1/3/5)
+
+### 3. Fix quest tests (broken by Agent F's React Query migration)
+- `cd mini-app && npx vitest --run src/__tests__/pages/Quests.test.tsx`
+- `cd mini-app && npx vitest --run src/__tests__/components/quests/`
+- `cd mini-app && npx vitest --run src/__tests__/components/CheckInButton.test.tsx`
+- Tests may need QueryClientProvider wrapper if they don't have one
+- Mock React Query hooks if needed
+
+### 4. Verify full test:mvp passes
+- `cd bot && npm run test:mvp` — ALL must pass
+- `cd mini-app && npm run test:mvp` — ALL must pass
+
+OWNED: mini-app/src/__tests__/components/onboarding/*, mini-app/src/__tests__/pages/Onboarding.test.tsx, bot/src/__tests__/routes/http/punishment.http.test.ts, bot/src/__tests__/routes/http/punishment-deduct.http.test.ts, bot/src/__tests__/jobs/punishmentCheck.test.ts, mini-app/src/__tests__/pages/Quests.test.tsx, mini-app/src/__tests__/components/quests/*, mini-app/src/__tests__/components/CheckInButton.test.tsx
+FORBIDDEN: Source code files (only test files), App.tsx, server.ts, i18n files, tools/
+Write retrospective when done.
+```
+
+### Run 83 File Ownership Matrix
+
+| File/Dir | A | B | C | D | E | F | G | H |
+|----------|---|---|---|---|---|---|---|---|
+| bot/src/api/server.ts | OWN | - | - | - | - | - | - | - |
+| mini-app/src/App.tsx | OWN | - | - | - | - | - | - | - |
+| mini-app/src/i18n/{en,ru,zh}.ts | - | OWN | - | - | - | - | - | - |
+| mini-app/src/data/onboardingQuestions.ts | - | OWN | R | - | - | - | - | - |
+| onboarding components (QuizScreen, summary, punishment, Splash) | - | OWN | - | - | - | - | - | - |
+| tools/onboarding_*_export.py (new) | - | - | OWN | - | - | - | - | - |
+| tools/punishment_reference_export.py (new) | - | - | OWN | - | - | - | - | - |
+| tools/notification_bot_handler.py | - | - | - | OWN | - | - | - | - |
+| bot/src/api/utils/constants.ts | - | - | R | - | OWN | - | - | - |
+| bot/src/jobs/definitions/punishmentCheck.ts | - | - | R | - | OWN | - | - | - |
+| punishment/constants.ts (values) | - | i18n | - | - | vals | - | - | - |
+| mini-app/src/hooks/useQuestsData.ts | - | - | - | - | - | OWN | - | - |
+| mini-app/src/hooks/useQuestsQuery.ts (new) | - | - | - | - | - | OWN | - | - |
+| Admin test files (27) | - | - | - | - | - | - | OWN | - |
+| bot/package.json (test:mvp) | - | - | - | - | - | - | OWN | - |
+| mini-app/package.json (test:mvp) | - | - | - | - | - | - | OWN | - |
+| Onboarding test files | - | - | - | - | - | - | - | OWN |
+| Punishment test files | - | - | - | - | - | - | - | OWN |
+| Quest test files | - | - | - | - | - | - | - | OWN |
+
+### Run 83 Merge Order
+1. Agent A (admin re-enable — touches server.ts + App.tsx)
+2. Agent B (onboarding i18n — large change, must precede E)
+3. Agent E (punishment rebalance — depends on B for constants.ts)
+4. Agent F (quest performance — independent React Query migration)
+5. Agent C (export tools — independent Python, no conflicts)
+6. Agent D (notification bot — depends on C's tools existing)
+7. Agent G (admin tests — depends on A for admin code)
+8. Agent H (test fixes — depends on B, E, F for broken tests)
+
+### Run 83 Retrospectives
+
+#### Agent A Retrospective
+*(To be filled by Agent A)*
+
+#### Agent B Retrospective
+*(To be filled by Agent B)*
+
+#### Agent C Retrospective
+*(To be filled by Agent C)*
+
+#### Agent D Retrospective
+*(To be filled by Agent D)*
+
+#### Agent E Retrospective
+*(To be filled by Agent E)*
+
+#### Agent F Retrospective
+*(To be filled by Agent F)*
+
+#### Agent G Retrospective
+*(To be filled by Agent G)*
+
+#### Agent H Retrospective
+*(To be filled by Agent H)*
 
 #### Agent 0 Retrospective
 *(To be filled by Agent 0)*
