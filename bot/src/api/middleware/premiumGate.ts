@@ -6,10 +6,14 @@
  * - free: default (2 modes)
  * - subscriber: subscribed to @yakutsaway channel (3 modes)
  * - premium: Telegram Stars payment (6 modes)
+ *
+ * Mode unlock system (Run 86):
+ * - Free modes: fitness, hydration, habits — anyone can use
+ * - Paid modes: medication — requires entry in mode_unlocks table (300 Stars or 10,000 XP)
  */
 
 import { Request, Response, NextFunction } from 'express';
-import { queryOne } from '../../utils/db.js';
+import { queryOne, query } from '../../utils/db.js';
 import { logger } from '../../utils/logger.js';
 import { safeParseInt } from '../../utils/validation.js';
 
@@ -28,6 +32,90 @@ export const MODE_LIMITS: Record<string, number> = {
   subscriber: 3,
   premium: 6,
 };
+
+/** Modes that are free for everyone */
+export const FREE_MODES = ['fitness', 'hydration', 'habits'];
+
+/** Modes that require unlock (Stars or XP) */
+export const PAID_MODES = ['medication'];
+
+/** Price config for paid modes */
+export const MODE_PRICES: Record<string, { stars: number; xp: number }> = {
+  medication: { stars: 300, xp: 10000 },
+};
+
+/**
+ * Check if a mode is free (available to all users) or unlocked for this user.
+ * - Free modes (fitness, hydration, habits): always true
+ * - Paid modes (medication): requires entry in mode_unlocks table
+ * - Existing premium users: backward compat — premium tier unlocks all paid modes
+ */
+export async function isModeFreeOrUnlocked(userId: number, modeName: string): Promise<boolean> {
+  // Free modes are always available
+  if (FREE_MODES.includes(modeName)) {
+    return true;
+  }
+
+  // Check mode_unlocks table
+  const unlock = await queryOne<{ id: number }>(
+    `SELECT id FROM mode_unlocks WHERE user_id = $1 AND mode_name = $2`,
+    [userId, modeName],
+  );
+  if (unlock) {
+    return true;
+  }
+
+  // Backward compat: existing premium subscribers have access to all modes
+  const sub = await queryOne<{ tier: string; expires_at: string | null }>(
+    `SELECT tier, expires_at FROM subscriptions WHERE user_id = $1`,
+    [userId],
+  );
+  if (sub && sub.tier === 'premium') {
+    const isExpired = sub.expires_at ? new Date(sub.expires_at) < new Date() : false;
+    if (!isExpired) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+/**
+ * Get all unlocked mode names for a user (both free and purchased).
+ */
+export async function getUserUnlockedModes(userId: number): Promise<string[]> {
+  // Start with free modes
+  const unlocked = [...FREE_MODES];
+
+  // Add purchased unlocks
+  const rows = await query<{ mode_name: string }>(
+    `SELECT mode_name FROM mode_unlocks WHERE user_id = $1`,
+    [userId],
+  );
+  for (const row of rows) {
+    if (!unlocked.includes(row.mode_name)) {
+      unlocked.push(row.mode_name);
+    }
+  }
+
+  // Backward compat: premium users get all paid modes
+  const sub = await queryOne<{ tier: string; expires_at: string | null }>(
+    `SELECT tier, expires_at FROM subscriptions WHERE user_id = $1`,
+    [userId],
+  );
+  if (sub && sub.tier === 'premium') {
+    const isExpired = sub.expires_at ? new Date(sub.expires_at) < new Date() : false;
+    if (!isExpired) {
+      for (const mode of PAID_MODES) {
+        if (!unlocked.includes(mode)) {
+          unlocked.push(mode);
+        }
+      }
+    }
+  }
+
+  return unlocked;
+}
 
 /**
  * Determine the user's effective tier by checking:

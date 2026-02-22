@@ -3,6 +3,10 @@
  * Handles Telegram Stars payments, subscription management, and payment history.
  * Provider: Telegram Stars (XTR currency)
  *
+ * Supports:
+ * - Tier upgrades (premium subscription — 599 Stars)
+ * - Mode unlocks (e.g., medication — 300 Stars) (added Run 86)
+ *
  * Webhook handler lives in payment-webhook.ts.
  * Shared helpers in utils/paymentHelpers.ts.
  */
@@ -17,6 +21,7 @@ import { safeParseInt } from '../../utils/validation.js';
 import { isValidTier, isPositiveInteger, TIER_PRICES, type Tier } from '../../utils/paymentHelpers.js';
 import { webhookRouter } from './payment-webhook.js';
 import { bot } from '../../bot.js';
+import { MODE_PRICES, PAID_MODES, FREE_MODES } from '../middleware/premiumGate.js';
 
 const router = Router();
 const log = logger.child({ component: 'payments' });
@@ -25,10 +30,90 @@ const log = logger.child({ component: 'payments' });
 router.use('/webhook', webhookRouter);
 
 // ─── POST /create ────────────────────────────────────────────────────────────
-// Initiate a new payment via Telegram Stars provider
+// Initiate a new payment via Telegram Stars provider.
+// Supports both tier upgrades and mode unlocks.
 router.post('/create', authenticateTelegram, mutationLimiter, asyncHandler(async (req: Request, res: Response) => {
-  const { userId, amount, tier } = req.body;
+  const { userId, amount, tier, type, modeName } = req.body;
 
+  // Mode unlock payment flow
+  if (type === 'mode_unlock') {
+    if (!userId || !modeName) {
+      throw new BadRequestError('Missing required fields for mode unlock: userId, modeName');
+    }
+
+    const numericUserId = typeof userId === 'string' ? safeParseInt(userId, 0) : userId;
+    if (!isPositiveInteger(numericUserId)) {
+      throw new BadRequestError('userId must be a positive integer');
+    }
+
+    if (!PAID_MODES.includes(modeName)) {
+      throw new BadRequestError(`Mode "${modeName}" is not a paid mode`);
+    }
+
+    const prices = MODE_PRICES[modeName];
+    if (!prices) {
+      throw new BadRequestError(`No pricing for mode: ${modeName}`);
+    }
+
+    // Check already unlocked
+    const existing = await queryOne<{ id: number }>(
+      `SELECT id FROM mode_unlocks WHERE user_id = $1 AND mode_name = $2`,
+      [numericUserId, modeName],
+    );
+    if (existing) {
+      throw new BadRequestError(`Mode "${modeName}" is already unlocked`);
+    }
+
+    // Verify user exists
+    const user = await queryOne<{ id: number }>('SELECT id FROM users WHERE id = $1', [numericUserId]);
+    if (!user) {
+      throw new NotFoundError(`User ${numericUserId} not found`);
+    }
+
+    const starsAmount = prices.stars;
+
+    // Create pending payment record
+    const payment = await queryOne<{ id: number; status: string; created_at: string }>(
+      `INSERT INTO payments (user_id, amount, currency, status, provider, metadata)
+       VALUES ($1, $2, 'XTR', 'pending', 'telegram_stars', $3)
+       RETURNING id, status, created_at`,
+      [numericUserId, starsAmount, JSON.stringify({ type: 'mode_unlock', mode_name: modeName })],
+    );
+
+    const modeLabel = modeName.charAt(0).toUpperCase() + modeName.slice(1);
+    let invoiceUrl: string;
+    try {
+      invoiceUrl = await bot.api.createInvoiceLink(
+        `Unlock ${modeLabel} Mode`,
+        `Unlock ${modeLabel} mode — track your ${modeName} habits and quests`,
+        JSON.stringify({ payment_id: payment!.id, type: 'mode_unlock', mode_name: modeName }),
+        '',
+        'XTR',
+        [{ label: `${modeLabel} Mode`, amount: starsAmount }],
+      );
+    } catch (err) {
+      log.error('Failed to create mode unlock invoice', { paymentId: payment?.id, error: err });
+      await execute(`UPDATE payments SET status = 'failed', updated_at = NOW() WHERE id = $1`, [payment!.id]);
+      throw new BadRequestError('Failed to create Telegram Stars invoice. Please try again.');
+    }
+
+    log.info('Mode unlock invoice created', { paymentId: payment?.id, userId: numericUserId, modeName, starsAmount });
+
+    res.status(201).json(successResponse({
+      payment_id: payment?.id,
+      status: payment?.status,
+      amount: starsAmount,
+      currency: 'XTR',
+      provider: 'telegram_stars',
+      type: 'mode_unlock',
+      modeName,
+      invoice_url: invoiceUrl,
+      created_at: payment?.created_at,
+    }, 'Mode unlock payment initiated'));
+    return;
+  }
+
+  // Original tier upgrade flow
   if (!userId || !amount || !tier) {
     throw new BadRequestError('Missing required fields: userId, amount, tier');
   }
@@ -257,7 +342,7 @@ router.post('/subscription/cancel', authenticateTelegram, mutationLimiter, async
 }));
 
 // ─── GET /tiers ─────────────────────────────────────────────────────────────
-// Return tier info (public endpoint, no auth required)
+// Return tier info and mode pricing (public endpoint, no auth required)
 router.get('/tiers', readLimiter, asyncHandler(async (_req: Request, res: Response) => {
   const tiers = [
     {
@@ -288,7 +373,20 @@ router.get('/tiers', readLimiter, asyncHandler(async (_req: Request, res: Respon
     },
   ];
 
-  res.json(successResponse({ tiers }));
+  // Mode pricing info (added Run 86)
+  const modePricing = Object.entries(MODE_PRICES).map(([mode, prices]) => ({
+    mode,
+    starsPrice: prices.stars,
+    xpPrice: prices.xp,
+    currency: 'XTR',
+  }));
+
+  res.json(successResponse({
+    tiers,
+    modePricing,
+    freeModes: FREE_MODES,
+    paidModes: PAID_MODES,
+  }));
 }));
 
 export { router as paymentsRouter };

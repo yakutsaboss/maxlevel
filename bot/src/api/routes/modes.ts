@@ -9,9 +9,20 @@ import {
   NotFoundError,
 } from '../utils/errors.js';
 import { safeParseInt } from '../../utils/validation.js';
-import { getUserEffectiveTier, MODE_LIMITS } from '../middleware/premiumGate.js';
+import {
+  getUserEffectiveTier,
+  MODE_LIMITS,
+  isModeFreeOrUnlocked,
+  getUserUnlockedModes,
+  FREE_MODES,
+  PAID_MODES,
+  MODE_PRICES,
+} from '../middleware/premiumGate.js';
+import { logger } from '../../utils/logger.js';
+import { bot } from '../../bot.js';
 
 const router = Router();
+const log = logger.child({ component: 'modes' });
 
 /**
  * GET /api/modes
@@ -23,6 +34,157 @@ router.get('/', authenticateTelegram, asyncHandler(async (req: Request, res: Res
   );
 
   res.json(successResponse({ modes, count: modes.length }));
+}));
+
+/**
+ * GET /api/modes/unlocks/:userId
+ * Get list of unlocked modes for a user (free + purchased).
+ */
+router.get('/unlocks/:userId', authenticateTelegram, authorizeUser, asyncHandler(async (req: Request, res: Response) => {
+  const userId = safeParseInt(req.params.userId, 0);
+  if (userId === 0) {
+    throw new BadRequestError('Invalid userId');
+  }
+
+  const unlockedModes = await getUserUnlockedModes(userId);
+
+  // Also get user XP for frontend display
+  const user = await queryOne<{ total_xp: number }>(
+    `SELECT total_xp FROM users WHERE id = $1`,
+    [userId],
+  );
+
+  res.json(successResponse({
+    unlockedModes,
+    userXP: user?.total_xp ?? 0,
+    freeModes: FREE_MODES,
+    paidModes: PAID_MODES,
+    modePrices: MODE_PRICES,
+  }));
+}));
+
+/**
+ * POST /api/modes/unlock
+ * Unlock a paid mode with Stars or XP.
+ * Input: { userId, modeName, method: 'stars' | 'xp' }
+ */
+router.post('/unlock', authenticateTelegram, asyncHandler(async (req: Request, res: Response) => {
+  const { userId, modeName, method } = req.body;
+
+  if (!userId || !modeName || !method) {
+    throw new BadRequestError('Missing required fields: userId, modeName, method');
+  }
+
+  const numericUserId = typeof userId === 'string' ? safeParseInt(userId, 0) : userId;
+  if (!numericUserId || numericUserId <= 0) {
+    throw new BadRequestError('userId must be a positive integer');
+  }
+
+  if (!['stars', 'xp'].includes(method)) {
+    throw new BadRequestError('method must be "stars" or "xp"');
+  }
+
+  if (!PAID_MODES.includes(modeName)) {
+    throw new BadRequestError(`Mode "${modeName}" is not a paid mode. Free modes: ${FREE_MODES.join(', ')}`);
+  }
+
+  const prices = MODE_PRICES[modeName];
+  if (!prices) {
+    throw new BadRequestError(`No pricing configured for mode: ${modeName}`);
+  }
+
+  // Check if already unlocked
+  const existing = await queryOne<{ id: number }>(
+    `SELECT id FROM mode_unlocks WHERE user_id = $1 AND mode_name = $2`,
+    [numericUserId, modeName],
+  );
+  if (existing) {
+    throw new BadRequestError(`Mode "${modeName}" is already unlocked`);
+  }
+
+  // Verify user exists
+  const user = await queryOne<{ id: number; total_xp: number }>(
+    `SELECT id, total_xp FROM users WHERE id = $1`,
+    [numericUserId],
+  );
+  if (!user) {
+    throw new NotFoundError(`User ${numericUserId} not found`);
+  }
+
+  if (method === 'xp') {
+    // XP unlock — atomic deduction
+    const requiredXP = prices.xp;
+
+    const result = await queryOne<{ total_xp: number }>(
+      `UPDATE users SET total_xp = total_xp - $1 WHERE id = $2 AND total_xp >= $1 RETURNING total_xp`,
+      [requiredXP, numericUserId],
+    );
+
+    if (!result) {
+      throw new BadRequestError(
+        `Insufficient XP. Need ${requiredXP} XP, you have ${user.total_xp} XP.`
+      );
+    }
+
+    // Insert unlock record
+    await execute(
+      `INSERT INTO mode_unlocks (user_id, mode_name, unlock_method, amount_paid)
+       VALUES ($1, $2, 'xp', $3)`,
+      [numericUserId, modeName, requiredXP],
+    );
+
+    log.info('Mode unlocked with XP', { userId: numericUserId, modeName, xpPaid: requiredXP, remainingXP: result.total_xp });
+
+    res.json(successResponse({
+      unlocked: true,
+      modeName,
+      method: 'xp',
+      xpPaid: requiredXP,
+      remainingXP: result.total_xp,
+    }, `Mode "${modeName}" unlocked with ${requiredXP} XP`));
+
+  } else {
+    // Stars unlock — create payment + invoice
+    const starsAmount = prices.stars;
+
+    // Create pending payment record
+    const payment = await queryOne<{ id: number; status: string; created_at: string }>(
+      `INSERT INTO payments (user_id, amount, currency, status, provider, metadata)
+       VALUES ($1, $2, 'XTR', 'pending', 'telegram_stars', $3)
+       RETURNING id, status, created_at`,
+      [numericUserId, starsAmount, JSON.stringify({ type: 'mode_unlock', mode_name: modeName })],
+    );
+
+    // Create Telegram Stars invoice
+    const modeLabel = modeName.charAt(0).toUpperCase() + modeName.slice(1);
+    let invoiceUrl: string;
+    try {
+      invoiceUrl = await bot.api.createInvoiceLink(
+        `Unlock ${modeLabel} Mode`,
+        `Unlock ${modeLabel} mode — track your ${modeName} habits and quests`,
+        JSON.stringify({ payment_id: payment!.id, type: 'mode_unlock', mode_name: modeName }),
+        '',       // provider_token: empty for Telegram Stars
+        'XTR',    // currency: Telegram Stars
+        [{ label: `${modeLabel} Mode`, amount: starsAmount }],
+      );
+    } catch (err) {
+      log.error('Failed to create mode unlock invoice', { paymentId: payment?.id, error: err });
+      await execute(`UPDATE payments SET status = 'failed', updated_at = NOW() WHERE id = $1`, [payment!.id]);
+      throw new BadRequestError('Failed to create Telegram Stars invoice. Please try again.');
+    }
+
+    log.info('Mode unlock invoice created', { paymentId: payment?.id, userId: numericUserId, modeName, starsAmount, invoiceUrl });
+
+    res.status(201).json(successResponse({
+      unlocked: false, // Not yet — pending payment
+      modeName,
+      method: 'stars',
+      payment_id: payment?.id,
+      amount: starsAmount,
+      currency: 'XTR',
+      invoice_url: invoiceUrl,
+    }, `Invoice created for ${modeLabel} mode unlock (${starsAmount} Stars)`));
+  }
 }));
 
 /**
@@ -77,7 +239,8 @@ router.get('/users/:userId/summary', authenticateTelegram, authorizeUser, asyncH
 
 /**
  * POST /api/users/:userId/modes
- * Add modes to user
+ * Add modes to user.
+ * Now validates per-mode unlock status instead of tier-based limits only.
  */
 router.post('/users/:userId', authenticateTelegram, authorizeUser, asyncHandler(async (req: Request, res: Response) => {
   const userId = safeParseInt(req.params.userId, 0);
@@ -87,7 +250,20 @@ router.post('/users/:userId', authenticateTelegram, authorizeUser, asyncHandler(
     throw new BadRequestError('Invalid modes array');
   }
 
-  // Tier-based mode limit check
+  // Check that all requested modes are either free or unlocked
+  const modeNames = modes.map((m: string) => String(m).trim());
+  for (const modeName of modeNames) {
+    const allowed = await isModeFreeOrUnlocked(userId, modeName);
+    if (!allowed) {
+      const prices = MODE_PRICES[modeName];
+      throw new BadRequestError(
+        `Mode "${modeName}" requires unlock. ` +
+        (prices ? `Cost: ${prices.stars} Stars or ${prices.xp} XP.` : 'Contact support.')
+      );
+    }
+  }
+
+  // Still enforce tier-based mode limit as a secondary check
   const userTier = await getUserEffectiveTier(userId);
   const modeLimit = MODE_LIMITS[userTier] ?? MODE_LIMITS['free'];
 
@@ -107,9 +283,6 @@ router.post('/users/:userId', authenticateTelegram, authorizeUser, asyncHandler(
   const added: { mode: string; user_mode_id: number }[] = [];
   const failed: { mode: string; reason: string }[] = [];
   const already_active: string[] = [];
-
-  // Normalize mode names
-  const modeNames = modes.map((m: string) => String(m).trim());
 
   // Batch 1: Fetch ALL requested modes in one query
   const allModes = await query<{ id: number; name: string }>(

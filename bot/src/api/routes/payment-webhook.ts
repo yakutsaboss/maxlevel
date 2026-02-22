@@ -1,6 +1,7 @@
 /**
  * Payment Webhook Route
  * Handles Telegram Stars payment callbacks from Telegram servers.
+ * Supports both tier upgrades and mode unlocks (Run 86).
  */
 
 import { Router, Request, Response } from 'express';
@@ -31,7 +32,13 @@ router.post('/', asyncHandler(async (req: Request, res: Response) => {
   }
 
   // Look up the pending payment
-  const payment = await queryOne<{ id: number; user_id: number; amount: string; status: string; metadata: { tier?: string } }>(
+  const payment = await queryOne<{
+    id: number;
+    user_id: number;
+    amount: string;
+    status: string;
+    metadata: { tier?: string; type?: string; mode_name?: string };
+  }>(
     `SELECT id, user_id, amount, status, metadata FROM payments WHERE id = $1`,
     [payment_id],
   );
@@ -50,48 +57,94 @@ router.post('/', asyncHandler(async (req: Request, res: Response) => {
     throw new BadRequestError(`Payment ${payment_id} is in ${payment.status} state, cannot complete`);
   }
 
-  // Complete payment and activate subscription in a single transaction
-  const tier = (payment.metadata?.tier as string) || 'premium';
+  const paymentType = payment.metadata?.type;
 
-  await transaction(async (client) => {
-    // Mark payment as completed with provider charge IDs
-    await client.query(
-      `UPDATE payments
-       SET status = 'completed',
-           telegram_payment_charge_id = $1,
-           provider_payment_charge_id = $2,
-           updated_at = NOW()
-       WHERE id = $3`,
-      [telegram_payment_charge_id, provider_payment_charge_id || null, payment_id],
-    );
+  if (paymentType === 'mode_unlock') {
+    // Mode unlock payment — insert into mode_unlocks
+    const modeName = payment.metadata?.mode_name;
+    if (!modeName) {
+      throw new BadRequestError(`Payment ${payment_id} is mode_unlock but missing mode_name in metadata`);
+    }
 
-    // Upsert subscription — activate or upgrade
-    await client.query(
-      `INSERT INTO subscriptions (user_id, tier, started_at, expires_at, auto_renew)
-       VALUES ($1, $2, NOW(), NOW() + INTERVAL '30 days', true)
-       ON CONFLICT (user_id) DO UPDATE
-       SET tier = $2,
-           started_at = NOW(),
-           expires_at = NOW() + INTERVAL '30 days',
-           auto_renew = true,
-           updated_at = NOW()`,
-      [payment.user_id, tier],
-    );
-  });
+    await transaction(async (client) => {
+      // Mark payment as completed
+      await client.query(
+        `UPDATE payments
+         SET status = 'completed',
+             telegram_payment_charge_id = $1,
+             provider_payment_charge_id = $2,
+             updated_at = NOW()
+         WHERE id = $3`,
+        [telegram_payment_charge_id, provider_payment_charge_id || null, payment_id],
+      );
 
-  log.info('Payment webhook processed', {
-    paymentId: payment_id,
-    userId: payment.user_id,
-    telegram_payment_charge_id,
-    tier,
-  });
+      // Insert mode unlock (ON CONFLICT for idempotency)
+      await client.query(
+        `INSERT INTO mode_unlocks (user_id, mode_name, unlock_method, amount_paid)
+         VALUES ($1, $2, 'stars', $3)
+         ON CONFLICT (user_id, mode_name) DO NOTHING`,
+        [payment.user_id, modeName, Math.round(parseFloat(payment.amount))],
+      );
+    });
 
-  res.json(successResponse({
-    payment_id: payment.id,
-    status: 'completed',
-    subscription_tier: tier,
-    expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
-  }, 'Payment confirmed, subscription activated'));
+    log.info('Mode unlock webhook processed', {
+      paymentId: payment_id,
+      userId: payment.user_id,
+      modeName,
+      telegram_payment_charge_id,
+    });
+
+    res.json(successResponse({
+      payment_id: payment.id,
+      status: 'completed',
+      type: 'mode_unlock',
+      mode_name: modeName,
+    }, `Payment confirmed, mode "${modeName}" unlocked`));
+
+  } else {
+    // Original tier upgrade flow
+    const tier = (payment.metadata?.tier as string) || 'premium';
+
+    await transaction(async (client) => {
+      // Mark payment as completed with provider charge IDs
+      await client.query(
+        `UPDATE payments
+         SET status = 'completed',
+             telegram_payment_charge_id = $1,
+             provider_payment_charge_id = $2,
+             updated_at = NOW()
+         WHERE id = $3`,
+        [telegram_payment_charge_id, provider_payment_charge_id || null, payment_id],
+      );
+
+      // Upsert subscription — activate or upgrade
+      await client.query(
+        `INSERT INTO subscriptions (user_id, tier, started_at, expires_at, auto_renew)
+         VALUES ($1, $2, NOW(), NOW() + INTERVAL '30 days', true)
+         ON CONFLICT (user_id) DO UPDATE
+         SET tier = $2,
+             started_at = NOW(),
+             expires_at = NOW() + INTERVAL '30 days',
+             auto_renew = true,
+             updated_at = NOW()`,
+        [payment.user_id, tier],
+      );
+    });
+
+    log.info('Payment webhook processed', {
+      paymentId: payment_id,
+      userId: payment.user_id,
+      telegram_payment_charge_id,
+      tier,
+    });
+
+    res.json(successResponse({
+      payment_id: payment.id,
+      status: 'completed',
+      subscription_tier: tier,
+      expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+    }, 'Payment confirmed, subscription activated'));
+  }
 }));
 
 export { router as webhookRouter };

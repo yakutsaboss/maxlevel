@@ -531,3 +531,17 @@ COMMENT ON TABLE shop_items IS 'In-app shop item catalog (purchasable with Stars
 COMMENT ON TABLE user_purchases IS 'User purchase history';
 COMMENT ON TABLE activity_types IS 'Activity/sport type catalog (running, yoga, etc.)';
 COMMENT ON TABLE activity_logs IS 'User activity/workout log entries';
+
+-- Mode unlocks (per-mode purchasing, added Run 86)
+CREATE TABLE IF NOT EXISTS mode_unlocks (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    mode_name VARCHAR(50) NOT NULL,
+    unlock_method VARCHAR(20) NOT NULL, -- 'stars' or 'xp'
+    amount_paid INTEGER NOT NULL DEFAULT 0,
+    unlocked_at TIMESTAMPTZ DEFAULT NOW(),
+    UNIQUE(user_id, mode_name)
+);
+CREATE INDEX IF NOT EXISTS idx_mode_unlocks_user_id ON mode_unlocks(user_id);
+
+COMMENT ON TABLE mode_unlocks IS 'Per-mode unlock records (Stars or XP payment, added Run 86)';

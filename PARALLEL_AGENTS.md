@@ -1671,7 +1671,15 @@ A → B → C → D → E → F → G (G always last)
 ### Run 86 Retrospectives
 
 #### Agent A Retrospective
-*(To be filled by Agent A)*
+**Task**: Page transition animations (fade+slide on route change)
+
+**Files changed**:
+- `mini-app/src/components/PageTransition.tsx` — NEW. Reusable wrapper using framer-motion `AnimatePresence mode="wait"` + `motion.div` keyed on `location.pathname`. Enter: opacity 0→1, y 8→0, 200ms easeOut. Exit: opacity 0, 100ms.
+- `mini-app/src/App.tsx` — Imported PageTransition, wrapped `<Routes>` inside `<PageTransition>`, added `location={location}` prop to `<Routes>` so exit animations hold the old route content.
+
+**Verification**: `npx tsc --noEmit` shows zero errors in my files. Build fails only due to Agent F's `ModeUnlockModal.tsx` (i18n type mismatch) and Agent C/F's Onboarding changes — not related to my work. Agent G should fix these at merge time.
+
+**Notes for Agent 0**: Merge order is straightforward — my changes are isolated to PageTransition.tsx (new file) and App.tsx (import + wrapper). No conflicts expected with other agents since no one else touches App.tsx routing structure.
 
 #### Agent B Retrospective
 **Status**: Complete — all 4 animation enhancements implemented, `tsc --noEmit` passes with zero errors.
@@ -1703,10 +1711,41 @@ A → B → C → D → E → F → G (G always last)
 **No files outside ownership touched.** Zero TS errors in my files (pre-existing PathSelect errors belong to Agent D).
 
 #### Agent D Retrospective
-*(To be filled by Agent D)*
+**AvatarSelect.tsx** — Added 3 animation enhancements:
+1. Selection bounce: selected card does `scale 1→1.05→1` over 300ms. Unselected cards dim to `opacity: 0.7`.
+2. Animated checkmark: blue circle with `Check` icon scales in via `AnimatePresence` (spring, stiffness 500, damping 25). Exits with scale-to-zero.
+3. Improved stagger: changed from `x: -20` only to `x: -20, y: 10→0` with 100ms stagger (was 80ms) for a cascade feel.
+
+**PathSelect.tsx** — Added 4 animation enhancements:
+1. Consistent `whileHover={{ scale: 1.02 }}` and `whileTap={{ scale: 0.95 }}` on available cards.
+2. Selection glow: selected cards get a pulsing border ring (opacity 0.4→1→0.4, 2s infinite) + colored boxShadow matching mode color.
+3. Lock shake: tapping a locked mode triggers `x: [0, -4, 4, -3, 3, 0]` over 300ms + haptic `notification('warning')`. Shows inline toast "Unlock with 300 Stars or 10,000 XP" for 2.5s.
+4. Lock badge: replaced "Soon" text with "300 ⭐ / 10K XP" pricing.
+
+**Merge note**: Agent F's linter changes arrived mid-edit (removed `available` from MODES, added `isModeAvailable()`, `ModeUnlockModal` import, and `unlockedModes` props). I adapted to use `isModeAvailable(mode.id)` throughout and wired up the `ModeUnlockModal` render. PathSelect.tsx and AvatarSelect.tsx both compile with zero TS errors. Remaining errors are in Agent F's `ModeUnlockModal.tsx` and Agent C's `Onboarding.tsx` — for Agent G to resolve.
 
 #### Agent E Retrospective
-*(To be filled by Agent E)*
+**Status**: Complete — all files modified, `tsc --noEmit` passes with zero errors.
+
+**What was done**:
+1. **`database/schema.sql`** — Added `mode_unlocks` table with `(user_id, mode_name)` unique constraint, `unlock_method` ('stars'/'xp'), `amount_paid`, and index on `user_id`.
+2. **`bot/src/api/middleware/premiumGate.ts`** — Added exports: `FREE_MODES`, `PAID_MODES`, `MODE_PRICES`, `isModeFreeOrUnlocked()`, `getUserUnlockedModes()`. Kept all existing exports intact for backward compatibility. Premium tier users get automatic access to all paid modes (backward compat).
+3. **`bot/src/api/routes/modes.ts`** — Added two new routes:
+   - `GET /api/modes/unlocks/:userId` — returns unlocked modes, user XP, free/paid mode lists, and mode prices
+   - `POST /api/modes/unlock` — unlocks a paid mode via Stars (creates invoice) or XP (atomic deduction with `WHERE total_xp >= $1`)
+   - Updated `POST /api/users/:userId/modes` to validate per-mode unlock status before tier-based limit check
+4. **`bot/src/api/routes/payments.ts`** — Updated `POST /create` to support `type: 'mode_unlock'` with `modeName` field. Updated `GET /tiers` to include `modePricing`, `freeModes`, and `paidModes` in response.
+5. **`bot/src/api/routes/payment-webhook.ts`** — Updated webhook handler to detect `mode_unlock` payments via `metadata.type` and insert into `mode_unlocks` table (with `ON CONFLICT DO NOTHING` for idempotency).
+
+**Key decisions**:
+- XP deduction is atomic: `UPDATE users SET total_xp = total_xp - $1 WHERE id = $2 AND total_xp >= $1 RETURNING total_xp`
+- Subscriptions table NOT deleted — backward compat maintained
+- Premium tier users bypass mode unlock checks (existing premium users keep access)
+- Mode unlock via Stars follows same invoice flow as tier upgrades but with different metadata
+
+**Note for Agent G**: The `mode_unlocks` table needs to be created on the server. SQL: `CREATE TABLE IF NOT EXISTS mode_unlocks (id SERIAL PRIMARY KEY, user_id INTEGER NOT NULL REFERENCES users(id), mode_name VARCHAR(50) NOT NULL, unlock_method VARCHAR(20) NOT NULL, amount_paid INTEGER NOT NULL DEFAULT 0, unlocked_at TIMESTAMPTZ DEFAULT NOW(), UNIQUE(user_id, mode_name));`
+
+**No issues or blockers.**
 
 #### Agent F Retrospective
 *(To be filled by Agent F)*
