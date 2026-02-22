@@ -2,7 +2,7 @@
 
 This file is the single source of truth for running parallel Claude Code agents on the Wibecode RPG bot project. Each "Run" launches 2-6 agents (A, B, C, D, E, F) in separate git worktrees, plus Agent 0 (orchestrator) in the main repo.
 
-For completed run history (Runs 2–74), see `PARALLEL_AGENTS_HISTORY.md`.
+For completed run history (Runs 2–79), see `PARALLEL_AGENTS_HISTORY.md`.
 
 ---
 
@@ -298,7 +298,7 @@ All disabled code is PRESERVED — just commented out. Each run below re-enables
 |-----|-------|--------|--------|
 | **78** | MVP Hardening — fix bugs, e2e test core flow in Telegram | serial | ✅ |
 | **79** | Re-enable Achievements + Payments + Trophies | 3 | ✅ |
-| **80** | Re-enable Shop + Inventory + Avatars | 3 | ⬜ |
+| **80** | Re-enable Shop + Inventory + Avatars | 3 | ✅ |
 | **81** | Re-enable Social + Finance | 3 | ⬜ |
 | **82** | Re-enable Content + Activities | 3 | ⬜ |
 | **83** | Re-enable Admin Panel | 3 | ⬜ |
@@ -313,401 +313,6 @@ Each re-enable run follows the same 3-agent pattern:
 
 ---
 
-## Completed Runs (Summary)
-
-### Run 75 ✅ — Activity Hub (9 agents)
-Sport/activity logging system: activity DB schema + 22 seeded activities, 7 API endpoints, ActivityHub page, WorkoutTimer component, ActivityHistory + calendar heatmap, activity→quest auto-integration, 15 activity achievements, i18n (en/ru/zh), 70+ tests. All merged and deployed.
-
-### Run 76 ✅ — Knowledge Feed (8 agents)
-Content delivery system: content DB schema (4 tables, 30 articles, 80+ quiz questions), 8 content API endpoints, ContentFeed page, ArticleReader, quiz system, ReadingHistory + bookmarks, content recommendation engine + Dashboard widget, 111 tests. All merged and deployed.
-
-### Run 77 ⚠️ — Admin Panel (partially merged)
-Admin panel revolution: Admin layout/dashboard, player list with search/sort/pagination, player detail view, admin actions (award XP, change tier, send message), bulk operations, notification center, admin i18n. **Partially merged** — some branches completed, but the combined result caused test suite bloat (2387 tests, timing out). Code preserved but ALL admin features were disabled during MVP recovery.
-
----
-
-## RUN 78: MVP Hardening (3 Agents + Agent 0)
-
-### Focus: Fix bugs in the core MVP flow, ensure end-to-end functionality works in Telegram, harden tests
-
-### Copy-Paste Prompts
-
-**Agent 0** (open in: `c:\Users\Asus\Desktop\Wibecode`):
-```
-Read PARALLEL_AGENTS.md — you are Agent 0 for Run 78.
-```
-
-**Agent A** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-a`):
-```
-Read PARALLEL_AGENTS.md — you are Agent A of Run 78. Your task: Bot-side bug fixes and core flow verification.
-
-Test the following flows by reading code and tracing the logic end-to-end:
-1. Onboarding: /start → mode selection → quiz → plan generation → completion state saved
-2. Quest assignment: After onboarding, verify quests get assigned correctly (dailyQuestReset job)
-3. Check-in flow: User opens quest → checks in → XP awarded → streak updated
-4. Streak logic: Verify streakCheck job correctly increments/resets streaks
-5. Leaderboard: Verify leaderboardRefresh job populates rankings
-
-Fix any bugs you find. Pay special attention to:
-- Quest assignment after onboarding (does the first quest appear?)
-- XP award consistency (xpAward.ts + xpConsistency checks)
-- Check-in validation (timer windows, duplicate check-ins)
-- Daily quest reset logic (timezone handling)
-
-OWNED: bot/src/api/routes/users.ts, bot/src/api/routes/quests.ts, bot/src/api/routes/quest-*.ts, bot/src/api/routes/checkins.ts, bot/src/api/routes/onboarding.ts, bot/src/api/routes/modes.ts, bot/src/api/routes/leaderboard.ts, bot/src/utils/xpAward.ts, bot/src/utils/streak.ts, bot/src/handlers/*.ts, bot/src/jobs/definitions/dailyQuestReset.ts, bot/src/jobs/definitions/streakCheck.ts, bot/src/jobs/definitions/questReminders.ts, bot/src/jobs/definitions/leaderboardRefresh.ts
-FORBIDDEN: mini-app/*, PARALLEL_AGENTS.md (except your retrospective section)
-After done, verify build: cd bot && npx tsc --noEmit && npm run test:mvp. Write retrospective.
-```
-
-**Agent B** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-b`):
-```
-Read PARALLEL_AGENTS.md — you are Agent B of Run 78. Your task: Mini-app page polish and UX verification.
-
-Open the mini-app dev server (cd mini-app && npm run dev) and test ALL 6 active pages in browser:
-
-1. Onboarding: Complete flow works, state persists on refresh, quiz data saves
-2. Dashboard: Loads user data, shows daily goals, quest cards, XP progress
-3. Quests: Active/completed tabs, quest detail modal, check-in button works
-4. Profile: Shows user stats, streaks, active modes, level/XP
-5. Leaderboard: Rankings display, time period tabs (7d/30d/all), user avatars
-6. Settings: Preferences save correctly, timezone, notification toggles
-
-Fix any issues you find:
-- Loading states and skeleton screens
-- Error handling (API failures show user-friendly messages)
-- Navigation between pages (no broken links, back button works)
-- Responsive layout (mobile-first, safe area handling)
-- Telegram theme integration (colors, dark mode)
-
-OWNED: mini-app/src/pages/Dashboard.tsx, mini-app/src/pages/Quests.tsx, mini-app/src/pages/Profile.tsx, mini-app/src/pages/Leaderboard.tsx, mini-app/src/pages/Settings.tsx, mini-app/src/pages/Onboarding.tsx, mini-app/src/components/Navigation.tsx, mini-app/src/components/dashboard/*, mini-app/src/components/profile/*, mini-app/src/components/leaderboard/*, mini-app/src/components/quests/*, mini-app/src/components/settings/*
-FORBIDDEN: bot/*, PARALLEL_AGENTS.md (except your retrospective section)
-After done, verify build: cd mini-app && npx tsc --noEmit && npm run build. Write retrospective.
-```
-
-**Agent C** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-c`):
-```
-Read PARALLEL_AGENTS.md — you are Agent C of Run 78. Your task: Test hardening.
-
-1. Run `cd bot && npm run test:mvp` — all 573 tests must pass. Fix any failures.
-2. Run `cd mini-app && npm run test:mvp` — all 337 tests must pass. Fix any failures.
-3. Review test coverage gaps in MVP features:
-   - Are there tests for quest assignment flow?
-   - Are there tests for check-in validation edge cases?
-   - Are there tests for streak reset/increment logic?
-   - Are there tests for onboarding state management?
-   - Are there tests for leaderboard ranking logic?
-4. Add 10-20 targeted tests for any gaps you find
-5. Verify both test:mvp AND test:full scripts work (test:full may have failures in disabled features — that's OK, document them)
-
-OWNED: bot/src/__tests__/** (only test files for MVP features), mini-app/src/__tests__/** (only test files for MVP features)
-FORBIDDEN: bot/src/api/*, bot/src/jobs/*, mini-app/src/pages/*, mini-app/src/components/* (source files — only tests)
-After done, verify: npm run test:mvp in both bot/ and mini-app/. Write retrospective.
-```
-
-### Run 78 File Ownership Matrix
-
-| File/Dir | Agent A | Agent B | Agent C |
-|----------|---------|---------|---------|
-| bot/src/api/routes/* (MVP) | OWNED | ❌ | ❌ |
-| bot/src/utils/* | OWNED | ❌ | ❌ |
-| bot/src/handlers/* | OWNED | ❌ | ❌ |
-| bot/src/jobs/definitions/* (MVP) | OWNED | ❌ | ❌ |
-| mini-app/src/pages/* (MVP) | ❌ | OWNED | ❌ |
-| mini-app/src/components/* (MVP) | ❌ | OWNED | ❌ |
-| bot/src/__tests__/* | ❌ | ❌ | OWNED |
-| mini-app/src/__tests__/* | ❌ | ❌ | OWNED |
-
-### Run 78 Merge Order
-1. Agent A (backend fixes)
-2. Agent C (test fixes — may depend on Agent A's changes)
-3. Agent B (frontend fixes)
-
-### Run 78 Retrospective (Serial — Agent 0 only)
-
-**Approach**: All 3 parallel agents got stuck (0 commits across all worktrees). Switched to serial execution by Agent 0.
-
-**Completed**:
-| Task | Status |
-|------|--------|
-| Fix race condition in quest-progress.ts (SELECT FOR UPDATE) | ✅ |
-| Fix race condition in checkins.ts (SELECT FOR UPDATE) | ✅ |
-| Add ON CONFLICT to dailyQuestReset.ts | ✅ |
-| Remove 4 dead navigation buttons from Profile.tsx | ✅ |
-| Remove dead notification history link from Settings.tsx | ✅ |
-| Remove SubscriptionSettings from Settings.tsx | ✅ |
-| Remove onViewAll from ProfileAchievements.tsx | ✅ |
-| Add 8 missing tables to schema.sql | ✅ |
-| Update 3 test files for new transaction patterns | ✅ |
-| Clean up stuck worktrees + branches | ✅ |
-| Deploy + verify (90d976d) | ✅ |
-
-**Tests**: 573 bot + 337 mini-app = 910 passing (test:mvp)
-
-**Recommendations for next run**:
-- Run 79 per roadmap: Re-enable Achievements + Payments + Trophies
-- Consider serial execution again if parallel agents continue to get stuck
-
----
-
-## RUN 79: Re-enable Achievements + Payments + Trophies (3 Agents + Agent 0)
-
-### Focus: Uncomment all [MVP-DISABLED] code for achievements, payments, and trophies across backend, frontend, and tests
-
-### Copy-Paste Prompts
-
-**Agent 0** (open in: `c:\Users\Asus\Desktop\Wibecode`):
-```
-Read PARALLEL_AGENTS.md — you are Agent 0 for Run 79.
-```
-
-**Agent A** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-a`):
-```
-Read PARALLEL_AGENTS.md — you are Agent A of Run 79. Your task: Re-enable achievements, payments, and trophies on the BACKEND.
-
-## What to do
-
-### 1. Uncomment routes in `bot/src/api/server.ts`
-Uncomment these 6 lines (remove `// [MVP-DISABLED] ` prefix):
-- Line 14: `import { achievementRouter } from './routes/achievements.js';`
-- Line 21: `import { paymentsRouter } from './routes/payments.js';`
-- Line 24: `import { trophyRouter } from './routes/trophies.js';`
-- Line 118: `app.use('/api/achievements', achievementRouter);`
-- Line 125: `app.use('/api/payments', paymentsRouter);`
-- Line 128: `app.use('/api/trophies', trophyRouter);`
-
-### 2. Uncomment jobs in `bot/src/jobs/registerJobs.ts`
-Uncomment these 7 lines (remove `// [MVP-DISABLED] ` prefix):
-- Line 20: `import * as achievementBatchCheck from './definitions/achievementBatchCheck.js';`
-- Line 21: `import * as achievementNotifier from './definitions/achievementNotifier.js';`
-- Line 38: `{ name: achievementBatchCheck.JOB_NAME, cron: achievementBatchCheck.CRON_SCHEDULE, handler: achievementBatchCheck.handler },`
-- Line 39: `{ name: achievementNotifier.JOB_NAME, cron: achievementNotifier.CRON_SCHEDULE, handler: achievementNotifier.handler },`
-- Line 47: `achievementNotifier.setBotInstance(bot);`
-
-### 3. Verify route files exist and compile
-Check that these files exist and have no TypeScript errors:
-- `bot/src/api/routes/achievements.ts`
-- `bot/src/api/routes/payments.ts`
-- `bot/src/api/routes/trophies.ts`
-- `bot/src/jobs/definitions/achievementBatchCheck.ts`
-- `bot/src/jobs/definitions/achievementNotifier.ts`
-- `bot/src/utils/achievementEngine.ts`
-- `bot/src/utils/paymentHelpers.ts`
-
-### 4. Build verification
-Run: `cd bot && npx tsc --noEmit`
-Fix any TypeScript errors that arise from re-enabling these features.
-
-OWNED: bot/src/api/server.ts, bot/src/api/routes/achievements.ts, bot/src/api/routes/payments.ts, bot/src/api/routes/payment-webhook.ts, bot/src/api/routes/trophies.ts, bot/src/jobs/registerJobs.ts, bot/src/jobs/definitions/achievementBatchCheck.ts, bot/src/jobs/definitions/achievementNotifier.ts, bot/src/utils/achievementEngine.ts, bot/src/utils/paymentHelpers.ts
-FORBIDDEN: mini-app/*, bot/src/__tests__/* (test files), PARALLEL_AGENTS.md (except your retrospective section)
-GRAY AREA: bot/src/api/server.ts — ONLY uncomment the 6 lines listed above. Do NOT touch other [MVP-DISABLED] lines.
-After done, verify build: cd bot && npx tsc --noEmit. Write retrospective.
-```
-
-**Agent B** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-b`):
-```
-Read PARALLEL_AGENTS.md — you are Agent B of Run 79. Your task: Re-enable achievements, payments, and trophies on the FRONTEND (mini-app).
-
-## What to do
-
-### 1. Uncomment pages in `mini-app/src/App.tsx`
-Uncomment these lines (remove `// [MVP-DISABLED] ` prefix):
-
-Lazy imports:
-- Line 22: `const Achievements = lazy(() => import('@/pages/Achievements').then(m => ({ default: m.Achievements })));`
-- Line 28: `const TrophyCase = lazy(() => import('@/pages/TrophyCase').then(m => ({ default: m.TrophyCase })));`
-
-Routes (inside the <Routes> block):
-- Line 150: `<Route path="/achievements" element={<ProtectedRoute needsOnboarding={effectiveNeedsOnboarding} lazy><Achievements /></ProtectedRoute>} />`
-- Line 153: `<Route path="/trophies" element={<ProtectedRoute needsOnboarding={effectiveNeedsOnboarding} lazy><TrophyCase /></ProtectedRoute>} />`
-
-NOTE: There is NO separate payments page in the mini-app. Payments are triggered from subscription flows, not a dedicated page.
-
-### 2. Re-add navigation links from Profile to Achievements/Trophies
-In Run 78, the `onViewAll` prop was removed from `ProfileAchievements` component. Now that achievements are re-enabled, add back navigation:
-- In `mini-app/src/components/profile/ProfileAchievements.tsx`: Add a "View All" link/button that navigates to `/achievements`
-- Check if there's a similar component for trophies on the Profile page; if so, add navigation to `/trophies`
-
-### 3. Verify page components exist and compile
-Check that these files exist and build correctly:
-- `mini-app/src/pages/Achievements.tsx`
-- `mini-app/src/pages/TrophyCase.tsx`
-- `mini-app/src/components/achievements/*` (AchievementCard, AchievementProgressBar, AchievementsSkeleton, CategoryTabs, RarityGroup)
-- `mini-app/src/components/trophies/*` (TrophyCard, TrophyDetailModal, TrophyCaseSkeleton)
-- `mini-app/src/hooks/useAchievements.ts`
-- `mini-app/src/hooks/useTrophies.ts`
-- `mini-app/src/hooks/usePayment.ts`
-
-### 4. Build verification
-Run: `cd mini-app && npx tsc --noEmit && npm run build`
-Fix any TypeScript errors.
-
-OWNED: mini-app/src/App.tsx, mini-app/src/pages/Achievements.tsx, mini-app/src/pages/TrophyCase.tsx, mini-app/src/components/achievements/*, mini-app/src/components/trophies/*, mini-app/src/components/profile/ProfileAchievements.tsx, mini-app/src/hooks/useAchievements.ts, mini-app/src/hooks/useTrophies.ts, mini-app/src/hooks/usePayment.ts
-FORBIDDEN: bot/*, PARALLEL_AGENTS.md (except your retrospective section)
-GRAY AREA: mini-app/src/App.tsx — ONLY uncomment the 4 lines listed above. Do NOT touch other [MVP-DISABLED] lines. mini-app/src/pages/Profile.tsx — only if you need to wire navigation to achievements/trophies.
-After done, verify build: cd mini-app && npx tsc --noEmit && npm run build. Write retrospective.
-```
-
-**Agent C** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-c`):
-```
-Read PARALLEL_AGENTS.md — you are Agent C of Run 79. Your task: Fix and verify ALL tests for achievements, payments, and trophies.
-
-## What to do
-
-### 1. Run all achievement/payment/trophy tests individually
-Run each test file and fix failures:
-
-Bot tests:
-- `cd bot && npx vitest --run src/__tests__/routes/achievements.test.ts`
-- `cd bot && npx vitest --run src/__tests__/routes/http/achievements.http.test.ts`
-- `cd bot && npx vitest --run src/__tests__/routes/http/payments.http.test.ts`
-- `cd bot && npx vitest --run src/__tests__/routes/http/payment-webhook.http.test.ts`
-- `cd bot && npx vitest --run src/__tests__/handlers/payments.test.ts`
-- `cd bot && npx vitest --run src/__tests__/utils/paymentHelpers.test.ts`
-- `cd bot && npx vitest --run src/__tests__/utils/achievementEngine.test.ts`
-- `cd bot && npx vitest --run src/__tests__/jobs/achievementBatchCheck.test.ts`
-- `cd bot && npx vitest --run src/__tests__/jobs/achievementNotifier.test.ts`
-- `cd bot && npx vitest --run src/__tests__/integration/achievement-trophy-flow.test.ts`
-
-Mini-app tests:
-- `cd mini-app && npx vitest --run src/__tests__/pages/Achievements.test.tsx`
-- `cd mini-app && npx vitest --run src/__tests__/pages/TrophyCase.test.tsx`
-- `cd mini-app && npx vitest --run src/__tests__/components/achievements/AchievementsSkeleton.test.tsx`
-- `cd mini-app && npx vitest --run src/__tests__/components/achievements/AchievementProgressBar.test.tsx`
-- `cd mini-app && npx vitest --run src/__tests__/components/AchievementCard.test.tsx`
-- `cd mini-app && npx vitest --run src/__tests__/components/AchievementToast.test.tsx`
-- `cd mini-app && npx vitest --run src/__tests__/components/profile/ProfileAchievements.test.tsx`
-- `cd mini-app && npx vitest --run src/__tests__/components/dashboard/DashboardAchievementCard.test.tsx`
-- `cd mini-app && npx vitest --run src/__tests__/hooks/useAchievements.test.ts`
-
-### 2. Fix any failing tests
-Common issues to watch for:
-- Mock/spy setups that reference old API patterns
-- Missing database table mocks for achievement/trophy tables
-- Timer/async issues in batch check tests
-- Component import errors if page structure changed
-
-### 3. Update test:mvp scripts
-After fixing tests, update `test:mvp` in BOTH package.json files to include the achievement/payment/trophy test files:
-- `bot/package.json` — add achievement, payment, trophy test files to the `test:mvp` script
-- `mini-app/package.json` — add achievement, trophy test files to the `test:mvp` script
-
-### 4. Verify everything passes
-- Run: `cd bot && npm run test:mvp` — ALL must pass
-- Run: `cd mini-app && npm run test:mvp` — ALL must pass
-- Run: `cd bot && npm run test:full` — document any failures in non-target features (OK if disabled features fail)
-
-OWNED: bot/src/__tests__/routes/achievements.test.ts, bot/src/__tests__/routes/http/achievements.http.test.ts, bot/src/__tests__/routes/http/payments.http.test.ts, bot/src/__tests__/routes/http/payment-webhook.http.test.ts, bot/src/__tests__/handlers/payments.test.ts, bot/src/__tests__/utils/paymentHelpers.test.ts, bot/src/__tests__/utils/achievementEngine.test.ts, bot/src/__tests__/jobs/achievementBatchCheck.test.ts, bot/src/__tests__/jobs/achievementNotifier.test.ts, bot/src/__tests__/integration/achievement-trophy-flow.test.ts, mini-app/src/__tests__/pages/Achievements.test.tsx, mini-app/src/__tests__/pages/TrophyCase.test.tsx, mini-app/src/__tests__/components/achievements/*.test.tsx, mini-app/src/__tests__/components/AchievementCard.test.tsx, mini-app/src/__tests__/components/AchievementToast.test.tsx, mini-app/src/__tests__/components/profile/ProfileAchievements.test.tsx, mini-app/src/__tests__/components/dashboard/DashboardAchievementCard.test.tsx, mini-app/src/__tests__/hooks/useAchievements.test.ts, bot/package.json (ONLY test:mvp script), mini-app/package.json (ONLY test:mvp script)
-FORBIDDEN: bot/src/api/*, bot/src/jobs/*, mini-app/src/pages/*, mini-app/src/components/* (source code — only test files), PARALLEL_AGENTS.md (except your retrospective section)
-After done, verify: cd bot && npm run test:mvp && cd ../mini-app && npm run test:mvp. Write retrospective.
-```
-
-### Run 79 File Ownership Matrix
-
-| File/Dir | Agent A | Agent B | Agent C |
-|----------|---------|---------|---------|
-| bot/src/api/server.ts | OWNED | ❌ | ❌ |
-| bot/src/api/routes/achievements.ts | OWNED | ❌ | ❌ |
-| bot/src/api/routes/payments.ts | OWNED | ❌ | ❌ |
-| bot/src/api/routes/payment-webhook.ts | OWNED | ❌ | ❌ |
-| bot/src/api/routes/trophies.ts | OWNED | ❌ | ❌ |
-| bot/src/jobs/registerJobs.ts | OWNED | ❌ | ❌ |
-| bot/src/jobs/definitions/achievement*.ts | OWNED | ❌ | ❌ |
-| bot/src/utils/achievementEngine.ts | OWNED | ❌ | ❌ |
-| bot/src/utils/paymentHelpers.ts | OWNED | ❌ | ❌ |
-| mini-app/src/App.tsx | ❌ | OWNED | ❌ |
-| mini-app/src/pages/Achievements.tsx | ❌ | OWNED | ❌ |
-| mini-app/src/pages/TrophyCase.tsx | ❌ | OWNED | ❌ |
-| mini-app/src/components/achievements/* | ❌ | OWNED | ❌ |
-| mini-app/src/components/trophies/* | ❌ | OWNED | ❌ |
-| mini-app/src/components/profile/ProfileAchievements.tsx | ❌ | OWNED | ❌ |
-| mini-app/src/hooks/use{Achievements,Trophies,Payment}.ts | ❌ | OWNED | ❌ |
-| bot/src/__tests__/** (achievement/payment/trophy) | ❌ | ❌ | OWNED |
-| mini-app/src/__tests__/** (achievement/trophy) | ❌ | ❌ | OWNED |
-| bot/package.json (test:mvp only) | ❌ | ❌ | OWNED |
-| mini-app/package.json (test:mvp only) | ❌ | ❌ | OWNED |
-
-### Run 79 Merge Order
-1. Agent A (backend — re-enable routes + jobs)
-2. Agent B (frontend — re-enable pages + navigation)
-3. Agent C (tests — fix tests + update test:mvp scripts)
-
-### Run 79 Retrospectives
-
-#### Agent A Retrospective
-**Task**: Re-enable achievements, payments, and trophies on the backend.
-
-**Changes made**:
-- `bot/src/api/server.ts`: Uncommented 6 lines — 3 imports (`achievementRouter`, `paymentsRouter`, `trophyRouter`) and 3 route mounts (`/api/achievements`, `/api/payments`, `/api/trophies`). All other `[MVP-DISABLED]` lines left untouched.
-- `bot/src/jobs/registerJobs.ts`: Uncommented 5 lines — 2 imports (`achievementBatchCheck`, `achievementNotifier`), 2 job registrations in the `jobs` array, and `achievementNotifier.setBotInstance(bot)`.
-
-**Verification**:
-- All 7 dependent files confirmed to exist: `achievements.ts`, `payments.ts`, `trophies.ts` (routes), `achievementBatchCheck.ts`, `achievementNotifier.ts` (jobs), `achievementEngine.ts`, `paymentHelpers.ts` (utils).
-- `npx tsc --noEmit` passed with zero errors.
-
-**Issues**: None. Clean re-enablement — all files were already in place from pre-MVP development.
-
-#### Agent B Retrospective
-**Completed:**
-| Task | Status |
-|------|--------|
-| Uncomment Achievements lazy import in App.tsx (line 22) | ✅ |
-| Uncomment TrophyCase lazy import in App.tsx (line 28) | ✅ |
-| Uncomment /achievements route in App.tsx (line 150) | ✅ |
-| Uncomment /trophies route in App.tsx (line 153) | ✅ |
-| Add "View All" navigation link in ProfileAchievements.tsx → /achievements | ✅ |
-| Verify all page components exist (Achievements, TrophyCase) | ✅ |
-| Verify all achievement/trophy components exist (6 + 3 files) | ✅ |
-| Verify hooks exist (useAchievements, useTrophies, usePayment) | ✅ |
-| TypeScript check passes (tsc --noEmit) | ✅ |
-| Vite production build passes (Achievements + TrophyCase chunks output) | ✅ |
-
-**Notes:**
-- No trophies component exists on the Profile page — only ProfileAchievements. Added "View All" link with ChevronRight icon and haptic feedback there.
-- No separate payments page in mini-app (payments are subscription-flow-based, not a standalone page). Nothing to uncomment for payments.
-- Both Achievements and TrophyCase are properly code-split as separate lazy chunks.
-- Zero TypeScript errors, zero build warnings.
-
-**Recommendations:** None — straightforward re-enablement.
-
-#### Agent C Retrospective
-**Status:** COMPLETE
-**Duration:** ~5 minutes
-**What was done:**
-- Ran all 10 bot test files (achievements, payments, trophies) — all passed immediately (0 fixes needed)
-- Ran all 9 mini-app test files — 8 passed, 1 failed (ProfileAchievements.test.tsx)
-- Fixed ProfileAchievements.test.tsx: added `MemoryRouter` wrapper (component uses `useNavigate()`) and added missing `ChevronRight` to lucide-react mock
-- Updated bot `test:mvp` script: added 9 new test entries (achievements routes, payments HTTP, payment-webhook, paymentHelpers, achievementEngine, achievementBatchCheck, achievementNotifier, achievement-trophy-flow)
-- Updated mini-app `test:mvp` script: added 7 new entries (Achievements page, TrophyCase page, achievements components dir, AchievementCard, AchievementToast, useAchievements hook)
-- Final verification: bot test:mvp = 61 files / 713 tests ALL PASS; mini-app test:mvp = 82 files / 391 tests ALL PASS
-- bot test:full = 92/93 pass (only avatars.http.test.ts fails — disabled feature, not in scope)
-**Files changed:** ProfileAchievements.test.tsx (test fix), bot/package.json (test:mvp), mini-app/package.json (test:mvp)
-**Recommendations:** avatars.http.test.ts has 6 failures in test:full — should be fixed when avatars feature is re-enabled.
-
-#### Agent 0 Retrospective
-**Approach**: Agents A, B, C all worked directly in main repo (not their worktrees). Agent B committed (73b152e), Agents A and C left changes uncommitted. Agent 0 verified all diffs, committed the remaining changes, built, tested, and deployed.
-
-**Completed**:
-| Task | Status |
-|------|--------|
-| Verify agent branches (all 3 empty — 0 commits) | ✅ |
-| Discover agents worked in main repo instead | ✅ |
-| Verify all diffs correct (server.ts, registerJobs.ts, package.json x2, test fix) | ✅ |
-| Commit all uncommitted agent work (fc3c4ee) | ✅ |
-| Build verification — tsc --noEmit passes both projects | ✅ |
-| Tests: bot 61 files / 713 tests, mini-app 82 files / 391 tests = 1104 total | ✅ |
-| Deploy + verify (fc3c4ee, uptime 10s) | ✅ |
-| Telegram notification sent | ✅ |
-| Worktree + branch cleanup | ✅ |
-
-**Issues**:
-- Agents wrote to main repo, not worktrees (same pattern as Run 78). Worktrees were unused.
-- Agent retros were accurate despite this — changes were real, just in the wrong directory.
-
-**Recommendations**:
-- Run 80 per roadmap: Re-enable Shop + Inventory + Avatars
-- Consider whether worktrees add value — agents consistently ignore them
-
----
 
 ## RUN 80: Re-enable Shop + Inventory + Avatars (3 Agents + Agent 0)
 
@@ -897,6 +502,185 @@ After done, verify: cd bot && npm run test:mvp && cd ../mini-app && npm run test
 **Files changed:** bot/src/__tests__/routes/http/avatars.http.test.ts (test fix), bot/package.json (test:mvp), mini-app/package.json (test:mvp)
 
 **Recommendations:** None — all shop/inventory/avatar tests passing cleanly.
+
+#### Agent 0 Retrospective
+- **Merge**: Agents A & B left uncommitted changes in main repo (same pattern as Run 79 — agents ignore worktrees). Agent C made 3 commits to main. Committed A+B changes as a6a4266.
+- **Build**: Both projects pass `tsc --noEmit`. Initial server deploy failed (`tsc: not found`) because `npm install --omit=dev` was used — fixed by running `npm install` (with dev deps).
+- **Tests**: Bot 65 files / 780 tests, Mini-app 90 files / 476 tests. Total: 1,256 tests (up from 1,104 in Run 79).
+- **Deploy**: a6a4266 deployed, health OK, mini-app API URL verified.
+- **Archive**: Moved Runs 75-79 to PARALLEL_AGENTS_HISTORY.md (archive point after Run 80). History now covers Runs 2-79, main file has Run 80 only.
+- **Cleanup**: Removed 3 worktrees + deleted feature/r80-* branches (local + remote).
+
+**Recommendations**:
+- Run 81 per roadmap: Re-enable Social + Finance
+- Drop worktree creation — agents consistently work in main repo. Just create branches for documentation purposes.
+
+---
+
+## RUN 81: Re-enable Social + Finance (3 Agents + Agent 0)
+
+### Focus: Uncomment all [MVP-DISABLED] code for social and finance features across backend, frontend, and tests
+
+### Copy-Paste Prompts
+
+**Agent 0** (open in: `c:\Users\Asus\Desktop\Wibecode`):
+```
+Read PARALLEL_AGENTS.md — you are Agent 0 for Run 81.
+```
+
+**Agent A** (open in: `c:\Users\Asus\Desktop\Wibecode`):
+```
+Read PARALLEL_AGENTS.md — you are Agent A of Run 81. Your task: Re-enable social and finance on the BACKEND.
+
+## What to do
+
+### 1. Uncomment routes in `bot/src/api/server.ts`
+Uncomment these 4 lines (remove `// [MVP-DISABLED] ` prefix):
+- Line 22: `import { socialRouter } from './routes/social.js';`
+- Line 29: `import { financeRouter } from './routes/finance.js';`
+- Line 126: `app.use('/api/social', socialRouter);`
+- Line 133: `app.use('/api/finance', financeRouter);`
+
+### 2. No jobs to uncomment
+Social/finance have no specific background jobs in registerJobs.ts.
+
+### 3. Verify route files exist and compile
+Check that these files exist and have no TypeScript errors:
+- `bot/src/api/routes/social.ts`
+- `bot/src/api/routes/finance.ts`
+
+### 4. Build verification
+Run: `cd bot && npx tsc --noEmit`
+Fix any TypeScript errors that arise from re-enabling these features.
+
+OWNED: bot/src/api/server.ts, bot/src/api/routes/social.ts, bot/src/api/routes/finance.ts
+FORBIDDEN: mini-app/*, bot/src/__tests__/* (test files), PARALLEL_AGENTS.md (except your retrospective section)
+GRAY AREA: bot/src/api/server.ts — ONLY uncomment the 4 lines listed above. Do NOT touch other [MVP-DISABLED] lines.
+After done, verify build: cd bot && npx tsc --noEmit. Write retrospective in PARALLEL_AGENTS.md under "Run 81 Retrospectives > Agent A Retrospective".
+```
+
+**Agent B** (open in: `c:\Users\Asus\Desktop\Wibecode`):
+```
+Read PARALLEL_AGENTS.md — you are Agent B of Run 81. Your task: Re-enable social and finance on the FRONTEND (mini-app).
+
+## What to do
+
+### 1. Uncomment pages in `mini-app/src/App.tsx`
+Uncomment these lines (remove comment markers):
+
+Lazy imports:
+- Line 25: `const Social = lazy(() => import('@/pages/Social').then(m => ({ default: m.Social })));`
+- Line 26: `const Finance = lazy(() => import('@/pages/Finance').then(m => ({ default: m.Finance })));`
+
+Routes (inside the <Routes> block):
+- Line 148: `<Route path="/social" element={<ProtectedRoute needsOnboarding={effectiveNeedsOnboarding} lazy><Social /></ProtectedRoute>} />`
+- Line 149: `<Route path="/finance" element={<ProtectedRoute needsOnboarding={effectiveNeedsOnboarding} lazy><Finance /></ProtectedRoute>} />`
+
+### 2. Verify page components and hooks exist
+Check these files exist and compile:
+- `mini-app/src/pages/Social.tsx`
+- `mini-app/src/pages/Finance.tsx`
+- `mini-app/src/hooks/useSocial.ts`
+- `mini-app/src/hooks/useFinanceAnalytics.ts`
+- `mini-app/src/components/social/*` (ChallengeCard, ChallengeDetailModal, ChallengeForm, ChallengesList, FriendRequestForm, FriendsList)
+- `mini-app/src/components/finance/*` (BudgetForm, BudgetSummary, BudgetTracker, GoalCard, GoalContribution, GoalForm, SavingsGoal)
+
+### 3. Build verification
+Run: `cd mini-app && npx tsc --noEmit && npm run build`
+Fix any TypeScript errors.
+
+OWNED: mini-app/src/App.tsx, mini-app/src/pages/Social.tsx, mini-app/src/pages/Finance.tsx, mini-app/src/components/social/*, mini-app/src/components/finance/*, mini-app/src/hooks/useSocial.ts, mini-app/src/hooks/useFinanceAnalytics.ts
+FORBIDDEN: bot/*, PARALLEL_AGENTS.md (except your retrospective section)
+GRAY AREA: mini-app/src/App.tsx — ONLY uncomment the 4 lines listed above. Do NOT touch other [MVP-DISABLED] lines.
+After done, verify build: cd mini-app && npx tsc --noEmit && npm run build. Write retrospective in PARALLEL_AGENTS.md under "Run 81 Retrospectives > Agent B Retrospective".
+```
+
+**Agent C** (open in: `c:\Users\Asus\Desktop\Wibecode`):
+```
+Read PARALLEL_AGENTS.md — you are Agent C of Run 81. Your task: Fix and verify ALL tests for social and finance features.
+
+## What to do
+
+### 1. Run all social/finance tests individually
+Run each test file and fix failures:
+
+Bot tests:
+- `cd bot && npx vitest --run src/__tests__/routes/http/social.http.test.ts`
+- `cd bot && npx vitest --run src/__tests__/routes/http/finance.http.test.ts`
+
+Mini-app tests:
+- `cd mini-app && npx vitest --run src/__tests__/pages/Social.test.tsx`
+- `cd mini-app && npx vitest --run src/__tests__/pages/Finance.test.tsx`
+- `cd mini-app && npx vitest --run src/__tests__/hooks/useSocial.test.ts`
+- `cd mini-app && npx vitest --run src/__tests__/components/social/ChallengeCard.test.tsx`
+- `cd mini-app && npx vitest --run src/__tests__/components/social/ChallengeDetailModal.test.tsx`
+- `cd mini-app && npx vitest --run src/__tests__/components/social/ChallengeForm.test.tsx`
+- `cd mini-app && npx vitest --run src/__tests__/components/social/ChallengesList.test.tsx`
+- `cd mini-app && npx vitest --run src/__tests__/components/social/FriendRequestForm.test.tsx`
+- `cd mini-app && npx vitest --run src/__tests__/components/social/FriendsList.test.tsx`
+- `cd mini-app && npx vitest --run src/__tests__/components/finance/BudgetForm.test.tsx`
+- `cd mini-app && npx vitest --run src/__tests__/components/finance/BudgetSummary.test.tsx`
+- `cd mini-app && npx vitest --run src/__tests__/components/finance/BudgetTracker.test.tsx`
+- `cd mini-app && npx vitest --run src/__tests__/components/finance/GoalCard.test.tsx`
+- `cd mini-app && npx vitest --run src/__tests__/components/finance/GoalContribution.test.tsx`
+- `cd mini-app && npx vitest --run src/__tests__/components/finance/GoalForm.test.tsx`
+- `cd mini-app && npx vitest --run src/__tests__/components/finance/SavingsGoal.test.tsx`
+- `cd mini-app && npx vitest --run src/__tests__/components/finance/useBudget.test.ts`
+- `cd mini-app && npx vitest --run src/__tests__/components/finance/useSavingsGoals.test.ts`
+
+### 2. Fix any failing tests
+Common issues to watch for:
+- Mock/spy setups that reference old API patterns
+- Missing database table mocks (social has friends/challenges tables)
+- Component import errors if page structure changed
+
+### 3. Update test:mvp scripts
+After fixing tests, update `test:mvp` in BOTH package.json files to include social/finance test files:
+- `bot/package.json` — add social.http, finance.http test files
+- `mini-app/package.json` — add Social, Finance pages + social components dir + finance components dir + useSocial hook
+
+### 4. Verify everything passes
+- Run: `cd bot && npm run test:mvp` — ALL must pass
+- Run: `cd mini-app && npm run test:mvp` — ALL must pass
+
+OWNED: bot/src/__tests__/routes/http/social.http.test.ts, bot/src/__tests__/routes/http/finance.http.test.ts, mini-app/src/__tests__/pages/Social.test.tsx, mini-app/src/__tests__/pages/Finance.test.tsx, mini-app/src/__tests__/hooks/useSocial.test.ts, mini-app/src/__tests__/components/social/*.test.tsx, mini-app/src/__tests__/components/finance/*.test.tsx, mini-app/src/__tests__/components/finance/*.test.ts, bot/package.json (ONLY test:mvp script), mini-app/package.json (ONLY test:mvp script)
+FORBIDDEN: bot/src/api/*, bot/src/jobs/*, mini-app/src/pages/*, mini-app/src/components/* (source code — only test files), PARALLEL_AGENTS.md (except your retrospective section)
+After done, verify: cd bot && npm run test:mvp && cd ../mini-app && npm run test:mvp. Write retrospective in PARALLEL_AGENTS.md under "Run 81 Retrospectives > Agent C Retrospective".
+```
+
+### Run 81 File Ownership Matrix
+
+| File/Dir | Agent A | Agent B | Agent C |
+|----------|---------|---------|---------|
+| bot/src/api/server.ts | OWNED | ❌ | ❌ |
+| bot/src/api/routes/social.ts | OWNED | ❌ | ❌ |
+| bot/src/api/routes/finance.ts | OWNED | ❌ | ❌ |
+| mini-app/src/App.tsx | ❌ | OWNED | ❌ |
+| mini-app/src/pages/Social.tsx | ❌ | OWNED | ❌ |
+| mini-app/src/pages/Finance.tsx | ❌ | OWNED | ❌ |
+| mini-app/src/components/social/* | ❌ | OWNED | ❌ |
+| mini-app/src/components/finance/* | ❌ | OWNED | ❌ |
+| mini-app/src/hooks/use{Social,FinanceAnalytics}.ts | ❌ | OWNED | ❌ |
+| bot/src/__tests__/** (social/finance) | ❌ | ❌ | OWNED |
+| mini-app/src/__tests__/** (social/finance) | ❌ | ❌ | OWNED |
+| bot/package.json (test:mvp only) | ❌ | ❌ | OWNED |
+| mini-app/package.json (test:mvp only) | ❌ | ❌ | OWNED |
+
+### Run 81 Merge Order
+1. Agent A (backend — re-enable routes)
+2. Agent B (frontend — re-enable pages)
+3. Agent C (tests — fix tests + update test:mvp scripts)
+
+### Run 81 Retrospectives
+
+#### Agent A Retrospective
+*(To be filled by Agent A)*
+
+#### Agent B Retrospective
+*(To be filled by Agent B)*
+
+#### Agent C Retrospective
+*(To be filled by Agent C)*
 
 #### Agent 0 Retrospective
 *(To be filled by Agent 0)*
