@@ -5,7 +5,7 @@ import { lazy, Suspense, useCallback, useEffect, useState } from 'react';
 import { Onboarding } from '@/pages/Onboarding';
 import { Navigation } from '@/components/Navigation';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
-// [MVP-DISABLED] import { LazyPageWrapper } from '@/components/LazyPageWrapper';
+import { LazyPageWrapper } from '@/components/LazyPageWrapper';
 import { ProtectedRoute } from '@/components/ProtectedRoute';
 import { OfflineBanner } from '@/components/OfflineBanner';
 import { InstallPrompt } from '@/components/InstallPrompt';
@@ -35,9 +35,9 @@ const ActivityHistory = lazy(() => import('@/pages/ActivityHistory').then(m => (
 const ContentFeed = lazy(() => import('@/pages/ContentFeed').then(m => ({ default: m.ContentFeed })));
 const ArticleReader = lazy(() => import('@/pages/ArticleReader').then(m => ({ default: m.ArticleReader })));
 const ReadingHistory = lazy(() => import('@/pages/ReadingHistory').then(m => ({ default: m.ReadingHistory })));
-// [MVP-DISABLED] const AdminDashboard = lazy(() => import('@/pages/admin/AdminDashboard').then(m => ({ default: m.AdminDashboard })));
-// [MVP-DISABLED] const AdminPlayerList = lazy(() => import('@/pages/admin/AdminPlayerList').then(m => ({ default: m.AdminPlayerList })));
-// [MVP-DISABLED] const AdminPlayerDetail = lazy(() => import('@/pages/admin/AdminPlayerDetail').then(m => ({ default: m.AdminPlayerDetail })));
+const AdminDashboard = lazy(() => import('@/pages/admin/AdminDashboard').then(m => ({ default: m.AdminDashboard })));
+const AdminPlayerList = lazy(() => import('@/pages/admin/AdminPlayerList').then(m => ({ default: m.AdminPlayerList })));
+const AdminPlayerDetail = lazy(() => import('@/pages/admin/AdminPlayerDetail').then(m => ({ default: m.AdminPlayerDetail })));
 
 // Create React Query client
 const queryClient = new QueryClient({
@@ -161,10 +161,10 @@ function AppContent() {
         <Route path="/content" element={<ProtectedRoute needsOnboarding={effectiveNeedsOnboarding} lazy><ContentFeed /></ProtectedRoute>} />
         <Route path="/content/:articleId" element={<ProtectedRoute needsOnboarding={effectiveNeedsOnboarding} lazy><ArticleReader /></ProtectedRoute>} />
         <Route path="/content/bookmarks" element={<ProtectedRoute needsOnboarding={effectiveNeedsOnboarding} lazy><ReadingHistory /></ProtectedRoute>} />
-        {/* [MVP-DISABLED] <Route path="/admin" element={<Navigate to="/admin/dashboard" replace />} /> */}
-        {/* [MVP-DISABLED] <Route path="/admin/dashboard" element={<LazyPageWrapper><AdminDashboard /></LazyPageWrapper>} /> */}
-        {/* [MVP-DISABLED] <Route path="/admin/players" element={<LazyPageWrapper><AdminPlayerList /></LazyPageWrapper>} /> */}
-        {/* [MVP-DISABLED] <Route path="/admin/players/:userId" element={<LazyPageWrapper><AdminPlayerDetail /></LazyPageWrapper>} /> */}
+        <Route path="/admin" element={<Navigate to="/admin/dashboard" replace />} />
+        <Route path="/admin/dashboard" element={<LazyPageWrapper><AdminDashboard /></LazyPageWrapper>} />
+        <Route path="/admin/players" element={<LazyPageWrapper><AdminPlayerList /></LazyPageWrapper>} />
+        <Route path="/admin/players/:userId" element={<LazyPageWrapper><AdminPlayerDetail /></LazyPageWrapper>} />
       </Routes>
       </main>
       <InstallPrompt />
