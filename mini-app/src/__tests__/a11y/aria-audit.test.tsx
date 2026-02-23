@@ -47,7 +47,8 @@ vi.mock('@/hooks/usePullToRefresh', () => ({
 }));
 
 vi.mock('@tanstack/react-query', () => ({
-  useQueryClient: () => ({ clear: vi.fn() }),
+  useQueryClient: () => ({ clear: vi.fn(), invalidateQueries: vi.fn() }),
+  useQuery: () => ({ data: [], isLoading: false, isError: false, refetch: vi.fn() }),
 }));
 
 vi.mock('@/hooks/useOnboarding', () => ({
