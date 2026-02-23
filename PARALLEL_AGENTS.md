@@ -1610,3 +1610,33 @@ Write retrospective when done.
 - Zero post-merge test failures — all 24 failures fixed
 - Final counts: Mini-app 941/941 (100%), Bot 1100/1100 (100%)
 - Test debt fully cleared: from 24 failures across 6 files to 0 failures
+
+---
+
+### Run 90 Retrospectives
+
+#### Agent B Retrospective
+**Status**: Complete — 3 new skeleton components + shimmer CSS + 3 existing skeletons enhanced, `tsc --noEmit` clean.
+
+**Created**:
+- `mini-app/src/styles/shimmer.css` — CSS shimmer overlay effect using `::after` pseudo-element with translating gradient animation (1.5s infinite)
+- `mini-app/src/components/analytics/AnalyticsSkeleton.tsx` — matches Analytics page layout: header, 3 time range toggles, 2x2 stat cards, 3-column stats row, chart placeholder, mode breakdown placeholder
+- `mini-app/src/components/notifications/NotificationHistorySkeleton.tsx` — matches NotificationHistory page: gradient header, 5 filter pill placeholders, 5 notification items (icon circle + text lines)
+- `mini-app/src/components/inventory/InventorySkeleton.tsx` — matches Inventory page: gradient header with total items card + category tabs, 6 item cards (icon + name/rarity + description + metadata)
+
+**Modified**:
+- `mini-app/src/main.tsx` — imported `shimmer.css`
+- `DashboardSkeleton.tsx` — added `skeleton-shimmer` class + `role="status"` + `aria-label`
+- `ProfileSkeleton.tsx` — added `skeleton-shimmer` class + `role="status"` + `aria-label`
+- `LeaderboardSkeleton.tsx` — added `skeleton-shimmer` class + `role="status"` + `aria-label`
+- `Analytics.tsx` — replaced `Loader2` spinner with `<AnalyticsSkeleton />`, removed unused `Loader2` import
+- `NotificationHistory.tsx` — added early return with `<NotificationHistorySkeleton />`, removed inline loading skeleton from JSX ternary
+- `Inventory.tsx` — replaced spinner + text loading state with `<InventorySkeleton />`
+
+**Design decisions**:
+- Shimmer overlay uses `rgba(255,255,255,0.08)` for subtle effect on dark Telegram themes
+- New skeletons use inline `style={{ background: 'rgba(255,255,255,0.2)' }}` for elements inside gradient headers (since `.skeleton` class uses CSS variables that don't render well on colored backgrounds)
+- All skeletons include `role="status"` and `aria-label="Loading ..."` for screen readers
+- Kept changes to existing pages minimal — only swapped loading state, no restructuring
+
+**Issues**: None. Clean TypeScript build.
