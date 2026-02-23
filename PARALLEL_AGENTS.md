@@ -303,7 +303,7 @@ Runs 78-85: MVP recovery + feature re-enablement. Run 86: Animation polish + med
 | Run | Focus | Agents | Status |
 |-----|-------|--------|--------|
 | **78-88** | MVP Recovery → Feature Re-enable → Medication System | varies | ✅ |
-| **89** | Test Debt Cleanup — fix all 24 pre-existing mini-app failures | 4 | ⬜ |
+| **89** | Test Debt Cleanup — fix all 24 pre-existing mini-app failures | 4 | ✅ |
 | **90** | UX Polish — error states, loading skeletons, transitions, accessibility | 5 | ⬜ |
 | **91** | Medication Analytics — history page, adherence charts, weekly/monthly views | 4 | ⬜ |
 | **92** | Medication Reminders UI — in-app notification center, reminder preferences | 3 | ⬜ |
@@ -1610,3 +1610,444 @@ Write retrospective when done.
 - Zero post-merge test failures — all 24 failures fixed
 - Final counts: Mini-app 941/941 (100%), Bot 1100/1100 (100%)
 - Test debt fully cleared: from 24 failures across 6 files to 0 failures
+
+---
+
+## RUN 90: UX Polish (5 Agents + Agent 0)
+
+### Focus: Error handling, loading skeletons, page transitions, accessibility, toast/feedback polish
+
+### Copy-Paste Prompts
+
+**Agent 0** (open in: `c:\Users\Asus\Desktop\Wibecode`):
+```
+Read PARALLEL_AGENTS.md — you are Agent 0 for Run 90.
+```
+
+**Agent A** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-a`):
+```
+Read PARALLEL_AGENTS.md — you are Agent A of Run 90. Your task: Global error handling polish — error boundaries, retry patterns, offline UX.
+
+IMPORTANT: Before doing anything, verify your working directory: run `pwd` and confirm it ends with `Wibecode-agent-a`, NOT `Wibecode`. If wrong, STOP and tell the user.
+
+## Context
+
+The app has basic error handling:
+- `ErrorBoundary.tsx` — class component wrapping entire app, shows red error card with retry
+- `ErrorSection.tsx` — reusable error display with `role="alert"`, retry button, haptic feedback
+- `OfflineBanner.tsx` — shows banner when offline via `useServiceWorker()` hook
+- Most pages use `ErrorSection` in their error states already
+
+## What to do
+
+### 1. Create `mini-app/src/components/PageErrorBoundary.tsx`
+A lighter, page-level error boundary that:
+- Catches errors only within a single page (not the whole app)
+- Shows a friendly error message with the page name
+- Has "Retry" button that resets error state AND calls React Query `queryClient.invalidateQueries()`
+- Uses `motion.div` for smooth appearance (fade-in)
+- Includes an error icon (AlertTriangle from lucide-react)
+- Uses i18n keys for all text: `error.pageTitle`, `error.pageMessage`, `error.retry`
+- Props: `pageName: string, children: ReactNode`
+
+### 2. Wrap page routes in App.tsx with PageErrorBoundary
+In `mini-app/src/App.tsx`, wrap each `<Route>` element's component with `PageErrorBoundary`:
+```tsx
+<Route path="/dashboard" element={
+  <ProtectedRoute needsOnboarding={effectiveNeedsOnboarding} lazy>
+    <PageErrorBoundary pageName="Dashboard"><Dashboard /></PageErrorBoundary>
+  </ProtectedRoute>
+} />
+```
+Do this for ALL page routes (Dashboard, Quests, Profile, Settings, Leaderboard, Achievements, Shop, TrophyCase, Inventory, Social, Analytics, ActivityHub, ActivityHistory, NotificationHistory, Medications, Admin).
+
+### 3. Enhance ErrorSection.tsx with retry count and exponential backoff
+Update `ErrorSection.tsx`:
+- Add optional `maxRetries` prop (default: 3)
+- Track retry count internally
+- After `maxRetries`, disable the retry button and show "Please try again later"
+- Show which retry attempt: "Retry (2/3)"
+- Keep existing `role="alert"` and haptic feedback
+
+### 4. Enhance OfflineBanner.tsx
+- Add a "back online" animation: when connection restores, show green "Back online!" banner for 2 seconds before hiding
+- Add retry action: button to manually check connection
+- Use spring animation matching the existing entry animation
+
+### 5. Build verify
+`cd mini-app && npx tsc --noEmit`
+
+OWNED: `mini-app/src/components/PageErrorBoundary.tsx` (new), `mini-app/src/components/ErrorBoundary.tsx`, `mini-app/src/components/ErrorSection.tsx`, `mini-app/src/components/OfflineBanner.tsx`, `mini-app/src/App.tsx` (GRAY: only add PageErrorBoundary wrappers around route elements)
+FORBIDDEN: bot/src/*, skeleton components, PageTransition.tsx, Toast.tsx, FocusTrap.tsx, SkipLink.tsx, Navigation.tsx, modal components, test files
+Write retrospective when done.
+```
+
+**Agent B** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-b`):
+```
+Read PARALLEL_AGENTS.md — you are Agent B of Run 90. Your task: Loading state audit — skeleton loaders for all pages, shimmer effects.
+
+IMPORTANT: Before doing anything, verify your working directory: run `pwd` and confirm it ends with `Wibecode-agent-b`, NOT `Wibecode`. If wrong, STOP and tell the user.
+
+## Context
+
+Most pages already have dedicated skeleton components:
+- DashboardSkeleton, QuestsSkeleton, ProfileSkeleton, SettingsSkeleton, LeaderboardSkeleton, AchievementsSkeleton, TrophyCaseSkeleton — all in `components/<feature>/` dirs
+- MedicationsSkeleton is inline in Medications.tsx
+- ShopSkeleton, SocialSkeleton, ActivityHubSkeleton are inline in their pages
+
+Pages MISSING proper skeletons:
+- `Analytics.tsx` — shows spinner + loading text, no skeleton
+- `NotificationHistory.tsx` — no skeleton
+- `Inventory.tsx` — no skeleton visible
+- `ActivityHistory.tsx` — unknown, needs checking
+
+Existing skeletons use `animate-pulse` from Tailwind but no shimmer gradient effect.
+
+## What to do
+
+### 1. Create `mini-app/src/components/analytics/AnalyticsSkeleton.tsx`
+Skeleton matching the Analytics page layout:
+- Chart placeholder (rounded rect, full width, h-48)
+- Stats row (3 metric cards)
+- Trend section (2 rows with labels and values)
+- Use `animate-pulse` + new shimmer effect
+- Add `role="status"` and `aria-label="Loading analytics"`
+
+### 2. Create `mini-app/src/components/notifications/NotificationHistorySkeleton.tsx`
+Skeleton matching the NotificationHistory page:
+- Filter tabs placeholder (row of 4-5 rounded pills)
+- Notification list (5 items with icon circle + 2 text lines each)
+- Use consistent skeleton pattern
+- Add `role="status"` and `aria-label="Loading notifications"`
+
+### 3. Create `mini-app/src/components/inventory/InventorySkeleton.tsx`
+Skeleton matching the Inventory page:
+- Tab bar placeholder
+- Grid of 6 item cards (icon + title + description placeholders)
+- Add `role="status"` and `aria-label="Loading inventory"`
+
+### 4. Add shimmer CSS effect
+Create or update `mini-app/src/styles/shimmer.css`:
+```css
+.skeleton-shimmer {
+  position: relative;
+  overflow: hidden;
+}
+.skeleton-shimmer::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.08), transparent);
+  animation: shimmer 1.5s infinite;
+}
+@keyframes shimmer {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+```
+Import this in `mini-app/src/main.tsx` or the global CSS file.
+
+### 5. Apply shimmer to existing skeletons
+Update the existing skeleton components to add `skeleton-shimmer` class to their main containers (alongside `animate-pulse`):
+- `DashboardSkeleton.tsx`
+- `ProfileSkeleton.tsx`
+- `LeaderboardSkeleton.tsx`
+(Just add the class — don't restructure the components)
+
+### 6. Wire new skeletons into their pages
+- `Analytics.tsx` — replace spinner with `<AnalyticsSkeleton />`
+- `NotificationHistory.tsx` — add loading state with `<NotificationHistorySkeleton />`
+- `Inventory.tsx` — add loading state with `<InventorySkeleton />`
+
+### 7. Build verify
+`cd mini-app && npx tsc --noEmit`
+
+OWNED: `mini-app/src/components/analytics/AnalyticsSkeleton.tsx` (new), `mini-app/src/components/notifications/NotificationHistorySkeleton.tsx` (new), `mini-app/src/components/inventory/InventorySkeleton.tsx` (new), `mini-app/src/styles/shimmer.css` (new), existing skeleton components (add shimmer class only), `mini-app/src/pages/Analytics.tsx`, `mini-app/src/pages/NotificationHistory.tsx`, `mini-app/src/pages/Inventory.tsx` (GRAY: only swap loading state to skeleton)
+FORBIDDEN: bot/src/*, ErrorBoundary.tsx, PageTransition.tsx, Toast.tsx, FocusTrap.tsx, Navigation.tsx, modal components, App.tsx, test files, i18n files
+Write retrospective when done.
+```
+
+**Agent C** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-c`):
+```
+Read PARALLEL_AGENTS.md — you are Agent C of Run 90. Your task: Page transitions — consistent AnimatePresence, stagger animations.
+
+IMPORTANT: Before doing anything, verify your working directory: run `pwd` and confirm it ends with `Wibecode-agent-c`, NOT `Wibecode`. If wrong, STOP and tell the user.
+
+## Context
+
+Current setup:
+- `PageTransition.tsx` wraps `<Routes>` in App.tsx with `AnimatePresence mode="wait"`
+- Uses `motion.div` with: initial `opacity: 0, y: 8`, animate `opacity: 1, y: 0`, exit `opacity: 0`
+- Duration: 0.2s enter, 0.1s exit, easeOut
+- Key: `location.pathname`
+- Individual components use `motion.div` for their own animations but no consistent stagger pattern
+
+## What to do
+
+### 1. Enhance `mini-app/src/components/PageTransition.tsx`
+Improve the page transition feel:
+- Add `scale` to entry: initial `{ opacity: 0, y: 6, scale: 0.99 }`, animate `{ opacity: 1, y: 0, scale: 1 }`
+- Slightly longer enter (0.25s) with custom spring: `type: 'spring', stiffness: 400, damping: 30`
+- Keep fast exit: `{ opacity: 0 }` at 0.1s
+- Add `onExitComplete` callback prop (optional) for cleanup actions
+
+### 2. Create `mini-app/src/components/StaggerList.tsx`
+A reusable component for staggering list item animations:
+```tsx
+interface StaggerListProps {
+  children: React.ReactNode[];
+  staggerDelay?: number; // default 0.05s
+  className?: string;
+}
+```
+- Wraps each child in `motion.div` with stagger delay
+- Uses `AnimatePresence` for items entering/leaving
+- Variants: initial `{ opacity: 0, y: 10 }`, animate `{ opacity: 1, y: 0 }`
+- Transition: `type: 'spring', stiffness: 300, damping: 25`
+- Export as named export
+
+### 3. Create `mini-app/src/hooks/useStaggerAnimation.ts`
+A hook that returns framer-motion variants for stagger animation:
+```typescript
+export function useStaggerAnimation(itemCount: number, delay = 0.05) {
+  const containerVariants = { ... };
+  const itemVariants = { ... };
+  return { containerVariants, itemVariants };
+}
+```
+This is useful for pages that want to animate their own lists without using `StaggerList`.
+
+### 4. Add stagger animations to key list pages
+Apply `StaggerList` or `useStaggerAnimation` to:
+- `mini-app/src/pages/Leaderboard.tsx` — stagger leaderboard entries
+- `mini-app/src/pages/Achievements.tsx` — stagger achievement cards
+- `mini-app/src/pages/Shop.tsx` — stagger shop items
+
+For each page: wrap the list rendering section with `StaggerList` or apply variants to existing `motion.div` elements. Keep changes minimal — just add stagger, don't restructure.
+
+### 5. Build verify
+`cd mini-app && npx tsc --noEmit`
+
+OWNED: `mini-app/src/components/PageTransition.tsx`, `mini-app/src/components/StaggerList.tsx` (new), `mini-app/src/hooks/useStaggerAnimation.ts` (new), `mini-app/src/pages/Leaderboard.tsx`, `mini-app/src/pages/Achievements.tsx`, `mini-app/src/pages/Shop.tsx` (GRAY: only add stagger to list sections)
+FORBIDDEN: bot/src/*, ErrorBoundary.tsx, ErrorSection.tsx, skeleton components, Toast.tsx, FocusTrap.tsx, Navigation.tsx, modal components, App.tsx, test files, i18n files
+Write retrospective when done.
+```
+
+**Agent D** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-d`):
+```
+Read PARALLEL_AGENTS.md — you are Agent D of Run 90. Your task: Accessibility pass — ARIA labels, keyboard navigation, screen reader support.
+
+IMPORTANT: Before doing anything, verify your working directory: run `pwd` and confirm it ends with `Wibecode-agent-d`, NOT `Wibecode`. If wrong, STOP and tell the user.
+
+## Context
+
+Existing a11y infrastructure:
+- `FocusTrap.tsx` — Tab wrapping, Escape handling, auto-focus, focus restoration. Uses FOCUSABLE_SELECTOR.
+- `SkipLink.tsx` — "Skip to main content" link with sr-only styling. Links to `#main-content`.
+- `ErrorSection.tsx` — has `role="alert"`, `aria-label` on retry button
+- Various pages have some `role`, `aria-label`, `aria-hidden` attributes already
+
+Gaps identified:
+- FocusTrap NOT used in any modal (QuestDetailModal, ChallengeDetailModal, PurchaseModal, TrophyDetailModal, ProfileEditModal, ModeUnlockModal, LevelUpModal)
+- Missing `aria-expanded`/`aria-pressed` on toggle buttons
+- Navigation lacks `aria-current="page"` on active items (check if already present — it's used in the test)
+- Some buttons lack accessible names (icon-only buttons)
+
+## What to do
+
+### 1. Add FocusTrap to all modal components
+Wrap modal content with `<FocusTrap>` in each of these files:
+- `mini-app/src/components/quests/QuestDetailModal.tsx`
+- `mini-app/src/components/social/ChallengeDetailModal.tsx`
+- `mini-app/src/components/shop/PurchaseModal.tsx`
+- `mini-app/src/components/trophies/TrophyDetailModal.tsx`
+- `mini-app/src/components/ProfileEditModal.tsx`
+- `mini-app/src/components/ModeUnlockModal.tsx`
+- `mini-app/src/components/celebrations/LevelUpModal.tsx`
+
+For each modal:
+1. Import `FocusTrap` from `@/components/FocusTrap`
+2. Wrap the modal overlay/content `div` with `<FocusTrap onEscape={onClose}>...</FocusTrap>`
+3. Add `role="dialog"` and `aria-modal="true"` to the modal container if missing
+4. Add `aria-label` or `aria-labelledby` to the dialog (use the modal title)
+5. Keep existing functionality — just wrap, don't restructure
+
+### 2. Add ARIA to Navigation component
+In `mini-app/src/components/Navigation.tsx`:
+- Ensure `role="navigation"` on the outer nav element (or use `<nav>`)
+- Ensure `role="tablist"` on the tab container
+- Ensure `role="tab"` on each tab button
+- Ensure `aria-current="page"` on the active tab (check if already implemented)
+- Add `aria-label="Main navigation"` to the nav element
+
+### 3. Add `aria-expanded` to collapsible/expandable elements
+Search for expandable sections (accordions, dropdowns) and add `aria-expanded`:
+- Settings page toggle switches — add `aria-pressed` to toggle buttons
+- Achievement detail expansion — add `aria-expanded`
+- Any dropdown or collapsible section
+
+### 4. Add `aria-label` to icon-only buttons
+Search for `<button>` or `<motion.button>` elements that contain only an icon and no text. Add `aria-label` describing the action:
+- Edit buttons (Pencil icon) → `aria-label="Edit"`
+- Close buttons (X icon) → `aria-label="Close"`
+- Settings button → `aria-label="Settings"`
+
+Focus on these components:
+- `mini-app/src/components/profile/ProfileHeader.tsx`
+- `mini-app/src/components/dashboard/` components
+- `mini-app/src/pages/Dashboard.tsx`
+
+### 5. Build verify
+`cd mini-app && npx tsc --noEmit`
+
+OWNED: All 7 modal components listed above, `mini-app/src/components/Navigation.tsx` (GRAY: add ARIA only), `mini-app/src/components/profile/ProfileHeader.tsx` (GRAY: add aria-labels only), `mini-app/src/pages/Dashboard.tsx` (GRAY: add aria-labels to icon buttons only)
+FORBIDDEN: bot/src/*, ErrorBoundary.tsx, ErrorSection.tsx, skeleton components, PageTransition.tsx, Toast.tsx, App.tsx, test files, i18n files
+Write retrospective when done.
+```
+
+**Agent E** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-e`):
+```
+Read PARALLEL_AGENTS.md — you are Agent E of Run 90. Your task: Toast/feedback polish — toast queue, success toasts, haptic consistency.
+
+IMPORTANT: Before doing anything, verify your working directory: run `pwd` and confirm it ends with `Wibecode-agent-e`, NOT `Wibecode`. If wrong, STOP and tell the user.
+
+## Context
+
+Current toast system:
+- `Toast.tsx` — single toast with role="alert", aria-live="assertive", 3 variants (success/error/info), 3s auto-dismiss, spring animation
+- `AchievementToast.tsx` — special achievement unlock toast
+- Toast is used in Profile.tsx and Settings.tsx via local `toast` state
+- No central toast queue — each page manages its own toast independently
+- Haptic is used in 49 files but patterns are inconsistent (some use `selection()`, others `impact('light')`, etc.)
+
+## What to do
+
+### 1. Create `mini-app/src/hooks/useToast.ts`
+A centralized toast hook with queue support:
+```typescript
+interface ToastItem {
+  id: string;
+  message: string;
+  variant: 'success' | 'error' | 'info';
+  duration?: number; // default 3000ms
+  action?: { label: string; onClick: () => void }; // optional undo/action button
+}
+
+export function useToast() {
+  // Returns: { toasts, showToast, dismissToast }
+  // Maintains a queue of up to 3 toasts
+  // Auto-dismisses after duration
+  // New toasts push old ones down (stack)
+}
+```
+Use `useState` with an array of `ToastItem`. Generate IDs with `crypto.randomUUID()` or `Date.now()`.
+
+### 2. Create `mini-app/src/components/ToastContainer.tsx`
+A container that renders the toast queue:
+- Position: fixed bottom-center (above navigation), `z-50`
+- Renders up to 3 toasts stacked with `AnimatePresence`
+- Each toast uses the existing `Toast` component style
+- New toasts animate in from bottom, dismissed ones fade out
+- Action button support (e.g., "Undo" after a delete)
+
+### 3. Add ToastContainer to App layout
+In `mini-app/src/App.tsx`, render `<ToastContainer />` outside the route structure so it persists across navigation. But do NOT touch App.tsx directly — instead, create a `ToastProvider` context:
+
+Create `mini-app/src/contexts/ToastContext.tsx`:
+```typescript
+const ToastContext = createContext<...>();
+export function ToastProvider({ children }) { ... }
+export function useToastContext() { return useContext(ToastContext); }
+```
+
+### 4. Create `mini-app/src/hooks/useHapticPattern.ts`
+Standardize haptic patterns:
+```typescript
+export function useHapticPattern() {
+  const { haptic } = useTelegram();
+  return {
+    tap: () => haptic.impact('light'),      // general tap
+    toggle: () => haptic.selection(),        // toggle/switch
+    success: () => haptic.notification('success'),
+    error: () => haptic.notification('error'),
+    delete: () => haptic.impact('medium'),   // destructive action
+    celebrate: () => haptic.impact('heavy'), // achievement/levelup
+  };
+}
+```
+
+### 5. Add success toasts to key mutation pages
+Add `useToast()` and show success toast in these pages:
+- `mini-app/src/pages/Medications.tsx` — toast on add/edit/delete medication, on log taken/skipped
+- `mini-app/src/pages/Settings.tsx` — toast on save preferences
+
+Keep changes minimal: import the hook, add a `showToast()` call after successful mutation.
+
+### 6. Build verify
+`cd mini-app && npx tsc --noEmit`
+
+OWNED: `mini-app/src/hooks/useToast.ts` (new), `mini-app/src/components/ToastContainer.tsx` (new), `mini-app/src/contexts/ToastContext.tsx` (new), `mini-app/src/hooks/useHapticPattern.ts` (new), `mini-app/src/components/Toast.tsx` (enhance if needed), `mini-app/src/pages/Medications.tsx` (GRAY: add success toasts only), `mini-app/src/pages/Settings.tsx` (GRAY: add success toasts only)
+FORBIDDEN: bot/src/*, ErrorBoundary.tsx, ErrorSection.tsx, skeleton components, PageTransition.tsx, FocusTrap.tsx, Navigation.tsx, modal components, test files, i18n files
+Write retrospective when done.
+```
+
+### Run 90 File Ownership Matrix
+
+| File/Dir | A | B | C | D | E |
+|----------|---|---|---|---|---|
+| ErrorBoundary.tsx | OWN | - | - | - | - |
+| ErrorSection.tsx | OWN | - | - | - | - |
+| OfflineBanner.tsx | OWN | - | - | - | - |
+| PageErrorBoundary.tsx (new) | NEW | - | - | - | - |
+| App.tsx | GRAY | - | - | - | - |
+| AnalyticsSkeleton.tsx (new) | - | NEW | - | - | - |
+| NotificationHistorySkeleton.tsx (new) | - | NEW | - | - | - |
+| InventorySkeleton.tsx (new) | - | NEW | - | - | - |
+| shimmer.css (new) | - | NEW | - | - | - |
+| Existing skeleton components | - | GRAY | - | - | - |
+| Analytics.tsx | - | GRAY | - | - | - |
+| NotificationHistory.tsx | - | GRAY | - | - | - |
+| Inventory.tsx | - | GRAY | - | - | - |
+| PageTransition.tsx | - | - | OWN | - | - |
+| StaggerList.tsx (new) | - | - | NEW | - | - |
+| useStaggerAnimation.ts (new) | - | - | NEW | - | - |
+| Leaderboard.tsx | - | - | GRAY | - | - |
+| Achievements.tsx | - | - | GRAY | - | - |
+| Shop.tsx | - | - | GRAY | - | - |
+| All 7 modal components | - | - | - | OWN | - |
+| Navigation.tsx | - | - | - | GRAY | - |
+| ProfileHeader.tsx | - | - | - | GRAY | - |
+| Toast.tsx | - | - | - | - | OWN |
+| ToastContainer.tsx (new) | - | - | - | - | NEW |
+| ToastContext.tsx (new) | - | - | - | - | NEW |
+| useToast.ts (new) | - | - | - | - | NEW |
+| useHapticPattern.ts (new) | - | - | - | - | NEW |
+| Medications.tsx | - | - | - | - | GRAY |
+| Settings.tsx | - | - | - | - | GRAY |
+
+### Run 90 Merge Order
+1. Agent A (error handling — foundational, touches App.tsx)
+2. Agent B (skeletons — independent of others)
+3. Agent C (transitions — independent, touches pages lightly)
+4. Agent D (accessibility — independent, touches modals + nav)
+5. Agent E (toast system — builds on existing, touches pages lightly)
+
+### Run 90 Retrospectives
+
+#### Agent A Retrospective
+*(To be filled by Agent A)*
+
+#### Agent B Retrospective
+*(To be filled by Agent B)*
+
+#### Agent C Retrospective
+*(To be filled by Agent C)*
+
+#### Agent D Retrospective
+*(To be filled by Agent D)*
+
+#### Agent E Retrospective
+*(To be filled by Agent E)*
+
+#### Agent 0 Retrospective
+*(To be filled by Agent 0)*
