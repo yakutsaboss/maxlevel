@@ -9,6 +9,7 @@ import { DailyMedTracker } from '@/components/medication/DailyMedTracker';
 import { MedicationCard } from '@/components/medication/MedicationCard';
 import { MedicationForm } from '@/components/medication/MedicationForm';
 import { useMedicationData } from '@/hooks/useMedicationData';
+import { useToastContext } from '@/contexts/ToastContext';
 import type { Medication, AddMedicationData } from '@/types';
 import type { MedicationLogStatus } from '@/types/medication';
 
@@ -64,6 +65,7 @@ function MedicationsSkeleton() {
 export function Medications() {
   const { t } = useTranslation();
   const { user, haptic } = useTelegram();
+  const { showToast } = useToastContext();
   const [formOpen, setFormOpen] = useState(false);
   const [editingMed, setEditingMed] = useState<Medication | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<number | null>(null);
@@ -83,8 +85,10 @@ export function Medications() {
     if (!user?.id) return;
     if (editingMed) {
       await updateMedication(editingMed.id, data);
+      showToast(t('medication.updated', 'Medication updated'), 'success');
     } else {
       await addMedication(data);
+      showToast(t('medication.added', 'Medication added'), 'success');
     }
     setFormOpen(false);
     setEditingMed(null);
@@ -99,6 +103,7 @@ export function Medications() {
     if (confirmDelete === id) {
       await deleteMedication(id);
       setConfirmDelete(null);
+      showToast(t('medication.deleted', 'Medication removed'), 'info');
     } else {
       haptic.impact('light');
       setConfirmDelete(id);
@@ -108,6 +113,11 @@ export function Medications() {
 
   const handleLog = async (medicationId: number, scheduledTime: string, status: MedicationLogStatus) => {
     await logMedication(medicationId, scheduledTime, status);
+    if (status === 'taken') {
+      showToast(t('medication.markedTaken', 'Marked as taken'), 'success');
+    } else if (status === 'skipped') {
+      showToast(t('medication.markedSkipped', 'Marked as skipped'), 'info');
+    }
   };
 
   if (loading) {

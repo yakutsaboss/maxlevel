@@ -11,6 +11,7 @@ import { ProtectedRoute } from '@/components/ProtectedRoute';
 import { OfflineBanner } from '@/components/OfflineBanner';
 import { InstallPrompt } from '@/components/InstallPrompt';
 import { SkipLink } from '@/components/SkipLink';
+import { ToastProvider } from '@/contexts/ToastContext';
 import { useTelegram } from '@/hooks/useTelegram';
 import { useOnboarding } from '@/hooks/useOnboarding';
 import { apiClient } from '@/api/client';
@@ -193,7 +194,9 @@ function App() {
       <ErrorBoundary>
         <Suspense fallback={<div className="flex items-center justify-center min-h-screen bg-telegram-bg"><div className="text-telegram-hint animate-pulse">Loading...</div></div>}>
           <BrowserRouter basename="/levelapp">
-            <AppContent />
+            <ToastProvider>
+              <AppContent />
+            </ToastProvider>
           </BrowserRouter>
         </Suspense>
       </ErrorBoundary>
