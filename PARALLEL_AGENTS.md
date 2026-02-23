@@ -1610,3 +1610,28 @@ Write retrospective when done.
 - Zero post-merge test failures — all 24 failures fixed
 - Final counts: Mini-app 941/941 (100%), Bot 1100/1100 (100%)
 - Test debt fully cleared: from 24 failures across 6 files to 0 failures
+
+### Run 90 Retrospectives
+
+#### Agent C Retrospective
+**Status**: Complete — all 5 tasks done, `tsc --noEmit` passes cleanly.
+
+| # | Task | Status |
+|---|------|--------|
+| 1 | Enhance PageTransition.tsx (spring + scale) | Done |
+| 2 | Create StaggerList.tsx component | Done |
+| 3 | Create useStaggerAnimation.ts hook | Done |
+| 4 | Add stagger to Leaderboard, Achievements, Shop | Done |
+| 5 | Build verify | Pass |
+
+**Changes**:
+- `PageTransition.tsx`: Replaced `easeOut` with `spring(400, 30)`, added `scale: 0.99` to initial, added `onExitComplete` callback prop
+- `StaggerList.tsx` (new): Reusable component wrapping children in `AnimatePresence` + `motion.div` with configurable stagger delay
+- `useStaggerAnimation.ts` (new): Hook returning `containerVariants` (with `staggerChildren`) + `itemVariants` for pages managing their own lists
+- `Leaderboard.tsx`: Wrapped Top 3 cards and ranking rows in `motion.div` with container stagger (0.08s top, 0.04s list)
+- `Achievements.tsx`: Wrapped rarity groups in staggered `motion.div` container (0.08s)
+- `Shop.tsx`: Replaced per-item `delay: index * 0.03` with container-level `staggerChildren: 0.03` via `useStaggerAnimation`. Removed `index` prop from `ItemCard`.
+
+**Issues**: Minor TS errors on first build (unused `itemCount` param and unused module-level `itemVariants` const in StaggerList) — fixed immediately.
+
+**Recommendations for next run**: Consider adding `prefers-reduced-motion` media query check to disable all animations for accessibility.
