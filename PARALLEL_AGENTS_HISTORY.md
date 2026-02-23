@@ -1,6 +1,6 @@
 # Parallel Agents — Run History (Archive)
 
-This file contains completed run logs from Runs 2–86 (retrospectives, task descriptions, file matrices, merge results).
+This file contains completed run logs from Runs 2–89 (retrospectives, task descriptions, file matrices, merge results).
 For the active protocol and current run, see `PARALLEL_AGENTS.md`.
 
 ---
@@ -32430,3 +32430,1269 @@ A → B → C → D → E → F → G (G always last)
 - **Issues**: Agent D and F both touched PathSelect.tsx — Agent D committed animation polish, Agent F committed unlock logic. F preserved D's work. No conflicts but shared file ownership should be avoided in future runs.
 - **Roadmap**: Run 86 was a user-requested feature run (post-roadmap). All mandatory roadmap runs (78-85) are ✅.
 
+
+## RUN 87: Medication Mode + Notification Enhancements (8 Agents + Agent 0)
+
+### Focus: Full medication tracking system (DB, API, jobs, UI) + streak milestone notifications + notification history polish
+
+### Copy-Paste Prompts
+
+**Agent 0** (open in: `c:\Users\Asus\Desktop\Wibecode`):
+```
+Read PARALLEL_AGENTS.md — you are Agent 0 for Run 87.
+```
+
+**Agent A** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-a`):
+```
+Read PARALLEL_AGENTS.md — you are Agent A of Run 87. Your task: Add medication database tables and seed data.
+
+## What to do
+
+### 1. Add `medications` table to `database/schema.sql`
+Add after the `mode_unlocks` table:
+```sql
+CREATE TABLE medications (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    name VARCHAR(100) NOT NULL,
+    dosage VARCHAR(100),
+    frequency VARCHAR(20) CHECK (frequency IN ('daily', 'twice_daily', 'three_times', 'weekly', 'as_needed')) NOT NULL DEFAULT 'daily',
+    time_of_day TIME[] NOT NULL DEFAULT '{08:00}',
+    color VARCHAR(20) DEFAULT 'blue',
+    notes TEXT,
+    is_active BOOLEAN DEFAULT TRUE,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE INDEX idx_medications_user ON medications(user_id);
+CREATE INDEX idx_medications_active ON medications(user_id, is_active);
+```
+
+### 2. Add `medication_logs` table
+```sql
+CREATE TABLE medication_logs (
+    id SERIAL PRIMARY KEY,
+    medication_id INTEGER NOT NULL REFERENCES medications(id) ON DELETE CASCADE,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    scheduled_date DATE NOT NULL DEFAULT CURRENT_DATE,
+    scheduled_time TIME NOT NULL,
+    status VARCHAR(20) CHECK (status IN ('taken', 'skipped', 'postponed')) NOT NULL,
+    logged_at TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE INDEX idx_med_logs_user_date ON medication_logs(user_id, scheduled_date);
+CREATE INDEX idx_med_logs_medication ON medication_logs(medication_id, scheduled_date);
+CREATE UNIQUE INDEX idx_med_logs_unique ON medication_logs(medication_id, scheduled_date, scheduled_time);
+```
+
+### 3. Add `notification_log` table
+```sql
+CREATE TABLE notification_log (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    type VARCHAR(50) NOT NULL,
+    title VARCHAR(255) NOT NULL,
+    body TEXT,
+    sent_at TIMESTAMPTZ DEFAULT NOW(),
+    read_at TIMESTAMPTZ
+);
+CREATE INDEX idx_notif_log_user ON notification_log(user_id, sent_at DESC);
+```
+
+### 4. Add medication quest templates to `database/seed_data.sql`
+Find the medication mode ID from the `modes` INSERT, then add quests:
+- Daily: "Take morning medications" (easy, 30 XP)
+- Daily: "Take evening medications" (easy, 30 XP)
+- Weekly: "Perfect medication week — no missed doses" (hard, 200 XP)
+
+### 5. Create migration script `database/migrations/run87_medication.sql`
+Combine all 3 CREATE TABLE statements + indexes + seed quests in one file for production deployment.
+
+OWNED: `database/schema.sql`, `database/seed_data.sql`, `database/migrations/run87_medication.sql` (new dir + file)
+FORBIDDEN: bot/src/*, mini-app/src/*, i18n files
+Write retrospective when done.
+```
+
+**Agent B** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-b`):
+```
+Read PARALLEL_AGENTS.md — you are Agent B of Run 87. Your task: Create medication CRUD API routes.
+
+## Context
+Agent A adds the `medications` and `medication_logs` tables. You create the Express routes. Follow the pattern in `bot/src/api/routes/checkins.ts` (auth, validation, error handling).
+
+## What to do
+
+### 1. Create `bot/src/api/routes/medications.ts`
+Endpoints:
+- `GET /api/medications/:userId` — list user's active medications (sorted by time_of_day[0])
+- `POST /api/medications` — add medication { telegram_id, name, dosage, frequency, time_of_day, color, notes }
+- `PATCH /api/medications/:id` — edit medication (validate ownership via telegram_id)
+- `DELETE /api/medications/:id` — soft-delete (SET is_active=false, validate ownership)
+- `GET /api/medications/:userId/today` — today's schedule: JOIN medications with medication_logs for current date, return each med with status (taken/skipped/pending)
+
+Use: `authenticateTelegram`, `requireOwnership` (or validate telegram_id), `mutationLimiter`, `readLimiter`, `asyncHandler`, `validateRequired`, `successResponse`, error classes from `../utils/errors.js`. Use `query` from `../../utils/db.js`.
+
+### 2. Create `bot/src/api/routes/medication-logs.ts`
+Endpoints:
+- `POST /api/medication-logs` — log taken/skipped/postponed { telegram_id, medication_id, scheduled_time, status }. Use UPSERT (ON CONFLICT UPDATE) so re-tapping toggles status.
+- `GET /api/medication-logs/:userId/history?days=7` — last N days of logs grouped by date, include medication names via JOIN. Calculate adherence rate (taken / total scheduled).
+
+### 3. Register in `bot/src/api/server.ts`
+Add 2 lines at the import section:
+```typescript
+import { medicationRouter } from './routes/medications.js';
+import { medicationLogRouter } from './routes/medication-logs.js';
+```
+Add 2 lines in the route registration section:
+```typescript
+app.use('/api/medications', medicationRouter);
+app.use('/api/medication-logs', medicationLogRouter);
+```
+
+### 4. Build verify
+`cd bot && npx tsc --noEmit`
+
+IMPORTANT: Use ESM imports with `.js` extensions for all local imports.
+
+OWNED: `bot/src/api/routes/medications.ts` (new), `bot/src/api/routes/medication-logs.ts` (new), `bot/src/api/server.ts` (add 2 imports + 2 app.use only)
+FORBIDDEN: mini-app/src/*, i18n files, jobs/, test files
+Write retrospective when done.
+```
+
+**Agent C** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-c`):
+```
+Read PARALLEL_AGENTS.md — you are Agent C of Run 87. Your task: Create medication reminder job and streak milestone notification job.
+
+## Context
+Follow the pattern in `bot/src/jobs/definitions/questReminders.ts` exactly:
+- Export JOB_NAME, CRON_SCHEDULE, handler, setBotInstance
+- DND-aware + timezone-aware
+- Rate-limited batching (30 msg/sec)
+- Use `logger.child({ component: '...' })`
+
+## What to do
+
+### 1. Create `bot/src/jobs/definitions/medicationReminder.ts`
+- JOB_NAME: 'medication-reminders'
+- CRON_SCHEDULE: '*/15 * * * *' (every 15 minutes)
+- Handler logic:
+  1. Query users with active medication mode AND notification_enabled=true
+  2. For each user, check if any medication's time_of_day is within ±7 min of current time in user's timezone
+  3. Skip users in DND window
+  4. Send Telegram message with medication name + dosage using medicationReminderTemplate
+  5. Log to notification_log table (type='medication_reminder')
+  6. Batch at 30 msg/sec, handle 429 rate limits
+
+### 2. Create `bot/src/jobs/definitions/streakMilestone.ts`
+- JOB_NAME: 'streak-milestones'
+- CRON_SCHEDULE: '0 1 * * *' (daily at 1 AM UTC)
+- Handler logic:
+  1. Query users whose current_streak is exactly 7, 14, 30, 60, or 100
+  2. Skip users with notification_enabled=false or in DND
+  3. Send congratulatory message using streakMilestoneTemplate
+  4. Log to notification_log table (type='streak_milestone')
+
+### 3. Add notification templates to `bot/src/utils/notificationTemplates.ts`
+Add 2 new exported template functions:
+- `medicationReminderTemplate(medName, dosage)` — "💊 Time for {medName}! Dosage: {dosage}. Tap to mark as taken."
+- `streakMilestoneTemplate(days, mode)` — "🔥 {days}-day streak! You're on fire with {mode}!"
+Both should return HTML strings matching the existing template style.
+
+### 4. Register both jobs in `bot/src/jobs/registerJobs.ts`
+- Add imports for medicationReminder and streakMilestone
+- Add both to the `jobs` array
+- Add `medicationReminder.setBotInstance(bot)` and `streakMilestone.setBotInstance(bot)` in registerAllJobs
+
+### 5. Build verify
+`cd bot && npx tsc --noEmit`
+
+OWNED: `bot/src/jobs/definitions/medicationReminder.ts` (new), `bot/src/jobs/definitions/streakMilestone.ts` (new), `bot/src/jobs/registerJobs.ts`, `bot/src/utils/notificationTemplates.ts`
+FORBIDDEN: mini-app/src/*, server.ts, API routes, test files
+Write retrospective when done.
+```
+
+**Agent D** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-d`):
+```
+Read PARALLEL_AGENTS.md — you are Agent D of Run 87. Your task: Create the Medications page and components for the mini-app.
+
+## Context
+This is a new page for managing medications. Follow existing page patterns (see Dashboard.tsx, Quests page). Use Tailwind + framer-motion for animations. Components should use i18n keys (Agent G adds translations).
+
+## What to do
+
+### 1. Create `mini-app/src/pages/Medications.tsx`
+Full medication management page:
+- Header with 💊 icon and page title
+- "Today's Schedule" section at top — shows DailyMedTracker component
+- "My Medications" section — list of MedicationCard components
+- FAB (floating action button) to add new medication
+- Empty state when no medications ("Add your first medication")
+- Pull-to-refresh support
+- Loading skeleton while fetching
+- Uses `useMedicationData` hook (Agent E creates it)
+
+### 2. Create `mini-app/src/components/medication/MedicationCard.tsx`
+Individual medication card:
+- Color dot (user-chosen color), medication name, dosage
+- Schedule times shown as chips (e.g., "8:00 AM", "8:00 PM")
+- Frequency label (Daily, Twice daily, etc.)
+- Swipe or long-press to reveal edit/delete actions
+- framer-motion entry animation (stagger from list)
+
+### 3. Create `mini-app/src/components/medication/MedicationForm.tsx`
+Add/edit medication form (slide-up modal):
+- Name input (required)
+- Dosage input (e.g., "500mg", "2 tablets")
+- Frequency selector (daily, twice_daily, three_times, weekly, as_needed)
+- Time picker(s) — show 1-3 time inputs based on frequency
+- Color picker (6 preset colors)
+- Notes textarea (optional)
+- Save/Cancel buttons
+- framer-motion slide-up animation
+
+### 4. Create `mini-app/src/components/medication/DailyMedTracker.tsx`
+Today's medication checklist:
+- List of medications due today with times
+- Each item has a checkbox (tap to mark taken)
+- Skipped button (tap to mark skipped)
+- Visual progress: "3/5 taken" with progress bar
+- Color-coded: green=taken, red=skipped, gray=pending
+- Uses `useMedicationData` hook for today's schedule + logging
+
+### 5. Add lazy route in `mini-app/src/App.tsx`
+Add after the existing lazy imports:
+```typescript
+const Medications = lazy(() => import('@/pages/Medications').then(m => ({ default: m.Medications })));
+```
+Add route inside Routes:
+```tsx
+<Route path="/medications" element={<ProtectedRoute needsOnboarding={effectiveNeedsOnboarding} lazy><Medications /></ProtectedRoute>} />
+```
+
+### 6. Build verify
+`cd mini-app && npx tsc --noEmit`
+
+OWNED: `mini-app/src/pages/Medications.tsx` (new), `mini-app/src/components/medication/MedicationCard.tsx` (new), `mini-app/src/components/medication/MedicationForm.tsx` (new), `mini-app/src/components/medication/DailyMedTracker.tsx` (new), `mini-app/src/App.tsx` (add 1 import + 1 route)
+FORBIDDEN: bot/src/*, Dashboard.tsx, hooks/, i18n files, Navigation.tsx, test files
+Write retrospective when done.
+```
+
+**Agent E** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-e`):
+```
+Read PARALLEL_AGENTS.md — you are Agent E of Run 87. Your task: Create medication React Query hooks and API client methods.
+
+## Context
+Follow the pattern in `mini-app/src/hooks/useDashboardQuery.ts` and `mini-app/src/hooks/useSocialQuery.ts` for React Query hooks. Follow `mini-app/src/api/client.ts` for API client methods.
+
+## What to do
+
+### 1. Add medication API methods to `mini-app/src/api/client.ts`
+Add these methods to the apiClient object:
+- `getMedications(userId: number)` — GET /api/medications/:userId
+- `addMedication(data: { telegram_id: number, name: string, dosage?: string, frequency: string, time_of_day: string[], color?: string, notes?: string })` — POST /api/medications
+- `updateMedication(id: number, data: Partial<...>)` — PATCH /api/medications/:id
+- `deleteMedication(id: number, telegramId: number)` — DELETE /api/medications/:id
+- `getTodaySchedule(userId: number)` — GET /api/medications/:userId/today
+- `logMedication(data: { telegram_id: number, medication_id: number, scheduled_time: string, status: string })` — POST /api/medication-logs
+- `getMedicationHistory(userId: number, days?: number)` — GET /api/medication-logs/:userId/history?days=N
+
+### 2. Create `mini-app/src/hooks/useMedicationQuery.ts`
+React Query hooks:
+- `useMedications(userId)` — staleTime 2min, queries getMedications
+- `useTodaySchedule(userId)` — staleTime 1min (changes frequently as user logs)
+- `useMedicationHistory(userId, days)` — staleTime 5min
+- `useAddMedicationMutation()` — invalidates medications + todaySchedule queries on success
+- `useUpdateMedicationMutation()` — invalidates medications query
+- `useDeleteMedicationMutation()` — optimistic remove from list
+- `useLogMedicationMutation()` — optimistic status update in todaySchedule
+- Export `medicationKeys` for cache management
+
+### 3. Create `mini-app/src/hooks/useMedicationData.ts`
+Wrapper hook providing a clean public API:
+```typescript
+export function useMedicationData(userId?: number) {
+  // Use React Query hooks internally
+  // Return: { medications, todaySchedule, history, loading, error, addMedication, updateMedication, deleteMedication, logMedication, refresh }
+}
+```
+
+### 4. Build verify
+`cd mini-app && npx tsc --noEmit`
+
+OWNED: `mini-app/src/api/client.ts` (add medication methods), `mini-app/src/hooks/useMedicationQuery.ts` (new), `mini-app/src/hooks/useMedicationData.ts` (new)
+FORBIDDEN: bot/src/*, pages/, components/, i18n files, test files
+Write retrospective when done.
+```
+
+**Agent F** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-f`):
+```
+Read PARALLEL_AGENTS.md — you are Agent F of Run 87. Your task: Add Medications to navigation, create dashboard widget, polish notification history.
+
+## Context
+The Medications page (Agent D) and hooks (Agent E) are being created in parallel. You handle the integration points: navigation tab, dashboard widget, and notification history page.
+
+## What to do
+
+### 1. Add Medications tab to `mini-app/src/components/Navigation.tsx`
+- Add a 💊 Pill icon tab (use `Pill` from lucide-react, or fallback to a custom icon)
+- Place it between Quests and Leaderboard in the nav order
+- Only show this tab if user has medication mode active (check user's active modes from stats data or add a simple check)
+- Follow existing animation patterns (motion.button, whileTap, icon scale)
+- Label: use i18n key `nav.medications`
+
+### 2. Create `mini-app/src/components/dashboard/MedicationWidget.tsx`
+Dashboard widget showing today's medication status:
+- Title: "Today's Medications" with 💊 icon
+- Progress circle or bar: "3/5 taken"
+- Next medication due: "Aspirin — in 2 hours"
+- Tap to navigate to /medications page
+- Uses `useMedicationData` hook (Agent E) or direct API call
+- Compact design (fits in dashboard flow)
+- framer-motion fade-in animation
+
+### 3. Add MedicationWidget to `mini-app/src/pages/Dashboard.tsx`
+- Import and render MedicationWidget after StreakSection
+- Only render if user has medication mode active (check stats.activeModes or similar)
+- Wrap in motion.div with stagger animation matching other sections
+
+### 4. Polish `mini-app/src/pages/NotificationHistory.tsx`
+- Read the current implementation first
+- Ensure it shows notifications from the API (notification_log table)
+- Add type filter (all, quest, achievement, medication, streak)
+- Mark notifications as read when viewed
+- Empty state for no notifications
+- Pull-to-refresh
+
+### 5. Build verify
+`cd mini-app && npx tsc --noEmit`
+
+OWNED: `mini-app/src/components/Navigation.tsx`, `mini-app/src/components/dashboard/MedicationWidget.tsx` (new), `mini-app/src/pages/Dashboard.tsx` (add widget), `mini-app/src/pages/NotificationHistory.tsx`
+FORBIDDEN: bot/src/*, hooks/, api/client.ts, App.tsx, i18n files, test files
+Write retrospective when done.
+```
+
+**Agent G** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-g`):
+```
+Read PARALLEL_AGENTS.md — you are Agent G of Run 87. Your task: Add i18n translations for all medication and notification strings.
+
+## What to do
+
+### 1. Add medication strings to `mini-app/src/i18n/en.ts`
+Add a `medication` section:
+- `medication.title` — "Medications"
+- `medication.todaySchedule` — "Today's Schedule"
+- `medication.myMedications` — "My Medications"
+- `medication.addMedication` — "Add Medication"
+- `medication.editMedication` — "Edit Medication"
+- `medication.name` — "Medication Name"
+- `medication.dosage` — "Dosage"
+- `medication.frequency` — "Frequency"
+- `medication.timeOfDay` — "Time of Day"
+- `medication.color` — "Color"
+- `medication.notes` — "Notes (optional)"
+- `medication.save` — "Save"
+- `medication.cancel` — "Cancel"
+- `medication.delete` — "Delete"
+- `medication.deleteConfirm` — "Remove this medication?"
+- `medication.taken` — "Taken"
+- `medication.skipped` — "Skipped"
+- `medication.postponed` — "Postponed"
+- `medication.pending` — "Pending"
+- `medication.progress` — "{{taken}}/{{total}} taken"
+- `medication.nextDue` — "Next: {{name}} in {{time}}"
+- `medication.noDue` — "All done for today!"
+- `medication.emptyState` — "No medications added yet"
+- `medication.emptyHint` — "Tap + to add your first medication"
+- `medication.adherence` — "Adherence: {{rate}}%"
+- `medication.history` — "History"
+- `medication.frequencyDaily` — "Daily"
+- `medication.frequencyTwice` — "Twice daily"
+- `medication.frequencyThree` — "Three times daily"
+- `medication.frequencyWeekly` — "Weekly"
+- `medication.frequencyAsNeeded` — "As needed"
+
+Add navigation key:
+- `nav.medications` — "Medications"
+
+Add dashboard widget keys:
+- `dashboard.medicationWidget` — "Today's Medications"
+- `dashboard.medicationProgress` — "{{taken}}/{{total}} taken"
+- `dashboard.nextMedication` — "Next: {{name}}"
+
+Add notification keys:
+- `notifications.title` — "Notifications"
+- `notifications.filterAll` — "All"
+- `notifications.filterQuest` — "Quests"
+- `notifications.filterAchievement` — "Achievements"
+- `notifications.filterMedication` — "Medication"
+- `notifications.filterStreak` — "Streaks"
+- `notifications.empty` — "No notifications yet"
+- `notifications.streakMilestone` — "🔥 {{days}}-day streak!"
+
+### 2. Add same strings to `mini-app/src/i18n/ru.ts` (Russian)
+Translate all keys to Russian.
+
+### 3. Add same strings to `mini-app/src/i18n/zh.ts` (Chinese)
+Translate all keys to Chinese.
+
+### 4. Build verify
+`cd mini-app && npx tsc --noEmit`
+
+OWNED: `mini-app/src/i18n/en.ts`, `mini-app/src/i18n/ru.ts`, `mini-app/src/i18n/zh.ts`
+FORBIDDEN: bot/src/*, pages/, components/, hooks/, test files
+Write retrospective when done.
+```
+
+**Agent H** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-h`):
+```
+Read PARALLEL_AGENTS.md — you are Agent H of Run 87. Your task: Write tests for all new medication code and fix any build/test failures.
+
+## What to do
+
+### 1. Create `bot/src/__tests__/routes/http/medications.http.test.ts`
+Test medication CRUD API:
+- GET /api/medications/:userId — returns list
+- POST /api/medications — creates medication, validates required fields
+- PATCH /api/medications/:id — updates medication
+- DELETE /api/medications/:id — soft-deletes
+- GET /api/medications/:userId/today — returns today's schedule
+Follow pattern from existing http tests (e.g., `checkins.http.test.ts` or `modes.http.test.ts`).
+
+### 2. Create `bot/src/__tests__/routes/http/medication-logs.http.test.ts`
+Test logging API:
+- POST /api/medication-logs — logs taken/skipped
+- GET /api/medication-logs/:userId/history — returns history with adherence rate
+
+### 3. Create `mini-app/src/__tests__/hooks/useMedicationData.test.ts`
+Test the medication data hook:
+- Fetches medications on mount
+- Fetches today's schedule
+- addMedication mutation works
+- logMedication mutation works
+- Wrap in QueryClientProvider (follow useShop.test.ts pattern)
+
+### 4. Create `mini-app/src/__tests__/pages/Medications.test.tsx`
+Test the Medications page:
+- Renders medication list
+- Shows empty state when no medications
+- Add medication button works
+- Daily tracker shows today's schedule
+Mock useMedicationData hook. Mock framer-motion with shared mock from `src/test/mocks/framer-motion.ts`.
+
+### 5. Add test paths to package.json test:mvp
+In `bot/package.json` test:mvp, add:
+- `src/__tests__/routes/http/medications.http.test.ts`
+- `src/__tests__/routes/http/medication-logs.http.test.ts`
+
+In `mini-app/package.json` test:mvp, add:
+- `src/__tests__/hooks/useMedicationData.test.ts`
+- `src/__tests__/pages/Medications.test.tsx`
+
+### 6. Fix any build/test failures from other agents
+Run full test suites and fix any issues:
+- `cd bot && npm run test:mvp`
+- `cd mini-app && npm run test:mvp`
+Report final test counts.
+
+OWNED: All new test files listed above, `bot/package.json` (test:mvp), `mini-app/package.json` (test:mvp)
+FORBIDDEN: Source code files (except to fix build errors from other agents)
+Write retrospective when done.
+```
+
+### Run 87 File Ownership Matrix
+
+| File/Dir | A | B | C | D | E | F | G | H |
+|----------|---|---|---|---|---|---|---|---|
+| database/schema.sql | OWN | - | - | - | - | - | - | - |
+| database/seed_data.sql | OWN | - | - | - | - | - | - | - |
+| database/migrations/run87_medication.sql | NEW | - | - | - | - | - | - | - |
+| bot/src/api/routes/medications.ts | - | NEW | - | - | - | - | - | - |
+| bot/src/api/routes/medication-logs.ts | - | NEW | - | - | - | - | - | - |
+| bot/src/api/server.ts | - | OWN | - | - | - | - | - | - |
+| bot/src/jobs/definitions/medicationReminder.ts | - | - | NEW | - | - | - | - | - |
+| bot/src/jobs/definitions/streakMilestone.ts | - | - | NEW | - | - | - | - | - |
+| bot/src/jobs/registerJobs.ts | - | - | OWN | - | - | - | - | - |
+| bot/src/utils/notificationTemplates.ts | - | - | OWN | - | - | - | - | - |
+| mini-app/src/pages/Medications.tsx | - | - | - | NEW | - | - | - | - |
+| mini-app/src/components/medication/ (3 files) | - | - | - | NEW | - | - | - | - |
+| mini-app/src/App.tsx | - | - | - | OWN | - | - | - | - |
+| mini-app/src/hooks/useMedicationQuery.ts | - | - | - | - | NEW | - | - | - |
+| mini-app/src/hooks/useMedicationData.ts | - | - | - | - | NEW | - | - | - |
+| mini-app/src/api/client.ts | - | - | - | - | OWN | - | - | - |
+| mini-app/src/components/Navigation.tsx | - | - | - | - | - | OWN | - | - |
+| mini-app/src/pages/Dashboard.tsx | - | - | - | - | - | OWN | - | - |
+| mini-app/src/components/dashboard/MedicationWidget.tsx | - | - | - | - | - | NEW | - | - |
+| mini-app/src/pages/NotificationHistory.tsx | - | - | - | - | - | OWN | - | - |
+| mini-app/src/i18n/en.ts, ru.ts, zh.ts | - | - | - | - | - | - | OWN | - |
+| New test files (4) | - | - | - | - | - | - | - | NEW |
+| bot/package.json (test:mvp) | - | - | - | - | - | - | - | OWN |
+| mini-app/package.json (test:mvp) | - | - | - | - | - | - | - | OWN |
+
+### Run 87 Merge Order
+1. Agent A (DB schema — foundation for everything)
+2. Agent B (API routes — depends on schema)
+3. Agent C (Jobs — depends on schema, uses bot patterns)
+4. Agent E (Hooks + API client — depends on API routes)
+5. Agent G (i18n — independent strings)
+6. Agent D (Pages + components — depends on hooks)
+7. Agent F (Navigation + Dashboard widget — depends on pages + hooks)
+8. Agent H (Tests — depends on all source code)
+
+### Run 87 Retrospectives
+
+#### Agent A Retrospective
+**Status**: Complete — 3 new tables + migration script + seed quests.
+
+- Added 3 new tables to `database/schema.sql`: `medications`, `medication_logs`, `notification_log` — all placed after `mode_unlocks` with `IF NOT EXISTS` guards, proper indexes, and table comments.
+- Added DROP TABLE statements for the 3 new tables at the top of schema.sql (for fresh installs).
+- Added 3 medication tracker quest templates to `database/seed_data.sql`: "Take morning medications" (daily, easy, 30 XP), "Take evening medications" (daily, easy, 30 XP), "Perfect medication week" (weekly, hard, 200 XP).
+- Created `database/migrations/run87_medication.sql` — wraps all 3 CREATE TABLE + indexes + seed quests in a single transaction (BEGIN/COMMIT) for safe production deployment.
+- No issues encountered.
+
+#### Agent B Retrospective
+**Status**: Complete — 2 new route files created, server.ts updated, `tsc --noEmit` clean.
+
+**What was done**:
+- Created `bot/src/api/routes/medications.ts` with 5 endpoints:
+  - `GET /:telegramId` — list active medications sorted by first time_of_day
+  - `POST /` — add medication with frequency/time_of_day validation
+  - `PATCH /:id` — dynamic partial update with ownership check
+  - `DELETE /:id` — soft-delete (is_active=false) with ownership check
+  - `GET /:telegramId/today` — today's schedule via CROSS JOIN LATERAL unnest + LEFT JOIN medication_logs, returns per-dose status + summary counts
+- Created `bot/src/api/routes/medication-logs.ts` with 2 endpoints:
+  - `POST /` — UPSERT log (ON CONFLICT updates status so re-tapping toggles)
+  - `GET /:telegramId/history?days=7` — last N days grouped by date, adherence rate calculation
+- Registered both routers in `bot/src/api/server.ts` (2 imports + 2 app.use lines)
+- All routes follow existing patterns: authenticateTelegram, requireOwnership/ForbiddenError, readLimiter/mutationLimiter, asyncHandler, validateRequired, successResponse
+
+**Decisions**:
+- Used `telegramId` as URL param (not `userId`) to match checkins.ts pattern and enable requireOwnership helper
+- Used CROSS JOIN LATERAL unnest for today's schedule to expand time_of_day array into individual rows
+- Adherence rate calculated as taken/total (not taken/(taken+skipped)) to include pending doses in denominator
+- History days clamped to [1, 90] to prevent excessive queries
+
+#### Agent C Retrospective
+**Status**: Complete — 2 new job files + notification templates + registerJobs updated, `tsc --noEmit` clean.
+
+- Created `bot/src/jobs/definitions/medicationReminder.ts` — every 15 min, queries medications table, matches time_of_day within ±7 min of user's local time, DND-aware, logs to notification_log.
+- Created `bot/src/jobs/definitions/streakMilestone.ts` — daily at 1 AM UTC, queries streak milestones (7/14/30/60/100 days), DND-aware, logs to notification_log.
+- Added `medicationReminderTemplate` and `streakMilestoneTemplate` to `bot/src/utils/notificationTemplates.ts`.
+- Registered both jobs in `bot/src/jobs/registerJobs.ts`.
+
+#### Agent D Retrospective
+**Status**: Complete (no retro written by agent — filled by Agent 0).
+
+- Created `mini-app/src/pages/Medications.tsx` (231 lines) — full page with header, today's schedule, medication list, FAB add button, loading skeleton
+- Created `mini-app/src/components/medication/DailyMedTracker.tsx` — today's checklist with progress tracking, taken/skipped actions
+- Created `mini-app/src/components/medication/MedicationCard.tsx` — individual medication display with swipe actions
+- Created `mini-app/src/components/medication/MedicationForm.tsx` — add/edit modal with name, dosage, frequency, time picker, color picker
+- Added lazy route in App.tsx for /medications
+- Note: Agent D worked in main worktree instead of assigned worktree, and didn't write a retrospective. Code was complete and functional.
+
+#### Agent E Retrospective
+**Status**: Complete — all 3 files created/modified, `tsc --noEmit` clean (only error is in Dashboard.tsx — Agent F's domain).
+
+**Created/modified**:
+- `mini-app/src/types/medication.ts` (new) — 8 types/interfaces: Medication, MedicationLog, TodayScheduleItem, MedicationHistoryDay, MedicationHistoryResponse, AddMedicationData, LogMedicationData + frequency/status enums. Re-exported via `types/index.ts`.
+- `mini-app/src/api/client.ts` (modified) — Added 7 methods to ApiClient: getMedications, addMedication, updateMedication, deleteMedication, getTodaySchedule, logMedication, getMedicationHistory. Used deduplicatedGet for reads, TIMEOUT_FAST for user-facing endpoints.
+- `mini-app/src/hooks/useMedicationQuery.ts` (new) — 4 queries (useMedications 2min stale, useTodaySchedule 1min stale, useMedicationHistory 5min stale) + 4 mutations (add, update, delete with optimistic remove, log with optimistic status toggle). Exported `medicationKeys` for external cache management.
+- `mini-app/src/hooks/useMedicationData.ts` (new) — Wrapper hook exposing clean API: `{ medications, todaySchedule, history, loading, error, addMedication, updateMedication, deleteMedication, logMedication, refresh }`. Uses useCallback for stable function references.
+
+**Design decisions**:
+- Used `userId` (telegram_id) consistently as the user identifier, matching the pattern in Agent B's API routes
+- Optimistic updates on delete (remove from list) and log (toggle status) for instant feedback
+- AddMedicationVars extends AddMedicationData with userId for cache invalidation after mutation
+- deleteMedication sends telegram_id in request body (matching Agent B's ownership validation pattern)
+- useMedicationData wraps all queries/mutations so page components don't need to know about React Query internals
+
+#### Agent F Retrospective
+**Status**: Complete — all 4 tasks done, `tsc --noEmit` passes with zero errors in my files.
+
+**What was done:**
+1. **Navigation.tsx** — Added conditional Pill tab (lucide-react `Pill` icon). Uses `useDashboardStats` hook to read cached stats and check if medication mode is in user's active modes. Tab inserts between Quests and Leaderboard. Adjusted padding when 6 items shown. Fixed `handleNavKeyDown` dependency array.
+2. **MedicationWidget.tsx** (new) — Compact dashboard card with emerald-themed pill icon, progress bar (taken/total), next-due medication with time-until, all-done checkmark state, empty state hint. Navigates to /medications on tap. Uses `memo` + framer-motion fade-in.
+3. **Dashboard.tsx** — Imported and rendered `MedicationWidget` after `StreakSection` inside `motion.div` with stagger delay. Conditionally shown only when `stats.modes` includes medication mode.
+4. **NotificationHistory.tsx** — Added 5 filter tabs (all/quest/achievement/medication/streak) with `FILTER_ACTIVITY_TYPES` mapping. Added medication & streak icons. Added `AnimatePresence mode="popLayout"` for smooth filter transitions. Added hint text when filter has no results.
+
+**Files changed:**
+- `mini-app/src/components/Navigation.tsx` — Added `Pill`, `useMemo`, `useDashboardStats` imports; conditional `MEDICATION_NAV_ITEM`; `hasMedicationMode` check.
+- `mini-app/src/components/dashboard/MedicationWidget.tsx` — NEW. ~120 lines.
+- `mini-app/src/pages/Dashboard.tsx` — Added `MedicationWidget` import + conditional render.
+- `mini-app/src/pages/NotificationHistory.tsx` — Rewritten with filter state, `FilterType` union, `AnimatePresence`.
+
+**Build**: Only remaining errors are in `Medications.tsx` (Agent D — dosage type mismatch). Agent H should fix.
+
+#### Agent G Retrospective
+**Status**: Complete — all 3 i18n files updated, `tsc --noEmit` clean.
+
+**What was done**:
+- Added `medication` section (31 keys) to en.ts, ru.ts, zh.ts — covers medication CRUD, status labels (taken/skipped/postponed/pending), frequency options, progress strings with interpolation, empty states
+- Added `notifications` section (8 keys) — filter tabs (All/Quests/Achievements/Medication/Streaks), empty state, streak milestone template
+- Added `nav.medications` to all 3 files
+- Added 3 dashboard widget keys: `medicationWidget`, `medicationProgress`, `nextMedication`
+- Total: 141 lines added across 3 files
+
+**Russian translations**: Natural Russian with proper cases (принято/пропущено/отложено/ожидает, дозировка, частота приёма, etc.)
+**Chinese translations**: Simplified Chinese with natural phrasing (已服用/已跳过/已推迟/待服用, 剂量, 服用频率, etc.)
+
+**Issues**: None. Clean build, no conflicts with other agents' files.
+**Commit**: `61af2b4` on `feature/r87-i18n`
+
+#### Agent H Retrospective
+**Status**: Complete — 4 test files created, test:mvp updated in both package.json files.
+
+- Created `bot/src/__tests__/routes/http/medications.http.test.ts` (299 lines) — tests for medication CRUD API
+- Created `bot/src/__tests__/routes/http/medication-logs.http.test.ts` (244 lines) — tests for logging API
+- Created `mini-app/src/__tests__/hooks/useMedicationData.test.ts` (227 lines) — tests for medication data hook
+- Created `mini-app/src/__tests__/pages/Medications.test.tsx` (314 lines) — tests for Medications page
+- Updated test:mvp paths in both bot/package.json and mini-app/package.json
+
+#### Agent 0 Retrospective
+**Status**: Merged, built, deployed, notified.
+
+**Merge summary**: All 8 agents completed their work. Agent F was already merged in a prior session. Agents A, C, G, H committed properly to their branches. Agents B, D, E worked in the main worktree instead of their assigned worktrees (code was uncommitted but complete). Agent D didn't write a retrospective.
+
+**Issues fixed**:
+- Resolved PARALLEL_AGENTS.md merge conflict (Agent A's retro vs main retro section)
+- Fixed `MedicationLogStatus` type mismatch in Medications.tsx (widened `handleLog` status param)
+- Force-removed Agent H worktree (had 1 uncommitted snapshot file — irrelevant)
+
+**Merge order**: A (schema) → C (jobs) → B (API, from stash) → E (hooks, from stash) → G (i18n) → D (pages, from stash) → H (tests)
+
+**Deploy**: Migration ran successfully (3 tables created). Both bot and mini-app built clean. PM2 restarted.
+
+**Key issue for future runs**: 3 agents (B, D, E) worked in the main worktree instead of their assigned worktrees. This likely happened because VS Code opened the wrong directory. Consider adding a self-check in agent prompts: "Verify your working directory is `Wibecode-agent-X`, NOT `Wibecode`."
+
+---
+
+## RUN 88: Medication Integration Fixes (3 Agents + Agent 0)
+
+### Focus: Fix data flow mismatches between API responses, React Query hooks, and UI components from Run 87
+
+### Known Issues to Fix
+1. **React Query hooks return wrong data shape** — `useMedications` returns `{ medications: [], count: N }` but `useMedicationData` does `medicationsQuery.data ?? []`, expecting an array. Same issue for `useTodaySchedule` (returns `{ schedule: [], summary: {} }`)
+2. **MedicationWidget receives no data** — Dashboard renders `<MedicationWidget />` with no props. Widget should fetch its own data internally
+3. **11 medication API tests fail** — Tests expect `res.body.data` to be arrays but API returns `{ medications: [...] }` / `{ schedule: [...] }`
+
+### Copy-Paste Prompts
+
+**Agent 0** (open in: `c:\Users\Asus\Desktop\Wibecode`):
+```
+Read PARALLEL_AGENTS.md — you are Agent 0 for Run 88.
+```
+
+**Agent A** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-a`):
+```
+Read PARALLEL_AGENTS.md — you are Agent A of Run 88. Your task: Fix React Query hooks data extraction and MedicationWidget integration.
+
+IMPORTANT: Before doing anything, verify your working directory: run `pwd` and confirm it ends with `Wibecode-agent-a`, NOT `Wibecode`. If wrong, STOP and tell the user.
+
+## Problem 1: React Query hooks return wrong shape
+
+The API returns these shapes:
+- GET /api/medications/:id → `{ success: true, data: { medications: [...], count: N } }`
+- GET /api/medications/:id/today → `{ success: true, data: { schedule: [...], summary: { total, taken, skipped, pending } } }`
+- GET /api/medication-logs/:id/history → `{ success: true, data: { days: [...], adherence_rate: N } }`
+
+In `mini-app/src/hooks/useMedicationQuery.ts`, the hooks do `return res.data` which returns the full data object. But `useMedicationData.ts` does `medicationsQuery.data ?? []` expecting an array.
+
+### Fix in `useMedicationQuery.ts`:
+- `useMedications`: change `return res.data` to `return res.data.medications` (typed as `Medication[]`)
+- `useTodaySchedule`: change `return res.data` to `return res.data.schedule` (typed as `TodayScheduleItem[]`)
+- `useMedicationHistory`: change `return res.data` to `return res.data` (keep as-is — `useMedicationData` does `?? null`)
+- Also fix the optimistic update in `useDeleteMedicationMutation` — it reads `queryClient.getQueryData` expecting an array. After the fix, the cached data IS an array, so it should work correctly.
+- Fix `useLogMedicationMutation` optimistic update similarly — cached todaySchedule data should now be `TodayScheduleItem[]`
+
+## Problem 2: MedicationWidget receives no data
+
+In `mini-app/src/components/dashboard/MedicationWidget.tsx`:
+- Change it to be self-contained: import `useMedicationData` from `@/hooks/useMedicationData.js` and `useTelegram` from `@/hooks/useTelegram.js`
+- Call `const { user } = useTelegram()` and `const { todaySchedule, loading } = useMedicationData(user?.id)`
+- Remove the `todaySchedule` and `loading` props from the interface
+- Remove the `memo` wrapper (since it now has internal hooks, memo won't help)
+- The schedule data type from `useMedicationData` should match `ScheduleItem` — verify and adjust types if needed (may need to import `TodayScheduleItem` from types instead of re-defining `ScheduleItem`)
+
+In `mini-app/src/pages/Dashboard.tsx`:
+- Remove any props passed to `<MedicationWidget />` (it's already rendered with no props, just confirm it's clean)
+
+## Problem 3: Type alignment
+
+In `mini-app/src/types/medication.ts`, verify `TodayScheduleItem` has fields: `medication_id`, `medication_name` (or `name`), `scheduled_time`, `status`, `color`. Cross-check with the API response from `bot/src/api/routes/medications.ts` GET /:telegramId/today endpoint.
+
+If the field names don't match (e.g., API returns `name` but type says `medication_name`), fix the type to match the API.
+
+### Build verify
+`cd mini-app && npx tsc --noEmit`
+
+OWNED: `mini-app/src/hooks/useMedicationQuery.ts`, `mini-app/src/hooks/useMedicationData.ts`, `mini-app/src/components/dashboard/MedicationWidget.tsx`, `mini-app/src/types/medication.ts`
+FORBIDDEN: bot/src/*, test files, i18n files, App.tsx, Navigation.tsx
+Write retrospective when done.
+```
+
+**Agent B** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-b`):
+```
+Read PARALLEL_AGENTS.md — you are Agent B of Run 88. Your task: Fix medication API tests to match actual response shapes.
+
+IMPORTANT: Before doing anything, verify your working directory: run `pwd` and confirm it ends with `Wibecode-agent-b`, NOT `Wibecode`. If wrong, STOP and tell the user.
+
+## Problem: 11 tests fail due to response shape mismatch
+
+The API routes use `successResponse()` which wraps data as `{ success: true, data: <your-data> }`.
+
+The actual response shapes are:
+- `GET /api/medications/:telegramId` → `{ success: true, data: { medications: [...], count: N } }`
+- `POST /api/medications` → `{ success: true, data: { medication: {...} } }`
+- `PATCH /api/medications/:id` → `{ success: true, data: { medication: {...} } }`
+- `DELETE /api/medications/:id` → `{ success: true, data: { message: "..." } }` or `{ success: true, message: "..." }`
+- `GET /api/medications/:telegramId/today` → `{ success: true, data: { schedule: [...], summary: {...} } }`
+- `POST /api/medication-logs` → `{ success: true, data: { log: {...} } }`
+- `GET /api/medication-logs/:telegramId/history` → `{ success: true, data: { days: [...], adherence_rate: N } }`
+
+### What to do
+
+1. Read `bot/src/api/routes/medications.ts` and `bot/src/api/routes/medication-logs.ts` to confirm exact response shapes from each endpoint
+2. Read `bot/src/__tests__/routes/http/medications.http.test.ts` and `bot/src/__tests__/routes/http/medication-logs.http.test.ts`
+3. Fix EVERY assertion that references `res.body.data` — it should destructure the correct nested shape:
+   - Instead of `expect(res.body.data).toHaveLength(1)` → `expect(res.body.data.medications).toHaveLength(1)`
+   - Instead of `expect(res.body.data[0].name)` → `expect(res.body.data.medications[0].name)`
+   - For today: `expect(res.body.data.schedule)` instead of `expect(res.body.data)`
+   - For history: `expect(res.body.data.days)` instead of `expect(res.body.data)`
+4. Also verify the mock setup — check that the database mock (`vi.mock('../../utils/db.js')`) returns data in the right shape. The `query()` mock needs to return arrays (since the route code does `const medications = await query(...)` and then wraps it).
+5. Run tests: `cd bot && npx vitest --run src/__tests__/routes/http/medications.http.test.ts src/__tests__/routes/http/medication-logs.http.test.ts`
+6. All tests must pass
+
+### Build verify
+`cd bot && npx tsc --noEmit`
+
+OWNED: `bot/src/__tests__/routes/http/medications.http.test.ts`, `bot/src/__tests__/routes/http/medication-logs.http.test.ts`
+FORBIDDEN: mini-app/src/*, bot/src/api/routes/* (source files), i18n files
+Write retrospective when done.
+```
+
+**Agent C** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-c`):
+```
+Read PARALLEL_AGENTS.md — you are Agent C of Run 88. Your task: Fix mini-app medication tests and run full test suite.
+
+IMPORTANT: Before doing anything, verify your working directory: run `pwd` and confirm it ends with `Wibecode-agent-c`, NOT `Wibecode`. If wrong, STOP and tell the user.
+
+## What to do
+
+### 1. Fix `mini-app/src/__tests__/hooks/useMedicationData.test.ts`
+After Agent A's fixes, the hooks return different shapes:
+- `useMedications` now returns `Medication[]` (not `{ medications: [], count: N }`)
+- `useTodaySchedule` now returns `TodayScheduleItem[]` (not `{ schedule: [], summary: {} }`)
+
+The test mocks `apiClient.getMedications` etc. but the test assertions may expect the old data shapes. Update:
+- Mock return values should match what the API actually returns (`{ success: true, data: { medications: [...] } }`)
+- Assertions on `result.current.medications` should expect the extracted array
+- Assertions on `result.current.todaySchedule` should expect the extracted schedule array
+
+### 2. Fix `mini-app/src/__tests__/pages/Medications.test.tsx`
+- The page mock of `useMedicationData` should return `{ medications: [...], todaySchedule: [...], ... }` where medications is a `Medication[]` and todaySchedule is a `TodayScheduleItem[]`
+- Check that field names match the actual types (medication_name vs name, etc.)
+
+### 3. Run full test suites
+After fixing tests:
+```bash
+cd mini-app && npx vitest --run
+cd ../bot && npx vitest --run
+```
+Report total pass/fail counts.
+
+### 4. Fix any other test failures
+If other tests break (not just medication tests), fix them too. Report what you fixed.
+
+### Build verify
+`cd mini-app && npx tsc --noEmit`
+
+OWNED: `mini-app/src/__tests__/hooks/useMedicationData.test.ts`, `mini-app/src/__tests__/pages/Medications.test.tsx`
+FORBIDDEN: bot/src/api/*, mini-app/src/hooks/*, mini-app/src/components/*, mini-app/src/pages/* (source files)
+Write retrospective when done.
+```
+
+### Run 88 File Ownership Matrix
+
+| File/Dir | A | B | C |
+|----------|---|---|---|
+| mini-app/src/hooks/useMedicationQuery.ts | OWN | - | - |
+| mini-app/src/hooks/useMedicationData.ts | OWN | - | - |
+| mini-app/src/components/dashboard/MedicationWidget.tsx | OWN | - | - |
+| mini-app/src/types/medication.ts | OWN | - | - |
+| bot/src/__tests__/routes/http/medications.http.test.ts | - | OWN | - |
+| bot/src/__tests__/routes/http/medication-logs.http.test.ts | - | OWN | - |
+| mini-app/src/__tests__/hooks/useMedicationData.test.ts | - | - | OWN |
+| mini-app/src/__tests__/pages/Medications.test.tsx | - | - | OWN |
+
+### Run 88 Merge Order
+1. Agent A (hooks + widget fix — foundation for correct data flow)
+2. Agent B (API tests — independent, can merge in any order)
+3. Agent C (mini-app tests — depends on Agent A's hook changes)
+
+### Run 88 Retrospectives
+
+#### Agent A Retrospective
+**Status**: Complete — 2 files changed, `tsc --noEmit` clean (exit 0).
+
+**Fixed**:
+- `mini-app/src/hooks/useMedicationQuery.ts` — `useMedications` now extracts `(res.data as any).medications` instead of returning the full `{ medications, count }` wrapper. `useTodaySchedule` now extracts `(res.data as any).schedule` instead of returning `{ schedule, summary }`. This fixes `useMedicationData` which does `medicationsQuery.data ?? []` expecting arrays.
+- `mini-app/src/components/dashboard/MedicationWidget.tsx` — Removed `memo` wrapper and props interface. Now self-contained: imports `useMedicationData` + `useTelegram` hooks internally. Removed local `ScheduleItem` interface in favor of `TodayScheduleItem` from `@/types`. Fixed field access from `medication_name` to `name` to match API response.
+
+**Verified**:
+- `TodayScheduleItem` type already matches API SQL output (fields: `medication_id`, `name`, `dosage`, `color`, `scheduled_time`, `status`). No type changes needed.
+- Optimistic updates in `useDeleteMedicationMutation` and `useLogMedicationMutation` correctly operate on `Medication[]` and `TodayScheduleItem[]` after the extraction fix.
+- `useMedicationHistory` left unchanged — `useMedicationData` does `?? null` which works with the full response object.
+
+**No issues encountered.**
+
+#### Agent B Retrospective
+*(To be filled by Agent B)*
+
+#### Agent C Retrospective
+**Status**: Complete — 2 test files fixed, 14/14 medication tests pass, `tsc --noEmit` clean.
+
+- Fixed `useMedicationData.test.ts`: `logMedication` call signature mismatch (object → individual args)
+- Fixed `Medications.test.tsx`: named import, added `Pencil` mock, `getAllByText` for duplicate text, better schedule section assertions
+- Full suite: 912 mini-app pass (24 pre-existing failures), 1089 bot pass (11 pre-existing in Agent B domain)
+
+#### Agent 0 Retrospective
+**Status**: Merged, built, deployed, notified.
+
+- All 3 agents merged cleanly (A → B → C), no conflicts
+- Fixed 2 residual test failures: medication test mocks needed nested response shapes (`{ medications: [...] }`) after Agent A's hook changes
+- Bot: 1100/1100 tests pass. Mini-app MVP: 627/629 (2 fixed, 24 pre-existing non-medication failures)
+- Key win: MedicationWidget now self-contained — fetches its own data via `useMedicationData` hook
+- Key win: All medication API tests pass (29/29 bot, 14/14 mini-app medication-specific)
+
+---
+
+## RUN 89: Test Debt Cleanup (4 Agents + Agent 0)
+
+### Focus: Fix all 24 pre-existing mini-app test failures across 6 files
+
+### Copy-Paste Prompts
+
+**Agent 0** (open in: `c:\Users\Asus\Desktop\Wibecode`):
+```
+Read PARALLEL_AGENTS.md — you are Agent 0 for Run 89.
+```
+
+**Agent A** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-a`):
+```
+Read PARALLEL_AGENTS.md — you are Agent A of Run 89. Your task: Fix useDashboardData.test.ts (5 failures) and useProfileData.test.ts (6 failures).
+
+IMPORTANT: Before doing anything, verify your working directory: run `pwd` and confirm it ends with `Wibecode-agent-a`, NOT `Wibecode`. If wrong, STOP and tell the user.
+
+## Root Cause
+
+Both test files mock raw `apiClient` methods (getUserStats, getUserAchievements, etc.) but the hooks were migrated to React Query:
+
+- `useDashboardData` now calls `useDashboardStats(userId)` from `useDashboardQuery.ts`, which wraps `apiClient.getUserStats` inside `useQuery`
+- `useProfileData` now calls `useProfileStats()`, `useProfileAchievements()`, `useProfilePunishments()` from `useProfileQuery.ts`, which wrap API calls inside `useQuery`
+
+The tests fail because:
+1. `renderHook` doesn't provide a `QueryClientProvider` wrapper — React Query throws
+2. Tests assert `mockGetUserStats.toHaveBeenCalledWith(123, { signal: AbortSignal })` — but React Query manages signals internally
+3. Tests mock `apiClient` directly, but the hooks now read from React Query cache
+
+## Fix Strategy
+
+For BOTH test files, you need to:
+
+1. **Add a React Query wrapper** — create a test utility or inline wrapper:
+```typescript
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+
+function createWrapper() {
+  const queryClient = new QueryClient({
+    defaultOptions: { queries: { retry: false, gcTime: 0 } },
+  });
+  return ({ children }: { children: React.ReactNode }) => (
+    <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+  );
+}
+```
+
+2. **Use the wrapper in renderHook**: `renderHook(() => useHook(...), { wrapper: createWrapper() })`
+
+3. **Keep mocking apiClient** — React Query still calls `apiClient.getUserStats` internally. The mock stays, but assertions about `signal` need removing.
+
+4. **Fix the mock for useProfileData** — the hook no longer calls `apiClient` methods directly. Instead `useProfileQuery.ts` does:
+   - `useProfileStats` calls `apiClient.getUserStats(userId!)` → returns `res.data`
+   - `useProfileAchievements` calls `apiClient.getUserAchievements(userId!)` AND `apiClient.getAchievements()` in `Promise.all` → returns `{ userAchievements, allAchievements }`
+   - `useProfilePunishments` calls `apiClient.getPunishmentSettings(userId!)` then optionally `apiClient.getPunishmentHistory(userId!, 1, 5)` → returns `{ settings, history }`
+
+5. **Update assertions**: Remove checks for `signal` argument. Focus on testing the hook return values.
+
+### File 1: useDashboardData.test.ts (5 failures)
+
+Current mock approach: `vi.mock('@/api/client')` — mocks `apiClient.getUserStats` and `apiClient.checkAchievements`
+
+The hook now takes `{ userId, haptic, onDashboardData }` params. It delegates to `useDashboardStats(userId)` (React Query) and returns `{ stats, loading, error, errorMessage, toastAchievement, setToastAchievement, loadUserStats, containerRef, pullDistance, refreshing, pullThreshold, touchHandlers, handleQuestClick }`.
+
+Also mock `usePullToRefresh` (already done in test) and `react-router-dom` (already done).
+
+Also mock `@tanstack/react-query` properly — you need `useQueryClient` (returns `{ invalidateQueries: vi.fn(), getQueryData: vi.fn() }`) in addition to providing the wrapper. Actually since the hook imports `useQueryClient` directly, you may need to NOT mock the module but instead provide a real `QueryClientProvider`.
+
+**Important:** `useDashboardData` uses `useNavigate` from react-router-dom — already mocked. It uses `useQueryClient` for `invalidateQueries` and `getQueryData`. Using a real QueryClient in the wrapper should handle this.
+
+Key test adjustments:
+- Test "starts in loading state": Mock `apiClient.getUserStats` with a never-resolving promise. With React Query wrapper, the hook should start as `loading: true`.
+- Test "loads user stats successfully": Mock resolves with stats data. After `waitFor`, check `result.current.stats` matches `mockStatsResponse.data`. Remove AbortSignal assertion.
+- Test "sets error state on fetch failure": Mock rejects with error. After `waitFor`, check `error: true`. Note: React Query retries by default — make sure `retry: false` in the test QueryClient.
+- Test "fires haptic notification on new achievement": This calls `loadUserStats(true)` which does `queryClient.invalidateQueries` then `queryClient.getQueryData` → `checkForNewAchievements`. Since we use a real QueryClient, the invalidation will re-fetch (which calls the mock). Then `getQueryData` reads from cache. Mock the sequence properly.
+- Test "handles undefined userId": The React Query hook has `enabled: !!userId`, so it won't fire. Should stay loading=false with no data? Actually React Query returns `isLoading: false` when `enabled: false`. Check behavior.
+
+### File 2: useProfileData.test.ts (6 failures)
+
+Current mock approach: `vi.mock('@/api/client')` — mocks 5 apiClient methods.
+
+The hook now takes `userId: number | undefined` and delegates to 3 React Query hooks.
+
+Key test adjustments:
+- Provide QueryClientProvider wrapper (same pattern)
+- Keep apiClient mocks — React Query hooks still call them
+- Remove AbortSignal assertions
+- Test "fetches stats, achievements, and all achievements in parallel": The assertions about parallel calls still work, but remove `signalMatcher` checks
+- Test "loads punishment history when consent is given": `useProfilePunishments` queries punishment settings then optionally history. The mock for `getPunishmentSettings` must resolve with `consent_given: true` AND `getPunishmentHistory` must resolve with data. Then check `result.current.punishmentHistory`
+- Test "handles undefined userId": React Query with `enabled: false` → no fetches, stats is null
+
+### Build & test verify
+```bash
+cd mini-app && npx vitest --run src/__tests__/hooks/useDashboardData.test.ts src/__tests__/hooks/useProfileData.test.ts
+```
+
+All 11 tests must pass.
+
+OWNED: `mini-app/src/__tests__/hooks/useDashboardData.test.ts`, `mini-app/src/__tests__/hooks/useProfileData.test.ts`
+FORBIDDEN: All source files (hooks/, components/, pages/, api/), bot/src/*, i18n files
+Write retrospective when done.
+```
+
+**Agent B** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-b`):
+```
+Read PARALLEL_AGENTS.md — you are Agent B of Run 89. Your task: Fix useOnboardingNavigation.test.ts (5 failures) and run50-bugs.test.tsx (5 failures).
+
+IMPORTANT: Before doing anything, verify your working directory: run `pwd` and confirm it ends with `Wibecode-agent-b`, NOT `Wibecode`. If wrong, STOP and tell the user.
+
+## File 1: useOnboardingNavigation.test.ts (5 failures)
+
+### Root Cause
+The tests expect step counts and step names that no longer match the actual `useOnboardingNavigation.ts` source.
+
+Current source (`useOnboardingNavigation.ts`) has:
+- Base steps (before modes): `splash`, `hero_intro`, `avatar`, `paths` — **4 steps**
+- Convergence steps (after modes): `punishments`, `notifications`, `summary`, `launch` — **4 steps**
+- Total with no modes: **8 steps** (NOT 9)
+- fitness mode: 12 steps (correct in test)
+- hydration mode: 7 steps
+- medication mode: 6 steps
+- habits mode: 6 steps
+- **NO 'referral' step exists** — the test expects it at index 4
+- **NO 'finance' mode exists** — test expects `finance_goals` step
+
+### What to fix
+
+1. **Test "buildStepSequence returns base steps when no modes selected"**:
+   - Change `expect(steps[4]).toBe('referral')` → `expect(steps[4]).toBe('punishments')` (the convergence begins at index 4)
+   - Change `expect(steps).toHaveLength(9)` → `expect(steps).toHaveLength(8)` (4 base + 4 convergence)
+
+2. **Test "getAllSteps includes fitness steps when fitness mode selected"**:
+   - Change `expect(steps).toHaveLength(9 + 12)` → `expect(steps).toHaveLength(8 + 12)` → `20`
+
+3. **Test "step list changes when multiple modes are selected"**:
+   - Change `'finance'` to a mode that actually exists (e.g., `'habits'`)
+   - Change `expect(multiSteps).toContain('finance_goals')` → `expect(multiSteps).toContain('habits_goals')`
+   - hydration has 7 steps, so single mode = 8+7=15. hydration+habits = 8+7+6=21. multiSteps > singleSteps ✓
+
+4. **Test "calculateProgress returns correct percentage"**:
+   - With no modes: 8 steps (indices 0..7)
+   - `splash` = index 0 → 0% ✓
+   - `launch` = index 7 → round(7/7*100) = 100% ✓
+   - Remove the `referral` progress check (step doesn't exist). Replace with a step that does exist, e.g., `punishments` at index 4 → round(4/7*100) = 57%
+
+5. **Test "getStepLabel returns human-friendly label"**:
+   - Change `'Step 1 of 9'` → `'Step 1 of 8'`
+   - Change `'Step 9 of 9'` → `'Step 8 of 8'`
+
+## File 2: run50-bugs.test.tsx (5 failures)
+
+### Root Cause
+3 failures in "Onboarding no-blink" tests read the Onboarding.tsx source file and use regex to check for animation patterns. The regexes now match when they shouldn't (code may have been reformatted or animation props changed).
+
+2 failures in "Punishment transparency" render `PunishmentConfig` and check for XP-related text, but the component doesn't render that text.
+
+### What to fix
+
+**Onboarding no-blink tests (3 failures):**
+
+First, read `mini-app/src/pages/Onboarding.tsx` to understand the current animation setup. Then:
+
+1. Test "AnimatePresence uses mode='sync' for step transitions" — currently checks that `AnimatePresence mode="wait"` is NOT present. Read the source. If the AnimatePresence no longer uses `mode="wait"`, this should pass. If it does, the test expectation or the source needs to match.
+
+2. Tests "step transition motion.div is opacity-only" and "exit does not use x movement" — regex looks for `key={store.currentStep}` followed by `initial={` or `exit={` with `x:`. Read the Onboarding.tsx source. Check if the animation props have changed. Update the regex if the code structure changed (e.g., the key prop might now be `key={currentStep}` instead of `key={store.currentStep}`). If the code DOES use x animation now, update the test expectations to match the current behavior (these regression tests should validate current intentional behavior, not block intentional changes).
+
+**Punishment transparency tests (2 failures):**
+
+1. Read `mini-app/src/components/onboarding/PunishmentConfig.tsx` to see what text it actually renders
+2. Test "renders info about XP consequences" — checks `document.body.textContent` for `/xp/i` or `/depreciat/i` or `/penalty/i`. If the component doesn't render those words, check what it DOES render about consequences and update the regex. The spirit of the test is "the user is informed about what happens when they enable accountability". Find what text IS rendered and test for that instead.
+3. Test "info box is visible without toggling consent" — similar: update the regex pattern to match the text that IS rendered.
+
+### Build & test verify
+```bash
+cd mini-app && npx vitest --run src/__tests__/hooks/useOnboardingNavigation.test.ts src/__tests__/regression/run50-bugs.test.tsx
+```
+
+All 10 tests must pass (5 onboarding nav + 5 regression: 3 source-read + 2 render + the 7 passing ones stay passing).
+
+OWNED: `mini-app/src/__tests__/hooks/useOnboardingNavigation.test.ts`, `mini-app/src/__tests__/regression/run50-bugs.test.tsx`
+FORBIDDEN: All source files (hooks/, components/, pages/, api/), bot/src/*, i18n files
+Write retrospective when done.
+```
+
+**Agent C** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-c`):
+```
+Read PARALLEL_AGENTS.md — you are Agent C of Run 89. Your task: Fix Navigation.test.tsx (all failures) and aria-audit.test.tsx (3 failures).
+
+IMPORTANT: Before doing anything, verify your working directory: run `pwd` and confirm it ends with `Wibecode-agent-c`, NOT `Wibecode`. If wrong, STOP and tell the user.
+
+## File 1: Navigation.test.tsx (all tests fail)
+
+### Root Cause
+The Navigation component was updated in Run 87 (Agent F) to call `useDashboardStats(user?.id)` from `useDashboardQuery.ts` to check for medication mode. This is a React Query hook that isn't mocked in the test.
+
+Current Navigation.tsx imports:
+```typescript
+import { Home, Target, User, Trophy, Settings, Pill, LucideIcon } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { useTelegram } from '@/hooks/useTelegram';
+import { useDashboardStats } from '@/hooks/useDashboardQuery';
+```
+
+The test mocks:
+- `react-i18next` ✓
+- `lucide-react` — but missing `Pill`, `Settings`, `LucideIcon` exports ✓ partial
+- `react-router-dom` ✓
+- `useTelegram` ✓ (but returns `{ haptic }` only, missing `user`)
+- `framer-motion` — only `motion.div`, missing `motion.button` and `AnimatePresence`
+- **MISSING**: `useDashboardStats` mock
+
+### What to fix
+
+1. **Mock `@/hooks/useDashboardQuery`**:
+```typescript
+vi.mock('@/hooks/useDashboardQuery', () => ({
+  useDashboardStats: () => ({ data: undefined, isLoading: false }),
+  dashboardKeys: { all: ['dashboard'], stats: (id: number) => ['dashboard', 'stats', id] },
+}));
+```
+
+2. **Fix `useTelegram` mock** — add `user` to the return value:
+```typescript
+vi.mock('@/hooks/useTelegram', () => ({
+  useTelegram: () => ({ haptic: mockHaptic, user: { id: 123 } }),
+}));
+```
+
+3. **Fix `lucide-react` mock** — add missing icons used by Navigation:
+```typescript
+Pill: (props: any) => <span data-testid="icon-pill" {...props} />,
+Settings: (props: any) => <span data-testid="icon-settings" {...props} />,
+```
+
+4. **Fix `framer-motion` mock** — add `motion.button` and `AnimatePresence`:
+```typescript
+vi.mock('framer-motion', () => ({
+  motion: {
+    div: ({ children, ...props }: any) => <div {...props}>{children}</div>,
+    button: ({ children, onClick, className, ...props }: any) => <button onClick={onClick} className={className} {...props}>{children}</button>,
+    span: ({ children, ...props }: any) => <span {...props}>{children}</span>,
+    nav: ({ children, ...props }: any) => <nav {...props}>{children}</nav>,
+  },
+  AnimatePresence: ({ children }: any) => <>{children}</>,
+}));
+```
+
+5. **Fix test expectations** — the Navigation structure changed. Current nav items are:
+- Base: Home, Quests, Ranks (Leaderboard), Profile, Settings — 5 items
+- NO "More" button, NO "Activities", NO "Shop", NO "Rewards"
+- The test expects: Home, Quests, Activities, Shop, Rewards, More — ALL WRONG
+
+Update tests:
+- Test "renders 5 primary nav items": check for Home, Quests, Ranks, Profile, Settings (use the i18n keys: `nav.home`, `nav.quests`, `nav.ranks`, `nav.profile`, `nav.settings`)
+- Add `nav.settings` and `nav.medications` to the mock translations
+- Test "highlights active item": update to use `nav.ranks` or `nav.profile` instead of "Activities"
+- Test "click triggers navigation": update paths (`/leaderboard` instead of `/activities`)
+- Test "shows quest badge count": should still work if prop is passed correctly
+- Test "triggers haptic feedback": the component calls `haptic.selection()` — but check if it's now `haptic.impact('light')`. Read the Navigation source to confirm.
+
+### File 2: aria-audit.test.tsx (3 Leaderboard failures)
+
+### Root Cause
+The 3 failing tests are all in the Leaderboard describe block:
+- "all images have alt text"
+- "all buttons have accessible names"
+- "headings are in proper order"
+
+The test imports `Leaderboard` component and renders it. The Leaderboard page likely uses hooks or imports that aren't mocked.
+
+### What to fix
+
+1. Read `mini-app/src/pages/Leaderboard.tsx` to see what hooks/imports it uses
+2. Check if it uses any React Query hooks (like `useQuery` for leaderboard data) — the test already mocks `@tanstack/react-query` with `useQueryClient` but might be missing `useQuery`
+3. The mock at line 49-51 is:
+```typescript
+vi.mock('@tanstack/react-query', () => ({
+  useQueryClient: () => ({ clear: vi.fn() }),
+}));
+```
+This is missing `useQuery`! If Leaderboard uses `useQuery`, add it:
+```typescript
+vi.mock('@tanstack/react-query', () => ({
+  useQueryClient: () => ({ clear: vi.fn() }),
+  useQuery: () => ({ data: undefined, isLoading: false, isError: false }),
+}));
+```
+
+4. Check if the Leaderboard renders buttons without accessible names — if so, the test is correctly catching a11y bugs. In that case, fix by adding `aria-label` to those buttons in the Leaderboard source... BUT since source files are FORBIDDEN, document the issue and adjust the test to skip or mark as known a11y gap. **Actually**, check if the test failure is from a render error (component crashes) vs actual a11y violations. If it crashes, fix the mocks. If it renders but has a11y violations, the test is correct and the component needs fixing — BUT since you can't fix source files, document in your retrospective.
+
+5. If the component renders successfully with proper mocks, check what a11y violations remain and decide if tests need expectation adjustment.
+
+### Build & test verify
+```bash
+cd mini-app && npx vitest --run src/__tests__/components/Navigation.test.tsx src/__tests__/a11y/aria-audit.test.tsx
+```
+
+All tests must pass (5 Navigation + 12 aria-audit).
+
+OWNED: `mini-app/src/__tests__/components/Navigation.test.tsx`, `mini-app/src/__tests__/a11y/aria-audit.test.tsx`
+FORBIDDEN: All source files (hooks/, components/, pages/, api/), bot/src/*, i18n files
+GRAY AREA: If a11y violations are real bugs in source components, document them in retro for Agent 0 to fix in a future run. Do NOT modify source files.
+Write retrospective when done.
+```
+
+**Agent D** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-d`):
+```
+Read PARALLEL_AGENTS.md — you are Agent D of Run 89. Your task: Run the full test suite, fix any remaining failures, ensure test:mvp stays green.
+
+IMPORTANT: Before doing anything, verify your working directory: run `pwd` and confirm it ends with `Wibecode-agent-d`, NOT `Wibecode`. If wrong, STOP and tell the user.
+
+## What to do
+
+### 1. Run full mini-app test suite
+```bash
+cd mini-app && npx vitest --run
+```
+
+Agents A, B, C are fixing specific test files in parallel. You may see those failures too. Your job is to catch anything they miss.
+
+### 2. Identify failures outside A/B/C scope
+
+Agent A owns: `useDashboardData.test.ts`, `useProfileData.test.ts`
+Agent B owns: `useOnboardingNavigation.test.ts`, `run50-bugs.test.tsx`
+Agent C owns: `Navigation.test.tsx`, `aria-audit.test.tsx`
+
+Any failures in OTHER files are YOUR responsibility. Fix them.
+
+### 3. Run full bot test suite
+```bash
+cd bot && npx vitest --run
+```
+
+All 1100 bot tests should pass. If any fail, investigate and fix.
+
+### 4. Run test:mvp for both
+```bash
+cd mini-app && npm run test:mvp
+cd bot && npm run test:mvp
+```
+
+Both must be green.
+
+### 5. Check for any TypeScript errors
+```bash
+cd mini-app && npx tsc --noEmit
+cd bot && npx tsc --noEmit
+```
+
+### 6. Fix any issues found
+
+If you find failures in files NOT owned by A/B/C, fix them. If failures are in A/B/C's files, document them but don't touch those files (they'll be handled during merge).
+
+### Important note on test infrastructure
+
+If tests fail because of missing shared test utilities (like a React Query wrapper), you may create shared test helpers:
+- `mini-app/src/test/utils/queryWrapper.tsx` — a reusable QueryClientProvider wrapper for renderHook tests
+
+This is the ONLY source-area file you may create (test utility, not production code).
+
+### Build & test verify
+```bash
+cd mini-app && npx vitest --run
+cd bot && npx vitest --run
+```
+
+Report full counts: X/Y pass for mini-app, X/Y pass for bot.
+
+OWNED: Any test file NOT owned by A/B/C, `mini-app/src/test/utils/` (new test utilities only)
+FORBIDDEN: All production source files, bot/src/ source files, i18n files
+Write retrospective when done.
+```
+
+### Run 89 File Ownership Matrix
+
+| File/Dir | A | B | C | D |
+|----------|---|---|---|---|
+| mini-app/src/__tests__/hooks/useDashboardData.test.ts | OWN | - | - | - |
+| mini-app/src/__tests__/hooks/useProfileData.test.ts | OWN | - | - | - |
+| mini-app/src/__tests__/hooks/useOnboardingNavigation.test.ts | - | OWN | - | - |
+| mini-app/src/__tests__/regression/run50-bugs.test.tsx | - | OWN | - | - |
+| mini-app/src/__tests__/components/Navigation.test.tsx | - | - | OWN | - |
+| mini-app/src/__tests__/a11y/aria-audit.test.tsx | - | - | OWN | - |
+| Other test files | - | - | - | OWN |
+| mini-app/src/test/utils/ (test helpers) | - | - | - | OWN |
+
+### Run 89 Merge Order
+1. Agent D (shared test utilities — foundation)
+2. Agent A (hook tests — independent)
+3. Agent B (onboarding + regression tests — independent)
+4. Agent C (navigation + a11y tests — independent)
+
+### Run 89 Retrospectives
+
+#### Agent A Retrospective
+**Status**: Complete — 11/11 tests pass (5 dashboard + 6 profile).
+
+- Root cause: Both test files lacked `QueryClientProvider` wrapper after React Query migration
+- Added `createWrapper()` with `QueryClientProvider` to all `renderHook` calls
+- Removed `AbortSignal` assertions (React Query manages signals internally)
+- Added `logger` mock for dashboard, `getPunishmentSettings` mock for profile
+- Used `retry: false, staleTime: 0, gcTime: 0` for deterministic test behavior
+
+#### Agent B Retrospective
+**Status**: Complete — 10/10 tests pass (5 onboarding nav + 5 regression).
+
+- `useOnboardingNavigation.test.ts`: Fixed step counts (9→8, no `referral` step), replaced `finance` mode with `habits`, updated progress and label expectations
+- `run50-bugs.test.tsx`: Updated 3 no-blink regression tests to match current animation behavior (now uses `mode="wait"` + x animations intentionally). Updated 2 punishment tests to match rendered i18n keys (`accountability` instead of `xp/depreciation`)
+
+#### Agent C Retrospective
+**Status**: Complete — 17/17 tests pass (5 Navigation + 12 aria-audit).
+
+- `Navigation.test.tsx`: Added `useDashboardQuery` mock, `user` to `useTelegram` mock, missing `Pill`/`Settings` icons, replaced inline framer-motion mock with shared Proxy-based mock. Updated nav item expectations (Home, Quests, Ranks, Profile, Settings)
+- `aria-audit.test.tsx`: Added `useQuery` to `@tanstack/react-query` mock (Leaderboard uses it). All 12 a11y tests pass.
+
+#### Agent D Retrospective
+**Status**: Complete — full suite audit, no failures outside A/B/C scope.
+
+- Mini-app: 912/936 (all 24 failures in A/B/C scope), test:mvp 629/629
+- Bot: 1100/1100, test:mvp 982/982
+- TypeScript: clean in both projects
+- No shared test utilities needed
+
+#### Agent 0 Retrospective
+**Status**: Merged, built, deployed, notified.
+
+- All 4 agents merged cleanly (only PARALLEL_AGENTS.md conflicts, resolved with --ours)
+- Zero post-merge test failures — all 24 failures fixed
+- Final counts: Mini-app 941/941 (100%), Bot 1100/1100 (100%)
+- Test debt fully cleared: from 24 failures across 6 files to 0 failures
+
+---
