@@ -4,14 +4,21 @@ import { AnimatePresence, motion } from 'framer-motion';
 
 interface PageTransitionProps {
   children: ReactNode;
+  onExitComplete?: () => void;
 }
 
 const variants = {
-  initial: { opacity: 0, y: 8 },
+  initial: { opacity: 0, y: 6, scale: 0.99 },
   animate: {
     opacity: 1,
     y: 0,
-    transition: { duration: 0.2, ease: 'easeOut' },
+    scale: 1,
+    transition: {
+      type: 'spring',
+      stiffness: 400,
+      damping: 30,
+      duration: 0.25,
+    },
   },
   exit: {
     opacity: 0,
@@ -19,11 +26,11 @@ const variants = {
   },
 };
 
-export function PageTransition({ children }: PageTransitionProps) {
+export function PageTransition({ children, onExitComplete }: PageTransitionProps) {
   const location = useLocation();
 
   return (
-    <AnimatePresence mode="wait">
+    <AnimatePresence mode="wait" onExitComplete={onExitComplete}>
       <motion.div
         key={location.pathname}
         variants={variants}

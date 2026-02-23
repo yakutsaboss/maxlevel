@@ -1,9 +1,11 @@
 import { useState, useCallback, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useQueryClient } from '@tanstack/react-query';
+import { motion } from 'framer-motion';
 import { useTelegram } from '@/hooks/useTelegram';
 import { usePullToRefresh, PullIndicator } from '@/hooks/usePullToRefresh';
 import { useLeaderboard, leaderboardKeys } from '@/hooks/useLeaderboardQuery';
+import { useStaggerAnimation } from '@/hooks/useStaggerAnimation';
 import type { TimePeriod } from '@/hooks/useLeaderboardQuery';
 import { Trophy, Share2 } from 'lucide-react';
 import { ErrorSection } from '@/components/ErrorSection';
@@ -28,6 +30,8 @@ export function Leaderboard() {
   const { containerRef, pullDistance, refreshing, pullThreshold, touchHandlers } = usePullToRefresh(handleRefresh, haptic);
 
   const currentUserId = user?.id;
+  const { containerVariants: topThreeVariants, itemVariants: topThreeItemVariants } = useStaggerAnimation(3, 0.08);
+  const { containerVariants: listVariants, itemVariants: listItemVariants } = useStaggerAnimation(entries.length - 3, 0.04);
 
   const currentUserEntry = useMemo(() => {
     if (!currentUserId) return null;
@@ -97,18 +101,26 @@ export function Leaderboard() {
           </div>
         ) : (
           <>
-            <div className="space-y-2.5" role="table" aria-label="Top 3 players">
+            <motion.div
+              className="space-y-2.5"
+              role="table"
+              aria-label="Top 3 players"
+              variants={topThreeVariants}
+              initial="hidden"
+              animate="visible"
+            >
               {entries.slice(0, 3).map((entry, index) => (
-                <TopThreeCard
-                  key={entry.user_id}
-                  entry={entry}
-                  rank={entry.xp_rank || index + 1}
-                  isCurrentUser={currentUserId === entry.telegram_id}
-                  timePeriod={timePeriod}
-                  index={index}
-                />
+                <motion.div key={entry.user_id} variants={topThreeItemVariants}>
+                  <TopThreeCard
+                    entry={entry}
+                    rank={entry.xp_rank || index + 1}
+                    isCurrentUser={currentUserId === entry.telegram_id}
+                    timePeriod={timePeriod}
+                    index={index}
+                  />
+                </motion.div>
               ))}
-            </div>
+            </motion.div>
 
             {entries.length > 3 && (
               <div className="flex items-center gap-3 my-4 px-2">
@@ -118,18 +130,26 @@ export function Leaderboard() {
               </div>
             )}
 
-            <div className="space-y-1.5 pb-16" role="table" aria-label="Leaderboard rankings">
+            <motion.div
+              className="space-y-1.5 pb-16"
+              role="table"
+              aria-label="Leaderboard rankings"
+              variants={listVariants}
+              initial="hidden"
+              animate="visible"
+            >
               {entries.slice(3).map((entry, index) => (
-                <LeaderboardRow
-                  key={entry.user_id}
-                  entry={entry}
-                  rank={entry.xp_rank || index + 4}
-                  isCurrentUser={currentUserId === entry.telegram_id}
-                  timePeriod={timePeriod}
-                  index={index}
-                />
+                <motion.div key={entry.user_id} variants={listItemVariants}>
+                  <LeaderboardRow
+                    entry={entry}
+                    rank={entry.xp_rank || index + 4}
+                    isCurrentUser={currentUserId === entry.telegram_id}
+                    timePeriod={timePeriod}
+                    index={index}
+                  />
+                </motion.div>
               ))}
-            </div>
+            </motion.div>
           </>
         )}
       </div>

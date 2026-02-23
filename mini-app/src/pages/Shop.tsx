@@ -5,6 +5,7 @@ import { useShop } from '@/hooks/useShop.js';
 import type { ShopCategory } from '@/hooks/useShop.js';
 import { usePurchase } from '@/hooks/usePurchase.js';
 import { usePullToRefresh, PullIndicator } from '@/hooks/usePullToRefresh.js';
+import { useStaggerAnimation } from '@/hooks/useStaggerAnimation.js';
 import { PurchaseModal } from '@/components/shop/PurchaseModal.js';
 import { ErrorSection } from '@/components/ErrorSection.js';
 import { ShoppingBag, Search, Star, Sparkles, Check } from 'lucide-react';
@@ -127,25 +128,30 @@ const FeaturedCarousel = memo(function FeaturedCarousel({
   );
 });
 
+const itemCardVariants = {
+  hidden: { opacity: 0, y: 10 },
+  visible: {
+    opacity: 1,
+    y: 0,
+    transition: { type: 'spring', stiffness: 300, damping: 25 },
+  },
+};
+
 const ItemCard = memo(function ItemCard({
   item,
   owned,
   onTap,
-  index,
 }: {
   item: ShopItem;
   owned: boolean;
   onTap: (item: ShopItem) => void;
-  index: number;
 }) {
   const { t } = useTranslation();
   const gradient = RARITY_GRADIENT[item.rarity] ?? RARITY_GRADIENT.common;
 
   return (
     <motion.button
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: index * 0.03, duration: 0.3 }}
+      variants={itemCardVariants}
       whileTap={{ scale: 0.97 }}
       onClick={() => onTap(item)}
       aria-label={`${item.name}, ${item.rarity}${owned ? `, ${t('shop.owned')}` : ''}`}
@@ -234,6 +240,8 @@ export function Shop() {
 
   const { containerRef, pullDistance, refreshing, pullThreshold, touchHandlers } =
     usePullToRefresh(handleRefresh, haptic);
+
+  const { containerVariants: gridVariants } = useStaggerAnimation(filteredItems.length, 0.03);
 
   const handleItemTap = useCallback(
     (item: ShopItem) => {
@@ -338,14 +346,18 @@ export function Shop() {
       </div>
 
       {/* Item grid */}
-      <div className="px-4 mt-4 grid grid-cols-2 gap-3 mb-6">
-        {filteredItems.map((item, index) => (
+      <motion.div
+        className="px-4 mt-4 grid grid-cols-2 gap-3 mb-6"
+        variants={gridVariants}
+        initial="hidden"
+        animate="visible"
+      >
+        {filteredItems.map((item) => (
           <ItemCard
             key={item.id}
             item={item}
             owned={ownedItemIds.has(item.id)}
             onTap={handleItemTap}
-            index={index}
           />
         ))}
 
@@ -359,7 +371,7 @@ export function Shop() {
             </p>
           </div>
         )}
-      </div>
+      </motion.div>
 
       {/* Purchase modal */}
       <PurchaseModal
