@@ -1177,3 +1177,27 @@ Write retrospective when done.
 - Bot: 1100/1100 tests pass. Mini-app MVP: 627/629 (2 fixed, 24 pre-existing non-medication failures)
 - Key win: MedicationWidget now self-contained — fetches its own data via `useMedicationData` hook
 - Key win: All medication API tests pass (29/29 bot, 14/14 mini-app medication-specific)
+
+### Run 89 Retrospectives
+
+#### Agent D Retrospective
+**Status**: Complete — full suite audit done, no failures outside A/B/C scope found.
+
+**Results summary:**
+- **Mini-app full suite**: 912/936 pass (24 failures — all in A/B/C owned files)
+- **Bot full suite**: 1100/1100 pass (all green)
+- **Mini-app test:mvp**: 629/629 pass (all green)
+- **Bot test:mvp**: 982/982 pass (all green)
+- **TypeScript**: Both `mini-app` and `bot` `tsc --noEmit` clean — zero errors
+
+**Failure breakdown (all in other agents' scope):**
+- `useDashboardData.test.ts` — 5 failures (Agent A)
+- `useProfileData.test.ts` — 6 failures (Agent A)
+- `useOnboardingNavigation.test.ts` — 5 failures (Agent B)
+- `run50-bugs.test.tsx` — 5 failures (Agent B)
+- `Navigation.test.tsx` — all failures (Agent C)
+- `aria-audit.test.tsx` — 3 failures, Leaderboard component crashes due to missing `useQuery` mock (Agent C)
+
+**No test infrastructure gaps found** — no need to create shared test utilities (queryWrapper etc). All passing tests work with existing setup.
+
+**Key observation**: The aria-audit Leaderboard failures are caused by `useLeaderboardQuery.ts` calling `useQuery` which isn't mocked in the a11y test. Agent C should add a `@tanstack/react-query` mock or mock the `useLeaderboard` hook directly.
