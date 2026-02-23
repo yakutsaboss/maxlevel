@@ -255,6 +255,7 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "/ping \u2014 Health check (VDS, bot, DB, SSL, PM2)\n"
         "/metrics \u2014 Server resource usage + disk trend\n"
         "/deploy \u2014 Last deploy info + process status\n"
+        "/stars \u2014 Telegram Stars balance + recent transactions\n"
         "/sheets \u2014 Export analytics to Google Sheets\n"
         "/onboarding \u2014 Onboarding questions reference\n"
         "/punishments \u2014 Punishment system reference\n"
@@ -276,7 +277,8 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "<b>/deploy</b> \u2014 Last deploy: commit, uptime, restarts, memory\n\n"
         "<b>Project</b>\n"
         "<b>/status</b> \u2014 Project milestones, completion %, what's left\n"
-        "<b>/sheets</b> \u2014 Export analytics data to Google Sheets\n\n"
+        "<b>/sheets</b> \u2014 Export analytics data to Google Sheets\n"
+        "<b>/stars</b> \u2014 Telegram Stars balance + recent 5 transactions\n\n"
         "<b>Reference</b>\n"
         "<b>/onboarding</b> \u2014 Onboarding questions & answers reference\n"
         "<b>/punishments</b> \u2014 Punishment tiers, XP penalties, Stars costs\n"
@@ -639,6 +641,115 @@ async def deploy_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await thinking.edit_text(f"Error: {e}")
 
 
+async def stars_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not is_authorized(update):
+        await update.message.reply_text("Unauthorized.")
+        return
+
+    thinking = await update.message.reply_text("⭐ Fetching Stars balance...")
+
+    # Use the MAIN bot token to call getStarTransactions
+    main_bot_token = os.getenv('TELEGRAM_BOT_TOKEN')
+    if not main_bot_token:
+        await thinking.edit_text("❌ TELEGRAM_BOT_TOKEN not set in .env")
+        return
+
+    try:
+        url = f"https://api.telegram.org/bot{main_bot_token}/getStarTransactions"
+        data = json.dumps({"offset": 0, "limit": 5}).encode()
+        req = urllib.request.Request(
+            url, data=data,
+            headers={"Content-Type": "application/json"},
+            method="POST"
+        )
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            result = json.loads(resp.read())
+
+        await thinking.delete()
+
+        if not result.get("ok"):
+            error_desc = result.get("description", "Unknown error")
+            await update.message.reply_html(
+                f"❌ <b>API Error:</b> {error_desc}"
+            )
+            return
+
+        transactions = result.get("result", {}).get("transactions", [])
+
+        # Calculate totals from transactions
+        total_in = 0
+        total_out = 0
+        for tx in transactions:
+            amt = tx.get("amount", 0)
+            if amt > 0:
+                total_in += amt
+            else:
+                total_out += abs(amt)
+
+        lines = [
+            "<b>⭐ Telegram Stars</b>\n",
+        ]
+
+        if not transactions:
+            lines.append("No transactions yet.")
+        else:
+            lines.append(f"<b>Recent {len(transactions)} transactions:</b>\n")
+            for tx in transactions:
+                amt = tx.get("amount", 0)
+                date_unix = tx.get("date", 0)
+                tx_id = tx.get("id", "?")
+                source = tx.get("source", {})
+                receiver = tx.get("receiver", {})
+
+                # Format date
+                if date_unix:
+                    dt = datetime.fromtimestamp(date_unix, tz=timezone.utc)
+                    date_str = dt.strftime("%Y-%m-%d %H:%M")
+                else:
+                    date_str = "unknown"
+
+                # Determine direction and context
+                if amt > 0:
+                    icon = "📥"
+                    # Incoming: check source for user info
+                    user_info = ""
+                    if source.get("type") == "user":
+                        user = source.get("user", {})
+                        name = user.get("first_name", "")
+                        uid = user.get("id", "")
+                        user_info = f" from {name} ({uid})"
+                    payload = source.get("invoice_payload", "")
+                    if payload:
+                        try:
+                            pd = json.loads(payload)
+                            if pd.get("type") == "mode_unlock":
+                                user_info += f" [{pd.get('mode_name', '')} unlock]"
+                            elif pd.get("tier"):
+                                user_info += f" [{pd.get('tier', '')} tier]"
+                        except (json.JSONDecodeError, AttributeError):
+                            pass
+                    lines.append(f"{icon} +{amt}⭐{user_info}")
+                else:
+                    icon = "📤"
+                    # Outgoing: refund or withdrawal
+                    lines.append(f"{icon} {amt}⭐ (refund/withdrawal)")
+
+                lines.append(f"    🕐 {date_str} | ID: {tx_id}")
+
+            if total_in > 0:
+                lines.append(f"\n📊 Recent in: +{total_in}⭐ | Out: -{total_out}⭐")
+
+        await update.message.reply_html("\n".join(lines))
+
+    except urllib.error.HTTPError as e:
+        await thinking.delete()
+        body = e.read().decode() if hasattr(e, 'read') else str(e)
+        await update.message.reply_html(f"❌ HTTP {e.code}: <code>{body[:200]}</code>")
+    except Exception as e:
+        await thinking.delete()
+        await update.message.reply_html(f"❌ Error: <code>{str(e)[:200]}</code>")
+
+
 async def post_init(application):
     """Register bot commands with Telegram so they appear in the menu and / hint."""
     commands = [
@@ -647,6 +758,7 @@ async def post_init(application):
         BotCommand("metrics", "Server resource usage + disk trend"),
         BotCommand("deploy", "Last deploy info + process status"),
         BotCommand("sheets", "Export analytics to Google Sheets"),
+        BotCommand("stars", "Telegram Stars balance + recent transactions"),
         BotCommand("onboarding", "Onboarding questions reference"),
         BotCommand("punishments", "Punishment system reference"),
         BotCommand("flow", "Onboarding flow diagram"),
@@ -670,6 +782,7 @@ def main():
     app.add_handler(CommandHandler("metrics", metrics_command))
     app.add_handler(CommandHandler("sheets", sheets_command))
     app.add_handler(CommandHandler("deploy", deploy_command))
+    app.add_handler(CommandHandler("stars", stars_command))
     app.add_handler(CommandHandler("onboarding", onboarding_command))
     app.add_handler(CommandHandler("punishments", punishments_command))
     app.add_handler(CommandHandler("flow", flow_command))
