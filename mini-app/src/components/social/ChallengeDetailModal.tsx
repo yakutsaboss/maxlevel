@@ -90,7 +90,7 @@ export function ChallengeDetailModal({ challengeId, onClose, userId, onLeave }: 
           className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-end"
           onClick={onClose}
         >
-          <FocusTrap onEscape={onClose}>
+          <FocusTrap onEscape={onClose} aria-label={detail?.title || t('social.challengeDetails')}>
           <motion.div
             initial={{ y: '100%' }}
             animate={{ y: 0 }}

@@ -29,7 +29,7 @@ export function QuestDetailModal({ quest, completing, userId, onClose, onCheckin
   return (
     <AnimatePresence>
       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-end" onClick={onClose}>
-        <FocusTrap onEscape={onClose}>
+        <FocusTrap onEscape={onClose} aria-label={quest.title || 'Quest details'}>
         <motion.div
           layoutId={`quest-${quest.id}`}
           initial={{ y: '100%' }}

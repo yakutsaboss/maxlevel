@@ -95,7 +95,7 @@ export function ProfileEditModal({ isOpen, onClose, onSaved, telegramId, current
           className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-end"
           onClick={handleCancel}
         >
-          <FocusTrap onEscape={handleCancel}>
+          <FocusTrap onEscape={handleCancel} aria-label={t('profile.editProfile')}>
           <motion.div
             initial={{ y: '100%' }}
             animate={{ y: 0 }}
@@ -107,8 +107,8 @@ export function ProfileEditModal({ isOpen, onClose, onSaved, telegramId, current
             <div className="w-12 h-1 bg-telegram-hint/30 rounded-full mx-auto mb-4" />
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-xl font-bold">{t('profile.editProfile')}</h2>
-              <button onClick={handleCancel} className="p-2 rounded-xl bg-telegram-hint/10 active:scale-95 transition-transform">
-                <X className="w-5 h-5 text-telegram-hint" />
+              <button onClick={handleCancel} className="p-2 rounded-xl bg-telegram-hint/10 active:scale-95 transition-transform" aria-label={t('common.close')}>
+                <X className="w-5 h-5 text-telegram-hint" aria-hidden="true" />
               </button>
             </div>
 
