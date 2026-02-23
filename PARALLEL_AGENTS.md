@@ -2127,3 +2127,41 @@ Write retrospective when done.
 
 #### Agent 0 Retrospective
 *(To be filled by Agent 0)*
+
+---
+
+### Run 91 Retrospectives
+
+#### Agent D Retrospective
+**Status**: Complete — 2 files modified, `tsc --noEmit` clean.
+
+**Discovery**: The payment infrastructure already existed extensively:
+- `bot/src/handlers/payments.ts` — pre-checkout + successful payment handlers (already registered in index.ts)
+- `bot/src/api/routes/payments.ts` — full payment API with create, history, subscription, tiers
+- `bot/src/api/routes/payment-webhook.ts` — HTTP webhook handler for payment callbacks
+- `database/schema.sql` — payments table already defined with all required columns
+- `bot/src/utils/paymentHelpers.ts` — shared validation + tier prices
+
+**What was actually needed** (vs. task description):
+
+**Modified `bot/src/handlers/payments.ts`**:
+- Extended `PaymentPayload` type to support both `TierPayload` and `ModeUnlockPayload` (discriminated union)
+- Updated `parsePayload()` to recognize `{type: 'mode_unlock', mode_name}` payloads (previously only `{payment_id, tier}`)
+- Added mode_unlock handling in `handleSuccessfulPayment()`: inserts into `mode_unlocks` table, sends mode-specific confirmation to user
+- Added `notifyOwnerPayment()` — sends payment notification to owner via notification bot's Telegram HTTP API (fire-and-forget, never blocks payment flow)
+- Both tier upgrades and mode unlocks now send owner notifications with user name, amount, type, and charge ID
+
+**Modified `tools/notification_bot_handler.py`**:
+- Added `/stars` command: calls `getStarTransactions` API using MAIN bot token
+- Shows recent 5 transactions with direction (in/out), amount, date, and payload details (mode unlock or tier)
+- Registered in command list, help text, and handler list
+
+**NOT changed** (already existed):
+- `bot/src/api/routes/payments.ts` — already handles invoice creation for both tiers and mode unlocks
+- `bot/src/api/server.ts` — already mounts paymentsRouter
+- `bot/src/bot.ts` / `bot/src/index.ts` — already registers payment Grammy handlers
+- `database/schema.sql` — payments table already exists
+
+**Commits**: 2 commits on `feature/r91-payments`
+**Build**: `npx tsc --noEmit` clean (exit 0)
+**No issues encountered.**
