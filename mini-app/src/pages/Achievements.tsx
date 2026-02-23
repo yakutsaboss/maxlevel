@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useTelegram } from '@/hooks/useTelegram';
 import { usePullToRefresh, PullIndicator } from '@/hooks/usePullToRefresh';
+import { useStaggerAnimation } from '@/hooks/useStaggerAnimation';
 import { apiClient } from '@/api/client';
 import { Achievement, UserAchievement } from '@/types';
 import { Trophy, RefreshCw, SlidersHorizontal } from 'lucide-react';
@@ -174,6 +175,8 @@ export function Achievements() {
     })).filter(g => g.achievements.length > 0);
   }, [sortedAchievements, sortMode]);
 
+  const { containerVariants: groupVariants, itemVariants: groupItemVariants } = useStaggerAnimation(grouped.length, 0.08);
+
   if (loading) return <AchievementsSkeleton />;
   if (error) return <ErrorSection message={t('achievements.couldNotLoad')} onRetry={loadData} />;
 
@@ -284,18 +287,24 @@ export function Achievements() {
       </div>
 
       {/* Achievement groups */}
-      <div className="px-4 mt-2 space-y-6 mb-6">
+      <motion.div
+        className="px-4 mt-2 space-y-6 mb-6"
+        variants={groupVariants}
+        initial="hidden"
+        animate="visible"
+      >
         {grouped.map(({ rarity, achievements }) => (
-          <RarityGroup
-            key={rarity}
-            rarity={rarity}
-            achievements={achievements}
-            unlockedIds={unlockedIds}
-            userAchievements={userAchievements}
-            haptic={haptic}
-            hideHeader={sortMode !== 'rarity'}
-            onBuyClick={handleBuyClick}
-          />
+          <motion.div key={rarity} variants={groupItemVariants}>
+            <RarityGroup
+              rarity={rarity}
+              achievements={achievements}
+              unlockedIds={unlockedIds}
+              userAchievements={userAchievements}
+              haptic={haptic}
+              hideHeader={sortMode !== 'rarity'}
+              onBuyClick={handleBuyClick}
+            />
+          </motion.div>
         ))}
 
         {grouped.length === 0 && (
@@ -306,7 +315,7 @@ export function Achievements() {
             </p>
           </div>
         )}
-      </div>
+      </motion.div>
 
       {buyToast && (
         <Toast message={buyToast} variant="info" onDismiss={() => setBuyToast(null)} />
