@@ -2127,3 +2127,26 @@ Write retrospective when done.
 
 #### Agent 0 Retrospective
 *(To be filled by Agent 0)*
+
+---
+
+### Run 91 Agent A Retrospective
+
+#### Agent A Retrospective
+**Status**: Complete — 2 files changed, `tsc --noEmit` clean (exit 0).
+
+**Root cause**: `SplashScreen.tsx` stored the selected language in React state only. `i18n.changeLanguage()` was never called, and nothing persisted to localStorage. The i18n init in `index.ts` only read `window.Telegram.WebApp.initDataUnsafe.user.language_code` — no localStorage fallback.
+
+**Fixed**:
+- `mini-app/src/components/onboarding/SplashScreen.tsx`:
+  - Destructured `i18n` from `useTranslation()` (was only getting `t`)
+  - `handleLangSelect()` now calls `i18n.changeLanguage(code)` immediately — UI re-renders in new language on tap
+  - Persists choice to `localStorage.setItem('maxlevel-language', code)`
+  - Pre-selects current language on mount via `useState(() => i18n.language?.substring(0, 2) || null)` — if Telegram says "ru", Russian flag is highlighted by default
+- `mini-app/src/i18n/index.ts`:
+  - Added `localStorage.getItem('maxlevel-language')` check before init
+  - `lng` priority: savedLang > tgLang > undefined (user's explicit choice overrides Telegram's language_code)
+  - Detection order: `['localStorage', 'querystring', 'navigator']` with `lookupLocalStorage: 'maxlevel-language'`
+
+**Commit**: `139d653` on `feature/r91-language-fix`
+**No issues encountered.**
