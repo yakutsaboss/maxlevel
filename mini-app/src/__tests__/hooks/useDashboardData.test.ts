@@ -1,5 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook, waitFor } from '@testing-library/react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import React from 'react';
 import { useDashboardData } from '@/hooks/useDashboardData';
 
 // Mock react-router-dom
@@ -31,6 +33,11 @@ vi.mock('@/hooks/usePullToRefresh', () => ({
   }),
 }));
 
+// Mock logger
+vi.mock('@/utils/logger', () => ({
+  logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() },
+}));
+
 import { apiClient } from '@/api/client';
 
 const mockGetUserStats = vi.mocked(apiClient.getUserStats);
@@ -52,6 +59,16 @@ const mockStatsResponse = {
   },
 };
 
+function createWrapper() {
+  const queryClient = new QueryClient({
+    defaultOptions: {
+      queries: { retry: false, staleTime: 0, gcTime: 0 },
+    },
+  });
+  return ({ children }: { children: React.ReactNode }) =>
+    React.createElement(QueryClientProvider, { client: queryClient }, children);
+}
+
 describe('useDashboardData', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -59,8 +76,9 @@ describe('useDashboardData', () => {
 
   it('starts in loading state', () => {
     mockGetUserStats.mockReturnValue(new Promise(() => {})); // never resolves
-    const { result } = renderHook(() =>
-      useDashboardData({ userId: 123, haptic: mockHaptic })
+    const { result } = renderHook(
+      () => useDashboardData({ userId: 123, haptic: mockHaptic }),
+      { wrapper: createWrapper() },
     );
 
     expect(result.current.loading).toBe(true);
@@ -71,8 +89,9 @@ describe('useDashboardData', () => {
   it('loads user stats successfully', async () => {
     mockGetUserStats.mockResolvedValue(mockStatsResponse as any);
 
-    const { result } = renderHook(() =>
-      useDashboardData({ userId: 123, haptic: mockHaptic })
+    const { result } = renderHook(
+      () => useDashboardData({ userId: 123, haptic: mockHaptic }),
+      { wrapper: createWrapper() },
     );
 
     await waitFor(() => {
@@ -81,21 +100,21 @@ describe('useDashboardData', () => {
 
     expect(result.current.stats).toEqual(mockStatsResponse.data);
     expect(result.current.error).toBe(false);
-    expect(mockGetUserStats).toHaveBeenCalledWith(123, expect.objectContaining({ signal: expect.any(AbortSignal) }));
+    expect(mockGetUserStats).toHaveBeenCalledWith(123);
   });
 
   it('sets error state on fetch failure', async () => {
     mockGetUserStats.mockRejectedValue(new Error('Network error'));
 
-    const { result } = renderHook(() =>
-      useDashboardData({ userId: 123, haptic: mockHaptic })
+    const { result } = renderHook(
+      () => useDashboardData({ userId: 123, haptic: mockHaptic }),
+      { wrapper: createWrapper() },
     );
 
     await waitFor(() => {
-      expect(result.current.loading).toBe(false);
+      expect(result.current.error).toBe(true);
     });
 
-    expect(result.current.error).toBe(true);
     expect(result.current.stats).toBeNull();
   });
 
@@ -118,11 +137,12 @@ describe('useDashboardData', () => {
       },
     } as any);
 
-    const { result } = renderHook(() =>
-      useDashboardData({ userId: 123, haptic: mockHaptic })
+    const { result } = renderHook(
+      () => useDashboardData({ userId: 123, haptic: mockHaptic }),
+      { wrapper: createWrapper() },
     );
 
-    // Wait for initial load (checkAchievements=false on mount)
+    // Wait for initial load
     await waitFor(() => {
       expect(result.current.loading).toBe(false);
     });
@@ -140,8 +160,9 @@ describe('useDashboardData', () => {
   });
 
   it('handles undefined userId gracefully', async () => {
-    const { result } = renderHook(() =>
-      useDashboardData({ userId: undefined, haptic: mockHaptic })
+    const { result } = renderHook(
+      () => useDashboardData({ userId: undefined, haptic: mockHaptic }),
+      { wrapper: createWrapper() },
     );
 
     await waitFor(() => {
