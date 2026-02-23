@@ -6,6 +6,7 @@ import { Onboarding } from '@/pages/Onboarding';
 import { Navigation } from '@/components/Navigation';
 import { PageTransition } from '@/components/PageTransition';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
+import { PageErrorBoundary } from '@/components/PageErrorBoundary';
 import { LazyPageWrapper } from '@/components/LazyPageWrapper';
 import { ProtectedRoute } from '@/components/ProtectedRoute';
 import { OfflineBanner } from '@/components/OfflineBanner';
@@ -139,26 +140,26 @@ function AppContent() {
             }
           />
           <Route path="/onboarding" element={<Onboarding />} />
-          <Route path="/dashboard" element={<ProtectedRoute needsOnboarding={effectiveNeedsOnboarding} lazy><Dashboard /></ProtectedRoute>} />
-          <Route path="/quests" element={<ProtectedRoute needsOnboarding={effectiveNeedsOnboarding} lazy><Quests /></ProtectedRoute>} />
-          <Route path="/profile" element={<ProtectedRoute needsOnboarding={effectiveNeedsOnboarding} lazy><Profile /></ProtectedRoute>} />
-          <Route path="/leaderboard" element={<ProtectedRoute needsOnboarding={effectiveNeedsOnboarding} lazy><Leaderboard /></ProtectedRoute>} />
-          <Route path="/social" element={<ProtectedRoute needsOnboarding={effectiveNeedsOnboarding} lazy><Social /></ProtectedRoute>} />
-          <Route path="/achievements" element={<ProtectedRoute needsOnboarding={effectiveNeedsOnboarding} lazy><Achievements /></ProtectedRoute>} />
-          <Route path="/settings" element={<ProtectedRoute needsOnboarding={effectiveNeedsOnboarding} lazy><Settings /></ProtectedRoute>} />
-          <Route path="/trophies" element={<ProtectedRoute needsOnboarding={effectiveNeedsOnboarding} lazy><TrophyCase /></ProtectedRoute>} />
-          <Route path="/inventory" element={<ProtectedRoute needsOnboarding={effectiveNeedsOnboarding} lazy><Inventory /></ProtectedRoute>} />
-          <Route path="/shop" element={<ProtectedRoute needsOnboarding={effectiveNeedsOnboarding} lazy><Shop /></ProtectedRoute>} />
-          <Route path="/shop/:itemId" element={<ProtectedRoute needsOnboarding={effectiveNeedsOnboarding} lazy><Shop /></ProtectedRoute>} />
-          <Route path="/analytics" element={<ProtectedRoute needsOnboarding={effectiveNeedsOnboarding} lazy><Analytics /></ProtectedRoute>} />
-          <Route path="/medications" element={<ProtectedRoute needsOnboarding={effectiveNeedsOnboarding} lazy><Medications /></ProtectedRoute>} />
-          <Route path="/notifications" element={<ProtectedRoute needsOnboarding={effectiveNeedsOnboarding} lazy><NotificationHistory /></ProtectedRoute>} />
-          <Route path="/activity" element={<ProtectedRoute needsOnboarding={effectiveNeedsOnboarding} lazy><ActivityHub /></ProtectedRoute>} />
-          <Route path="/activity/history" element={<ProtectedRoute needsOnboarding={effectiveNeedsOnboarding} lazy><ActivityHistory /></ProtectedRoute>} />
+          <Route path="/dashboard" element={<ProtectedRoute needsOnboarding={effectiveNeedsOnboarding} lazy><PageErrorBoundary pageName="Dashboard"><Dashboard /></PageErrorBoundary></ProtectedRoute>} />
+          <Route path="/quests" element={<ProtectedRoute needsOnboarding={effectiveNeedsOnboarding} lazy><PageErrorBoundary pageName="Quests"><Quests /></PageErrorBoundary></ProtectedRoute>} />
+          <Route path="/profile" element={<ProtectedRoute needsOnboarding={effectiveNeedsOnboarding} lazy><PageErrorBoundary pageName="Profile"><Profile /></PageErrorBoundary></ProtectedRoute>} />
+          <Route path="/leaderboard" element={<ProtectedRoute needsOnboarding={effectiveNeedsOnboarding} lazy><PageErrorBoundary pageName="Leaderboard"><Leaderboard /></PageErrorBoundary></ProtectedRoute>} />
+          <Route path="/social" element={<ProtectedRoute needsOnboarding={effectiveNeedsOnboarding} lazy><PageErrorBoundary pageName="Social"><Social /></PageErrorBoundary></ProtectedRoute>} />
+          <Route path="/achievements" element={<ProtectedRoute needsOnboarding={effectiveNeedsOnboarding} lazy><PageErrorBoundary pageName="Achievements"><Achievements /></PageErrorBoundary></ProtectedRoute>} />
+          <Route path="/settings" element={<ProtectedRoute needsOnboarding={effectiveNeedsOnboarding} lazy><PageErrorBoundary pageName="Settings"><Settings /></PageErrorBoundary></ProtectedRoute>} />
+          <Route path="/trophies" element={<ProtectedRoute needsOnboarding={effectiveNeedsOnboarding} lazy><PageErrorBoundary pageName="Trophies"><TrophyCase /></PageErrorBoundary></ProtectedRoute>} />
+          <Route path="/inventory" element={<ProtectedRoute needsOnboarding={effectiveNeedsOnboarding} lazy><PageErrorBoundary pageName="Inventory"><Inventory /></PageErrorBoundary></ProtectedRoute>} />
+          <Route path="/shop" element={<ProtectedRoute needsOnboarding={effectiveNeedsOnboarding} lazy><PageErrorBoundary pageName="Shop"><Shop /></PageErrorBoundary></ProtectedRoute>} />
+          <Route path="/shop/:itemId" element={<ProtectedRoute needsOnboarding={effectiveNeedsOnboarding} lazy><PageErrorBoundary pageName="Shop"><Shop /></PageErrorBoundary></ProtectedRoute>} />
+          <Route path="/analytics" element={<ProtectedRoute needsOnboarding={effectiveNeedsOnboarding} lazy><PageErrorBoundary pageName="Analytics"><Analytics /></PageErrorBoundary></ProtectedRoute>} />
+          <Route path="/medications" element={<ProtectedRoute needsOnboarding={effectiveNeedsOnboarding} lazy><PageErrorBoundary pageName="Medications"><Medications /></PageErrorBoundary></ProtectedRoute>} />
+          <Route path="/notifications" element={<ProtectedRoute needsOnboarding={effectiveNeedsOnboarding} lazy><PageErrorBoundary pageName="Notifications"><NotificationHistory /></PageErrorBoundary></ProtectedRoute>} />
+          <Route path="/activity" element={<ProtectedRoute needsOnboarding={effectiveNeedsOnboarding} lazy><PageErrorBoundary pageName="Activity"><ActivityHub /></PageErrorBoundary></ProtectedRoute>} />
+          <Route path="/activity/history" element={<ProtectedRoute needsOnboarding={effectiveNeedsOnboarding} lazy><PageErrorBoundary pageName="Activity History"><ActivityHistory /></PageErrorBoundary></ProtectedRoute>} />
           <Route path="/admin" element={<Navigate to="/admin/dashboard" replace />} />
-          <Route path="/admin/dashboard" element={<LazyPageWrapper><AdminDashboard /></LazyPageWrapper>} />
-          <Route path="/admin/players" element={<LazyPageWrapper><AdminPlayerList /></LazyPageWrapper>} />
-          <Route path="/admin/players/:userId" element={<LazyPageWrapper><AdminPlayerDetail /></LazyPageWrapper>} />
+          <Route path="/admin/dashboard" element={<LazyPageWrapper><PageErrorBoundary pageName="Admin Dashboard"><AdminDashboard /></PageErrorBoundary></LazyPageWrapper>} />
+          <Route path="/admin/players" element={<LazyPageWrapper><PageErrorBoundary pageName="Admin Players"><AdminPlayerList /></PageErrorBoundary></LazyPageWrapper>} />
+          <Route path="/admin/players/:userId" element={<LazyPageWrapper><PageErrorBoundary pageName="Admin Player"><AdminPlayerDetail /></PageErrorBoundary></LazyPageWrapper>} />
         </Routes>
       </PageTransition>
       </main>
