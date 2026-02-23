@@ -7,6 +7,7 @@ import { useTelegram, useBackButton } from '@/hooks/useTelegram';
 import { useNotificationHistory } from '@/hooks/useNotificationHistory';
 import { usePullToRefresh, PullIndicator } from '@/hooks/usePullToRefresh';
 import { ErrorSection } from '@/components/ErrorSection';
+import { NotificationHistorySkeleton } from '@/components/notifications/NotificationHistorySkeleton';
 
 type FilterType = 'all' | 'quest' | 'achievement' | 'medication' | 'streak';
 
@@ -93,6 +94,10 @@ export function NotificationHistory() {
     return <ErrorSection message={t('notificationHistory.couldNotLoad')} onRetry={refresh} />;
   }
 
+  if (loading) {
+    return <NotificationHistorySkeleton />;
+  }
+
   return (
     <div
       ref={containerRef}
@@ -127,21 +132,7 @@ export function NotificationHistory() {
       </div>
 
       <div className="px-4 mt-4">
-        {loading ? (
-          <div className="space-y-3">
-            {[...Array(5)].map((_, i) => (
-              <div key={i} className="bg-telegram-secondaryBg rounded-2xl p-4 animate-pulse">
-                <div className="flex gap-3">
-                  <div className="w-8 h-8 bg-telegram-hint/20 rounded-full" />
-                  <div className="flex-1 space-y-2">
-                    <div className="h-3 bg-telegram-hint/20 rounded w-3/4" />
-                    <div className="h-2.5 bg-telegram-hint/10 rounded w-1/2" />
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        ) : filteredNotifications.length === 0 ? (
+        {filteredNotifications.length === 0 ? (
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
