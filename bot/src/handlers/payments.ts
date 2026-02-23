@@ -1,6 +1,8 @@
 /**
  * Payment Grammy Handlers
  * Handles Telegram Stars payment flow: pre-checkout verification and successful payment processing.
+ * Supports tier upgrades and mode unlocks (Run 91).
+ * Sends payment notifications to owner via notification bot.
  */
 
 import type { MyContext } from '../bot.js';
@@ -10,20 +12,78 @@ import { TIER_PRICES, type Tier } from '../utils/paymentHelpers.js';
 
 const log = logger.child({ component: 'payment-handlers' });
 
-interface PaymentPayload {
+interface TierPayload {
   payment_id: number;
   tier: Tier;
+  type?: undefined;
 }
+
+interface ModeUnlockPayload {
+  payment_id: number;
+  type: 'mode_unlock';
+  mode_name: string;
+}
+
+type PaymentPayload = TierPayload | ModeUnlockPayload;
 
 function parsePayload(raw: string): PaymentPayload | null {
   try {
     const data = JSON.parse(raw);
-    if (typeof data.payment_id === 'number' && data.tier) {
-      return data as PaymentPayload;
+    if (typeof data.payment_id !== 'number') return null;
+    // Mode unlock payload
+    if (data.type === 'mode_unlock' && typeof data.mode_name === 'string') {
+      return data as ModeUnlockPayload;
+    }
+    // Tier upgrade payload
+    if (data.tier) {
+      return data as TierPayload;
     }
     return null;
   } catch {
     return null;
+  }
+}
+
+/**
+ * Send payment notification to the owner via notification bot.
+ * Uses direct Telegram HTTP API — fire-and-forget, never blocks the payment flow.
+ */
+async function notifyOwnerPayment(details: {
+  userName: string;
+  telegramId: number;
+  amount: number;
+  type: string;
+  label: string;
+  chargeId: string;
+}): Promise<void> {
+  const notifToken = process.env.TELEGRAM_NOTIFICATION_BOT_TOKEN;
+  const chatId = process.env.TELEGRAM_NOTIFICATION_CHAT_ID;
+  if (!notifToken || !chatId) {
+    log.warn('Notification bot not configured — skipping payment notification');
+    return;
+  }
+
+  const msg =
+    `💰 <b>New Payment Received!</b>\n\n` +
+    `👤 User: ${details.userName} (ID: ${details.telegramId})\n` +
+    `⭐ Amount: ${details.amount} Stars\n` +
+    `📦 Type: ${details.type}\n` +
+    `🏷 Item: ${details.label}\n` +
+    `🔑 Charge: <code>${details.chargeId}</code>`;
+
+  try {
+    const url = `https://api.telegram.org/bot${notifToken}/sendMessage`;
+    const resp = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ chat_id: chatId, text: msg, parse_mode: 'HTML' }),
+    });
+    if (!resp.ok) {
+      const body = await resp.text();
+      log.warn('Failed to send payment notification', { status: resp.status, body });
+    }
+  } catch (err) {
+    log.warn('Error sending payment notification', { error: err });
   }
 }
 
@@ -95,7 +155,9 @@ export async function handlePreCheckoutQuery(ctx: MyContext) {
 
 /**
  * successful_payment handler (on 'message:successful_payment')
- * Telegram sends this after the user has paid. Update DB and activate subscription.
+ * Telegram sends this after the user has paid.
+ * Handles both tier upgrades and mode unlocks.
+ * Sends notification to owner via notification bot.
  */
 export async function handleSuccessfulPayment(ctx: MyContext) {
   const sp = ctx.message!.successful_payment!;
@@ -123,7 +185,13 @@ export async function handleSuccessfulPayment(ctx: MyContext) {
   }
 
   // Look up the pending payment
-  const payment = await queryOne<{ id: number; user_id: number; amount: string; status: string; metadata: { tier?: string } }>(
+  const payment = await queryOne<{
+    id: number;
+    user_id: number;
+    amount: string;
+    status: string;
+    metadata: { tier?: string; type?: string; mode_name?: string };
+  }>(
     `SELECT id, user_id, amount, status, metadata FROM payments WHERE id = $1`,
     [payload.payment_id],
   );
@@ -137,54 +205,127 @@ export async function handleSuccessfulPayment(ctx: MyContext) {
   // Idempotent: if already completed, just confirm
   if (payment.status === 'completed') {
     log.info('Successful payment: already processed (idempotent)', { paymentId: payment.id });
-    await ctx.reply('Your Premium subscription is already active! Enjoy all features.');
+    await ctx.reply('This payment has already been processed. Enjoy your purchase!');
     return;
   }
 
-  const tier = payload.tier || (payment.metadata?.tier as string) || 'premium';
+  const userName = ctx.from?.first_name || ctx.from?.username || 'Unknown';
+  const telegramId = ctx.from?.id || 0;
 
-  // Complete payment and activate subscription in a single transaction
-  await transaction(async (client) => {
-    await client.query(
-      `UPDATE payments
-       SET status = 'completed',
-           telegram_payment_charge_id = $1,
-           provider_payment_charge_id = $2,
-           updated_at = NOW()
-       WHERE id = $3`,
-      [telegram_payment_charge_id, provider_payment_charge_id || null, payment.id],
+  // Determine payment type from payload or metadata
+  const isModeUnlock = payload.type === 'mode_unlock' || payment.metadata?.type === 'mode_unlock';
+
+  if (isModeUnlock) {
+    const modeName = (payload as ModeUnlockPayload).mode_name || payment.metadata?.mode_name;
+    if (!modeName) {
+      log.error('Mode unlock payment missing mode_name', { paymentId: payment.id });
+      await ctx.reply('Payment received but mode data is missing. Please contact support.');
+      return;
+    }
+
+    await transaction(async (client) => {
+      await client.query(
+        `UPDATE payments
+         SET status = 'completed',
+             telegram_payment_charge_id = $1,
+             provider_payment_charge_id = $2,
+             updated_at = NOW()
+         WHERE id = $3`,
+        [telegram_payment_charge_id, provider_payment_charge_id || null, payment.id],
+      );
+
+      await client.query(
+        `INSERT INTO mode_unlocks (user_id, mode_name, unlock_method, amount_paid)
+         VALUES ($1, $2, 'stars', $3)
+         ON CONFLICT (user_id, mode_name) DO NOTHING`,
+        [payment.user_id, modeName, Math.round(parseFloat(payment.amount))],
+      );
+    });
+
+    log.info('Mode unlock completed', {
+      paymentId: payment.id,
+      userId: payment.user_id,
+      modeName,
+      telegramChargeId: telegram_payment_charge_id,
+    });
+
+    const modeLabel = modeName.charAt(0).toUpperCase() + modeName.slice(1);
+
+    await ctx.reply(
+      `🎉 *Mode Unlocked!*\n\n` +
+      `You've unlocked *${modeLabel}* mode!\n\n` +
+      `⭐ Amount: ${total_amount} Stars\n` +
+      `🔓 ${modeLabel} features are now available\n\n` +
+      `Open /app to start using it!`,
+      { parse_mode: 'Markdown' },
     );
 
-    await client.query(
-      `INSERT INTO subscriptions (user_id, tier, started_at, expires_at, auto_renew)
-       VALUES ($1, $2, NOW(), NOW() + INTERVAL '30 days', true)
-       ON CONFLICT (user_id) DO UPDATE
-       SET tier = $2,
-           started_at = NOW(),
-           expires_at = NOW() + INTERVAL '30 days',
-           auto_renew = true,
-           updated_at = NOW()`,
-      [payment.user_id, tier],
+    // Notify owner (fire-and-forget)
+    notifyOwnerPayment({
+      userName,
+      telegramId,
+      amount: total_amount,
+      type: 'Mode Unlock',
+      label: `${modeLabel} Mode`,
+      chargeId: telegram_payment_charge_id,
+    }).catch(() => {});
+
+  } else {
+    // Tier upgrade flow
+    const tier = (payload as TierPayload).tier || (payment.metadata?.tier as string) || 'premium';
+
+    await transaction(async (client) => {
+      await client.query(
+        `UPDATE payments
+         SET status = 'completed',
+             telegram_payment_charge_id = $1,
+             provider_payment_charge_id = $2,
+             updated_at = NOW()
+         WHERE id = $3`,
+        [telegram_payment_charge_id, provider_payment_charge_id || null, payment.id],
+      );
+
+      await client.query(
+        `INSERT INTO subscriptions (user_id, tier, started_at, expires_at, auto_renew)
+         VALUES ($1, $2, NOW(), NOW() + INTERVAL '30 days', true)
+         ON CONFLICT (user_id) DO UPDATE
+         SET tier = $2,
+             started_at = NOW(),
+             expires_at = NOW() + INTERVAL '30 days',
+             auto_renew = true,
+             updated_at = NOW()`,
+        [payment.user_id, tier],
+      );
+    });
+
+    log.info('Payment completed & subscription activated', {
+      paymentId: payment.id,
+      userId: payment.user_id,
+      tier,
+      telegramChargeId: telegram_payment_charge_id,
+    });
+
+    const tierLabel = tier.charAt(0).toUpperCase() + tier.slice(1);
+    const price = TIER_PRICES[tier as Tier] ?? total_amount;
+
+    await ctx.reply(
+      `🎉 *Payment Successful!*\n\n` +
+      `You've been upgraded to *${tierLabel}* tier!\n\n` +
+      `⭐ Amount: ${price} Stars\n` +
+      `📅 Valid for: 30 days\n` +
+      `🎮 Unlocked: 6 modes, all features\n\n` +
+      `Thank you for your support! Use /app to explore your new features.`,
+      { parse_mode: 'Markdown' },
     );
-  });
 
-  log.info('Payment completed & subscription activated', {
-    paymentId: payment.id,
-    userId: payment.user_id,
-    tier,
-    telegramChargeId: telegram_payment_charge_id,
-  });
-
-  const tierLabel = tier.charAt(0).toUpperCase() + tier.slice(1);
-  const price = TIER_PRICES[tier as Tier] ?? total_amount;
-
-  await ctx.reply(
-    `🎉 *Payment Successful!*\n\n` +
-    `You've been upgraded to *${tierLabel}* tier!\n\n` +
-    `⭐ Amount: ${price} Stars\n` +
-    `📅 Valid for: 30 days\n` +
-    `🎮 Unlocked: 6 modes, all features\n\n` +
-    `Thank you for your support! Use /app to explore your new features.`,
-    { parse_mode: 'Markdown' },
-  );
+    // Notify owner (fire-and-forget)
+    notifyOwnerPayment({
+      userName,
+      telegramId,
+      amount: total_amount,
+      type: 'Tier Upgrade',
+      label: `${tierLabel} (30 days)`,
+      chargeId: telegram_payment_charge_id,
+    }).catch(() => {});
+  }
 }
