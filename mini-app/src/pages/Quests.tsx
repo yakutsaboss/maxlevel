@@ -11,6 +11,7 @@ import { QuestDetailModal } from '@/components/quests/QuestDetailModal';
 import { TabButton } from '@/components/quests/TabButton';
 import { QuestsSkeleton } from '@/components/quests/QuestsSkeleton';
 import { QuestFilters } from '@/components/quests/QuestFilters';
+import { QuestCompletionCelebration } from '@/components/celebrations/QuestCompletionCelebration';
 
 export function Quests() {
   const { t } = useTranslation();
@@ -29,6 +30,7 @@ export function Quests() {
     handleRefresh, handleQuestSelect, handleCompleteQuest,
     handleCheckinSuccess, closeSelectedQuest, loadQuests,
     mainButtonText, mainButtonVisible, mainButtonActive,
+    showQuestCelebration, celebratedQuestName,
   } = useQuestsData(user?.id, haptic);
 
   const { containerRef, pullDistance, refreshing, pullThreshold, touchHandlers } = usePullToRefresh(handleRefresh, haptic);
@@ -156,6 +158,11 @@ export function Quests() {
           onCheckinSuccess={handleCheckinSuccess}
         />
       )}
+
+      <QuestCompletionCelebration
+        show={showQuestCelebration}
+        questName={celebratedQuestName}
+      />
     </div>
   );
 }
