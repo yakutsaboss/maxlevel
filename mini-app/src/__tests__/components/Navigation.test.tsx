@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
+import { framerMotionMock } from '@/test/mocks/framer-motion';
 
 // Mock react-i18next
 vi.mock('react-i18next', () => ({
@@ -8,17 +9,10 @@ vi.mock('react-i18next', () => ({
       const translations: Record<string, string> = {
         'nav.home': 'Home',
         'nav.quests': 'Quests',
-        'nav.rewards': 'Rewards',
         'nav.ranks': 'Ranks',
         'nav.profile': 'Profile',
-        'nav.more': 'More',
-        'nav.trophies': 'Trophies',
-        'nav.social': 'Social',
-        'nav.finance': 'Finance',
-        'nav.shop': 'Shop',
-        'nav.analytics': 'Analytics',
-        'nav.activities': 'Activities',
-        'nav.knowledge': 'Knowledge',
+        'nav.settings': 'Settings',
+        'nav.medications': 'Medications',
       };
       return translations[key] ?? key;
     },
@@ -29,17 +23,10 @@ vi.mock('react-i18next', () => ({
 vi.mock('lucide-react', () => ({
   Home: (props: any) => <span data-testid="icon-home" {...props} />,
   Target: (props: any) => <span data-testid="icon-quests" {...props} />,
-  Award: (props: any) => <span data-testid="icon-rewards" {...props} />,
-  Trophy: (props: any) => <span data-testid="icon-ranks" {...props} />,
   User: (props: any) => <span data-testid="icon-profile" {...props} />,
-  Users: (props: any) => <span data-testid="icon-users" {...props} />,
-  Medal: (props: any) => <span data-testid="icon-medal" {...props} />,
-  MoreHorizontal: (props: any) => <span data-testid="icon-more" {...props} />,
-  DollarSign: (props: any) => <span data-testid="icon-finance" {...props} />,
-  ShoppingBag: (props: any) => <span data-testid="icon-shop" {...props} />,
-  BarChart3: (props: any) => <span data-testid="icon-analytics" {...props} />,
-  Dumbbell: (props: any) => <span data-testid="icon-dumbbell" {...props} />,
-  BookOpen: (props: any) => <span data-testid="icon-bookopen" {...props} />,
+  Trophy: (props: any) => <span data-testid="icon-ranks" {...props} />,
+  Settings: (props: any) => <span data-testid="icon-settings" {...props} />,
+  Pill: (props: any) => <span data-testid="icon-pill" {...props} />,
 }));
 
 // Mock react-router-dom
@@ -57,16 +44,17 @@ const mockHaptic = {
   selection: vi.fn(),
 };
 vi.mock('@/hooks/useTelegram', () => ({
-  useTelegram: () => ({ haptic: mockHaptic }),
+  useTelegram: () => ({ haptic: mockHaptic, user: { id: 123 } }),
 }));
 
-// Mock framer-motion to avoid animation issues in tests
-vi.mock('framer-motion', () => ({
-  motion: {
-    div: ({ children, ...props }: any) => <div {...props}>{children}</div>,
-  },
-  AnimatePresence: ({ children }: any) => <>{children}</>,
+// Mock useDashboardQuery (Navigation uses useDashboardStats to check medication mode)
+vi.mock('@/hooks/useDashboardQuery', () => ({
+  useDashboardStats: () => ({ data: undefined, isLoading: false }),
+  dashboardKeys: { all: ['dashboard'], stats: (id: number) => ['dashboard', 'stats', id] },
 }));
+
+// Mock framer-motion using shared mock (supports motion.button, motion.div, etc.)
+vi.mock('framer-motion', () => framerMotionMock);
 
 import { Navigation } from '@/components/Navigation';
 
@@ -76,15 +64,14 @@ describe('Navigation', () => {
     mockPathname = '/dashboard';
   });
 
-  it('renders 5 primary nav items + More button', () => {
+  it('renders 5 primary nav items', () => {
     render(<Navigation />);
 
     expect(screen.getByText('Home')).toBeInTheDocument();
     expect(screen.getByText('Quests')).toBeInTheDocument();
-    expect(screen.getByText('Activities')).toBeInTheDocument();
-    expect(screen.getByText('Shop')).toBeInTheDocument();
-    expect(screen.getByText('Rewards')).toBeInTheDocument();
-    expect(screen.getByText('More')).toBeInTheDocument();
+    expect(screen.getByText('Ranks')).toBeInTheDocument();
+    expect(screen.getByText('Profile')).toBeInTheDocument();
+    expect(screen.getByText('Settings')).toBeInTheDocument();
   });
 
   it('highlights active item based on route', () => {

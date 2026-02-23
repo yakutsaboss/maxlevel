@@ -1177,3 +1177,26 @@ Write retrospective when done.
 - Bot: 1100/1100 tests pass. Mini-app MVP: 627/629 (2 fixed, 24 pre-existing non-medication failures)
 - Key win: MedicationWidget now self-contained — fetches its own data via `useMedicationData` hook
 - Key win: All medication API tests pass (29/29 bot, 14/14 mini-app medication-specific)
+
+---
+
+### Run 89 Retrospectives
+
+#### Agent C Retrospective (Run 89)
+**Status**: Complete — 2 test files fixed, 17/17 tests pass (5 Navigation + 12 aria-audit).
+
+**Navigation.test.tsx** (5 failures → 0):
+- Root cause: Navigation component was updated in Run 87 to use `useDashboardStats` hook and new nav items (Home, Quests, Ranks, Profile, Settings) but test still expected old layout (Activities, Shop, Rewards, More)
+- Added `@/hooks/useDashboardQuery` mock (`useDashboardStats` + `dashboardKeys`)
+- Added `user` to `useTelegram` mock (component uses `user?.id` for dashboard stats query)
+- Added missing `Settings` and `Pill` icons to `lucide-react` mock
+- Replaced inline `framer-motion` mock (only had `motion.div`) with shared `framerMotionMock` from `@/test/mocks/framer-motion` (Proxy-based, supports all motion.* tags)
+- Updated all test expectations: 5 nav items instead of 6, correct names and paths
+
+**aria-audit.test.tsx** (3 Leaderboard failures → 0):
+- Root cause: `@tanstack/react-query` mock only exported `useQueryClient` but Leaderboard's `useLeaderboard` hook calls `useQuery` → vitest threw "No useQuery export"
+- Added `useQuery` to the mock (returns `{ data: [], isLoading: false, isError: false, refetch: vi.fn() }`)
+- Added `invalidateQueries` to `useQueryClient` mock for completeness
+- All 9 passing tests (Dashboard, Profile, Settings) remain green
+
+**No source files modified** — only test files touched as required.
