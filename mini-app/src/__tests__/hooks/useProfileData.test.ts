@@ -1,5 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook, waitFor } from '@testing-library/react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import React from 'react';
 import { useProfileData } from '@/hooks/useProfileData';
 
 // Mock apiClient
@@ -37,6 +39,16 @@ const mockUserAchievements = [
   { user_id: 1, achievement_id: 1, unlocked_at: '2026-01-01', achievement: mockAchievements[0] },
 ];
 
+function createWrapper() {
+  const queryClient = new QueryClient({
+    defaultOptions: {
+      queries: { retry: false, staleTime: 0, gcTime: 0 },
+    },
+  });
+  return ({ children }: { children: React.ReactNode }) =>
+    React.createElement(QueryClientProvider, { client: queryClient }, children);
+}
+
 describe('useProfileData', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -46,8 +58,9 @@ describe('useProfileData', () => {
     mockGetUserStats.mockReturnValue(new Promise(() => {}));
     mockGetUserAchievements.mockReturnValue(new Promise(() => {}));
     mockGetAchievements.mockReturnValue(new Promise(() => {}));
+    mockGetPunishmentSettings.mockReturnValue(new Promise(() => {}));
 
-    const { result } = renderHook(() => useProfileData(123));
+    const { result } = renderHook(() => useProfileData(123), { wrapper: createWrapper() });
 
     expect(result.current.loading).toBe(true);
     expect(result.current.stats).toBeNull();
@@ -62,17 +75,16 @@ describe('useProfileData', () => {
     mockGetAchievements.mockResolvedValue({ success: true, data: mockAchievements } as any);
     mockGetPunishmentSettings.mockResolvedValue({ success: true, data: { consent_given: false, intensity_level: 'mild', safe_mode: true } } as any);
 
-    const { result } = renderHook(() => useProfileData(123));
+    const { result } = renderHook(() => useProfileData(123), { wrapper: createWrapper() });
 
     await waitFor(() => {
       expect(result.current.loading).toBe(false);
     });
 
-    // All three parallel calls were made (with AbortSignal)
-    const signalMatcher = expect.objectContaining({ signal: expect.any(AbortSignal) });
-    expect(mockGetUserStats).toHaveBeenCalledWith(123, signalMatcher);
-    expect(mockGetUserAchievements).toHaveBeenCalledWith(123, signalMatcher);
-    expect(mockGetAchievements).toHaveBeenCalledWith(signalMatcher);
+    // All API calls were made (React Query manages signals internally)
+    expect(mockGetUserStats).toHaveBeenCalledWith(123);
+    expect(mockGetUserAchievements).toHaveBeenCalledWith(123);
+    expect(mockGetAchievements).toHaveBeenCalled();
 
     // Data is populated
     expect(result.current.stats).toEqual(mockStatsData);
@@ -87,7 +99,7 @@ describe('useProfileData', () => {
     mockGetAchievements.mockResolvedValue({ success: true, data: mockAchievements } as any);
     mockGetPunishmentSettings.mockRejectedValue(new Error('Punishment API not available'));
 
-    const { result } = renderHook(() => useProfileData(123));
+    const { result } = renderHook(() => useProfileData(123), { wrapper: createWrapper() });
 
     await waitFor(() => {
       expect(result.current.loading).toBe(false);
@@ -103,19 +115,19 @@ describe('useProfileData', () => {
     mockGetUserStats.mockRejectedValue(new Error('Network error'));
     mockGetUserAchievements.mockRejectedValue(new Error('Network error'));
     mockGetAchievements.mockRejectedValue(new Error('Network error'));
+    mockGetPunishmentSettings.mockRejectedValue(new Error('Network error'));
 
-    const { result } = renderHook(() => useProfileData(123));
+    const { result } = renderHook(() => useProfileData(123), { wrapper: createWrapper() });
 
     await waitFor(() => {
-      expect(result.current.loading).toBe(false);
+      expect(result.current.error).toBe(true);
     });
 
-    expect(result.current.error).toBe(true);
     expect(result.current.stats).toBeNull();
   });
 
   it('handles undefined userId gracefully', async () => {
-    const { result } = renderHook(() => useProfileData(undefined));
+    const { result } = renderHook(() => useProfileData(undefined), { wrapper: createWrapper() });
 
     await waitFor(() => {
       expect(result.current.loading).toBe(false);
@@ -138,14 +150,14 @@ describe('useProfileData', () => {
       data: { punishments: [{ xp_deducted: 10, punishment_type: 'xp_loss', applied_at: '2026-01-01', notes: 'Missed quest' }] },
     } as any);
 
-    const { result } = renderHook(() => useProfileData(123));
+    const { result } = renderHook(() => useProfileData(123), { wrapper: createWrapper() });
 
     await waitFor(() => {
       expect(result.current.loading).toBe(false);
     });
 
     await waitFor(() => {
-      expect(mockGetPunishmentHistory).toHaveBeenCalledWith(123, 1, 5, expect.objectContaining({ signal: expect.any(AbortSignal) }));
+      expect(mockGetPunishmentHistory).toHaveBeenCalledWith(123, 1, 5);
     });
 
     await waitFor(() => {
