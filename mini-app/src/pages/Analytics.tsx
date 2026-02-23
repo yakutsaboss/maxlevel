@@ -1,6 +1,7 @@
 import { useTranslation } from 'react-i18next';
 import { motion } from 'framer-motion';
-import { BarChart3, Loader2, AlertCircle, Zap, Trophy, Target, Flame } from 'lucide-react';
+import { BarChart3, AlertCircle, Zap, Trophy, Target, Flame } from 'lucide-react';
+import { AnalyticsSkeleton } from '@/components/analytics/AnalyticsSkeleton';
 import { useTelegram } from '@/hooks/useTelegram';
 import { useAnalytics, type TimeRange } from '@/hooks/useAnalytics';
 import { XpTrendChart } from '@/components/analytics/XpTrendChart';
@@ -43,12 +44,7 @@ export function Analytics() {
   const { summary, modes, range, changeRange, loading, error, retry } = useAnalytics(user?.id);
 
   if (loading) {
-    return (
-      <div className="flex flex-col items-center justify-center py-20 text-telegram-hint">
-        <Loader2 className="w-8 h-8 animate-spin mb-2" />
-        <span className="text-sm">{t('analytics.loadingAnalytics')}</span>
-      </div>
-    );
+    return <AnalyticsSkeleton />;
   }
 
   if (error) {

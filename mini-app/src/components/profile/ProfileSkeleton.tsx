@@ -1,6 +1,6 @@
 export function ProfileSkeleton() {
   return (
-    <div className="min-h-screen bg-telegram-bg pb-20">
+    <div className="min-h-screen bg-telegram-bg pb-20 skeleton-shimmer" role="status" aria-label="Loading profile">
       <div className="bg-gradient-to-br from-purple-600 via-pink-600 to-orange-500 p-6 rounded-b-3xl">
         <div className="text-center">
           <div className="skeleton w-24 h-24 rounded-full mx-auto mb-4" />

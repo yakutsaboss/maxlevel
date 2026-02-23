@@ -9,6 +9,7 @@ import { usePullToRefresh, PullIndicator } from '@/hooks/usePullToRefresh';
 import { ErrorSection } from '@/components/ErrorSection';
 import { Toast } from '@/components/Toast';
 import { Package, ShoppingBag, Shield, Zap } from 'lucide-react';
+import { InventorySkeleton } from '@/components/inventory/InventorySkeleton';
 import { motion } from 'framer-motion';
 
 const CATEGORIES: { key: InventoryCategory; icon: React.ReactNode }[] = [
@@ -156,14 +157,7 @@ export function Inventory() {
   };
 
   if (loading) {
-    return (
-      <div className="min-h-screen bg-telegram-bg flex items-center justify-center" role="status" aria-label="Loading inventory">
-        <div className="animate-pulse flex flex-col items-center gap-3">
-          <Package className="w-10 h-10 text-telegram-hint" aria-hidden="true" />
-          <p className="text-telegram-hint text-sm">{t('inventory.loading')}</p>
-        </div>
-      </div>
-    );
+    return <InventorySkeleton />;
   }
 
   if (error) return <ErrorSection message={t('inventory.couldNotLoad')} onRetry={refresh} />;

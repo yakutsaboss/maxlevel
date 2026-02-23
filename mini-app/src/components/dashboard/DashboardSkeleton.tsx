@@ -1,6 +1,6 @@
 export function DashboardSkeleton() {
   return (
-    <div className="min-h-screen bg-telegram-bg pb-20" role="status" aria-label="Loading dashboard">
+    <div className="min-h-screen bg-telegram-bg pb-20 skeleton-shimmer" role="status" aria-label="Loading dashboard">
       <div className="bg-gradient-to-br from-purple-600 to-blue-600 p-6 rounded-b-3xl">
         <div className="flex items-center justify-between mb-4">
           <div><div className="skeleton h-7 w-32 rounded-lg mb-2" /><div className="skeleton h-4 w-24 rounded-lg" /></div>

@@ -1,6 +1,6 @@
 export function LeaderboardSkeleton() {
   return (
-    <div className="min-h-screen bg-telegram-bg pb-20">
+    <div className="min-h-screen bg-telegram-bg pb-20 skeleton-shimmer" role="status" aria-label="Loading leaderboard">
       <div className="bg-gradient-to-r from-yellow-500 to-orange-500 p-6 rounded-b-3xl">
         <div className="flex items-center gap-3 mb-2">
           <div className="skeleton w-14 h-14 rounded-2xl" />
