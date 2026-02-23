@@ -44,9 +44,11 @@ function RisingStars() {
 }
 
 export function SplashScreen({ onNext }: SplashScreenProps) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { haptic } = useTelegram();
-  const [selectedLang, setSelectedLang] = useState<string | null>(null);
+  const [selectedLang, setSelectedLang] = useState<string | null>(
+    () => i18n.language?.substring(0, 2) || null
+  );
 
   const handleStart = () => {
     if (!selectedLang) return;
@@ -58,6 +60,8 @@ export function SplashScreen({ onNext }: SplashScreenProps) {
     if (!available) return;
     haptic.selection();
     setSelectedLang(code);
+    i18n.changeLanguage(code);
+    localStorage.setItem('maxlevel-language', code);
   };
 
   return (
