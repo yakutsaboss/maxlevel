@@ -49,6 +49,8 @@ vi.mock('react-i18next', () => ({
         'inventory.unequipped': `Unequipped ${params?.name ?? ''}`,
         'inventory.equip_failed': 'Failed to equip',
         'errors.somethingWentWrong': 'Something went wrong',
+        'errors.tryAgain': 'Try Again',
+        'errors.serverError': 'Please try again later',
         'common.retry': 'Retry',
       };
       return keys[key] || key;

@@ -270,7 +270,7 @@ describe('Social', () => {
     render(<Social />);
 
     // ErrorSection renders Retry button
-    expect(screen.getByText('Retry')).toBeInTheDocument();
+    expect(screen.getByText(/Try Again/)).toBeInTheDocument();
   });
 
   // ── ARIA Regions ──

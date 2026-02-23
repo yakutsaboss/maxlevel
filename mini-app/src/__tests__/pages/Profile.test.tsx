@@ -164,6 +164,6 @@ describe('Profile', () => {
     render(<Profile />);
 
     expect(screen.getByText('Could not load your profile')).toBeInTheDocument();
-    expect(screen.getByText('Retry')).toBeInTheDocument();
+    expect(screen.getByText(/Try Again/)).toBeInTheDocument();
   });
 });

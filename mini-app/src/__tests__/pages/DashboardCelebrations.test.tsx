@@ -284,7 +284,7 @@ describe('Dashboard — Celebration Integration', () => {
     render(<Dashboard />);
 
     // Error state shows ErrorSection, not celebration overlays
-    expect(screen.getByText('Retry')).toBeInTheDocument();
+    expect(screen.getByText(/Try Again/)).toBeInTheDocument();
   });
 
   it('passes onDashboardData to useDashboardData hook', () => {

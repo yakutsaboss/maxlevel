@@ -6,6 +6,8 @@ vi.mock('framer-motion', () => framerMotionMock);
 
 vi.mock('lucide-react', () => ({
   WifiOff: (props: any) => <span data-testid="wifi-off-icon" {...props} />,
+  RefreshCw: (props: any) => <span data-testid="refresh-icon" {...props} />,
+  Wifi: (props: any) => <span data-testid="wifi-icon" {...props} />,
 }));
 
 // Mock useServiceWorker — default: online

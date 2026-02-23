@@ -93,6 +93,8 @@ vi.mock('react-i18next', () => ({
         'medication.frequencyWeekly': 'Weekly',
         'medication.frequencyAsNeeded': 'As needed',
         'errors.somethingWentWrong': 'Something went wrong',
+        'errors.tryAgain': 'Try Again',
+        'errors.serverError': 'Please try again later',
         'common.retry': 'Retry',
       };
       return keys[key] || key;
@@ -139,8 +141,21 @@ vi.mock('lucide-react', () => {
     AlertCircle: IconStub,
     RefreshCw: IconStub,
     ArrowLeft: IconStub,
+    CheckCircle: IconStub,
+    Info: IconStub,
   };
 });
+
+// ─── Mock ToastContext ──────────────────────────────────────────────
+
+vi.mock('@/contexts/ToastContext', () => ({
+  useToastContext: () => ({
+    showToast: vi.fn(),
+    toasts: [],
+    dismissToast: vi.fn(),
+  }),
+  ToastProvider: ({ children }: any) => <>{children}</>,
+}));
 
 // ─── Mock useTelegram ───────────────────────────────────────────────
 
@@ -304,7 +319,7 @@ describe('Medications Page', () => {
     renderWithProviders(<MedicationsPage />);
 
     // Should show error state or retry button
-    const retryButton = screen.queryByText('Retry');
+    const retryButton = screen.queryByText(/Try Again/);
     const errorText = screen.queryByText('Something went wrong');
     expect(retryButton || errorText).toBeTruthy();
   });

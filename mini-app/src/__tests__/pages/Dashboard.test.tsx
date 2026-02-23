@@ -144,7 +144,7 @@ describe('Dashboard', () => {
     });
     render(<Dashboard />);
     expect(screen.getByText('Could not load your dashboard data')).toBeInTheDocument();
-    expect(screen.getByText('Retry')).toBeInTheDocument();
+    expect(screen.getByText(/Try Again/)).toBeInTheDocument();
   });
 
   it('pull-to-refresh touch handlers are wired to container', () => {

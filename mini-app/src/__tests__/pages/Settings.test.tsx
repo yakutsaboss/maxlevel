@@ -162,6 +162,6 @@ describe('Settings', () => {
     render(<Settings />);
 
     expect(screen.getByText('Could not load your settings')).toBeInTheDocument();
-    expect(screen.getByText('Retry')).toBeInTheDocument();
+    expect(screen.getByText(/Try Again/)).toBeInTheDocument();
   });
 });

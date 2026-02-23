@@ -2035,19 +2035,95 @@ Write retrospective when done.
 ### Run 90 Retrospectives
 
 #### Agent A Retrospective
-*(To be filled by Agent A)*
+**Status**: Complete — 4 files changed (1 new + 3 modified), `tsc --noEmit` clean.
+
+**What was done**:
+1. **PageErrorBoundary.tsx** (new, 80 lines) — Page-level class component error boundary. Uses amber color scheme (distinct from the red global ErrorBoundary). Shows page name in error message, AlertTriangle icon, retry button that resets error state without full page reload. Uses `motion.div` fade-in, `role="alert"`, i18n keys for all text.
+2. **App.tsx** — Wrapped all 19 page routes with `<PageErrorBoundary pageName="...">`. Placed inside ProtectedRoute/LazyPageWrapper so errors are caught per-page, not globally. Admin routes also wrapped.
+3. **ErrorSection.tsx** — Added `maxRetries` prop (default 3), internal `retryCount` state. Shows attempt number "Retry (2/3)". Disables button and shows fallback text after max retries. Keeps `role="alert"` and haptic feedback.
+4. **OfflineBanner.tsx** — Added "Back online!" emerald-green banner that shows for 2 seconds after reconnecting. Tracks previous offline state via ref. Added manual connection check button (RefreshCw icon) that fires a lightweight HEAD request. Uses consistent spring animation for both banners.
+
+**Design decisions**:
+- PageErrorBoundary uses amber (warning) colors vs the global ErrorBoundary's red (critical) to visually distinguish page-level vs app-level errors
+- Retry in PageErrorBoundary resets error state without reload — the page re-mounts and React Query re-fetches automatically
+- ErrorSection retry counter uses `useState` so it resets if the parent unmounts the ErrorSection (e.g., successful data load)
+- OfflineBanner "back online" detection uses a ref to avoid showing the banner on initial mount when user is already online
+
+**Files changed**: `PageErrorBoundary.tsx` (new), `App.tsx`, `ErrorSection.tsx`, `OfflineBanner.tsx`
+**Commit**: `fb0b2e1` on `feature/r90-error-handling`
+**No issues encountered.**
 
 #### Agent B Retrospective
-*(To be filled by Agent B)*
+**Status**: Complete — 3 new skeleton components + shimmer CSS + 3 existing skeletons enhanced, `tsc --noEmit` clean.
+
+**Created**:
+- `mini-app/src/styles/shimmer.css` — CSS shimmer overlay effect using `::after` pseudo-element with translating gradient animation (1.5s infinite)
+- `mini-app/src/components/analytics/AnalyticsSkeleton.tsx` — matches Analytics page layout: header, time range toggles, stat cards, chart placeholder
+- `mini-app/src/components/notifications/NotificationHistorySkeleton.tsx` — gradient header, 5 filter pills, 5 notification items
+- `mini-app/src/components/inventory/InventorySkeleton.tsx` — gradient header with total items card + category tabs, 6 item cards
+
+**Modified**:
+- `mini-app/src/main.tsx` — imported `shimmer.css`
+- `DashboardSkeleton.tsx`, `ProfileSkeleton.tsx`, `LeaderboardSkeleton.tsx` — added `skeleton-shimmer` class + `role="status"` + `aria-label`
+- `Analytics.tsx` — replaced spinner with `<AnalyticsSkeleton />`
+- `NotificationHistory.tsx` — added early return with `<NotificationHistorySkeleton />`
+- `Inventory.tsx` — replaced spinner with `<InventorySkeleton />`
+
+**Design decisions**: Shimmer uses `rgba(255,255,255,0.08)` for dark themes. New skeletons use inline style for elements on gradient headers.
 
 #### Agent C Retrospective
-*(To be filled by Agent C)*
+**Status**: Complete — all 5 tasks done, `tsc --noEmit` passes cleanly.
+
+**Changes**:
+- `PageTransition.tsx`: Replaced `easeOut` with `spring(400, 30)`, added `scale: 0.99` to initial, added `onExitComplete` callback prop
+- `StaggerList.tsx` (new): Reusable component wrapping children in `AnimatePresence` + `motion.div` with configurable stagger delay
+- `useStaggerAnimation.ts` (new): Hook returning `containerVariants` + `itemVariants` for pages managing their own lists
+- `Leaderboard.tsx`: Wrapped Top 3 cards and ranking rows in staggered `motion.div` containers
+- `Achievements.tsx`: Wrapped rarity groups in staggered `motion.div` container (0.08s)
+- `Shop.tsx`: Replaced per-item delay with container-level `staggerChildren: 0.03` via `useStaggerAnimation`
 
 #### Agent D Retrospective
-*(To be filled by Agent D)*
+**Status**: Complete — accessibility pass, all changes minimal and targeted.
+
+**Changes made:**
+1. **FocusTrap.tsx** — Added optional `aria-label` and `aria-labelledby` props, passed through to the rendered `role="dialog"` div. No breaking changes.
+2. **All 7 modals** — Added `aria-label` to each FocusTrap usage with descriptive dialog names (quest title, challenge title, trophy name, mode name, etc.).
+3. **ProfileEditModal** — Added `aria-label={t('common.close')}` and `aria-hidden="true"` to icon-only close button.
+
+**Already in good shape (no changes needed):**
+- Navigation: `role="tablist"`, `role="tab"`, `aria-current="page"`, `aria-selected`, roving tabindex, arrow keys
+- Settings toggles: `role="switch"` + `aria-checked` (correct pattern)
+- AchievementCard: `aria-expanded` already present
+- ProfileHeader: icon-only buttons already have `aria-label`
+- Dashboard: all regions, progress bars, stat cards have proper ARIA
+
+**Build**: `npx tsc --noEmit` clean.
 
 #### Agent E Retrospective
-*(To be filled by Agent E)*
+**Status**: Complete — all tasks done, `tsc --noEmit` passes (exit 0).
+
+**Files created (4)**:
+- `mini-app/src/hooks/useToast.ts` — centralized toast hook with queue (max 3), auto-dismiss, action button support
+- `mini-app/src/contexts/ToastContext.tsx` — ToastProvider + `useToastContext()` for app-wide toast access
+- `mini-app/src/components/ToastContainer.tsx` — fixed bottom-center container with AnimatePresence stacked toasts, spring animations
+- `mini-app/src/hooks/useHapticPattern.ts` — standardized haptic patterns (tap/toggle/success/error/delete/celebrate)
+
+**Files modified (2)**:
+- `mini-app/src/App.tsx` — wrapped `AppContent` in `<ToastProvider>` (2 lines: import + wrapper)
+- `mini-app/src/pages/Medications.tsx` — added `useToastContext()`, success toasts on add/edit/delete/log medication
+
+**Settings.tsx**: Already has full toast support via `useSettingsData` hook (local toast state + `<Toast>` render). No changes needed — it works independently and the centralized context is available when pages want to migrate.
+
+**Design decisions**:
+- ToastContainer renders at `bottom-20` (above Navigation) with `z-50` to avoid z-index conflicts
+- Used `pointer-events-none` on container + `pointer-events-auto` on individual toasts so the stack doesn't block the UI
+- Toast IDs use counter + timestamp (not `crypto.randomUUID()`) for broader browser compat
+- Kept existing `Toast.tsx` untouched — it still works for pages using the old pattern
+
+**Recommendations for future runs**:
+- Other mutation pages (Profile, Quests, Shop) can adopt `useToastContext()` for consistent feedback
+- Pages still using local `toast` state (Settings, Profile) can migrate to the context when touched next
+- `useHapticPattern` is ready for adoption — currently no consumers besides the export, but provides a clean API for standardizing the 49 files using inconsistent haptic calls
 
 #### Agent 0 Retrospective
 *(To be filled by Agent 0)*

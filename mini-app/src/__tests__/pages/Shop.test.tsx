@@ -50,6 +50,8 @@ vi.mock('react-i18next', () => ({
         'shop.balance_stars': `${params?.count ?? 0} Stars`,
         'shop.balance_xp': `${params?.count ?? 0} XP`,
         'errors.somethingWentWrong': 'Something went wrong',
+        'errors.tryAgain': 'Try Again',
+        'errors.serverError': 'Please try again later',
         'common.retry': 'Retry',
       };
       return keys[key] || key;

@@ -29,14 +29,14 @@ describe('ErrorSection', () => {
     const onRetry = vi.fn();
     render(<ErrorSection message="Network error" onRetry={onRetry} />);
 
-    fireEvent.click(screen.getByRole('button', { name: 'Retry loading' }));
+    fireEvent.click(screen.getByRole('button', { name: /Try Again/i }));
     expect(onRetry).toHaveBeenCalledTimes(1);
   });
 
   it('triggers haptic feedback on retry', () => {
     render(<ErrorSection message="Error" onRetry={vi.fn()} />);
 
-    fireEvent.click(screen.getByRole('button', { name: 'Retry loading' }));
+    fireEvent.click(screen.getByRole('button', { name: /Try Again/i }));
     expect(mockHaptic.impact).toHaveBeenCalledWith('light');
   });
 

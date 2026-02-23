@@ -50,6 +50,8 @@ vi.mock('react-i18next', () => ({
         'trophy.criteria.level': `Reach level ${params?.threshold ?? ''}`,
         'trophy.criteria.friend_count': `Add ${params?.threshold ?? ''} friends`,
         'errors.somethingWentWrong': 'Something went wrong',
+        'errors.tryAgain': 'Try Again',
+        'errors.serverError': 'Please try again later',
         'common.retry': 'Retry',
       };
       return keys[key] || key;

@@ -73,6 +73,8 @@ vi.mock('react-i18next', () => ({
         'achievements.unlocked': 'Unlocked',
         'achievements.progressNotYet': 'Not yet',
         'errors.somethingWentWrong': 'Something went wrong',
+        'errors.tryAgain': 'Try Again',
+        'errors.serverError': 'Please try again later',
         'common.retry': 'Retry',
       };
       if (key === 'achievements.newUnlocked' && params?.count) {
@@ -250,7 +252,7 @@ describe('Achievements', () => {
     await waitFor(() => {
       expect(screen.getByText('Could not load achievements')).toBeInTheDocument();
     });
-    expect(screen.getByText('Retry')).toBeInTheDocument();
+    expect(screen.getByText(/Try Again/)).toBeInTheDocument();
   });
 
   // --- Run 65: Category filtering with new categories ---
