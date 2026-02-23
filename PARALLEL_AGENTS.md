@@ -2127,3 +2127,26 @@ Write retrospective when done.
 
 #### Agent 0 Retrospective
 *(To be filled by Agent 0)*
+
+---
+
+### Run 91 Retrospectives
+
+#### Agent B Retrospective
+**Status**: Complete — 4 files changed (1 new + 3 modified), `tsc --noEmit` clean.
+
+**Bug fixed**: When a user checked into a quest for the last time, the modal stayed open due to a race condition — `handleCheckinSuccess` waited for `queryClient.invalidateQueries()` to resolve before closing the modal. The fix closes the modal immediately and shows a celebration overlay instead.
+
+**Changes**:
+1. **useQuestsData.ts** — Added `showQuestCelebration` + `celebratedQuestName` state. When `result.completed === true`, the modal closes immediately (`setSelectedQuest(null)`) without waiting for refetch. The celebration overlay shows for 3 seconds. Query invalidation happens in the background (non-blocking).
+2. **QuestCompletionCelebration.tsx** (new) — Full-screen celebration overlay with: existing `Confetti` component, bouncing thumbs-up emoji (spring scale 0→1.2→1), "All Done!" text (fade-in with 0.3s delay), quest name underneath (fade-in with 0.5s delay). Auto-closes after 3 seconds. Dismissible by tapping background.
+3. **CheckInButton.tsx** — On final check-in (`data.completed === true`), skips the small "Checked in!" tooltip and lets the parent handle the celebration. Non-final check-ins still show the tooltip.
+4. **Quests.tsx** — Imported `QuestCompletionCelebration`, destructured new state from hook, renders celebration outside the modal (so it appears after modal closes).
+
+**Design decisions**:
+- Celebration z-index `z-[95]` is between the modal (`z-50`) and confetti (`z-[100]`) so confetti particles appear above the overlay text
+- Reused existing `Confetti` component rather than creating new particles — consistent visual language with level-up celebrations
+- `onComplete` callback on celebration is optional — the 3s timeout in `useQuestsData` handles cleanup regardless
+
+**Commit**: `b4e2eab` on `feature/r91-quest-celebration`
+**No issues encountered.**
