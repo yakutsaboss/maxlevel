@@ -48,7 +48,7 @@ export function ModeUnlockModal({
   return (
     <AnimatePresence>
       {isOpen && (
-        <FocusTrap active onEscape={onClose}>
+        <FocusTrap active onEscape={onClose} aria-label={modeDisplayName}>
           {/* Backdrop */}
           <motion.div
             className="fixed inset-0 z-50 flex items-center justify-center px-6"

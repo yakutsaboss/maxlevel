@@ -58,7 +58,7 @@ export function TrophyDetailModal({ trophy, earned, onClose }: TrophyDetailModal
         className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-end"
         onClick={onClose}
       >
-        <FocusTrap onEscape={onClose}>
+        <FocusTrap onEscape={onClose} aria-label={trophy.name}>
         <motion.div
           ref={sheetRef}
           initial={{ y: '100%' }}

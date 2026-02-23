@@ -21,7 +21,7 @@ export function LevelUpModal({ level, show, onClose }: LevelUpModalProps) {
   return (
     <AnimatePresence>
       {show && (
-        <FocusTrap onEscape={onClose} autoFocus={false}>
+        <FocusTrap onEscape={onClose} autoFocus={false} aria-label={t('celebrations.levelUp')}>
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}

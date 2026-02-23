@@ -8,6 +8,10 @@ interface FocusTrapProps {
   onEscape?: () => void;
   /** Auto-focus the first focusable element on mount */
   autoFocus?: boolean;
+  /** Accessible label for the dialog */
+  'aria-label'?: string;
+  /** ID of the element that labels the dialog */
+  'aria-labelledby'?: string;
 }
 
 const FOCUSABLE_SELECTOR =
@@ -22,6 +26,8 @@ export function FocusTrap({
   active = true,
   onEscape,
   autoFocus = true,
+  'aria-label': ariaLabel,
+  'aria-labelledby': ariaLabelledBy,
 }: FocusTrapProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const previousFocusRef = useRef<HTMLElement | null>(null);
@@ -87,7 +93,7 @@ export function FocusTrap({
   if (!active) return <>{children}</>;
 
   return (
-    <div ref={containerRef} role="dialog" aria-modal="true">
+    <div ref={containerRef} role="dialog" aria-modal="true" aria-label={ariaLabel} aria-labelledby={ariaLabelledBy}>
       {children}
     </div>
   );

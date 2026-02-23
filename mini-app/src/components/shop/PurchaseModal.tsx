@@ -63,7 +63,7 @@ export function PurchaseModal({
         className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-end"
         onClick={isProcessing ? undefined : onClose}
       >
-        <FocusTrap onEscape={isProcessing ? undefined : onClose}>
+        <FocusTrap onEscape={isProcessing ? undefined : onClose} aria-label={t('shop.confirmPurchase')}>
         <motion.div
           ref={sheetRef}
           initial={{ y: '100%' }}
