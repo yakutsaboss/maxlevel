@@ -1177,3 +1177,24 @@ Write retrospective when done.
 - Bot: 1100/1100 tests pass. Mini-app MVP: 627/629 (2 fixed, 24 pre-existing non-medication failures)
 - Key win: MedicationWidget now self-contained — fetches its own data via `useMedicationData` hook
 - Key win: All medication API tests pass (29/29 bot, 14/14 mini-app medication-specific)
+
+### Run 89 Retrospectives
+
+#### Agent A Retrospective
+**Status**: Complete — 11/11 tests pass (5 dashboard + 6 profile).
+
+**Root cause**: Both test files lacked a `QueryClientProvider` wrapper. After the React Query migration, `useDashboardData` and `useProfileData` use `useQueryClient()` which throws without a provider. Tests also asserted `AbortSignal` arguments that React Query now manages internally.
+
+**Changes made** (2 files):
+| File | What changed |
+|------|-------------|
+| `useDashboardData.test.ts` | Added `createWrapper()` with `QueryClientProvider`, wrapped all 5 `renderHook` calls, removed `AbortSignal` assertion, added `logger` mock |
+| `useProfileData.test.ts` | Added `createWrapper()` with `QueryClientProvider`, wrapped all 6 `renderHook` calls, removed all `signalMatcher` assertions, added `getPunishmentSettings` mock for never-resolving test |
+
+**Key decisions**:
+- Used `retry: false, staleTime: 0, gcTime: 0` in test QueryClient to ensure deterministic behavior
+- Followed existing pattern from `useMedicationData.test.ts` for `createWrapper()` using `React.createElement`
+- Kept `apiClient` mocks — React Query queryFns still call them, just without explicit signal args
+- For "error" test: changed assertion order to `waitFor(error=true)` first, since React Query with `retry: false` may take a tick to settle
+
+**No recommendations** — straightforward test migration, no source changes needed.
