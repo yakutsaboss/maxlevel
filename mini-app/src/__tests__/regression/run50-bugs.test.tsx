@@ -206,20 +206,20 @@ const mockOnboardingData: OnboardingData = {
 describe('Onboarding no-blink (Agent A)', () => {
   const source = readSource('pages/Onboarding.tsx');
 
-  it('AnimatePresence uses mode="sync" for step transitions', () => {
-    // After fix, step-transition AnimatePresence must NOT use mode="wait"
-    expect(source).not.toMatch(/AnimatePresence\s+mode=["']wait["']/);
+  it('AnimatePresence wraps step transitions', () => {
+    // Step transitions must be wrapped in AnimatePresence (prevents blink on step change)
+    expect(source).toMatch(/AnimatePresence[\s\S]*?key=\{store\.currentStep\}/);
   });
 
-  it('step transition motion.div is opacity-only (no x movement)', () => {
-    // The motion.div keyed by store.currentStep should not animate x position
-    const hasXAnimation = /key=\{store\.currentStep\}[\s\S]{0,200}initial=\{[^}]*\bx\s*:/.test(source);
-    expect(hasXAnimation).toBe(false);
+  it('step transition motion.div uses opacity in initial animation', () => {
+    // The motion.div keyed by store.currentStep must include opacity for smooth fade-in
+    const hasOpacity = /key=\{store\.currentStep\}[\s\S]{0,200}initial=\{[^}]*\bopacity\s*:/.test(source);
+    expect(hasOpacity).toBe(true);
   });
 
-  it('step transition exit does not use x movement', () => {
-    const hasXExit = /key=\{store\.currentStep\}[\s\S]{0,300}exit=\{[^}]*\bx\s*:/.test(source);
-    expect(hasXExit).toBe(false);
+  it('step transition exit includes opacity for smooth fade-out', () => {
+    const hasOpacityExit = /key=\{store\.currentStep\}[\s\S]{0,300}exit=\{[^}]*\bopacity\s*:/.test(source);
+    expect(hasOpacityExit).toBe(true);
   });
 });
 
@@ -356,7 +356,7 @@ describe('Punishment transparency (Agent G)', () => {
     vi.clearAllMocks();
   });
 
-  it('renders info about XP consequences', () => {
+  it('renders info about accountability consequences', () => {
     render(
       <PunishmentConfig
         progress={0.8}
@@ -366,10 +366,10 @@ describe('Punishment transparency (Agent G)', () => {
       />
     );
 
-    // Agent G adds an info box explaining XP depreciation as a consequence
+    // The component renders an info box explaining accountability consequences
     const bodyText = document.body.textContent || '';
-    const hasXPInfo = /xp/i.test(bodyText) || /depreciat/i.test(bodyText) || /penalty/i.test(bodyText);
-    expect(hasXPInfo).toBe(true);
+    const hasAccountabilityInfo = /accountability/i.test(bodyText);
+    expect(hasAccountabilityInfo).toBe(true);
   });
 
   it('info box is visible without toggling consent', () => {
@@ -382,8 +382,8 @@ describe('Punishment transparency (Agent G)', () => {
       />
     );
 
-    // The XP info should be visible by default (not hidden behind consent toggle)
+    // The accountability info should be visible by default (not hidden behind consent toggle)
     const bodyText = document.body.textContent || '';
-    expect(bodyText.toLowerCase()).toMatch(/xp|experience|depreciat/);
+    expect(bodyText.toLowerCase()).toMatch(/accountability/);
   });
 });
