@@ -1,10 +1,12 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { motion, AnimatePresence } from 'framer-motion';
+import { Share2 } from 'lucide-react';
 import { FocusTrap } from '@/components/FocusTrap';
 import { LottieSticker } from './LottieSticker';
 import starBurstAnimation from '@/assets/lottie/star-burst.json';
 import { useCelebrationStyle } from '@/hooks/useCelebrationStyle';
+import { isShareToStoryAvailable, shareLevelUpToStory } from '@/utils/storyShare';
 
 interface LevelUpModalProps {
   level: number;
@@ -15,6 +17,7 @@ interface LevelUpModalProps {
 export function LevelUpModal({ level, show, onClose }: LevelUpModalProps) {
   const { t } = useTranslation();
   const { isAnimated } = useCelebrationStyle();
+  const [shared, setShared] = useState(false);
 
   useEffect(() => {
     if (!show) return;
@@ -76,6 +79,24 @@ export function LevelUpModal({ level, show, onClose }: LevelUpModalProps) {
             >
               {level}
             </motion.span>
+
+            {isShareToStoryAvailable() && (
+              <motion.button
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.5 }}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/20 text-white text-xs font-medium"
+                onClick={async (e) => {
+                  e.stopPropagation();
+                  if (shared) return;
+                  const ok = await shareLevelUpToStory(level);
+                  if (ok) setShared(true);
+                }}
+              >
+                <Share2 className="w-3.5 h-3.5" />
+                {shared ? t('share.success') : t('share.toStory')}
+              </motion.button>
+            )}
 
             <span className="text-xs text-white/60">
               {t('celebrations.tapToDismiss')}
