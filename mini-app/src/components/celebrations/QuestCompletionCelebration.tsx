@@ -1,8 +1,11 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { motion, AnimatePresence } from 'framer-motion';
+import { Share2 } from 'lucide-react';
 import { Confetti } from './Confetti';
 import { LottieSticker } from './LottieSticker';
 import thumbsUpAnimation from '@/assets/lottie/thumbs-up.json';
+import { isShareToStoryAvailable, shareQuestToStory } from '@/utils/storyShare';
 
 interface QuestCompletionCelebrationProps {
   show: boolean;
@@ -11,7 +14,9 @@ interface QuestCompletionCelebrationProps {
 }
 
 export function QuestCompletionCelebration({ show, questName, onComplete }: QuestCompletionCelebrationProps) {
+  const { t } = useTranslation();
   const celebrationStyle = localStorage.getItem('celebration-style') || 'emoji';
+  const [shared, setShared] = useState(false);
 
   useEffect(() => {
     if (!show) return;
@@ -72,6 +77,24 @@ export function QuestCompletionCelebration({ show, questName, onComplete }: Ques
                 >
                   {questName}
                 </motion.span>
+              )}
+
+              {isShareToStoryAvailable() && (
+                <motion.button
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.7 }}
+                  className="flex items-center gap-1.5 px-3 py-1.5 mt-1 rounded-full bg-white/20 text-white text-xs font-medium"
+                  onClick={async (e) => {
+                    e.stopPropagation();
+                    if (shared) return;
+                    const ok = await shareQuestToStory(questName || 'a quest');
+                    if (ok) setShared(true);
+                  }}
+                >
+                  <Share2 className="w-3.5 h-3.5" />
+                  {shared ? t('share.success') : t('share.toStory')}
+                </motion.button>
               )}
             </motion.div>
           </motion.div>

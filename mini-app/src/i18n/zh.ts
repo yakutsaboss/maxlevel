@@ -1173,6 +1173,11 @@ export default {
       skippedNote: "Skipped quests already reduce your XP. This adds stronger consequences.",
     },
   },
+  share: {
+    toStory: "分享到动态",
+    success: "已分享！",
+    unavailable: "分享功能不可用",
+  },
   modeUnlock: {
     description: "Unlock this mode to access smart reminders and tracking",
     unlockWithStars: "Unlock with {{amount}} Stars",

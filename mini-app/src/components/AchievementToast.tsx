@@ -2,11 +2,12 @@ import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { motion } from 'framer-motion';
 import { Achievement } from '@/types';
-import { Zap } from 'lucide-react';
+import { Zap, Share2 } from 'lucide-react';
 import { Confetti } from '@/components/celebrations/Confetti';
 import { LottieSticker } from '@/components/celebrations/LottieSticker';
 import trophyAnimation from '@/assets/lottie/trophy.json';
 import { useCelebrationStyle } from '@/hooks/useCelebrationStyle';
+import { isShareToStoryAvailable, shareAchievementToStory } from '@/utils/storyShare';
 
 interface AchievementToastProps {
   achievement: Achievement;
@@ -16,6 +17,7 @@ interface AchievementToastProps {
 export function AchievementToast({ achievement, onClose }: AchievementToastProps) {
   const { t } = useTranslation();
   const [showConfetti, setShowConfetti] = useState(true);
+  const [shared, setShared] = useState(false);
   const { isAnimated } = useCelebrationStyle();
 
   useEffect(() => {
@@ -53,6 +55,21 @@ export function AchievementToast({ achievement, onClose }: AchievementToastProps
                 <span className="text-sm font-semibold text-white">+{achievement.xp_reward} XP</span>
               </div>
             </div>
+            {isShareToStoryAvailable() && (
+              <button
+                className="flex-shrink-0 p-2 rounded-full bg-white/20"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (shared) return;
+                  shareAchievementToStory(achievement.name, achievement.rarity || 'common').then((ok) => {
+                    if (ok) setShared(true);
+                  });
+                }}
+                aria-label={t('share.toStory')}
+              >
+                <Share2 className={`w-4 h-4 ${shared ? 'text-green-200' : 'text-white'}`} />
+              </button>
+            )}
           </div>
         </div>
       </motion.div>
