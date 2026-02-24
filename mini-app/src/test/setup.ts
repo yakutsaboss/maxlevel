@@ -4,6 +4,12 @@ import { setupTWAMock } from './mocks/twa-sdk';
 // Initialize i18n for tests (provides English translations to useTranslation())
 import '@/i18n';
 
+// Mock lottie-react — lottie-web requires HTMLCanvasElement.getContext() which jsdom doesn't support
+vi.mock('lottie-react', () => ({
+  default: () => null,
+  __esModule: true,
+}));
+
 // Mock window.Telegram.WebApp using the shared TWA SDK mock
 setupTWAMock();
 
