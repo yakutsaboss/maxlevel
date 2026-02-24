@@ -313,8 +313,8 @@ Runs 78-85: MVP recovery + feature re-enablement. Run 86: Animation polish + med
 | **78-91** | MVP Recovery → Medication → Bug Fixes + TG API Research | varies | ✅ |
 | **92** | Bug Fixes + Quest i18n + Google Sheets OAuth + Medication Analytics | 7 | ✅ |
 | **93** | Stars Shop + Celebrations Upgrade | 7 | ✅ |
-| **94** | Cloud Storage + Home Screen + QR + Social Basics | 8 | 🔄 |
-| **95** | Premium & Monetization — Subscriptions, Paid Content, Gifts | 8 | ⬜ |
+| **94** | Cloud Storage + Home Screen + QR + Social Basics | 8 | ✅ |
+| **95** | Premium & Monetization — Subscriptions, Paid Content, Gifts | 8 | 🔄 |
 | **96** | Advanced Features — Inline Mode, Referrals, Biometrics, Deep Links | 8 | ⬜ |
 | **97** | Final Polish — Bundle, Performance, Tests, Accessibility | 7 | ⬜ |
 
@@ -3067,6 +3067,432 @@ FORBIDDEN: database/*, payment handlers, shop routes, sticker routes, Settings.t
 - Emoji IDs are placeholders (all same ID `5368324170671202286`). Need to be replaced with actual custom emoji IDs from Telegram — Agent 0 or manual step needed.
 
 **Files changed**: `bot/src/utils/customEmoji.ts` (new), `bot/src/utils/notificationTemplates.ts` (modified), `bot/src/index.ts` (2 lines added).
+
+#### Agent F Retrospective
+*(To be filled by Agent F)*
+
+#### Agent G Retrospective
+*(To be filled by Agent G)*
+
+#### Agent H Retrospective
+*(No retro written — agent completed all tasks, build passed.)*
+
+#### Agent 0 Retrospective
+
+**Merge results** (order: A → E → G → F → B → C → D → H):
+- All 8 branches merged. Conflicts: `PARALLEL_AGENTS.md` on F/C/D (resolved with `--ours`), `App.tsx` on H (resolved manually — both A's `useCloudSync` and H's `useDeepLink` needed).
+- `notificationTemplates.ts` touched by both E (OWN) and H (GRAY) — auto-merged cleanly.
+- i18n files touched by B, C, D — all auto-merged (additive keys).
+
+**Integration fixes**:
+1. **qrcode.react not in main**: Agent C installed in worktree. `npm install` in mini-app fixed.
+2. **lucide-react mock gaps** (5 test files): Agents added new icons (`Share2`, `BarChart3`, `ScanLine`, `CheckCircle`). Fixed by adding missing icons to per-file mocks.
+3. **react-router-dom mock gaps** (2 test files): Agent H added `useSearchParams` to Social.tsx and Quests.tsx. Added to mocks.
+4. **ToastProvider missing** (Social.test.tsx): QRScannerButton uses `useToastContext`. Mocked QRScannerButton component in test.
+5. **LevelUpModal unmocked deps**: Run 93+94 added `FocusTrap`, `useCelebrationStyle`, `storyShare` imports — all needed mocking.
+6. **DB migration**: Ran `ALTER TABLE users ADD COLUMN IF NOT EXISTS notification_modes JSONB DEFAULT '{}'` on production.
+
+**Final results**: Bot 1100/1100, Mini-app 941/941. Deployed as v5e807bf.
+
+---
+
+## RUN 95: Premium & Monetization (8 Agents + Agent 0)
+
+### Focus: Star subscriptions, paid content, premium gates, subscription management, revenue dashboard, gift system, premium avatars
+
+### Copy-Paste Prompts
+
+**Agent 0** (this window):
+```
+Read PARALLEL_AGENTS.md — you are Agent 0 for Run 95.
+```
+
+**Agent A**: `Read PARALLEL_AGENTS.md — you are Agent A of Run 95.`
+**Agent B**: `Read PARALLEL_AGENTS.md — you are Agent B of Run 95.`
+**Agent C**: `Read PARALLEL_AGENTS.md — you are Agent C of Run 95.`
+**Agent D**: `Read PARALLEL_AGENTS.md — you are Agent D of Run 95.`
+**Agent E**: `Read PARALLEL_AGENTS.md — you are Agent E of Run 95.`
+**Agent F**: `Read PARALLEL_AGENTS.md — you are Agent F of Run 95.`
+**Agent G**: `Read PARALLEL_AGENTS.md — you are Agent G of Run 95.`
+**Agent H**: `Read PARALLEL_AGENTS.md — you are Agent H of Run 95.`
+
+### Agent A: Star Subscription Backend — Recurring Billing + Management
+
+**Worktree**: `c:\Users\Asus\Desktop\Wibecode-agent-a` | **Branch**: `feature/r95-subscription-backend`
+
+**Context**: `subscriptions` table exists (id, user_id, tier, started_at, expires_at, auto_renew). `payments` table tracks all payments. `bot/src/handlers/payments.ts` handles pre_checkout_query and successful_payment. `bot/src/utils/paymentHelpers.ts` has `VALID_TIERS` and `TIER_PRICES = { free: 0, subscriber: 0, premium: 599 }`. Current flow: create invoice → openInvoice → pre_checkout → successful_payment → update subscription. Grammy supports `editUserStarSubscription`. Jobs pattern in `bot/src/jobs/definitions/`.
+
+**Tasks**:
+
+1. **Create `bot/src/jobs/definitions/subscriptionRenewal.ts`** — auto-renewal job:
+   - `JOB_NAME = 'subscription-renewal'`, `CRON_SCHEDULE = '0 6 * * *'` (daily at 6 AM)
+   - Query: subscriptions expiring within 48h where `auto_renew = true`
+   - For each: create new invoice, attempt charge, update expires_at +30 days on success
+   - On failure: notify user, set `auto_renew = false`, log warning
+   - Export `setBotInstance(bot)` matching pattern
+
+2. **Register job in `bot/src/jobs/registerJobs.ts`**
+
+3. **Add subscription management routes** — `bot/src/api/routes/payments.ts`:
+   - `PATCH /api/payments/subscription/:userId/auto-renew` — toggle auto_renew (body: `{ auto_renew: boolean }`)
+   - `GET /api/payments/subscription/:userId/billing-history` — list user's payments (paginated, newest first)
+   - Both use `authenticateTelegram`, `authorizeUser`
+
+4. **Add `refundStarPayment` wrapper** — `bot/src/utils/paymentHelpers.ts`:
+   - `async function refundStarPayment(userId: number, telegramPaymentChargeId: string): Promise<boolean>`
+   - Calls `bot.api.refundStarPayment(userId, telegramPaymentChargeId)`
+   - Updates payment record status to 'refunded'
+
+5. **Build verify**: `cd bot && npx tsc --noEmit`
+
+OWNED: `bot/src/jobs/definitions/subscriptionRenewal.ts` (new), `bot/src/utils/paymentHelpers.ts`
+GRAY: `bot/src/jobs/registerJobs.ts` (only add import + registration), `bot/src/api/routes/payments.ts` (only add 2 new routes)
+FORBIDDEN: mini-app/src/*, database/schema.sql, admin routes, gift routes, avatar routes, test files
+
+### Agent B: Star Subscription Frontend — Tier Comparison + Subscribe Flow
+
+**Worktree**: `c:\Users\Asus\Desktop\Wibecode-agent-b` | **Branch**: `feature/r95-subscription-frontend`
+
+**Context**: `useSubscription.ts` hook exists (loads tier, modes, limits). `usePayment.ts` hook exists (creates payment, opens invoice, polls status). `api/payments.ts` has `createPayment()` and `getPaymentStatus()`. Types in `types/subscription.ts`. Settings page has subscription section (`SubscriptionSettings.tsx` component). The mini-app needs a proper tier comparison page with upgrade flow.
+
+**Tasks**:
+
+1. **Create `mini-app/src/pages/Subscription.tsx`** — tier comparison page:
+   - Show 3 tiers: Free (2 modes), Subscriber (3 modes, via channel), Premium (all modes, 599 Stars)
+   - Comparison table: mode count, features, price
+   - Current tier highlighted with badge
+   - "Upgrade to Premium" button (only if not already premium)
+   - Uses `useSubscription()` for current tier data
+
+2. **Create `mini-app/src/components/subscription/TierCard.tsx`**:
+   - Props: `{ tier: TierInfo, isCurrent: boolean, onUpgrade?: () => void }`
+   - Shows: tier name, price, feature list, mode count
+   - Current tier gets emerald ring, others get "Upgrade" button
+
+3. **Create `mini-app/src/components/subscription/SubscriptionStatus.tsx`**:
+   - Shows: current tier badge, expiry date (if premium), auto-renew status
+   - "Manage Subscription" link → Subscription page
+
+4. **Wire upgrade flow** in Subscription page:
+   - On "Upgrade" click: call `usePayment().initiatePayment('premium', 599)`
+   - Show loading state during payment
+   - On success: show celebration + refresh subscription data
+   - On failure: show error toast
+
+5. **Add route** — `mini-app/src/App.tsx`:
+   - Add `/subscription` route pointing to Subscription page
+
+6. **Add i18n keys** — subscription title, tier names, feature descriptions
+
+7. **Build verify**: `cd mini-app && npx tsc --noEmit`
+
+OWNED: `mini-app/src/pages/Subscription.tsx` (new), `mini-app/src/components/subscription/TierCard.tsx` (new), `mini-app/src/components/subscription/SubscriptionStatus.tsx` (new)
+GRAY: `mini-app/src/App.tsx` (only add route), `mini-app/src/i18n/en.ts`, `mini-app/src/i18n/ru.ts`, `mini-app/src/i18n/zh.ts` (only add `subscription:{}` section)
+FORBIDDEN: bot/src/*, database/*, hooks/useSubscription.ts, hooks/usePayment.ts, Settings.tsx, admin pages, test files
+
+### Agent C: Paid Content — Premium Guides Behind Star Paywall
+
+**Worktree**: `c:\Users\Asus\Desktop\Wibecode-agent-c` | **Branch**: `feature/r95-paid-content`
+
+**Context**: Telegram Bot API 7.5+ has `sendPaidMedia()` (price 1-25000 Stars). Existing payment flow creates invoices via `createInvoiceLink()`. The shop system (`bot/src/api/routes/shop.ts`) handles item purchases. No paid content/guides system exists yet.
+
+**Tasks**:
+
+1. **Add `paid_content` table** — `database/schema.sql`:
+```sql
+CREATE TABLE IF NOT EXISTS paid_content (
+    id SERIAL PRIMARY KEY,
+    title VARCHAR(255) NOT NULL,
+    description TEXT,
+    content_type VARCHAR(50) NOT NULL, -- 'guide', 'video', 'resource'
+    price_stars INTEGER NOT NULL DEFAULT 0,
+    content_body TEXT, -- markdown content for guides
+    media_file_id VARCHAR(255), -- Telegram file_id for media
+    is_active BOOLEAN DEFAULT true,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE TABLE IF NOT EXISTS user_content_access (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    content_id INTEGER NOT NULL REFERENCES paid_content(id) ON DELETE CASCADE,
+    purchased_at TIMESTAMPTZ DEFAULT NOW(),
+    payment_id INTEGER REFERENCES payments(id),
+    UNIQUE(user_id, content_id)
+);
+```
+
+2. **Create `bot/src/api/routes/content.ts`** — content routes:
+   - `GET /api/content` — list all active content (title, description, price, user has access?)
+   - `GET /api/content/:contentId` — get content details (full body only if user has access)
+   - `POST /api/content/:contentId/purchase` — create invoice for content purchase
+   - Register in `bot/src/api/server.ts`
+
+3. **Create `mini-app/src/pages/PremiumContent.tsx`**:
+   - Grid of content cards with title, description, price badge
+   - Locked state for unpurchased items (blur + lock icon)
+   - Unlocked items show full content on click
+   - Purchase button opens Stars invoice flow
+
+4. **Add route** — add `/premium-content` to App.tsx routing
+
+5. **Build verify**: `cd bot && npx tsc --noEmit` and `cd mini-app && npx tsc --noEmit`
+
+OWNED: `bot/src/api/routes/content.ts` (new), `mini-app/src/pages/PremiumContent.tsx` (new)
+GRAY: `database/schema.sql` (only add paid_content + user_content_access tables), `bot/src/api/server.ts` (only register content route), `mini-app/src/App.tsx` (only add route)
+FORBIDDEN: payments.ts, shop.ts, subscription routes, admin routes, gift routes, Settings.tsx, test files
+
+### Agent D: Premium Features Gate — Frontend Lock UI + Upgrade Prompts
+
+**Worktree**: `c:\Users\Asus\Desktop\Wibecode-agent-d` | **Branch**: `feature/r95-premium-gate`
+
+**Context**: Backend `premiumGate.ts` middleware exists with `requirePremium(minTier)`, `MODE_LIMITS`, `FREE_MODES`, `PAID_MODES`. Frontend `useSubscription.ts` hook provides `effectiveTier`, `isPremium`, `isSubscriber`, `modeLimits`. `useModeUnlock.ts` hook exists for mode purchases. No frontend premium gate component exists yet.
+
+**Tasks**:
+
+1. **Create `mini-app/src/components/PremiumGate.tsx`**:
+```typescript
+interface PremiumGateProps {
+  requiredTier: 'subscriber' | 'premium';
+  children: React.ReactNode;
+  fallback?: React.ReactNode; // custom lock UI
+}
+// If user tier >= requiredTier: render children
+// Else: render fallback or default upgrade prompt
+```
+   - Default fallback: lock overlay with tier badge + "Upgrade" button
+   - "Upgrade" navigates to `/subscription` page
+   - Smooth blur transition
+
+2. **Create `mini-app/src/components/UpgradePromptModal.tsx`**:
+   - Shows when user tries to access locked feature
+   - Tier comparison mini-view
+   - "Upgrade Now" → `/subscription` page
+   - "Later" → dismiss
+
+3. **Add lock icons to mode cards** — enhance mode selection UI:
+   - In mode/activity selection components, check if mode is locked via `useSubscription`
+   - Show lock icon + price on locked modes
+   - On click: show UpgradePromptModal instead of activating
+
+4. **Add i18n keys** — `premium.locked`, `premium.upgrade`, `premium.upgradeTitle`, `premium.upgradeDesc`
+
+5. **Build verify**: `cd mini-app && npx tsc --noEmit`
+
+OWNED: `mini-app/src/components/PremiumGate.tsx` (new), `mini-app/src/components/UpgradePromptModal.tsx` (new)
+GRAY: `mini-app/src/i18n/en.ts`, `mini-app/src/i18n/ru.ts`, `mini-app/src/i18n/zh.ts` (only add `premium:{}` section)
+FORBIDDEN: bot/src/*, database/*, hooks/useSubscription.ts, hooks/useModeUnlock.ts, Settings.tsx, Subscription.tsx, admin pages, test files
+
+### Agent E: Subscription Management — Manage Page + Billing History
+
+**Worktree**: `c:\Users\Asus\Desktop\Wibecode-agent-e` | **Branch**: `feature/r95-subscription-manage`
+
+**Context**: `GET /api/payments/subscription/:userId` returns subscription status. `GET /api/payments/history/:userId` returns payment history. `POST /api/payments/subscription/cancel` downgrades to free. Agent A adds `PATCH .../auto-renew` and `GET .../billing-history`. `SubscriptionSettings.tsx` component exists in Settings page.
+
+**Tasks**:
+
+1. **Create `mini-app/src/pages/SubscriptionManager.tsx`**:
+   - Current tier + status header (active/expired/expiring)
+   - Expiry countdown: "Renews in X days" or "Expired Y days ago"
+   - Auto-renew toggle (calls Agent A's endpoint)
+   - "Cancel Subscription" button → confirmation modal → calls cancel endpoint
+   - Link back to tier comparison (Agent B's page)
+
+2. **Create `mini-app/src/components/subscription/BillingHistory.tsx`**:
+   - Table/list: date, description (tier upgrade / mode unlock / shop item), amount (Stars), status
+   - Paginated (load more button)
+   - Empty state: "No transactions yet"
+
+3. **Add `mini-app/src/api/client.ts` methods**:
+   - `toggleAutoRenew(userId, autoRenew)` → PATCH auto-renew
+   - `getBillingHistory(userId, page)` → GET billing-history
+   - `cancelSubscription(userId)` → POST cancel
+
+4. **Enhance `mini-app/src/components/settings/SubscriptionSettings.tsx`**:
+   - Add "Manage Subscription" button → navigates to `/subscription/manage`
+   - Show current tier + expiry summary
+
+5. **Add route** — `/subscription/manage` in App.tsx
+
+6. **Build verify**: `cd mini-app && npx tsc --noEmit`
+
+OWNED: `mini-app/src/pages/SubscriptionManager.tsx` (new), `mini-app/src/components/subscription/BillingHistory.tsx` (new)
+GRAY: `mini-app/src/api/client.ts` (only add 3 methods), `mini-app/src/components/settings/SubscriptionSettings.tsx` (only add manage button), `mini-app/src/App.tsx` (only add route)
+FORBIDDEN: bot/src/*, database/*, hooks/usePayment.ts, Subscription.tsx (Agent B owns), admin pages, test files
+
+### Agent F: Revenue Dashboard (Admin) — Stars Revenue + Transactions
+
+**Worktree**: `c:\Users\Asus\Desktop\Wibecode-agent-f` | **Branch**: `feature/r95-revenue-dashboard`
+
+**Context**: Admin pages exist at `mini-app/src/pages/admin/` (AdminDashboard, AdminPlayerList, AdminPlayerDetail). Admin routes in `bot/src/api/routes/admin-stats.ts` (basic stats). Admin auth via `requireRole('admin')` or Basic Auth. `payments` table stores all transactions (status, amount, currency='XTR', provider='telegram_stars'). `refundStarPayment` wrapper added by Agent A.
+
+**Tasks**:
+
+1. **Add admin revenue routes** — `bot/src/api/routes/admin-stats.ts`:
+   - `GET /api/admin/revenue/stats` — total earned, this week, this month, pending (< 21 days), transaction count
+   - `GET /api/admin/revenue/transactions` — paginated list with filters (type, status, date range)
+   - `POST /api/admin/revenue/refund/:paymentId` — issue refund (calls `refundStarPayment`)
+
+2. **Create `mini-app/src/pages/admin/AdminRevenue.tsx`**:
+   - KPI cards row: Total Earned, This Month, Pending Balance, Transaction Count
+   - Revenue chart: weekly bar chart (using recharts, already installed)
+   - Transaction table: date, user, type, amount, status, refund button
+   - Filters: date range picker, type filter, status filter
+   - Refund button with confirmation modal
+
+3. **Add navigation** — `mini-app/src/pages/admin/AdminDashboard.tsx`:
+   - Add "Revenue" card/link to AdminDashboard
+   - Add route `/admin/revenue` in App.tsx
+
+4. **Build verify**: `cd bot && npx tsc --noEmit` and `cd mini-app && npx tsc --noEmit`
+
+OWNED: `mini-app/src/pages/admin/AdminRevenue.tsx` (new)
+GRAY: `bot/src/api/routes/admin-stats.ts` (only add revenue endpoints), `mini-app/src/pages/admin/AdminDashboard.tsx` (only add revenue link), `mini-app/src/App.tsx` (only add admin route)
+FORBIDDEN: payments.ts (Agent A owns), database/*, subscription routes, gift routes, i18n files, Settings.tsx, test files
+
+### Agent G: Gift System — sendGift + Gift Inventory
+
+**Worktree**: `c:\Users\Asus\Desktop\Wibecode-agent-g` | **Branch**: `feature/r95-gift-system`
+
+**Context**: Telegram Bot API 8.0+ has `sendGift(user_id, gift_id, text_parse_mode?, text?)` and `getAvailableGifts()`. No gift system exists. Social page (`mini-app/src/pages/Social.tsx`) has friends list. Grammy supports these methods.
+
+**Tasks**:
+
+1. **Add `gifts_received` table** — `database/schema.sql`:
+```sql
+CREATE TABLE IF NOT EXISTS gifts_received (
+    id SERIAL PRIMARY KEY,
+    to_user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    from_user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    gift_id VARCHAR(100) NOT NULL,
+    gift_title VARCHAR(255),
+    stars_cost INTEGER DEFAULT 0,
+    message TEXT,
+    sent_at TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_gifts_to_user ON gifts_received(to_user_id, sent_at DESC);
+```
+
+2. **Create `bot/src/api/routes/gifts.ts`** — gift routes:
+   - `GET /api/gifts/available` — calls `bot.api.getAvailableGifts()`, returns list with id, title, star_count
+   - `GET /api/gifts/received/:userId` — list gifts received by user
+   - `GET /api/gifts/sent/:userId` — list gifts sent by user
+   - `POST /api/gifts/send` — body: `{ from_user_id, to_telegram_id, gift_id, message? }`, calls `bot.api.sendGift()`, records in gifts_received
+   - Register in `bot/src/api/server.ts`
+
+3. **Create `mini-app/src/pages/Gifts.tsx`** — gift inventory page:
+   - Tabs: "Received" | "Send Gift"
+   - Received tab: list of gifts with sender name, gift icon, date
+   - Send tab: friend picker → gift catalog → confirm + message → send
+   - Empty state for no gifts
+
+4. **Add route + nav** — `/gifts` route in App.tsx
+
+5. **Add i18n keys** — `gifts.title`, `gifts.received`, `gifts.send`, `gifts.selectFriend`, `gifts.selectGift`, `gifts.sent`, `gifts.empty`
+
+6. **Build verify**: `cd bot && npx tsc --noEmit` and `cd mini-app && npx tsc --noEmit`
+
+OWNED: `bot/src/api/routes/gifts.ts` (new), `mini-app/src/pages/Gifts.tsx` (new)
+GRAY: `database/schema.sql` (only add gifts_received table), `bot/src/api/server.ts` (only register gifts route), `mini-app/src/App.tsx` (only add route), `mini-app/src/i18n/en.ts`, `mini-app/src/i18n/ru.ts`, `mini-app/src/i18n/zh.ts` (only add `gifts:{}` section)
+FORBIDDEN: payments.ts, subscription routes, admin routes, Settings.tsx, Social.tsx, hooks/*, test files
+
+### Agent H: Premium Avatars — Animated Avatars + Premium Collection
+
+**Worktree**: `c:\Users\Asus\Desktop\Wibecode-agent-h` | **Branch**: `feature/r95-premium-avatars`
+
+**Context**: `avatar_items` table exists (id, category, name, sprite_key, rarity, unlock_type, unlock_criteria). `user_avatar` table stores equipped items. `bot/src/api/routes/avatars.ts` has CRUD routes. `mini-app/src/hooks/useAvatar.ts` hook exists. `shop_items` table supports `type = 'avatar_item'` with `reference_id`. The shop purchase flow is established (invoice → payment → delivery).
+
+**Tasks**:
+
+1. **Add avatar columns** — `database/schema.sql`:
+```sql
+ALTER TABLE avatar_items ADD COLUMN IF NOT EXISTS is_animated BOOLEAN DEFAULT false;
+ALTER TABLE avatar_items ADD COLUMN IF NOT EXISTS animation_data JSONB DEFAULT NULL;
+ALTER TABLE avatar_items ADD COLUMN IF NOT EXISTS price_stars INTEGER DEFAULT 0;
+```
+
+2. **Seed premium avatar items** — add INSERT statements to `database/seed_data.sql` or schema:
+   - 5-8 premium avatar items across categories (hairstyle, outfit, accessory, background)
+   - Set `unlock_type = 'premium'`, `rarity = 'legendary'`, `price_stars > 0`
+   - 2-3 items with `is_animated = true` (placeholder animation_data)
+
+3. **Create `mini-app/src/pages/AvatarShop.tsx`** — premium avatar shop:
+   - Grid of avatar items grouped by category
+   - Free items: available, equip button
+   - Premium items: locked with price badge, purchase via Stars invoice
+   - Already owned: equip/unequip button
+   - Preview: show avatar preview when item selected
+
+4. **Enhance `bot/src/api/routes/avatars.ts`** — add premium check:
+   - In equip route: verify user owns the item (purchased or premium subscriber)
+   - `GET /api/avatars/shop` — list all items with purchase status per user
+
+5. **Add route** — `/avatar-shop` in App.tsx
+
+6. **Build verify**: `cd bot && npx tsc --noEmit` and `cd mini-app && npx tsc --noEmit`
+
+OWNED: `mini-app/src/pages/AvatarShop.tsx` (new)
+GRAY: `database/schema.sql` (only add ALTER TABLE for avatar_items), `bot/src/api/routes/avatars.ts` (only add premium check in equip + shop listing), `mini-app/src/App.tsx` (only add route)
+FORBIDDEN: payments.ts, subscription routes, admin routes, gift routes, Settings.tsx, Social.tsx, hooks/useSubscription.ts, i18n files, test files
+
+### Run 95 File Ownership Matrix
+
+| File/Dir | A | B | C | D | E | F | G | H |
+|----------|---|---|---|---|---|---|---|---|
+| jobs/subscriptionRenewal.ts (new) | NEW | - | - | - | - | - | - | - |
+| utils/paymentHelpers.ts | OWN | - | - | - | - | - | - | - |
+| jobs/registerJobs.ts | GRAY | - | - | - | - | - | - | - |
+| api/routes/payments.ts | GRAY | - | - | - | - | - | - | - |
+| api/routes/content.ts (new) | - | - | NEW | - | - | - | - | - |
+| api/routes/gifts.ts (new) | - | - | - | - | - | - | NEW | - |
+| api/routes/admin-stats.ts | - | - | - | - | - | GRAY | - | - |
+| api/routes/avatars.ts | - | - | - | - | - | - | - | GRAY |
+| api/server.ts | - | - | GRAY | - | - | - | GRAY | - |
+| pages/Subscription.tsx (new) | - | NEW | - | - | - | - | - | - |
+| components/subscription/TierCard.tsx (new) | - | NEW | - | - | - | - | - | - |
+| components/subscription/SubscriptionStatus.tsx (new) | - | NEW | - | - | - | - | - | - |
+| pages/PremiumContent.tsx (new) | - | - | NEW | - | - | - | - | - |
+| components/PremiumGate.tsx (new) | - | - | - | NEW | - | - | - | - |
+| components/UpgradePromptModal.tsx (new) | - | - | - | NEW | - | - | - | - |
+| pages/SubscriptionManager.tsx (new) | - | - | - | - | NEW | - | - | - |
+| components/subscription/BillingHistory.tsx (new) | - | - | - | - | NEW | - | - | - |
+| components/settings/SubscriptionSettings.tsx | - | - | - | - | GRAY | - | - | - |
+| pages/admin/AdminRevenue.tsx (new) | - | - | - | - | - | NEW | - | - |
+| pages/admin/AdminDashboard.tsx | - | - | - | - | - | GRAY | - | - |
+| pages/Gifts.tsx (new) | - | - | - | - | - | - | NEW | - |
+| pages/AvatarShop.tsx (new) | - | - | - | - | - | - | - | NEW |
+| App.tsx | - | GRAY | GRAY | - | GRAY | GRAY | GRAY | GRAY |
+| api/client.ts | - | - | - | - | GRAY | - | - | - |
+| database/schema.sql | - | - | GRAY | - | - | - | GRAY | GRAY |
+| i18n/en.ts | - | GRAY | - | GRAY | - | - | GRAY | - |
+| i18n/ru.ts | - | GRAY | - | GRAY | - | - | GRAY | - |
+| i18n/zh.ts | - | GRAY | - | GRAY | - | - | GRAY | - |
+
+### Run 95 Merge Order
+1. Agent A (Subscription backend — job + routes, no frontend)
+2. Agent C (Paid content — new DB tables + routes + page)
+3. Agent G (Gift system — new DB table + routes + page)
+4. Agent H (Premium avatars — DB ALTER + avatar route + page)
+5. Agent D (Premium gate — frontend components only)
+6. Agent B (Subscription frontend — new pages, touches App.tsx)
+7. Agent E (Subscription management — depends on A's routes, touches App.tsx + client.ts)
+8. Agent F (Revenue dashboard — admin pages, depends on A's refund wrapper)
+
+### Run 95 Retrospectives
+
+#### Agent A Retrospective
+*(To be filled by Agent A)*
+
+#### Agent B Retrospective
+*(To be filled by Agent B)*
+
+#### Agent C Retrospective
+*(To be filled by Agent C)*
+
+#### Agent D Retrospective
+*(To be filled by Agent D)*
+
+#### Agent E Retrospective
+*(To be filled by Agent E)*
 
 #### Agent F Retrospective
 *(To be filled by Agent F)*
