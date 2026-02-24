@@ -21,9 +21,12 @@ router.use('/', questAssignmentRouter);
  */
 router.get('/users/:userId/active', authenticateTelegram, authorizeUser, readLimiter, asyncHandler(async (req: Request, res: Response) => {
   const userId = safeParseInt(req.params.userId, 0);
+  const lang = (req.query.lang as string) || 'en';
+  const titleExpr = lang === 'ru' ? 'COALESCE(q.title_ru, q.title)' : 'q.title';
+  const descExpr = lang === 'ru' ? 'COALESCE(q.description_ru, q.description)' : 'q.description';
 
   const quests = await query(
-    `SELECT qi.id, qi.quest_id, q.title AS name, q.description, q.xp_reward,
+    `SELECT qi.id, qi.quest_id, ${titleExpr} AS name, ${descExpr} AS description, q.xp_reward,
             q.quest_type, q.difficulty, q.mode_id, m.name AS mode_name,
             m.icon_emoji AS mode_icon, qi.status, qi.instance_date,
             qi.check_in_count, qi.target
@@ -45,9 +48,12 @@ router.get('/users/:userId/active', authenticateTelegram, authorizeUser, readLim
 router.get('/users/:userId/completed', authenticateTelegram, authorizeUser, readLimiter, asyncHandler(async (req: Request, res: Response) => {
   const userId = safeParseInt(req.params.userId, 0);
   const limit = safeParseInt(req.query.limit as string, 50);
+  const lang = (req.query.lang as string) || 'en';
+  const titleExpr = lang === 'ru' ? 'COALESCE(q.title_ru, q.title)' : 'q.title';
+  const descExpr = lang === 'ru' ? 'COALESCE(q.description_ru, q.description)' : 'q.description';
 
   const quests = await query(
-    `SELECT qi.id, q.title AS name, q.xp_reward, q.quest_type, q.difficulty,
+    `SELECT qi.id, ${titleExpr} AS name, ${descExpr} AS description, q.xp_reward, q.quest_type, q.difficulty,
             m.name AS mode_name, m.icon_emoji AS mode_icon,
             qi.xp_awarded, qi.completed_at, qi.target
      FROM quest_instances qi

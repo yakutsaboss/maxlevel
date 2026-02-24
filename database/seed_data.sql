@@ -361,6 +361,51 @@ INSERT INTO shop_items (type, name, description, price_stars, price_xp, rarity, 
 ON CONFLICT DO NOTHING;
 
 -- ========================================
+-- RUSSIAN TRANSLATIONS FOR QUESTS (Run 92)
+-- ========================================
+
+-- Fitness quests
+UPDATE quests SET title_ru = 'Утренняя растяжка 10 минут', description_ru = 'Начните день с лёгкой 10-минутной растяжки' WHERE title = '10-Minute Morning Stretch';
+UPDATE quests SET title_ru = 'Лёгкая 15-минутная прогулка', description_ru = 'Совершите лёгкую 15-минутную прогулку по окрестностям' WHERE title = 'Light 15-Min Walk';
+UPDATE quests SET title_ru = 'Цель на неделю: 2 тренировки', description_ru = 'Выполните как минимум 2 тренировки за эту неделю' WHERE title = 'Weekly Goal: 2 Sessions';
+UPDATE quests SET title_ru = 'Утренняя тренировка', description_ru = 'Выполните утреннюю тренировку в зале или дома' WHERE title = 'Morning Workout';
+UPDATE quests SET title_ru = 'Вечернее кардио', description_ru = 'Выполните вечернюю кардио-тренировку' WHERE title = 'Evening Cardio';
+UPDATE quests SET title_ru = 'Цель на неделю: 4 тренировки', description_ru = 'Выполните как минимум 4 тренировки за эту неделю' WHERE title = 'Weekly Goal: 4 Sessions';
+UPDATE quests SET title_ru = 'Испытание: 50 отжиманий', description_ru = 'Выполните 50 отжиманий за день в любом количестве подходов' WHERE title = '50 Push-Ups Challenge';
+UPDATE quests SET title_ru = 'HIIT-тренировка на 1 час', description_ru = 'Выполните полноценную часовую высокоинтенсивную интервальную тренировку' WHERE title = '1-Hour HIIT Workout';
+UPDATE quests SET title_ru = 'Цель на неделю: 6 тренировок', description_ru = 'Выполните как минимум 6 тренировок за эту неделю' WHERE title = 'Weekly Goal: 6 Sessions';
+
+-- Hydration quests
+UPDATE quests SET title_ru = 'Пить воду (каждые 2 часа)', description_ru = 'Поддерживайте водный баланс в течение дня — цель 12 стаканов' WHERE title = 'Drink Water (Every 2 Hours)';
+UPDATE quests SET title_ru = 'Утреннее увлажнение', description_ru = 'Выпейте 2 стакана воды в течение часа после пробуждения' WHERE title = 'Morning Hydration';
+UPDATE quests SET title_ru = 'Недельная цель по воде', description_ru = 'Поддерживайте водный баланс каждый день на этой неделе' WHERE title = 'Weekly Hydration Goal';
+UPDATE quests SET title_ru = 'Выпить 8 стаканов сегодня', description_ru = 'Отслеживайте и выпейте минимум 8 стаканов воды за день' WHERE title = 'Drink 8 Glasses Today';
+UPDATE quests SET title_ru = 'Заменить один напиток водой', description_ru = 'Замените сегодня один сладкий или кофейный напиток на воду' WHERE title = 'Replace One Drink With Water';
+UPDATE quests SET title_ru = 'Неделя: 5 дней по 8+ стаканов', description_ru = 'Достигните цели в 8 стаканов в день минимум 5 дней на этой неделе' WHERE title = 'Weekly: 5 Days of 8+ Glasses';
+UPDATE quests SET title_ru = 'Выпить 3 литра воды сегодня', description_ru = 'Отслеживайте и выпейте минимум 3 литра воды за один день' WHERE title = 'Drink 3L Water Today';
+UPDATE quests SET title_ru = 'Неделя: идеальная гидратация', description_ru = 'Выполняйте дневную норму воды каждый день на этой неделе' WHERE title = 'Weekly: Perfect Hydration Streak';
+
+-- Medication quests
+UPDATE quests SET title_ru = 'Приём утренних лекарств', description_ru = 'Примите утреннюю дозу вовремя, чтобы не сбиваться с графика' WHERE title = 'Take Morning Medication';
+UPDATE quests SET title_ru = 'Приём вечерних лекарств', description_ru = 'Примите вечернюю дозу перед сном для стабильного приёма' WHERE title = 'Take Evening Medication';
+UPDATE quests SET title_ru = 'Еженедельная проверка запасов', description_ru = 'Проверьте запас лекарств и запланируйте пополнение при необходимости' WHERE title = 'Weekly Refill Check';
+UPDATE quests SET title_ru = 'Записать побочные эффекты', description_ru = 'Запишите любые побочные эффекты или изменения, которые заметили сегодня' WHERE title = 'Log Side Effects';
+UPDATE quests SET title_ru = 'Полный аудит лекарств', description_ru = 'Проверьте все лекарства, сроки годности и обновите список' WHERE title = 'Full Medication Audit';
+UPDATE quests SET title_ru = 'Неделя: идеальный приём', description_ru = 'Принимайте все лекарства вовремя каждый день на этой неделе' WHERE title = 'Weekly: Perfect Adherence';
+UPDATE quests SET title_ru = 'Принять утренние лекарства', description_ru = 'Отметьте все утренние лекарства как принятые в трекере' WHERE title = 'Take morning medications';
+UPDATE quests SET title_ru = 'Принять вечерние лекарства', description_ru = 'Отметьте все вечерние лекарства как принятые в трекере' WHERE title = 'Take evening medications';
+UPDATE quests SET title_ru = 'Идеальная неделя приёма', description_ru = 'Ни одной пропущенной дозы за неделю — все лекарства приняты по графику' WHERE title = 'Perfect medication week';
+
+-- Habits quests
+UPDATE quests SET title_ru = 'Утренняя проверка привычек', description_ru = 'Выполните утренний чек-ин привычек, чтобы начать день правильно' WHERE title = 'Morning Habit Check';
+UPDATE quests SET title_ru = 'Вечерний обзор привычек', description_ru = 'Проверьте дневные привычки и отметьте выполненные' WHERE title = 'Evening Habit Review';
+UPDATE quests SET title_ru = 'Еженедельный обзор привычек', description_ru = 'Проанализируйте, какие привычки закрепились, а какие нужно скорректировать' WHERE title = 'Weekly Habit Reflection';
+UPDATE quests SET title_ru = 'Добавить новую микро-привычку', description_ru = 'Выберите одну новую микро-привычку и практикуйте её сегодня (напр., 1 мин медитации)' WHERE title = 'Add a New Micro-Habit';
+UPDATE quests SET title_ru = 'Неделя: ежедневный трекинг привычек', description_ru = 'Отмечайте все активные привычки каждый день на этой неделе' WHERE title = 'Weekly: Track All Habits Daily';
+UPDATE quests SET title_ru = 'Испытание: цепочка привычек', description_ru = 'Объедините 3 привычки в одну утреннюю рутину и выполните их все' WHERE title = 'Habit Stacking Challenge';
+UPDATE quests SET title_ru = 'Неделя: 7-дневная идеальная серия', description_ru = 'Выполняйте все ежедневные чек-ины привычек каждый день на этой неделе' WHERE title = 'Weekly: 7-Day Perfect Streak';
+
+-- ========================================
 -- VERIFICATION QUERIES
 -- ========================================
 
