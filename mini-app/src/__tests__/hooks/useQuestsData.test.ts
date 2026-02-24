@@ -105,8 +105,8 @@ describe('useQuestsData', () => {
     expect(result.current.activeQuests).toHaveLength(2);
     expect(result.current.completedQuests).toHaveLength(1);
     expect(result.current.error).toBe(false);
-    expect(mockGetActiveQuests).toHaveBeenCalledWith(123);
-    expect(mockGetCompletedQuests).toHaveBeenCalledWith(123, 50);
+    expect(mockGetActiveQuests).toHaveBeenCalledWith(123, expect.any(String));
+    expect(mockGetCompletedQuests).toHaveBeenCalledWith(123, 50, expect.any(String));
     expect(mockGetTodayCheckins).toHaveBeenCalledWith(123);
   });
 

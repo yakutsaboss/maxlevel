@@ -1,13 +1,15 @@
 import { useState, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { motion } from 'framer-motion';
-import { Pill, Plus, Calendar, BarChart3 } from 'lucide-react';
+import { Pill, Plus, Calendar } from 'lucide-react';
 import { useTelegram } from '@/hooks/useTelegram';
 import { usePullToRefresh, PullIndicator } from '@/hooks/usePullToRefresh';
 import { ErrorSection } from '@/components/ErrorSection';
 import { DailyMedTracker } from '@/components/medication/DailyMedTracker';
 import { MedicationCard } from '@/components/medication/MedicationCard';
 import { MedicationForm } from '@/components/medication/MedicationForm';
+import { MedicationHistory } from '@/components/medication/MedicationHistory';
+import { MedicationAnalytics } from '@/components/medication/MedicationAnalytics';
 import { useMedicationData } from '@/hooks/useMedicationData';
 import { useToastContext } from '@/contexts/ToastContext';
 import type { Medication, AddMedicationData } from '@/types';
@@ -222,20 +224,14 @@ export function Medications() {
         </>
       )}
 
-      {/* History tab (placeholder — Agent E will build real component) */}
-      {activeTab === 'history' && (
-        <div className="px-4 mt-4 text-center py-16">
-          <Calendar className="w-12 h-12 text-telegram-hint mx-auto mb-3" />
-          <p className="text-telegram-hint text-sm">{t('medication.historyComingSoon', 'History view loading...')}</p>
-        </div>
+      {/* History tab */}
+      {activeTab === 'history' && user?.id && (
+        <MedicationHistory userId={user.id} />
       )}
 
-      {/* Analytics tab (placeholder — Agent F will build real component) */}
-      {activeTab === 'analytics' && (
-        <div className="px-4 mt-4 text-center py-16">
-          <BarChart3 className="w-12 h-12 text-telegram-hint mx-auto mb-3" />
-          <p className="text-telegram-hint text-sm">{t('medication.analyticsComingSoon', 'Analytics loading...')}</p>
-        </div>
+      {/* Analytics tab */}
+      {activeTab === 'analytics' && user?.id && (
+        <MedicationAnalytics userId={user.id} />
       )}
 
       {/* Delete confirmation toast */}
