@@ -154,13 +154,14 @@ router.post('/purchase', authenticateTelegram, asyncHandler(async (req: Request,
       throw new BadRequestError('Insufficient XP balance');
     }
   } else {
-    // Stars payment
+    // Stars payment — NOTE (Run 93): Stars purchases should now use the invoice flow
+    // via POST /payments/create-shop-invoice → WebApp.openInvoice() → pre_checkout_query →
+    // successful_payment. This direct recording path is kept for backward compatibility
+    // but the frontend (usePurchase.ts) should call the invoice endpoint instead.
     if (item.price_stars <= 0) {
       throw new BadRequestError('This item cannot be purchased with Stars');
     }
     amountPaid = item.price_stars;
-    // Stars payment is recorded here; actual Telegram Stars invoice/verification
-    // is handled by the client via Telegram's payment flow before calling this endpoint.
   }
 
   // Record the purchase
