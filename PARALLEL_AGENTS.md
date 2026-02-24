@@ -1201,3 +1201,28 @@ Write retrospective when done.
 **Agent C recovery**: Wrote comprehensive TG API features doc covering all Bot API 9.4 features with MaxLevel implementation ideas.
 **Results**: 942/942 tests pass. Bot + mini-app build clean. Deployed to production.
 **Worktrees**: All 4 removed, branches deleted.
+
+#### Run 92 — Agent C Retrospective
+**Status**: Complete — 1 new file + 2 modified, Python syntax verified.
+
+**Created**:
+- `tools/sheets_oauth_helper.py` (175 lines) — Non-interactive OAuth helper with 3 CLI modes: `--generate-url` (creates OAuth consent URL with `urn:ietf:wg:oauth:2.0:oob` redirect for manual code copy), `--exchange-code CODE` (exchanges auth code for tokens, saves to `token.json`), `--check-status` (validates token, auto-refreshes if expired). Also exports `load_oauth_credentials()` for use by the export tool.
+
+**Modified**:
+- `tools/sheets_analytics_export.py` — `get_sheets_service()` now tries OAuth user credentials (via `load_oauth_credentials()`) before falling back to service account. Error message updated to guide users to either OAuth or service account setup.
+- `tools/notification_bot_handler.py` — Added 3 new commands:
+  - `/sheets_login` — calls helper `--generate-url`, sends clickable authorization link with step-by-step instructions
+  - `/sheets_code CODE` — calls helper `--exchange-code`, reports success/failure
+  - `/sheets_status` — calls helper `--check-status`, shows both OAuth and service account status
+  - Updated `/start`, `/help` messages and Telegram bot command menu
+  - Improved error handling: `status_command`, `metrics_command`, `deploy_command` now safely clean up thinking messages before sending error replies. Global error handler now notifies the user instead of silently logging.
+
+**Design decisions**:
+- OAuth uses `urn:ietf:wg:oauth:2.0:oob` (out-of-band) redirect — the user manually copies the code, which works from any device including mobile Telegram
+- Token refresh is automatic: `load_oauth_credentials()` and `--check-status` both attempt refresh and save updated tokens
+- OAuth takes priority over service account in `get_sheets_service()` — if token.json exists and is valid, it's used. This allows the user to use their own Google account.
+- Existing service account flow is fully preserved as fallback
+
+**Files changed**: `sheets_oauth_helper.py` (new), `notification_bot_handler.py`, `sheets_analytics_export.py`
+**Commit**: `65c960f` on `feature/r92-sheets-oauth`
+**No issues encountered.**
