@@ -4,6 +4,9 @@ import { motion } from 'framer-motion';
 import { Achievement } from '@/types';
 import { Zap } from 'lucide-react';
 import { Confetti } from '@/components/celebrations/Confetti';
+import { LottieSticker } from '@/components/celebrations/LottieSticker';
+import trophyAnimation from '@/assets/lottie/trophy.json';
+import { useCelebrationStyle } from '@/hooks/useCelebrationStyle';
 
 interface AchievementToastProps {
   achievement: Achievement;
@@ -13,6 +16,7 @@ interface AchievementToastProps {
 export function AchievementToast({ achievement, onClose }: AchievementToastProps) {
   const { t } = useTranslation();
   const [showConfetti, setShowConfetti] = useState(true);
+  const { isAnimated } = useCelebrationStyle();
 
   useEffect(() => {
     const timer = setTimeout(onClose, 4000);
@@ -34,8 +38,12 @@ export function AchievementToast({ achievement, onClose }: AchievementToastProps
           onClick={onClose}
         >
           <div className="flex items-center gap-3">
-            <div className="bg-white/20 backdrop-blur-sm rounded-xl p-2.5 text-3xl flex-shrink-0">
-              {achievement.icon || '🏆'}
+            <div className="bg-white/20 backdrop-blur-sm rounded-xl p-2.5 flex-shrink-0">
+              {isAnimated ? (
+                <LottieSticker animationData={trophyAnimation} size={48} />
+              ) : (
+                <span className="text-3xl">{achievement.icon || '🏆'}</span>
+              )}
             </div>
             <div className="flex-1 min-w-0">
               <div className="text-xs font-semibold text-amber-900/70 uppercase tracking-wider">{t('achievements.achievementUnlocked')}</div>

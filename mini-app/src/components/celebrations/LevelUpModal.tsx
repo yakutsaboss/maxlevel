@@ -2,6 +2,9 @@ import { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { motion, AnimatePresence } from 'framer-motion';
 import { FocusTrap } from '@/components/FocusTrap';
+import { LottieSticker } from './LottieSticker';
+import starBurstAnimation from '@/assets/lottie/star-burst.json';
+import { useCelebrationStyle } from '@/hooks/useCelebrationStyle';
 
 interface LevelUpModalProps {
   level: number;
@@ -11,6 +14,7 @@ interface LevelUpModalProps {
 
 export function LevelUpModal({ level, show, onClose }: LevelUpModalProps) {
   const { t } = useTranslation();
+  const { isAnimated } = useCelebrationStyle();
 
   useEffect(() => {
     if (!show) return;
@@ -47,13 +51,17 @@ export function LevelUpModal({ level, show, onClose }: LevelUpModalProps) {
               style={{ boxShadow: '0 0 40px 10px rgba(102, 126, 234, 0.5)' }}
             />
 
-            <motion.div
-              animate={{ scale: [1, 1.15, 1] }}
-              transition={{ duration: 0.6, repeat: Infinity, repeatDelay: 0.8 }}
-              className="text-5xl"
-            >
-              ⭐
-            </motion.div>
+            {isAnimated ? (
+              <LottieSticker animationData={starBurstAnimation} size={100} />
+            ) : (
+              <motion.div
+                animate={{ scale: [1, 1.15, 1] }}
+                transition={{ duration: 0.6, repeat: Infinity, repeatDelay: 0.8 }}
+                className="text-5xl"
+              >
+                ⭐
+              </motion.div>
+            )}
 
             <span className="text-sm font-bold uppercase tracking-widest text-white/80">
               {t('celebrations.levelUp')}
