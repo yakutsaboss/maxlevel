@@ -1,7 +1,7 @@
 import { useState, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { motion } from 'framer-motion';
-import { Pill, Plus, Calendar } from 'lucide-react';
+import { Pill, Plus, Calendar, BarChart3 } from 'lucide-react';
 import { useTelegram } from '@/hooks/useTelegram';
 import { usePullToRefresh, PullIndicator } from '@/hooks/usePullToRefresh';
 import { ErrorSection } from '@/components/ErrorSection';
@@ -62,6 +62,8 @@ function MedicationsSkeleton() {
   );
 }
 
+type MedicationTab = 'today' | 'history' | 'analytics';
+
 export function Medications() {
   const { t } = useTranslation();
   const { user, haptic } = useTelegram();
@@ -69,6 +71,7 @@ export function Medications() {
   const [formOpen, setFormOpen] = useState(false);
   const [editingMed, setEditingMed] = useState<Medication | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<number | null>(null);
+  const [activeTab, setActiveTab] = useState<MedicationTab>('today');
 
   const {
     medications, todaySchedule, loading, error,
@@ -146,56 +149,94 @@ export function Medications() {
         </div>
       </div>
 
-      {/* Today's Schedule */}
-      <div className="px-4 mt-4" role="region" aria-label="Today's schedule">
-        <h2 className="text-lg font-semibold mb-3 flex items-center gap-2">
-          <Calendar className="w-5 h-5 text-telegram-link" aria-hidden="true" />
-          {t('medication.todaySchedule')}
-        </h2>
-        <DailyMedTracker
-          schedule={todaySchedule}
-          onLog={handleLog}
-        />
-      </div>
-
-      {/* My Medications */}
-      <div className="px-4 mt-6" role="region" aria-label="My medications">
-        <h2 className="text-lg font-semibold mb-3 flex items-center gap-2">
-          <Pill className="w-5 h-5 text-telegram-link" aria-hidden="true" />
-          {t('medication.myMedications')}
-        </h2>
-
-        {medications.length === 0 ? (
-          <motion.div
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            className="text-center py-10 bg-telegram-secondaryBg rounded-2xl border border-telegram-hint/10"
+      {/* Tab navigation */}
+      <div className="flex gap-1 px-4 mt-3 mb-2">
+        {(['today', 'history', 'analytics'] as const).map(tab => (
+          <button
+            key={tab}
+            onClick={() => { haptic.impact('light'); setActiveTab(tab); }}
+            className={`flex-1 py-2 px-3 rounded-xl text-sm font-medium transition-colors ${
+              activeTab === tab
+                ? 'bg-emerald-600 text-white'
+                : 'bg-telegram-secondaryBg text-telegram-hint'
+            }`}
           >
-            <Pill className="w-14 h-14 text-telegram-hint mx-auto mb-3" aria-hidden="true" />
-            <p className="text-telegram-text font-medium mb-1">{t('medication.emptyState')}</p>
-            <p className="text-telegram-hint text-sm mb-4">{t('medication.emptyHint')}</p>
-            <button
-              onClick={() => { haptic.impact('light'); setFormOpen(true); }}
-              className="inline-flex items-center gap-1.5 bg-gradient-to-r from-emerald-600 to-teal-600 text-white text-sm font-medium px-5 py-2.5 rounded-full active:scale-95 transition-transform"
-            >
-              <Plus className="w-4 h-4" aria-hidden="true" />
-              {t('medication.addMedication')}
-            </button>
-          </motion.div>
-        ) : (
-          <div className="space-y-3">
-            {medications.map((med, index) => (
-              <MedicationCard
-                key={med.id}
-                medication={med}
-                index={index}
-                onEdit={handleEdit}
-                onDelete={handleDelete}
-              />
-            ))}
-          </div>
-        )}
+            {t(`medication.${tab}Tab`)}
+          </button>
+        ))}
       </div>
+
+      {/* Today tab */}
+      {activeTab === 'today' && (
+        <>
+          {/* Today's Schedule */}
+          <div className="px-4 mt-4" role="region" aria-label="Today's schedule">
+            <h2 className="text-lg font-semibold mb-3 flex items-center gap-2">
+              <Calendar className="w-5 h-5 text-telegram-link" aria-hidden="true" />
+              {t('medication.todaySchedule')}
+            </h2>
+            <DailyMedTracker
+              schedule={todaySchedule}
+              onLog={handleLog}
+            />
+          </div>
+
+          {/* My Medications */}
+          <div className="px-4 mt-6" role="region" aria-label="My medications">
+            <h2 className="text-lg font-semibold mb-3 flex items-center gap-2">
+              <Pill className="w-5 h-5 text-telegram-link" aria-hidden="true" />
+              {t('medication.myMedications')}
+            </h2>
+
+            {medications.length === 0 ? (
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                className="text-center py-10 bg-telegram-secondaryBg rounded-2xl border border-telegram-hint/10"
+              >
+                <Pill className="w-14 h-14 text-telegram-hint mx-auto mb-3" aria-hidden="true" />
+                <p className="text-telegram-text font-medium mb-1">{t('medication.emptyState')}</p>
+                <p className="text-telegram-hint text-sm mb-4">{t('medication.emptyHint')}</p>
+                <button
+                  onClick={() => { haptic.impact('light'); setFormOpen(true); }}
+                  className="inline-flex items-center gap-1.5 bg-gradient-to-r from-emerald-600 to-teal-600 text-white text-sm font-medium px-5 py-2.5 rounded-full active:scale-95 transition-transform"
+                >
+                  <Plus className="w-4 h-4" aria-hidden="true" />
+                  {t('medication.addMedication')}
+                </button>
+              </motion.div>
+            ) : (
+              <div className="space-y-3">
+                {medications.map((med, index) => (
+                  <MedicationCard
+                    key={med.id}
+                    medication={med}
+                    index={index}
+                    onEdit={handleEdit}
+                    onDelete={handleDelete}
+                  />
+                ))}
+              </div>
+            )}
+          </div>
+        </>
+      )}
+
+      {/* History tab (placeholder — Agent E will build real component) */}
+      {activeTab === 'history' && (
+        <div className="px-4 mt-4 text-center py-16">
+          <Calendar className="w-12 h-12 text-telegram-hint mx-auto mb-3" />
+          <p className="text-telegram-hint text-sm">{t('medication.historyComingSoon', 'History view loading...')}</p>
+        </div>
+      )}
+
+      {/* Analytics tab (placeholder — Agent F will build real component) */}
+      {activeTab === 'analytics' && (
+        <div className="px-4 mt-4 text-center py-16">
+          <BarChart3 className="w-12 h-12 text-telegram-hint mx-auto mb-3" />
+          <p className="text-telegram-hint text-sm">{t('medication.analyticsComingSoon', 'Analytics loading...')}</p>
+        </div>
+      )}
 
       {/* Delete confirmation toast */}
       {confirmDelete !== null && (
