@@ -2,9 +2,10 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { Home, Target, User, Trophy, Settings, Pill, LucideIcon } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useCallback, useMemo } from 'react';
+import { useCallback, useMemo, useState, useEffect, useRef } from 'react';
 import { useTelegram } from '@/hooks/useTelegram';
 import { useDashboardStats } from '@/hooks/useDashboardQuery';
+import { apiClient } from '@/api/client';
 
 interface NavItem {
   path: string;
@@ -36,6 +37,39 @@ export function Navigation({ questBadgeCount = 0 }: NavigationProps) {
   const navigate = useNavigate();
   const { user, haptic } = useTelegram();
   const { data: stats } = useDashboardStats(user?.id);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  useEffect(() => {
+    if (!user?.id) return;
+    const fetchUnread = async () => {
+      try {
+        const res = await apiClient.getUnreadNotificationCount(user.id);
+        if (res.success && res.data) {
+          setUnreadCount(res.data.count);
+        }
+      } catch { /* ignore */ }
+    };
+    fetchUnread();
+    intervalRef.current = setInterval(fetchUnread, 60_000);
+    return () => {
+      if (intervalRef.current) clearInterval(intervalRef.current);
+    };
+  }, [user?.id]);
+
+  // Refetch unread count on page change
+  useEffect(() => {
+    if (!user?.id) return;
+    const fetchUnread = async () => {
+      try {
+        const res = await apiClient.getUnreadNotificationCount(user.id);
+        if (res.success && res.data) {
+          setUnreadCount(res.data.count);
+        }
+      } catch { /* ignore */ }
+    };
+    fetchUnread();
+  }, [location.pathname, user?.id]);
 
   const hasMedicationMode = useMemo(() => {
     if (!stats?.modes) return false;
@@ -97,7 +131,7 @@ export function Navigation({ questBadgeCount = 0 }: NavigationProps) {
               data-nav-index={index}
               onClick={() => handleNavigate(item.path)}
               onKeyDown={(e) => handleNavKeyDown(e, index)}
-              aria-label={isQuests && questBadgeCount > 0 ? `${label} (${questBadgeCount} new)` : label}
+              aria-label={isQuests && questBadgeCount > 0 ? `${label} (${questBadgeCount} new)` : isSettings && unreadCount > 0 ? `${label} (${unreadCount} unread)` : label}
               aria-current={isActive ? 'page' : undefined}
               role="tab"
               aria-selected={isActive}
@@ -136,6 +170,22 @@ export function Navigation({ questBadgeCount = 0 }: NavigationProps) {
                         className="absolute -top-1.5 -right-2.5 bg-red-500 text-white text-[10px] font-bold min-w-[16px] h-4 flex items-center justify-center rounded-full px-1 leading-none shadow-sm"
                       >
                         {questBadgeCount > 9 ? '9+' : questBadgeCount}
+                      </motion.span>
+                    )}
+                  </AnimatePresence>
+                )}
+                {/* Unread notifications badge on Settings */}
+                {isSettings && (
+                  <AnimatePresence>
+                    {unreadCount > 0 && (
+                      <motion.span
+                        initial={{ scale: 0, opacity: 0 }}
+                        animate={{ scale: 1, opacity: 1 }}
+                        exit={{ scale: 0, opacity: 0 }}
+                        transition={{ type: 'spring', stiffness: 500, damping: 15 }}
+                        className="absolute -top-1.5 -right-2.5 bg-red-500 text-white text-[10px] font-bold min-w-[16px] h-4 flex items-center justify-center rounded-full px-1 leading-none shadow-sm"
+                      >
+                        {unreadCount > 99 ? '99+' : unreadCount}
                       </motion.span>
                     )}
                   </AnimatePresence>

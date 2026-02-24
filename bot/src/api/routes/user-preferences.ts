@@ -24,7 +24,7 @@ router.get('/:telegramId/preferences', authenticateTelegram, asyncHandler(async 
   }
 
   const user = await queryOne(
-    `SELECT notification_enabled, reminder_time, timezone, dnd_enabled, dnd_start, dnd_end FROM users WHERE telegram_id = $1`,
+    `SELECT notification_enabled, reminder_time, timezone, dnd_enabled, dnd_start, dnd_end, notification_modes FROM users WHERE telegram_id = $1`,
     [tid]
   );
 
@@ -39,6 +39,7 @@ router.get('/:telegramId/preferences', authenticateTelegram, asyncHandler(async 
     dnd_enabled: user.dnd_enabled ?? false,
     dnd_start: user.dnd_start ?? 22,
     dnd_end: user.dnd_end ?? 8,
+    notification_modes: user.notification_modes ?? {},
   }));
 }));
 
@@ -53,7 +54,7 @@ router.patch('/:telegramId/preferences', authenticateTelegram, asyncHandler(asyn
     throw new BadRequestError('Invalid telegram ID');
   }
 
-  const { notification_enabled, reminder_time, timezone, dnd_enabled, dnd_start, dnd_end } = req.body;
+  const { notification_enabled, reminder_time, timezone, dnd_enabled, dnd_start, dnd_end, notification_modes } = req.body;
 
   // Validate fields
   if (notification_enabled !== undefined && typeof notification_enabled !== 'boolean') {
@@ -83,6 +84,16 @@ router.patch('/:telegramId/preferences', authenticateTelegram, asyncHandler(asyn
       throw new BadRequestError('dnd_end must be an integer 0-23');
     }
   }
+  if (notification_modes !== undefined) {
+    if (typeof notification_modes !== 'object' || notification_modes === null || Array.isArray(notification_modes)) {
+      throw new BadRequestError('notification_modes must be a JSON object');
+    }
+    for (const val of Object.values(notification_modes)) {
+      if (typeof val !== 'boolean') {
+        throw new BadRequestError('notification_modes values must be booleans');
+      }
+    }
+  }
 
   // Build SET clause dynamically from provided fields
   const fields: Record<string, unknown> = {};
@@ -104,14 +115,19 @@ router.patch('/:telegramId/preferences', authenticateTelegram, asyncHandler(asyn
   if (dnd_end !== undefined) {
     fields.dnd_end = safeParseInt(String(dnd_end), 0);
   }
+  if (notification_modes !== undefined) {
+    fields.notification_modes = JSON.stringify(notification_modes);
+  }
 
   if (Object.keys(fields).length === 0) {
     throw new BadRequestError('No valid fields to update');
   }
 
-  const { text, values } = buildDynamicUpdate('users', fields, 'telegram_id = $N', [tid]);
+  const { text, values } = buildDynamicUpdate('users', fields, 'telegram_id = $N', [tid], {
+    casts: notification_modes !== undefined ? { notification_modes: 'jsonb' } : {},
+  });
   const user = await queryOne(
-    `${text} RETURNING notification_enabled, reminder_time, timezone, dnd_enabled, dnd_start, dnd_end`,
+    `${text} RETURNING notification_enabled, reminder_time, timezone, dnd_enabled, dnd_start, dnd_end, notification_modes`,
     values
   );
 
@@ -126,6 +142,7 @@ router.patch('/:telegramId/preferences', authenticateTelegram, asyncHandler(asyn
     dnd_enabled: user.dnd_enabled,
     dnd_start: user.dnd_start,
     dnd_end: user.dnd_end,
+    notification_modes: user.notification_modes ?? {},
   }));
 }));
 

@@ -603,3 +603,6 @@ COMMENT ON TABLE notification_log IS 'Notification history for in-app notificati
 -- Run 93: Celebration preferences
 ALTER TABLE users ADD COLUMN IF NOT EXISTS celebration_style VARCHAR(20) DEFAULT 'emoji';
 ALTER TABLE users ADD COLUMN IF NOT EXISTS celebration_sticker_pack VARCHAR(100) DEFAULT NULL;
+
+-- Run 94: Per-category notification modes (persisted as JSONB)
+ALTER TABLE users ADD COLUMN IF NOT EXISTS notification_modes JSONB DEFAULT '{}';
