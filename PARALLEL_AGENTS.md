@@ -1201,3 +1201,31 @@ Write retrospective when done.
 **Agent C recovery**: Wrote comprehensive TG API features doc covering all Bot API 9.4 features with MaxLevel implementation ideas.
 **Results**: 942/942 tests pass. Bot + mini-app build clean. Deployed to production.
 **Worktrees**: All 4 removed, branches deleted.
+
+---
+
+## RUN 92 Retrospectives
+
+#### Agent F Retrospective (Adherence Charts)
+**Status**: Complete — 5 new files + 1 modified, `tsc --noEmit` clean.
+
+**Created**:
+1. `mini-app/src/hooks/useMedicationAnalytics.ts` — React Query hook wrapping `getMedicationAnalytics` API. Exports `DailyAdherence`, `PerMedicationStat`, `MedicationAnalyticsData` interfaces. 5-minute stale time.
+2. `mini-app/src/components/medication/WeeklyAdherenceChart.tsx` — Recharts `BarChart` showing last 7 days. Color-coded bars: green (>=80%), yellow (50-79%), red (<50%). Uses Telegram theme CSS vars for axis ticks and tooltip.
+3. `mini-app/src/components/medication/MonthlyTrendChart.tsx` — Recharts `AreaChart` with emerald gradient fill, 80% reference line (dashed). Shows every 5th date label. Active dot on hover.
+4. `mini-app/src/components/medication/AdherenceStats.tsx` — 2x2 stat grid: current streak (fire), best streak (star), this week rate (trending up/down with diff), monthly rate (calendar). Week comparison shows green/red delta.
+5. `mini-app/src/components/medication/MedicationAnalytics.tsx` — Main wrapper: loading skeletons, error state (ErrorSection with retry), empty state (BarChart3 icon + encouragement), per-medication progress bars with color coding.
+
+**Modified**:
+- `mini-app/src/api/client.ts` — Added `getMedicationAnalytics(userId, days, config)` method using `deduplicatedGet`.
+
+**TypeScript issue fixed**: Recharts 3.x `Tooltip.formatter` expects `value: number | undefined` (not `number`). Fixed with nullish coalescing.
+
+**Design decisions**:
+- Used Telegram CSS variables (`var(--tg-theme-hint-color)`) for chart axis/tooltip styling so charts adapt to any Telegram theme
+- Gradient fill on area chart uses low opacity (0.02-0.2) to keep it subtle
+- Per-medication breakdown reuses same `COLOR_MAP` pattern from `DailyMedTracker.tsx` for consistency
+- Empty state and loading skeletons follow existing patterns (skeleton-text, rounded-2xl cards)
+
+**Commit**: `1361d48` on `feature/r92-adherence-charts`
+**No blockers.**
