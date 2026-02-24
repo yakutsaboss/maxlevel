@@ -1958,8 +1958,33 @@ Add 3-tab navigation (Today | History | Analytics) to Medications.tsx. Placehold
 #### Agent F Retrospective
 *(To be filled by Agent F)*
 
-#### Agent G Retrospective
-*(To be filled by Agent G)*
+#### Agent G Retrospective (Run 94: Notification Preferences)
+**Status**: Complete — all tasks done, both builds pass (bot + mini-app tsc --noEmit).
+
+**What was done**:
+1. Added `notification_modes JSONB DEFAULT '{}'` column to `users` table in `database/schema.sql`
+2. Updated `user-preferences.ts` GET/PATCH to include `notification_modes` — with JSONB cast, validation (must be object with boolean values)
+3. Created `bot/src/api/routes/notifications.ts` with 4 endpoints:
+   - `GET /:userId` — paginated list with optional type filter, compatible with `NotificationHistoryEntry`
+   - `GET /:userId/unread-count` — count of unread for badge display
+   - `PATCH /:notificationId/read` — mark single notification as read
+   - `POST /:userId/read-all` — mark all as read
+4. Registered `notificationRouter` at `/api/notifications` in `server.ts`
+5. Added unread notification badge to Settings nav icon in `Navigation.tsx` — polls every 60s + refetches on page change
+6. Enhanced `NotificationHistory.tsx`:
+   - Mark-read on tap (optimistic + API call)
+   - "Mark all read" button in header
+   - Visual distinction: unread = bold text + blue dot + blue border; read = faded opacity
+7. Updated `NotificationHistoryEntry` type to include `read_at` and `is_read` fields
+8. Added 3 new apiClient methods: `getUnreadNotificationCount`, `markNotificationRead`, `markAllNotificationsRead`
+
+**Files changed**: `database/schema.sql`, `bot/src/api/routes/user-preferences.ts`, `bot/src/api/routes/notifications.ts` (new), `bot/src/api/server.ts`, `mini-app/src/api/client.ts`, `mini-app/src/components/Navigation.tsx`, `mini-app/src/pages/NotificationHistory.tsx`, `mini-app/src/types/user.ts`
+
+**Notes for Agent 0**:
+- DB migration needed: `ALTER TABLE users ADD COLUMN IF NOT EXISTS notification_modes JSONB DEFAULT '{}'`
+- The notification route uses `notification_log` table (has `read_at`), not `user_activity_log`
+- `notification_log.body` is TEXT, not JSONB — `xp_change` defaults to 0 in API response
+- No i18n keys were added (FORBIDDEN per task spec), but `t('notifications.markAllRead', 'Mark all read')` uses fallback string
 
 #### Agent 0 Retrospective
 **Status**: Complete — all 7 agents merged, built, tested, deployed.

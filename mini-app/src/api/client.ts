@@ -323,6 +323,21 @@ class ApiClient {
     const response = await this.client.patch(`/users/${userId}/celebration-prefs`, prefs);
     return response.data;
   }
+
+  // Notification center
+  async getUnreadNotificationCount(userId: number, config?: { signal?: AbortSignal }): Promise<ApiResponse<{ count: number }>> {
+    return this.deduplicatedGet(`/notifications/${userId}/unread-count`, undefined, config);
+  }
+
+  async markNotificationRead(notificationId: number): Promise<ApiResponse<{ id: number; read_at: string }>> {
+    const response = await this.client.patch(`/notifications/${notificationId}/read`);
+    return response.data;
+  }
+
+  async markAllNotificationsRead(userId: number): Promise<ApiResponse<{ updated: number }>> {
+    const response = await this.client.post(`/notifications/${userId}/read-all`);
+    return response.data;
+  }
 }
 
 // Export singleton instance

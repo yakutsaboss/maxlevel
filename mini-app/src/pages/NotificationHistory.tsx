@@ -2,12 +2,13 @@ import { useCallback, useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Bell, Trophy, TrendingUp, Calendar, Pill, Flame } from 'lucide-react';
+import { Bell, Trophy, TrendingUp, Calendar, Pill, Flame, CheckCheck } from 'lucide-react';
 import { useTelegram, useBackButton } from '@/hooks/useTelegram';
 import { useNotificationHistory } from '@/hooks/useNotificationHistory';
 import { usePullToRefresh, PullIndicator } from '@/hooks/usePullToRefresh';
 import { ErrorSection } from '@/components/ErrorSection';
 import { NotificationHistorySkeleton } from '@/components/notifications/NotificationHistorySkeleton';
+import { apiClient } from '@/api/client';
 
 type FilterType = 'all' | 'quest' | 'achievement' | 'medication' | 'streak';
 
@@ -62,6 +63,8 @@ export function NotificationHistory() {
   const { user, haptic } = useTelegram();
   const navigate = useNavigate();
   const [activeFilter, setActiveFilter] = useState<FilterType>('all');
+  const [readIds, setReadIds] = useState<Set<number>>(new Set());
+  const [markingAllRead, setMarkingAllRead] = useState(false);
 
   const handleBack = useCallback(() => navigate('/settings'), [navigate]);
   useBackButton(handleBack);
@@ -77,10 +80,34 @@ export function NotificationHistory() {
     return notifications.filter((n) => types.includes(n.activity_type));
   }, [notifications, activeFilter]);
 
+  const unreadCount = useMemo(() => {
+    return notifications.filter((n) => !n.is_read && !readIds.has(n.id)).length;
+  }, [notifications, readIds]);
+
   const handleFilterChange = useCallback((filter: FilterType) => {
     haptic.selection();
     setActiveFilter(filter);
   }, [haptic]);
+
+  const handleMarkRead = useCallback(async (notifId: number) => {
+    if (readIds.has(notifId)) return;
+    haptic.selection();
+    setReadIds((prev) => new Set(prev).add(notifId));
+    try {
+      await apiClient.markNotificationRead(notifId);
+    } catch { /* optimistic — already marked locally */ }
+  }, [readIds, haptic]);
+
+  const handleMarkAllRead = useCallback(async () => {
+    if (!user?.id || markingAllRead) return;
+    haptic.impact('medium');
+    setMarkingAllRead(true);
+    try {
+      await apiClient.markAllNotificationsRead(user.id);
+      setReadIds(new Set(notifications.map((n) => n.id)));
+    } catch { /* ignore */ }
+    setMarkingAllRead(false);
+  }, [user?.id, markingAllRead, haptic, notifications]);
 
   const filters: { key: FilterType; label: string }[] = [
     { key: 'all', label: t('notifications.filterAll') },
@@ -108,8 +135,22 @@ export function NotificationHistory() {
 
       {/* Header */}
       <div className="bg-gradient-to-r from-blue-600 to-indigo-700 p-6 rounded-b-3xl shadow-lg" style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 1.5rem)' }}>
-        <h1 className="text-2xl font-bold text-white">{t('notifications.title')}</h1>
-        <p className="text-blue-100 text-sm mt-1">{t('notificationHistory.subtitle')}</p>
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-bold text-white">{t('notifications.title')}</h1>
+            <p className="text-blue-100 text-sm mt-1">{t('notificationHistory.subtitle')}</p>
+          </div>
+          {unreadCount > 0 && (
+            <button
+              onClick={handleMarkAllRead}
+              disabled={markingAllRead}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/20 text-white text-xs font-medium hover:bg-white/30 transition-colors disabled:opacity-50"
+            >
+              <CheckCheck className="w-3.5 h-3.5" />
+              {t('notifications.markAllRead', 'Mark all read')}
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Filter tabs */}
@@ -149,34 +190,45 @@ export function NotificationHistory() {
         ) : (
           <AnimatePresence mode="popLayout">
             <div className="space-y-2">
-              {filteredNotifications.map((notif, index) => (
-                <motion.div
-                  key={notif.id}
-                  layout
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, scale: 0.95 }}
-                  transition={{ delay: index * 0.03 }}
-                  className="bg-telegram-secondaryBg rounded-2xl p-4 border border-telegram-hint/10"
-                >
-                  <div className="flex gap-3">
-                    <div className="w-8 h-8 rounded-full bg-telegram-bg flex items-center justify-center flex-shrink-0">
-                      {getNotificationIcon(notif.activity_type)}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm text-telegram-text">{notif.description}</p>
-                      <div className="flex items-center gap-2 mt-1">
-                        <span className="text-[11px] text-telegram-hint">{formatDate(notif.created_at)}</span>
-                        {notif.xp_change !== 0 && (
-                          <span className={`text-[11px] font-medium ${notif.xp_change > 0 ? 'text-green-500' : 'text-red-400'}`}>
-                            {notif.xp_change > 0 ? '+' : ''}{notif.xp_change} XP
-                          </span>
+              {filteredNotifications.map((notif, index) => {
+                const isRead = notif.is_read || readIds.has(notif.id);
+                return (
+                  <motion.div
+                    key={notif.id}
+                    layout
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, scale: 0.95 }}
+                    transition={{ delay: index * 0.03 }}
+                    onClick={() => !isRead && handleMarkRead(notif.id)}
+                    className={`rounded-2xl p-4 border transition-colors cursor-pointer ${
+                      isRead
+                        ? 'bg-telegram-secondaryBg border-telegram-hint/10 opacity-70'
+                        : 'bg-telegram-secondaryBg border-telegram-link/20'
+                    }`}
+                  >
+                    <div className="flex gap-3">
+                      <div className="relative w-8 h-8 rounded-full bg-telegram-bg flex items-center justify-center flex-shrink-0">
+                        {getNotificationIcon(notif.activity_type)}
+                        {!isRead && (
+                          <span className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 bg-telegram-link rounded-full border-2 border-telegram-secondaryBg" />
                         )}
                       </div>
+                      <div className="flex-1 min-w-0">
+                        <p className={`text-sm ${isRead ? 'text-telegram-hint' : 'text-telegram-text font-medium'}`}>{notif.description}</p>
+                        <div className="flex items-center gap-2 mt-1">
+                          <span className="text-[11px] text-telegram-hint">{formatDate(notif.created_at)}</span>
+                          {notif.xp_change !== 0 && (
+                            <span className={`text-[11px] font-medium ${notif.xp_change > 0 ? 'text-green-500' : 'text-red-400'}`}>
+                              {notif.xp_change > 0 ? '+' : ''}{notif.xp_change} XP
+                            </span>
+                          )}
+                        </div>
+                      </div>
                     </div>
-                  </div>
-                </motion.div>
-              ))}
+                  </motion.div>
+                );
+              })}
             </div>
           </AnimatePresence>
         )}
