@@ -115,6 +115,11 @@ git branch -d feature/BRANCH-A feature/BRANCH-B feature/BRANCH-C
 
 ## Safety Protocol (ALL AGENTS MUST FOLLOW)
 
+### Working Directory
+- Your prompt specifies a worktree directory (e.g., `Wibecode-agent-a`). Run `pwd` first.
+- **If you are NOT in the correct worktree directory**, run `cd /c/Users/Asus/Desktop/Wibecode-agent-X` (replace X with your agent letter) to navigate there. Do NOT stop or ask the user — just `cd` and continue.
+- After `cd`, verify with `git branch --show-current` that you're on the correct feature branch.
+
 ### Git Rules
 - You are in a **git worktree** — you are ALREADY on your branch. Do NOT run `git checkout`.
 - **Commit after EVERY task** — use atomic: `git add FILES && git commit -m "MSG"` in one Bash call.
@@ -222,7 +227,7 @@ When deploying after a merge:
 17. **Agent 0 MUST follow the MANDATORY ROADMAP if one exists** — Runs 56-64 deviated from a user-planned roadmap because (a) it was never written into the file, and (b) Agent 0's checklist didn't require checking it. The user lost 9 runs of planned features (avatars, trophies, shop, achievements) because Agent 0 kept improvising social/challenge features. NEVER design runs from scratch when a roadmap is present. The roadmap overrides codebase analysis.
 18. **Agent 0 MUST handle SSH autonomously** — NEVER ask the user about SSH keys or connectivity. If key-based SSH fails, use password-based SSH: get the root password from the Timeweb API (`GET /api/v1/servers/6590889` → `root_pass` field) and pipe it via `powershell -Command "echo 'PASSWORD' | ssh root@85.239.58.205 'COMMAND'"`. If that also fails, try `eval $(ssh-agent -s) && ssh-add` first. The deploy must never stall waiting for user input.
 19. **Agent 0 MUST commit and push autonomously** — NEVER ask the user "should I commit?" or "can I push?". After every phase (merge, test fixes, retro+prep), immediately `git add`, `git commit`, and `git push origin main`. This is a standing instruction — all changes must be committed and pushed without asking. See MEMORY.md "Workflow: Commit & Deploy (MANDATORY)".
-20. **User MUST open each agent in its worktree directory** — In Run 92, Agents B and C were launched in the main `Wibecode` directory instead of `Wibecode-agent-b` and `Wibecode-agent-c`. The agents correctly STOPped (per protocol), but time was wasted. Agent 0 prompts clearly say "open in: `path`" but users may miss this. **Tip for the user**: In VSCode, use "File → Open Folder" to open each worktree as a separate workspace, then launch Claude Code from there. Alternatively, in terminal: `cd c:\Users\Asus\Desktop\Wibecode-agent-X` before starting the agent.
+20. **Agent prompts must say "cd to worktree" NOT "STOP"** — In Run 92, Agents B and C were launched in the main `Wibecode` directory. Instead of auto-navigating to their worktree (like agents A/D/E/F/G did), they STOPped and asked the user to relaunch. **Fix**: The Safety Protocol now has a "Working Directory" section telling agents to `cd` to their worktree automatically. Agent prompts should say "if wrong directory, cd there" not "STOP and tell the user". Never require user action for something agents can fix themselves.
 
 ---
 
@@ -390,7 +395,7 @@ Read PARALLEL_AGENTS.md — you are Agent 0 for Run 90.
 ```
 Read PARALLEL_AGENTS.md — you are Agent A of Run 90. Your task: Global error handling polish — error boundaries, retry patterns, offline UX.
 
-IMPORTANT: Before doing anything, verify your working directory: run `pwd` and confirm it ends with `Wibecode-agent-a`, NOT `Wibecode`. If wrong, STOP and tell the user.
+IMPORTANT: Before doing anything, verify your working directory: run `pwd`. If it does NOT end with `Wibecode-agent-a`, run `cd /c/Users/Asus/Desktop/Wibecode-agent-a` and then verify with `git branch --show-current`.
 
 ## Context
 
@@ -448,7 +453,7 @@ Write retrospective when done.
 ```
 Read PARALLEL_AGENTS.md — you are Agent B of Run 90. Your task: Loading state audit — skeleton loaders for all pages, shimmer effects.
 
-IMPORTANT: Before doing anything, verify your working directory: run `pwd` and confirm it ends with `Wibecode-agent-b`, NOT `Wibecode`. If wrong, STOP and tell the user.
+IMPORTANT: Before doing anything, verify your working directory: run `pwd`. If it does NOT end with `Wibecode-agent-b`, run `cd /c/Users/Asus/Desktop/Wibecode-agent-b` and then verify with `git branch --show-current`.
 
 ## Context
 
@@ -533,7 +538,7 @@ Write retrospective when done.
 ```
 Read PARALLEL_AGENTS.md — you are Agent C of Run 90. Your task: Page transitions — consistent AnimatePresence, stagger animations.
 
-IMPORTANT: Before doing anything, verify your working directory: run `pwd` and confirm it ends with `Wibecode-agent-c`, NOT `Wibecode`. If wrong, STOP and tell the user.
+IMPORTANT: Before doing anything, verify your working directory: run `pwd`. If it does NOT end with `Wibecode-agent-c`, run `cd /c/Users/Asus/Desktop/Wibecode-agent-c` and then verify with `git branch --show-current`.
 
 ## Context
 
@@ -599,7 +604,7 @@ Write retrospective when done.
 ```
 Read PARALLEL_AGENTS.md — you are Agent D of Run 90. Your task: Accessibility pass — ARIA labels, keyboard navigation, screen reader support.
 
-IMPORTANT: Before doing anything, verify your working directory: run `pwd` and confirm it ends with `Wibecode-agent-d`, NOT `Wibecode`. If wrong, STOP and tell the user.
+IMPORTANT: Before doing anything, verify your working directory: run `pwd`. If it does NOT end with `Wibecode-agent-d`, run `cd /c/Users/Asus/Desktop/Wibecode-agent-d` and then verify with `git branch --show-current`.
 
 ## Context
 
@@ -671,7 +676,7 @@ Write retrospective when done.
 ```
 Read PARALLEL_AGENTS.md — you are Agent E of Run 90. Your task: Toast/feedback polish — toast queue, success toasts, haptic consistency.
 
-IMPORTANT: Before doing anything, verify your working directory: run `pwd` and confirm it ends with `Wibecode-agent-e`, NOT `Wibecode`. If wrong, STOP and tell the user.
+IMPORTANT: Before doing anything, verify your working directory: run `pwd`. If it does NOT end with `Wibecode-agent-e`, run `cd /c/Users/Asus/Desktop/Wibecode-agent-e` and then verify with `git branch --show-current`.
 
 ## Context
 
@@ -922,7 +927,7 @@ Read PARALLEL_AGENTS.md — you are Agent 0 for Run 91.
 ```
 Read PARALLEL_AGENTS.md — you are Agent A of Run 91. Your task: Fix onboarding language selection — it currently does nothing.
 
-IMPORTANT: Before doing anything, verify your working directory: run `pwd` and confirm it ends with `Wibecode-agent-a`, NOT `Wibecode`. If wrong, STOP and tell the user.
+IMPORTANT: Before doing anything, verify your working directory: run `pwd`. If it does NOT end with `Wibecode-agent-a`, run `cd /c/Users/Asus/Desktop/Wibecode-agent-a` and then verify with `git branch --show-current`.
 
 ## Bug Description
 
@@ -965,7 +970,7 @@ Write retrospective when done.
 ```
 Read PARALLEL_AGENTS.md — you are Agent B of Run 91. Your task: Fix quest last check-in — close modal and show celebration.
 
-IMPORTANT: Before doing anything, verify your working directory: run `pwd` and confirm it ends with `Wibecode-agent-b`, NOT `Wibecode`. If wrong, STOP and tell the user.
+IMPORTANT: Before doing anything, verify your working directory: run `pwd`. If it does NOT end with `Wibecode-agent-b`, run `cd /c/Users/Asus/Desktop/Wibecode-agent-b` and then verify with `git branch --show-current`.
 
 ## Bug Description
 
@@ -1026,7 +1031,7 @@ Write retrospective when done.
 ```
 Read PARALLEL_AGENTS.md — you are Agent C of Run 91. Your task: Research Telegram Bot API features and write a comprehensive report.
 
-IMPORTANT: Before doing anything, verify your working directory: run `pwd` and confirm it ends with `Wibecode-agent-c`, NOT `Wibecode`. If wrong, STOP and tell the user.
+IMPORTANT: Before doing anything, verify your working directory: run `pwd`. If it does NOT end with `Wibecode-agent-c`, run `cd /c/Users/Asus/Desktop/Wibecode-agent-c` and then verify with `git branch --show-current`.
 
 ## Context
 
@@ -1087,7 +1092,7 @@ Write retrospective when done.
 ```
 Read PARALLEL_AGENTS.md — you are Agent D of Run 91. Your task: Add Telegram Stars payment handling + payment notifications.
 
-IMPORTANT: Before doing anything, verify your working directory: run `pwd` and confirm it ends with `Wibecode-agent-d`, NOT `Wibecode`. If wrong, STOP and tell the user.
+IMPORTANT: Before doing anything, verify your working directory: run `pwd`. If it does NOT end with `Wibecode-agent-d`, run `cd /c/Users/Asus/Desktop/Wibecode-agent-d` and then verify with `git branch --show-current`.
 
 ## Context
 
@@ -1226,7 +1231,7 @@ Read PARALLEL_AGENTS.md — you are Agent 0 for Run 92.
 ```
 Read PARALLEL_AGENTS.md — you are Agent A of Run 92. Your task: Quest i18n backend — add Russian translation columns, translate seed data, modify API.
 
-IMPORTANT: Before doing anything, verify your working directory: run `pwd` and confirm it ends with `Wibecode-agent-a`, NOT `Wibecode`. If wrong, STOP and tell the user.
+IMPORTANT: Before doing anything, verify your working directory: run `pwd`. If it does NOT end with `Wibecode-agent-a`, run `cd /c/Users/Asus/Desktop/Wibecode-agent-a` and then verify with `git branch --show-current`.
 
 ## Context
 
@@ -1276,7 +1281,7 @@ Write retrospective when done.
 ```
 Read PARALLEL_AGENTS.md — you are Agent B of Run 92. Your task: Quest i18n frontend — pass user language to quest API endpoints.
 
-IMPORTANT: Before doing anything, verify your working directory: run `pwd` and confirm it ends with `Wibecode-agent-b`, NOT `Wibecode`. If wrong, STOP and tell the user.
+IMPORTANT: Before doing anything, verify your working directory: run `pwd`. If it does NOT end with `Wibecode-agent-b`, run `cd /c/Users/Asus/Desktop/Wibecode-agent-b` and then verify with `git branch --show-current`.
 
 ## Context
 
@@ -1334,7 +1339,7 @@ Write retrospective when done.
 ```
 Read PARALLEL_AGENTS.md — you are Agent C of Run 92. Your task: Google Sheets OAuth flow in notification bot.
 
-IMPORTANT: Before doing anything, verify your working directory: run `pwd` and confirm it ends with `Wibecode-agent-c`, NOT `Wibecode`. If wrong, STOP and tell the user.
+IMPORTANT: Before doing anything, verify your working directory: run `pwd`. If it does NOT end with `Wibecode-agent-c`, run `cd /c/Users/Asus/Desktop/Wibecode-agent-c` and then verify with `git branch --show-current`.
 
 ## Context
 
@@ -1394,7 +1399,7 @@ Write retrospective when done.
 ```
 Read PARALLEL_AGENTS.md — you are Agent D of Run 92. Your task: Medication analytics API endpoint.
 
-IMPORTANT: Before doing anything, verify your working directory: run `pwd` and confirm it ends with `Wibecode-agent-d`, NOT `Wibecode`. If wrong, STOP and tell the user.
+IMPORTANT: Before doing anything, verify your working directory: run `pwd`. If it does NOT end with `Wibecode-agent-d`, run `cd /c/Users/Asus/Desktop/Wibecode-agent-d` and then verify with `git branch --show-current`.
 
 ## Context
 
@@ -1489,7 +1494,7 @@ Write retrospective when done.
 ```
 Read PARALLEL_AGENTS.md — you are Agent E of Run 92. Your task: Medication history page with calendar view.
 
-IMPORTANT: Before doing anything, verify your working directory: run `pwd` and confirm it ends with `Wibecode-agent-e`, NOT `Wibecode`. If wrong, STOP and tell the user.
+IMPORTANT: Before doing anything, verify your working directory: run `pwd`. If it does NOT end with `Wibecode-agent-e`, run `cd /c/Users/Asus/Desktop/Wibecode-agent-e` and then verify with `git branch --show-current`.
 
 ## Context
 
@@ -1577,7 +1582,7 @@ Write retrospective when done.
 ```
 Read PARALLEL_AGENTS.md — you are Agent F of Run 92. Your task: Adherence charts using recharts.
 
-IMPORTANT: Before doing anything, verify your working directory: run `pwd` and confirm it ends with `Wibecode-agent-f`, NOT `Wibecode`. If wrong, STOP and tell the user.
+IMPORTANT: Before doing anything, verify your working directory: run `pwd`. If it does NOT end with `Wibecode-agent-f`, run `cd /c/Users/Asus/Desktop/Wibecode-agent-f` and then verify with `git branch --show-current`.
 
 ## Context
 
@@ -1682,7 +1687,7 @@ Write retrospective when done.
 ```
 Read PARALLEL_AGENTS.md — you are Agent G of Run 92. Your task: Add tabs to Medications page + i18n strings.
 
-IMPORTANT: Before doing anything, verify your working directory: run `pwd` and confirm it ends with `Wibecode-agent-g`, NOT `Wibecode`. If wrong, STOP and tell the user.
+IMPORTANT: Before doing anything, verify your working directory: run `pwd`. If it does NOT end with `Wibecode-agent-g`, run `cd /c/Users/Asus/Desktop/Wibecode-agent-g` and then verify with `git branch --show-current`.
 
 ## Context
 
