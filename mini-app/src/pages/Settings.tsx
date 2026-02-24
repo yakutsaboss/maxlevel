@@ -7,6 +7,7 @@ import { useBackButton, isHapticEnabled } from '@/hooks/useTelegram';
 import { useOnboarding } from '@/hooks/useOnboarding';
 import { useSettingsData } from '@/hooks/useSettingsData';
 import { usePullToRefresh, PullIndicator } from '@/hooks/usePullToRefresh';
+import { useCelebrationStyle } from '@/hooks/useCelebrationStyle';
 import { Loader2 } from 'lucide-react';
 import { Toast } from '@/components/Toast';
 import { ErrorSection } from '@/components/ErrorSection';
@@ -17,6 +18,8 @@ import { AccountabilitySettings } from '@/components/settings/AccountabilitySett
 import { AboutSection } from '@/components/settings/AboutSection';
 import { ThemeSettings } from '@/components/settings/ThemeSettings';
 import { DangerZone } from '@/components/settings/DangerZone';
+import { CelebrationSettings } from '@/components/settings/CelebrationSettings';
+import { StickerPackBrowser } from '@/components/settings/StickerPackBrowser';
 import { SettingsSkeleton } from '@/components/settings/SettingsSkeleton';
 
 export function Settings() {
@@ -26,6 +29,7 @@ export function Settings() {
   const queryClient = useQueryClient();
   const onboardingStore = useOnboarding();
   const [hapticEnabled, setHapticEnabled] = useState(isHapticEnabled);
+  const { isAnimated } = useCelebrationStyle();
 
   const handleBack = useCallback(() => navigate('/profile'), [navigate]);
   useBackButton(handleBack);
@@ -71,6 +75,8 @@ export function Settings() {
         />
         <HapticFeedbackSettings enabled={hapticEnabled} onChange={setHapticEnabled} />
         <ThemeSettings colorScheme={colorScheme} themeParams={themeParams} haptic={haptic} />
+        <CelebrationSettings haptic={haptic} />
+        {isAnimated && <StickerPackBrowser />}
         <AccountabilitySettings
           punishment={punishment}
           punishmentAvailable={punishmentAvailable}
