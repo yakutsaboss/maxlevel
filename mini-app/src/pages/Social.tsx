@@ -8,6 +8,7 @@ import { FriendRequestForm } from '@/components/social/FriendRequestForm';
 import { ChallengeForm } from '@/components/social/ChallengeForm';
 import { ChallengesList } from '@/components/social/ChallengesList';
 import { ChallengeDetailModal } from '@/components/social/ChallengeDetailModal';
+import { QRScannerButton } from '@/components/QRScannerButton';
 import { ErrorSection } from '@/components/ErrorSection';
 import type { PendingRequest, Friend, DiscoverChallenge } from '@/api/social';
 
@@ -290,10 +291,11 @@ export function Social() {
           <div className="bg-white/20 backdrop-blur-sm rounded-2xl p-3">
             <Users className="w-8 h-8 text-white" aria-hidden="true" />
           </div>
-          <div>
+          <div className="flex-1">
             <h1 className="text-2xl font-bold text-white">{t('social.title')}</h1>
             <p className="text-blue-100 text-sm">{t('social.subtitle')}</p>
           </div>
+          <QRScannerButton className="bg-white/20 text-white backdrop-blur-sm" />
         </div>
       </div>
 

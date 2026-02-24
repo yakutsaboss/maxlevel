@@ -1190,4 +1190,13 @@ export default {
     xpNotEnough: "You have {{current}} / {{needed}} XP",
     or: "or",
   },
+  qr: {
+    shareProfile: "Share Profile",
+    shareChallenge: "Share Challenge",
+    scanTitle: "Scan QR",
+    scanHint: "Scan a profile or challenge QR code",
+    copyLink: "Copy Link",
+    copied: "Copied!",
+    invalidCode: "Unrecognized QR code",
+  },
 };
