@@ -212,6 +212,33 @@ export async function getChallengeDetails(challengeId: number): Promise<Challeng
   );
 }
 
+// --- Challenge Leaderboard ---
+
+export interface LeaderboardEntry {
+  rank: number;
+  user_id: number;
+  first_name: string;
+  username: string | null;
+  current_level: number;
+  current_progress: number;
+  target_value: number | null;
+  percentage: number | null;
+}
+
+export interface LeaderboardResponse {
+  leaderboard: LeaderboardEntry[];
+  userRank: number | null;
+}
+
+export async function getChallengeLeaderboard(challengeId: number, userId?: number): Promise<LeaderboardResponse> {
+  const params = new URLSearchParams();
+  if (userId) params.set('userId', String(userId));
+  const qs = params.toString();
+  return request<LeaderboardResponse>(
+    `${API_BASE_URL}/social/challenges/${challengeId}/leaderboard${qs ? `?${qs}` : ''}`,
+  );
+}
+
 export async function leaveChallenge(challengeId: number, userId: number): Promise<void> {
   await request(`${API_BASE_URL}/social/challenges/${challengeId}/leave`, {
     method: 'DELETE',

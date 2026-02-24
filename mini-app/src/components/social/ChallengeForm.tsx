@@ -28,8 +28,29 @@ export function ChallengeForm({ userId, onSuccess, haptic }: ChallengeFormProps)
     'X-Telegram-Init-Data': window.Telegram?.WebApp?.initData || '',
   };
 
+  const validate = (): string | null => {
+    const trimmedTitle = title.trim();
+    if (trimmedTitle.length < 3) {
+      return t('social.challengeTitleMinLength') || 'Title must be at least 3 characters';
+    }
+    if (endDate) {
+      const selectedDate = new Date(endDate);
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      if (selectedDate <= today) {
+        return t('social.challengeEndDateFuture') || 'End date must be in the future';
+      }
+    }
+    return null;
+  };
+
   const handleSubmit = async () => {
-    if (!title.trim()) return;
+    const validationError = validate();
+    if (validationError) {
+      setError(validationError);
+      haptic.notification('error');
+      return;
+    }
 
     try {
       setLoading(true);
@@ -160,7 +181,7 @@ export function ChallengeForm({ userId, onSuccess, haptic }: ChallengeFormProps)
 
         <button
           onClick={handleSubmit}
-          disabled={loading || !title.trim()}
+          disabled={loading || title.trim().length < 3}
           className="w-full flex items-center justify-center gap-2 bg-telegram-link text-white px-4 py-2.5 rounded-xl text-sm font-medium disabled:opacity-50 active:scale-95 transition-transform"
         >
           {loading ? (

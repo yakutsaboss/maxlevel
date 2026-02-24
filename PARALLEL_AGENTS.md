@@ -2526,3 +2526,23 @@ FORBIDDEN: celebrations/*, Settings.tsx, Shop.tsx, hooks/usePurchase.ts, hooks/u
 - Agent B's frontend should call this endpoint for Stars purchases, then open the invoice via `WebApp.openInvoice()`.
 - The old direct `POST /shop/purchase` path for Stars is kept but commented as deprecated — the frontend should bypass it for Stars.
 - Payment metadata includes `{ type: 'shop_item', shop_item_id }` so the Grammy handlers can distinguish shop purchases from tier/mode payments.
+
+### Run 94 — Agent F Retrospective
+
+**All 7 tasks completed. Both bot and mini-app pass `tsc --noEmit`.**
+
+**Files created:**
+- `bot/src/jobs/definitions/challengeNotifier.ts` — new pg-boss job running every 6 hours. Two notification types: (1) challenges ending within 24h notifies all participants, (2) new participant joins notifies challenge creator. Respects DND + notification_enabled, logs to notification_log, handles TG rate limits with retry.
+- `mini-app/src/components/social/ChallengeLeaderboard.tsx` — standalone leaderboard component with ranked list, avatar initials, progress bars, crown for #1, trophy icons for top 3, current user highlighting, and "your rank" display for users outside top 10.
+
+**Files modified (GRAY):**
+- `bot/src/jobs/registerJobs.ts` — added challengeNotifier import, registration in jobs array, and setBotInstance call.
+- `bot/src/api/routes/social.ts` — added `GET /api/social/challenges/:challengeId/leaderboard` endpoint. Returns top 10 sorted by progress DESC, includes user rank calculation for users outside top 10.
+- `mini-app/src/api/social.ts` — added `LeaderboardEntry`, `LeaderboardResponse` types and `getChallengeLeaderboard()` function.
+- `mini-app/src/components/social/ChallengeDetailModal.tsx` — added tab system (Details/Leaderboard) with tab state reset on modal open. Leaderboard tab renders ChallengeLeaderboard component.
+- `mini-app/src/components/social/ChallengeForm.tsx` — added validation: title min 3 chars, end_date must be future. Shows error with haptic feedback. Submit button disabled when title < 3 chars.
+
+**Notes for Agent 0:**
+- i18n keys not modified (FORBIDDEN). Used existing keys: `leaderboard.title`, `leaderboard.yourRank`, `leaderboard.noRankings`, `errors.somethingWentWrong`, `common.retry`. Two new validation message keys (`social.challengeTitleMinLength`, `social.challengeEndDateFuture`) fall back to hardcoded English strings until i18n is updated.
+- The `challenge_participants` table in schema.sql lacks `completed_at` column but the progress route in social.ts references it. Likely added via ALTER on server. Not an issue for this work.
+- No dependency on other agents' work. Leaderboard API is self-contained.
