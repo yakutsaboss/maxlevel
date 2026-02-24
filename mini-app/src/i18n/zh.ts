@@ -256,6 +256,11 @@ export default {
     stickerPacks: "贴纸包",
     stickerPacksEmpty: "没有可用的贴纸包",
     stickerPacksError: "无法加载贴纸包",
+    homeScreen: "主屏幕快捷方式",
+    homeScreenDesc: "从主屏幕快速访问",
+    homeScreenAdd: "添加到主屏幕",
+    homeScreenDismiss: "暂不需要",
+    homeScreenReset: "重置提示",
   },
   achievements: {
     title: "成就",

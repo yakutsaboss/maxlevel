@@ -3041,7 +3041,12 @@ FORBIDDEN: database/*, payment handlers, shop routes, sticker routes, Settings.t
 *(To be filled by Agent A)*
 
 #### Agent B Retrospective
-*(To be filled by Agent B)*
+**Status**: Complete — 2 new files + 5 modified, `tsc --noEmit` clean.
+**Task**: Home screen shortcut — `addToHomeScreen()` prompt + settings toggle.
+**Files created**: `HomeScreenPrompt.tsx` (dismissable Dashboard card, 30-day cooldown, 3s delay, spring animations), `HomeScreenSettings.tsx` (persistent settings card with add + reset prompt buttons).
+**Files modified**: `Dashboard.tsx` (import + render HomeScreenPrompt), `Settings.tsx` (import + render HomeScreenSettings between StickerPackBrowser and AccountabilitySettings), `en.ts`/`ru.ts`/`zh.ts` (5 i18n keys each in `settings:` section).
+**TypeScript issue**: `@twa-dev/sdk` v7.0.0 types don't include `addToHomeScreen` (Bot API 8.0+). Used `(WebApp as any).addToHomeScreen()` cast, consistent with project pattern for newer TG APIs.
+**Notes**: Feature gracefully degrades — `isAddToHomeScreenAvailable()` checks both method existence and version, returns `null`/hidden when unavailable. HomeScreenSettings returns `null` if API unavailable (won't show in Settings on older TG clients).
 
 #### Agent C Retrospective
 *(To be filled by Agent C)*
