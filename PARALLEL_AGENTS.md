@@ -1931,3 +1931,15 @@ Add 3-tab navigation (Today | History | Analytics) to Medications.tsx. Placehold
 
 #### Agent 0 Retrospective
 *(To be filled by Agent 0)*
+
+### Run 93 Retrospectives
+
+#### Agent B Retrospective
+**Status**: Complete — 3 files modified, `tsc --noEmit` clean.
+**Task**: Stars Shop Payment Frontend — replace direct Stars recording with proper Telegram invoice flow.
+**Changes**:
+- `mini-app/src/api/shop.ts`: Added `ShopInvoiceResponse` interface and `createShopInvoice()` function that calls `POST /payments/create-shop-invoice` (Agent A's backend endpoint).
+- `mini-app/src/hooks/usePurchase.ts`: Added `telegramId` to `UsePurchaseParams`. Branched `confirmPurchase()`: Stars payments now call `createShopInvoice()` → `WebApp.openInvoice()` with callback handling (paid/cancelled/failed/pending). XP payments still use the existing `purchaseItem()` direct deduction. Imported `WebApp` from `@twa-dev/sdk`.
+- `mini-app/src/pages/Shop.tsx`: Passed `telegramId: user?.id` to `usePurchase()` call (minimal GRAY change).
+**Commit**: `0e96716` on `feature/r93-shop-stars-frontend`
+**Notes**: Followed `usePayment.ts` pattern for the invoice flow. The `onSuccess` callback for Stars constructs a synthetic `PurchaseResult` since the backend delivers the item via `successful_payment` handler (not a direct API response). Agent 0 should trigger `refresh()` in Shop after merge to reflect the new purchase.
