@@ -70,21 +70,30 @@ describe('SplashScreen', () => {
     expect(screen.getByText('🇨🇳')).toBeInTheDocument();
   });
 
-  it('Get Started is disabled until language is selected, then calls onNext', () => {
+  it('auto-selects language from i18n and Get Started calls onNext', () => {
     render(<SplashScreen onNext={mockOnNext} />);
 
     const startBtn = screen.getByText('Get Started');
 
-    // Disabled before selection
-    expect(startBtn).toBeDisabled();
-
-    // Click English flag
-    fireEvent.click(screen.getByText('🇺🇸'));
-
-    // Now enabled
+    // Language is auto-detected from i18n, so button is enabled
     expect(startBtn).not.toBeDisabled();
 
     // Click calls onNext
+    fireEvent.click(startBtn);
+    expect(mockOnNext).toHaveBeenCalledTimes(1);
+  });
+
+  it('allows switching language by clicking a flag', () => {
+    render(<SplashScreen onNext={mockOnNext} />);
+
+    // Click Russian flag — language changes, button text becomes Russian
+    fireEvent.click(screen.getByText('🇷🇺'));
+
+    // Button still enabled after switching (use role since text changed to Russian)
+    const buttons = screen.getAllByRole('button');
+    const startBtn = buttons.find(btn => btn.className.includes('rounded-2xl'))!;
+    expect(startBtn).not.toBeDisabled();
+
     fireEvent.click(startBtn);
     expect(mockOnNext).toHaveBeenCalledTimes(1);
   });
