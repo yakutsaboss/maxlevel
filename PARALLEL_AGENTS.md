@@ -1201,3 +1201,14 @@ Write retrospective when done.
 **Agent C recovery**: Wrote comprehensive TG API features doc covering all Bot API 9.4 features with MaxLevel implementation ideas.
 **Results**: 942/942 tests pass. Bot + mini-app build clean. Deployed to production.
 **Worktrees**: All 4 removed, branches deleted.
+
+### Run 92 Retrospectives
+
+#### Agent G Retrospective
+**Status**: Complete — 4 files changed (+155 / -48 lines), `tsc --noEmit` clean.
+**Task**: Add tab navigation to Medications page + i18n strings for medication analytics.
+**Changes**:
+- `Medications.tsx`: Added 3-tab navigation (Today/History/Analytics) below the gradient header. Existing schedule + medication list wrapped in `activeTab === 'today'` conditional. History and Analytics tabs show placeholder content (Calendar/BarChart3 icons + "coming soon" text). FAB and delete toast remain visible on all tabs. Added `BarChart3` import and `MedicationTab` type.
+- `en.ts`, `ru.ts`, `zh.ts`: Added 20 new i18n keys each inside `medication: {...}` — tab labels, analytics labels (adherenceRate, streaks, charts), empty states (noHistory, noAnalytics, startTracking, trackMore).
+**No issues encountered.** Clean implementation matching spec exactly.
+**Commit**: `de799c6`
