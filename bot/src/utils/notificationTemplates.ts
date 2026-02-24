@@ -40,6 +40,7 @@ export interface AchievementInfo {
   category: string;
   category_earned: number;
   category_total: number;
+  id?: number;
 }
 
 export interface StreakInfo {
@@ -180,6 +181,10 @@ export function achievementUnlockedTemplate(achievement: AchievementInfo): {
 
   const keyboard = new InlineKeyboard()
     .webApp('🏅 View Achievements', `${MINI_APP_URL}/profile`);
+
+  if (achievement.id) {
+    keyboard.row().url('🔗 Share Achievement', `https://t.me/yakutsabot/levelapp?startapp=achievement_${achievement.id}`);
+  }
 
   return { text: lines.join('\n'), keyboard };
 }

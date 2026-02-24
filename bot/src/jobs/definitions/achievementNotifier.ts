@@ -105,6 +105,7 @@ export async function handler(jobs: Job[]): Promise<void> {
       category: unlock.category,
       category_earned: unlock.category_earned,
       category_total: unlock.category_total,
+      id: unlock.achievement_id,
     });
 
     try {

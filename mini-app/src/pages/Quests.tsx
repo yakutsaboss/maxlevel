@@ -1,9 +1,10 @@
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useTelegram, useMainButton } from '@/hooks/useTelegram';
 import { usePullToRefresh, PullIndicator } from '@/hooks/usePullToRefresh';
 import { useQuestsData } from '@/hooks/useQuestsData';
 import { Target, CheckCircle, Clock, Trophy } from 'lucide-react';
+import { useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ErrorSection } from '@/components/ErrorSection';
 import { QuestCard } from '@/components/quests/QuestCard';
@@ -32,6 +33,25 @@ export function Quests() {
     mainButtonText, mainButtonVisible, mainButtonActive,
     showQuestCelebration, celebratedQuestName,
   } = useQuestsData(user?.id, haptic);
+
+  const [searchParams, setSearchParams] = useSearchParams();
+  const highlightProcessed = useRef(false);
+
+  // Deep link: auto-open quest from ?highlight=ID
+  useEffect(() => {
+    if (highlightProcessed.current || loading) return;
+    const highlightId = searchParams.get('highlight');
+    if (!highlightId) return;
+    highlightProcessed.current = true;
+    const id = parseInt(highlightId, 10);
+    if (isNaN(id)) return;
+    const quest = [...activeQuests, ...completedQuests].find(q => q.id === id);
+    if (quest) {
+      if (quest.status === 'completed') setActiveTab('completed');
+      handleQuestSelect(quest);
+    }
+    setSearchParams({}, { replace: true });
+  }, [searchParams, setSearchParams, loading, activeQuests, completedQuests, handleQuestSelect, setActiveTab]);
 
   const { containerRef, pullDistance, refreshing, pullThreshold, touchHandlers } = usePullToRefresh(handleRefresh, haptic);
 

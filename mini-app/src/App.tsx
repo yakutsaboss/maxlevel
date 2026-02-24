@@ -16,6 +16,7 @@ import { ToastProvider } from '@/contexts/ToastContext';
 import { useTelegram } from '@/hooks/useTelegram';
 import { useOnboarding } from '@/hooks/useOnboarding';
 import { useCloudSync } from '@/hooks/useCloudSync';
+import { useDeepLink } from '@/hooks/useDeepLink';
 import { apiClient } from '@/api/client';
 import type { OnboardingStep } from '@/hooks/useOnboarding';
 
@@ -55,6 +56,7 @@ function AppContent() {
   const location = useLocation();
   const store = useOnboarding();
   useCloudSync();
+  useDeepLink();
   const [checkingOnboarding, setCheckingOnboarding] = useState(true);
   const [needsOnboarding, setNeedsOnboarding] = useState(false);
   const [questBadgeCount, setQuestBadgeCount] = useState(0);

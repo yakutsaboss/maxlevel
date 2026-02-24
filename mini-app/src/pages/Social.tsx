@@ -1,4 +1,5 @@
 import { useState, useCallback, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { Users, Swords, UserPlus, PlusCircle, X, Bell, Check, XCircle, UserMinus, Compass } from 'lucide-react';
 import { useTelegram } from '@/hooks/useTelegram';
@@ -185,12 +186,23 @@ export function Social() {
     discoverChallenges,
   } = useSocial({ userId: user?.id });
 
+  const [searchParams, setSearchParams] = useSearchParams();
   const [showFriendForm, setShowFriendForm] = useState(false);
   const [showChallengeForm, setShowChallengeForm] = useState(false);
   const [showDiscover, setShowDiscover] = useState(false);
   const [discoverMode, setDiscoverMode] = useState('');
   const [actionLoading, setActionLoading] = useState(false);
   const [selectedChallengeId, setSelectedChallengeId] = useState<number | null>(null);
+
+  // Deep link: auto-open challenge from ?openChallenge=ID
+  useEffect(() => {
+    const openChallenge = searchParams.get('openChallenge');
+    if (openChallenge) {
+      const id = parseInt(openChallenge, 10);
+      if (!isNaN(id)) setSelectedChallengeId(id);
+      setSearchParams({}, { replace: true });
+    }
+  }, [searchParams, setSearchParams]);
 
   useEffect(() => {
     if (showDiscover) {
