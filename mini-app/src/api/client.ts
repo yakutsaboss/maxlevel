@@ -98,8 +98,9 @@ class ApiClient {
   }
 
   // Quest endpoints
-  async getActiveQuests(userId: number, config?: { signal?: AbortSignal }): Promise<ApiResponse<Quest[]>> {
-    const result = await this.deduplicatedGet<ApiResponse<Quest[]>>(`/users/${userId}/quests/active`, undefined, { ...withTimeout(TIMEOUT_FAST), ...config });
+  async getActiveQuests(userId: number, lang?: string, config?: { signal?: AbortSignal }): Promise<ApiResponse<Quest[]>> {
+    const params = lang ? { lang } : undefined;
+    const result = await this.deduplicatedGet<ApiResponse<Quest[]>>(`/users/${userId}/quests/active`, params, { ...withTimeout(TIMEOUT_FAST), ...config });
     // Defensive: unwrap if data is not an array but has .quests
     if (result.data && !Array.isArray(result.data)) {
       const wrapped = result.data as unknown as { quests?: Quest[] };
@@ -108,8 +109,10 @@ class ApiClient {
     return result;
   }
 
-  async getCompletedQuests(userId: number, limit = 20, config?: { signal?: AbortSignal }): Promise<ApiResponse<Quest[]>> {
-    const result = await this.deduplicatedGet<ApiResponse<Quest[]>>(`/users/${userId}/quests/completed`, { limit }, config);
+  async getCompletedQuests(userId: number, limit = 20, lang?: string, config?: { signal?: AbortSignal }): Promise<ApiResponse<Quest[]>> {
+    const params: Record<string, unknown> = { limit };
+    if (lang) params.lang = lang;
+    const result = await this.deduplicatedGet<ApiResponse<Quest[]>>(`/users/${userId}/quests/completed`, params, config);
     // Defensive: unwrap if data is not an array but has .quests
     if (result.data && !Array.isArray(result.data)) {
       const wrapped = result.data as unknown as { quests?: Quest[] };

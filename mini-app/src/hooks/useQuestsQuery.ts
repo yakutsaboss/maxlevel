@@ -1,4 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 import { apiClient } from '@/api/client';
 import type { Quest } from '@/types';
 
@@ -11,10 +12,13 @@ export const questKeys = {
 };
 
 export function useActiveQuests(userId: number | undefined) {
+  const { i18n } = useTranslation();
+  const lang = i18n.language?.substring(0, 2) || 'en';
+
   return useQuery({
-    queryKey: questKeys.active(userId!),
+    queryKey: [...questKeys.active(userId!), lang],
     queryFn: async () => {
-      const res = await apiClient.getActiveQuests(userId!);
+      const res = await apiClient.getActiveQuests(userId!, lang);
       return res.success && res.data ? res.data : [];
     },
     enabled: !!userId,
@@ -23,10 +27,13 @@ export function useActiveQuests(userId: number | undefined) {
 }
 
 export function useCompletedQuests(userId: number | undefined) {
+  const { i18n } = useTranslation();
+  const lang = i18n.language?.substring(0, 2) || 'en';
+
   return useQuery({
-    queryKey: questKeys.completed(userId!),
+    queryKey: [...questKeys.completed(userId!), lang],
     queryFn: async () => {
-      const res = await apiClient.getCompletedQuests(userId!, 50);
+      const res = await apiClient.getCompletedQuests(userId!, 50, lang);
       return res.success && res.data ? res.data : [];
     },
     enabled: !!userId,
