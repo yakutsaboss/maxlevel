@@ -2461,7 +2461,23 @@ FORBIDDEN: celebrations/*, Settings.tsx, Shop.tsx, hooks/usePurchase.ts, hooks/u
 *(To be filled by Agent C)*
 
 #### Agent D Retrospective
-*(To be filled by Agent D)*
+**Status**: Complete — 1 new file, 6 modified, `tsc --noEmit` clean.
+
+**What was done**:
+1. Created `mini-app/src/utils/storyShare.ts` — `shareQuestToStory()`, `shareLevelUpToStory()`, `shareAchievementToStory()`, `isShareToStoryAvailable()` utility functions wrapping TG `shareToStory()` API
+2. Added "Share to Story" button to `QuestCompletionCelebration.tsx` — appears below quest name, only when API available, tracks shared state
+3. Added "Share to Story" button to `LevelUpModal.tsx` — appears above "tap to dismiss", same pattern
+4. Added share icon button to `AchievementToast.tsx` — compact icon button on right side of toast, changes color on share
+5. Added `share` i18n keys (toStory, success, unavailable) in en/ru/zh
+
+**Design decisions**:
+- Share button only renders when `isShareToStoryAvailable()` returns true (checks `WebApp.shareToStory` exists)
+- Each component tracks `shared` state to prevent double-sharing and provide visual feedback
+- Used `lucide-react` `Share2` icon consistent with existing icon usage
+- `QuestCompletionCelebration` now imports `useTranslation` (it didn't before) for the share button text
+- Kept all changes minimal — no structural changes to existing celebration flows
+
+**No issues encountered.**
 
 #### Agent E Retrospective
 *(To be filled by Agent E)*
