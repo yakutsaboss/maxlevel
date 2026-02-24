@@ -1201,3 +1201,28 @@ Write retrospective when done.
 **Agent C recovery**: Wrote comprehensive TG API features doc covering all Bot API 9.4 features with MaxLevel implementation ideas.
 **Results**: 942/942 tests pass. Bot + mini-app build clean. Deployed to production.
 **Worktrees**: All 4 removed, branches deleted.
+
+---
+
+## RUN 92 Retrospectives
+
+#### Agent E Retrospective
+**Status**: Complete — 3 new files created, `tsc --noEmit` passes (exit 0).
+
+**Files created (3)**:
+- `mini-app/src/components/medication/MedicationCalendar.tsx` — Month-view calendar component with Mon-Sun grid, color-coded adherence dots (green=100%, amber=partial, red=missed, gray=no data), month navigation with framer-motion transitions, selected date ring highlight, today marker, legend
+- `mini-app/src/components/medication/MedicationDayDetail.tsx` — Day detail view showing medication list with color dots, name, dosage, scheduled time, logged time, status badges (Taken/Skipped/Pending/Postponed), entry animations
+- `mini-app/src/components/medication/MedicationHistory.tsx` — Main wrapper combining calendar + day detail; uses `useMedicationHistory(userId, 60)`, transforms API data into calendar-friendly format, handles both `days[]` and `history{}` API formats, 60-day adherence summary, loading skeleton (6x7 grid), empty state
+
+**Design decisions**:
+- Handled both possible API response formats (typed `MedicationHistoryResponse.days[]` and task-described `history{}` keyed format) to be resilient regardless of which backend ships
+- Reused `COLOR_MAP` pattern from existing `MedicationCard.tsx` and `DailyMedTracker.tsx` for consistency
+- Calendar uses Mon-Sun layout (European standard) matching the task spec
+- Used `aspect-square` for day cells to ensure consistent sizing across screen widths
+- Day detail logs use `MedicationDayLog` interface matching task spec props exactly
+- Delegated tab integration to Agent G (as specified — component is exported as named export)
+
+**Notes for Agent 0**:
+- Agent G handles wiring `MedicationHistory` into the Medications page tabs
+- No i18n keys added (forbidden) — uses English strings; i18n agent should add keys later
+- The `useMedicationHistory` hook already handles query keys and caching (5 min stale time)
