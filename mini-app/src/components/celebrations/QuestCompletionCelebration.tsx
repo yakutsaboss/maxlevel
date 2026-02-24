@@ -1,6 +1,8 @@
 import { useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Confetti } from './Confetti';
+import { LottieSticker } from './LottieSticker';
+import thumbsUpAnimation from '@/assets/lottie/thumbs-up.json';
 
 interface QuestCompletionCelebrationProps {
   show: boolean;
@@ -9,6 +11,8 @@ interface QuestCompletionCelebrationProps {
 }
 
 export function QuestCompletionCelebration({ show, questName, onComplete }: QuestCompletionCelebrationProps) {
+  const celebrationStyle = localStorage.getItem('celebration-style') || 'emoji';
+
   useEffect(() => {
     if (!show) return;
     const timer = setTimeout(() => onComplete?.(), 3000);
@@ -42,7 +46,11 @@ export function QuestCompletionCelebration({ show, questName, onComplete }: Ques
                 transition={{ type: 'spring', damping: 8, stiffness: 200 }}
                 className="text-7xl"
               >
-                👍
+                {celebrationStyle === 'animated' ? (
+                  <LottieSticker animationData={thumbsUpAnimation} size={80} />
+                ) : (
+                  '👍'
+                )}
               </motion.div>
 
               <motion.span
