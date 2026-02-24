@@ -32,13 +32,17 @@ export function CheckInButton({ questInstanceId, telegramId, onSuccess, disabled
         questInstanceId,
       });
       haptic.notification('success');
-      setShowSuccess(true);
+      const completed = data.completed;
       onSuccess({
-        completed: data.completed,
+        completed,
         current: data.quest_progress?.current ?? 0,
         target: data.quest_progress?.target ?? 1,
       });
-      setTimeout(() => setShowSuccess(false), 1500);
+      // Only show small tooltip for non-final check-ins; the parent handles celebration for completion
+      if (!completed) {
+        setShowSuccess(true);
+        setTimeout(() => setShowSuccess(false), 1500);
+      }
     } catch (error) {
       logger.error('Check-in failed', { error });
       haptic.notification('error');

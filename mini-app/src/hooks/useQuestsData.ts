@@ -21,6 +21,8 @@ export function useQuestsData(userId: number | undefined, haptic: HapticFeedback
   const [selectedModeId, setSelectedModeId] = useState<number | null>(null);
   const [sortBy, setSortBy] = useState<SortOption>('newest');
   const [selectedDifficulty, setSelectedDifficulty] = useState<string | null>(null);
+  const [showQuestCelebration, setShowQuestCelebration] = useState(false);
+  const [celebratedQuestName, setCelebratedQuestName] = useState<string | undefined>(undefined);
 
   // React Query hooks
   const activeQuery = useActiveQuests(userId);
@@ -68,18 +70,22 @@ export function useQuestsData(userId: number | undefined, haptic: HapticFeedback
   }, [selectedQuest, completing, userId, completeQuestMutation, haptic]);
 
   const handleCheckinSuccess = useCallback((result: { completed: boolean; current: number; target: number }) => {
-    if (selectedQuest) {
-      setSelectedQuest({ ...selectedQuest, progress: result.current, status: result.completed ? 'completed' : selectedQuest.status });
-    }
     if (result.completed) {
+      // Quest completed — close modal immediately, show celebration
+      const questName = selectedQuest?.title;
+      setSelectedQuest(null);
       haptic.notification('success');
-      // After quest completion, wait for refetch then close modal
+      setCelebratedQuestName(questName ?? undefined);
+      setShowQuestCelebration(true);
+      setTimeout(() => setShowQuestCelebration(false), 3000);
+      // Invalidate queries in the background (don't block UI)
       if (userId) {
-        queryClient.invalidateQueries({ queryKey: questKeys.active(userId) }).then(() => {
-          setSelectedQuest(null);
-        });
+        queryClient.invalidateQueries({ queryKey: questKeys.active(userId) });
         queryClient.invalidateQueries({ queryKey: questKeys.completed(userId) });
       }
+    } else if (selectedQuest) {
+      // Normal check-in (not final) — update progress in modal
+      setSelectedQuest({ ...selectedQuest, progress: result.current });
     }
     // Checkin count + active quests are already invalidated by useCheckinMutation.onSettled
   }, [selectedQuest, haptic, userId, queryClient]);
@@ -181,5 +187,8 @@ export function useQuestsData(userId: number | undefined, haptic: HapticFeedback
     mainButtonText,
     mainButtonVisible,
     mainButtonActive,
+    // Quest celebration
+    showQuestCelebration,
+    celebratedQuestName,
   };
 }
