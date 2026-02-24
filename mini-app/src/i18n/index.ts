@@ -5,7 +5,8 @@ import en from './en';
 import ru from './ru';
 import zh from './zh';
 
-// Try to detect language from Telegram WebApp
+// Try to detect language: saved user choice > Telegram WebApp > browser
+const savedLang = localStorage.getItem('maxlevel-language');
 const tgLang = window.Telegram?.WebApp?.initDataUnsafe?.user?.language_code;
 
 i18n
@@ -18,9 +19,10 @@ i18n
       zh: { translation: zh },
     },
     fallbackLng: 'en',
-    lng: tgLang || undefined, // Use Telegram language if available, otherwise let detector decide
+    lng: savedLang || tgLang || undefined, // Saved choice > Telegram language > detector
     detection: {
-      order: ['querystring', 'navigator'],
+      order: ['localStorage', 'querystring', 'navigator'],
+      lookupLocalStorage: 'maxlevel-language',
     },
     interpolation: {
       escapeValue: false, // React already escapes
