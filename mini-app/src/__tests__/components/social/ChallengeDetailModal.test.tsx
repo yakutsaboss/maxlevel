@@ -37,6 +37,7 @@ vi.mock('lucide-react', () => {
     Star: icon('star'),
     ChevronDown: icon('chevron-down'),
     Calendar: icon('calendar'),
+    BarChart3: icon('bar-chart3'),
   };
 });
 

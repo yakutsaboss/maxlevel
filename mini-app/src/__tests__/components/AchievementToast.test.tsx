@@ -18,6 +18,7 @@ vi.mock('@/components/celebrations/Confetti', () => ({
 // Mock lucide-react
 vi.mock('lucide-react', () => ({
   Zap: ({ className }: any) => <span data-testid="zap-icon" className={className}>⚡</span>,
+  Share2: ({ className }: any) => <span data-testid="share2-icon" className={className}>↗</span>,
 }));
 
 import { AchievementToast } from '@/components/AchievementToast';

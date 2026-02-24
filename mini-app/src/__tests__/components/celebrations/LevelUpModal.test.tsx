@@ -29,6 +29,27 @@ vi.mock('framer-motion', () => ({
   AnimatePresence: ({ children }: any) => <>{children}</>,
 }));
 
+// Mock lucide-react (Share2 used for story sharing)
+vi.mock('lucide-react', () => ({
+  Share2: ({ className }: any) => <span data-testid="share2-icon" className={className}>↗</span>,
+}));
+
+// Mock FocusTrap
+vi.mock('@/components/FocusTrap', () => ({
+  FocusTrap: ({ children }: any) => <div>{children}</div>,
+}));
+
+// Mock useCelebrationStyle (Run 93 Agent E)
+vi.mock('@/hooks/useCelebrationStyle', () => ({
+  useCelebrationStyle: () => ({ style: 'emoji', setStyle: vi.fn(), isAnimated: false }),
+}));
+
+// Mock storyShare (Run 94 Agent D)
+vi.mock('@/utils/storyShare', () => ({
+  isShareToStoryAvailable: () => false,
+  shareLevelUpToStory: vi.fn(),
+}));
+
 import { LevelUpModal } from '@/components/celebrations/LevelUpModal';
 
 beforeEach(() => {

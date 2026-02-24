@@ -50,6 +50,12 @@ vi.mock('@twa-dev/sdk', () => ({
 // Mock react-router-dom
 vi.mock('react-router-dom', () => ({
   useNavigate: () => vi.fn(),
+  useSearchParams: () => [new URLSearchParams(), vi.fn()],
+}));
+
+// Mock QRScannerButton (uses useToastContext which requires ToastProvider)
+vi.mock('@/components/QRScannerButton', () => ({
+  QRScannerButton: () => <span data-testid="qr-scanner-button">Scan QR</span>,
 }));
 
 // Mock useSocial hook (Agent B creates this in Run 61)
@@ -139,6 +145,13 @@ vi.mock('lucide-react', () => {
     BookOpen: s('book-open'),
     Pill: s('pill'),
     Repeat: s('repeat'),
+    CheckCircle: s('check-circle'),
+    ScanLine: s('scan-line'),
+    BarChart3: s('bar-chart3'),
+    Share2: s('share2'),
+    Eye: s('eye'),
+    Info: s('info'),
+    XOctagon: s('x-octagon'),
   };
 });
 
