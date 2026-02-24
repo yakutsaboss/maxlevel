@@ -1147,39 +1147,31 @@ Write retrospective when done.
 ### Run 91 Retrospectives
 
 #### Agent A Retrospective
-*(To be filled by Agent A)*
+**Status**: Complete — 2 files changed, `tsc --noEmit` clean.
+**Root cause**: `SplashScreen.tsx` stored language in React state only. `i18n.changeLanguage()` was never called.
+**Fixed**: Added `i18n.changeLanguage(code)` + localStorage persistence. `i18n/index.ts` now reads localStorage first (savedLang > tgLang > detector).
+**Commit**: `139d653`
 
 #### Agent B Retrospective
-*(To be filled by Agent B)*
+**Status**: Complete — 4 files changed (1 new + 3 modified), `tsc --noEmit` clean.
+**Bug fixed**: Quest last check-in modal stayed open due to race condition — waited for query refetch before closing.
+**Fixed**: Modal closes immediately on completion, 3-second celebration overlay (confetti + thumbs-up + "All Done!"). Non-final check-ins still show small tooltip.
+**New file**: `QuestCompletionCelebration.tsx`
+**Commit**: `b4e2eab`
 
 #### Agent C Retrospective
-*(To be filled by Agent C)*
+**Status**: Stuck — 0 commits. Agent got stuck and produced no output.
+**Agent 0 completed the task**: Wrote `docs/TELEGRAM_API_FEATURES.md` (360+ lines) covering Stars payments, animated stickers, Mini App API, gamification, media, inline mode, bot management, community features, and implementation ideas for MaxLevel.
 
 #### Agent D Retrospective
-*(To be filled by Agent D)*
+**Status**: Complete — 2 files modified, `tsc --noEmit` clean.
+**Discovery**: Payment infrastructure already existed. Enhanced `payments.ts` with mode_unlock support + owner notifications via notification bot. Added `/stars` command to notification bot showing balance + recent transactions.
+**Commits**: `ddc4184`, `167642a`
 
 #### Agent 0 Retrospective
-*(To be filled by Agent 0)*
-
----
-
-### Run 91 Agent A Retrospective
-
-#### Agent A Retrospective
-**Status**: Complete — 2 files changed, `tsc --noEmit` clean (exit 0).
-
-**Root cause**: `SplashScreen.tsx` stored the selected language in React state only. `i18n.changeLanguage()` was never called, and nothing persisted to localStorage. The i18n init in `index.ts` only read `window.Telegram.WebApp.initDataUnsafe.user.language_code` — no localStorage fallback.
-
-**Fixed**:
-- `mini-app/src/components/onboarding/SplashScreen.tsx`:
-  - Destructured `i18n` from `useTranslation()` (was only getting `t`)
-  - `handleLangSelect()` now calls `i18n.changeLanguage(code)` immediately — UI re-renders in new language on tap
-  - Persists choice to `localStorage.setItem('maxlevel-language', code)`
-  - Pre-selects current language on mount via `useState(() => i18n.language?.substring(0, 2) || null)` — if Telegram says "ru", Russian flag is highlighted by default
-- `mini-app/src/i18n/index.ts`:
-  - Added `localStorage.getItem('maxlevel-language')` check before init
-  - `lng` priority: savedLang > tgLang > undefined (user's explicit choice overrides Telegram's language_code)
-  - Detection order: `['localStorage', 'querystring', 'navigator']` with `lookupLocalStorage: 'maxlevel-language'`
-
-**Commit**: `139d653` on `feature/r91-language-fix`
-**No issues encountered.**
+**Status**: Complete.
+**Merged**: A → B → D (3 merges, 2 PARALLEL_AGENTS.md conflicts resolved with --ours).
+**Test fix**: SplashScreen test updated — Agent A's auto-language detection changed initial state from null to detected language, breaking the "disabled until selected" assertion.
+**Agent C recovery**: Wrote comprehensive TG API features doc covering all Bot API 9.4 features with MaxLevel implementation ideas.
+**Results**: 942/942 tests pass. Bot + mini-app build clean. Deployed to production.
+**Worktrees**: All 4 removed, branches deleted.
