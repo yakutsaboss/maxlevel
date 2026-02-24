@@ -25,6 +25,7 @@ import { handleSettings, handleSettingsCallback } from './handlers/settings.js';
 import { handleStats, handleStatsCallback } from './handlers/stats.js';
 import { handleLeaderboard } from './handlers/leaderboard.js';
 import { handlePreCheckoutQuery, handleSuccessfulPayment } from './handlers/payments.js';
+import { checkBotPremium } from './utils/customEmoji.js';
 import { startApiServer } from './api/server.js';
 import { startJobQueue, stopJobQueue } from './jobs/boss.js';
 import { registerAllJobs } from './jobs/registerJobs.js';
@@ -139,6 +140,9 @@ async function main() {
     log.error('Database connection failed');
     log.error('Bot will start, but database operations will fail! Check DATABASE_URL in .env');
   }
+
+  // Check if bot has TG Premium (enables custom emoji in notifications)
+  await checkBotPremium(bot);
 
   // Start API server (with or without webhook)
   if (config.useWebhook) {
