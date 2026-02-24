@@ -1906,7 +1906,13 @@ Add 3-tab navigation (Today | History | Analytics) to Medications.tsx. Placehold
 *(To be filled by Agent A)*
 
 #### Agent B Retrospective
-*(To be filled by Agent B)*
+**Status**: Complete — 2 files modified, `tsc --noEmit` clean.
+**Task**: Quest i18n frontend — pass user language to quest API endpoints.
+**Changes**:
+- `mini-app/src/api/client.ts`: Added `lang?: string` parameter to `getActiveQuests()` and `getCompletedQuests()`. Passes as `?lang=xx` query param via `deduplicatedGet`.
+- `mini-app/src/hooks/useQuestsQuery.ts`: Added `useTranslation()` to both `useActiveQuests` and `useCompletedQuests` hooks. Reads `i18n.language`, truncates to 2 chars (e.g. 'en', 'ru', 'zh'), passes to API client. Included `lang` in React Query keys so quests automatically refetch when user switches language.
+**Commit**: `ba941a8` on `feature/r92-quest-i18n-frontend`
+**No issues encountered.**
 
 #### Agent C Retrospective
 *(To be filled by Agent C)*
