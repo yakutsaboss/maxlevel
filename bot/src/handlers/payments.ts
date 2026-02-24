@@ -24,7 +24,14 @@ interface ModeUnlockPayload {
   mode_name: string;
 }
 
-type PaymentPayload = TierPayload | ModeUnlockPayload;
+interface ShopItemPayload {
+  payment_id: number;
+  type: 'shop_item';
+  shop_item_id: number;
+  user_id: number;
+}
+
+type PaymentPayload = TierPayload | ModeUnlockPayload | ShopItemPayload;
 
 function parsePayload(raw: string): PaymentPayload | null {
   try {
@@ -33,6 +40,10 @@ function parsePayload(raw: string): PaymentPayload | null {
     // Mode unlock payload
     if (data.type === 'mode_unlock' && typeof data.mode_name === 'string') {
       return data as ModeUnlockPayload;
+    }
+    // Shop item payload
+    if (data.type === 'shop_item' && typeof data.shop_item_id === 'number') {
+      return data as ShopItemPayload;
     }
     // Tier upgrade payload
     if (data.tier) {
@@ -148,6 +159,53 @@ export async function handlePreCheckoutQuery(ctx: MyContext) {
     return;
   }
 
+  // Shop item-specific validation
+  if (payload.type === 'shop_item') {
+    const shopPayload = payload as ShopItemPayload;
+    const shopItem = await queryOne<{ id: number; is_active: boolean; price_stars: number; type: string }>(
+      `SELECT id, is_active, price_stars, type FROM shop_items WHERE id = $1`,
+      [shopPayload.shop_item_id],
+    );
+
+    if (!shopItem) {
+      log.warn('Pre-checkout: shop item not found', { shopItemId: shopPayload.shop_item_id });
+      await ctx.answerPreCheckoutQuery(false, { error_message: 'Item no longer available.' });
+      return;
+    }
+
+    if (!shopItem.is_active) {
+      log.warn('Pre-checkout: shop item inactive', { shopItemId: shopPayload.shop_item_id });
+      await ctx.answerPreCheckoutQuery(false, { error_message: 'This item is no longer for sale.' });
+      return;
+    }
+
+    if (total_amount !== shopItem.price_stars) {
+      log.warn('Pre-checkout: shop item price mismatch', {
+        shopItemId: shopPayload.shop_item_id,
+        expected: shopItem.price_stars,
+        received: total_amount,
+      });
+      await ctx.answerPreCheckoutQuery(false, { error_message: 'Price has changed. Please start a new purchase.' });
+      return;
+    }
+
+    // For one-time items (achievements), check duplicate
+    if (shopItem.type === 'achievement') {
+      const existingPurchase = await queryOne<{ id: number }>(
+        `SELECT id FROM user_purchases WHERE user_id = $1 AND shop_item_id = $2`,
+        [shopPayload.user_id, shopPayload.shop_item_id],
+      );
+      if (existingPurchase) {
+        log.warn('Pre-checkout: duplicate achievement purchase', {
+          userId: shopPayload.user_id,
+          shopItemId: shopPayload.shop_item_id,
+        });
+        await ctx.answerPreCheckoutQuery(false, { error_message: 'You already own this item.' });
+        return;
+      }
+    }
+  }
+
   // All checks passed — approve the payment
   log.info('Pre-checkout approved', { paymentId: payment.id });
   await ctx.answerPreCheckoutQuery(true);
@@ -190,7 +248,7 @@ export async function handleSuccessfulPayment(ctx: MyContext) {
     user_id: number;
     amount: string;
     status: string;
-    metadata: { tier?: string; type?: string; mode_name?: string };
+    metadata: { tier?: string; type?: string; mode_name?: string; shop_item_id?: number };
   }>(
     `SELECT id, user_id, amount, status, metadata FROM payments WHERE id = $1`,
     [payload.payment_id],
@@ -213,9 +271,90 @@ export async function handleSuccessfulPayment(ctx: MyContext) {
   const telegramId = ctx.from?.id || 0;
 
   // Determine payment type from payload or metadata
+  const isShopItem = payload.type === 'shop_item' || payment.metadata?.type === 'shop_item';
   const isModeUnlock = payload.type === 'mode_unlock' || payment.metadata?.type === 'mode_unlock';
 
-  if (isModeUnlock) {
+  if (isShopItem) {
+    // Shop item purchase flow
+    const shopPayload = payload as ShopItemPayload;
+    const shopItemId = shopPayload.shop_item_id || (payment.metadata as any)?.shop_item_id;
+
+    if (!shopItemId) {
+      log.error('Shop item payment missing shop_item_id', { paymentId: payment.id });
+      await ctx.reply('Payment received but item data is missing. Please contact support.');
+      return;
+    }
+
+    // Look up the shop item
+    const shopItem = await queryOne<{ id: number; name: string; type: string; reference_id: number | null }>(
+      `SELECT id, name, type, reference_id FROM shop_items WHERE id = $1`,
+      [shopItemId],
+    );
+
+    if (!shopItem) {
+      log.error('Shop item not found after payment', { paymentId: payment.id, shopItemId });
+      await ctx.reply('Payment received but the item was not found. Please contact support.');
+      return;
+    }
+
+    await transaction(async (client) => {
+      // Mark payment as completed
+      await client.query(
+        `UPDATE payments
+         SET status = 'completed',
+             telegram_payment_charge_id = $1,
+             provider_payment_charge_id = $2,
+             updated_at = NOW()
+         WHERE id = $3`,
+        [telegram_payment_charge_id, provider_payment_charge_id || null, payment.id],
+      );
+
+      // Record purchase in user_purchases
+      await client.query(
+        `INSERT INTO user_purchases (user_id, shop_item_id, payment_method, amount_paid)
+         VALUES ($1, $2, 'stars', $3)
+         ON CONFLICT DO NOTHING`,
+        [payment.user_id, shopItemId, Math.round(parseFloat(payment.amount))],
+      );
+
+      // If it's an achievement, unlock it
+      if (shopItem.type === 'achievement' && shopItem.reference_id) {
+        await client.query(
+          `INSERT INTO user_achievements (user_id, achievement_id)
+           VALUES ($1, $2)
+           ON CONFLICT (user_id, achievement_id) DO NOTHING`,
+          [payment.user_id, shopItem.reference_id],
+        );
+      }
+    });
+
+    log.info('Shop item purchase completed', {
+      paymentId: payment.id,
+      userId: payment.user_id,
+      shopItemId,
+      itemName: shopItem.name,
+      telegramChargeId: telegram_payment_charge_id,
+    });
+
+    await ctx.reply(
+      `🎉 *Purchase Successful!*\n\n` +
+      `You've purchased *${shopItem.name}*!\n\n` +
+      `⭐ Amount: ${total_amount} Stars\n\n` +
+      `Open /app to see your new item!`,
+      { parse_mode: 'Markdown' },
+    );
+
+    // Notify owner (fire-and-forget)
+    notifyOwnerPayment({
+      userName,
+      telegramId,
+      amount: total_amount,
+      type: 'Shop Purchase',
+      label: shopItem.name,
+      chargeId: telegram_payment_charge_id,
+    }).catch(() => {});
+
+  } else if (isModeUnlock) {
     const modeName = (payload as ModeUnlockPayload).mode_name || payment.metadata?.mode_name;
     if (!modeName) {
       log.error('Mode unlock payment missing mode_name', { paymentId: payment.id });

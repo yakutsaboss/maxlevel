@@ -6,6 +6,7 @@
  * Supports:
  * - Tier upgrades (premium subscription — 599 Stars)
  * - Mode unlocks (e.g., medication — 300 Stars) (added Run 86)
+ * - Shop item purchases via Stars invoice (added Run 93)
  *
  * Webhook handler lives in payment-webhook.ts.
  * Shared helpers in utils/paymentHelpers.ts.
@@ -181,6 +182,102 @@ router.post('/create', authenticateTelegram, mutationLimiter, asyncHandler(async
     invoice_url: invoiceUrl,
     created_at: payment?.created_at,
   }, 'Payment initiated'));
+}));
+
+// ─── POST /create-shop-invoice ───────────────────────────────────────────────
+// Create a Telegram Stars invoice for a shop item purchase.
+// Returns { payment_id, invoice_url } for the client to open via WebApp.openInvoice().
+router.post('/create-shop-invoice', authenticateTelegram, mutationLimiter, asyncHandler(async (req: Request, res: Response) => {
+  const { telegram_id, shop_item_id } = req.body;
+
+  if (!telegram_id || !shop_item_id) {
+    throw new BadRequestError('Missing required fields: telegram_id, shop_item_id');
+  }
+
+  const numericTelegramId = typeof telegram_id === 'string' ? safeParseInt(telegram_id, 0) : telegram_id;
+  const numericItemId = typeof shop_item_id === 'string' ? safeParseInt(shop_item_id, 0) : shop_item_id;
+
+  if (!isPositiveInteger(numericTelegramId) || !isPositiveInteger(numericItemId)) {
+    throw new BadRequestError('telegram_id and shop_item_id must be positive integers');
+  }
+
+  // Look up user by telegram_id
+  const user = await queryOne<{ id: number }>(
+    'SELECT id FROM users WHERE telegram_id = $1',
+    [numericTelegramId],
+  );
+  if (!user) {
+    throw new NotFoundError(`User with telegram_id ${numericTelegramId} not found`);
+  }
+
+  // Verify item exists and is active
+  const item = await queryOne<{ id: number; name: string; description: string | null; price_stars: number; type: string; is_active: boolean }>(
+    'SELECT id, name, description, price_stars, type, is_active FROM shop_items WHERE id = $1',
+    [numericItemId],
+  );
+  if (!item) {
+    throw new NotFoundError('Shop item not found');
+  }
+  if (!item.is_active) {
+    throw new BadRequestError('This item is no longer for sale');
+  }
+  if (item.price_stars <= 0) {
+    throw new BadRequestError('This item cannot be purchased with Stars');
+  }
+
+  // For one-time items (achievements), check for duplicate
+  if (item.type === 'achievement') {
+    const existingPurchase = await queryOne<{ id: number }>(
+      'SELECT id FROM user_purchases WHERE user_id = $1 AND shop_item_id = $2',
+      [user.id, numericItemId],
+    );
+    if (existingPurchase) {
+      throw new BadRequestError('You already own this item');
+    }
+  }
+
+  // Create pending payment record with shop_item metadata
+  const payment = await queryOne<{ id: number; status: string; created_at: string }>(
+    `INSERT INTO payments (user_id, amount, currency, status, provider, metadata)
+     VALUES ($1, $2, 'XTR', 'pending', 'telegram_stars', $3)
+     RETURNING id, status, created_at`,
+    [user.id, item.price_stars, JSON.stringify({ type: 'shop_item', shop_item_id: numericItemId })],
+  );
+
+  // Create Telegram Stars invoice link
+  let invoiceUrl: string;
+  try {
+    invoiceUrl = await bot.api.createInvoiceLink(
+      item.name,
+      item.description || `Purchase ${item.name} from the shop`,
+      JSON.stringify({
+        payment_id: payment!.id,
+        type: 'shop_item',
+        shop_item_id: numericItemId,
+        user_id: user.id,
+      }),
+      '',       // provider_token: empty for Telegram Stars
+      'XTR',    // currency: Telegram Stars
+      [{ label: item.name, amount: item.price_stars }],
+    );
+  } catch (err) {
+    log.error('Failed to create shop invoice', { paymentId: payment?.id, itemId: numericItemId, error: err });
+    await execute(`UPDATE payments SET status = 'failed', updated_at = NOW() WHERE id = $1`, [payment!.id]);
+    throw new BadRequestError('Failed to create Telegram Stars invoice. Please try again.');
+  }
+
+  log.info('Shop invoice created', {
+    paymentId: payment?.id,
+    userId: user.id,
+    shopItemId: numericItemId,
+    itemName: item.name,
+    amount: item.price_stars,
+  });
+
+  res.status(201).json(successResponse({
+    payment_id: payment?.id,
+    invoice_url: invoiceUrl,
+  }, 'Shop invoice created'));
 }));
 
 // ─── GET /history/:userId ────────────────────────────────────────────────────

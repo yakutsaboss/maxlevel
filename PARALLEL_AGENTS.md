@@ -2442,3 +2442,24 @@ FORBIDDEN: celebrations/*, Settings.tsx, Shop.tsx, hooks/usePurchase.ts, hooks/u
 
 #### Agent 0 Retrospective
 *(To be filled by Agent 0)*
+
+### Run 93 Retrospectives
+
+#### Agent A Retrospective (Run 93)
+
+| # | Task | Status |
+|---|------|--------|
+| 1 | Add `ShopItemPayload` type + update `parsePayload()` | Done |
+| 2 | Pre-checkout validation for shop items (exists, active, price match, duplicate check for achievements) | Done |
+| 3 | Successful payment handler for shop items (record purchase, unlock achievement, notify owner) | Done |
+| 4 | `POST /payments/create-shop-invoice` endpoint (validate item, create pending payment, generate invoice link) | Done |
+| 5 | Comment on `shop.ts` noting new invoice flow for Stars | Done |
+| 6 | Build verify (`npx tsc --noEmit`) | Pass |
+
+**Problems**: None — clean implementation, all existing patterns followed.
+
+**Notes for Agent 0 / Agent B**:
+- The `create-shop-invoice` endpoint accepts `{ telegram_id, shop_item_id }` and returns `{ payment_id, invoice_url }`.
+- Agent B's frontend should call this endpoint for Stars purchases, then open the invoice via `WebApp.openInvoice()`.
+- The old direct `POST /shop/purchase` path for Stars is kept but commented as deprecated — the frontend should bypass it for Stars.
+- Payment metadata includes `{ type: 'shop_item', shop_item_id }` so the Grammy handlers can distinguish shop purchases from tier/mode payments.
