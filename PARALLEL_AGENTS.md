@@ -283,68 +283,94 @@ Use this structure when creating a new run. Copy and adapt:
 
 ---
 
-## MANDATORY ROADMAP — Test Debt + Polish + Medication Deep Dive
+## MANDATORY ROADMAP — Feature Development + TG API Integration
 
 ⚠️ **This roadmap is NON-NEGOTIABLE. Agent 0 must execute these runs IN ORDER.**
 ⚠️ **Do NOT skip, reorder, or replace runs with "more important" work.**
 ⚠️ **If you are Agent 0 and you are about to design a new run, the NEXT unexecuted run below is your ONLY option.**
 
-### Previous Roadmap (78-88) — COMPLETED
-Runs 78-85: MVP recovery + feature re-enablement. Run 86: Animation polish + medication unlock. Run 87: Full medication system (DB, API, jobs, UI, i18n, tests). Run 88: Medication integration fixes.
+### Previous Roadmap (78-91) — COMPLETED
+Runs 78-85: MVP recovery + feature re-enablement. Run 86: Animation polish + medication unlock. Run 87: Full medication system. Run 88: Medication integration fixes. Run 89: Test debt cleanup (24 failures → 0). Run 90: UX polish (error states, skeletons, transitions, a11y, toasts). Run 91: Bug fixes (language selection, quest celebration, payment handlers) + TG API research.
 
-### Current State (post-Run 88)
-- **17 pages**, 5+1 nav tabs (medication conditional), medication system fully operational
-- **Bot tests**: 1100/1100 pass. **Mini-app MVP**: 627/629 pass.
-- **24 pre-existing mini-app test failures** across 6 files (Navigation, Dashboard hooks, Profile hooks, Onboarding hooks, A11y, Regression)
-- **Medication system**: CRUD + logging + reminders + streak milestones + dashboard widget + nav tab + i18n — but NO history/analytics UI
+### Current State (post-Run 91)
+- **18 pages**, 5+1 nav tabs (medication conditional), medication CRUD fully operational
+- **Bot tests**: 1100/1100 pass. **Mini-app tests**: 942/942 pass.
+- **Payments**: Handler exists, notification bot notifies owner, `/stars` command shows balance
+- **TG API features doc**: `docs/TELEGRAM_API_FEATURES.md` — comprehensive reference for Bot API 9.4
+- **Known bugs**: Quest modal auto-close (fixed pre-deploy), quest content not translated, /metrics wrong IP (fixed pre-deploy)
+- **Missing**: Medication analytics UI, Stars shop UI, quest i18n, Google Sheets OAuth
 
 ### The Roadmap
 
 | Run | Focus | Agents | Status |
 |-----|-------|--------|--------|
-| **78-88** | MVP Recovery → Feature Re-enable → Medication System | varies | ✅ |
-| **89** | Test Debt Cleanup — fix all 24 pre-existing mini-app failures | 4 | ✅ |
-| **90** | UX Polish — error states, loading skeletons, transitions, accessibility | 5 | ✅ |
-| **91** | Bug Fixes + TG API Research — language, quest completion, payment bot, API audit | 4 | ⬜ |
-| **92** | Medication Analytics — history page, adherence charts, weekly/monthly views | 4 | ⬜ |
-| **93** | Sticker/Payment Features — based on Run 91 research, implement chosen features | 4 | ⬜ |
-| **94** | Final Polish — performance, bundle optimization, remaining test coverage | 4 | ⬜ |
+| **78-91** | MVP Recovery → Medication → Bug Fixes + TG API Research | varies | ✅ |
+| **92** | Bug Fixes + Quest i18n + Google Sheets OAuth + Medication Analytics | 9 | ⬜ |
+| **93** | Stars Shop + Celebrations Upgrade | 8 | ⬜ |
+| **94** | Cloud Storage + Home Screen + QR + Social Basics | 8 | ⬜ |
+| **95** | Premium & Monetization — Subscriptions, Paid Content, Gifts | 8 | ⬜ |
+| **96** | Advanced Features — Inline Mode, Referrals, Biometrics, Deep Links | 8 | ⬜ |
+| **97** | Final Polish — Bundle, Performance, Tests, Accessibility | 7 | ⬜ |
 
-### Run 89 Plan: Test Debt Cleanup (4 agents)
-- **Agent A**: Fix `useDashboardData.test.ts` (5 failures) + `useProfileData.test.ts` (6 failures) — hook mocks need updating after React Query migration
-- **Agent B**: Fix `useOnboardingNavigation.test.ts` (5 failures) + `run50-bugs.test.tsx` (5 failures) — onboarding step sequence + punishment transparency tests
-- **Agent C**: Fix `Navigation.test.tsx` (all failures) + `aria-audit.test.tsx` (3 failures) — navigation tab changes + leaderboard a11y
-- **Agent D**: Run full test suite, fix any remaining failures, ensure test:mvp stays green
+### Run 92: Bug Fixes + Quest i18n + Sheets OAuth + Medication Analytics (9 agents)
+- **Agent A**: Quest modal fixes — auto-close on completion, consistent width (remove layoutId), move AnimatePresence to parent
+- **Agent B**: Quest i18n (DB) — add `title_ru`, `description_ru` columns to quests table, API returns correct language based on user preference
+- **Agent C**: Quest i18n (frontend) — pass user language to API, fallback to English if no translation exists
+- **Agent D**: /metrics fix + notification bot polish — fix server IP, improve error handling
+- **Agent E**: Google Sheets OAuth — `/sheets_login` command with OAuth flow, refresh token storage, simplify /sheets command
+- **Agent F**: Medication analytics API — `GET /api/medication-logs/:userId/analytics` (weekly/monthly adherence, per-med stats, streaks)
+- **Agent G**: Medication history page — `MedicationHistory.tsx` with calendar view + daily log details
+- **Agent H**: Adherence charts — weekly bar chart + monthly trend line using recharts
+- **Agent I**: History tab integration — add tabs to Medications page, wire hooks, i18n strings
 
-### Run 90 Plan: UX Polish (5 agents)
-- **Agent A**: Global error handling polish — error boundaries on all pages, retry patterns, offline banners
-- **Agent B**: Loading state audit — ensure every page has skeleton loaders, shimmer effects
-- **Agent C**: Page transitions — consistent AnimatePresence on route changes, stagger animations
-- **Agent D**: Accessibility pass — ARIA labels, keyboard navigation, screen reader support
-- **Agent E**: Toast/feedback polish — success toasts on mutations, haptic patterns, undo support
+### Run 93: Stars Shop + Celebrations Upgrade (8 agents)
+- **Agent A**: Stars shop UI — price display in Stars, purchase button, `openInvoice()` callback
+- **Agent B**: Stars invoice API — catalog config, pre-checkout validation
+- **Agent C**: Stars purchase e2e — invoice creation → open invoice → payment notification → item delivery
+- **Agent D**: Animated sticker integration — bot sends .TGS stickers via `sendSticker` for celebrations
+- **Agent E**: Celebration upgrades (quest) — Lottie player, animated stickers in QuestCompletionCelebration
+- **Agent F**: Celebration upgrades (level/achievement) — upgrade LevelUpModal + achievement toasts
+- **Agent G**: Sticker pack browser — selection UI in settings, persist celebration sticker choice
+- **Agent H**: Translate seed quest data to Russian — populate `title_ru`/`description_ru` for all existing quests
 
-### Run 91 Plan: Medication Analytics (4 agents)
-- **Agent A**: Add `GET /api/medication-logs/:userId/analytics` endpoint — weekly/monthly adherence rates, per-medication stats, streak data
-- **Agent B**: Create `MedicationHistory.tsx` page — calendar view, daily log details, medication adherence trend
-- **Agent C**: Create adherence chart component — weekly bar chart using recharts (already in deps), monthly trend line
-- **Agent D**: Add history tab to Medications page, integrate analytics hooks, i18n strings
+### Run 94: Cloud Storage + Home Screen + QR + Social Basics (8 agents)
+- **Agent A**: Cloud Storage — TG `CloudStorage` API to persist user preferences cross-device
+- **Agent B**: Home screen shortcut — `addToHomeScreen()` prompt, dismissal tracking, settings toggle
+- **Agent C**: QR code sharing — profile/referral QR generator, `showScanQrPopup()`, deep links
+- **Agent D**: Share to story — `shareToStory()` for quest completion, level-up, achievements
+- **Agent E**: Custom emoji in bot messages — quest notifications, summaries with emoji (requires TG Premium)
+- **Agent F**: Challenge improvements — creation flow polish, notifications, challenge leaderboard
+- **Agent G**: Notification preferences — per-category toggles, DND schedule, notification center
+- **Agent H**: Deep linking — `?startapp=` params, shareable quest links, direct navigation from bot
 
-### Run 92 Plan: Medication Reminders UI (3 agents)
-- **Agent A**: In-app notification center — real-time list from notification_log, mark-as-read, badge count in nav
-- **Agent B**: Reminder preferences in Settings — per-medication reminder toggles, DND hours picker, sound/vibration options
-- **Agent C**: Tests for notification UI + reminder preferences + integration testing
+### Run 95: Premium & Monetization (8 agents)
+- **Agent A**: Star subscription backend — `editUserStarSubscription`, tiers table, recurring billing
+- **Agent B**: Star subscription frontend — tier comparison, subscribe/unsubscribe flow
+- **Agent C**: Paid content — `sendPaidMedia` integration, premium guides behind Star paywall
+- **Agent D**: Premium features gate — middleware, free tier limits, upgrade prompts
+- **Agent E**: Subscription management — manage page, cancel/change tier, billing history
+- **Agent F**: Revenue dashboard (admin) — Stars revenue, transaction history, refunds
+- **Agent G**: Gift system — `sendGift` between users, gift inventory
+- **Agent H**: Premium avatars — animated avatars, premium-only collection via Stars
 
-### Run 93 Plan: Final Polish (4 agents)
-- **Agent A**: Bundle optimization — lazy load heavy chunks, tree-shake unused icons, optimize images
-- **Agent B**: Performance audit — React.memo review, unnecessary re-renders, query deduplication
-- **Agent C**: Remaining test coverage — target 90%+ on critical paths (medication, dashboard, auth)
-- **Agent D**: Final integration testing — full e2e flow in Telegram, cross-browser, responsive
+### Run 96: Advanced Features (8 agents)
+- **Agent A**: Inline mode — `@botusername` responds with quest stats, profile cards
+- **Agent B**: Referral system backend — referrals table, code generation, bonus XP on signup
+- **Agent C**: Referral system frontend — referral page, share link, referral count
+- **Agent D**: Biometric auth — `BiometricManager` for purchases, profile changes
+- **Agent E**: Gamification upgrades — daily login rewards, streak bonuses, XP multiplier events
+- **Agent F**: Location quests backend — new quest type, geofencing, `LocationManager` integration
+- **Agent G**: Location quests frontend — map UI, distance tracking, permissions
+- **Agent H**: Sensor mini-games — accelerometer/gyroscope interactions, shake-to-collect
 
-### Re-enable Pattern (Runs 79-83)
-Each re-enable run follows the same 3-agent pattern:
-- **Agent A (Backend)**: Uncomment `[MVP-DISABLED]` lines in `server.ts` + `registerJobs.ts` for target features. Verify `npm run build`. Fix any TypeScript errors.
-- **Agent B (Frontend)**: Uncomment `[MVP-DISABLED]` lines in `App.tsx`. Update `Navigation.tsx` if pages need nav items. Verify `npm run build`.
-- **Agent C (Tests)**: Run `npm run test:full` for both bot and mini-app. Fix ALL broken tests for re-enabled features. Verify `test:mvp` still passes too.
+### Run 97: Final Polish (7 agents)
+- **Agent A**: Bundle optimization — lazy load recharts/lottie, tree-shake icons, code splitting
+- **Agent B**: Performance audit — React.memo, re-renders, query dedup, lighthouse
+- **Agent C**: Test coverage (mini-app) — target 90%+ on critical paths
+- **Agent D**: Test coverage (bot) — target 90%+ on handlers, routes, jobs
+- **Agent E**: E2E testing — full Telegram flow: onboarding → quests → payments
+- **Agent F**: Accessibility audit — WCAG 2.1 AA, screen reader, keyboard-only
+- **Agent G**: Documentation + i18n — API docs, README, missing i18n, Chinese translation
 
 ---
 

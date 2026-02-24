@@ -26,7 +26,7 @@ if sys.platform == 'win32':
 PROJECT_ROOT = Path(__file__).parent.parent.absolute()
 load_dotenv(PROJECT_ROOT / ".env")
 
-SERVER_IP = "85.239.53.57"
+SERVER_IP = "85.239.58.205"
 SSH_USER = "root"
 SNAPSHOT_FILE = PROJECT_ROOT / ".tmp" / "metrics_start.json"
 

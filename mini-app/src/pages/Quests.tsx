@@ -149,15 +149,18 @@ export function Quests() {
         </AnimatePresence>
       </div>
 
-      {selectedQuest && (
-        <QuestDetailModal
-          quest={selectedQuest}
-          completing={completing}
-          userId={user?.id}
-          onClose={closeSelectedQuest}
-          onCheckinSuccess={handleCheckinSuccess}
-        />
-      )}
+      <AnimatePresence>
+        {selectedQuest && (
+          <QuestDetailModal
+            key={selectedQuest.id}
+            quest={selectedQuest}
+            completing={completing}
+            userId={user?.id}
+            onClose={closeSelectedQuest}
+            onCheckinSuccess={handleCheckinSuccess}
+          />
+        )}
+      </AnimatePresence>
 
       <QuestCompletionCelebration
         show={showQuestCelebration}

@@ -1,7 +1,7 @@
-import { useEffect } from 'react';
+import { useCallback, useEffect } from 'react';
 import { Quest } from '@/types';
 import { Zap, CheckCircle, Loader2, Calendar } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { CheckInButton } from '@/components/CheckInButton';
 import { QuestDifficultyBadge } from '@/components/QuestDifficultyBadge';
 import { FocusTrap } from '@/components/FocusTrap';
@@ -24,14 +24,19 @@ export function QuestDetailModal({ quest, completing, userId, onClose, onCheckin
     };
   }, [quest]);
 
+  const handleCheckinResult = useCallback((result: { completed: boolean; current: number; target: number }) => {
+    onCheckinSuccess(result);
+    if (result.completed) {
+      onClose();
+    }
+  }, [onCheckinSuccess, onClose]);
+
   if (!quest) return null;
 
   return (
-    <AnimatePresence>
-      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-end" onClick={onClose}>
-        <FocusTrap onEscape={onClose} aria-label={quest.title || 'Quest details'}>
+    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-end" onClick={onClose}>
+      <FocusTrap onEscape={onClose} aria-label={quest.title || 'Quest details'}>
         <motion.div
-          layoutId={`quest-${quest.id}`}
           initial={{ y: '100%' }}
           animate={{ y: 0 }}
           exit={{ y: '100%' }}
@@ -111,7 +116,7 @@ export function QuestDetailModal({ quest, completing, userId, onClose, onCheckin
               <CheckInButton
                 questInstanceId={quest.id}
                 telegramId={userId}
-                onSuccess={onCheckinSuccess}
+                onSuccess={handleCheckinResult}
                 disabled={completing}
                 currentProgress={quest.progress}
                 target={quest.target}
@@ -132,8 +137,7 @@ export function QuestDetailModal({ quest, completing, userId, onClose, onCheckin
             </div>
           )}
         </motion.div>
-        </FocusTrap>
-      </motion.div>
-    </AnimatePresence>
+      </FocusTrap>
+    </motion.div>
   );
 }
