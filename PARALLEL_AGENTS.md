@@ -305,7 +305,7 @@ Runs 78-85: MVP recovery + feature re-enablement. Run 86: Animation polish + med
 | Run | Focus | Agents | Status |
 |-----|-------|--------|--------|
 | **78-91** | MVP Recovery → Medication → Bug Fixes + TG API Research | varies | ✅ |
-| **92** | Bug Fixes + Quest i18n + Google Sheets OAuth + Medication Analytics | 9 | ⬜ |
+| **92** | Bug Fixes + Quest i18n + Google Sheets OAuth + Medication Analytics | 7 | 🔄 |
 | **93** | Stars Shop + Celebrations Upgrade | 8 | ⬜ |
 | **94** | Cloud Storage + Home Screen + QR + Social Basics | 8 | ⬜ |
 | **95** | Premium & Monetization — Subscriptions, Paid Content, Gifts | 8 | ⬜ |
@@ -1201,3 +1201,721 @@ Write retrospective when done.
 **Agent C recovery**: Wrote comprehensive TG API features doc covering all Bot API 9.4 features with MaxLevel implementation ideas.
 **Results**: 942/942 tests pass. Bot + mini-app build clean. Deployed to production.
 **Worktrees**: All 4 removed, branches deleted.
+
+---
+
+## RUN 92: Quest i18n + Sheets OAuth + Medication Analytics (7 Agents + Agent 0)
+
+### Focus: Quest Russian translations, Google Sheets OAuth flow, medication adherence tracking with calendar + charts
+
+### Pre-completed Tasks (from commit 11e8c45)
+- ✅ Quest modal auto-close + width fix (remove layoutId, move AnimatePresence to parent)
+- ✅ /metrics server IP fix (85.239.53.57 → 85.239.58.205)
+
+These were originally roadmap items for Run 92's Agent A (quest modal) and Agent D (/metrics). Since they're done, Run 92 proceeds with the remaining 7 tasks.
+
+### Copy-Paste Prompts
+
+**Agent 0** (open in: `c:\Users\Asus\Desktop\Wibecode`):
+```
+Read PARALLEL_AGENTS.md — you are Agent 0 for Run 92.
+```
+
+**Agent A** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-a`):
+```
+Read PARALLEL_AGENTS.md — you are Agent A of Run 92. Your task: Quest i18n backend — add Russian translation columns, translate seed data, modify API.
+
+IMPORTANT: Before doing anything, verify your working directory: run `pwd` and confirm it ends with `Wibecode-agent-a`, NOT `Wibecode`. If wrong, STOP and tell the user.
+
+## Context
+
+The quests table (`database/schema.sql` lines 97-112) has `title VARCHAR(255)` and `description TEXT` — English only, NO translation columns. Seed data (`database/seed_data.sql`) has ~32 quests across 4 modes (fitness, hydration, medication, habits), all in English. The API (`bot/src/api/routes/quests.ts`) has two GET endpoints: `/users/:userId/active` and `/users/:userId/completed` — both return `q.title AS name` and `q.description` directly with no language handling.
+
+## What to do
+
+### 1. Add translation columns to `database/schema.sql`
+After the existing `description TEXT` line (line 101), add:
+```sql
+    title_ru TEXT,
+    description_ru TEXT,
+```
+Don't touch other columns. The new columns default to NULL.
+
+### 2. Add Russian translations to `database/seed_data.sql`
+AFTER the existing INSERT INTO quests blocks (don't modify them), add UPDATE statements for each quest:
+```sql
+-- Russian translations for fitness quests
+UPDATE quests SET title_ru = 'Утренняя растяжка 10 минут', description_ru = 'Начните день с лёгкой 10-минутной растяжки' WHERE title = '10-Minute Morning Stretch';
+UPDATE quests SET title_ru = 'Лёгкая 15-минутная прогулка', description_ru = 'Совершите лёгкую 15-минутную прогулку по окрестностям' WHERE title = 'Light 15-Min Walk';
+```
+Translate ALL quests (fitness, hydration, medication, habits — every quest in the seed data). Be accurate with the Russian — these are real fitness/health activities.
+
+### 3. Modify API endpoints in `bot/src/api/routes/quests.ts`
+Both GET endpoints need to:
+1. Accept optional `?lang=xx` query param: `const lang = (req.query.lang as string) || 'en';`
+2. Change SQL to use COALESCE for the title and description based on language:
+   - When `lang === 'ru'`: use `COALESCE(q.title_ru, q.title) AS name` and `COALESCE(q.description_ru, q.description) AS description`
+   - Otherwise: use `q.title AS name` and `q.description` (original behavior)
+3. Pass `lang` as a SQL parameter. Example approach — build the SELECT columns dynamically:
+```typescript
+const titleExpr = lang === 'ru' ? 'COALESCE(q.title_ru, q.title)' : 'q.title';
+const descExpr = lang === 'ru' ? 'COALESCE(q.description_ru, q.description)' : 'q.description';
+```
+Then use template literals in the SQL string (these are column expressions, not user input, so safe to interpolate).
+
+### 4. Build verify
+`cd bot && npx tsc --noEmit`
+
+OWNED: `database/schema.sql` (add columns to quests table ONLY), `database/seed_data.sql` (append UPDATE statements ONLY — don't modify existing INSERTs), `bot/src/api/routes/quests.ts`
+FORBIDDEN: mini-app/src/* (ALL mini-app files), notification bot, medication routes, test files, bot.ts, server.ts
+Write retrospective when done.
+```
+
+**Agent B** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-b`):
+```
+Read PARALLEL_AGENTS.md — you are Agent B of Run 92. Your task: Quest i18n frontend — pass user language to quest API endpoints.
+
+IMPORTANT: Before doing anything, verify your working directory: run `pwd` and confirm it ends with `Wibecode-agent-b`, NOT `Wibecode`. If wrong, STOP and tell the user.
+
+## Context
+
+The quest API (modified by Agent A in parallel) will accept `?lang=xx` and return translated quest titles/descriptions. The frontend currently does not pass any language parameter.
+
+Current flow:
+- `useQuestsQuery.ts` → `useActiveQuests(userId)` → `apiClient.getActiveQuests(userId)`
+- `client.ts` → `getActiveQuests()` calls `this.deduplicatedGet('/users/${userId}/quests/active')`
+- Quest type (`types/quest.ts`): `title: string, description: string` — no change needed (API returns correct language)
+- i18n configured with `useTranslation()` giving `i18n.language` as 'en', 'ru', or 'zh'
+
+## What to do
+
+### 1. Modify `mini-app/src/api/client.ts` — quest methods only
+Update `getActiveQuests()` and `getCompletedQuests()` to accept and pass a `lang` parameter:
+```typescript
+async getActiveQuests(userId: number, lang?: string, config?: { signal?: AbortSignal }): Promise<ApiResponse<Quest[]>> {
+    const params = lang ? { lang } : undefined;
+    const result = await this.deduplicatedGet<ApiResponse<Quest[]>>(`/users/${userId}/quests/active`, params, { ...withTimeout(TIMEOUT_FAST), ...config });
+    // ... existing defensive unwrap code stays ...
+```
+Do the same for `getCompletedQuests()`. Do NOT touch any other methods in client.ts.
+
+### 2. Modify `mini-app/src/hooks/useQuestsQuery.ts`
+Update the hooks to get the current language and pass it:
+```typescript
+import { useTranslation } from 'react-i18next';
+
+export function useActiveQuests(userId: number | undefined) {
+  const { i18n } = useTranslation();
+  const lang = i18n.language?.substring(0, 2) || 'en'; // 'en', 'ru', 'zh'
+
+  return useQuery({
+    queryKey: [...questKeys.active(userId!), lang], // include lang in key for refetch on change
+    queryFn: async () => {
+      const res = await apiClient.getActiveQuests(userId!, lang);
+      // ... existing code ...
+    },
+    enabled: !!userId,
+    staleTime: 2 * 60 * 1000,
+  });
+}
+```
+Do the same for `useCompletedQuests()`. Include `lang` in both query keys.
+
+### 3. Build verify
+`cd mini-app && npx tsc --noEmit`
+
+OWNED: `mini-app/src/hooks/useQuestsQuery.ts`, `mini-app/src/api/client.ts` (GRAY: only modify `getActiveQuests` and `getCompletedQuests` methods — do NOT touch medication, user, or any other methods)
+FORBIDDEN: bot/src/* (ALL bot files), database/*, i18n files, types/quest.ts, Medications.tsx, medication components, test files
+Write retrospective when done.
+```
+
+**Agent C** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-c`):
+```
+Read PARALLEL_AGENTS.md — you are Agent C of Run 92. Your task: Google Sheets OAuth flow in notification bot.
+
+IMPORTANT: Before doing anything, verify your working directory: run `pwd` and confirm it ends with `Wibecode-agent-c`, NOT `Wibecode`. If wrong, STOP and tell the user.
+
+## Context
+
+- `tools/sheets_analytics_export.py` — existing Python tool that exports analytics to Google Sheets. Uses `google-auth-oauthlib` and `google-api-python-client`. Reads `credentials.json` for client secrets, stores tokens in `token.json`.
+- `tools/notification_bot_handler.py` — Python Telegram bot with 10+ commands. Has `/sheets` command that calls the export tool via subprocess.
+- Current OAuth flow requires a browser-based consent screen — works on desktop but NOT from a remote server or Telegram bot.
+
+## What to do
+
+### 1. Read the existing `tools/sheets_analytics_export.py` and understand its OAuth flow
+Understand how it currently handles authentication (likely `InstalledAppFlow.from_client_secrets_file` → `flow.run_local_server()`).
+
+### 2. Create `tools/sheets_oauth_helper.py` — non-interactive OAuth helper
+A standalone helper that supports the Telegram bot flow:
+```python
+# Usage modes:
+# 1. Generate auth URL: python sheets_oauth_helper.py --generate-url
+# 2. Exchange code: python sheets_oauth_helper.py --exchange-code AUTH_CODE
+# 3. Check status: python sheets_oauth_helper.py --check-status
+```
+
+- `--generate-url`: Creates an OAuth consent URL using `credentials.json`. The redirect URI should be `urn:ietf:wg:oauth:2.0:oob` (manual copy-paste flow). Prints the URL to stdout.
+- `--exchange-code CODE`: Takes the authorization code, exchanges it for tokens via Google OAuth, saves `token.json`. Prints success/failure.
+- `--check-status`: Checks if `token.json` exists and is valid (not expired). Prints status.
+
+Use `google_auth_oauthlib.flow.InstalledAppFlow` with `redirect_uri='urn:ietf:wg:oauth:2.0:oob'` and `flow.authorization_url()` instead of `run_local_server()`.
+
+### 3. Modify `tools/sheets_analytics_export.py` to use existing tokens
+If `token.json` exists and is valid, skip the interactive flow. Only use the interactive flow as a fallback (it won't work on server, but keeps local dev working).
+
+### 4. Add commands to `tools/notification_bot_handler.py`
+
+Add `/sheets_login` command:
+- Calls `sheets_oauth_helper.py --generate-url`
+- Sends the URL to user with instructions: "Click this link, authorize access, then send me the code with /sheets_code YOUR_CODE"
+
+Add `/sheets_code <code>` command:
+- Calls `sheets_oauth_helper.py --exchange-code <code>`
+- Reports success/failure to user
+
+Add `/sheets_status` command:
+- Calls `sheets_oauth_helper.py --check-status`
+- Shows whether Google Sheets is connected
+
+### 5. Improve error handling in notification bot
+Wrap each command handler in try/except with user-friendly error messages. Currently if a command crashes, the user gets no response.
+
+### 6. No build verify needed (Python — no compilation)
+But do test the imports: `python -c "from tools.sheets_oauth_helper import *"` (optional).
+
+OWNED: `tools/sheets_oauth_helper.py` (new), `tools/notification_bot_handler.py` (add commands + error handling), `tools/sheets_analytics_export.py` (modify token handling)
+FORBIDDEN: bot/src/* (ALL TypeScript bot files), mini-app/src/* (ALL mini-app files), database/*, test files
+Write retrospective when done.
+```
+
+**Agent D** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-d`):
+```
+Read PARALLEL_AGENTS.md — you are Agent D of Run 92. Your task: Medication analytics API endpoint.
+
+IMPORTANT: Before doing anything, verify your working directory: run `pwd` and confirm it ends with `Wibecode-agent-d`, NOT `Wibecode`. If wrong, STOP and tell the user.
+
+## Context
+
+- `bot/src/api/routes/medication-logs.ts` — has POST /medication-logs (log status) and GET /:telegramId/history (logs by date with adherence rate)
+- Database schema:
+  - `medications` table: id, user_id, name, dosage, frequency, time_of_day (TIME[]), color, notes, is_active
+  - `medication_logs` table: id, medication_id, user_id, scheduled_date, scheduled_time, status ('taken'/'skipped'/'postponed'), logged_at
+  - Unique constraint on (medication_id, scheduled_date, scheduled_time)
+- The existing history endpoint returns grouped logs and a simple adherence rate
+
+## What to do
+
+### 1. Add GET /medication-logs/:telegramId/analytics to `medication-logs.ts`
+
+New endpoint returning comprehensive analytics:
+
+```typescript
+router.get('/:telegramId/analytics', authenticateTelegram, readLimiter, asyncHandler(async (req: Request, res: Response) => {
+  const telegramId = safeParseInt(req.params.telegramId, NaN);
+  // ... ownership check ...
+  const days = Math.min(90, Math.max(7, safeParseInt(req.query.days as string, 30)));
+```
+
+Response shape:
+```json
+{
+  "daily_adherence": [
+    { "date": "2026-02-24", "taken": 5, "total": 6, "rate": 83 },
+    { "date": "2026-02-23", "taken": 4, "total": 6, "rate": 67 }
+  ],
+  "per_medication": [
+    { "medication_id": 1, "name": "Vitamin D", "color": "#4A90D9", "taken": 25, "total": 30, "rate": 83 }
+  ],
+  "streaks": {
+    "current": 5,
+    "best": 14
+  },
+  "summary": {
+    "week_rate": 85,
+    "prev_week_rate": 78,
+    "month_rate": 80,
+    "total_taken": 156,
+    "total_scheduled": 180
+  }
+}
+```
+
+### 2. SQL queries for each section
+
+**daily_adherence** (last N days):
+```sql
+SELECT ml.scheduled_date AS date,
+       COUNT(*) FILTER (WHERE ml.status = 'taken')::int AS taken,
+       COUNT(*)::int AS total,
+       ROUND(COUNT(*) FILTER (WHERE ml.status = 'taken') * 100.0 / GREATEST(COUNT(*), 1))::int AS rate
+FROM medication_logs ml
+JOIN users u ON ml.user_id = u.id
+WHERE u.telegram_id = $1 AND ml.scheduled_date >= CURRENT_DATE - $2::int
+GROUP BY ml.scheduled_date
+ORDER BY ml.scheduled_date ASC
+```
+
+**per_medication** (all-time for active meds):
+```sql
+SELECT m.id AS medication_id, m.name, m.color,
+       COUNT(*) FILTER (WHERE ml.status = 'taken')::int AS taken,
+       COUNT(*)::int AS total,
+       ROUND(COUNT(*) FILTER (WHERE ml.status = 'taken') * 100.0 / GREATEST(COUNT(*), 1))::int AS rate
+FROM medications m
+JOIN users u ON m.user_id = u.id
+LEFT JOIN medication_logs ml ON ml.medication_id = m.id
+WHERE u.telegram_id = $1 AND m.is_active = true
+GROUP BY m.id, m.name, m.color
+ORDER BY rate DESC
+```
+
+**streaks** — calculate consecutive days of 100% adherence:
+Query all distinct dates with logs, check which dates have 100% taken rate, find the current consecutive run and the longest run. Use a window function or application-level logic.
+
+**summary** — this week vs last week:
+Use the daily_adherence data to compute week_rate (last 7 days) and prev_week_rate (days 8-14).
+
+### 3. Build verify
+`cd bot && npx tsc --noEmit`
+
+OWNED: `bot/src/api/routes/medication-logs.ts` (add analytics endpoint ONLY — don't modify existing POST or history endpoints)
+FORBIDDEN: mini-app/src/* (ALL mini-app files), database/schema.sql, notification bot, quests routes, server.ts, bot.ts, test files
+Write retrospective when done.
+```
+
+**Agent E** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-e`):
+```
+Read PARALLEL_AGENTS.md — you are Agent E of Run 92. Your task: Medication history page with calendar view.
+
+IMPORTANT: Before doing anything, verify your working directory: run `pwd` and confirm it ends with `Wibecode-agent-e`, NOT `Wibecode`. If wrong, STOP and tell the user.
+
+## Context
+
+- Existing hook: `useMedicationHistory(userId, days)` in `mini-app/src/hooks/useMedicationQuery.ts` returns logs grouped by date with adherence rate. Accepts `days` param (default 7, max 90).
+- API response: `{ history: { "2026-02-24": [{medication_name, dosage, color, status, scheduled_time, logged_at}] }, adherence: {taken, total, rate} }`
+- The component will be rendered within the Medications page as a tab (not a separate route). Agent G handles the tab integration.
+- Tailwind CSS + framer-motion available. Use the existing design language (rounded corners, gradients, telegram color tokens).
+
+## What to do
+
+### 1. Create `mini-app/src/components/medication/MedicationCalendar.tsx`
+A month-view calendar component:
+
+Props:
+```typescript
+interface MedicationCalendarProps {
+  dailyData: Record<string, { taken: number; total: number; rate: number }>;
+  selectedDate: string | null;
+  onDateSelect: (date: string) => void;
+  month: Date; // which month to display
+  onMonthChange: (date: Date) => void;
+}
+```
+
+Implementation:
+- 7-column grid (Mon-Sun headers)
+- Each day cell shows a colored dot/circle:
+  - Green (`bg-emerald-500`) = 100% adherence
+  - Yellow (`bg-amber-400`) = 1-99% adherence
+  - Red (`bg-red-400`) = 0% (all skipped/missed)
+  - Gray (`bg-telegram-hint/20`) = no data or future date
+- Month navigation: `<` and `>` buttons with month/year display
+- Selected date gets a ring highlight
+- Today gets a subtle underline or dot
+- Use `motion.div` for smooth transitions between months
+
+### 2. Create `mini-app/src/components/medication/MedicationDayDetail.tsx`
+Shows detail for a selected date:
+
+Props:
+```typescript
+interface MedicationDayDetailProps {
+  date: string;
+  logs: Array<{ medication_name: string; dosage: string; color: string; status: string; scheduled_time: string; logged_at: string | null }>;
+}
+```
+
+Implementation:
+- Date header (formatted nicely)
+- List of medications for that day, each showing:
+  - Color dot + medication name + dosage
+  - Scheduled time
+  - Status badge (Taken ✓ green / Skipped ✗ red / Pending ○ gray)
+  - Logged time if taken
+- Use `motion.div` for entry animation
+
+### 3. Create `mini-app/src/components/medication/MedicationHistory.tsx`
+Main wrapper that combines calendar + day detail:
+
+```typescript
+interface MedicationHistoryProps {
+  userId: number;
+}
+```
+
+Implementation:
+- Uses `useMedicationHistory(userId, 60)` to get 60 days of data
+- Manages `selectedDate` and `currentMonth` state
+- Processes history data into the `dailyData` format for the calendar
+- Shows `MedicationCalendar` at top
+- Shows `MedicationDayDetail` below when a date is selected
+- Loading state: show a skeleton with 6x7 grid of gray circles
+- Empty state: friendly message when no history exists
+- Export the component as named export
+
+### 4. Build verify
+`cd mini-app && npx tsc --noEmit`
+
+OWNED: `mini-app/src/components/medication/MedicationCalendar.tsx` (new), `mini-app/src/components/medication/MedicationDayDetail.tsx` (new), `mini-app/src/components/medication/MedicationHistory.tsx` (new)
+FORBIDDEN: bot/src/*, database/*, Medications.tsx, chart components (Agent F), i18n files, hooks/useMedicationQuery.ts, hooks/useMedicationData.ts, api/client.ts, test files
+Write retrospective when done.
+```
+
+**Agent F** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-f`):
+```
+Read PARALLEL_AGENTS.md — you are Agent F of Run 92. Your task: Adherence charts using recharts.
+
+IMPORTANT: Before doing anything, verify your working directory: run `pwd` and confirm it ends with `Wibecode-agent-f`, NOT `Wibecode`. If wrong, STOP and tell the user.
+
+## Context
+
+- recharts 3.7.0 already installed (`mini-app/package.json`)
+- Agent D (in parallel) is creating `GET /medication-logs/:telegramId/analytics` returning: `daily_adherence` (array of {date, taken, total, rate}), `per_medication` (array of {medication_id, name, color, taken, total, rate}), `streaks` ({current, best}), `summary` ({week_rate, prev_week_rate, month_rate, total_taken, total_scheduled})
+- The component will be rendered within the Medications page as a tab. Agent G handles tab integration.
+- Existing API client: `mini-app/src/api/client.ts` has a `deduplicatedGet` pattern. You'll add one method.
+- Tailwind CSS + framer-motion available. Use telegram color tokens.
+
+## What to do
+
+### 1. Add `getMedicationAnalytics` method to `mini-app/src/api/client.ts`
+Add ONE method after the existing `getMedicationHistory` method (~line 308):
+```typescript
+async getMedicationAnalytics(userId: number, days = 30, config?: { signal?: AbortSignal }): Promise<ApiResponse<any>> {
+    return this.deduplicatedGet(`/medication-logs/${userId}/analytics`, { days }, config);
+}
+```
+Do NOT modify any other methods.
+
+### 2. Create `mini-app/src/hooks/useMedicationAnalytics.ts`
+```typescript
+import { useQuery } from '@tanstack/react-query';
+import { apiClient } from '@/api/client';
+
+export interface DailyAdherence { date: string; taken: number; total: number; rate: number; }
+export interface PerMedicationStat { medication_id: number; name: string; color: string; taken: number; total: number; rate: number; }
+export interface MedicationAnalyticsData {
+  daily_adherence: DailyAdherence[];
+  per_medication: PerMedicationStat[];
+  streaks: { current: number; best: number };
+  summary: { week_rate: number; prev_week_rate: number; month_rate: number; total_taken: number; total_scheduled: number };
+}
+
+export function useMedicationAnalytics(userId: number | undefined, days = 30) {
+  return useQuery({
+    queryKey: ['medications', 'analytics', userId, days],
+    queryFn: async () => {
+      const res = await apiClient.getMedicationAnalytics(userId!, days);
+      if (!res.success || !res.data) throw new Error('Failed to load analytics');
+      return res.data as MedicationAnalyticsData;
+    },
+    enabled: !!userId,
+    staleTime: 5 * 60 * 1000,
+  });
+}
+```
+
+### 3. Create `mini-app/src/components/medication/WeeklyAdherenceChart.tsx`
+A bar chart showing last 7 days of adherence:
+- Use recharts `BarChart`, `Bar`, `XAxis`, `YAxis`, `Tooltip`, `ResponsiveContainer`
+- X-axis: day names (Mon, Tue, ...)
+- Y-axis: 0-100%
+- Bar colors: green for ≥80%, yellow for 50-79%, red for <50%
+- Container height: 200px
+- Props: `data: DailyAdherence[]` (last 7 entries)
+- Wrap in a card with title "Weekly Adherence"
+- Handle empty data with a friendly message
+
+### 4. Create `mini-app/src/components/medication/MonthlyTrendChart.tsx`
+A line chart showing last 30 days trend:
+- Use recharts `LineChart`, `Line`, `XAxis`, `YAxis`, `Tooltip`, `ResponsiveContainer`, `Area`
+- X-axis: dates (show every 5th label)
+- Y-axis: 0-100%
+- Line color: emerald-500 with area fill at 10% opacity
+- Container height: 200px
+- Props: `data: DailyAdherence[]` (full array)
+- Wrap in a card with title "Monthly Trend"
+- Reference line at 80% (good adherence threshold)
+
+### 5. Create `mini-app/src/components/medication/AdherenceStats.tsx`
+Summary stat cards:
+- Props: `streaks: {current, best}, summary: {week_rate, prev_week_rate, month_rate, total_taken, total_scheduled}`
+- 2x2 grid of stat cards:
+  - Current streak (🔥 icon, X days)
+  - Best streak (⭐ icon, X days)
+  - This week rate (with comparison arrow vs last week)
+  - Monthly rate (circular progress or number)
+- Cards use `bg-telegram-secondaryBg` with rounded corners
+- Comparison: green up arrow if improved, red down if declined
+
+### 6. Create `mini-app/src/components/medication/MedicationAnalytics.tsx`
+Main analytics wrapper that combines charts + stats:
+```typescript
+interface MedicationAnalyticsProps { userId: number; }
+```
+- Uses `useMedicationAnalytics(userId)` hook
+- Renders: AdherenceStats → WeeklyAdherenceChart → MonthlyTrendChart → per-medication list
+- Loading: skeleton with chart placeholder + stat card placeholders
+- Error: ErrorSection with retry
+- Empty: friendly message encouraging medication tracking
+
+### 7. Build verify
+`cd mini-app && npx tsc --noEmit`
+
+OWNED: `mini-app/src/hooks/useMedicationAnalytics.ts` (new), `mini-app/src/components/medication/WeeklyAdherenceChart.tsx` (new), `mini-app/src/components/medication/MonthlyTrendChart.tsx` (new), `mini-app/src/components/medication/AdherenceStats.tsx` (new), `mini-app/src/components/medication/MedicationAnalytics.tsx` (new), `mini-app/src/api/client.ts` (GRAY: add ONE method `getMedicationAnalytics` only)
+FORBIDDEN: bot/src/*, database/*, Medications.tsx, MedicationHistory.tsx, MedicationCalendar.tsx, i18n files, hooks/useMedicationQuery.ts, hooks/useMedicationData.ts, test files
+Write retrospective when done.
+```
+
+**Agent G** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-g`):
+```
+Read PARALLEL_AGENTS.md — you are Agent G of Run 92. Your task: Add tabs to Medications page + i18n strings.
+
+IMPORTANT: Before doing anything, verify your working directory: run `pwd` and confirm it ends with `Wibecode-agent-g`, NOT `Wibecode`. If wrong, STOP and tell the user.
+
+## Context
+
+- `mini-app/src/pages/Medications.tsx` — current layout: gradient header → today's schedule (DailyMedTracker) → my medications list → FAB + form modal. No tabs.
+- i18n files: `mini-app/src/i18n/en.ts`, `ru.ts`, `zh.ts` — medication keys at `medication: {...}`
+- Agents E and F (in parallel) are creating MedicationHistory and MedicationAnalytics components. You will add placeholder content for their tabs. Agent 0 will wire the real components at merge time.
+
+## What to do
+
+### 1. Add tab navigation to `mini-app/src/pages/Medications.tsx`
+Add a 3-tab navigation below the header:
+
+```typescript
+type MedicationTab = 'today' | 'history' | 'analytics';
+const [activeTab, setActiveTab] = useState<MedicationTab>('today');
+```
+
+Tab bar UI (after the gradient header, before content):
+```tsx
+<div className="flex gap-1 px-4 mt-3 mb-2">
+  {(['today', 'history', 'analytics'] as const).map(tab => (
+    <button
+      key={tab}
+      onClick={() => { haptic.impact('light'); setActiveTab(tab); }}
+      className={`flex-1 py-2 px-3 rounded-xl text-sm font-medium transition-colors ${
+        activeTab === tab
+          ? 'bg-emerald-600 text-white'
+          : 'bg-telegram-secondaryBg text-telegram-hint'
+      }`}
+    >
+      {t(`medication.${tab}Tab`)}
+    </button>
+  ))}
+</div>
+```
+
+### 2. Wrap existing content in "today" tab
+Move the existing "Today's Schedule" and "My Medications" sections into a conditional:
+```tsx
+{activeTab === 'today' && (
+  <>
+    {/* Today's Schedule */}
+    <div className="px-4 mt-4" role="region" aria-label="Today's schedule">
+      ... existing code ...
+    </div>
+    {/* My Medications */}
+    <div className="px-4 mt-6" role="region" aria-label="My medications">
+      ... existing code ...
+    </div>
+  </>
+)}
+```
+
+### 3. Add placeholder content for History and Analytics tabs
+```tsx
+{activeTab === 'history' && (
+  <div className="px-4 mt-4 text-center py-16">
+    <Calendar className="w-12 h-12 text-telegram-hint mx-auto mb-3" />
+    <p className="text-telegram-hint text-sm">{t('medication.historyComingSoon', 'History view loading...')}</p>
+  </div>
+)}
+
+{activeTab === 'analytics' && (
+  <div className="px-4 mt-4 text-center py-16">
+    <BarChart3 className="w-12 h-12 text-telegram-hint mx-auto mb-3" />
+    <p className="text-telegram-hint text-sm">{t('medication.analyticsComingSoon', 'Analytics loading...')}</p>
+  </div>
+)}
+```
+Import `BarChart3` from `lucide-react` (Calendar is already imported).
+
+### 4. Keep FAB and delete confirmation visible on all tabs
+The FAB (add medication button) and the delete confirmation toast should stay outside the tab content — they're always visible.
+
+### 5. Add i18n keys to all 3 language files
+
+**`mini-app/src/i18n/en.ts`** — add these keys inside the `medication: { ... }` section:
+```typescript
+todayTab: "Today",
+historyTab: "History",
+analyticsTab: "Analytics",
+adherenceRate: "Adherence Rate",
+weeklyChart: "Weekly",
+monthlyChart: "Monthly",
+currentStreak: "Current Streak",
+bestStreak: "Best Streak",
+daysUnit: "days",
+thisWeek: "This Week",
+lastWeek: "Last Week",
+perMedication: "Per Medication",
+totalTaken: "Total Taken",
+totalMissed: "Total Missed",
+improvement: "improvement",
+decline: "decline",
+noHistory: "No medication history yet",
+startTracking: "Start tracking to see your history",
+noAnalytics: "Not enough data for analytics",
+trackMore: "Track medications for a few days to see analytics",
+```
+
+**`mini-app/src/i18n/ru.ts`** — corresponding Russian:
+```typescript
+todayTab: "Сегодня",
+historyTab: "История",
+analyticsTab: "Аналитика",
+adherenceRate: "Показатель соблюдения",
+weeklyChart: "За неделю",
+monthlyChart: "За месяц",
+currentStreak: "Текущая серия",
+bestStreak: "Лучшая серия",
+daysUnit: "дней",
+thisWeek: "Эта неделя",
+lastWeek: "Прошлая неделя",
+perMedication: "По лекарствам",
+totalTaken: "Всего принято",
+totalMissed: "Всего пропущено",
+improvement: "улучшение",
+decline: "снижение",
+noHistory: "Истории приёма пока нет",
+startTracking: "Начните отслеживание, чтобы увидеть историю",
+noAnalytics: "Недостаточно данных для аналитики",
+trackMore: "Отслеживайте лекарства несколько дней для аналитики",
+```
+
+**`mini-app/src/i18n/zh.ts`** — corresponding Chinese:
+```typescript
+todayTab: "今天",
+historyTab: "历史",
+analyticsTab: "分析",
+adherenceRate: "依从率",
+weeklyChart: "每周",
+monthlyChart: "每月",
+currentStreak: "当前连续",
+bestStreak: "最佳连续",
+daysUnit: "天",
+thisWeek: "本周",
+lastWeek: "上周",
+perMedication: "按药物",
+totalTaken: "总计服用",
+totalMissed: "总计遗漏",
+improvement: "改善",
+decline: "下降",
+noHistory: "暂无服药历史",
+startTracking: "开始追踪以查看历史",
+noAnalytics: "数据不足，无法生成分析",
+trackMore: "追踪几天服药记录后即可查看分析",
+```
+
+### 6. Build verify
+`cd mini-app && npx tsc --noEmit`
+
+OWNED: `mini-app/src/pages/Medications.tsx`, `mini-app/src/i18n/en.ts` (GRAY: only add keys inside `medication: {...}` section), `mini-app/src/i18n/ru.ts` (GRAY: same), `mini-app/src/i18n/zh.ts` (GRAY: same)
+FORBIDDEN: bot/src/*, database/*, MedicationHistory.tsx, MedicationCalendar.tsx, chart components, hooks/, api/client.ts, quest-related files, test files
+Write retrospective when done.
+```
+
+### Agent A: Quest i18n Backend (DB + API)
+Add `title_ru`, `description_ru` columns to quests table, populate Russian translations in seed data, modify quest API endpoints to accept `?lang=xx` and return translated content using COALESCE fallback.
+
+### Agent B: Quest i18n Frontend
+Pass user's current language (from i18n) to quest API endpoints. Modify `getActiveQuests()` / `getCompletedQuests()` in client.ts and `useActiveQuests()` / `useCompletedQuests()` in useQuestsQuery.ts. Include language in query keys for automatic refetch.
+
+### Agent C: Google Sheets OAuth
+Create `sheets_oauth_helper.py` for non-interactive OAuth (generate URL → exchange code). Add `/sheets_login`, `/sheets_code`, `/sheets_status` commands to notification bot. Improve error handling across all notification bot handlers.
+
+### Agent D: Medication Analytics API
+New `GET /medication-logs/:telegramId/analytics` endpoint returning daily adherence (30 days), per-medication stats, current/best streaks, weekly comparison summary.
+
+### Agent E: Medication History Page
+Create MedicationCalendar (month grid with adherence coloring), MedicationDayDetail (per-date log list), and MedicationHistory (wrapper using existing `useMedicationHistory` hook). Components render within the Medications page tab.
+
+### Agent F: Adherence Charts
+Create WeeklyAdherenceChart (recharts BarChart, 7 days), MonthlyTrendChart (recharts LineChart, 30 days), AdherenceStats (streak + weekly comparison cards), and MedicationAnalytics (wrapper with new `useMedicationAnalytics` hook).
+
+### Agent G: Medications Tab Integration + i18n
+Add 3-tab navigation (Today | History | Analytics) to Medications.tsx. Placeholder content for History/Analytics tabs. Add ~20 new i18n keys to en.ts, ru.ts, zh.ts.
+
+### Run 92 File Ownership Matrix
+
+| File/Dir | A | B | C | D | E | F | G |
+|----------|---|---|---|---|---|---|---|
+| database/schema.sql | OWN | - | - | - | - | - | - |
+| database/seed_data.sql | OWN | - | - | - | - | - | - |
+| bot/src/api/routes/quests.ts | OWN | - | - | - | - | - | - |
+| useQuestsQuery.ts | - | OWN | - | - | - | - | - |
+| api/client.ts | - | GRAY | - | - | - | GRAY | - |
+| sheets_oauth_helper.py (new) | - | - | NEW | - | - | - | - |
+| notification_bot_handler.py | - | - | OWN | - | - | - | - |
+| sheets_analytics_export.py | - | - | OWN | - | - | - | - |
+| medication-logs.ts | - | - | - | OWN | - | - | - |
+| MedicationCalendar.tsx (new) | - | - | - | - | NEW | - | - |
+| MedicationDayDetail.tsx (new) | - | - | - | - | NEW | - | - |
+| MedicationHistory.tsx (new) | - | - | - | - | NEW | - | - |
+| useMedicationAnalytics.ts (new) | - | - | - | - | - | NEW | - |
+| WeeklyAdherenceChart.tsx (new) | - | - | - | - | - | NEW | - |
+| MonthlyTrendChart.tsx (new) | - | - | - | - | - | NEW | - |
+| AdherenceStats.tsx (new) | - | - | - | - | - | NEW | - |
+| MedicationAnalytics.tsx (new) | - | - | - | - | - | NEW | - |
+| Medications.tsx | - | - | - | - | - | - | OWN |
+| i18n/en.ts | - | - | - | - | - | - | GRAY |
+| i18n/ru.ts | - | - | - | - | - | - | GRAY |
+| i18n/zh.ts | - | - | - | - | - | - | GRAY |
+
+### Run 92 Merge Order
+1. Agent A (quest i18n backend — DB schema + API, no frontend)
+2. Agent D (medication analytics API — bot route, no frontend)
+3. Agent C (Google Sheets OAuth — Python tools only)
+4. Agent B (quest i18n frontend — depends on A's API changes at runtime)
+5. Agent E (medication history page — new standalone components)
+6. Agent F (adherence charts — new standalone components, GRAY touches client.ts)
+7. Agent G (medications tabs + i18n — integrates tab UI, Agent 0 wires real components)
+
+### Run 92 Retrospectives
+
+#### Agent A Retrospective
+*(To be filled by Agent A)*
+
+#### Agent B Retrospective
+*(To be filled by Agent B)*
+
+#### Agent C Retrospective
+*(To be filled by Agent C)*
+
+#### Agent D Retrospective
+*(To be filled by Agent D)*
+
+#### Agent E Retrospective
+*(To be filled by Agent E)*
+
+#### Agent F Retrospective
+*(To be filled by Agent F)*
+
+#### Agent G Retrospective
+*(To be filled by Agent G)*
+
+#### Agent 0 Retrospective
+*(To be filled by Agent 0)*
