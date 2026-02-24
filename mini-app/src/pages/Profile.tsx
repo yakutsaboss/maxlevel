@@ -1,11 +1,13 @@
-import { useCallback } from 'react';
+import { useCallback, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import { QrCode } from 'lucide-react';
 import { useTelegram } from '@/hooks/useTelegram';
 import { useProfileData } from '@/hooks/useProfileData';
 import { apiClient } from '@/api/client';
 import { usePullToRefresh, PullIndicator } from '@/hooks/usePullToRefresh';
 import { ProfileEditModal } from '@/components/ProfileEditModal';
+import { QRCodeModal } from '@/components/QRCodeModal';
 import { Toast } from '@/components/Toast';
 import { ProfileHeader } from '@/components/profile/ProfileHeader';
 import { ProfileModes } from '@/components/profile/ProfileModes';
@@ -28,6 +30,7 @@ export function Profile() {
     editModalOpen, setEditModalOpen,
     toast, setToast,
   } = useProfileData(user?.id);
+  const [showQR, setShowQR] = useState(false);
 
   const handleRefresh = useCallback(async () => { await loadProfileData(); }, [loadProfileData]);
   const { containerRef, pullDistance, refreshing, pullThreshold, touchHandlers } = usePullToRefresh(handleRefresh, haptic);
@@ -54,6 +57,17 @@ export function Profile() {
         onSettingsClick={() => navigate('/settings')}
         haptic={haptic}
       />
+
+      {/* QR Share Button */}
+      <div className="flex justify-center -mt-3 mb-2">
+        <button
+          onClick={() => { haptic.impact('light'); setShowQR(true); }}
+          className="flex items-center gap-1.5 px-4 py-2 rounded-full bg-telegram-secondaryBg border border-telegram-hint/10 text-telegram-link text-sm font-medium active:scale-95 transition-transform shadow-sm"
+        >
+          <QrCode className="w-4 h-4" aria-hidden="true" />
+          {t('qr.shareProfile')}
+        </button>
+      </div>
 
       <ProfileStreak currentStreak={stats.user.current_streak} longestStreak={stats.user.longest_streak} />
 
@@ -116,6 +130,15 @@ export function Profile() {
           message={toast.message}
           variant={toast.variant}
           onDismiss={() => setToast(null)}
+        />
+      )}
+
+      {showQR && user?.id && (
+        <QRCodeModal
+          type="profile"
+          id={user.id}
+          title={stats.user.first_name}
+          onClose={() => setShowQR(false)}
         />
       )}
     </div>

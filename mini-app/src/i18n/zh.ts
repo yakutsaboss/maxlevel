@@ -1182,4 +1182,13 @@ export default {
     xpNotEnough: "You have {{current}} / {{needed}} XP",
     or: "or",
   },
+  qr: {
+    shareProfile: "分享个人资料",
+    shareChallenge: "分享挑战",
+    scanTitle: "扫描二维码",
+    scanHint: "扫描个人资料或挑战的二维码",
+    copyLink: "复制链接",
+    copied: "已复制！",
+    invalidCode: "无法识别的二维码",
+  },
 };

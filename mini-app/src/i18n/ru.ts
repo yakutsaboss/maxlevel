@@ -1195,4 +1195,13 @@ export default {
     xpNotEnough: "У вас {{current}} / {{needed}} XP",
     or: "или",
   },
+  qr: {
+    shareProfile: "Поделиться профилем",
+    shareChallenge: "Поделиться челленджем",
+    scanTitle: "Сканировать QR",
+    scanHint: "Отсканируйте QR-код профиля или челленджа",
+    copyLink: "Копировать ссылку",
+    copied: "Скопировано!",
+    invalidCode: "Неизвестный QR-код",
+  },
 };
