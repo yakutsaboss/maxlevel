@@ -9,6 +9,7 @@ import type { MyContext } from '../bot.js';
 import { queryOne, transaction } from '../utils/db.js';
 import { logger } from '../utils/logger.js';
 import { TIER_PRICES, type Tier } from '../utils/paymentHelpers.js';
+import { DEFAULT_CELEBRATION_STICKERS } from '../utils/stickerConfig.js';
 
 const log = logger.child({ component: 'payment-handlers' });
 
@@ -95,6 +96,21 @@ async function notifyOwnerPayment(details: {
     }
   } catch (err) {
     log.warn('Error sending payment notification', { error: err });
+  }
+}
+
+/**
+ * Send a celebration sticker after a successful payment.
+ * Wrapped in try/catch so sticker failure never blocks payment flow.
+ */
+async function sendCelebrationSticker(ctx: MyContext): Promise<void> {
+  const fileId = DEFAULT_CELEBRATION_STICKERS.payment;
+  if (!fileId) return; // No default sticker configured yet
+
+  try {
+    await ctx.replyWithSticker(fileId);
+  } catch (err) {
+    log.warn('Failed to send celebration sticker', { error: err });
   }
 }
 
@@ -399,6 +415,9 @@ export async function handleSuccessfulPayment(ctx: MyContext) {
       { parse_mode: 'Markdown' },
     );
 
+    // Send celebration sticker (fire-and-forget)
+    sendCelebrationSticker(ctx).catch(() => {});
+
     // Notify owner (fire-and-forget)
     notifyOwnerPayment({
       userName,
@@ -456,6 +475,9 @@ export async function handleSuccessfulPayment(ctx: MyContext) {
       `Thank you for your support! Use /app to explore your new features.`,
       { parse_mode: 'Markdown' },
     );
+
+    // Send celebration sticker (fire-and-forget)
+    sendCelebrationSticker(ctx).catch(() => {});
 
     // Notify owner (fire-and-forget)
     notifyOwnerPayment({
