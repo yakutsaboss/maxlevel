@@ -1201,3 +1201,22 @@ Write retrospective when done.
 **Agent C recovery**: Wrote comprehensive TG API features doc covering all Bot API 9.4 features with MaxLevel implementation ideas.
 **Results**: 942/942 tests pass. Bot + mini-app build clean. Deployed to production.
 **Worktrees**: All 4 removed, branches deleted.
+
+---
+
+### Run 92 Retrospectives
+
+#### Agent D Retrospective
+**Status**: Complete — 1 file modified, 143 lines added, `tsc --noEmit` clean.
+**Task**: Added `GET /medication-logs/:telegramId/analytics?days=30` endpoint to `bot/src/api/routes/medication-logs.ts`.
+**What it returns**:
+- `daily_adherence`: Per-day taken/total/rate for last N days (SQL `FILTER WHERE` aggregation)
+- `per_medication`: Per-active-medication stats with name/color (LEFT JOIN for meds with no logs)
+- `streaks`: Current consecutive 100%-adherence days + best all-time streak (application-level calculation with backwards walk from most recent date)
+- `summary`: week_rate vs prev_week_rate comparison, month_rate, total_taken/total_scheduled
+**Design decisions**:
+- Used 3 separate SQL queries (daily, per-med, streaks) rather than one complex CTE for readability and independent failure
+- Streak calculation in JS — walking dates backwards from most recent; only counts as "current" if last logged date is today or yesterday
+- Summary computed from dailyRows in-memory to avoid another DB round-trip
+- `days` param clamped to 7–90 range (default 30)
+**Commits**: `158b48e`
