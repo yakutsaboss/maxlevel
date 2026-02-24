@@ -312,8 +312,8 @@ Runs 78-85: MVP recovery + feature re-enablement. Run 86: Animation polish + med
 |-----|-------|--------|--------|
 | **78-91** | MVP Recovery → Medication → Bug Fixes + TG API Research | varies | ✅ |
 | **92** | Bug Fixes + Quest i18n + Google Sheets OAuth + Medication Analytics | 7 | ✅ |
-| **93** | Stars Shop + Celebrations Upgrade | 7 | 🔄 |
-| **94** | Cloud Storage + Home Screen + QR + Social Basics | 8 | ⬜ |
+| **93** | Stars Shop + Celebrations Upgrade | 7 | ✅ |
+| **94** | Cloud Storage + Home Screen + QR + Social Basics | 8 | 🔄 |
 | **95** | Premium & Monetization — Subscriptions, Paid Content, Gifts | 8 | ⬜ |
 | **96** | Advanced Features — Inline Mode, Referrals, Biometrics, Deep Links | 8 | ⬜ |
 | **97** | Final Polish — Bundle, Performance, Tests, Accessibility | 7 | ⬜ |
@@ -2452,6 +2452,567 @@ FORBIDDEN: celebrations/*, Settings.tsx, Shop.tsx, hooks/usePurchase.ts, hooks/u
 ### Run 93 Retrospectives
 
 #### Agent A Retrospective
+
+| # | Task | Status |
+|---|------|--------|
+| 1 | Add `ShopItemPayload` type + update `parsePayload()` | Done |
+| 2 | Pre-checkout validation for shop items (exists, active, price match, duplicate check for achievements) | Done |
+| 3 | Successful payment handler for shop items (record purchase, unlock achievement, notify owner) | Done |
+| 4 | `POST /payments/create-shop-invoice` endpoint (validate item, create pending payment, generate invoice link) | Done |
+| 5 | Comment on `shop.ts` noting new invoice flow for Stars | Done |
+| 6 | Build verify (`npx tsc --noEmit`) | Pass |
+
+**Problems**: None. Notes: `create-shop-invoice` accepts `{ telegram_id, shop_item_id }`, returns `{ payment_id, invoice_url }`. Old direct Stars purchase path kept but deprecated.
+
+#### Agent B Retrospective
+*(No retro written — agent completed all tasks, build passed.)*
+
+#### Agent C Retrospective
+*(No retro written — agent completed all tasks, build passed.)*
+
+#### Agent D Retrospective
+*(No retro written — agent completed all tasks, build passed.)*
+
+#### Agent E Retrospective
+*(No retro written — agent completed all tasks, build passed.)*
+
+#### Agent F Retrospective
+**Status**: Complete. Created `CelebrationSettings.tsx` (radio card selector), `StickerPackBrowser.tsx` (API-backed pack browser), wired into Settings.tsx, added i18n keys (en/ru/zh). Also created `useCelebrationStyle.ts` (identical to Agent E's version — deduplicated during merge).
+
+#### Agent G Retrospective
+**Status**: Complete. Added `celebration_style` + `celebration_sticker_pack` columns to users table, GET/PATCH celebration-prefs endpoints, client.ts methods. Used `buildDynamicUpdate` pattern.
+
+#### Agent 0 Retrospective
+
+**Merge results** (order: A → C → G → B → D → E → F):
+- All 7 branches merged cleanly. Only conflict: `PARALLEL_AGENTS.md` on Agent B (resolved with `--ours`).
+- `payments.ts` touched by both A (OWN) and C (GRAY) — auto-merged without conflict.
+- `useCelebrationStyle.ts` created by both E and F — no conflict since F just imported E's version.
+
+**Integration fixes**:
+1. **lottie-react not in main repo**: Agent D installed in worktree, but main `node_modules` didn't have it. `npm install` in mini-app fixed it.
+2. **lottie-web canvas error in tests** (6 files): `TypeError: Cannot set properties of null (setting 'fillStyle')` — lottie-web requires `HTMLCanvasElement.getContext()` which jsdom doesn't support. Fixed with global mock in `test/setup.ts`: `vi.mock('lottie-react', () => ({ default: () => null, __esModule: true }))`.
+3. **usePurchase.test.ts** (3 failures): Tests expected old Stars flow (`purchaseItem()` directly). Rewrote: added `createShopInvoice` mock, `@twa-dev/sdk` mock with `openInvoice`, `telegramId` param, Stars tests now mock invoice flow. XP tests kept using `purchaseItem`.
+4. **DB migration**: Ran `ALTER TABLE users ADD COLUMN IF NOT EXISTS celebration_style/celebration_sticker_pack` on production.
+
+**Final results**: Bot 1100/1100, Mini-app 941/941. Deployed as v432c4b0.
+
+**Lesson**: When an agent installs a new npm package in their worktree, Agent 0 must `npm install` in main after merge (the lock file merges but `node_modules` doesn't).
+
+---
+
+## RUN 94: Cloud Storage + Home Screen + QR + Social Basics (8 Agents + Agent 0)
+
+### Focus: TG CloudStorage cross-device sync, home screen shortcut, QR code sharing, story sharing, custom emoji, challenge improvements, notification preferences, deep linking
+
+### Copy-Paste Prompts
+
+**Agent 0** (this window):
+```
+Read PARALLEL_AGENTS.md — you are Agent 0 for Run 94.
+```
+
+**Agent A**: `Read PARALLEL_AGENTS.md — you are Agent A of Run 94.`
+**Agent B**: `Read PARALLEL_AGENTS.md — you are Agent B of Run 94.`
+**Agent C**: `Read PARALLEL_AGENTS.md — you are Agent C of Run 94.`
+**Agent D**: `Read PARALLEL_AGENTS.md — you are Agent D of Run 94.`
+**Agent E**: `Read PARALLEL_AGENTS.md — you are Agent E of Run 94.`
+**Agent F**: `Read PARALLEL_AGENTS.md — you are Agent F of Run 94.`
+**Agent G**: `Read PARALLEL_AGENTS.md — you are Agent G of Run 94.`
+**Agent H**: `Read PARALLEL_AGENTS.md — you are Agent H of Run 94.`
+
+### Agent A: Cloud Storage — TG CloudStorage API
+
+**Worktree**: `c:\Users\Asus\Desktop\Wibecode-agent-a` | **Branch**: `feature/r94-cloud-storage`
+
+**Context**: Preferences are stored in multiple places:
+- `localStorage`: `celebration-style` (in `useCelebrationStyle.ts`), `celebration_last_level`/`celebration_last_xp` (in `useCelebration.ts`), `haptic_enabled` (in `useTelegram.ts`), `celebration-sticker-pack`
+- Server DB: `notification_enabled`, `reminder_time`, `timezone`, `dnd_*`, `celebration_style`, `celebration_sticker_pack` via `useSettingsData.ts`
+- TG `CloudStorage` API (Bot API 6.9+): 1024 keys × 4096 chars, server-side, cross-device. Available via `@twa-dev/sdk` v7.0.0 (already installed).
+
+The goal: create a `useCloudStorage` hook that mirrors key user preferences to TG CloudStorage so they persist cross-device. The server DB remains the source of truth for notification/DND settings; CloudStorage is for UI preferences that are currently localStorage-only.
+
+**Tasks**:
+
+1. **Create `mini-app/src/hooks/useCloudStorage.ts`** — wrapper around `WebApp.CloudStorage`:
+```typescript
+import WebApp from '@twa-dev/sdk';
+
+const CS_AVAILABLE = typeof WebApp?.CloudStorage?.setItem === 'function';
+
+export function useCloudStorage() {
+  const setItem = async (key: string, value: string): Promise<void> => {
+    if (!CS_AVAILABLE) return;
+    return new Promise((resolve, reject) => {
+      WebApp.CloudStorage.setItem(key, value, (err) => err ? reject(err) : resolve());
+    });
+  };
+
+  const getItem = async (key: string): Promise<string | null> => {
+    if (!CS_AVAILABLE) return localStorage.getItem(key);
+    return new Promise((resolve, reject) => {
+      WebApp.CloudStorage.getItem(key, (err, val) => err ? reject(err) : resolve(val ?? null));
+    });
+  };
+
+  const getItems = async (keys: string[]): Promise<Record<string, string>> => {
+    if (!CS_AVAILABLE) {
+      const result: Record<string, string> = {};
+      keys.forEach(k => { const v = localStorage.getItem(k); if (v) result[k] = v; });
+      return result;
+    }
+    return new Promise((resolve, reject) => {
+      WebApp.CloudStorage.getItems(keys, (err, vals) => err ? reject(err) : resolve(vals ?? {}));
+    });
+  };
+
+  const removeItem = async (key: string): Promise<void> => {
+    if (!CS_AVAILABLE) { localStorage.removeItem(key); return; }
+    return new Promise((resolve, reject) => {
+      WebApp.CloudStorage.removeItem(key, (err) => err ? reject(err) : resolve());
+    });
+  };
+
+  return { setItem, getItem, getItems, removeItem, isAvailable: CS_AVAILABLE };
+}
+```
+
+2. **Modify `mini-app/src/hooks/useCelebrationStyle.ts`** — sync to CloudStorage:
+   - On `setStyle()`: also call `cloudStorage.setItem('celebration-style', newStyle)`
+   - On hook init: try `cloudStorage.getItem('celebration-style')` first, fallback to localStorage
+   - Keep localStorage as primary (instant), CloudStorage as backup (async, cross-device)
+
+3. **Create `mini-app/src/hooks/useCloudSync.ts`** — one-time sync on app load:
+```typescript
+// Called once in App.tsx on mount
+// Reads all CloudStorage keys, merges with localStorage
+// If CloudStorage has values that localStorage doesn't → restore them
+// If localStorage has values that CloudStorage doesn't → push them
+// Keys to sync: 'celebration-style', 'celebration-sticker-pack', 'haptic_enabled'
+```
+
+4. **Build verify**: `cd mini-app && npx tsc --noEmit`
+
+OWNED: `mini-app/src/hooks/useCloudStorage.ts` (new), `mini-app/src/hooks/useCloudSync.ts` (new), `mini-app/src/hooks/useCelebrationStyle.ts`
+GRAY: `mini-app/src/App.tsx` (only add `useCloudSync()` call in main App component — 1-2 lines)
+FORBIDDEN: bot/src/*, database/*, Settings.tsx, useSettingsData.ts, notification components, test files
+
+### Agent B: Home Screen Shortcut — addToHomeScreen()
+
+**Worktree**: `c:\Users\Asus\Desktop\Wibecode-agent-b` | **Branch**: `feature/r94-home-screen`
+
+**Context**: TG `addToHomeScreen()` (Bot API 8.0+) prompts user to add the mini-app as a home screen shortcut. No home screen code exists yet. Settings page has sections: NotificationSettings, DND, Haptic, Theme, CelebrationSettings, StickerPackBrowser, Accountability, About, DangerZone.
+
+**Tasks**:
+
+1. **Create `mini-app/src/components/HomeScreenPrompt.tsx`**:
+   - Beautiful card showing benefits: "Quick access from your home screen"
+   - "Add to Home Screen" button — calls `WebApp.addToHomeScreen()`
+   - "Not now" dismiss — sets `localStorage.setItem('home_screen_dismissed', Date.now())`
+   - Show only if: not dismissed within 30 days AND `WebApp.isVersionAtLeast('8.0')`
+   - Wrap in try/catch — if `addToHomeScreen` fails, show fallback message
+   - Use i18n keys
+
+2. **Integrate into Dashboard** — `mini-app/src/pages/Dashboard.tsx`:
+   - Import `HomeScreenPrompt`
+   - Show at top of Dashboard (below header, above quest section)
+   - Auto-show after 3 seconds delay (useEffect + setTimeout)
+   - Only show once per session (use `useRef` flag)
+
+3. **Add settings card** — create `mini-app/src/components/settings/HomeScreenSettings.tsx`:
+   - Section in Settings: "Home Screen Shortcut"
+   - Shows button "Add to Home Screen" → calls `WebApp.addToHomeScreen()`
+   - If already dismissed, show "Reset prompt" to clear dismissal
+   - Icon: smartphone/home icon from lucide-react
+
+4. **Add i18n keys** — add to all 3 locale files (en/ru/zh) inside `settings: { ... }`:
+   - `homeScreen`, `homeScreenDesc`, `homeScreenAdd`, `homeScreenDismiss`, `homeScreenReset`
+
+5. **Build verify**: `cd mini-app && npx tsc --noEmit`
+
+OWNED: `mini-app/src/components/HomeScreenPrompt.tsx` (new), `mini-app/src/components/settings/HomeScreenSettings.tsx` (new)
+GRAY: `mini-app/src/pages/Dashboard.tsx` (only add HomeScreenPrompt component — minimal), `mini-app/src/pages/Settings.tsx` (only add HomeScreenSettings import + render between CelebrationSettings and AccountabilitySettings), `mini-app/src/i18n/en.ts`, `mini-app/src/i18n/ru.ts`, `mini-app/src/i18n/zh.ts` (only add keys inside `settings: {...}`)
+FORBIDDEN: bot/src/*, database/*, hooks/*, api/*, celebration components, notification components, test files
+
+### Agent C: QR Code Sharing — Profile/Challenge QR + Scanner
+
+**Worktree**: `c:\Users\Asus\Desktop\Wibecode-agent-c` | **Branch**: `feature/r94-qr-code`
+
+**Context**: No QR library installed. TG `showScanQrPopup()` available since Bot API 6.4. Mini-app URL: `https://yakutsa.ru/levelapp`. Deep links use `?startapp=` format (Agent H handles parsing). Profile page exists at `mini-app/src/pages/Profile.tsx`. Social page at `mini-app/src/pages/Social.tsx`.
+
+**Tasks**:
+
+1. **Install QR library**: `cd mini-app && npm install qrcode.react`
+
+2. **Create `mini-app/src/components/QRCodeModal.tsx`**:
+   - Props: `{ type: 'profile' | 'challenge'; id: number; title: string; onClose: () => void }`
+   - Renders QR code using `qrcode.react` with value = `https://t.me/yakutsabot/levelapp?startapp=${type}_${id}`
+   - Shows title: "Share Profile" or "Share Challenge"
+   - Buttons: "Copy Link" (clipboard), "Close"
+   - Styled as modal overlay with backdrop, framer-motion entry
+   - QR code size: 200×200, with white background padding
+
+3. **Create `mini-app/src/components/QRScannerButton.tsx`**:
+   - Button that calls `WebApp.showScanQrPopup({ text: 'Scan a profile or challenge QR code' })`
+   - On result: parse decoded text → navigate to appropriate page
+   - Parses: `profile_123`, `challenge_456`, or full URL containing `startapp=`
+   - Show error toast if QR doesn't match expected format
+   - Only render if `WebApp.isVersionAtLeast('6.4')`
+
+4. **Add QR share button to Profile page** — `mini-app/src/pages/Profile.tsx`:
+   - Add "Share QR" button (QR icon from lucide-react) next to existing profile header
+   - On click: open `QRCodeModal` with type='profile' and user's ID
+   - Minimal change — just button + modal state
+
+5. **Add QR share button to Social page** — `mini-app/src/pages/Social.tsx`:
+   - Add "Scan QR" button at top of Social page
+   - Opens scanner to add friends / join challenges via QR
+
+6. **Add i18n keys** — `qr.shareProfile`, `qr.shareChallenge`, `qr.scanTitle`, `qr.scanHint`, `qr.copyLink`, `qr.copied`, `qr.invalidCode`
+
+7. **Build verify**: `cd mini-app && npx tsc --noEmit`
+
+OWNED: `mini-app/src/components/QRCodeModal.tsx` (new), `mini-app/src/components/QRScannerButton.tsx` (new)
+GRAY: `mini-app/src/pages/Profile.tsx` (only add QR share button + modal), `mini-app/src/pages/Social.tsx` (only add Scan QR button), `mini-app/src/i18n/en.ts`, `mini-app/src/i18n/ru.ts`, `mini-app/src/i18n/zh.ts` (only add `qr:{}` section)
+FORBIDDEN: bot/src/*, database/*, hooks/*, Settings.tsx, Dashboard.tsx, celebration components, notification components, test files
+
+### Agent D: Share to Story — shareToStory() Integration
+
+**Worktree**: `c:\Users\Asus\Desktop\Wibecode-agent-d` | **Branch**: `feature/r94-share-to-story`
+
+**Context**: TG `shareToStory(mediaUrl, { text, widget_link })` available since Bot API 7.8. Celebration components exist:
+- `QuestCompletionCelebration.tsx` — shows on quest complete (has confetti + emoji/lottie)
+- `LevelUpModal.tsx` — shows on level up (has glow ring + emoji/lottie)
+- `AchievementToast.tsx` — shows on achievement unlock (has confetti + emoji/lottie)
+Mini-app URL: `https://t.me/yakutsabot/levelapp`
+
+**Tasks**:
+
+1. **Create `mini-app/src/utils/storyShare.ts`**:
+```typescript
+import WebApp from '@twa-dev/sdk';
+import { logger } from '@/utils/logger';
+
+const STORY_AVAILABLE = typeof WebApp?.shareToStory === 'function';
+const APP_URL = 'https://t.me/yakutsabot/levelapp';
+
+export async function shareQuestToStory(questName: string): Promise<boolean> {
+  if (!STORY_AVAILABLE) return false;
+  try {
+    WebApp.shareToStory(APP_URL, {
+      text: `I completed the quest "${questName}"! 🎯`,
+      widget_link: { url: APP_URL, name: 'Play MaxLevel' },
+    });
+    return true;
+  } catch (e) { logger.error('shareToStory failed', { error: e }); return false; }
+}
+
+export async function shareLevelUpToStory(level: number): Promise<boolean> { ... }
+export async function shareAchievementToStory(name: string, rarity: string): Promise<boolean> { ... }
+
+export function isShareToStoryAvailable(): boolean { return STORY_AVAILABLE; }
+```
+
+2. **Add "Share" button to `QuestCompletionCelebration.tsx`**:
+   - Add small "Share to Story" button below existing content (only if `isShareToStoryAvailable()`)
+   - On click: call `shareQuestToStory(questName)`
+   - Show brief success toast
+   - Keep existing celebration flow unchanged
+
+3. **Add "Share" button to `LevelUpModal.tsx`**:
+   - Add "Share to Story" below level number (only if available)
+   - Call `shareLevelUpToStory(newLevel)`
+
+4. **Add "Share" button to `AchievementToast.tsx`**:
+   - Add small share icon button next to achievement name (only if available)
+   - Call `shareAchievementToStory(name, rarity)`
+
+5. **Add i18n keys** — `share.toStory`, `share.success`, `share.unavailable`
+
+6. **Build verify**: `cd mini-app && npx tsc --noEmit`
+
+OWNED: `mini-app/src/utils/storyShare.ts` (new)
+GRAY: `mini-app/src/components/celebrations/QuestCompletionCelebration.tsx` (only add share button), `mini-app/src/components/celebrations/LevelUpModal.tsx` (only add share button), `mini-app/src/components/AchievementToast.tsx` (only add share button), `mini-app/src/i18n/en.ts`, `mini-app/src/i18n/ru.ts`, `mini-app/src/i18n/zh.ts` (only add `share:{}` section)
+FORBIDDEN: bot/src/*, database/*, hooks/usePurchase.ts, hooks/useCelebrationStyle.ts, Settings.tsx, Profile.tsx, Social.tsx, QRCodeModal.tsx, Dashboard.tsx, test files
+
+### Agent E: Custom Emoji in Bot Messages
+
+**Worktree**: `c:\Users\Asus\Desktop\Wibecode-agent-e` | **Branch**: `feature/r94-custom-emoji`
+
+**Context**: Grammy v1.19.2. Notification templates in `bot/src/utils/notificationTemplates.ts`. Existing notifications use plain text + regular emoji. Custom emoji requires bot owner to have TG Premium. HTML format: `<tg-emoji emoji-id="ID">fallback</tg-emoji>`. Existing jobs use templates: `questReminders`, `dailySummary`, `achievementNotifier`, `streakMilestone`, `medicationReminder`, `punishmentCheck`.
+
+**Tasks**:
+
+1. **Create `bot/src/utils/customEmoji.ts`** — emoji mapping + feature check:
+```typescript
+let botHasPremium = false;
+
+export async function checkBotPremium(bot: Bot<MyContext>): Promise<void> {
+  try {
+    const me = await bot.api.getMe();
+    botHasPremium = me.is_premium ?? false;
+  } catch { botHasPremium = false; }
+}
+
+// Custom emoji IDs (Telegram animated emoji set)
+const EMOJI_IDS: Record<string, string> = {
+  fire: '5368324170671202286',
+  star: '5368324170671202286',
+  trophy: '5368324170671202286',
+  rocket: '5368324170671202286',
+  check: '5368324170671202286',
+  warning: '5368324170671202286',
+};
+// NOTE: Replace IDs with actual custom emoji IDs from Telegram
+// Agent should test with bot.api.getCustomEmojiStickers() to find valid IDs
+
+export function customEmoji(key: string, fallback: string): string {
+  if (!botHasPremium || !EMOJI_IDS[key]) return fallback;
+  return `<tg-emoji emoji-id="${EMOJI_IDS[key]}">${fallback}</tg-emoji>`;
+}
+```
+
+2. **Update `bot/src/utils/notificationTemplates.ts`**:
+   - Import `customEmoji` from `./customEmoji.js`
+   - Replace hardcoded emoji in templates:
+     - `🔥` → `customEmoji('fire', '🔥')`
+     - `⭐` → `customEmoji('star', '⭐')`
+     - `🏆` → `customEmoji('trophy', '🏆')`
+   - Ensure all `sendMessage` calls use `parse_mode: 'HTML'` (most already do)
+
+3. **Call `checkBotPremium(bot)` on startup** — in `bot/src/bot.ts`:
+   - Import `checkBotPremium` from `./utils/customEmoji.js`
+   - Call after bot init, before handlers registration
+   - Log result: "Bot Premium status: true/false"
+
+4. **Build verify**: `cd bot && npx tsc --noEmit`
+
+OWNED: `bot/src/utils/customEmoji.ts` (new), `bot/src/utils/notificationTemplates.ts`
+GRAY: `bot/src/bot.ts` (only add `checkBotPremium(bot)` call — 2-3 lines)
+FORBIDDEN: mini-app/src/*, database/*, payment handlers, shop routes, sticker routes, job definitions (don't modify job files — templates are imported), test files
+
+### Agent F: Challenge Improvements — Notifications + Leaderboard
+
+**Worktree**: `c:\Users\Asus\Desktop\Wibecode-agent-f` | **Branch**: `feature/r94-challenge-improvements`
+
+**Context**: Challenge tables exist (`challenges`, `challenge_participants`). API routes in `bot/src/api/routes/social.ts` with full CRUD (create, discover, join, leave, progress, details). Mini-app components: `ChallengeForm.tsx`, `ChallengesList.tsx`, `ChallengeDetailModal.tsx`. Jobs registered in `bot/src/jobs/registerJobs.ts` — pattern: export `JOB_NAME`, `CRON_SCHEDULE`, `handler`, `setBotInstance`.
+
+**Tasks**:
+
+1. **Create `bot/src/jobs/definitions/challengeNotifier.ts`**:
+   - `JOB_NAME = 'challenge-notifier'`, `CRON_SCHEDULE = '0 */6 * * *'` (every 6 hours)
+   - Checks for: challenges ending within 24h, new participants joined since last check
+   - Sends TG notification to challenge creator + participants
+   - Template: "🏆 Challenge Update: [name] — [X] participants, ends [date]"
+   - Respects DND + `notification_enabled`
+   - Export `setBotInstance(bot)` matching existing pattern
+
+2. **Register job in `bot/src/jobs/registerJobs.ts`**:
+   - Import `challengeNotifier`
+   - Add to `jobs` array + call `setBotInstance`
+
+3. **Add leaderboard API** — `bot/src/api/routes/social.ts`:
+   - `GET /api/social/challenges/:challengeId/leaderboard`
+   - Returns top 10 participants ordered by `current_progress DESC`
+   - Includes: `user_id`, `first_name`, `avatar`, `current_progress`, `target_value`, percentage
+   - Highlight requesting user's rank
+
+4. **Create `mini-app/src/components/social/ChallengeLeaderboard.tsx`**:
+   - Fetches from leaderboard endpoint
+   - Shows ranked list with avatar, name, progress bar, percentage
+   - Requesting user highlighted with accent background
+   - Loading skeleton while fetching
+
+5. **Integrate into `ChallengeDetailModal.tsx`**:
+   - Add tabs: "Details" | "Leaderboard"
+   - Default tab: "Details" (existing content)
+   - "Leaderboard" tab: render `ChallengeLeaderboard`
+
+6. **Enhance `ChallengeForm.tsx`**:
+   - Add validation: title min 3 chars, end_date > today
+   - Add success toast + clear form after submission
+
+7. **Build verify**: `cd bot && npx tsc --noEmit` and `cd mini-app && npx tsc --noEmit`
+
+OWNED: `bot/src/jobs/definitions/challengeNotifier.ts` (new), `mini-app/src/components/social/ChallengeLeaderboard.tsx` (new)
+GRAY: `bot/src/jobs/registerJobs.ts` (only add challengeNotifier import + registration), `bot/src/api/routes/social.ts` (only add leaderboard GET route), `mini-app/src/components/social/ChallengeDetailModal.tsx` (only add tabs + leaderboard), `mini-app/src/components/social/ChallengeForm.tsx` (only add validation)
+FORBIDDEN: database/schema.sql, payments, stickers, Settings.tsx, Dashboard.tsx, celebrations, i18n files, test files
+
+### Agent G: Notification Preferences — Per-Category + Notification Center
+
+**Worktree**: `c:\Users\Asus\Desktop\Wibecode-agent-g` | **Branch**: `feature/r94-notification-prefs`
+
+**Context**: Existing prefs in DB: `notification_enabled`, `dnd_enabled`, `dnd_start`, `dnd_end`, `reminder_time`. UI: `NotificationSettings.tsx` has per-mode toggles (fitness, hydration, finance, learning, medication, habits) but modes saved as part of `useSettingsData` prefs object. `notification_log` table exists (id, user_id, type, title, body, sent_at, read_at). `NotificationHistory.tsx` page exists. `useNotificationHistory.ts` hook exists. Routes: `user-preferences.ts` handles GET/PATCH prefs.
+
+Current issue: notification_modes are in the frontend preferences state but NOT persisted to the database. They reset on reload. Need to persist them.
+
+**Tasks**:
+
+1. **Add `notification_modes` column to DB** — `database/schema.sql`:
+```sql
+ALTER TABLE users ADD COLUMN IF NOT EXISTS notification_modes JSONB DEFAULT '{}';
+```
+
+2. **Update preferences API** — `bot/src/api/routes/user-preferences.ts`:
+   - GET: include `notification_modes` in response
+   - PATCH: accept `notification_modes` (JSONB), validate keys are boolean values
+   - Use existing `buildDynamicUpdate` pattern
+
+3. **Add notification routes** — `bot/src/api/routes/notifications.ts` (new):
+   - `GET /api/notifications/:userId` — list notifications (paginated, newest first)
+   - `GET /api/notifications/:userId/unread-count` — count of unread notifications
+   - `PATCH /api/notifications/:notificationId/read` — mark as read (set read_at = NOW())
+   - `POST /api/notifications/:userId/read-all` — mark all as read
+   - Register in `bot/src/api/server.ts`
+
+4. **Add unread badge to Navigation** — `mini-app/src/components/Navigation.tsx`:
+   - Fetch unread count on mount (poll every 60s or refetch on page change)
+   - Show red badge circle with count on the notification bell icon / nav item
+   - Only show if count > 0, cap display at "99+"
+
+5. **Enhance `NotificationHistory.tsx`**:
+   - Add filter by type (tabs: All, Quests, Achievements, Challenges, System)
+   - Mark as read on tap (or "Mark all read" button)
+   - Pull-to-refresh
+
+6. **Build verify**: `cd bot && npx tsc --noEmit` and `cd mini-app && npx tsc --noEmit`
+
+OWNED: `bot/src/api/routes/notifications.ts` (new)
+GRAY: `database/schema.sql` (only add ALTER TABLE for notification_modes), `bot/src/api/routes/user-preferences.ts` (only add notification_modes to GET/PATCH), `bot/src/api/server.ts` (only register notifications route), `mini-app/src/components/Navigation.tsx` (only add unread badge), `mini-app/src/pages/NotificationHistory.tsx` (add filters + mark-read)
+FORBIDDEN: celebrations/*, Settings.tsx, Dashboard.tsx, hooks/useCelebrationStyle.ts, hooks/useCloudStorage.ts, i18n files, test files
+
+### Agent H: Deep Linking — ?startapp= Params + Navigation
+
+**Worktree**: `c:\Users\Asus\Desktop\Wibecode-agent-h` | **Branch**: `feature/r94-deep-linking`
+
+**Context**: Mini-app uses React Router. `window.Telegram?.WebApp?.initDataUnsafe?.start_param` contains the startapp parameter. No deep linking code exists yet. Bot type definition in `bot/src/types/telegram.ts` has `start_param?: string`. The mini-app URL pattern will be `https://t.me/yakutsabot/levelapp?startapp=TYPE_ID`. Agent C (QR) and Agent D (Story) will generate these URLs.
+
+**Tasks**:
+
+1. **Create `mini-app/src/hooks/useDeepLink.ts`**:
+```typescript
+import { useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
+import WebApp from '@twa-dev/sdk';
+import { logger } from '@/utils/logger';
+
+export function useDeepLink() {
+  const navigate = useNavigate();
+  const processed = useRef(false);
+
+  useEffect(() => {
+    if (processed.current) return;
+    processed.current = true;
+
+    const startParam = WebApp.initDataUnsafe?.start_param;
+    if (!startParam) return;
+
+    logger.info('Deep link received', { startParam });
+
+    // Parse format: TYPE_ID (e.g., profile_123, challenge_456, quest_789)
+    const match = startParam.match(/^(profile|challenge|quest|achievement|referral)_(\d+)$/);
+    if (!match) { logger.warn('Unknown deep link format', { startParam }); return; }
+
+    const [, type, id] = match;
+
+    switch (type) {
+      case 'profile':
+        navigate(`/profile?viewUser=${id}`);
+        break;
+      case 'challenge':
+        navigate(`/social?openChallenge=${id}`);
+        break;
+      case 'quest':
+        navigate(`/quests?highlight=${id}`);
+        break;
+      case 'achievement':
+        navigate(`/achievements?highlight=${id}`);
+        break;
+      case 'referral':
+        // Store referrer ID for onboarding flow
+        localStorage.setItem('referrer_id', id);
+        navigate('/');
+        break;
+    }
+  }, [navigate]);
+}
+```
+
+2. **Integrate into App.tsx** — `mini-app/src/App.tsx`:
+   - Import `useDeepLink` from `@/hooks/useDeepLink`
+   - Call `useDeepLink()` inside main App component (after Router is mounted)
+   - Must be inside `<Router>` for `useNavigate()` to work
+
+3. **Handle deep link query params in target pages**:
+   - `Social.tsx`: Read `openChallenge` from URL search params → auto-open ChallengeDetailModal
+   - `Quests.tsx`: Read `highlight` param → scroll to and highlight quest card
+   - Simple: use `useSearchParams()` hook + useEffect
+
+4. **Add deep link URLs to bot messages** — `bot/src/utils/notificationTemplates.ts`:
+   - Challenge invite: add InlineKeyboard button `keyboard.url('View Challenge', 'https://t.me/yakutsabot/levelapp?startapp=challenge_{id}')`
+   - Achievement notification: add InlineKeyboard button to view in app
+   - Only add to messages that already have InlineKeyboard support
+
+5. **Build verify**: `cd mini-app && npx tsc --noEmit` and `cd bot && npx tsc --noEmit`
+
+OWNED: `mini-app/src/hooks/useDeepLink.ts` (new)
+GRAY: `mini-app/src/App.tsx` (only add useDeepLink() call — 2 lines), `mini-app/src/pages/Social.tsx` (only add openChallenge param handling — 5-10 lines), `mini-app/src/pages/Quests.tsx` (only add highlight param handling — 5-10 lines), `bot/src/utils/notificationTemplates.ts` (only add deep link URLs to existing InlineKeyboard buttons)
+FORBIDDEN: database/*, payment handlers, shop routes, sticker routes, Settings.tsx, Dashboard.tsx, celebrations/*, hooks/useCloudStorage.ts, QRCodeModal.tsx, test files
+
+### Run 94 File Ownership Matrix
+
+| File/Dir | A | B | C | D | E | F | G | H |
+|----------|---|---|---|---|---|---|---|---|
+| hooks/useCloudStorage.ts (new) | NEW | - | - | - | - | - | - | - |
+| hooks/useCloudSync.ts (new) | NEW | - | - | - | - | - | - | - |
+| hooks/useCelebrationStyle.ts | OWN | - | - | - | - | - | - | - |
+| hooks/useDeepLink.ts (new) | - | - | - | - | - | - | - | NEW |
+| App.tsx | GRAY | - | - | - | - | - | - | GRAY |
+| HomeScreenPrompt.tsx (new) | - | NEW | - | - | - | - | - | - |
+| settings/HomeScreenSettings.tsx (new) | - | NEW | - | - | - | - | - | - |
+| Dashboard.tsx | - | GRAY | - | - | - | - | - | - |
+| Settings.tsx | - | GRAY | - | - | - | - | - | - |
+| QRCodeModal.tsx (new) | - | - | NEW | - | - | - | - | - |
+| QRScannerButton.tsx (new) | - | - | NEW | - | - | - | - | - |
+| Profile.tsx | - | - | GRAY | - | - | - | - | - |
+| Social.tsx | - | - | GRAY | - | - | - | - | H:GRAY |
+| utils/storyShare.ts (new) | - | - | - | NEW | - | - | - | - |
+| QuestCompletionCelebration.tsx | - | - | - | GRAY | - | - | - | - |
+| LevelUpModal.tsx | - | - | - | GRAY | - | - | - | - |
+| AchievementToast.tsx | - | - | - | GRAY | - | - | - | - |
+| bot/utils/customEmoji.ts (new) | - | - | - | - | NEW | - | - | - |
+| bot/utils/notificationTemplates.ts | - | - | - | - | OWN | - | - | GRAY |
+| bot/bot.ts | - | - | - | - | GRAY | - | - | - |
+| bot/jobs/challengeNotifier.ts (new) | - | - | - | - | - | NEW | - | - |
+| bot/jobs/registerJobs.ts | - | - | - | - | - | GRAY | - | - |
+| bot/api/routes/social.ts | - | - | - | - | - | GRAY | - | - |
+| ChallengeLeaderboard.tsx (new) | - | - | - | - | - | NEW | - | - |
+| ChallengeDetailModal.tsx | - | - | - | - | - | GRAY | - | - |
+| ChallengeForm.tsx | - | - | - | - | - | GRAY | - | - |
+| bot/api/routes/notifications.ts (new) | - | - | - | - | - | - | NEW | - |
+| bot/api/routes/user-preferences.ts | - | - | - | - | - | - | GRAY | - |
+| bot/api/server.ts | - | - | - | - | - | - | GRAY | - |
+| Navigation.tsx | - | - | - | - | - | - | GRAY | - |
+| NotificationHistory.tsx | - | - | - | - | - | - | GRAY | - |
+| database/schema.sql | - | - | - | - | - | - | GRAY | - |
+| Quests.tsx | - | - | - | - | - | - | - | GRAY |
+| i18n/en.ts | - | GRAY | GRAY | GRAY | - | - | - | - |
+| i18n/ru.ts | - | GRAY | GRAY | GRAY | - | - | - | - |
+| i18n/zh.ts | - | GRAY | GRAY | GRAY | - | - | - | - |
+
+### Run 94 Merge Order
+1. Agent A (Cloud Storage — independent hooks, touches App.tsx minimally)
+2. Agent E (Custom Emoji — bot-only, modifies notificationTemplates.ts)
+3. Agent G (Notification Prefs — DB + new routes + Navigation badge)
+4. Agent F (Challenge improvements — new job + leaderboard, depends on G for notification patterns)
+5. Agent B (Home Screen — Dashboard + Settings UI changes)
+6. Agent C (QR Code — installs qrcode.react, Profile + Social changes)
+7. Agent D (Share to Story — celebration component changes, i18n)
+8. Agent H (Deep Linking — App.tsx + Social.tsx + Quests.tsx + bot templates, depends on all URL-generating agents)
+
+### Run 94 Retrospectives
+
+#### Agent A Retrospective
 *(To be filled by Agent A)*
 
 #### Agent B Retrospective
@@ -2467,62 +3028,13 @@ FORBIDDEN: celebrations/*, Settings.tsx, Shop.tsx, hooks/usePurchase.ts, hooks/u
 *(To be filled by Agent E)*
 
 #### Agent F Retrospective
-**Status**: Complete — all tasks done, build passes (`npx tsc --noEmit` clean).
-
-**What was done**:
-1. Created `CelebrationSettings.tsx` — radio-style card selector for celebration style (Classic Emoji vs Animated Lottie), uses emerald ring for selected state, haptic feedback on change, framer-motion entry animation, i18n-ready.
-2. Created `StickerPackBrowser.tsx` — fetches sticker packs from `GET /api/stickers/sets` (Agent C's endpoint), shows pack list with thumbnails, sticker count, checkmark selection, stores choice in localStorage (`celebration-sticker-pack`). Loading skeleton, error fallback, and empty state included.
-3. Wired both into `Settings.tsx` between ThemeSettings and AccountabilitySettings. `StickerPackBrowser` only renders when `isAnimated === true`.
-4. Added i18n keys in all 3 locale files (en/ru/zh) inside `settings:{}`.
-5. Created `useCelebrationStyle.ts` hook (same spec as Agent E) — needed for TypeScript build to pass. Agent 0 should use Agent E's version during merge (identical implementation).
-
-**Merge notes for Agent 0**:
-- `useCelebrationStyle.ts` exists in both Agent E and Agent F branches. They have identical implementations. Agent E's version should be kept (or either — they're the same).
-- Settings.tsx changes are minimal (2 imports + 3 lines in JSX). Should merge cleanly after Agent E.
-- i18n changes are additive (8 new keys per file, appended after `subscription` block in `settings:`). No conflicts expected.
+*(To be filled by Agent F)*
 
 #### Agent G Retrospective
+*(To be filled by Agent G)*
 
-| # | Task | Status |
-|---|------|--------|
-| 1 | Add celebration_style + celebration_sticker_pack columns to users table in schema.sql | Done |
-| 2 | Add ALTER TABLE migration SQL at end of schema.sql | Done |
-| 3 | Add GET /api/users/:userId/celebration-prefs endpoint | Done |
-| 4 | Add PATCH /api/users/:userId/celebration-prefs endpoint | Done |
-| 5 | Add getCelebrationPrefs + setCelebrationPrefs to mini-app client.ts | Done |
-| 6 | Build verify bot + mini-app (both pass) | Done |
-
-**Problems**: None. Clean implementation following existing patterns.
-
-**Implementation notes**:
-- Used `authorizeUser` + `readLimiter` middleware (matching codebase pattern for `:userId` routes)
-- Used `buildDynamicUpdate` from `sqlBuilder.ts` for the PATCH endpoint (same pattern as user-preferences.ts)
-- Validated `celebration_style` to only accept 'emoji' or 'animated'
-- `celebration_sticker_pack` accepts string or null
-- DB defaults: `celebration_style = 'emoji'`, `celebration_sticker_pack = NULL`
-
-**Recommendations for next run**: Agent 0 must run the ALTER TABLE migration on the production DB after merge. The client methods are ready for Agent F's Settings UI to consume.
+#### Agent H Retrospective
+*(To be filled by Agent H)*
 
 #### Agent 0 Retrospective
 *(To be filled by Agent 0)*
-
-### Run 93 Retrospectives
-
-#### Agent A Retrospective (Run 93)
-
-| # | Task | Status |
-|---|------|--------|
-| 1 | Add `ShopItemPayload` type + update `parsePayload()` | Done |
-| 2 | Pre-checkout validation for shop items (exists, active, price match, duplicate check for achievements) | Done |
-| 3 | Successful payment handler for shop items (record purchase, unlock achievement, notify owner) | Done |
-| 4 | `POST /payments/create-shop-invoice` endpoint (validate item, create pending payment, generate invoice link) | Done |
-| 5 | Comment on `shop.ts` noting new invoice flow for Stars | Done |
-| 6 | Build verify (`npx tsc --noEmit`) | Pass |
-
-**Problems**: None — clean implementation, all existing patterns followed.
-
-**Notes for Agent 0 / Agent B**:
-- The `create-shop-invoice` endpoint accepts `{ telegram_id, shop_item_id }` and returns `{ payment_id, invoice_url }`.
-- Agent B's frontend should call this endpoint for Stars purchases, then open the invoice via `WebApp.openInvoice()`.
-- The old direct `POST /shop/purchase` path for Stars is kept but commented as deprecated — the frontend should bypass it for Stars.
-- Payment metadata includes `{ type: 'shop_item', shop_item_id }` so the Grammy handlers can distinguish shop purchases from tier/mode payments.
