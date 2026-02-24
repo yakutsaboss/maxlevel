@@ -99,6 +99,8 @@ CREATE TABLE quests (
     mode_id INTEGER REFERENCES modes(id),
     title VARCHAR(255) NOT NULL,
     description TEXT,
+    title_ru TEXT,
+    description_ru TEXT,
     quest_type VARCHAR(20) CHECK (quest_type IN ('daily', 'weekly')) NOT NULL,
     xp_reward INTEGER DEFAULT 50,
     difficulty VARCHAR(20) CHECK (difficulty IN ('easy', 'medium', 'hard')),

@@ -1201,3 +1201,24 @@ Write retrospective when done.
 **Agent C recovery**: Wrote comprehensive TG API features doc covering all Bot API 9.4 features with MaxLevel implementation ideas.
 **Results**: 942/942 tests pass. Bot + mini-app build clean. Deployed to production.
 **Worktrees**: All 4 removed, branches deleted.
+
+---
+
+## RUN 92 Retrospectives
+
+#### Agent A Retrospective
+**Status**: Complete — 3 files changed, `tsc --noEmit` clean.
+
+**What was done**:
+1. **database/schema.sql** — Added `title_ru TEXT` and `description_ru TEXT` columns to the `quests` table after the existing `description` column. Nullable, defaulting to NULL so existing rows are unaffected.
+2. **database/seed_data.sql** — Added 33 UPDATE statements (after existing INSERT blocks) translating all quest titles and descriptions to Russian. Covers all 4 modes: fitness (9), hydration (8), medication (9), habits (7). Translations are natural Russian for health/fitness activities.
+3. **bot/src/api/routes/quests.ts** — Both GET endpoints (`/active` and `/completed`) now accept optional `?lang=xx` query parameter. When `lang=ru`, SQL uses `COALESCE(q.title_ru, q.title)` and `COALESCE(q.description_ru, q.description)` for graceful fallback. Default behavior (`lang=en` or omitted) unchanged — returns original English columns.
+
+**Design decisions**:
+- Used `COALESCE` for fallback so any quest without a Russian translation still shows the English original
+- Column expressions are interpolated directly in SQL (not parameterized) since they're computed from a fixed `lang === 'ru'` check, not user input — safe from injection
+- Added `description` to the completed quests endpoint which previously didn't select it (needed for i18n consistency)
+- UPDATE statements keyed on `title` (unique per quest) rather than ID to be insert-order-independent
+
+**Files changed**: `database/schema.sql`, `database/seed_data.sql`, `bot/src/api/routes/quests.ts`
+**No issues encountered.**
