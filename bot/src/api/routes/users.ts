@@ -1,7 +1,9 @@
 import { Router, Request, Response } from 'express';
-import { authenticateTelegram } from '../middleware/auth.js';
+import { authenticateTelegram, authorizeUser } from '../middleware/auth.js';
+import { readLimiter } from '../middleware/rateLimiter.js';
 import { query, queryOne } from '../../utils/db.js';
 import { updateStreak } from '../../utils/streak.js';
+import { buildDynamicUpdate } from '../../utils/sqlBuilder.js';
 import {
   asyncHandler,
   validateRequired,
@@ -96,6 +98,77 @@ router.patch('/:userId/streak', authenticateTelegram, asyncHandler(async (req: R
   const maxStreak = Math.max(0, ...updated.map((s) => s.current_streak));
 
   res.json(successResponse({ message: 'Streaks updated', current_streak: maxStreak }));
+}));
+
+/**
+ * GET /api/users/:userId/celebration-prefs
+ */
+router.get('/:userId/celebration-prefs', authenticateTelegram, authorizeUser, readLimiter, asyncHandler(async (req: Request, res: Response) => {
+  const userId = safeParseInt(req.params.userId, 0);
+  if (userId === 0) {
+    throw new BadRequestError('Invalid user ID');
+  }
+
+  const user = await queryOne(
+    'SELECT celebration_style, celebration_sticker_pack FROM users WHERE id = $1',
+    [userId]
+  );
+
+  if (!user) {
+    throw new NotFoundError('User not found');
+  }
+
+  res.json(successResponse({
+    celebration_style: user.celebration_style ?? 'emoji',
+    celebration_sticker_pack: user.celebration_sticker_pack ?? null,
+  }));
+}));
+
+/**
+ * PATCH /api/users/:userId/celebration-prefs
+ */
+router.patch('/:userId/celebration-prefs', authenticateTelegram, authorizeUser, asyncHandler(async (req: Request, res: Response) => {
+  const userId = safeParseInt(req.params.userId, 0);
+  if (userId === 0) {
+    throw new BadRequestError('Invalid user ID');
+  }
+
+  const { celebration_style, celebration_sticker_pack } = req.body;
+
+  if (celebration_style !== undefined && !['emoji', 'animated'].includes(celebration_style)) {
+    throw new BadRequestError('Invalid celebration_style — must be "emoji" or "animated"');
+  }
+
+  if (celebration_sticker_pack !== undefined && celebration_sticker_pack !== null && typeof celebration_sticker_pack !== 'string') {
+    throw new BadRequestError('celebration_sticker_pack must be a string or null');
+  }
+
+  const fields: Record<string, unknown> = {};
+  if (celebration_style !== undefined) {
+    fields.celebration_style = celebration_style;
+  }
+  if (celebration_sticker_pack !== undefined) {
+    fields.celebration_sticker_pack = celebration_sticker_pack;
+  }
+
+  if (Object.keys(fields).length === 0) {
+    throw new BadRequestError('No fields to update');
+  }
+
+  const { text, values } = buildDynamicUpdate('users', fields, 'id = $N', [userId]);
+  const result = await queryOne(
+    `${text} RETURNING celebration_style, celebration_sticker_pack`,
+    values
+  );
+
+  if (!result) {
+    throw new NotFoundError('User not found');
+  }
+
+  res.json(successResponse({
+    celebration_style: result.celebration_style,
+    celebration_sticker_pack: result.celebration_sticker_pack,
+  }));
 }));
 
 export { router as userRouter };

@@ -2458,7 +2458,26 @@ FORBIDDEN: celebrations/*, Settings.tsx, Shop.tsx, hooks/usePurchase.ts, hooks/u
 *(To be filled by Agent F)*
 
 #### Agent G Retrospective
-*(To be filled by Agent G)*
+
+| # | Task | Status |
+|---|------|--------|
+| 1 | Add celebration_style + celebration_sticker_pack columns to users table in schema.sql | Done |
+| 2 | Add ALTER TABLE migration SQL at end of schema.sql | Done |
+| 3 | Add GET /api/users/:userId/celebration-prefs endpoint | Done |
+| 4 | Add PATCH /api/users/:userId/celebration-prefs endpoint | Done |
+| 5 | Add getCelebrationPrefs + setCelebrationPrefs to mini-app client.ts | Done |
+| 6 | Build verify bot + mini-app (both pass) | Done |
+
+**Problems**: None. Clean implementation following existing patterns.
+
+**Implementation notes**:
+- Used `authorizeUser` + `readLimiter` middleware (matching codebase pattern for `:userId` routes)
+- Used `buildDynamicUpdate` from `sqlBuilder.ts` for the PATCH endpoint (same pattern as user-preferences.ts)
+- Validated `celebration_style` to only accept 'emoji' or 'animated'
+- `celebration_sticker_pack` accepts string or null
+- DB defaults: `celebration_style = 'emoji'`, `celebration_sticker_pack = NULL`
+
+**Recommendations for next run**: Agent 0 must run the ALTER TABLE migration on the production DB after merge. The client methods are ready for Agent F's Settings UI to consume.
 
 #### Agent 0 Retrospective
 *(To be filled by Agent 0)*

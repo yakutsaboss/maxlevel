@@ -52,6 +52,8 @@ CREATE TABLE users (
     dnd_enabled BOOLEAN DEFAULT FALSE,              -- Do Not Disturb toggle for notifications
     dnd_start INTEGER DEFAULT 22,                   -- DND start hour (0-23, UTC)
     dnd_end INTEGER DEFAULT 8,                      -- DND end hour (0-23, UTC)
+    celebration_style VARCHAR(20) DEFAULT 'emoji',     -- 'emoji' or 'animated' (Run 93)
+    celebration_sticker_pack VARCHAR(100) DEFAULT NULL, -- Telegram sticker set name (Run 93)
     CONSTRAINT check_level_positive CHECK (current_level >= 1),
     CONSTRAINT check_xp_non_negative CHECK (total_xp >= 0)
 );
@@ -597,3 +599,7 @@ CREATE INDEX IF NOT EXISTS idx_notif_log_user ON notification_log(user_id, sent_
 COMMENT ON TABLE medications IS 'User medication definitions with schedule and dosage (added Run 87)';
 COMMENT ON TABLE medication_logs IS 'Medication intake log entries — taken, skipped, or postponed (added Run 87)';
 COMMENT ON TABLE notification_log IS 'Notification history for in-app notification center (added Run 87)';
+
+-- Run 93: Celebration preferences
+ALTER TABLE users ADD COLUMN IF NOT EXISTS celebration_style VARCHAR(20) DEFAULT 'emoji';
+ALTER TABLE users ADD COLUMN IF NOT EXISTS celebration_sticker_pack VARCHAR(100) DEFAULT NULL;

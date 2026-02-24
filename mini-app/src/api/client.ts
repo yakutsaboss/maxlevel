@@ -313,6 +313,16 @@ class ApiClient {
   async getMedicationAnalytics(userId: number, days = 30, config?: { signal?: AbortSignal }): Promise<ApiResponse<any>> {
     return this.deduplicatedGet(`/medication-logs/${userId}/analytics`, { days }, config);
   }
+
+  // Celebration preferences
+  async getCelebrationPrefs(userId: number, config?: { signal?: AbortSignal }): Promise<ApiResponse<{ celebration_style: string; celebration_sticker_pack: string | null }>> {
+    return this.deduplicatedGet(`/users/${userId}/celebration-prefs`, undefined, config);
+  }
+
+  async setCelebrationPrefs(userId: number, prefs: { celebration_style?: string; celebration_sticker_pack?: string | null }): Promise<ApiResponse<{ celebration_style: string; celebration_sticker_pack: string | null }>> {
+    const response = await this.client.patch(`/users/${userId}/celebration-prefs`, prefs);
+    return response.data;
+  }
 }
 
 // Export singleton instance
