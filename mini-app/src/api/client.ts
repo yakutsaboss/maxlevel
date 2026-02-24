@@ -309,6 +309,10 @@ class ApiClient {
   async getMedicationHistory(userId: number, days = 7, config?: { signal?: AbortSignal }): Promise<ApiResponse<MedicationHistoryResponse>> {
     return this.deduplicatedGet(`/medication-logs/${userId}/history`, { days }, config);
   }
+
+  async getMedicationAnalytics(userId: number, days = 30, config?: { signal?: AbortSignal }): Promise<ApiResponse<any>> {
+    return this.deduplicatedGet(`/medication-logs/${userId}/analytics`, { days }, config);
+  }
 }
 
 // Export singleton instance
