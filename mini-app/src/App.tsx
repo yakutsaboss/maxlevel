@@ -15,6 +15,7 @@ import { SkipLink } from '@/components/SkipLink';
 import { ToastProvider } from '@/contexts/ToastContext';
 import { useTelegram } from '@/hooks/useTelegram';
 import { useOnboarding } from '@/hooks/useOnboarding';
+import { useDeepLink } from '@/hooks/useDeepLink';
 import { apiClient } from '@/api/client';
 import type { OnboardingStep } from '@/hooks/useOnboarding';
 
@@ -53,6 +54,7 @@ function AppContent() {
   const { user } = useTelegram();
   const location = useLocation();
   const store = useOnboarding();
+  useDeepLink();
   const [checkingOnboarding, setCheckingOnboarding] = useState(true);
   const [needsOnboarding, setNeedsOnboarding] = useState(false);
   const [questBadgeCount, setQuestBadgeCount] = useState(0);
