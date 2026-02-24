@@ -311,8 +311,8 @@ Runs 78-85: MVP recovery + feature re-enablement. Run 86: Animation polish + med
 | Run | Focus | Agents | Status |
 |-----|-------|--------|--------|
 | **78-91** | MVP Recovery → Medication → Bug Fixes + TG API Research | varies | ✅ |
-| **92** | Bug Fixes + Quest i18n + Google Sheets OAuth + Medication Analytics | 7 | 🔄 |
-| **93** | Stars Shop + Celebrations Upgrade | 8 | ⬜ |
+| **92** | Bug Fixes + Quest i18n + Google Sheets OAuth + Medication Analytics | 7 | ✅ |
+| **93** | Stars Shop + Celebrations Upgrade | 7 | 🔄 |
 | **94** | Cloud Storage + Home Screen + QR + Social Basics | 8 | ⬜ |
 | **95** | Premium & Monetization — Subscriptions, Paid Content, Gifts | 8 | ⬜ |
 | **96** | Advanced Features — Inline Mode, Referrals, Biometrics, Deep Links | 8 | ⬜ |
@@ -1913,6 +1913,517 @@ Add 3-tab navigation (Today | History | Analytics) to Medications.tsx. Placehold
 - `mini-app/src/hooks/useQuestsQuery.ts`: Added `useTranslation()` to both `useActiveQuests` and `useCompletedQuests` hooks. Reads `i18n.language`, truncates to 2 chars (e.g. 'en', 'ru', 'zh'), passes to API client. Included `lang` in React Query keys so quests automatically refetch when user switches language.
 **Commit**: `ba941a8` on `feature/r92-quest-i18n-frontend`
 **No issues encountered.**
+
+#### Agent C Retrospective
+*(To be filled by Agent C)*
+
+#### Agent D Retrospective
+*(To be filled by Agent D)*
+
+#### Agent E Retrospective
+*(To be filled by Agent E)*
+
+#### Agent F Retrospective
+*(To be filled by Agent F)*
+
+#### Agent G Retrospective
+*(To be filled by Agent G)*
+
+#### Agent 0 Retrospective
+**Status**: Complete — all 7 agents merged, built, tested, deployed.
+
+**Merge results**: A→D→C→B→E→F→G. All 7 had PARALLEL_AGENTS.md conflicts (resolved with --ours). Auto-merge clean for all code files — file ownership matrix prevented cross-agent conflicts. Agent B and F both touched `client.ts` (GRAY area) but different methods → no conflict.
+
+**Integration work**:
+- Agent G created placeholder tabs for History/Analytics. Agent 0 wired real components (`MedicationHistory` from Agent E, `MedicationAnalytics` from Agent F) into Medications.tsx, replacing placeholders.
+- Removed unused `BarChart3` import after placeholder removal.
+
+**Test fix**: `useQuestsData.test.ts` failed — Agent B added `lang` parameter to `getActiveQuests(userId, lang)` and `getCompletedQuests(userId, 50, lang)`. Test expected old signatures. Fixed with `expect.any(String)` for lang param.
+
+**Final counts**: Bot 1100/1100, Mini-app 942/942 (100% pass). Deployed as v56e2ae3.
+
+**Agents B and C stuck in wrong directory**: Launched in main Wibecode dir instead of worktrees. They followed old "STOP and tell the user" instruction. Other agents (A/D/E/F/G) auto-navigated via `cd`. **Fix**: Updated Safety Protocol with "Working Directory" section telling agents to `cd` automatically. Added Lesson #20.
+
+**Pre-completed items**: Quest modal auto-close + /metrics IP fix were already done in commit 11e8c45, reducing original 9-agent plan to 7.
+
+---
+
+## RUN 93: Stars Shop + Celebrations Upgrade (7 Agents + Agent 0)
+
+### Focus: Real Telegram Stars payments for shop items, animated Lottie celebrations, sticker pack browser + preference
+
+### Pre-completed Tasks (from Run 92)
+- ✅ Agent H (Translate seed quest data to Russian) — Run 92 Agent A already added `title_ru`/`description_ru` columns and translated all seed quests
+
+### Copy-Paste Prompts
+
+**Agent 0** (this window):
+```
+Read PARALLEL_AGENTS.md — you are Agent 0 for Run 93.
+```
+
+**Agent A**: `Read PARALLEL_AGENTS.md — you are Agent A of Run 93.`
+**Agent B**: `Read PARALLEL_AGENTS.md — you are Agent B of Run 93.`
+**Agent C**: `Read PARALLEL_AGENTS.md — you are Agent C of Run 93.`
+**Agent D**: `Read PARALLEL_AGENTS.md — you are Agent D of Run 93.`
+**Agent E**: `Read PARALLEL_AGENTS.md — you are Agent E of Run 93.`
+**Agent F**: `Read PARALLEL_AGENTS.md — you are Agent F of Run 93.`
+**Agent G**: `Read PARALLEL_AGENTS.md — you are Agent G of Run 93.`
+
+### Agent A: Stars Shop Payment Backend
+
+**Worktree**: `c:\Users\Asus\Desktop\Wibecode-agent-a` | **Branch**: `feature/r93-shop-stars-backend`
+
+**Context**: The shop (`bot/src/api/routes/shop.ts`) has `POST /shop/purchase` which handles XP purchases atomically but just *records* Stars purchases without verification (line 156-164: "Stars payment is recorded here; actual verification handled by client"). This is insecure — the client could skip payment. The proper flow: create a Telegram invoice → client opens it → `pre_checkout_query` validates → `successful_payment` delivers the item.
+
+The payment handlers (`bot/src/handlers/payments.ts`) already support `TierPayload` and `ModeUnlockPayload` types. The payment API (`bot/src/api/routes/payments.ts`) already has `POST /payments/create` that calls `bot.api.createInvoiceLink()`.
+
+**Tasks**:
+
+1. **Add `ShopItemPayload` type to `bot/src/handlers/payments.ts`**:
+```typescript
+interface ShopItemPayload {
+  payment_id: number;
+  type: 'shop_item';
+  shop_item_id: number;
+  user_id: number;
+}
+```
+Update `parsePayload()` to recognize this type.
+
+2. **Add pre-checkout handling for shop items** in `handlePreCheckoutQuery`:
+   - When payload type is `shop_item`, verify the item exists, is active, and price matches
+   - Check for duplicate purchases (for achievement items)
+   - Approve or reject
+
+3. **Add successful_payment handling for shop items** in `handleSuccessfulPayment`:
+   - Record purchase in `user_purchases` table
+   - If item type is `achievement`, unlock in `user_achievements`
+   - Update payment record status to 'completed'
+   - Send owner notification
+
+4. **Add `POST /payments/create-shop-invoice` to `bot/src/api/routes/payments.ts`**:
+   - Body: `{ telegram_id, shop_item_id }`
+   - Validate item exists and is active
+   - Check for duplicate purchases (achievements)
+   - Create pending payment record with `shop_item` metadata
+   - Call `bot.api.createInvoiceLink()` with item name, description, Stars price
+   - Return `{ payment_id, invoice_url }`
+
+5. **Build verify**: `cd bot && npx tsc --noEmit`
+
+OWNED: `bot/src/handlers/payments.ts`, `bot/src/api/routes/payments.ts`
+GRAY: `bot/src/api/routes/shop.ts` (add comment noting Stars purchases now use invoice flow — do NOT remove the old direct recording code, Agent B's frontend will use the new invoice endpoint instead)
+FORBIDDEN: mini-app/src/*, database/schema.sql, sticker routes, celebration components, notification bot, test files
+
+### Agent B: Stars Shop Payment Frontend
+
+**Worktree**: `c:\Users\Asus\Desktop\Wibecode-agent-b` | **Branch**: `feature/r93-shop-stars-frontend`
+
+**Context**: `usePurchase.ts` calls `purchaseItem()` (from `api/shop.ts`) for both XP and Stars payments. For XP, this is correct (atomic deduction). For Stars, this just records the purchase without real Telegram payment. The proper flow: call a new invoice endpoint → open `WebApp.openInvoice()` → handle callback → record purchase on success.
+
+Reference: `usePayment.ts` shows the correct pattern for Stars (creates payment → opens invoice → polls status). `useModeUnlock.ts` also uses this pattern.
+
+**Tasks**:
+
+1. **Add `createShopInvoice()` function to `mini-app/src/api/shop.ts`**:
+```typescript
+export interface ShopInvoiceResponse {
+  payment_id: number;
+  invoice_url: string;
+}
+
+export async function createShopInvoice(
+  telegramId: number,
+  shopItemId: number,
+): Promise<ShopInvoiceResponse> {
+  return request<ShopInvoiceResponse>(`${API_BASE_URL}/payments/create-shop-invoice`, {
+    method: 'POST',
+    body: JSON.stringify({ telegram_id: telegramId, shop_item_id: shopItemId }),
+  });
+}
+```
+
+2. **Modify `usePurchase.ts`** — `confirmPurchase()`:
+   - For `paymentMethod === 'xp'`: keep existing `purchaseItem()` call (direct XP deduction)
+   - For `paymentMethod === 'stars'`: call `createShopInvoice()`, then `WebApp.openInvoice(invoice_url, callback)`. On 'paid' status → set success. On 'cancelled'/'failed' → set error.
+   - Import `WebApp` from `@twa-dev/sdk`
+   - Add `telegramId` to `UsePurchaseParams` (needed for invoice creation)
+
+3. **Update Shop.tsx** — pass `telegramId` to usePurchase:
+   - Get `user?.id` from `useTelegram()` (already available in the page)
+   - Pass `telegramId: user?.id` to `usePurchase()` params
+
+4. **Build verify**: `cd mini-app && npx tsc --noEmit`
+
+OWNED: `mini-app/src/hooks/usePurchase.ts`, `mini-app/src/api/shop.ts` (add `createShopInvoice` function only)
+GRAY: `mini-app/src/pages/Shop.tsx` (only add `telegramId` parameter to usePurchase call — minimal change)
+FORBIDDEN: bot/src/*, database/*, usePayment.ts, useModeUnlock.ts, celebration components, Settings.tsx, i18n files, test files
+
+### Agent C: Sticker API + Bot Sticker Celebrations
+
+**Worktree**: `c:\Users\Asus\Desktop\Wibecode-agent-c` | **Branch**: `feature/r93-sticker-api`
+
+**Context**: No sticker support exists in the codebase. The bot uses Grammy (TypeScript). Telegram stickers can be sent via `ctx.replyWithSticker(file_id)` or `bot.api.sendSticker(chatId, file_id)`. Sticker sets can be fetched via `bot.api.getStickerSet(name)`. The TG API features doc at `docs/TELEGRAM_API_FEATURES.md` has detailed info on sticker handling.
+
+**Tasks**:
+
+1. **Create `bot/src/api/routes/stickers.ts`** — Sticker pack API:
+```typescript
+// GET /api/stickers/sets — List available celebration sticker sets
+// Returns: array of { name, title, sticker_count, thumbnail_url? }
+// Hardcode 2-3 known public sticker packs as defaults
+// (e.g., "AnimatedEmoji" pack, a celebration pack)
+
+// GET /api/stickers/sets/:name — Get sticker set details
+// Calls bot.api.getStickerSet(name)
+// Returns: { name, title, stickers: [{ file_id, emoji, is_animated, thumbnail_url }] }
+// Use bot.api.getFile(sticker.thumbnail.file_id) to get thumbnail URLs
+```
+Use `authenticateTelegram` + `readLimiter`.
+
+2. **Register route in `bot/src/api/server.ts`**:
+   - Import `stickerRouter` from `./routes/stickers.js`
+   - Mount at `/api/stickers`
+
+3. **Create `bot/src/utils/stickerConfig.ts`** — Default sticker packs config:
+```typescript
+// List of known celebration sticker packs
+export const CELEBRATION_STICKER_PACKS = [
+  { name: 'AnimatedEmojis', category: 'emoji' },
+  // Add 1-2 more known packs
+];
+
+// Default sticker file_ids for celebrations (fallback when user hasn't chosen)
+export const DEFAULT_CELEBRATION_STICKERS = {
+  level_up: '', // Will be populated after testing
+  quest_complete: '',
+  achievement: '',
+};
+```
+
+4. **Add sticker celebration to `bot/src/handlers/payments.ts`** notification:
+   - After successful payment, send a celebration sticker to the user (in addition to the text confirmation)
+   - Use `ctx.replyWithSticker(file_id)` with a celebration sticker
+   - Wrap in try/catch so sticker failure doesn't block payment
+
+5. **Build verify**: `cd bot && npx tsc --noEmit`
+
+OWNED: `bot/src/api/routes/stickers.ts` (new), `bot/src/utils/stickerConfig.ts` (new)
+GRAY: `bot/src/api/server.ts` (only add sticker route registration), `bot/src/handlers/payments.ts` (only add sticker send after payment confirmation text — do NOT modify payment logic)
+FORBIDDEN: mini-app/src/*, database/schema.sql, shop routes, quest routes, celebration components, test files
+
+### Agent D: Lottie Player + Quest Celebration Upgrade
+
+**Worktree**: `c:\Users\Asus\Desktop\Wibecode-agent-d` | **Branch**: `feature/r93-lottie-quest-celebration`
+
+**Context**: `lottie-react` is NOT installed. Celebrations currently use emoji (👍 in QuestCompletionCelebration, ⭐ in LevelUpModal). The `mini-app/src/components/celebrations/` directory has: `QuestCompletionCelebration.tsx` (74 lines), `Confetti.tsx` (76 lines), `LevelUpModal.tsx` (81 lines), `XpFloat.tsx` (41 lines), `AchievementToast.tsx` (54 lines).
+
+**Tasks**:
+
+1. **Install lottie-react**: `cd mini-app && npm install lottie-react`
+
+2. **Create `mini-app/src/components/celebrations/LottieSticker.tsx`** — Reusable Lottie component:
+```typescript
+import Lottie from 'lottie-react';
+
+interface LottieStickerProps {
+  animationData: object;   // Lottie JSON data
+  size?: number;           // width & height in px (default 120)
+  loop?: boolean;          // default false (play once)
+  className?: string;
+}
+
+export function LottieSticker({ animationData, size = 120, loop = false, className }: LottieStickerProps) {
+  return (
+    <Lottie
+      animationData={animationData}
+      loop={loop}
+      style={{ width: size, height: size }}
+      className={className}
+    />
+  );
+}
+```
+
+3. **Bundle celebration Lottie animations**:
+   - Create `mini-app/src/assets/lottie/` directory
+   - Add 3 lightweight Lottie JSON files (create minimal versions):
+     - `thumbs-up.json` — simple thumbs-up animation (for quest completion)
+     - `star-burst.json` — star burst animation (for level-up)
+     - `trophy.json` — trophy bounce (for achievements)
+   - Each should be under 10KB — create simple, minimal Lottie JSON with basic shape animations
+   - If creating real Lottie JSON is too complex, create placeholder files with a simple circle animation and add a TODO comment
+
+4. **Upgrade `QuestCompletionCelebration.tsx`**:
+   - Import `LottieSticker` and the `thumbs-up.json` animation
+   - Add a `useCelebrationStyle` preference check: `const style = localStorage.getItem('celebration-style') || 'emoji';`
+   - If style is `'animated'`: show `<LottieSticker animationData={thumbsUpAnimation} size={80} />` instead of the 👍 emoji
+   - If style is `'emoji'` (default): keep existing emoji behavior
+   - The rest of the component (confetti, text, timing) stays the same
+
+5. **Build verify**: `cd mini-app && npx tsc --noEmit`
+
+OWNED: `mini-app/src/components/celebrations/LottieSticker.tsx` (new), `mini-app/src/assets/lottie/thumbs-up.json` (new), `mini-app/src/assets/lottie/star-burst.json` (new), `mini-app/src/assets/lottie/trophy.json` (new), `mini-app/src/components/celebrations/QuestCompletionCelebration.tsx`
+FORBIDDEN: bot/src/*, database/*, LevelUpModal.tsx (Agent E owns), AchievementToast.tsx (Agent E owns), Settings.tsx, Shop.tsx, api/*, hooks/usePurchase.ts, i18n files, test files
+
+### Agent E: Level + Achievement Celebration Upgrade
+
+**Worktree**: `c:\Users\Asus\Desktop\Wibecode-agent-e` | **Branch**: `feature/r93-level-achievement-celebration`
+
+**Context**: `LevelUpModal.tsx` (81 lines) shows level number + ⭐ emoji with pulse animation. `AchievementToast.tsx` (54 lines) shows 🏆 emoji + "Achievement Unlocked!" + name + XP. Both use framer-motion. Agent D (in parallel) is creating `LottieSticker.tsx` component and bundling Lottie JSON files at `mini-app/src/assets/lottie/`.
+
+**Tasks**:
+
+1. **Upgrade `mini-app/src/components/celebrations/LevelUpModal.tsx`**:
+   - Import `LottieSticker` from `./LottieSticker` (Agent D creates this)
+   - Import `starBurstAnimation` from `@/assets/lottie/star-burst.json` (Agent D creates this)
+   - Add celebration style check: `const style = localStorage.getItem('celebration-style') || 'emoji';`
+   - If `'animated'`: replace the ⭐ emoji div (line ~57) with `<LottieSticker animationData={starBurstAnimation} size={100} />`
+   - If `'emoji'`: keep existing emoji + pulse animation
+   - Keep all existing: FocusTrap, glow ring, level number, i18n text, auto-dismiss
+
+2. **Upgrade `mini-app/src/components/celebrations/AchievementToast.tsx`**:
+   - Import `LottieSticker` and `trophyAnimation` from `@/assets/lottie/trophy.json`
+   - Add style check (same localStorage key)
+   - If `'animated'`: show `<LottieSticker animationData={trophyAnimation} size={48} />` instead of the 🏆 emoji
+   - If `'emoji'`: keep existing emoji
+   - Keep all existing: Confetti trigger, name, XP reward, auto-dismiss, amber gradient
+
+3. **Create `mini-app/src/hooks/useCelebrationStyle.ts`** — shared hook:
+```typescript
+import { useState, useCallback } from 'react';
+
+const STORAGE_KEY = 'celebration-style';
+type CelebrationStyle = 'emoji' | 'animated';
+
+export function useCelebrationStyle() {
+  const [style, setStyleState] = useState<CelebrationStyle>(
+    () => (localStorage.getItem(STORAGE_KEY) as CelebrationStyle) || 'emoji'
+  );
+
+  const setStyle = useCallback((newStyle: CelebrationStyle) => {
+    localStorage.setItem(STORAGE_KEY, newStyle);
+    setStyleState(newStyle);
+  }, []);
+
+  return { style, setStyle, isAnimated: style === 'animated' };
+}
+```
+
+4. **Build verify**: `cd mini-app && npx tsc --noEmit`
+
+OWNED: `mini-app/src/components/celebrations/LevelUpModal.tsx`, `mini-app/src/components/celebrations/AchievementToast.tsx`, `mini-app/src/hooks/useCelebrationStyle.ts` (new)
+FORBIDDEN: bot/src/*, database/*, QuestCompletionCelebration.tsx (Agent D owns), LottieSticker.tsx (Agent D owns), Confetti.tsx, XpFloat.tsx, Settings.tsx, Shop.tsx, api/*, i18n files, test files
+
+### Agent F: Sticker Browser + Celebration Settings UI
+
+**Worktree**: `c:\Users\Asus\Desktop\Wibecode-agent-f` | **Branch**: `feature/r93-sticker-browser-settings`
+
+**Context**: Settings page (`mini-app/src/pages/Settings.tsx`) has sections: NotificationSettings, DoNotDisturbSettings, HapticFeedbackSettings, ThemeSettings, AccountabilitySettings, AboutSection, DangerZone. Agent E (in parallel) creates `useCelebrationStyle.ts` hook with localStorage-based `celebration-style` preference.
+
+Agent C (in parallel) creates `GET /api/stickers/sets` and `GET /api/stickers/sets/:name` endpoints on the backend.
+
+**Tasks**:
+
+1. **Create `mini-app/src/components/settings/CelebrationSettings.tsx`**:
+   - Section title: t('settings.celebrationStyle')
+   - Two option cards with radio-style selection:
+     - **Classic (Emoji)** — default. Shows sample emojis (👍 ⭐ 🏆). Description: "Simple emoji celebrations"
+     - **Animated** — Shows animated preview hint. Description: "Lottie animations for celebrations"
+   - Uses `useCelebrationStyle` hook to get/set preference
+   - Cards use `bg-telegram-secondaryBg`, selected card gets emerald ring
+   - Haptic feedback on selection change
+
+2. **Create `mini-app/src/components/settings/StickerPackBrowser.tsx`**:
+   - Shows available sticker packs from API (when celebration style is 'animated')
+   - Fetches from `GET /api/stickers/sets` (Agent C's endpoint)
+   - Each pack shows: pack title, sticker count, 3-4 thumbnail previews
+   - Selected pack gets a checkmark
+   - Stores selected pack name in localStorage: `celebration-sticker-pack`
+   - Loading skeleton while fetching
+   - If API fails: graceful fallback message ("Sticker packs unavailable")
+
+3. **Add to Settings page** — `mini-app/src/pages/Settings.tsx`:
+   - Import `CelebrationSettings` and `StickerPackBrowser`
+   - Add between ThemeSettings and AccountabilitySettings sections
+   - Render: `<CelebrationSettings />` followed by `{isAnimated && <StickerPackBrowser />}`
+
+4. **Add i18n keys** — add to medication section in all 3 files:
+
+**en.ts** (inside `settings: { ... }`):
+```
+celebrationStyle: "Celebration Style",
+celebrationClassic: "Classic (Emoji)",
+celebrationClassicDesc: "Simple emoji celebrations",
+celebrationAnimated: "Animated",
+celebrationAnimatedDesc: "Lottie animations for celebrations",
+stickerPacks: "Sticker Packs",
+stickerPacksEmpty: "No sticker packs available",
+stickerPacksError: "Could not load sticker packs",
+```
+
+**ru.ts**:
+```
+celebrationStyle: "Стиль празднований",
+celebrationClassic: "Классический (эмодзи)",
+celebrationClassicDesc: "Простые эмодзи-празднования",
+celebrationAnimated: "Анимированный",
+celebrationAnimatedDesc: "Lottie-анимации для празднований",
+stickerPacks: "Наборы стикеров",
+stickerPacksEmpty: "Нет доступных наборов стикеров",
+stickerPacksError: "Не удалось загрузить наборы стикеров",
+```
+
+**zh.ts**:
+```
+celebrationStyle: "庆祝风格",
+celebrationClassic: "经典（表情符号）",
+celebrationClassicDesc: "简单的表情庆祝",
+celebrationAnimated: "动画",
+celebrationAnimatedDesc: "庆祝时使用Lottie动画",
+stickerPacks: "贴纸包",
+stickerPacksEmpty: "没有可用的贴纸包",
+stickerPacksError: "无法加载贴纸包",
+```
+
+5. **Build verify**: `cd mini-app && npx tsc --noEmit`
+
+OWNED: `mini-app/src/components/settings/CelebrationSettings.tsx` (new), `mini-app/src/components/settings/StickerPackBrowser.tsx` (new)
+GRAY: `mini-app/src/pages/Settings.tsx` (only add imports + render 2 components between ThemeSettings and AccountabilitySettings), `mini-app/src/i18n/en.ts` (only add keys inside `settings: {...}`), `mini-app/src/i18n/ru.ts` (same), `mini-app/src/i18n/zh.ts` (same)
+FORBIDDEN: bot/src/*, database/*, celebrations/*, Shop.tsx, hooks/usePurchase.ts, hooks/useCelebrationStyle.ts (Agent E owns), api/client.ts, test files
+
+### Agent G: Celebration Preference Backend + DB
+
+**Worktree**: `c:\Users\Asus\Desktop\Wibecode-agent-g` | **Branch**: `feature/r93-celebration-pref-backend`
+
+**Context**: User preferences are stored as columns on the `users` table (notification_enabled, reminder_time, dnd_enabled, etc.). There's no separate preferences table. The settings API routes are in `bot/src/api/routes/users.ts` (PATCH endpoint for updating user fields). The sticker pack metadata comes from Telegram API (Agent C's sticker routes), not from our DB.
+
+**Tasks**:
+
+1. **Add columns to `database/schema.sql`** — append to users table definition:
+```sql
+-- After existing columns (around line 55):
+    celebration_style VARCHAR(20) DEFAULT 'emoji',     -- 'emoji' or 'animated'
+    celebration_sticker_pack VARCHAR(100) DEFAULT NULL, -- Telegram sticker set name
+```
+
+2. **Add migration SQL** at the end of schema.sql:
+```sql
+-- Run 93: Celebration preferences
+ALTER TABLE users ADD COLUMN IF NOT EXISTS celebration_style VARCHAR(20) DEFAULT 'emoji';
+ALTER TABLE users ADD COLUMN IF NOT EXISTS celebration_sticker_pack VARCHAR(100) DEFAULT NULL;
+```
+
+3. **Add API endpoints to `bot/src/api/routes/users.ts`**:
+
+`GET /api/users/:userId/celebration-prefs`:
+```typescript
+router.get('/:userId/celebration-prefs', authenticateTelegram, authorizeUser, readLimiter, asyncHandler(async (req, res) => {
+  const userId = safeParseInt(req.params.userId, 0);
+  const user = await queryOne('SELECT celebration_style, celebration_sticker_pack FROM users WHERE id = $1', [userId]);
+  if (!user) throw new NotFoundError('User not found');
+  res.json(successResponse(user));
+}));
+```
+
+`PATCH /api/users/:userId/celebration-prefs`:
+```typescript
+router.patch('/:userId/celebration-prefs', authenticateTelegram, authorizeUser, asyncHandler(async (req, res) => {
+  const userId = safeParseInt(req.params.userId, 0);
+  const { celebration_style, celebration_sticker_pack } = req.body;
+
+  if (celebration_style && !['emoji', 'animated'].includes(celebration_style)) {
+    throw new BadRequestError('Invalid celebration_style');
+  }
+
+  const updates: string[] = [];
+  const params: unknown[] = [];
+  let idx = 1;
+
+  if (celebration_style !== undefined) {
+    updates.push(`celebration_style = $${idx++}`);
+    params.push(celebration_style);
+  }
+  if (celebration_sticker_pack !== undefined) {
+    updates.push(`celebration_sticker_pack = $${idx++}`);
+    params.push(celebration_sticker_pack);
+  }
+
+  if (updates.length === 0) throw new BadRequestError('No fields to update');
+
+  params.push(userId);
+  const result = await queryOne(
+    `UPDATE users SET ${updates.join(', ')} WHERE id = $${idx} RETURNING celebration_style, celebration_sticker_pack`,
+    params
+  );
+
+  res.json(successResponse(result));
+}));
+```
+
+4. **Add `getCelebrationPrefs` and `setCelebrationPrefs` methods to `mini-app/src/api/client.ts`**:
+```typescript
+async getCelebrationPrefs(userId: number): Promise<ApiResponse<{ celebration_style: string; celebration_sticker_pack: string | null }>> {
+  return this.deduplicatedGet(`/users/${userId}/celebration-prefs`);
+}
+
+async setCelebrationPrefs(userId: number, prefs: { celebration_style?: string; celebration_sticker_pack?: string | null }): Promise<ApiResponse<any>> {
+  return this.request('PATCH', `/users/${userId}/celebration-prefs`, prefs);
+}
+```
+
+5. **Build verify**: `cd bot && npx tsc --noEmit` and `cd mini-app && npx tsc --noEmit`
+
+OWNED: `bot/src/api/routes/users.ts` (add 2 endpoints only — do NOT modify existing user endpoints)
+GRAY: `database/schema.sql` (only add celebration columns to users table + ALTER TABLE at end), `mini-app/src/api/client.ts` (only add 2 methods at end of class)
+FORBIDDEN: celebrations/*, Settings.tsx, Shop.tsx, hooks/usePurchase.ts, hooks/useCelebrationStyle.ts, sticker routes (Agent C owns), payment routes, i18n files, test files
+
+### Run 93 File Ownership Matrix
+
+| File/Dir | A | B | C | D | E | F | G |
+|----------|---|---|---|---|---|---|---|
+| bot/src/handlers/payments.ts | OWN | - | GRAY | - | - | - | - |
+| bot/src/api/routes/payments.ts | OWN | - | - | - | - | - | - |
+| bot/src/api/routes/stickers.ts (new) | - | - | NEW | - | - | - | - |
+| bot/src/utils/stickerConfig.ts (new) | - | - | NEW | - | - | - | - |
+| bot/src/api/server.ts | - | - | GRAY | - | - | - | - |
+| bot/src/api/routes/users.ts | - | - | - | - | - | - | OWN |
+| bot/src/api/routes/shop.ts | GRAY | - | - | - | - | - | - |
+| mini-app/src/hooks/usePurchase.ts | - | OWN | - | - | - | - | - |
+| mini-app/src/api/shop.ts | - | OWN | - | - | - | - | - |
+| mini-app/src/pages/Shop.tsx | - | GRAY | - | - | - | - | - |
+| LottieSticker.tsx (new) | - | - | - | NEW | - | - | - |
+| assets/lottie/*.json (new) | - | - | - | NEW | - | - | - |
+| QuestCompletionCelebration.tsx | - | - | - | OWN | - | - | - |
+| LevelUpModal.tsx | - | - | - | - | OWN | - | - |
+| AchievementToast.tsx | - | - | - | - | OWN | - | - |
+| useCelebrationStyle.ts (new) | - | - | - | - | NEW | - | - |
+| CelebrationSettings.tsx (new) | - | - | - | - | - | NEW | - |
+| StickerPackBrowser.tsx (new) | - | - | - | - | - | NEW | - |
+| Settings.tsx | - | - | - | - | - | GRAY | - |
+| i18n/en.ts | - | - | - | - | - | GRAY | - |
+| i18n/ru.ts | - | - | - | - | - | GRAY | - |
+| i18n/zh.ts | - | - | - | - | - | GRAY | - |
+| database/schema.sql | - | - | - | - | - | - | GRAY |
+| mini-app/src/api/client.ts | - | - | - | - | - | - | GRAY |
+
+### Run 93 Merge Order
+1. Agent A (Stars shop backend — payment handlers, no frontend)
+2. Agent C (Sticker API — new bot route, touches server.ts)
+3. Agent G (Celebration prefs backend — DB + users route + client.ts)
+4. Agent B (Stars shop frontend — depends on A's invoice endpoint at runtime)
+5. Agent D (Lottie + quest celebration — installs lottie-react, new components)
+6. Agent E (Level/achievement celebration — uses D's LottieSticker component)
+7. Agent F (Sticker browser + settings — integrates E's hook, touches Settings.tsx + i18n)
+
+### Run 93 Retrospectives
+
+#### Agent A Retrospective
+*(To be filled by Agent A)*
+
+#### Agent B Retrospective
+*(To be filled by Agent B)*
 
 #### Agent C Retrospective
 *(To be filled by Agent C)*
