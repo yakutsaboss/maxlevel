@@ -1,10 +1,13 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Users, Target, Clock, Crown, Loader2, AlertCircle, RefreshCw, Trophy, LogOut } from 'lucide-react';
+import { X, Users, Target, Clock, Crown, Loader2, AlertCircle, RefreshCw, Trophy, LogOut, BarChart3 } from 'lucide-react';
 import { getChallengeDetails } from '@/api/social';
 import { FocusTrap } from '@/components/FocusTrap';
+import { ChallengeLeaderboard } from '@/components/social/ChallengeLeaderboard';
 import type { ChallengeDetail } from '@/api/social';
+
+type DetailTab = 'details' | 'leaderboard';
 
 interface ChallengeDetailModalProps {
   challengeId: number | null;
@@ -19,6 +22,7 @@ export function ChallengeDetailModal({ challengeId, onClose, userId, onLeave }: 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(false);
   const [leaving, setLeaving] = useState(false);
+  const [activeTab, setActiveTab] = useState<DetailTab>('details');
 
   const fetchDetails = useCallback(async (id: number) => {
     try {
@@ -36,6 +40,7 @@ export function ChallengeDetailModal({ challengeId, onClose, userId, onLeave }: 
   useEffect(() => {
     if (challengeId !== null) {
       fetchDetails(challengeId);
+      setActiveTab('details');
       document.body.style.overflow = 'hidden';
     } else {
       setDetail(null);
@@ -115,6 +120,34 @@ export function ChallengeDetailModal({ challengeId, onClose, userId, onLeave }: 
               </button>
             </div>
 
+            {/* Tabs */}
+            {!loading && !error && detail && (
+              <div className="flex gap-1 bg-telegram-bg/50 rounded-xl p-1 mb-4">
+                <button
+                  onClick={() => setActiveTab('details')}
+                  className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-medium transition-colors ${
+                    activeTab === 'details'
+                      ? 'bg-telegram-secondaryBg text-telegram-text shadow-sm'
+                      : 'text-telegram-hint'
+                  }`}
+                >
+                  <Users className="w-3.5 h-3.5" />
+                  {t('social.challengeDetails')}
+                </button>
+                <button
+                  onClick={() => setActiveTab('leaderboard')}
+                  className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-medium transition-colors ${
+                    activeTab === 'leaderboard'
+                      ? 'bg-telegram-secondaryBg text-telegram-text shadow-sm'
+                      : 'text-telegram-hint'
+                  }`}
+                >
+                  <BarChart3 className="w-3.5 h-3.5" />
+                  {t('leaderboard.title')}
+                </button>
+              </div>
+            )}
+
             {loading && (
               <div className="space-y-4 animate-pulse">
                 <div className="h-6 w-3/4 bg-telegram-hint/20 rounded" />
@@ -147,7 +180,11 @@ export function ChallengeDetailModal({ challengeId, onClose, userId, onLeave }: 
               </div>
             )}
 
-            {detail && !loading && !error && (
+            {detail && !loading && !error && activeTab === 'leaderboard' && (
+              <ChallengeLeaderboard challengeId={detail.id} userId={userId} />
+            )}
+
+            {detail && !loading && !error && activeTab === 'details' && (
               <>
                 {/* Challenge Info */}
                 <div className="mb-4">

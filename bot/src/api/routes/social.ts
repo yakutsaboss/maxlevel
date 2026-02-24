@@ -491,6 +491,66 @@ router.patch('/challenges/:challengeId/progress', authenticateTelegram, mutation
   res.json(successResponse(result, 'Progress updated'));
 }));
 
+// GET /api/social/challenges/:challengeId/leaderboard — challenge leaderboard
+router.get('/challenges/:challengeId/leaderboard', authenticateTelegram, readLimiter, asyncHandler(async (req: Request, res: Response) => {
+  const challengeId = safeParseInt(req.params.challengeId, 0);
+  const requestingUserId = safeParseInt(req.query.userId as string, 0);
+
+  if (challengeId <= 0) {
+    throw new BadRequestError('challengeId must be a positive integer');
+  }
+
+  const challenge = await queryOne<{ id: number; target_value: number | null }>(
+    `SELECT id, target_value FROM challenges WHERE id = $1`,
+    [challengeId]
+  );
+
+  if (!challenge) {
+    throw new NotFoundError('Challenge not found');
+  }
+
+  const participants = await query<{
+    user_id: number; first_name: string; username: string | null;
+    current_level: number; progress: number;
+  }>(
+    `SELECT cp.user_id, u.first_name, u.username, u.current_level, cp.progress
+     FROM challenge_participants cp
+     JOIN users u ON u.id = cp.user_id
+     WHERE cp.challenge_id = $1
+     ORDER BY cp.progress DESC, cp.joined_at ASC
+     LIMIT 10`,
+    [challengeId]
+  );
+
+  const leaderboard = participants.map((p, index) => ({
+    rank: index + 1,
+    user_id: p.user_id,
+    first_name: p.first_name,
+    username: p.username,
+    current_level: p.current_level,
+    current_progress: p.progress,
+    target_value: challenge.target_value,
+    percentage: challenge.target_value
+      ? Math.min(100, Math.round((p.progress / challenge.target_value) * 100))
+      : null,
+  }));
+
+  // Find requesting user's rank if not in top 10
+  let userRank: number | null = null;
+  if (requestingUserId > 0 && !leaderboard.some(p => p.user_id === requestingUserId)) {
+    const rankResult = await queryOne<{ rank: number }>(
+      `SELECT COUNT(*) + 1 AS rank
+       FROM challenge_participants
+       WHERE challenge_id = $1
+         AND progress > (SELECT COALESCE(progress, 0) FROM challenge_participants WHERE challenge_id = $1 AND user_id = $2)`,
+      [challengeId, requestingUserId]
+    );
+    userRank = rankResult ? Number(rankResult.rank) : null;
+  }
+
+  res.json(successResponse({ leaderboard, userRank }));
+}));
+
 // DELETE /api/social/challenges/:challengeId/leave — leave a challenge
 router.delete('/challenges/:challengeId/leave', authenticateTelegram, mutationLimiter, asyncHandler(async (req: Request, res: Response) => {
   const challengeId = safeParseInt(req.params.challengeId, 0);
