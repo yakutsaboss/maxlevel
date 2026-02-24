@@ -114,4 +114,147 @@ router.get('/:telegramId/history', authenticateTelegram, readLimiter, asyncHandl
   }));
 }));
 
+/**
+ * GET /api/medication-logs/:telegramId/analytics?days=30
+ * Comprehensive medication analytics: daily adherence, per-medication stats,
+ * streaks, and weekly/monthly summaries.
+ */
+router.get('/:telegramId/analytics', authenticateTelegram, readLimiter, asyncHandler(async (req: Request, res: Response) => {
+  const telegramId = safeParseInt(req.params.telegramId, NaN);
+
+  if (isNaN(telegramId)) {
+    throw new BadRequestError('Invalid telegram ID');
+  }
+
+  if (telegramId !== req.telegramUser?.id) {
+    throw new ForbiddenError('You do not have permission to access this resource');
+  }
+
+  const days = Math.min(90, Math.max(7, safeParseInt(req.query.days as string, 30)));
+
+  // --- daily_adherence ---
+  const dailyRows = await query(
+    `SELECT ml.scheduled_date AS date,
+            COUNT(*) FILTER (WHERE ml.status = 'taken')::int AS taken,
+            COUNT(*)::int AS total,
+            ROUND(COUNT(*) FILTER (WHERE ml.status = 'taken') * 100.0 / GREATEST(COUNT(*), 1))::int AS rate
+     FROM medication_logs ml
+     JOIN users u ON ml.user_id = u.id
+     WHERE u.telegram_id = $1 AND ml.scheduled_date >= CURRENT_DATE - $2::int
+     GROUP BY ml.scheduled_date
+     ORDER BY ml.scheduled_date ASC`,
+    [telegramId, days]
+  );
+
+  // --- per_medication ---
+  const perMedRows = await query(
+    `SELECT m.id AS medication_id, m.name, m.color,
+            COUNT(*) FILTER (WHERE ml.status = 'taken')::int AS taken,
+            COUNT(*)::int AS total,
+            ROUND(COUNT(*) FILTER (WHERE ml.status = 'taken') * 100.0 / GREATEST(COUNT(*), 1))::int AS rate
+     FROM medications m
+     JOIN users u ON m.user_id = u.id
+     LEFT JOIN medication_logs ml ON ml.medication_id = m.id
+     WHERE u.telegram_id = $1 AND m.is_active = true
+     GROUP BY m.id, m.name, m.color
+     ORDER BY rate DESC`,
+    [telegramId]
+  );
+
+  // --- streaks ---
+  // Get all dates with logs and whether each date was 100% adherence
+  const streakRows = await query(
+    `SELECT ml.scheduled_date AS date,
+            (COUNT(*) FILTER (WHERE ml.status = 'taken') = COUNT(*)) AS perfect
+     FROM medication_logs ml
+     JOIN users u ON ml.user_id = u.id
+     WHERE u.telegram_id = $1
+     GROUP BY ml.scheduled_date
+     ORDER BY ml.scheduled_date ASC`,
+    [telegramId]
+  );
+
+  let currentStreak = 0;
+  let bestStreak = 0;
+  let tempStreak = 0;
+
+  // Walk dates forward; for current streak, check backwards from today
+  for (const row of streakRows) {
+    if (row.perfect) {
+      tempStreak++;
+      if (tempStreak > bestStreak) bestStreak = tempStreak;
+    } else {
+      tempStreak = 0;
+    }
+  }
+
+  // Current streak: walk backwards from end of streakRows
+  // Only counts if the most recent logged date is today or yesterday
+  if (streakRows.length > 0) {
+    const lastDate = new Date(streakRows[streakRows.length - 1].date as string);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    lastDate.setHours(0, 0, 0, 0);
+    const diffDays = Math.round((today.getTime() - lastDate.getTime()) / (1000 * 60 * 60 * 24));
+
+    if (diffDays <= 1) {
+      for (let i = streakRows.length - 1; i >= 0; i--) {
+        if (streakRows[i].perfect) {
+          currentStreak++;
+        } else {
+          break;
+        }
+      }
+    }
+  }
+
+  // --- summary ---
+  // Compute week and prev_week from dailyRows
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  let weekTaken = 0, weekTotal = 0;
+  let prevWeekTaken = 0, prevWeekTotal = 0;
+  let totalTaken = 0, totalScheduled = 0;
+
+  for (const row of dailyRows) {
+    const rowDate = new Date(row.date as string);
+    rowDate.setHours(0, 0, 0, 0);
+    const diffDays = Math.round((today.getTime() - rowDate.getTime()) / (1000 * 60 * 60 * 24));
+    const taken = Number(row.taken);
+    const total = Number(row.total);
+
+    totalTaken += taken;
+    totalScheduled += total;
+
+    if (diffDays < 7) {
+      weekTaken += taken;
+      weekTotal += total;
+    } else if (diffDays < 14) {
+      prevWeekTaken += taken;
+      prevWeekTotal += total;
+    }
+  }
+
+  const weekRate = weekTotal > 0 ? Math.round((weekTaken / weekTotal) * 100) : 0;
+  const prevWeekRate = prevWeekTotal > 0 ? Math.round((prevWeekTaken / prevWeekTotal) * 100) : 0;
+  const monthRate = totalScheduled > 0 ? Math.round((totalTaken / totalScheduled) * 100) : 0;
+
+  res.json(successResponse({
+    daily_adherence: dailyRows,
+    per_medication: perMedRows,
+    streaks: {
+      current: currentStreak,
+      best: bestStreak,
+    },
+    summary: {
+      week_rate: weekRate,
+      prev_week_rate: prevWeekRate,
+      month_rate: monthRate,
+      total_taken: totalTaken,
+      total_scheduled: totalScheduled,
+    },
+  }));
+}));
+
 export { router as medicationLogRouter };
