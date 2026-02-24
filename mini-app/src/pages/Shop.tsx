@@ -231,6 +231,7 @@ export function Shop() {
     cancelPurchase,
   } = usePurchase({
     userId: user?.id,
+    telegramId: user?.id,
     onSuccess: handlePurchaseSuccess,
   });
 

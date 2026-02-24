@@ -124,3 +124,24 @@ export async function purchaseItem(
 export async function fetchPurchaseHistory(userId: number): Promise<Purchase[]> {
   return request<Purchase[]>(`${API_BASE_URL}/shop/purchases/${userId}`);
 }
+
+// --- Stars Invoice ---
+
+export interface ShopInvoiceResponse {
+  payment_id: number;
+  invoice_url: string;
+}
+
+/**
+ * POST /payments/create-shop-invoice — Create a Telegram Stars invoice for a shop item.
+ * Returns payment_id + invoice_url to open via WebApp.openInvoice().
+ */
+export async function createShopInvoice(
+  telegramId: number,
+  shopItemId: number,
+): Promise<ShopInvoiceResponse> {
+  return request<ShopInvoiceResponse>(`${API_BASE_URL}/payments/create-shop-invoice`, {
+    method: 'POST',
+    body: JSON.stringify({ telegram_id: telegramId, shop_item_id: shopItemId }),
+  });
+}

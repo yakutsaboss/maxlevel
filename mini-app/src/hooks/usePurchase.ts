@@ -1,7 +1,10 @@
 import { useState, useCallback, useRef } from 'react';
-import { purchaseItem } from '@/api/shop.js';
+import WebApp from '@twa-dev/sdk';
+import { purchaseItem, createShopInvoice } from '@/api/shop.js';
 import type { ShopItem, PaymentMethod, PurchaseResult } from '@/api/shop.js';
 import { logger } from '@/utils/logger.js';
+
+type InvoiceStatus = 'paid' | 'cancelled' | 'failed' | 'pending';
 
 export type PurchaseState = 'idle' | 'confirming' | 'processing' | 'success' | 'error';
 
@@ -26,6 +29,7 @@ interface UsePurchaseReturn {
 
 interface UsePurchaseParams {
   userId: number | undefined;
+  telegramId: number | undefined;
   onSuccess?: (result: PurchaseResult) => void;
   onError?: (error: string) => void;
 }
@@ -34,7 +38,7 @@ interface UsePurchaseParams {
  * Hook managing the full purchase flow state machine:
  * idle → confirming → processing → success | error → idle
  */
-export function usePurchase({ userId, onSuccess, onError }: UsePurchaseParams): UsePurchaseReturn {
+export function usePurchase({ userId, telegramId, onSuccess, onError }: UsePurchaseParams): UsePurchaseReturn {
   const [purchaseState, setPurchaseState] = useState<PurchaseState>('idle');
   const [currentItem, setCurrentItem] = useState<ShopItem | null>(null);
   const [result, setResult] = useState<PurchaseResult | null>(null);
@@ -57,15 +61,64 @@ export function usePurchase({ userId, onSuccess, onError }: UsePurchaseParams): 
     setErrorMessage(null);
 
     try {
-      const purchaseResult = await purchaseItem(userId, currentItem.id, paymentMethod);
-      setResult(purchaseResult);
-      setPurchaseState('success');
-      onSuccess?.(purchaseResult);
-      logger.info('Purchase completed', {
-        itemId: currentItem.id,
-        paymentMethod,
-        amountPaid: purchaseResult.purchase.amount_paid,
-      });
+      if (paymentMethod === 'stars') {
+        // Stars: create invoice → open Telegram payment → handle callback
+        if (!telegramId) throw new Error('Telegram ID required for Stars payment');
+
+        const invoice = await createShopInvoice(telegramId, currentItem.id);
+        logger.info('Shop invoice created', { paymentId: invoice.payment_id, itemId: currentItem.id });
+
+        await new Promise<void>((resolve, reject) => {
+          try {
+            WebApp.openInvoice(invoice.invoice_url, (status: InvoiceStatus) => {
+              logger.info('Shop invoice callback', { status, paymentId: invoice.payment_id });
+
+              if (status === 'paid') {
+                resolve();
+              } else if (status === 'cancelled') {
+                reject(new Error('Payment cancelled'));
+              } else if (status === 'failed') {
+                reject(new Error('Payment failed'));
+              } else {
+                // pending — treat as paid (backend confirms via pre_checkout/successful_payment)
+                resolve();
+              }
+            });
+          } catch (err) {
+            reject(err);
+          }
+        });
+
+        // Payment succeeded — set success state
+        // The backend handles item delivery via successful_payment handler
+        setPurchaseState('success');
+        onSuccess?.({
+          purchase: {
+            id: invoice.payment_id,
+            user_id: userId,
+            shop_item_id: currentItem.id,
+            payment_method: 'stars',
+            amount_paid: currentItem.price_stars,
+            purchased_at: new Date().toISOString(),
+          },
+          newBalance: {},
+        });
+        logger.info('Stars purchase completed', {
+          itemId: currentItem.id,
+          paymentId: invoice.payment_id,
+        });
+      } else {
+        // XP: direct atomic deduction via existing endpoint
+        const purchaseResult = await purchaseItem(userId, currentItem.id, paymentMethod);
+        setResult(purchaseResult);
+        setPurchaseState('success');
+        onSuccess?.(purchaseResult);
+        logger.info('Purchase completed', {
+          itemId: currentItem.id,
+          paymentMethod,
+          amountPaid: purchaseResult.purchase.amount_paid,
+        });
+      }
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Purchase failed';
       setErrorMessage(message);
@@ -75,7 +128,7 @@ export function usePurchase({ userId, onSuccess, onError }: UsePurchaseParams): 
     } finally {
       processingRef.current = false;
     }
-  }, [userId, currentItem, onSuccess, onError]);
+  }, [userId, telegramId, currentItem, onSuccess, onError]);
 
   const dismissResult = useCallback(() => {
     setPurchaseState('idle');
