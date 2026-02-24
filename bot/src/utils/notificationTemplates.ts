@@ -9,6 +9,7 @@
  */
 
 import { InlineKeyboard } from 'grammy';
+import { customEmoji } from './customEmoji.js';
 
 const MINI_APP_URL = process.env.MINI_APP_URL || 'https://yakutsa.ru/levelapp';
 
@@ -105,10 +106,10 @@ export function dailySummaryTemplate(stats: DailySummaryStats): {
   }
 
   if (streak > 0) {
-    lines.push(`🔥 Streak: <b>${streak} day${streak !== 1 ? 's' : ''}</b>`);
+    lines.push(`${customEmoji('fire', '🔥')} Streak: <b>${streak} day${streak !== 1 ? 's' : ''}</b>`);
   }
 
-  lines.push(`⭐ Level ${stats.current_level} · ${stats.total_xp.toLocaleString()} total XP`);
+  lines.push(`${customEmoji('star', '⭐')} Level ${stats.current_level} · ${stats.total_xp.toLocaleString()} total XP`);
   lines.push('');
 
   if (questsToday === 0) {
@@ -142,7 +143,7 @@ export function questReminderTemplate(quest: PendingQuestInfo): {
   lines.push('');
   lines.push(`Hey ${name}! You have <b>${count}</b> quest${count !== 1 ? 's' : ''} still waiting today.`);
   lines.push('');
-  lines.push("Don't break your streak! 🔥");
+  lines.push(`Don't break your streak! ${customEmoji('fire', '🔥')}`);
 
   const keyboard = new InlineKeyboard()
     .webApp('⚔️ Complete Now', `${MINI_APP_URL}/quests`);
@@ -165,7 +166,7 @@ export function achievementUnlockedTemplate(achievement: AchievementInfo): {
 
   const lines: string[] = [];
 
-  lines.push('🏆 <b>Achievement Unlocked!</b>');
+  lines.push(`${customEmoji('trophy', '🏆')} <b>Achievement Unlocked!</b>`);
   lines.push('');
   lines.push(`${badge} <b>${escapeHtml(achievement.name)}</b>`);
   lines.push(`${rarity}`);
@@ -238,20 +239,20 @@ export function streakMilestoneTemplate(info: StreakMilestoneInfo): {
 
   const lines: string[] = [];
 
-  lines.push('🔥 <b>Streak Milestone!</b>');
+  lines.push(`${customEmoji('fire', '🔥')} <b>Streak Milestone!</b>`);
   lines.push('');
   lines.push(`Congratulations, ${name}! You hit a <b>${days}-day streak</b>!`);
   lines.push(`You're on fire with <b>${mode}</b>! 🎉`);
   lines.push('');
 
   if (days >= 100) {
-    lines.push('🏆 <b>LEGENDARY!</b> 100 days of pure dedication!');
+    lines.push(`${customEmoji('trophy', '🏆')} <b>LEGENDARY!</b> 100 days of pure dedication!`);
   } else if (days >= 60) {
     lines.push('💎 Two months strong — you\'re unstoppable!');
   } else if (days >= 30) {
     lines.push('🏅 A full month! That\'s real commitment.');
   } else if (days >= 14) {
-    lines.push('⭐ Two weeks in — keep the momentum going!');
+    lines.push(`${customEmoji('star', '⭐')} Two weeks in — keep the momentum going!`);
   } else {
     lines.push('✨ First week milestone! Great start!');
   }
@@ -279,7 +280,7 @@ export function streakWarningTemplate(streak: StreakInfo): {
   if (days >= 30) {
     lines.push(`🏅 You've built <b>${days} days</b> of consistency — don't let it slip!`);
   } else if (days >= 7) {
-    lines.push(`🔥 ${days} days strong — keep the fire alive!`);
+    lines.push(`${customEmoji('fire', '🔥')} ${days} days strong — keep the fire alive!`);
   } else {
     lines.push('💪 Complete a quest now to keep your streak going!');
   }

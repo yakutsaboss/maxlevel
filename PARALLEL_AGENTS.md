@@ -3025,7 +3025,18 @@ FORBIDDEN: database/*, payment handlers, shop routes, sticker routes, Settings.t
 *(To be filled by Agent D)*
 
 #### Agent E Retrospective
-*(To be filled by Agent E)*
+**Status**: Complete — all tasks done, `npx tsc --noEmit` clean.
+
+**What was done**:
+1. Created `bot/src/utils/customEmoji.ts` — premium check via `bot.api.getMe()`, emoji ID mapping (fire/star/trophy/rocket/check/warning), `customEmoji(key, fallback)` function that returns `<tg-emoji>` HTML when bot has Premium, Unicode fallback otherwise. Used generic `<C extends Context>` to accept `Bot<MyContext>`.
+2. Updated `bot/src/utils/notificationTemplates.ts` — imported `customEmoji`, replaced 8 hardcoded emoji occurrences (`🔥` ×4, `⭐` ×2, `🏆` ×2) with `customEmoji()` calls across dailySummary, questReminder, achievementUnlocked, streakMilestone, and streakWarning templates.
+3. Added `checkBotPremium(bot)` call in `bot/src/index.ts` `main()` — runs after DB test, before webhook/polling setup. Logs premium status on startup.
+
+**Issues**:
+- Initial type error: `Bot<MyContext>` not assignable to `Bot<Context>` — fixed by making `checkBotPremium` generic.
+- Emoji IDs are placeholders (all same ID `5368324170671202286`). Need to be replaced with actual custom emoji IDs from Telegram — Agent 0 or manual step needed.
+
+**Files changed**: `bot/src/utils/customEmoji.ts` (new), `bot/src/utils/notificationTemplates.ts` (modified), `bot/src/index.ts` (2 lines added).
 
 #### Agent F Retrospective
 *(To be filled by Agent F)*
