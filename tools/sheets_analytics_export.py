@@ -39,7 +39,22 @@ from googleapiclient.discovery import build
 
 
 def get_sheets_service():
-    """Authenticate and return Google Sheets API service."""
+    """Authenticate and return Google Sheets API service.
+
+    Tries OAuth user credentials (token.json) first, then falls back to
+    service account. OAuth tokens are managed by sheets_oauth_helper.py
+    and the /sheets_login bot command.
+    """
+    # Try OAuth user credentials first (from /sheets_login flow)
+    try:
+        from tools.sheets_oauth_helper import load_oauth_credentials
+        oauth_creds = load_oauth_credentials()
+        if oauth_creds:
+            return build('sheets', 'v4', credentials=oauth_creds)
+    except ImportError:
+        pass
+
+    # Fall back to service account
     creds_file = os.getenv('GOOGLE_SERVICE_ACCOUNT_FILE', '../service_account.json')
 
     # Resolve relative paths from project root
@@ -48,8 +63,11 @@ def get_sheets_service():
 
     if not os.path.exists(creds_file):
         raise FileNotFoundError(
-            f"Service account file not found: {creds_file}\n"
-            "Create a Google Cloud service account and download the JSON key."
+            f"No authentication available.\n"
+            "Either:\n"
+            "  1. Use /sheets_login in the notification bot to authorize with Google OAuth, or\n"
+            "  2. Set up a service account: download JSON key as service_account.json\n"
+            f"     and set GOOGLE_SERVICE_ACCOUNT_FILE in .env"
         )
 
     scopes = ['https://www.googleapis.com/auth/spreadsheets']

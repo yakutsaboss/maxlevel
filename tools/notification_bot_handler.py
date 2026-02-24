@@ -257,6 +257,8 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "/deploy \u2014 Last deploy info + process status\n"
         "/stars \u2014 Telegram Stars balance + recent transactions\n"
         "/sheets \u2014 Export analytics to Google Sheets\n"
+        "/sheets_login \u2014 Authorize Google Sheets (OAuth)\n"
+        "/sheets_status \u2014 Check Google Sheets connection\n"
         "/onboarding \u2014 Onboarding questions reference\n"
         "/punishments \u2014 Punishment system reference\n"
         "/flow \u2014 Onboarding flow diagram\n"
@@ -278,6 +280,9 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "<b>Project</b>\n"
         "<b>/status</b> \u2014 Project milestones, completion %, what's left\n"
         "<b>/sheets</b> \u2014 Export analytics data to Google Sheets\n"
+        "<b>/sheets_login</b> \u2014 Authorize Google Sheets via OAuth\n"
+        "<b>/sheets_code</b> \u2014 Submit authorization code\n"
+        "<b>/sheets_status</b> \u2014 Check Google Sheets connection\n"
         "<b>/stars</b> \u2014 Telegram Stars balance + recent 5 transactions\n\n"
         "<b>Reference</b>\n"
         "<b>/onboarding</b> \u2014 Onboarding questions & answers reference\n"
@@ -314,7 +319,11 @@ async def status_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     except subprocess.TimeoutExpired:
         await thinking.edit_text("Timed out. Try again.")
     except Exception as e:
-        await thinking.edit_text(f"Error: {e}")
+        try:
+            await thinking.delete()
+        except Exception:
+            pass
+        await update.message.reply_html(f"\u274C Error: <code>{str(e)[:200]}</code>")
 
 
 async def ping_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -459,7 +468,11 @@ async def metrics_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     except subprocess.TimeoutExpired:
         await thinking.edit_text("Timed out connecting to server.")
     except Exception as e:
-        await thinking.edit_text(f"Error: {e}")
+        try:
+            await thinking.delete()
+        except Exception:
+            pass
+        await update.message.reply_html(f"\u274C Error: <code>{str(e)[:200]}</code>")
 
 
 async def sheets_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -529,6 +542,164 @@ async def sheets_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await thinking.edit_text("Export timed out. Try again.")
     except Exception as e:
         await thinking.edit_text(f"Error: {e}")
+
+
+async def sheets_login_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Generate Google OAuth URL for Sheets authorization."""
+    if not is_authorized(update):
+        await update.message.reply_text("Unauthorized.")
+        return
+
+    thinking = await update.message.reply_text("\U0001F510 Generating authorization URL...")
+
+    try:
+        helper_path = PROJECT_ROOT / "tools" / "sheets_oauth_helper.py"
+        result = subprocess.run(
+            [sys.executable, str(helper_path), "--generate-url"],
+            capture_output=True, text=True, timeout=15,
+            encoding='utf-8', cwd=str(PROJECT_ROOT)
+        )
+
+        await thinking.delete()
+
+        if result.returncode == 0 and result.stdout.strip():
+            data = json.loads(result.stdout.strip())
+            if data.get("success"):
+                url = data["url"]
+                await update.message.reply_html(
+                    "<b>\U0001F510 Google Sheets Authorization</b>\n\n"
+                    "1. Click the link below to authorize:\n"
+                    f"<a href=\"{url}\">Authorize Google Sheets</a>\n\n"
+                    "2. Sign in and click <b>Allow</b>\n"
+                    "3. Copy the authorization code\n"
+                    "4. Send it here with:\n"
+                    "<code>/sheets_code YOUR_CODE</code>",
+                    disable_web_page_preview=True
+                )
+            else:
+                error = data.get("error", "Unknown error")
+                await update.message.reply_html(
+                    f"<b>\u274C OAuth Setup Error</b>\n\n<code>{error[:500]}</code>"
+                )
+        else:
+            error = result.stderr.strip() if result.stderr else "Unknown error"
+            await update.message.reply_html(f"Error:\n<code>{error[:500]}</code>")
+
+    except subprocess.TimeoutExpired:
+        await thinking.edit_text("Timed out. Try again.")
+    except Exception as e:
+        try:
+            await thinking.delete()
+        except Exception:
+            pass
+        await update.message.reply_html(f"\u274C Error: <code>{str(e)[:200]}</code>")
+
+
+async def sheets_code_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Exchange OAuth authorization code for tokens."""
+    if not is_authorized(update):
+        await update.message.reply_text("Unauthorized.")
+        return
+
+    if not context.args:
+        await update.message.reply_html(
+            "Usage: <code>/sheets_code YOUR_CODE</code>\n\n"
+            "Get the code by running /sheets_login first."
+        )
+        return
+
+    auth_code = context.args[0]
+    thinking = await update.message.reply_text("\U0001F504 Exchanging authorization code...")
+
+    try:
+        helper_path = PROJECT_ROOT / "tools" / "sheets_oauth_helper.py"
+        result = subprocess.run(
+            [sys.executable, str(helper_path), "--exchange-code", auth_code],
+            capture_output=True, text=True, timeout=15,
+            encoding='utf-8', cwd=str(PROJECT_ROOT)
+        )
+
+        await thinking.delete()
+
+        if result.returncode == 0 and result.stdout.strip():
+            data = json.loads(result.stdout.strip())
+            if data.get("success"):
+                await update.message.reply_html(
+                    "\u2705 <b>Google Sheets connected!</b>\n\n"
+                    "You can now use /sheets to export analytics.\n"
+                    "Use /sheets_status to check connection status."
+                )
+            else:
+                error = data.get("error", "Unknown error")
+                await update.message.reply_html(
+                    f"\u274C <b>Authorization failed</b>\n\n<code>{error[:500]}</code>"
+                )
+        else:
+            error = result.stderr.strip() if result.stderr else "Unknown error"
+            await update.message.reply_html(f"Error:\n<code>{error[:500]}</code>")
+
+    except subprocess.TimeoutExpired:
+        await thinking.edit_text("Timed out. Try again.")
+    except Exception as e:
+        try:
+            await thinking.delete()
+        except Exception:
+            pass
+        await update.message.reply_html(f"\u274C Error: <code>{str(e)[:200]}</code>")
+
+
+async def sheets_status_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Check Google Sheets OAuth connection status."""
+    if not is_authorized(update):
+        await update.message.reply_text("Unauthorized.")
+        return
+
+    try:
+        helper_path = PROJECT_ROOT / "tools" / "sheets_oauth_helper.py"
+        result = subprocess.run(
+            [sys.executable, str(helper_path), "--check-status"],
+            capture_output=True, text=True, timeout=15,
+            encoding='utf-8', cwd=str(PROJECT_ROOT)
+        )
+
+        if result.returncode == 0 and result.stdout.strip():
+            data = json.loads(result.stdout.strip())
+            status = data.get("status", "unknown")
+            message = data.get("message", "Unknown")
+
+            icons = {
+                "valid": "\u2705",
+                "refreshed": "\u2705",
+                "not_configured": "\u26A0\uFE0F",
+                "expired": "\u274C",
+                "error": "\u274C",
+            }
+            icon = icons.get(status, "\u2753")
+
+            # Also check service account as fallback
+            sa_file = os.getenv('GOOGLE_SERVICE_ACCOUNT_FILE', '../service_account.json')
+            if not os.path.isabs(sa_file):
+                sa_file = os.path.join(str(PROJECT_ROOT), sa_file)
+            sa_exists = os.path.exists(sa_file)
+
+            lines = [
+                "<b>\U0001F4CA Google Sheets Status</b>\n",
+                f"{icon} <b>OAuth:</b> {message}",
+                f"{'✅' if sa_exists else '⚠️'} <b>Service account:</b> {'configured' if sa_exists else 'not found'}",
+            ]
+
+            if status in ("valid", "refreshed") or sa_exists:
+                lines.append("\n\U0001F4A1 Use /sheets to export analytics.")
+            else:
+                lines.append("\n\U0001F4A1 Use /sheets_login to authorize Google Sheets.")
+
+            await update.message.reply_html("\n".join(lines))
+        else:
+            error = result.stderr.strip() if result.stderr else "Unknown error"
+            await update.message.reply_html(f"Error:\n<code>{error[:500]}</code>")
+
+    except Exception as e:
+        await update.message.reply_html(f"\u274C Error: <code>{str(e)[:200]}</code>")
 
 
 async def onboarding_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -638,7 +809,11 @@ async def deploy_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     except subprocess.TimeoutExpired:
         await thinking.edit_text("Timed out connecting to server.")
     except Exception as e:
-        await thinking.edit_text(f"Error: {e}")
+        try:
+            await thinking.delete()
+        except Exception:
+            pass
+        await update.message.reply_html(f"\u274C Error: <code>{str(e)[:200]}</code>")
 
 
 async def stars_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -758,6 +933,8 @@ async def post_init(application):
         BotCommand("metrics", "Server resource usage + disk trend"),
         BotCommand("deploy", "Last deploy info + process status"),
         BotCommand("sheets", "Export analytics to Google Sheets"),
+        BotCommand("sheets_login", "Authorize Google Sheets (OAuth)"),
+        BotCommand("sheets_status", "Check Google Sheets connection"),
         BotCommand("stars", "Telegram Stars balance + recent transactions"),
         BotCommand("onboarding", "Onboarding questions reference"),
         BotCommand("punishments", "Punishment system reference"),
@@ -781,13 +958,28 @@ def main():
     app.add_handler(CommandHandler("ping", ping_command))
     app.add_handler(CommandHandler("metrics", metrics_command))
     app.add_handler(CommandHandler("sheets", sheets_command))
+    app.add_handler(CommandHandler("sheets_login", sheets_login_command))
+    app.add_handler(CommandHandler("sheets_code", sheets_code_command))
+    app.add_handler(CommandHandler("sheets_status", sheets_status_command))
     app.add_handler(CommandHandler("deploy", deploy_command))
     app.add_handler(CommandHandler("stars", stars_command))
     app.add_handler(CommandHandler("onboarding", onboarding_command))
     app.add_handler(CommandHandler("punishments", punishments_command))
     app.add_handler(CommandHandler("flow", flow_command))
     async def error_handler(update, context):
-        print(f"Error: {context.error}")
+        """Global error handler — logs and notifies user of unhandled exceptions."""
+        error_msg = str(context.error) if context.error else "Unknown error"
+        print(f"Unhandled error: {error_msg}", file=sys.stderr)
+
+        if update and update.effective_message:
+            try:
+                await update.effective_message.reply_html(
+                    f"\u274C <b>Unexpected error</b>\n\n"
+                    f"<code>{error_msg[:300]}</code>\n\n"
+                    f"Try again or check server logs."
+                )
+            except Exception:
+                pass  # Can't reply — message/chat may be gone
     app.add_error_handler(error_handler)
 
     print("Bot is running. Ctrl+C to stop.")
