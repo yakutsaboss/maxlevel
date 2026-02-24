@@ -256,6 +256,11 @@ export default {
     stickerPacks: "Sticker Packs",
     stickerPacksEmpty: "No sticker packs available",
     stickerPacksError: "Could not load sticker packs",
+    homeScreen: "Home Screen Shortcut",
+    homeScreenDesc: "Quick access from your home screen",
+    homeScreenAdd: "Add to Home Screen",
+    homeScreenDismiss: "Not now",
+    homeScreenReset: "Reset prompt",
   },
   achievements: {
     title: "Achievements",

@@ -20,6 +20,7 @@ import { ThemeSettings } from '@/components/settings/ThemeSettings';
 import { DangerZone } from '@/components/settings/DangerZone';
 import { CelebrationSettings } from '@/components/settings/CelebrationSettings';
 import { StickerPackBrowser } from '@/components/settings/StickerPackBrowser';
+import { HomeScreenSettings } from '@/components/settings/HomeScreenSettings';
 import { SettingsSkeleton } from '@/components/settings/SettingsSkeleton';
 
 export function Settings() {
@@ -77,6 +78,7 @@ export function Settings() {
         <ThemeSettings colorScheme={colorScheme} themeParams={themeParams} haptic={haptic} />
         <CelebrationSettings haptic={haptic} />
         {isAnimated && <StickerPackBrowser />}
+        <HomeScreenSettings />
         <AccountabilitySettings
           punishment={punishment}
           punishmentAvailable={punishmentAvailable}

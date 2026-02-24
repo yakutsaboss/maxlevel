@@ -256,6 +256,11 @@ export default {
     stickerPacks: "Наборы стикеров",
     stickerPacksEmpty: "Нет доступных наборов стикеров",
     stickerPacksError: "Не удалось загрузить наборы стикеров",
+    homeScreen: "Ярлык на главный экран",
+    homeScreenDesc: "Быстрый доступ с главного экрана",
+    homeScreenAdd: "Добавить на главный экран",
+    homeScreenDismiss: "Не сейчас",
+    homeScreenReset: "Сбросить",
   },
   achievements: {
     title: "Достижения",

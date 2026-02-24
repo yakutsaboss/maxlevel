@@ -23,6 +23,7 @@ import { DashboardAchievementCard } from '@/components/dashboard/DashboardAchiev
 import { DashboardSkeleton } from '@/components/dashboard/DashboardSkeleton';
 import { AvatarRenderer, type EquippedItems } from '@/components/avatar';
 import { getDailyQuote } from '@/data/motivationalQuotes';
+import { HomeScreenPrompt } from '@/components/HomeScreenPrompt';
 
 function getGreetingKey(): string {
   const hour = new Date().getHours();
@@ -124,6 +125,8 @@ export function Dashboard() {
           </div>
         </div>
       </div>
+
+      <HomeScreenPrompt />
 
       <div className="grid grid-cols-2 gap-3 px-4 mt-4">
         <StatCard icon={<Target className="w-5 h-5" />} label={t('dashboard.questsDone')} value={stats.user.total_quests_completed} color="bg-blue-500" />
