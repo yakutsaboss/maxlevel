@@ -30,6 +30,7 @@ import { channelRouter } from './routes/channel.js';
 import { activityRouter } from './routes/activities.js';
 import { medicationRouter } from './routes/medications.js';
 import { medicationLogRouter } from './routes/medication-logs.js';
+import { stickerRouter } from './routes/stickers.js';
 import { healthRouter } from './routes/health.js';
 import { metricsRouter, collectMetrics } from './routes/metrics.js';
 import { apiLimiter } from './middleware/rateLimiter.js';
@@ -133,6 +134,7 @@ app.use('/api/channel', channelRouter);
 app.use('/api/activities', activityRouter);
 app.use('/api/medications', medicationRouter);
 app.use('/api/medication-logs', medicationLogRouter);
+app.use('/api/stickers', stickerRouter);
 
 // Webhook route (mounted dynamically when webhook handler is provided)
 let _webhookMounted = false;
