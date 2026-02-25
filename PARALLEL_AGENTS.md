@@ -3072,7 +3072,44 @@ FORBIDDEN: database/*, payment handlers, shop routes, sticker routes, Settings.t
 *(To be filled by Agent F)*
 
 #### Agent G Retrospective
-*(To be filled by Agent G)*
+**Status**: Complete — all tasks done, both builds pass (`bot tsc --noEmit` clean, `mini-app tsc --noEmit` only pre-existing lucide-react module errors).
+
+**What was done**:
+1. Added `gifts_received` table to `database/schema.sql` with indexes on `to_user_id` and `from_user_id`.
+2. Created `bot/src/api/routes/gifts.ts` with 4 routes:
+   - `GET /api/gifts/available` — wraps `bot.api.getAvailableGifts()`, returns simplified gift list
+   - `GET /api/gifts/received/:userId` — paginated gifts received by internal user ID
+   - `GET /api/gifts/sent/:userId` — paginated gifts sent by internal user ID
+   - `POST /api/gifts/send` — takes `{ from_user_id, to_user_id, gift_id, message? }`, looks up recipient telegram_id internally, calls `bot.api.sendGift()`, records in DB
+3. Registered `giftRouter` at `/api/gifts` in `server.ts`.
+4. Created `mini-app/src/pages/Gifts.tsx`:
+   - **Received tab**: list of received gifts with sender name, emoji, stars cost, date, message
+   - **Send tab**: 3-step wizard (pick friend → pick gift → confirm + optional message → send)
+   - Fetches internal user ID from `getUserStats()` (converts telegram_id → internal id)
+   - Uses `getFriends()` from `api/social.ts` for the friend picker
+5. Added lazy `/gifts` route to `App.tsx`.
+6. Added 21 i18n keys to `en.ts`, `ru.ts`, `zh.ts` under `gifts:{}`.
+
+**Issues encountered**:
+- `haptic` from `useTelegram()` is an object with `.impact()` / `.notification()` / `.selection()` methods — NOT a callable function. Called as `haptic?.('medium')` initially; fixed to `haptic?.impact('medium')`.
+- Changed POST body from `to_telegram_id` to `to_user_id` (internal ID) because the `Friend` type from `api/social.ts` doesn't expose `telegram_id`. The route looks up telegram_id internally before calling `bot.api.sendGift()`.
+- `lucide-react` TS2307 errors are pre-existing across the entire codebase (not caused by this PR).
+
+**Completed tasks**:
+| Task | Status |
+|------|--------|
+| gifts_received table in schema.sql | ✅ |
+| bot/src/api/routes/gifts.ts (4 routes) | ✅ |
+| Register in server.ts | ✅ |
+| mini-app/src/pages/Gifts.tsx (Received + Send tabs) | ✅ |
+| /gifts route in App.tsx | ✅ |
+| i18n: en.ts, ru.ts, zh.ts | ✅ |
+| Build verify: bot + mini-app tsc --noEmit | ✅ |
+
+**Recommendations for next run**:
+- The `Friend` type in `api/social.ts` could benefit from a `telegram_id` field so gift sending can be done purely by telegram_id without an extra DB lookup.
+- The gift emoji/title currently shows the sticker's `.emoji` property from Telegram. If `getAvailableGifts()` returns proper sticker data, this works. Consider adding a gift name/description from the Telegram sticker set as a fallback.
+- Navigation: consider adding a Gifts link from the Social page or a gifts badge/button in the Profile page.
 
 #### Agent H Retrospective
 *(To be filled by Agent H)*
