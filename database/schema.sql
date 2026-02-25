@@ -606,3 +606,27 @@ ALTER TABLE users ADD COLUMN IF NOT EXISTS celebration_sticker_pack VARCHAR(100)
 
 -- Run 94: Per-category notification modes (persisted as JSONB)
 ALTER TABLE users ADD COLUMN IF NOT EXISTS notification_modes JSONB DEFAULT '{}';
+
+-- Run 95: Paid content (guides, videos, resources behind Star paywall)
+CREATE TABLE IF NOT EXISTS paid_content (
+    id SERIAL PRIMARY KEY,
+    title VARCHAR(255) NOT NULL,
+    description TEXT,
+    content_type VARCHAR(50) NOT NULL CHECK (content_type IN ('guide', 'video', 'resource')),
+    price_stars INTEGER NOT NULL DEFAULT 0,
+    content_body TEXT,
+    media_file_id VARCHAR(255),
+    is_active BOOLEAN DEFAULT true,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_paid_content_active ON paid_content(is_active);
+
+CREATE TABLE IF NOT EXISTS user_content_access (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    content_id INTEGER NOT NULL REFERENCES paid_content(id) ON DELETE CASCADE,
+    purchased_at TIMESTAMPTZ DEFAULT NOW(),
+    payment_id INTEGER REFERENCES payments(id),
+    UNIQUE(user_id, content_id)
+);
+CREATE INDEX IF NOT EXISTS idx_user_content_access_user ON user_content_access(user_id, content_id);

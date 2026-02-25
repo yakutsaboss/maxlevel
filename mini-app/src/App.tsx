@@ -39,6 +39,7 @@ const ActivityHistory = lazy(() => import('@/pages/ActivityHistory').then(m => (
 const AdminDashboard = lazy(() => import('@/pages/admin/AdminDashboard').then(m => ({ default: m.AdminDashboard })));
 const AdminPlayerList = lazy(() => import('@/pages/admin/AdminPlayerList').then(m => ({ default: m.AdminPlayerList })));
 const AdminPlayerDetail = lazy(() => import('@/pages/admin/AdminPlayerDetail').then(m => ({ default: m.AdminPlayerDetail })));
+const PremiumContent = lazy(() => import('@/pages/PremiumContent').then(m => ({ default: m.PremiumContent })));
 
 // Create React Query client
 const queryClient = new QueryClient({
@@ -161,6 +162,7 @@ function AppContent() {
           <Route path="/notifications" element={<ProtectedRoute needsOnboarding={effectiveNeedsOnboarding} lazy><PageErrorBoundary pageName="Notifications"><NotificationHistory /></PageErrorBoundary></ProtectedRoute>} />
           <Route path="/activity" element={<ProtectedRoute needsOnboarding={effectiveNeedsOnboarding} lazy><PageErrorBoundary pageName="Activity"><ActivityHub /></PageErrorBoundary></ProtectedRoute>} />
           <Route path="/activity/history" element={<ProtectedRoute needsOnboarding={effectiveNeedsOnboarding} lazy><PageErrorBoundary pageName="Activity History"><ActivityHistory /></PageErrorBoundary></ProtectedRoute>} />
+          <Route path="/premium-content" element={<ProtectedRoute needsOnboarding={effectiveNeedsOnboarding} lazy><PageErrorBoundary pageName="Premium Content"><PremiumContent /></PageErrorBoundary></ProtectedRoute>} />
           <Route path="/admin" element={<Navigate to="/admin/dashboard" replace />} />
           <Route path="/admin/dashboard" element={<LazyPageWrapper><PageErrorBoundary pageName="Admin Dashboard"><AdminDashboard /></PageErrorBoundary></LazyPageWrapper>} />
           <Route path="/admin/players" element={<LazyPageWrapper><PageErrorBoundary pageName="Admin Players"><AdminPlayerList /></PageErrorBoundary></LazyPageWrapper>} />
