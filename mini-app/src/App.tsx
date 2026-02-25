@@ -36,6 +36,7 @@ const NotificationHistory = lazy(() => import('@/pages/NotificationHistory').the
 const Medications = lazy(() => import('@/pages/Medications').then(m => ({ default: m.Medications })));
 const ActivityHub = lazy(() => import('@/pages/ActivityHub').then(m => ({ default: m.ActivityHub })));
 const ActivityHistory = lazy(() => import('@/pages/ActivityHistory').then(m => ({ default: m.ActivityHistory })));
+const Gifts = lazy(() => import('@/pages/Gifts').then(m => ({ default: m.Gifts })));
 const AdminDashboard = lazy(() => import('@/pages/admin/AdminDashboard').then(m => ({ default: m.AdminDashboard })));
 const AdminPlayerList = lazy(() => import('@/pages/admin/AdminPlayerList').then(m => ({ default: m.AdminPlayerList })));
 const AdminPlayerDetail = lazy(() => import('@/pages/admin/AdminPlayerDetail').then(m => ({ default: m.AdminPlayerDetail })));
@@ -161,6 +162,7 @@ function AppContent() {
           <Route path="/notifications" element={<ProtectedRoute needsOnboarding={effectiveNeedsOnboarding} lazy><PageErrorBoundary pageName="Notifications"><NotificationHistory /></PageErrorBoundary></ProtectedRoute>} />
           <Route path="/activity" element={<ProtectedRoute needsOnboarding={effectiveNeedsOnboarding} lazy><PageErrorBoundary pageName="Activity"><ActivityHub /></PageErrorBoundary></ProtectedRoute>} />
           <Route path="/activity/history" element={<ProtectedRoute needsOnboarding={effectiveNeedsOnboarding} lazy><PageErrorBoundary pageName="Activity History"><ActivityHistory /></PageErrorBoundary></ProtectedRoute>} />
+          <Route path="/gifts" element={<ProtectedRoute needsOnboarding={effectiveNeedsOnboarding} lazy><PageErrorBoundary pageName="Gifts"><Gifts /></PageErrorBoundary></ProtectedRoute>} />
           <Route path="/admin" element={<Navigate to="/admin/dashboard" replace />} />
           <Route path="/admin/dashboard" element={<LazyPageWrapper><PageErrorBoundary pageName="Admin Dashboard"><AdminDashboard /></PageErrorBoundary></LazyPageWrapper>} />
           <Route path="/admin/players" element={<LazyPageWrapper><PageErrorBoundary pageName="Admin Players"><AdminPlayerList /></PageErrorBoundary></LazyPageWrapper>} />

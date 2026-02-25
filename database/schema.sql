@@ -606,3 +606,19 @@ ALTER TABLE users ADD COLUMN IF NOT EXISTS celebration_sticker_pack VARCHAR(100)
 
 -- Run 94: Per-category notification modes (persisted as JSONB)
 ALTER TABLE users ADD COLUMN IF NOT EXISTS notification_modes JSONB DEFAULT '{}';
+
+-- Gifts system (added Run 95)
+CREATE TABLE IF NOT EXISTS gifts_received (
+    id SERIAL PRIMARY KEY,
+    to_user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    from_user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    gift_id VARCHAR(100) NOT NULL,
+    gift_title VARCHAR(255),
+    stars_cost INTEGER DEFAULT 0,
+    message TEXT,
+    sent_at TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_gifts_to_user ON gifts_received(to_user_id, sent_at DESC);
+CREATE INDEX IF NOT EXISTS idx_gifts_from_user ON gifts_received(from_user_id, sent_at DESC);
+
+COMMENT ON TABLE gifts_received IS 'Telegram gifts sent between users via Stars (added Run 95)';
