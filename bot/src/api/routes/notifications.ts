@@ -29,15 +29,31 @@ const TYPE_FILTER_MAP: Record<TypeFilter, string[]> = {
 };
 
 /**
+ * Resolve a Telegram ID (from URL param) to the internal DB user ID.
+ * The mini-app sends telegram_id in the URL, but notification_log.user_id
+ * stores the internal users.id (FK). This bridge lookup is required.
+ */
+async function resolveInternalUserId(telegramId: number): Promise<number> {
+  const user = await queryOne<{ id: number }>(
+    'SELECT id FROM users WHERE telegram_id = $1',
+    [telegramId]
+  );
+  if (!user) throw new NotFoundError('User not found');
+  return user.id;
+}
+
+/**
  * GET /api/notifications/:userId
  * List notifications for a user, paginated, newest first.
  * Query params: limit, offset, type (optional filter)
  */
 router.get('/:userId', authenticateTelegram, readLimiter, asyncHandler(async (req: Request, res: Response) => {
-  const userId = safeParseInt(req.params.userId, 0);
-  if (userId === 0) {
+  const telegramId = safeParseInt(req.params.userId, 0);
+  if (telegramId === 0) {
     throw new BadRequestError('Invalid user ID');
   }
+
+  const internalUserId = await resolveInternalUserId(telegramId);
 
   const { limit, offset } = clampPagination(
     safeParseInt(req.query.limit as string, 20),
@@ -46,7 +62,7 @@ router.get('/:userId', authenticateTelegram, readLimiter, asyncHandler(async (re
   const typeFilter = req.query.type as string | undefined;
 
   const conditions: string[] = ['user_id = $1'];
-  const params: unknown[] = [userId];
+  const params: unknown[] = [internalUserId];
   let paramIdx = 2;
 
   if (typeFilter && VALID_TYPE_FILTERS.includes(typeFilter as TypeFilter)) {
@@ -78,14 +94,16 @@ router.get('/:userId', authenticateTelegram, readLimiter, asyncHandler(async (re
  * Returns count of unread notifications for badge display.
  */
 router.get('/:userId/unread-count', authenticateTelegram, readLimiter, asyncHandler(async (req: Request, res: Response) => {
-  const userId = safeParseInt(req.params.userId, 0);
-  if (userId === 0) {
+  const telegramId = safeParseInt(req.params.userId, 0);
+  if (telegramId === 0) {
     throw new BadRequestError('Invalid user ID');
   }
 
+  const internalUserId = await resolveInternalUserId(telegramId);
+
   const result = await queryOne(
     'SELECT COUNT(*)::int AS count FROM notification_log WHERE user_id = $1 AND read_at IS NULL',
-    [userId]
+    [internalUserId]
   );
 
   res.json(successResponse({ count: result?.count ?? 0 }));
@@ -118,14 +136,16 @@ router.patch('/:notificationId/read', authenticateTelegram, asyncHandler(async (
  * Mark all notifications as read for a user.
  */
 router.post('/:userId/read-all', authenticateTelegram, asyncHandler(async (req: Request, res: Response) => {
-  const userId = safeParseInt(req.params.userId, 0);
-  if (userId === 0) {
+  const telegramId = safeParseInt(req.params.userId, 0);
+  if (telegramId === 0) {
     throw new BadRequestError('Invalid user ID');
   }
 
+  const internalUserId = await resolveInternalUserId(telegramId);
+
   const updatedCount = await execute(
     'UPDATE notification_log SET read_at = NOW() WHERE user_id = $1 AND read_at IS NULL',
-    [userId]
+    [internalUserId]
   );
 
   res.json(successResponse({ updated: updatedCount }));

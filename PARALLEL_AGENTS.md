@@ -3118,7 +3118,7 @@ Read PARALLEL_AGENTS.md — you are Agent 0 for Run 95.
 
 ### Agent A: Star Subscription Backend — Recurring Billing + Management
 
-**Worktree**: `c:\Users\Asus\Desktop\Wibecode-agent-a` | **Branch**: `feature/r95-subscription-backend`
+**Worktree**: `c:\Users\Asus\Desktop\wt-r95-subscription-backend` | **Branch**: `feature/r95-subscription-backend`
 
 **Context**: `subscriptions` table exists (id, user_id, tier, started_at, expires_at, auto_renew). `payments` table tracks all payments. `bot/src/handlers/payments.ts` handles pre_checkout_query and successful_payment. `bot/src/utils/paymentHelpers.ts` has `VALID_TIERS` and `TIER_PRICES = { free: 0, subscriber: 0, premium: 599 }`. Current flow: create invoice → openInvoice → pre_checkout → successful_payment → update subscription. Grammy supports `editUserStarSubscription`. Jobs pattern in `bot/src/jobs/definitions/`.
 
@@ -3151,7 +3151,7 @@ FORBIDDEN: mini-app/src/*, database/schema.sql, admin routes, gift routes, avata
 
 ### Agent B: Star Subscription Frontend — Tier Comparison + Subscribe Flow
 
-**Worktree**: `c:\Users\Asus\Desktop\Wibecode-agent-b` | **Branch**: `feature/r95-subscription-frontend`
+**Worktree**: `c:\Users\Asus\Desktop\wt-r95-subscription-frontend` | **Branch**: `feature/r95-subscription-frontend`
 
 **Context**: `useSubscription.ts` hook exists (loads tier, modes, limits). `usePayment.ts` hook exists (creates payment, opens invoice, polls status). `api/payments.ts` has `createPayment()` and `getPaymentStatus()`. Types in `types/subscription.ts`. Settings page has subscription section (`SubscriptionSettings.tsx` component). The mini-app needs a proper tier comparison page with upgrade flow.
 
@@ -3192,7 +3192,7 @@ FORBIDDEN: bot/src/*, database/*, hooks/useSubscription.ts, hooks/usePayment.ts,
 
 ### Agent C: Paid Content — Premium Guides Behind Star Paywall
 
-**Worktree**: `c:\Users\Asus\Desktop\Wibecode-agent-c` | **Branch**: `feature/r95-paid-content`
+**Worktree**: `c:\Users\Asus\Desktop\wt-r95-paid-content` | **Branch**: `feature/r95-paid-content`
 
 **Context**: Telegram Bot API 7.5+ has `sendPaidMedia()` (price 1-25000 Stars). Existing payment flow creates invoices via `createInvoiceLink()`. The shop system (`bot/src/api/routes/shop.ts`) handles item purchases. No paid content/guides system exists yet.
 
@@ -3243,7 +3243,7 @@ FORBIDDEN: payments.ts, shop.ts, subscription routes, admin routes, gift routes,
 
 ### Agent D: Premium Features Gate — Frontend Lock UI + Upgrade Prompts
 
-**Worktree**: `c:\Users\Asus\Desktop\Wibecode-agent-d` | **Branch**: `feature/r95-premium-gate`
+**Worktree**: `c:\Users\Asus\Desktop\wt-r95-premium-gate` | **Branch**: `feature/r95-premium-gate`
 
 **Context**: Backend `premiumGate.ts` middleware exists with `requirePremium(minTier)`, `MODE_LIMITS`, `FREE_MODES`, `PAID_MODES`. Frontend `useSubscription.ts` hook provides `effectiveTier`, `isPremium`, `isSubscriber`, `modeLimits`. `useModeUnlock.ts` hook exists for mode purchases. No frontend premium gate component exists yet.
 
@@ -3284,7 +3284,7 @@ FORBIDDEN: bot/src/*, database/*, hooks/useSubscription.ts, hooks/useModeUnlock.
 
 ### Agent E: Subscription Management — Manage Page + Billing History
 
-**Worktree**: `c:\Users\Asus\Desktop\Wibecode-agent-e` | **Branch**: `feature/r95-subscription-manage`
+**Worktree**: `c:\Users\Asus\Desktop\wt-r95-subscription-manage` | **Branch**: `feature/r95-subscription-manage`
 
 **Context**: `GET /api/payments/subscription/:userId` returns subscription status. `GET /api/payments/history/:userId` returns payment history. `POST /api/payments/subscription/cancel` downgrades to free. Agent A adds `PATCH .../auto-renew` and `GET .../billing-history`. `SubscriptionSettings.tsx` component exists in Settings page.
 
@@ -3321,7 +3321,7 @@ FORBIDDEN: bot/src/*, database/*, hooks/usePayment.ts, Subscription.tsx (Agent B
 
 ### Agent F: Revenue Dashboard (Admin) — Stars Revenue + Transactions
 
-**Worktree**: `c:\Users\Asus\Desktop\Wibecode-agent-f` | **Branch**: `feature/r95-revenue-dashboard`
+**Worktree**: `c:\Users\Asus\Desktop\wt-r95-revenue-dashboard` | **Branch**: `feature/r95-revenue-dashboard`
 
 **Context**: Admin pages exist at `mini-app/src/pages/admin/` (AdminDashboard, AdminPlayerList, AdminPlayerDetail). Admin routes in `bot/src/api/routes/admin-stats.ts` (basic stats). Admin auth via `requireRole('admin')` or Basic Auth. `payments` table stores all transactions (status, amount, currency='XTR', provider='telegram_stars'). `refundStarPayment` wrapper added by Agent A.
 
@@ -3351,7 +3351,7 @@ FORBIDDEN: payments.ts (Agent A owns), database/*, subscription routes, gift rou
 
 ### Agent G: Gift System — sendGift + Gift Inventory
 
-**Worktree**: `c:\Users\Asus\Desktop\Wibecode-agent-g` | **Branch**: `feature/r95-gift-system`
+**Worktree**: `c:\Users\Asus\Desktop\wt-r95-gift-system` | **Branch**: `feature/r95-gift-system`
 
 **Context**: Telegram Bot API 8.0+ has `sendGift(user_id, gift_id, text_parse_mode?, text?)` and `getAvailableGifts()`. No gift system exists. Social page (`mini-app/src/pages/Social.tsx`) has friends list. Grammy supports these methods.
 
@@ -3397,7 +3397,7 @@ FORBIDDEN: payments.ts, subscription routes, admin routes, Settings.tsx, Social.
 
 ### Agent H: Premium Avatars — Animated Avatars + Premium Collection
 
-**Worktree**: `c:\Users\Asus\Desktop\Wibecode-agent-h` | **Branch**: `feature/r95-premium-avatars`
+**Worktree**: `c:\Users\Asus\Desktop\wt-r95-premium-avatars` | **Branch**: `feature/r95-premium-avatars`
 
 **Context**: `avatar_items` table exists (id, category, name, sprite_key, rarity, unlock_type, unlock_criteria). `user_avatar` table stores equipped items. `bot/src/api/routes/avatars.ts` has CRUD routes. `mini-app/src/hooks/useAvatar.ts` hook exists. `shop_items` table supports `type = 'avatar_item'` with `reference_id`. The shop purchase flow is established (invoice → payment → delivery).
 
