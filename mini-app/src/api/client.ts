@@ -266,6 +266,15 @@ class ApiClient {
     return response.data;
   }
 
+  async toggleAutoRenew(userId: number, autoRenew: boolean): Promise<ApiResponse<{ auto_renew: boolean }>> {
+    const response = await this.client.patch(`/payments/subscription/${userId}/auto-renew`, { auto_renew: autoRenew });
+    return response.data;
+  }
+
+  async getBillingHistory(userId: number, page = 1, config?: { signal?: AbortSignal }): Promise<ApiResponse<{ entries: PaymentHistoryEntry[]; total: number; page: number; pageSize: number }>> {
+    return this.deduplicatedGet(`/payments/subscription/${userId}/billing-history`, { page }, config);
+  }
+
   // Content recommendations
   async getRecommendations(userId: number, limit = 5, config?: { signal?: AbortSignal }): Promise<ApiResponse<{ articles: Array<{ id: number; title: string; summary: string; category: string; read_time_min: number; xp_reward: number; cover_emoji: string; difficulty: string; tags: string[] }>; dailyTip: { emoji: string; text: string; category: string; article_id: number | null } }>> {
     return this.deduplicatedGet(`/recommendations/${userId}`, { limit }, config);

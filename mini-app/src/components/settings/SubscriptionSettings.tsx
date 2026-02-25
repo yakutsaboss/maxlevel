@@ -1,12 +1,13 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Crown, Users, Star, RefreshCw, Loader2, CheckCircle2, AlertCircle } from 'lucide-react';
+import { Crown, Users, Star, RefreshCw, Loader2, CheckCircle2, AlertCircle, Settings2 } from 'lucide-react';
 import { useTelegram } from '@/hooks/useTelegram';
 import { apiClient } from '@/api/client';
 import { MODE_LIMITS } from '@/constants/tiers';
 import { usePayment } from '@/hooks/usePayment';
-import type { SubscriptionTier } from '@/types';
+import type { Subscription, SubscriptionTier } from '@/types';
 
 const TIER_BADGE_STYLES: Record<SubscriptionTier, string> = {
   free: 'bg-gray-500',
@@ -23,10 +24,12 @@ function getAuthHeaders(): Record<string, string> {
 
 export function SubscriptionSettings() {
   const { t } = useTranslation();
+  const navigate = useNavigate();
   const { user, openTelegramLink, haptic } = useTelegram();
   const telegramId = user?.id;
 
   const [tier, setTier] = useState<SubscriptionTier>('free');
+  const [subscription, setSubscription] = useState<Subscription | null>(null);
   const [modeCount, setModeCount] = useState(0);
   const [channelSubscribed, setChannelSubscribed] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -60,6 +63,22 @@ export function SubscriptionSettings() {
       setModeCount(stats.data?.modes?.length ?? 0);
       if (stats.data?.user?.id) {
         setInternalUserId(stats.data.user.id);
+      }
+
+      // Fetch subscription details
+      try {
+        const userId = stats.data?.user?.id;
+        if (userId) {
+          const subRes = await apiClient.getSubscription(userId);
+          if (subRes.success && subRes.data) {
+            setSubscription(subRes.data);
+            if (subRes.data.tier in MODE_LIMITS) {
+              setTier(subRes.data.tier);
+            }
+          }
+        }
+      } catch {
+        // Subscription endpoint may not exist yet — degrade gracefully
       }
 
       // Fetch channel subscription status (Agent B endpoint)
@@ -168,8 +187,25 @@ export function SubscriptionSettings() {
             <span className={`inline-block mt-0.5 text-xs font-medium px-2 py-0.5 rounded-full text-white ${TIER_BADGE_STYLES[tier]}`}>
               {t(`settings.subscription.tier_${tier}`)}
             </span>
+            {subscription?.expires_at && !subscription?.is_expired && (
+              <p className="text-[10px] text-telegram-hint mt-0.5">
+                {(() => {
+                  const days = Math.ceil((new Date(subscription.expires_at!).getTime() - Date.now()) / (1000 * 60 * 60 * 24));
+                  return days > 0 ? `Renews in ${days}d` : 'Expires today';
+                })()}
+              </p>
+            )}
           </div>
         </div>
+        {tier !== 'free' && (
+          <button
+            onClick={() => { haptic.impact('light'); navigate('/subscription/manage'); }}
+            className="flex items-center gap-1.5 text-xs text-telegram-link font-medium px-3 py-1.5 rounded-lg bg-telegram-link/10 active:scale-95 transition-transform"
+          >
+            <Settings2 className="w-3 h-3" />
+            Manage
+          </button>
+        )}
       </div>
 
       {/* Mode Usage Bar */}
