@@ -43,6 +43,7 @@ const AdminPlayerDetail = lazy(() => import('@/pages/admin/AdminPlayerDetail').t
 const PremiumContent = lazy(() => import('@/pages/PremiumContent').then(m => ({ default: m.PremiumContent })));
 const AvatarShop = lazy(() => import('@/pages/AvatarShop').then(m => ({ default: m.AvatarShop })));
 const Subscription = lazy(() => import('@/pages/Subscription').then(m => ({ default: m.Subscription })));
+const SubscriptionManager = lazy(() => import('@/pages/SubscriptionManager').then(m => ({ default: m.SubscriptionManager })));
 
 // Create React Query client
 const queryClient = new QueryClient({
@@ -169,6 +170,7 @@ function AppContent() {
           <Route path="/gifts" element={<ProtectedRoute needsOnboarding={effectiveNeedsOnboarding} lazy><PageErrorBoundary pageName="Gifts"><Gifts /></PageErrorBoundary></ProtectedRoute>} />
           <Route path="/avatar-shop" element={<ProtectedRoute needsOnboarding={effectiveNeedsOnboarding} lazy><PageErrorBoundary pageName="Avatar Shop"><AvatarShop /></PageErrorBoundary></ProtectedRoute>} />
           <Route path="/subscription" element={<ProtectedRoute needsOnboarding={effectiveNeedsOnboarding} lazy><PageErrorBoundary pageName="Subscription"><Subscription /></PageErrorBoundary></ProtectedRoute>} />
+          <Route path="/subscription/manage" element={<ProtectedRoute needsOnboarding={effectiveNeedsOnboarding} lazy><PageErrorBoundary pageName="Subscription Manager"><SubscriptionManager /></PageErrorBoundary></ProtectedRoute>} />
           <Route path="/admin" element={<Navigate to="/admin/dashboard" replace />} />
           <Route path="/admin/dashboard" element={<LazyPageWrapper><PageErrorBoundary pageName="Admin Dashboard"><AdminDashboard /></PageErrorBoundary></LazyPageWrapper>} />
           <Route path="/admin/players" element={<LazyPageWrapper><PageErrorBoundary pageName="Admin Players"><AdminPlayerList /></PageErrorBoundary></LazyPageWrapper>} />
