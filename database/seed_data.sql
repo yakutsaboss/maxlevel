@@ -348,6 +348,39 @@ INSERT INTO shop_items (type, name, description, price_stars, price_xp, rarity, 
 ('avatar_item', 'Flame Wings', 'Blazing phoenix wings that leave embers in your wake.', 70, 350, 'epic', '🔥', 13)
 ON CONFLICT DO NOTHING;
 
+-- Premium Animated Avatar Items (added Run 95)
+INSERT INTO avatar_items (category, name, sprite_key, rarity, unlock_type, unlock_criteria, sort_order, is_animated, animation_data, price_stars)
+VALUES
+  ('hairstyle',   'Astral Aurora',    'hair-astral-aurora',   'legendary', 'premium', '{}', 10, true,  '{"frames": [], "fps": 12, "type": "spritesheet"}', 150),
+  ('hairstyle',   'Neon Galaxy',      'hair-neon-galaxy',     'legendary', 'premium', '{}', 11, false, NULL,                                              99),
+  ('outfit',      'Celestial Armor',  'outfit-celestial',     'legendary', 'premium', '{}', 10, true,  '{"frames": [], "fps": 10, "type": "spritesheet"}', 200),
+  ('outfit',      'Shadow Silk',      'outfit-shadow-silk',   'legendary', 'premium', '{}', 11, false, NULL,                                              120),
+  ('accessory',   'Stardust Halo',    'acc-stardust-halo',    'legendary', 'premium', '{}', 10, true,  '{"frames": [], "fps": 15, "type": "spritesheet"}', 175),
+  ('background',  'Aurora Borealis',  'bg-aurora-borealis',   'legendary', 'premium', '{}', 10, false, NULL,                                              100)
+ON CONFLICT (sprite_key) DO NOTHING;
+
+-- Shop listings for premium avatar items (linked via reference_id for ownership checks)
+INSERT INTO shop_items (type, reference_id, name, description, price_stars, price_xp, rarity, icon_emoji, sort_order)
+SELECT 'avatar_item', ai.id, ai.name,
+  CASE ai.is_animated
+    WHEN true  THEN 'Exclusive animated avatar item — premium Stars collection.'
+    ELSE            'Exclusive avatar item — premium Stars collection.'
+  END,
+  ai.price_stars, 0, ai.rarity,
+  CASE ai.category
+    WHEN 'hairstyle'  THEN '💫'
+    WHEN 'outfit'     THEN '👘'
+    WHEN 'accessory'  THEN '⭐'
+    ELSE '🌌'
+  END,
+  50 + ai.sort_order
+FROM avatar_items ai
+WHERE ai.unlock_type = 'premium'
+  AND NOT EXISTS (
+    SELECT 1 FROM shop_items si
+    WHERE si.type = 'avatar_item' AND si.reference_id = ai.id
+  );
+
 -- Trophy Boosters
 INSERT INTO shop_items (type, name, description, price_stars, price_xp, rarity, icon_emoji, sort_order) VALUES
 ('trophy_booster', 'Trophy Revealer', 'Reveals hidden trophy criteria so you know exactly what to aim for.', 25, 150, 'rare', '🔍', 20),

@@ -42,6 +42,14 @@ export interface AvatarItem {
   unlock_type: string;
   unlock_criteria: Record<string, unknown>;
   sort_order: number;
+  is_animated: boolean;
+  animation_data: Record<string, unknown> | null;
+  price_stars: number;
+}
+
+export interface AvatarShopItem extends AvatarItem {
+  is_owned: boolean;
+  shop_item_id: number | null;
 }
 
 export interface EquippedItems {
@@ -55,6 +63,10 @@ export interface EquippedItems {
 
 export async function getAvatarItems(): Promise<AvatarItem[]> {
   return request<AvatarItem[]>(`${API_BASE_URL}/avatars/items`);
+}
+
+export async function getAvatarShopItems(userId: number): Promise<AvatarShopItem[]> {
+  return request<AvatarShopItem[]>(`${API_BASE_URL}/avatars/shop?userId=${userId}`);
 }
 
 export async function getUserAvatar(userId: number): Promise<EquippedItems> {

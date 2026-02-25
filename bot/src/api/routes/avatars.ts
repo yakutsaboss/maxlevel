@@ -7,6 +7,7 @@ import {
   successResponse,
   BadRequestError,
   NotFoundError,
+  ForbiddenError,
 } from '../utils/errors.js';
 import { safeParseInt } from '../../utils/validation.js';
 
@@ -22,6 +23,14 @@ interface AvatarItem {
   unlock_type: string;
   unlock_criteria: Record<string, unknown>;
   sort_order: number;
+  is_animated: boolean;
+  animation_data: Record<string, unknown> | null;
+  price_stars: number;
+}
+
+interface AvatarShopItem extends AvatarItem {
+  is_owned: boolean;
+  shop_item_id: number | null;
 }
 
 interface UserAvatar {
@@ -34,6 +43,40 @@ const router = Router();
 // GET /api/avatars/items — return all avatar items
 router.get('/items', authenticateTelegram, readLimiter, asyncHandler(async (_req: Request, res: Response) => {
   const items = await query<AvatarItem>('SELECT * FROM avatar_items ORDER BY category, sort_order, id');
+  res.json(successResponse(items));
+}));
+
+// GET /api/avatars/shop?userId=<telegramId> — return all items with ownership status
+router.get('/shop', authenticateTelegram, readLimiter, asyncHandler(async (req: Request, res: Response) => {
+  const telegramId = req.query['userId'] as string | undefined;
+  if (!telegramId || !/^\d+$/.test(telegramId)) {
+    throw new BadRequestError('userId query parameter is required');
+  }
+
+  const user = await queryOne<{ id: number }>('SELECT id FROM users WHERE telegram_id = $1', [telegramId]);
+  if (!user) {
+    throw new NotFoundError('User not found');
+  }
+
+  // Fetch all avatar items with their shop listing (if any) and ownership status
+  const items = await query<AvatarShopItem>(`
+    SELECT
+      ai.*,
+      si.id AS shop_item_id,
+      CASE
+        WHEN ai.unlock_type = 'premium'
+          THEN EXISTS (
+            SELECT 1 FROM user_purchases up
+            WHERE up.user_id = $1 AND up.shop_item_id = si.id
+          )
+        ELSE true
+      END AS is_owned
+    FROM avatar_items ai
+    LEFT JOIN shop_items si
+      ON si.type = 'avatar_item' AND si.reference_id = ai.id
+    ORDER BY ai.category, ai.sort_order, ai.id
+  `, [user.id]);
+
   res.json(successResponse(items));
 }));
 
@@ -95,6 +138,24 @@ router.patch('/:userId/equip', authenticateTelegram, authorizeUser, mutationLimi
 
     if (!item) {
       throw new NotFoundError(`Avatar item not found in category ${category}`);
+    }
+
+    // For premium items, verify the user has purchased them
+    if (item.unlock_type === 'premium') {
+      const shopItem = await queryOne<{ id: number }>(
+        'SELECT id FROM shop_items WHERE type = $1 AND reference_id = $2',
+        ['avatar_item', itemId]
+      );
+      if (!shopItem) {
+        throw new ForbiddenError('This premium item is not available for purchase');
+      }
+      const purchased = await queryOne<{ id: number }>(
+        'SELECT id FROM user_purchases WHERE user_id = $1 AND shop_item_id = $2',
+        [user.id, shopItem.id]
+      );
+      if (!purchased) {
+        throw new ForbiddenError('You have not purchased this premium avatar item');
+      }
     }
   }
 
