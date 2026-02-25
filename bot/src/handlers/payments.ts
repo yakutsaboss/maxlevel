@@ -32,7 +32,13 @@ interface ShopItemPayload {
   user_id: number;
 }
 
-type PaymentPayload = TierPayload | ModeUnlockPayload | ShopItemPayload;
+interface ContentPurchasePayload {
+  payment_id: number;
+  type: 'content_purchase';
+  content_id: number;
+}
+
+type PaymentPayload = TierPayload | ModeUnlockPayload | ShopItemPayload | ContentPurchasePayload;
 
 function parsePayload(raw: string): PaymentPayload | null {
   try {
@@ -45,6 +51,10 @@ function parsePayload(raw: string): PaymentPayload | null {
     // Shop item payload
     if (data.type === 'shop_item' && typeof data.shop_item_id === 'number') {
       return data as ShopItemPayload;
+    }
+    // Content purchase payload (Run 95)
+    if (data.type === 'content_purchase' && typeof data.content_id === 'number') {
+      return data as ContentPurchasePayload;
     }
     // Tier upgrade payload
     if (data.tier) {
@@ -222,6 +232,37 @@ export async function handlePreCheckoutQuery(ctx: MyContext) {
     }
   }
 
+  // Content purchase validation (Run 95)
+  if (payload.type === 'content_purchase') {
+    const contentPayload = payload as ContentPurchasePayload;
+    const content = await queryOne<{ id: number; is_active: boolean; price_stars: number }>(
+      `SELECT id, is_active, price_stars FROM paid_content WHERE id = $1`,
+      [contentPayload.content_id],
+    );
+
+    if (!content) {
+      log.warn('Pre-checkout: content not found', { contentId: contentPayload.content_id });
+      await ctx.answerPreCheckoutQuery(false, { error_message: 'Content no longer available.' });
+      return;
+    }
+
+    if (!content.is_active) {
+      log.warn('Pre-checkout: content inactive', { contentId: contentPayload.content_id });
+      await ctx.answerPreCheckoutQuery(false, { error_message: 'This content is no longer available.' });
+      return;
+    }
+
+    if (total_amount !== content.price_stars) {
+      log.warn('Pre-checkout: content price mismatch', {
+        contentId: contentPayload.content_id,
+        expected: content.price_stars,
+        received: total_amount,
+      });
+      await ctx.answerPreCheckoutQuery(false, { error_message: 'Price has changed. Please start a new purchase.' });
+      return;
+    }
+  }
+
   // All checks passed — approve the payment
   log.info('Pre-checkout approved', { paymentId: payment.id });
   await ctx.answerPreCheckoutQuery(true);
@@ -289,6 +330,7 @@ export async function handleSuccessfulPayment(ctx: MyContext) {
   // Determine payment type from payload or metadata
   const isShopItem = payload.type === 'shop_item' || payment.metadata?.type === 'shop_item';
   const isModeUnlock = payload.type === 'mode_unlock' || payment.metadata?.type === 'mode_unlock';
+  const isContentPurchase = payload.type === 'content_purchase' || payment.metadata?.type === 'content_purchase';
 
   if (isShopItem) {
     // Shop item purchase flow
@@ -367,6 +409,76 @@ export async function handleSuccessfulPayment(ctx: MyContext) {
       amount: total_amount,
       type: 'Shop Purchase',
       label: shopItem.name,
+      chargeId: telegram_payment_charge_id,
+    }).catch(() => {});
+
+  } else if (isContentPurchase) {
+    // Content purchase flow (Run 95)
+    const contentPayload = payload as ContentPurchasePayload;
+    const contentId = contentPayload.content_id || (payment.metadata as any)?.content_id;
+
+    if (!contentId) {
+      log.error('Content purchase payment missing content_id', { paymentId: payment.id });
+      await ctx.reply('Payment received but content data is missing. Please contact support.');
+      return;
+    }
+
+    // Look up the content item
+    const content = await queryOne<{ id: number; title: string; content_type: string }>(
+      `SELECT id, title, content_type FROM paid_content WHERE id = $1`,
+      [contentId],
+    );
+
+    if (!content) {
+      log.error('Content not found after payment', { paymentId: payment.id, contentId });
+      await ctx.reply('Payment received but the content was not found. Please contact support.');
+      return;
+    }
+
+    await transaction(async (client) => {
+      // Mark payment as completed
+      await client.query(
+        `UPDATE payments
+         SET status = 'completed',
+             telegram_payment_charge_id = $1,
+             provider_payment_charge_id = $2,
+             updated_at = NOW()
+         WHERE id = $3`,
+        [telegram_payment_charge_id, provider_payment_charge_id || null, payment.id],
+      );
+
+      // Grant content access (ON CONFLICT for idempotency)
+      await client.query(
+        `INSERT INTO user_content_access (user_id, content_id, payment_id)
+         VALUES ($1, $2, $3)
+         ON CONFLICT (user_id, content_id) DO NOTHING`,
+        [payment.user_id, contentId, payment.id],
+      );
+    });
+
+    log.info('Content purchase completed', {
+      paymentId: payment.id,
+      userId: payment.user_id,
+      contentId,
+      contentTitle: content.title,
+      telegramChargeId: telegram_payment_charge_id,
+    });
+
+    await ctx.reply(
+      `🎉 *Purchase Successful!*\n\n` +
+      `You now have access to *${content.title}*!\n\n` +
+      `⭐ Amount: ${total_amount} Stars\n\n` +
+      `Open /app → Premium Content to read it!`,
+      { parse_mode: 'Markdown' },
+    );
+
+    // Notify owner (fire-and-forget)
+    notifyOwnerPayment({
+      userName,
+      telegramId,
+      amount: total_amount,
+      type: 'Content Purchase',
+      label: content.title,
       chargeId: telegram_payment_charge_id,
     }).catch(() => {});
 
