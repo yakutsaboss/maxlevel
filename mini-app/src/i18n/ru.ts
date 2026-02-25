@@ -1231,4 +1231,16 @@ export default {
     confirmSend: "Отправить подарок",
     optional: "необязательно",
   },
+  premium: {
+    locked: "Эта функция заблокирована",
+    upgrade: "Улучшить",
+    upgradeTitle: "Улучшите подписку",
+    upgradeDesc: "Требуется план {{tier}} или выше",
+    featureLocked: "{{feature}} требует более высокого плана",
+    subscriberDesc: "{{modes}} активных режима",
+    premiumDesc: "{{modes}} активных режимов + все функции",
+    moreModes: "Больше режимов",
+    modeLimitReached: "Лимит достигнут ({{limit}} режима). Обновите для добавления",
+    modesSelected: "{{count}} / {{limit}} режимов выбрано",
+  },
 };

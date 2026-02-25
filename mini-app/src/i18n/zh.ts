@@ -1218,4 +1218,16 @@ export default {
     confirmSend: "赠送礼物",
     optional: "可选",
   },
+  premium: {
+    locked: "此功能已锁定",
+    upgrade: "升级",
+    upgradeTitle: "升级您的计划",
+    upgradeDesc: "需要 {{tier}} 计划或更高",
+    featureLocked: "{{feature}} 需要更高级别的计划",
+    subscriberDesc: "{{modes}} 个活跃模式",
+    premiumDesc: "{{modes}} 个活跃模式 + 全部功能",
+    moreModes: "更多模式",
+    modeLimitReached: "已达上限（{{limit}} 个模式）。升级以添加更多",
+    modesSelected: "已选 {{count}} / {{limit}} 个模式",
+  },
 };

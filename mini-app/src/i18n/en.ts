@@ -1231,4 +1231,16 @@ export default {
     confirmSend: "Send Gift",
     optional: "optional",
   },
+  premium: {
+    locked: "This feature is locked",
+    upgrade: "Upgrade",
+    upgradeTitle: "Upgrade Your Plan",
+    upgradeDesc: "Requires {{tier}} plan or higher",
+    featureLocked: "{{feature}} requires a higher plan",
+    subscriberDesc: "{{modes}} active modes",
+    premiumDesc: "{{modes}} active modes + all features",
+    moreModes: "More modes",
+    modeLimitReached: "Limit reached ({{limit}} modes). Upgrade to add more",
+    modesSelected: "{{count}} / {{limit}} modes selected",
+  },
 };
