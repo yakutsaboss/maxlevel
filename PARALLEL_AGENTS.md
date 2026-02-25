@@ -3505,3 +3505,56 @@ FORBIDDEN: payments.ts, subscription routes, admin routes, gift routes, Settings
 
 #### Agent 0 Retrospective
 *(To be filled by Agent 0)*
+
+### Run 95 Retrospectives
+
+#### Agent A Retrospective
+**Status**: Complete — 4 files changed (1 new + 3 modified), `tsc --noEmit` clean.
+
+| # | Task | Status |
+|---|------|--------|
+| 1 | Create `subscriptionRenewal.ts` job | Done |
+| 2 | Register job in `registerJobs.ts` | Done |
+| 3 | Add PATCH auto-renew + GET billing-history routes | Done |
+| 4 | Add `refundStarPayment` wrapper | Done |
+| 5 | Build verify | Pass |
+
+**Files created**: `bot/src/jobs/definitions/subscriptionRenewal.ts` — daily 6 AM UTC job finds subscriptions expiring within 48h with `auto_renew = true`, sends renewal invoice via `sendInvoice()`, disables auto_renew + notifies user on failure. Handles 429 rate limits, 403 blocked bot, and unexpected errors.
+
+**Files modified**:
+- `bot/src/jobs/registerJobs.ts` — added import, job entry, and `setBotInstance()` call
+- `bot/src/api/routes/payments.ts` — added `PATCH /subscription/:userId/auto-renew` (toggle auto_renew bool) and `GET /subscription/:userId/billing-history` (paginated payment list with total count)
+- `bot/src/utils/paymentHelpers.ts` — added `refundStarPayment()` wrapper that calls `botApi.refundStarPayment()` and updates payment record to 'refunded'
+
+**Design decisions**:
+- Renewal job sends invoice to user (via `sendInvoice()`) rather than auto-charging, since Telegram Stars requires explicit user confirmation for payments
+- `refundStarPayment` takes `botApi` as parameter instead of importing `bot` directly, avoiding circular dependency and making it testable
+- Billing history endpoint uses page-based pagination with total count for frontend pagination UI
+
+**Issues**: None.
+
+**Recommendations for next run**: Agent F (revenue dashboard) depends on `refundStarPayment` — ensure merge order puts Agent A first.
+
+#### Agent B Retrospective
+*(To be filled by Agent B)*
+
+#### Agent C Retrospective
+*(To be filled by Agent C)*
+
+#### Agent D Retrospective
+*(To be filled by Agent D)*
+
+#### Agent E Retrospective
+*(To be filled by Agent E)*
+
+#### Agent F Retrospective
+*(To be filled by Agent F)*
+
+#### Agent G Retrospective
+*(To be filled by Agent G)*
+
+#### Agent H Retrospective
+*(To be filled by Agent H)*
+
+#### Agent 0 Retrospective (Run 95)
+*(To be filled by Agent 0)*

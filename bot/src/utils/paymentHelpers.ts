@@ -52,3 +52,33 @@ export function verifyWebhookSecret(req: Request): void {
 export function isPositiveInteger(value: unknown): value is number {
   return typeof value === 'number' && Number.isInteger(value) && value > 0;
 }
+
+/**
+ * Refund a Telegram Stars payment.
+ * Calls bot.api.refundStarPayment and updates the payment record status to 'refunded'.
+ */
+export async function refundStarPayment(
+  botApi: { refundStarPayment: (userId: number, telegramPaymentChargeId: string) => Promise<boolean> },
+  userId: number,
+  telegramPaymentChargeId: string,
+  paymentId?: number,
+): Promise<boolean> {
+  try {
+    await botApi.refundStarPayment(userId, telegramPaymentChargeId);
+
+    if (paymentId) {
+      // Lazy import to avoid circular dependency
+      const { execute } = await import('./db.js');
+      await execute(
+        `UPDATE payments SET status = 'refunded', updated_at = NOW() WHERE id = $1`,
+        [paymentId],
+      );
+    }
+
+    log.info('Star payment refunded', { userId, telegramPaymentChargeId, paymentId });
+    return true;
+  } catch (err) {
+    log.error('Failed to refund star payment', { userId, telegramPaymentChargeId, paymentId, error: err });
+    return false;
+  }
+}

@@ -23,6 +23,7 @@ import * as punishmentCheck from './definitions/punishmentCheck.js';
 import * as medicationReminder from './definitions/medicationReminder.js';
 import * as streakMilestone from './definitions/streakMilestone.js';
 import * as challengeNotifier from './definitions/challengeNotifier.js';
+import * as subscriptionRenewal from './definitions/subscriptionRenewal.js';
 
 interface JobDefinition {
   name: string;
@@ -44,6 +45,7 @@ const jobs: JobDefinition[] = [
   { name: medicationReminder.JOB_NAME, cron: medicationReminder.CRON_SCHEDULE, handler: medicationReminder.handler },
   { name: streakMilestone.JOB_NAME, cron: streakMilestone.CRON_SCHEDULE, handler: streakMilestone.handler },
   { name: challengeNotifier.JOB_NAME, cron: challengeNotifier.CRON_SCHEDULE, handler: challengeNotifier.handler },
+  { name: subscriptionRenewal.JOB_NAME, cron: subscriptionRenewal.CRON_SCHEDULE, handler: subscriptionRenewal.handler },
 ];
 
 export async function registerAllJobs(boss: PgBoss, bot: Bot<MyContext>): Promise<void> {
@@ -55,6 +57,7 @@ export async function registerAllJobs(boss: PgBoss, bot: Bot<MyContext>): Promis
   medicationReminder.setBotInstance(bot);
   streakMilestone.setBotInstance(bot);
   challengeNotifier.setBotInstance(bot);
+  subscriptionRenewal.setBotInstance(bot);
 
   for (const job of jobs) {
     await boss.createQueue(job.name);
