@@ -439,6 +439,11 @@ CREATE TABLE IF NOT EXISTS avatar_items (
 CREATE INDEX IF NOT EXISTS idx_avatar_items_category ON avatar_items(category);
 CREATE INDEX IF NOT EXISTS idx_avatar_items_rarity ON avatar_items(rarity);
 
+-- Premium avatar columns (added Run 95)
+ALTER TABLE avatar_items ADD COLUMN IF NOT EXISTS is_animated BOOLEAN DEFAULT false;
+ALTER TABLE avatar_items ADD COLUMN IF NOT EXISTS animation_data JSONB DEFAULT NULL;
+ALTER TABLE avatar_items ADD COLUMN IF NOT EXISTS price_stars INTEGER DEFAULT 0;
+
 -- User avatar equipped state (added Run 66)
 CREATE TABLE IF NOT EXISTS user_avatar (
     user_id INTEGER PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
