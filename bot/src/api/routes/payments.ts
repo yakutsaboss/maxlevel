@@ -438,6 +438,91 @@ router.post('/subscription/cancel', authenticateTelegram, mutationLimiter, async
   }, 'Subscription cancelled'));
 }));
 
+// ─── PATCH /subscription/:userId/auto-renew ─────────────────────────────────
+// Toggle auto-renewal for a user's subscription
+router.patch('/subscription/:userId/auto-renew', authenticateTelegram, authorizeUser, mutationLimiter, asyncHandler(async (req: Request, res: Response) => {
+  const userId = safeParseInt(req.params.userId, 0);
+  if (userId === 0) {
+    throw new BadRequestError('Invalid userId');
+  }
+
+  const { auto_renew } = req.body;
+  if (typeof auto_renew !== 'boolean') {
+    throw new BadRequestError('auto_renew must be a boolean');
+  }
+
+  const sub = await queryOne<{ id: number; tier: string }>(
+    `SELECT id, tier FROM subscriptions WHERE user_id = $1`,
+    [userId],
+  );
+
+  if (!sub || sub.tier === 'free') {
+    throw new BadRequestError('No active subscription to update');
+  }
+
+  await execute(
+    `UPDATE subscriptions SET auto_renew = $1, updated_at = NOW() WHERE user_id = $2`,
+    [auto_renew, userId],
+  );
+
+  log.info('Auto-renew toggled', { userId, auto_renew });
+
+  res.json(successResponse({
+    user_id: userId,
+    auto_renew,
+  }, `Auto-renewal ${auto_renew ? 'enabled' : 'disabled'}`));
+}));
+
+// ─── GET /subscription/:userId/billing-history ──────────────────────────────
+// List user's payment history (paginated, newest first)
+router.get('/subscription/:userId/billing-history', authenticateTelegram, authorizeUser, readLimiter, asyncHandler(async (req: Request, res: Response) => {
+  const userId = safeParseInt(req.params.userId, 0);
+  if (userId === 0) {
+    throw new BadRequestError('Invalid userId');
+  }
+
+  const page = safeParseInt(req.query.page as string, 1);
+  const limit = safeParseInt(req.query.limit as string, 20);
+  const offset = (page - 1) * limit;
+
+  const payments = await query<{
+    id: number;
+    amount: number;
+    currency: string;
+    status: string;
+    provider: string;
+    metadata: string | null;
+    telegram_payment_charge_id: string | null;
+    created_at: string;
+    updated_at: string | null;
+  }>(
+    `SELECT id, amount, currency, status, provider, metadata,
+            telegram_payment_charge_id, created_at, updated_at
+     FROM payments
+     WHERE user_id = $1
+     ORDER BY created_at DESC
+     LIMIT $2 OFFSET $3`,
+    [userId, limit, offset],
+  );
+
+  // Get total count for pagination
+  const countResult = await queryOne<{ total: string }>(
+    `SELECT COUNT(*) AS total FROM payments WHERE user_id = $1`,
+    [userId],
+  );
+  const total = parseInt(countResult?.total || '0', 10);
+
+  res.json(successResponse({
+    payments,
+    pagination: {
+      page,
+      limit,
+      total,
+      total_pages: Math.ceil(total / limit),
+    },
+  }));
+}));
+
 // ─── GET /tiers ─────────────────────────────────────────────────────────────
 // Return tier info and mode pricing (public endpoint, no auth required)
 router.get('/tiers', readLimiter, asyncHandler(async (_req: Request, res: Response) => {
