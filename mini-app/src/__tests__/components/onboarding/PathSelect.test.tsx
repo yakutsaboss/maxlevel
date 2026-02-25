@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
+import { MemoryRouter } from 'react-router-dom';
 
 // Mock @twa-dev/sdk
 vi.mock('@twa-dev/sdk', () => ({
@@ -59,11 +60,13 @@ describe('PathSelect', () => {
 
   it('renders mode cards with icons and names', () => {
     render(
-      <PathSelect
-        progress={0.2}
-        onSelect={mockOnSelect}
-        onNext={mockOnNext}
-      />
+      <MemoryRouter>
+        <PathSelect
+          progress={0.2}
+          onSelect={mockOnSelect}
+          onNext={mockOnNext}
+        />
+      </MemoryRouter>
     );
 
     expect(screen.getByText('Fitness')).toBeInTheDocument();
@@ -74,11 +77,13 @@ describe('PathSelect', () => {
 
   it('clicking a mode toggles selection', () => {
     render(
-      <PathSelect
-        progress={0.2}
-        onSelect={mockOnSelect}
-        onNext={mockOnNext}
-      />
+      <MemoryRouter>
+        <PathSelect
+          progress={0.2}
+          onSelect={mockOnSelect}
+          onNext={mockOnNext}
+        />
+      </MemoryRouter>
     );
 
     // Click Fitness
@@ -92,12 +97,14 @@ describe('PathSelect', () => {
 
   it('shows selected state visually via className changes', () => {
     render(
-      <PathSelect
-        progress={0.2}
-        value={['fitness']}
-        onSelect={mockOnSelect}
-        onNext={mockOnNext}
-      />
+      <MemoryRouter>
+        <PathSelect
+          progress={0.2}
+          value={['fitness']}
+          onSelect={mockOnSelect}
+          onNext={mockOnNext}
+        />
+      </MemoryRouter>
     );
 
     // Fitness button should have the selected color class
@@ -111,11 +118,13 @@ describe('PathSelect', () => {
 
   it('requires at least 1 mode selected for continue button', () => {
     render(
-      <PathSelect
-        progress={0.2}
-        onSelect={mockOnSelect}
-        onNext={mockOnNext}
-      />
+      <MemoryRouter>
+        <PathSelect
+          progress={0.2}
+          onSelect={mockOnSelect}
+          onNext={mockOnNext}
+        />
+      </MemoryRouter>
     );
 
     // With no selection, button should show "Select at least 1" and be disabled
@@ -126,12 +135,14 @@ describe('PathSelect', () => {
 
   it('enables continue button after selecting a mode', () => {
     render(
-      <PathSelect
-        progress={0.2}
-        value={['fitness']}
-        onSelect={mockOnSelect}
-        onNext={mockOnNext}
-      />
+      <MemoryRouter>
+        <PathSelect
+          progress={0.2}
+          value={['fitness']}
+          onSelect={mockOnSelect}
+          onNext={mockOnNext}
+        />
+      </MemoryRouter>
     );
 
     const continueBtn = screen.getByTestId('continue-btn');
