@@ -2,7 +2,7 @@
 
 This file is the single source of truth for running parallel Claude Code agents on the Wibecode RPG bot project. Each "Run" launches 2-6 agents (A, B, C, D, E, F) in separate git worktrees, plus Agent 0 (orchestrator) in the main repo.
 
-For completed run history (Runs 2–89), see `PARALLEL_AGENTS_HISTORY.md`.
+For completed run history (Runs 2–94), see `PARALLEL_AGENTS_HISTORY.md`.
 
 ---
 
@@ -314,7 +314,7 @@ Runs 78-85: MVP recovery + feature re-enablement. Run 86: Animation polish + med
 | **92** | Bug Fixes + Quest i18n + Google Sheets OAuth + Medication Analytics | 7 | ✅ |
 | **93** | Stars Shop + Celebrations Upgrade | 7 | ✅ |
 | **94** | Cloud Storage + Home Screen + QR + Social Basics | 8 | ✅ |
-| **95** | Premium & Monetization — Subscriptions, Paid Content, Gifts | 8 | 🔄 |
+| **95** | Premium & Monetization — Subscriptions, Paid Content, Gifts | 8 | ✅ |
 | **96** | Advanced Features — Inline Mode, Referrals, Biometrics, Deep Links | 8 | ⬜ |
 | **97** | Final Polish — Bundle, Performance, Tests, Accessibility | 7 | ⬜ |
 
@@ -377,2780 +377,6 @@ Runs 78-85: MVP recovery + feature re-enablement. Run 86: Animation polish + med
 - **Agent E**: E2E testing — full Telegram flow: onboarding → quests → payments
 - **Agent F**: Accessibility audit — WCAG 2.1 AA, screen reader, keyboard-only
 - **Agent G**: Documentation + i18n — API docs, README, missing i18n, Chinese translation
-
----
-
-## RUN 90: UX Polish (5 Agents + Agent 0)
-
-### Focus: Error handling, loading skeletons, page transitions, accessibility, toast/feedback polish
-
-### Copy-Paste Prompts
-
-**Agent 0** (open in: `c:\Users\Asus\Desktop\Wibecode`):
-```
-Read PARALLEL_AGENTS.md — you are Agent 0 for Run 90.
-```
-
-**Agent A** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-a`):
-```
-Read PARALLEL_AGENTS.md — you are Agent A of Run 90. Your task: Global error handling polish — error boundaries, retry patterns, offline UX.
-
-IMPORTANT: Before doing anything, verify your working directory: run `pwd`. If it does NOT end with `Wibecode-agent-a`, run `cd /c/Users/Asus/Desktop/Wibecode-agent-a` and then verify with `git branch --show-current`.
-
-## Context
-
-The app has basic error handling:
-- `ErrorBoundary.tsx` — class component wrapping entire app, shows red error card with retry
-- `ErrorSection.tsx` — reusable error display with `role="alert"`, retry button, haptic feedback
-- `OfflineBanner.tsx` — shows banner when offline via `useServiceWorker()` hook
-- Most pages use `ErrorSection` in their error states already
-
-## What to do
-
-### 1. Create `mini-app/src/components/PageErrorBoundary.tsx`
-A lighter, page-level error boundary that:
-- Catches errors only within a single page (not the whole app)
-- Shows a friendly error message with the page name
-- Has "Retry" button that resets error state AND calls React Query `queryClient.invalidateQueries()`
-- Uses `motion.div` for smooth appearance (fade-in)
-- Includes an error icon (AlertTriangle from lucide-react)
-- Uses i18n keys for all text: `error.pageTitle`, `error.pageMessage`, `error.retry`
-- Props: `pageName: string, children: ReactNode`
-
-### 2. Wrap page routes in App.tsx with PageErrorBoundary
-In `mini-app/src/App.tsx`, wrap each `<Route>` element's component with `PageErrorBoundary`:
-```tsx
-<Route path="/dashboard" element={
-  <ProtectedRoute needsOnboarding={effectiveNeedsOnboarding} lazy>
-    <PageErrorBoundary pageName="Dashboard"><Dashboard /></PageErrorBoundary>
-  </ProtectedRoute>
-} />
-```
-Do this for ALL page routes (Dashboard, Quests, Profile, Settings, Leaderboard, Achievements, Shop, TrophyCase, Inventory, Social, Analytics, ActivityHub, ActivityHistory, NotificationHistory, Medications, Admin).
-
-### 3. Enhance ErrorSection.tsx with retry count and exponential backoff
-Update `ErrorSection.tsx`:
-- Add optional `maxRetries` prop (default: 3)
-- Track retry count internally
-- After `maxRetries`, disable the retry button and show "Please try again later"
-- Show which retry attempt: "Retry (2/3)"
-- Keep existing `role="alert"` and haptic feedback
-
-### 4. Enhance OfflineBanner.tsx
-- Add a "back online" animation: when connection restores, show green "Back online!" banner for 2 seconds before hiding
-- Add retry action: button to manually check connection
-- Use spring animation matching the existing entry animation
-
-### 5. Build verify
-`cd mini-app && npx tsc --noEmit`
-
-OWNED: `mini-app/src/components/PageErrorBoundary.tsx` (new), `mini-app/src/components/ErrorBoundary.tsx`, `mini-app/src/components/ErrorSection.tsx`, `mini-app/src/components/OfflineBanner.tsx`, `mini-app/src/App.tsx` (GRAY: only add PageErrorBoundary wrappers around route elements)
-FORBIDDEN: bot/src/*, skeleton components, PageTransition.tsx, Toast.tsx, FocusTrap.tsx, SkipLink.tsx, Navigation.tsx, modal components, test files
-Write retrospective when done.
-```
-
-**Agent B** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-b`):
-```
-Read PARALLEL_AGENTS.md — you are Agent B of Run 90. Your task: Loading state audit — skeleton loaders for all pages, shimmer effects.
-
-IMPORTANT: Before doing anything, verify your working directory: run `pwd`. If it does NOT end with `Wibecode-agent-b`, run `cd /c/Users/Asus/Desktop/Wibecode-agent-b` and then verify with `git branch --show-current`.
-
-## Context
-
-Most pages already have dedicated skeleton components:
-- DashboardSkeleton, QuestsSkeleton, ProfileSkeleton, SettingsSkeleton, LeaderboardSkeleton, AchievementsSkeleton, TrophyCaseSkeleton — all in `components/<feature>/` dirs
-- MedicationsSkeleton is inline in Medications.tsx
-- ShopSkeleton, SocialSkeleton, ActivityHubSkeleton are inline in their pages
-
-Pages MISSING proper skeletons:
-- `Analytics.tsx` — shows spinner + loading text, no skeleton
-- `NotificationHistory.tsx` — no skeleton
-- `Inventory.tsx` — no skeleton visible
-- `ActivityHistory.tsx` — unknown, needs checking
-
-Existing skeletons use `animate-pulse` from Tailwind but no shimmer gradient effect.
-
-## What to do
-
-### 1. Create `mini-app/src/components/analytics/AnalyticsSkeleton.tsx`
-Skeleton matching the Analytics page layout:
-- Chart placeholder (rounded rect, full width, h-48)
-- Stats row (3 metric cards)
-- Trend section (2 rows with labels and values)
-- Use `animate-pulse` + new shimmer effect
-- Add `role="status"` and `aria-label="Loading analytics"`
-
-### 2. Create `mini-app/src/components/notifications/NotificationHistorySkeleton.tsx`
-Skeleton matching the NotificationHistory page:
-- Filter tabs placeholder (row of 4-5 rounded pills)
-- Notification list (5 items with icon circle + 2 text lines each)
-- Use consistent skeleton pattern
-- Add `role="status"` and `aria-label="Loading notifications"`
-
-### 3. Create `mini-app/src/components/inventory/InventorySkeleton.tsx`
-Skeleton matching the Inventory page:
-- Tab bar placeholder
-- Grid of 6 item cards (icon + title + description placeholders)
-- Add `role="status"` and `aria-label="Loading inventory"`
-
-### 4. Add shimmer CSS effect
-Create or update `mini-app/src/styles/shimmer.css`:
-```css
-.skeleton-shimmer {
-  position: relative;
-  overflow: hidden;
-}
-.skeleton-shimmer::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.08), transparent);
-  animation: shimmer 1.5s infinite;
-}
-@keyframes shimmer {
-  0% { transform: translateX(-100%); }
-  100% { transform: translateX(100%); }
-}
-```
-Import this in `mini-app/src/main.tsx` or the global CSS file.
-
-### 5. Apply shimmer to existing skeletons
-Update the existing skeleton components to add `skeleton-shimmer` class to their main containers (alongside `animate-pulse`):
-- `DashboardSkeleton.tsx`
-- `ProfileSkeleton.tsx`
-- `LeaderboardSkeleton.tsx`
-(Just add the class — don't restructure the components)
-
-### 6. Wire new skeletons into their pages
-- `Analytics.tsx` — replace spinner with `<AnalyticsSkeleton />`
-- `NotificationHistory.tsx` — add loading state with `<NotificationHistorySkeleton />`
-- `Inventory.tsx` — add loading state with `<InventorySkeleton />`
-
-### 7. Build verify
-`cd mini-app && npx tsc --noEmit`
-
-OWNED: `mini-app/src/components/analytics/AnalyticsSkeleton.tsx` (new), `mini-app/src/components/notifications/NotificationHistorySkeleton.tsx` (new), `mini-app/src/components/inventory/InventorySkeleton.tsx` (new), `mini-app/src/styles/shimmer.css` (new), existing skeleton components (add shimmer class only), `mini-app/src/pages/Analytics.tsx`, `mini-app/src/pages/NotificationHistory.tsx`, `mini-app/src/pages/Inventory.tsx` (GRAY: only swap loading state to skeleton)
-FORBIDDEN: bot/src/*, ErrorBoundary.tsx, PageTransition.tsx, Toast.tsx, FocusTrap.tsx, Navigation.tsx, modal components, App.tsx, test files, i18n files
-Write retrospective when done.
-```
-
-**Agent C** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-c`):
-```
-Read PARALLEL_AGENTS.md — you are Agent C of Run 90. Your task: Page transitions — consistent AnimatePresence, stagger animations.
-
-IMPORTANT: Before doing anything, verify your working directory: run `pwd`. If it does NOT end with `Wibecode-agent-c`, run `cd /c/Users/Asus/Desktop/Wibecode-agent-c` and then verify with `git branch --show-current`.
-
-## Context
-
-Current setup:
-- `PageTransition.tsx` wraps `<Routes>` in App.tsx with `AnimatePresence mode="wait"`
-- Uses `motion.div` with: initial `opacity: 0, y: 8`, animate `opacity: 1, y: 0`, exit `opacity: 0`
-- Duration: 0.2s enter, 0.1s exit, easeOut
-- Key: `location.pathname`
-- Individual components use `motion.div` for their own animations but no consistent stagger pattern
-
-## What to do
-
-### 1. Enhance `mini-app/src/components/PageTransition.tsx`
-Improve the page transition feel:
-- Add `scale` to entry: initial `{ opacity: 0, y: 6, scale: 0.99 }`, animate `{ opacity: 1, y: 0, scale: 1 }`
-- Slightly longer enter (0.25s) with custom spring: `type: 'spring', stiffness: 400, damping: 30`
-- Keep fast exit: `{ opacity: 0 }` at 0.1s
-- Add `onExitComplete` callback prop (optional) for cleanup actions
-
-### 2. Create `mini-app/src/components/StaggerList.tsx`
-A reusable component for staggering list item animations:
-```tsx
-interface StaggerListProps {
-  children: React.ReactNode[];
-  staggerDelay?: number; // default 0.05s
-  className?: string;
-}
-```
-- Wraps each child in `motion.div` with stagger delay
-- Uses `AnimatePresence` for items entering/leaving
-- Variants: initial `{ opacity: 0, y: 10 }`, animate `{ opacity: 1, y: 0 }`
-- Transition: `type: 'spring', stiffness: 300, damping: 25`
-- Export as named export
-
-### 3. Create `mini-app/src/hooks/useStaggerAnimation.ts`
-A hook that returns framer-motion variants for stagger animation:
-```typescript
-export function useStaggerAnimation(itemCount: number, delay = 0.05) {
-  const containerVariants = { ... };
-  const itemVariants = { ... };
-  return { containerVariants, itemVariants };
-}
-```
-This is useful for pages that want to animate their own lists without using `StaggerList`.
-
-### 4. Add stagger animations to key list pages
-Apply `StaggerList` or `useStaggerAnimation` to:
-- `mini-app/src/pages/Leaderboard.tsx` — stagger leaderboard entries
-- `mini-app/src/pages/Achievements.tsx` — stagger achievement cards
-- `mini-app/src/pages/Shop.tsx` — stagger shop items
-
-For each page: wrap the list rendering section with `StaggerList` or apply variants to existing `motion.div` elements. Keep changes minimal — just add stagger, don't restructure.
-
-### 5. Build verify
-`cd mini-app && npx tsc --noEmit`
-
-OWNED: `mini-app/src/components/PageTransition.tsx`, `mini-app/src/components/StaggerList.tsx` (new), `mini-app/src/hooks/useStaggerAnimation.ts` (new), `mini-app/src/pages/Leaderboard.tsx`, `mini-app/src/pages/Achievements.tsx`, `mini-app/src/pages/Shop.tsx` (GRAY: only add stagger to list sections)
-FORBIDDEN: bot/src/*, ErrorBoundary.tsx, ErrorSection.tsx, skeleton components, Toast.tsx, FocusTrap.tsx, Navigation.tsx, modal components, App.tsx, test files, i18n files
-Write retrospective when done.
-```
-
-**Agent D** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-d`):
-```
-Read PARALLEL_AGENTS.md — you are Agent D of Run 90. Your task: Accessibility pass — ARIA labels, keyboard navigation, screen reader support.
-
-IMPORTANT: Before doing anything, verify your working directory: run `pwd`. If it does NOT end with `Wibecode-agent-d`, run `cd /c/Users/Asus/Desktop/Wibecode-agent-d` and then verify with `git branch --show-current`.
-
-## Context
-
-Existing a11y infrastructure:
-- `FocusTrap.tsx` — Tab wrapping, Escape handling, auto-focus, focus restoration. Uses FOCUSABLE_SELECTOR.
-- `SkipLink.tsx` — "Skip to main content" link with sr-only styling. Links to `#main-content`.
-- `ErrorSection.tsx` — has `role="alert"`, `aria-label` on retry button
-- Various pages have some `role`, `aria-label`, `aria-hidden` attributes already
-
-Gaps identified:
-- FocusTrap NOT used in any modal (QuestDetailModal, ChallengeDetailModal, PurchaseModal, TrophyDetailModal, ProfileEditModal, ModeUnlockModal, LevelUpModal)
-- Missing `aria-expanded`/`aria-pressed` on toggle buttons
-- Navigation lacks `aria-current="page"` on active items (check if already present — it's used in the test)
-- Some buttons lack accessible names (icon-only buttons)
-
-## What to do
-
-### 1. Add FocusTrap to all modal components
-Wrap modal content with `<FocusTrap>` in each of these files:
-- `mini-app/src/components/quests/QuestDetailModal.tsx`
-- `mini-app/src/components/social/ChallengeDetailModal.tsx`
-- `mini-app/src/components/shop/PurchaseModal.tsx`
-- `mini-app/src/components/trophies/TrophyDetailModal.tsx`
-- `mini-app/src/components/ProfileEditModal.tsx`
-- `mini-app/src/components/ModeUnlockModal.tsx`
-- `mini-app/src/components/celebrations/LevelUpModal.tsx`
-
-For each modal:
-1. Import `FocusTrap` from `@/components/FocusTrap`
-2. Wrap the modal overlay/content `div` with `<FocusTrap onEscape={onClose}>...</FocusTrap>`
-3. Add `role="dialog"` and `aria-modal="true"` to the modal container if missing
-4. Add `aria-label` or `aria-labelledby` to the dialog (use the modal title)
-5. Keep existing functionality — just wrap, don't restructure
-
-### 2. Add ARIA to Navigation component
-In `mini-app/src/components/Navigation.tsx`:
-- Ensure `role="navigation"` on the outer nav element (or use `<nav>`)
-- Ensure `role="tablist"` on the tab container
-- Ensure `role="tab"` on each tab button
-- Ensure `aria-current="page"` on the active tab (check if already implemented)
-- Add `aria-label="Main navigation"` to the nav element
-
-### 3. Add `aria-expanded` to collapsible/expandable elements
-Search for expandable sections (accordions, dropdowns) and add `aria-expanded`:
-- Settings page toggle switches — add `aria-pressed` to toggle buttons
-- Achievement detail expansion — add `aria-expanded`
-- Any dropdown or collapsible section
-
-### 4. Add `aria-label` to icon-only buttons
-Search for `<button>` or `<motion.button>` elements that contain only an icon and no text. Add `aria-label` describing the action:
-- Edit buttons (Pencil icon) → `aria-label="Edit"`
-- Close buttons (X icon) → `aria-label="Close"`
-- Settings button → `aria-label="Settings"`
-
-Focus on these components:
-- `mini-app/src/components/profile/ProfileHeader.tsx`
-- `mini-app/src/components/dashboard/` components
-- `mini-app/src/pages/Dashboard.tsx`
-
-### 5. Build verify
-`cd mini-app && npx tsc --noEmit`
-
-OWNED: All 7 modal components listed above, `mini-app/src/components/Navigation.tsx` (GRAY: add ARIA only), `mini-app/src/components/profile/ProfileHeader.tsx` (GRAY: add aria-labels only), `mini-app/src/pages/Dashboard.tsx` (GRAY: add aria-labels to icon buttons only)
-FORBIDDEN: bot/src/*, ErrorBoundary.tsx, ErrorSection.tsx, skeleton components, PageTransition.tsx, Toast.tsx, App.tsx, test files, i18n files
-Write retrospective when done.
-```
-
-**Agent E** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-e`):
-```
-Read PARALLEL_AGENTS.md — you are Agent E of Run 90. Your task: Toast/feedback polish — toast queue, success toasts, haptic consistency.
-
-IMPORTANT: Before doing anything, verify your working directory: run `pwd`. If it does NOT end with `Wibecode-agent-e`, run `cd /c/Users/Asus/Desktop/Wibecode-agent-e` and then verify with `git branch --show-current`.
-
-## Context
-
-Current toast system:
-- `Toast.tsx` — single toast with role="alert", aria-live="assertive", 3 variants (success/error/info), 3s auto-dismiss, spring animation
-- `AchievementToast.tsx` — special achievement unlock toast
-- Toast is used in Profile.tsx and Settings.tsx via local `toast` state
-- No central toast queue — each page manages its own toast independently
-- Haptic is used in 49 files but patterns are inconsistent (some use `selection()`, others `impact('light')`, etc.)
-
-## What to do
-
-### 1. Create `mini-app/src/hooks/useToast.ts`
-A centralized toast hook with queue support:
-```typescript
-interface ToastItem {
-  id: string;
-  message: string;
-  variant: 'success' | 'error' | 'info';
-  duration?: number; // default 3000ms
-  action?: { label: string; onClick: () => void }; // optional undo/action button
-}
-
-export function useToast() {
-  // Returns: { toasts, showToast, dismissToast }
-  // Maintains a queue of up to 3 toasts
-  // Auto-dismisses after duration
-  // New toasts push old ones down (stack)
-}
-```
-Use `useState` with an array of `ToastItem`. Generate IDs with `crypto.randomUUID()` or `Date.now()`.
-
-### 2. Create `mini-app/src/components/ToastContainer.tsx`
-A container that renders the toast queue:
-- Position: fixed bottom-center (above navigation), `z-50`
-- Renders up to 3 toasts stacked with `AnimatePresence`
-- Each toast uses the existing `Toast` component style
-- New toasts animate in from bottom, dismissed ones fade out
-- Action button support (e.g., "Undo" after a delete)
-
-### 3. Add ToastContainer to App layout
-In `mini-app/src/App.tsx`, render `<ToastContainer />` outside the route structure so it persists across navigation. But do NOT touch App.tsx directly — instead, create a `ToastProvider` context:
-
-Create `mini-app/src/contexts/ToastContext.tsx`:
-```typescript
-const ToastContext = createContext<...>();
-export function ToastProvider({ children }) { ... }
-export function useToastContext() { return useContext(ToastContext); }
-```
-
-### 4. Create `mini-app/src/hooks/useHapticPattern.ts`
-Standardize haptic patterns:
-```typescript
-export function useHapticPattern() {
-  const { haptic } = useTelegram();
-  return {
-    tap: () => haptic.impact('light'),      // general tap
-    toggle: () => haptic.selection(),        // toggle/switch
-    success: () => haptic.notification('success'),
-    error: () => haptic.notification('error'),
-    delete: () => haptic.impact('medium'),   // destructive action
-    celebrate: () => haptic.impact('heavy'), // achievement/levelup
-  };
-}
-```
-
-### 5. Add success toasts to key mutation pages
-Add `useToast()` and show success toast in these pages:
-- `mini-app/src/pages/Medications.tsx` — toast on add/edit/delete medication, on log taken/skipped
-- `mini-app/src/pages/Settings.tsx` — toast on save preferences
-
-Keep changes minimal: import the hook, add a `showToast()` call after successful mutation.
-
-### 6. Build verify
-`cd mini-app && npx tsc --noEmit`
-
-OWNED: `mini-app/src/hooks/useToast.ts` (new), `mini-app/src/components/ToastContainer.tsx` (new), `mini-app/src/contexts/ToastContext.tsx` (new), `mini-app/src/hooks/useHapticPattern.ts` (new), `mini-app/src/components/Toast.tsx` (enhance if needed), `mini-app/src/pages/Medications.tsx` (GRAY: add success toasts only), `mini-app/src/pages/Settings.tsx` (GRAY: add success toasts only)
-FORBIDDEN: bot/src/*, ErrorBoundary.tsx, ErrorSection.tsx, skeleton components, PageTransition.tsx, FocusTrap.tsx, Navigation.tsx, modal components, test files, i18n files
-Write retrospective when done.
-```
-
-### Run 90 File Ownership Matrix
-
-| File/Dir | A | B | C | D | E |
-|----------|---|---|---|---|---|
-| ErrorBoundary.tsx | OWN | - | - | - | - |
-| ErrorSection.tsx | OWN | - | - | - | - |
-| OfflineBanner.tsx | OWN | - | - | - | - |
-| PageErrorBoundary.tsx (new) | NEW | - | - | - | - |
-| App.tsx | GRAY | - | - | - | - |
-| AnalyticsSkeleton.tsx (new) | - | NEW | - | - | - |
-| NotificationHistorySkeleton.tsx (new) | - | NEW | - | - | - |
-| InventorySkeleton.tsx (new) | - | NEW | - | - | - |
-| shimmer.css (new) | - | NEW | - | - | - |
-| Existing skeleton components | - | GRAY | - | - | - |
-| Analytics.tsx | - | GRAY | - | - | - |
-| NotificationHistory.tsx | - | GRAY | - | - | - |
-| Inventory.tsx | - | GRAY | - | - | - |
-| PageTransition.tsx | - | - | OWN | - | - |
-| StaggerList.tsx (new) | - | - | NEW | - | - |
-| useStaggerAnimation.ts (new) | - | - | NEW | - | - |
-| Leaderboard.tsx | - | - | GRAY | - | - |
-| Achievements.tsx | - | - | GRAY | - | - |
-| Shop.tsx | - | - | GRAY | - | - |
-| All 7 modal components | - | - | - | OWN | - |
-| Navigation.tsx | - | - | - | GRAY | - |
-| ProfileHeader.tsx | - | - | - | GRAY | - |
-| Toast.tsx | - | - | - | - | OWN |
-| ToastContainer.tsx (new) | - | - | - | - | NEW |
-| ToastContext.tsx (new) | - | - | - | - | NEW |
-| useToast.ts (new) | - | - | - | - | NEW |
-| useHapticPattern.ts (new) | - | - | - | - | NEW |
-| Medications.tsx | - | - | - | - | GRAY |
-| Settings.tsx | - | - | - | - | GRAY |
-
-### Run 90 Merge Order
-1. Agent A (error handling — foundational, touches App.tsx)
-2. Agent B (skeletons — independent of others)
-3. Agent C (transitions — independent, touches pages lightly)
-4. Agent D (accessibility — independent, touches modals + nav)
-5. Agent E (toast system — builds on existing, touches pages lightly)
-
-### Run 90 Retrospectives
-
-#### Agent A Retrospective
-**Status**: Complete — 4 files changed (1 new + 3 modified), `tsc --noEmit` clean.
-
-**What was done**:
-1. **PageErrorBoundary.tsx** (new, 80 lines) — Page-level class component error boundary. Uses amber color scheme (distinct from the red global ErrorBoundary). Shows page name in error message, AlertTriangle icon, retry button that resets error state without full page reload. Uses `motion.div` fade-in, `role="alert"`, i18n keys for all text.
-2. **App.tsx** — Wrapped all 19 page routes with `<PageErrorBoundary pageName="...">`. Placed inside ProtectedRoute/LazyPageWrapper so errors are caught per-page, not globally. Admin routes also wrapped.
-3. **ErrorSection.tsx** — Added `maxRetries` prop (default 3), internal `retryCount` state. Shows attempt number "Retry (2/3)". Disables button and shows fallback text after max retries. Keeps `role="alert"` and haptic feedback.
-4. **OfflineBanner.tsx** — Added "Back online!" emerald-green banner that shows for 2 seconds after reconnecting. Tracks previous offline state via ref. Added manual connection check button (RefreshCw icon) that fires a lightweight HEAD request. Uses consistent spring animation for both banners.
-
-**Design decisions**:
-- PageErrorBoundary uses amber (warning) colors vs the global ErrorBoundary's red (critical) to visually distinguish page-level vs app-level errors
-- Retry in PageErrorBoundary resets error state without reload — the page re-mounts and React Query re-fetches automatically
-- ErrorSection retry counter uses `useState` so it resets if the parent unmounts the ErrorSection (e.g., successful data load)
-- OfflineBanner "back online" detection uses a ref to avoid showing the banner on initial mount when user is already online
-
-**Files changed**: `PageErrorBoundary.tsx` (new), `App.tsx`, `ErrorSection.tsx`, `OfflineBanner.tsx`
-**Commit**: `fb0b2e1` on `feature/r90-error-handling`
-**No issues encountered.**
-
-#### Agent B Retrospective
-**Status**: Complete — 3 new skeleton components + shimmer CSS + 3 existing skeletons enhanced, `tsc --noEmit` clean.
-
-**Created**:
-- `mini-app/src/styles/shimmer.css` — CSS shimmer overlay effect using `::after` pseudo-element with translating gradient animation (1.5s infinite)
-- `mini-app/src/components/analytics/AnalyticsSkeleton.tsx` — matches Analytics page layout: header, time range toggles, stat cards, chart placeholder
-- `mini-app/src/components/notifications/NotificationHistorySkeleton.tsx` — gradient header, 5 filter pills, 5 notification items
-- `mini-app/src/components/inventory/InventorySkeleton.tsx` — gradient header with total items card + category tabs, 6 item cards
-
-**Modified**:
-- `mini-app/src/main.tsx` — imported `shimmer.css`
-- `DashboardSkeleton.tsx`, `ProfileSkeleton.tsx`, `LeaderboardSkeleton.tsx` — added `skeleton-shimmer` class + `role="status"` + `aria-label`
-- `Analytics.tsx` — replaced spinner with `<AnalyticsSkeleton />`
-- `NotificationHistory.tsx` — added early return with `<NotificationHistorySkeleton />`
-- `Inventory.tsx` — replaced spinner with `<InventorySkeleton />`
-
-**Design decisions**: Shimmer uses `rgba(255,255,255,0.08)` for dark themes. New skeletons use inline style for elements on gradient headers.
-
-#### Agent C Retrospective
-**Status**: Complete — all 5 tasks done, `tsc --noEmit` passes cleanly.
-
-**Changes**:
-- `PageTransition.tsx`: Replaced `easeOut` with `spring(400, 30)`, added `scale: 0.99` to initial, added `onExitComplete` callback prop
-- `StaggerList.tsx` (new): Reusable component wrapping children in `AnimatePresence` + `motion.div` with configurable stagger delay
-- `useStaggerAnimation.ts` (new): Hook returning `containerVariants` + `itemVariants` for pages managing their own lists
-- `Leaderboard.tsx`: Wrapped Top 3 cards and ranking rows in staggered `motion.div` containers
-- `Achievements.tsx`: Wrapped rarity groups in staggered `motion.div` container (0.08s)
-- `Shop.tsx`: Replaced per-item delay with container-level `staggerChildren: 0.03` via `useStaggerAnimation`
-
-#### Agent D Retrospective
-**Status**: Complete — accessibility pass, all changes minimal and targeted.
-
-**Changes made:**
-1. **FocusTrap.tsx** — Added optional `aria-label` and `aria-labelledby` props, passed through to the rendered `role="dialog"` div. No breaking changes.
-2. **All 7 modals** — Added `aria-label` to each FocusTrap usage with descriptive dialog names (quest title, challenge title, trophy name, mode name, etc.).
-3. **ProfileEditModal** — Added `aria-label={t('common.close')}` and `aria-hidden="true"` to icon-only close button.
-
-**Already in good shape (no changes needed):**
-- Navigation: `role="tablist"`, `role="tab"`, `aria-current="page"`, `aria-selected`, roving tabindex, arrow keys
-- Settings toggles: `role="switch"` + `aria-checked` (correct pattern)
-- AchievementCard: `aria-expanded` already present
-- ProfileHeader: icon-only buttons already have `aria-label`
-- Dashboard: all regions, progress bars, stat cards have proper ARIA
-
-**Build**: `npx tsc --noEmit` clean.
-
-#### Agent E Retrospective
-**Status**: Complete — all tasks done, `tsc --noEmit` passes (exit 0).
-
-**Files created (4)**:
-- `mini-app/src/hooks/useToast.ts` — centralized toast hook with queue (max 3), auto-dismiss, action button support
-- `mini-app/src/contexts/ToastContext.tsx` — ToastProvider + `useToastContext()` for app-wide toast access
-- `mini-app/src/components/ToastContainer.tsx` — fixed bottom-center container with AnimatePresence stacked toasts, spring animations
-- `mini-app/src/hooks/useHapticPattern.ts` — standardized haptic patterns (tap/toggle/success/error/delete/celebrate)
-
-**Files modified (2)**:
-- `mini-app/src/App.tsx` — wrapped `AppContent` in `<ToastProvider>` (2 lines: import + wrapper)
-- `mini-app/src/pages/Medications.tsx` — added `useToastContext()`, success toasts on add/edit/delete/log medication
-
-**Settings.tsx**: Already has full toast support via `useSettingsData` hook (local toast state + `<Toast>` render). No changes needed — it works independently and the centralized context is available when pages want to migrate.
-
-**Design decisions**:
-- ToastContainer renders at `bottom-20` (above Navigation) with `z-50` to avoid z-index conflicts
-- Used `pointer-events-none` on container + `pointer-events-auto` on individual toasts so the stack doesn't block the UI
-- Toast IDs use counter + timestamp (not `crypto.randomUUID()`) for broader browser compat
-- Kept existing `Toast.tsx` untouched — it still works for pages using the old pattern
-
-**Recommendations for future runs**:
-- Other mutation pages (Profile, Quests, Shop) can adopt `useToastContext()` for consistent feedback
-- Pages still using local `toast` state (Settings, Profile) can migrate to the context when touched next
-- `useHapticPattern` is ready for adoption — currently no consumers besides the export, but provides a clean API for standardizing the 49 files using inconsistent haptic calls
-
-#### Agent 0 Retrospective
-**Status**: Merged, built, deployed, notified.
-
-- All 5 agents merged cleanly (only PARALLEL_AGENTS.md conflicts, resolved with --ours)
-- Fixed 13 post-merge test failures:
-  - ErrorSection retry counter changed button text from "Retry" to "Try Again (1/3)" — updated 9 page tests + ErrorSection test
-  - OfflineBanner now uses `RefreshCw` + `Wifi` icons — added to mock
-  - ToastContainer uses `CheckCircle`/`Info` icons — added to Medications test mock
-  - Medications page now uses `useToastContext()` — added mock
-  - DashboardSkeleton snapshot updated for `skeleton-shimmer` class
-  - Preemptively added `errors.tryAgain`/`errors.serverError` i18n keys to 4 more tests
-- Final counts: Mini-app 941/941 (100%), Bot 1100/1100 (100%)
-- Run 90 adds: PageErrorBoundary, 3 skeleton components, shimmer CSS, StaggerList, useStaggerAnimation, PageTransition spring, FocusTrap in 7 modals, ToastContainer/ToastContext/useToast/useHapticPattern
-
----
-
-## RUN 91: Bug Fixes + TG API Research (4 Agents + Agent 0)
-
-### Run 91 Plan: Bug Fixes + TG API Research (4 agents)
-- **Agent A**: Fix language selection in onboarding — actually call `i18n.changeLanguage()` when flag is pressed, persist to localStorage
-- **Agent B**: Fix quest last check-in — close modal, show "All Done!" celebration with confetti + thumbs-up emoji
-- **Agent C**: TG API research — animated stickers, payment Stars, features audit — write comprehensive report to `docs/`
-- **Agent D**: Payment notification bot — handle `successful_payment` events in main bot, notify owner via notification bot
-
-### Run 91 Prompts
-
-**Agent 0** (this window):
-```
-Read PARALLEL_AGENTS.md — you are Agent 0 for Run 91.
-```
-
-**Agent A** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-a`):
-```
-Read PARALLEL_AGENTS.md — you are Agent A of Run 91. Your task: Fix onboarding language selection — it currently does nothing.
-
-IMPORTANT: Before doing anything, verify your working directory: run `pwd`. If it does NOT end with `Wibecode-agent-a`, run `cd /c/Users/Asus/Desktop/Wibecode-agent-a` and then verify with `git branch --show-current`.
-
-## Bug Description
-
-When a user taps a language flag (🇺🇸/🇷🇺/🇨🇳) on the onboarding splash screen, the selection is stored in local React state but `i18n.changeLanguage()` is NEVER called. The app continues in whatever language Telegram's `language_code` provides, ignoring the user's conscious choice.
-
-## Root Cause
-
-In `mini-app/src/components/onboarding/SplashScreen.tsx`:
-- Line 49: `const [selectedLang, setSelectedLang] = useState<string | null>(null);`
-- Lines 57-61: `handleLangSelect()` only sets React state
-- Lines 51-55: `handleStart()` only calls `onNext()` without passing the language anywhere
-- The i18n system (`src/i18n/index.ts`) only reads `window.Telegram.WebApp.initDataUnsafe.user.language_code` at init time
-
-## What to do
-
-### 1. Fix `mini-app/src/components/onboarding/SplashScreen.tsx`
-- Import `{ useTranslation }` (already imported) — get the `i18n` instance via `const { t, i18n } = useTranslation();`
-- In `handleLangSelect()`, call `i18n.changeLanguage(code)` immediately when a flag is tapped — this will instantly re-render the page in the new language
-- Also save the chosen language to localStorage: `localStorage.setItem('maxlevel-language', code)` so it persists across sessions
-- Pre-select the current language on mount: in `useState`, check `i18n.language` and use it as default (so if Telegram says "ru", the Russian flag is pre-highlighted)
-
-### 2. Update `mini-app/src/i18n/index.ts`
-- Before `i18n.use(LanguageDetector)...init(...)`, check localStorage for a saved language:
-  ```typescript
-  const savedLang = localStorage.getItem('maxlevel-language');
-  const tgLang = window.Telegram?.WebApp?.initDataUnsafe?.user?.language_code;
-  ```
-- In `init()`, set `lng: savedLang || tgLang || undefined` — saved user choice takes priority over Telegram language
-- Add `'localStorage'` to the detection order: `order: ['localStorage', 'querystring', 'navigator']` with `lookupLocalStorage: 'maxlevel-language'`
-
-### 3. Build verify
-`cd mini-app && npx tsc --noEmit`
-
-OWNED: `mini-app/src/components/onboarding/SplashScreen.tsx`, `mini-app/src/i18n/index.ts`
-FORBIDDEN: bot/src/*, CheckInButton.tsx, QuestDetailModal.tsx, useQuestsData.ts, celebrations/*, notification bot, docs/, test files
-Write retrospective when done.
-```
-
-**Agent B** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-b`):
-```
-Read PARALLEL_AGENTS.md — you are Agent B of Run 91. Your task: Fix quest last check-in — close modal and show celebration.
-
-IMPORTANT: Before doing anything, verify your working directory: run `pwd`. If it does NOT end with `Wibecode-agent-b`, run `cd /c/Users/Asus/Desktop/Wibecode-agent-b` and then verify with `git branch --show-current`.
-
-## Bug Description
-
-When a user checks into a quest that requires multiple check-ins, the last step button says "Check In (last one!)" but pressing it does nothing visible — the popup stays open. The API call succeeds and data updates, but the modal doesn't close because of a race condition: `handleCheckinSuccess` in `useQuestsData.ts` waits for `queryClient.invalidateQueries()` to resolve before calling `setSelectedQuest(null)`, and the conditional rendering in `QuestDetailModal.tsx` still shows the button during this gap.
-
-## Root Cause
-
-In `mini-app/src/hooks/useQuestsData.ts` lines 70-85:
-- `handleCheckinSuccess` updates `selectedQuest` locally (line 72) setting `status: 'completed'`
-- But then waits for refetch `.then(() => setSelectedQuest(null))` which may take time
-- Meanwhile in `QuestDetailModal.tsx` line 109: the check-in button condition `quest.progress < quest.target` may still be true during the async gap
-
-In `mini-app/src/components/CheckInButton.tsx`:
-- After the last check-in, `showSuccess` displays "Checked in!" for 1.5s, but the user expects the modal to close/celebrate
-
-## What to do
-
-### 1. Fix `mini-app/src/hooks/useQuestsData.ts` — `handleCheckinSuccess`
-When `result.completed === true`:
-- Immediately set a new state `showQuestCelebration` to true (add `const [showQuestCelebration, setShowQuestCelebration] = useState(false);`)
-- Close the modal immediately: `setSelectedQuest(null)` without waiting for refetch
-- Still invalidate queries in the background (they don't need to block the UI)
-- After 3 seconds, set `showQuestCelebration` back to false
-- Return `showQuestCelebration` and `setShowQuestCelebration` from the hook
-
-### 2. Create `mini-app/src/components/celebrations/QuestCompletionCelebration.tsx`
-A full-screen celebration overlay:
-- Shows when `show` prop is true
-- Displays: large thumbs-up emoji, bold "All Done!" text, the quest name underneath
-- Uses the existing `Confetti` component (import from `./Confetti`)
-- Auto-closes after 3 seconds
-- Uses `motion.div` for fade-in/scale animation
-- Props: `show: boolean, questName?: string, onComplete?: () => void`
-- The overlay should be translucent dark bg (`bg-black/50`) with centered content
-- The emoji should do a bounce animation (spring scale from 0 to 1.2 to 1)
-- Text should fade in after 0.3s delay
-
-### 3. Wire celebration into `mini-app/src/pages/Quests.tsx`
-- Import `QuestCompletionCelebration`
-- Get `showQuestCelebration` from `useQuestsData`
-- Render `<QuestCompletionCelebration show={showQuestCelebration} />` at the page level (outside the modal)
-- The celebration should appear AFTER the modal closes (since we close modal first, then show celebration)
-
-### 4. Fix `mini-app/src/components/CheckInButton.tsx` — improve last check-in UX
-When the last check-in succeeds (i.e., `data.completed === true` in `handleCheckin`):
-- Don't show the small "Checked in!" tooltip — let the parent handle the celebration
-- Just call `onSuccess` and let the hook handle modal close + celebration
-
-### 5. Build verify
-`cd mini-app && npx tsc --noEmit`
-
-OWNED: `mini-app/src/hooks/useQuestsData.ts`, `mini-app/src/components/celebrations/QuestCompletionCelebration.tsx` (new), `mini-app/src/components/CheckInButton.tsx`, `mini-app/src/pages/Quests.tsx` (GRAY: only add celebration render)
-FORBIDDEN: bot/src/*, SplashScreen.tsx, i18n/*, notification bot, docs/, QuestDetailModal.tsx (do NOT modify — just let the modal close via selectedQuest=null), test files
-Write retrospective when done.
-```
-
-**Agent C** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-c`):
-```
-Read PARALLEL_AGENTS.md — you are Agent C of Run 91. Your task: Research Telegram Bot API features and write a comprehensive report.
-
-IMPORTANT: Before doing anything, verify your working directory: run `pwd`. If it does NOT end with `Wibecode-agent-c`, run `cd /c/Users/Asus/Desktop/Wibecode-agent-c` and then verify with `git branch --show-current`.
-
-## Context
-
-The user has a Telegram RPG bot (Grammy/TypeScript) with a React mini-app (TWA). They have an animated sticker pack and want to explore what Telegram features they can implement. They also need to understand the Stars payment system.
-
-## What to do
-
-### 1. Research and write `docs/TELEGRAM_API_FEATURES.md`
-
-Create a comprehensive document covering:
-
-#### A. Animated Stickers
-- How to send animated stickers from a bot (TGS/WebM formats)
-- How to get sticker pack info via `getStickerSet()`
-- How to display stickers INSIDE a mini-app (TWA) — the SDK has no native sticker renderer
-- Recommend `@lottiefiles/react-lottie-player` for rendering .tgs in React
-- How to serve sticker files: `getFile()` to get download URL, cache on server
-- Practical code examples in grammY TypeScript
-
-#### B. Telegram Stars / Payments
-- Full Stars payment flow: `sendInvoice` / `createInvoiceLink` -> `pre_checkout_query` -> `successful_payment`
-- How to integrate payments in the mini-app via `openInvoice()`
-- Fee structure: Apple/Google ~30%, Telegram ~5%, developer ~65% (~$0.013/Star)
-- Withdrawal: minimum 1000 Stars, 21-day aging, via Fragment -> TON wallet
-- Refund API: `refundStarPayment()`
-- `getStarTransactions()` for checking bot balance
-- Pre-launch requirements (2FA, /terms, /support commands)
-- Code examples for grammY
-
-#### C. Mini-App (TWA) API Features
-- Deep linking (`?startapp=` parameter, how to read/encode)
-- `openInvoice()` for in-app payments
-- `showPopup()` / `showAlert()` / `showConfirm()` for native dialogs
-- `requestWriteAccess()` for messaging permissions
-- `setHeaderColor()` / `setBackgroundColor()` for theming
-- NO native push notifications — must use bot `sendMessage` instead
-
-#### D. Feature Ideas for Future Runs
-Based on the above research, propose 8-10 concrete feature ideas the user could implement:
-1. Animated sticker celebrations (replace emoji with real TGS stickers for level-up, quest complete)
-2. Premium module purchases via Stars (medication tracker, advanced analytics)
-3. Avatar shop with Stars (custom animated sticker avatars)
-4. Share quest achievements as animated stickers
-5. Deep link quests (share with friends)
-6. Weekly progress sticker (bot generates and sends animated summary)
-7. etc.
-For each: describe what it does, which APIs are needed, estimated complexity (1-3 agents), and which run it could fit in.
-
-### 2. Build verify (not needed — docs only)
-This is a research-only task. No code changes, just the document.
-
-OWNED: `docs/TELEGRAM_API_FEATURES.md` (new)
-FORBIDDEN: ALL code files (no .ts, .tsx, .py, .css changes). Docs only.
-Write retrospective when done.
-```
-
-**Agent D** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-d`):
-```
-Read PARALLEL_AGENTS.md — you are Agent D of Run 91. Your task: Add Telegram Stars payment handling + payment notifications.
-
-IMPORTANT: Before doing anything, verify your working directory: run `pwd`. If it does NOT end with `Wibecode-agent-d`, run `cd /c/Users/Asus/Desktop/Wibecode-agent-d` and then verify with `git branch --show-current`.
-
-## Context
-
-The main bot is a Grammy TypeScript bot at `bot/src/`. There's a separate notification bot (Python, `tools/notification_bot_handler.py`) that sends notifications to the owner. The owner wants: when someone pays Stars for modules/avatars in the mini-app, the notification bot should notify the owner and offer to transfer Stars to their personal account.
-
-The main bot is `bot/src/bot.ts` (Grammy bot instance). The API server is `bot/src/api/server.ts`. The notification bot token is `TELEGRAM_NOTIFICATION_BOT_TOKEN` and owner chat ID is `TELEGRAM_NOTIFICATION_CHAT_ID` in `.env`.
-
-## What to do
-
-### 1. Create `bot/src/handlers/payments.ts` — Telegram Stars payment handlers
-Handle pre-checkout query (MUST respond within 10 seconds) and successful payment. On successful payment:
-1. Log payment to database (payments table)
-2. Deliver the digital goods based on payload
-3. Send notification to owner via notification bot HTTP API
-4. Reply to user confirming purchase
-
-### 2. Create `bot/src/api/routes/payments.ts` — Invoice creation endpoint for mini-app
-POST /api/payments/create-invoice endpoint. Body: { telegram_id, item_type, item_id }. Returns: { invoice_url }.
-
-Use `bot.api.createInvoiceLink()` to generate the URL. Define a price catalog with items like:
-- module_medication: 50 Stars
-- module_analytics: 75 Stars
-(These are placeholder prices.)
-
-Register in `bot/src/api/server.ts`.
-
-### 3. Add payment notification to owner
-When a successful payment is received, send a message to the owner via the notification bot. Use a simple `fetch()` to Telegram API: `https://api.telegram.org/bot<token>/sendMessage`. Don't import the notification bot — just use the Telegram HTTP API directly.
-
-### 4. Add `/stars` command to notification bot
-In `tools/notification_bot_handler.py`, add a `/stars` command that calls `getStarTransactions` API (via HTTP using the MAIN bot token) and shows total Stars balance and recent 5 transactions.
-
-### 5. Create DB migration for payments table
-Append to `database/schema.sql` (don't overwrite existing content):
-```sql
-CREATE TABLE IF NOT EXISTS payments (
-  id SERIAL PRIMARY KEY,
-  telegram_id BIGINT NOT NULL REFERENCES users(telegram_id),
-  charge_id TEXT NOT NULL UNIQUE,
-  payload TEXT NOT NULL,
-  amount INTEGER NOT NULL,
-  status TEXT NOT NULL DEFAULT 'completed',
-  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-);
-CREATE INDEX IF NOT EXISTS idx_payments_telegram_id ON payments(telegram_id);
-```
-
-### 6. Register handlers
-- In `bot/src/bot.ts`: import and call `registerPaymentHandlers(bot)`
-- In `bot/src/api/server.ts`: import and register the payments router
-
-### 7. Build verify
-`cd bot && npx tsc --noEmit`
-
-OWNED: `bot/src/handlers/payments.ts` (new), `bot/src/api/routes/payments.ts` (new), `bot/src/bot.ts` (GRAY: add handler registration), `bot/src/api/server.ts` (GRAY: add route registration), `tools/notification_bot_handler.py` (GRAY: add /stars command), `database/schema.sql` (GRAY: append payments table)
-FORBIDDEN: mini-app/src/* (ALL mini-app files), SplashScreen.tsx, i18n/*, CheckInButton.tsx, celebrations/*, docs/, test files
-Write retrospective when done.
-```
-
-### Run 91 File Ownership Matrix
-
-| File/Dir | A | B | C | D |
-|----------|---|---|---|---|
-| SplashScreen.tsx | OWN | - | - | - |
-| i18n/index.ts | OWN | - | - | - |
-| useQuestsData.ts | - | OWN | - | - |
-| CheckInButton.tsx | - | OWN | - | - |
-| QuestCompletionCelebration.tsx (new) | - | NEW | - | - |
-| Quests.tsx | - | GRAY | - | - |
-| docs/TELEGRAM_API_FEATURES.md (new) | - | - | NEW | - |
-| bot/src/handlers/payments.ts (new) | - | - | - | NEW |
-| bot/src/api/routes/payments.ts (new) | - | - | - | NEW |
-| bot/src/bot.ts | - | - | - | GRAY |
-| bot/src/api/server.ts | - | - | - | GRAY |
-| notification_bot_handler.py | - | - | - | GRAY |
-| database/schema.sql | - | - | - | GRAY |
-
-### Run 91 Merge Order
-1. Agent A (language fix — isolated, mini-app only)
-2. Agent B (quest celebration — isolated, mini-app only)
-3. Agent C (docs only — no code conflicts)
-4. Agent D (bot-side payments — touches bot/src/ only)
-
-### Run 91 Retrospectives
-
-#### Agent A Retrospective
-**Status**: Complete — 2 files changed, `tsc --noEmit` clean.
-**Root cause**: `SplashScreen.tsx` stored language in React state only. `i18n.changeLanguage()` was never called.
-**Fixed**: Added `i18n.changeLanguage(code)` + localStorage persistence. `i18n/index.ts` now reads localStorage first (savedLang > tgLang > detector).
-**Commit**: `139d653`
-
-#### Agent B Retrospective
-**Status**: Complete — 4 files changed (1 new + 3 modified), `tsc --noEmit` clean.
-**Bug fixed**: Quest last check-in modal stayed open due to race condition — waited for query refetch before closing.
-**Fixed**: Modal closes immediately on completion, 3-second celebration overlay (confetti + thumbs-up + "All Done!"). Non-final check-ins still show small tooltip.
-**New file**: `QuestCompletionCelebration.tsx`
-**Commit**: `b4e2eab`
-
-#### Agent C Retrospective
-**Status**: Stuck — 0 commits. Agent got stuck and produced no output.
-**Agent 0 completed the task**: Wrote `docs/TELEGRAM_API_FEATURES.md` (360+ lines) covering Stars payments, animated stickers, Mini App API, gamification, media, inline mode, bot management, community features, and implementation ideas for MaxLevel.
-
-#### Agent D Retrospective
-**Status**: Complete — 2 files modified, `tsc --noEmit` clean.
-**Discovery**: Payment infrastructure already existed. Enhanced `payments.ts` with mode_unlock support + owner notifications via notification bot. Added `/stars` command to notification bot showing balance + recent transactions.
-**Commits**: `ddc4184`, `167642a`
-
-#### Agent 0 Retrospective
-**Status**: Complete.
-**Merged**: A → B → D (3 merges, 2 PARALLEL_AGENTS.md conflicts resolved with --ours).
-**Test fix**: SplashScreen test updated — Agent A's auto-language detection changed initial state from null to detected language, breaking the "disabled until selected" assertion.
-**Agent C recovery**: Wrote comprehensive TG API features doc covering all Bot API 9.4 features with MaxLevel implementation ideas.
-**Results**: 942/942 tests pass. Bot + mini-app build clean. Deployed to production.
-**Worktrees**: All 4 removed, branches deleted.
-
----
-
-## RUN 92: Quest i18n + Sheets OAuth + Medication Analytics (7 Agents + Agent 0)
-
-### Focus: Quest Russian translations, Google Sheets OAuth flow, medication adherence tracking with calendar + charts
-
-### Pre-completed Tasks (from commit 11e8c45)
-- ✅ Quest modal auto-close + width fix (remove layoutId, move AnimatePresence to parent)
-- ✅ /metrics server IP fix (85.239.53.57 → 85.239.58.205)
-
-These were originally roadmap items for Run 92's Agent A (quest modal) and Agent D (/metrics). Since they're done, Run 92 proceeds with the remaining 7 tasks.
-
-### Copy-Paste Prompts
-
-**Agent 0** (open in: `c:\Users\Asus\Desktop\Wibecode`):
-```
-Read PARALLEL_AGENTS.md — you are Agent 0 for Run 92.
-```
-
-**Agent A** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-a`):
-```
-Read PARALLEL_AGENTS.md — you are Agent A of Run 92. Your task: Quest i18n backend — add Russian translation columns, translate seed data, modify API.
-
-IMPORTANT: Before doing anything, verify your working directory: run `pwd`. If it does NOT end with `Wibecode-agent-a`, run `cd /c/Users/Asus/Desktop/Wibecode-agent-a` and then verify with `git branch --show-current`.
-
-## Context
-
-The quests table (`database/schema.sql` lines 97-112) has `title VARCHAR(255)` and `description TEXT` — English only, NO translation columns. Seed data (`database/seed_data.sql`) has ~32 quests across 4 modes (fitness, hydration, medication, habits), all in English. The API (`bot/src/api/routes/quests.ts`) has two GET endpoints: `/users/:userId/active` and `/users/:userId/completed` — both return `q.title AS name` and `q.description` directly with no language handling.
-
-## What to do
-
-### 1. Add translation columns to `database/schema.sql`
-After the existing `description TEXT` line (line 101), add:
-```sql
-    title_ru TEXT,
-    description_ru TEXT,
-```
-Don't touch other columns. The new columns default to NULL.
-
-### 2. Add Russian translations to `database/seed_data.sql`
-AFTER the existing INSERT INTO quests blocks (don't modify them), add UPDATE statements for each quest:
-```sql
--- Russian translations for fitness quests
-UPDATE quests SET title_ru = 'Утренняя растяжка 10 минут', description_ru = 'Начните день с лёгкой 10-минутной растяжки' WHERE title = '10-Minute Morning Stretch';
-UPDATE quests SET title_ru = 'Лёгкая 15-минутная прогулка', description_ru = 'Совершите лёгкую 15-минутную прогулку по окрестностям' WHERE title = 'Light 15-Min Walk';
-```
-Translate ALL quests (fitness, hydration, medication, habits — every quest in the seed data). Be accurate with the Russian — these are real fitness/health activities.
-
-### 3. Modify API endpoints in `bot/src/api/routes/quests.ts`
-Both GET endpoints need to:
-1. Accept optional `?lang=xx` query param: `const lang = (req.query.lang as string) || 'en';`
-2. Change SQL to use COALESCE for the title and description based on language:
-   - When `lang === 'ru'`: use `COALESCE(q.title_ru, q.title) AS name` and `COALESCE(q.description_ru, q.description) AS description`
-   - Otherwise: use `q.title AS name` and `q.description` (original behavior)
-3. Pass `lang` as a SQL parameter. Example approach — build the SELECT columns dynamically:
-```typescript
-const titleExpr = lang === 'ru' ? 'COALESCE(q.title_ru, q.title)' : 'q.title';
-const descExpr = lang === 'ru' ? 'COALESCE(q.description_ru, q.description)' : 'q.description';
-```
-Then use template literals in the SQL string (these are column expressions, not user input, so safe to interpolate).
-
-### 4. Build verify
-`cd bot && npx tsc --noEmit`
-
-OWNED: `database/schema.sql` (add columns to quests table ONLY), `database/seed_data.sql` (append UPDATE statements ONLY — don't modify existing INSERTs), `bot/src/api/routes/quests.ts`
-FORBIDDEN: mini-app/src/* (ALL mini-app files), notification bot, medication routes, test files, bot.ts, server.ts
-Write retrospective when done.
-```
-
-**Agent B** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-b`):
-```
-Read PARALLEL_AGENTS.md — you are Agent B of Run 92. Your task: Quest i18n frontend — pass user language to quest API endpoints.
-
-IMPORTANT: Before doing anything, verify your working directory: run `pwd`. If it does NOT end with `Wibecode-agent-b`, run `cd /c/Users/Asus/Desktop/Wibecode-agent-b` and then verify with `git branch --show-current`.
-
-## Context
-
-The quest API (modified by Agent A in parallel) will accept `?lang=xx` and return translated quest titles/descriptions. The frontend currently does not pass any language parameter.
-
-Current flow:
-- `useQuestsQuery.ts` → `useActiveQuests(userId)` → `apiClient.getActiveQuests(userId)`
-- `client.ts` → `getActiveQuests()` calls `this.deduplicatedGet('/users/${userId}/quests/active')`
-- Quest type (`types/quest.ts`): `title: string, description: string` — no change needed (API returns correct language)
-- i18n configured with `useTranslation()` giving `i18n.language` as 'en', 'ru', or 'zh'
-
-## What to do
-
-### 1. Modify `mini-app/src/api/client.ts` — quest methods only
-Update `getActiveQuests()` and `getCompletedQuests()` to accept and pass a `lang` parameter:
-```typescript
-async getActiveQuests(userId: number, lang?: string, config?: { signal?: AbortSignal }): Promise<ApiResponse<Quest[]>> {
-    const params = lang ? { lang } : undefined;
-    const result = await this.deduplicatedGet<ApiResponse<Quest[]>>(`/users/${userId}/quests/active`, params, { ...withTimeout(TIMEOUT_FAST), ...config });
-    // ... existing defensive unwrap code stays ...
-```
-Do the same for `getCompletedQuests()`. Do NOT touch any other methods in client.ts.
-
-### 2. Modify `mini-app/src/hooks/useQuestsQuery.ts`
-Update the hooks to get the current language and pass it:
-```typescript
-import { useTranslation } from 'react-i18next';
-
-export function useActiveQuests(userId: number | undefined) {
-  const { i18n } = useTranslation();
-  const lang = i18n.language?.substring(0, 2) || 'en'; // 'en', 'ru', 'zh'
-
-  return useQuery({
-    queryKey: [...questKeys.active(userId!), lang], // include lang in key for refetch on change
-    queryFn: async () => {
-      const res = await apiClient.getActiveQuests(userId!, lang);
-      // ... existing code ...
-    },
-    enabled: !!userId,
-    staleTime: 2 * 60 * 1000,
-  });
-}
-```
-Do the same for `useCompletedQuests()`. Include `lang` in both query keys.
-
-### 3. Build verify
-`cd mini-app && npx tsc --noEmit`
-
-OWNED: `mini-app/src/hooks/useQuestsQuery.ts`, `mini-app/src/api/client.ts` (GRAY: only modify `getActiveQuests` and `getCompletedQuests` methods — do NOT touch medication, user, or any other methods)
-FORBIDDEN: bot/src/* (ALL bot files), database/*, i18n files, types/quest.ts, Medications.tsx, medication components, test files
-Write retrospective when done.
-```
-
-**Agent C** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-c`):
-```
-Read PARALLEL_AGENTS.md — you are Agent C of Run 92. Your task: Google Sheets OAuth flow in notification bot.
-
-IMPORTANT: Before doing anything, verify your working directory: run `pwd`. If it does NOT end with `Wibecode-agent-c`, run `cd /c/Users/Asus/Desktop/Wibecode-agent-c` and then verify with `git branch --show-current`.
-
-## Context
-
-- `tools/sheets_analytics_export.py` — existing Python tool that exports analytics to Google Sheets. Uses `google-auth-oauthlib` and `google-api-python-client`. Reads `credentials.json` for client secrets, stores tokens in `token.json`.
-- `tools/notification_bot_handler.py` — Python Telegram bot with 10+ commands. Has `/sheets` command that calls the export tool via subprocess.
-- Current OAuth flow requires a browser-based consent screen — works on desktop but NOT from a remote server or Telegram bot.
-
-## What to do
-
-### 1. Read the existing `tools/sheets_analytics_export.py` and understand its OAuth flow
-Understand how it currently handles authentication (likely `InstalledAppFlow.from_client_secrets_file` → `flow.run_local_server()`).
-
-### 2. Create `tools/sheets_oauth_helper.py` — non-interactive OAuth helper
-A standalone helper that supports the Telegram bot flow:
-```python
-# Usage modes:
-# 1. Generate auth URL: python sheets_oauth_helper.py --generate-url
-# 2. Exchange code: python sheets_oauth_helper.py --exchange-code AUTH_CODE
-# 3. Check status: python sheets_oauth_helper.py --check-status
-```
-
-- `--generate-url`: Creates an OAuth consent URL using `credentials.json`. The redirect URI should be `urn:ietf:wg:oauth:2.0:oob` (manual copy-paste flow). Prints the URL to stdout.
-- `--exchange-code CODE`: Takes the authorization code, exchanges it for tokens via Google OAuth, saves `token.json`. Prints success/failure.
-- `--check-status`: Checks if `token.json` exists and is valid (not expired). Prints status.
-
-Use `google_auth_oauthlib.flow.InstalledAppFlow` with `redirect_uri='urn:ietf:wg:oauth:2.0:oob'` and `flow.authorization_url()` instead of `run_local_server()`.
-
-### 3. Modify `tools/sheets_analytics_export.py` to use existing tokens
-If `token.json` exists and is valid, skip the interactive flow. Only use the interactive flow as a fallback (it won't work on server, but keeps local dev working).
-
-### 4. Add commands to `tools/notification_bot_handler.py`
-
-Add `/sheets_login` command:
-- Calls `sheets_oauth_helper.py --generate-url`
-- Sends the URL to user with instructions: "Click this link, authorize access, then send me the code with /sheets_code YOUR_CODE"
-
-Add `/sheets_code <code>` command:
-- Calls `sheets_oauth_helper.py --exchange-code <code>`
-- Reports success/failure to user
-
-Add `/sheets_status` command:
-- Calls `sheets_oauth_helper.py --check-status`
-- Shows whether Google Sheets is connected
-
-### 5. Improve error handling in notification bot
-Wrap each command handler in try/except with user-friendly error messages. Currently if a command crashes, the user gets no response.
-
-### 6. No build verify needed (Python — no compilation)
-But do test the imports: `python -c "from tools.sheets_oauth_helper import *"` (optional).
-
-OWNED: `tools/sheets_oauth_helper.py` (new), `tools/notification_bot_handler.py` (add commands + error handling), `tools/sheets_analytics_export.py` (modify token handling)
-FORBIDDEN: bot/src/* (ALL TypeScript bot files), mini-app/src/* (ALL mini-app files), database/*, test files
-Write retrospective when done.
-```
-
-**Agent D** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-d`):
-```
-Read PARALLEL_AGENTS.md — you are Agent D of Run 92. Your task: Medication analytics API endpoint.
-
-IMPORTANT: Before doing anything, verify your working directory: run `pwd`. If it does NOT end with `Wibecode-agent-d`, run `cd /c/Users/Asus/Desktop/Wibecode-agent-d` and then verify with `git branch --show-current`.
-
-## Context
-
-- `bot/src/api/routes/medication-logs.ts` — has POST /medication-logs (log status) and GET /:telegramId/history (logs by date with adherence rate)
-- Database schema:
-  - `medications` table: id, user_id, name, dosage, frequency, time_of_day (TIME[]), color, notes, is_active
-  - `medication_logs` table: id, medication_id, user_id, scheduled_date, scheduled_time, status ('taken'/'skipped'/'postponed'), logged_at
-  - Unique constraint on (medication_id, scheduled_date, scheduled_time)
-- The existing history endpoint returns grouped logs and a simple adherence rate
-
-## What to do
-
-### 1. Add GET /medication-logs/:telegramId/analytics to `medication-logs.ts`
-
-New endpoint returning comprehensive analytics:
-
-```typescript
-router.get('/:telegramId/analytics', authenticateTelegram, readLimiter, asyncHandler(async (req: Request, res: Response) => {
-  const telegramId = safeParseInt(req.params.telegramId, NaN);
-  // ... ownership check ...
-  const days = Math.min(90, Math.max(7, safeParseInt(req.query.days as string, 30)));
-```
-
-Response shape:
-```json
-{
-  "daily_adherence": [
-    { "date": "2026-02-24", "taken": 5, "total": 6, "rate": 83 },
-    { "date": "2026-02-23", "taken": 4, "total": 6, "rate": 67 }
-  ],
-  "per_medication": [
-    { "medication_id": 1, "name": "Vitamin D", "color": "#4A90D9", "taken": 25, "total": 30, "rate": 83 }
-  ],
-  "streaks": {
-    "current": 5,
-    "best": 14
-  },
-  "summary": {
-    "week_rate": 85,
-    "prev_week_rate": 78,
-    "month_rate": 80,
-    "total_taken": 156,
-    "total_scheduled": 180
-  }
-}
-```
-
-### 2. SQL queries for each section
-
-**daily_adherence** (last N days):
-```sql
-SELECT ml.scheduled_date AS date,
-       COUNT(*) FILTER (WHERE ml.status = 'taken')::int AS taken,
-       COUNT(*)::int AS total,
-       ROUND(COUNT(*) FILTER (WHERE ml.status = 'taken') * 100.0 / GREATEST(COUNT(*), 1))::int AS rate
-FROM medication_logs ml
-JOIN users u ON ml.user_id = u.id
-WHERE u.telegram_id = $1 AND ml.scheduled_date >= CURRENT_DATE - $2::int
-GROUP BY ml.scheduled_date
-ORDER BY ml.scheduled_date ASC
-```
-
-**per_medication** (all-time for active meds):
-```sql
-SELECT m.id AS medication_id, m.name, m.color,
-       COUNT(*) FILTER (WHERE ml.status = 'taken')::int AS taken,
-       COUNT(*)::int AS total,
-       ROUND(COUNT(*) FILTER (WHERE ml.status = 'taken') * 100.0 / GREATEST(COUNT(*), 1))::int AS rate
-FROM medications m
-JOIN users u ON m.user_id = u.id
-LEFT JOIN medication_logs ml ON ml.medication_id = m.id
-WHERE u.telegram_id = $1 AND m.is_active = true
-GROUP BY m.id, m.name, m.color
-ORDER BY rate DESC
-```
-
-**streaks** — calculate consecutive days of 100% adherence:
-Query all distinct dates with logs, check which dates have 100% taken rate, find the current consecutive run and the longest run. Use a window function or application-level logic.
-
-**summary** — this week vs last week:
-Use the daily_adherence data to compute week_rate (last 7 days) and prev_week_rate (days 8-14).
-
-### 3. Build verify
-`cd bot && npx tsc --noEmit`
-
-OWNED: `bot/src/api/routes/medication-logs.ts` (add analytics endpoint ONLY — don't modify existing POST or history endpoints)
-FORBIDDEN: mini-app/src/* (ALL mini-app files), database/schema.sql, notification bot, quests routes, server.ts, bot.ts, test files
-Write retrospective when done.
-```
-
-**Agent E** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-e`):
-```
-Read PARALLEL_AGENTS.md — you are Agent E of Run 92. Your task: Medication history page with calendar view.
-
-IMPORTANT: Before doing anything, verify your working directory: run `pwd`. If it does NOT end with `Wibecode-agent-e`, run `cd /c/Users/Asus/Desktop/Wibecode-agent-e` and then verify with `git branch --show-current`.
-
-## Context
-
-- Existing hook: `useMedicationHistory(userId, days)` in `mini-app/src/hooks/useMedicationQuery.ts` returns logs grouped by date with adherence rate. Accepts `days` param (default 7, max 90).
-- API response: `{ history: { "2026-02-24": [{medication_name, dosage, color, status, scheduled_time, logged_at}] }, adherence: {taken, total, rate} }`
-- The component will be rendered within the Medications page as a tab (not a separate route). Agent G handles the tab integration.
-- Tailwind CSS + framer-motion available. Use the existing design language (rounded corners, gradients, telegram color tokens).
-
-## What to do
-
-### 1. Create `mini-app/src/components/medication/MedicationCalendar.tsx`
-A month-view calendar component:
-
-Props:
-```typescript
-interface MedicationCalendarProps {
-  dailyData: Record<string, { taken: number; total: number; rate: number }>;
-  selectedDate: string | null;
-  onDateSelect: (date: string) => void;
-  month: Date; // which month to display
-  onMonthChange: (date: Date) => void;
-}
-```
-
-Implementation:
-- 7-column grid (Mon-Sun headers)
-- Each day cell shows a colored dot/circle:
-  - Green (`bg-emerald-500`) = 100% adherence
-  - Yellow (`bg-amber-400`) = 1-99% adherence
-  - Red (`bg-red-400`) = 0% (all skipped/missed)
-  - Gray (`bg-telegram-hint/20`) = no data or future date
-- Month navigation: `<` and `>` buttons with month/year display
-- Selected date gets a ring highlight
-- Today gets a subtle underline or dot
-- Use `motion.div` for smooth transitions between months
-
-### 2. Create `mini-app/src/components/medication/MedicationDayDetail.tsx`
-Shows detail for a selected date:
-
-Props:
-```typescript
-interface MedicationDayDetailProps {
-  date: string;
-  logs: Array<{ medication_name: string; dosage: string; color: string; status: string; scheduled_time: string; logged_at: string | null }>;
-}
-```
-
-Implementation:
-- Date header (formatted nicely)
-- List of medications for that day, each showing:
-  - Color dot + medication name + dosage
-  - Scheduled time
-  - Status badge (Taken ✓ green / Skipped ✗ red / Pending ○ gray)
-  - Logged time if taken
-- Use `motion.div` for entry animation
-
-### 3. Create `mini-app/src/components/medication/MedicationHistory.tsx`
-Main wrapper that combines calendar + day detail:
-
-```typescript
-interface MedicationHistoryProps {
-  userId: number;
-}
-```
-
-Implementation:
-- Uses `useMedicationHistory(userId, 60)` to get 60 days of data
-- Manages `selectedDate` and `currentMonth` state
-- Processes history data into the `dailyData` format for the calendar
-- Shows `MedicationCalendar` at top
-- Shows `MedicationDayDetail` below when a date is selected
-- Loading state: show a skeleton with 6x7 grid of gray circles
-- Empty state: friendly message when no history exists
-- Export the component as named export
-
-### 4. Build verify
-`cd mini-app && npx tsc --noEmit`
-
-OWNED: `mini-app/src/components/medication/MedicationCalendar.tsx` (new), `mini-app/src/components/medication/MedicationDayDetail.tsx` (new), `mini-app/src/components/medication/MedicationHistory.tsx` (new)
-FORBIDDEN: bot/src/*, database/*, Medications.tsx, chart components (Agent F), i18n files, hooks/useMedicationQuery.ts, hooks/useMedicationData.ts, api/client.ts, test files
-Write retrospective when done.
-```
-
-**Agent F** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-f`):
-```
-Read PARALLEL_AGENTS.md — you are Agent F of Run 92. Your task: Adherence charts using recharts.
-
-IMPORTANT: Before doing anything, verify your working directory: run `pwd`. If it does NOT end with `Wibecode-agent-f`, run `cd /c/Users/Asus/Desktop/Wibecode-agent-f` and then verify with `git branch --show-current`.
-
-## Context
-
-- recharts 3.7.0 already installed (`mini-app/package.json`)
-- Agent D (in parallel) is creating `GET /medication-logs/:telegramId/analytics` returning: `daily_adherence` (array of {date, taken, total, rate}), `per_medication` (array of {medication_id, name, color, taken, total, rate}), `streaks` ({current, best}), `summary` ({week_rate, prev_week_rate, month_rate, total_taken, total_scheduled})
-- The component will be rendered within the Medications page as a tab. Agent G handles tab integration.
-- Existing API client: `mini-app/src/api/client.ts` has a `deduplicatedGet` pattern. You'll add one method.
-- Tailwind CSS + framer-motion available. Use telegram color tokens.
-
-## What to do
-
-### 1. Add `getMedicationAnalytics` method to `mini-app/src/api/client.ts`
-Add ONE method after the existing `getMedicationHistory` method (~line 308):
-```typescript
-async getMedicationAnalytics(userId: number, days = 30, config?: { signal?: AbortSignal }): Promise<ApiResponse<any>> {
-    return this.deduplicatedGet(`/medication-logs/${userId}/analytics`, { days }, config);
-}
-```
-Do NOT modify any other methods.
-
-### 2. Create `mini-app/src/hooks/useMedicationAnalytics.ts`
-```typescript
-import { useQuery } from '@tanstack/react-query';
-import { apiClient } from '@/api/client';
-
-export interface DailyAdherence { date: string; taken: number; total: number; rate: number; }
-export interface PerMedicationStat { medication_id: number; name: string; color: string; taken: number; total: number; rate: number; }
-export interface MedicationAnalyticsData {
-  daily_adherence: DailyAdherence[];
-  per_medication: PerMedicationStat[];
-  streaks: { current: number; best: number };
-  summary: { week_rate: number; prev_week_rate: number; month_rate: number; total_taken: number; total_scheduled: number };
-}
-
-export function useMedicationAnalytics(userId: number | undefined, days = 30) {
-  return useQuery({
-    queryKey: ['medications', 'analytics', userId, days],
-    queryFn: async () => {
-      const res = await apiClient.getMedicationAnalytics(userId!, days);
-      if (!res.success || !res.data) throw new Error('Failed to load analytics');
-      return res.data as MedicationAnalyticsData;
-    },
-    enabled: !!userId,
-    staleTime: 5 * 60 * 1000,
-  });
-}
-```
-
-### 3. Create `mini-app/src/components/medication/WeeklyAdherenceChart.tsx`
-A bar chart showing last 7 days of adherence:
-- Use recharts `BarChart`, `Bar`, `XAxis`, `YAxis`, `Tooltip`, `ResponsiveContainer`
-- X-axis: day names (Mon, Tue, ...)
-- Y-axis: 0-100%
-- Bar colors: green for ≥80%, yellow for 50-79%, red for <50%
-- Container height: 200px
-- Props: `data: DailyAdherence[]` (last 7 entries)
-- Wrap in a card with title "Weekly Adherence"
-- Handle empty data with a friendly message
-
-### 4. Create `mini-app/src/components/medication/MonthlyTrendChart.tsx`
-A line chart showing last 30 days trend:
-- Use recharts `LineChart`, `Line`, `XAxis`, `YAxis`, `Tooltip`, `ResponsiveContainer`, `Area`
-- X-axis: dates (show every 5th label)
-- Y-axis: 0-100%
-- Line color: emerald-500 with area fill at 10% opacity
-- Container height: 200px
-- Props: `data: DailyAdherence[]` (full array)
-- Wrap in a card with title "Monthly Trend"
-- Reference line at 80% (good adherence threshold)
-
-### 5. Create `mini-app/src/components/medication/AdherenceStats.tsx`
-Summary stat cards:
-- Props: `streaks: {current, best}, summary: {week_rate, prev_week_rate, month_rate, total_taken, total_scheduled}`
-- 2x2 grid of stat cards:
-  - Current streak (🔥 icon, X days)
-  - Best streak (⭐ icon, X days)
-  - This week rate (with comparison arrow vs last week)
-  - Monthly rate (circular progress or number)
-- Cards use `bg-telegram-secondaryBg` with rounded corners
-- Comparison: green up arrow if improved, red down if declined
-
-### 6. Create `mini-app/src/components/medication/MedicationAnalytics.tsx`
-Main analytics wrapper that combines charts + stats:
-```typescript
-interface MedicationAnalyticsProps { userId: number; }
-```
-- Uses `useMedicationAnalytics(userId)` hook
-- Renders: AdherenceStats → WeeklyAdherenceChart → MonthlyTrendChart → per-medication list
-- Loading: skeleton with chart placeholder + stat card placeholders
-- Error: ErrorSection with retry
-- Empty: friendly message encouraging medication tracking
-
-### 7. Build verify
-`cd mini-app && npx tsc --noEmit`
-
-OWNED: `mini-app/src/hooks/useMedicationAnalytics.ts` (new), `mini-app/src/components/medication/WeeklyAdherenceChart.tsx` (new), `mini-app/src/components/medication/MonthlyTrendChart.tsx` (new), `mini-app/src/components/medication/AdherenceStats.tsx` (new), `mini-app/src/components/medication/MedicationAnalytics.tsx` (new), `mini-app/src/api/client.ts` (GRAY: add ONE method `getMedicationAnalytics` only)
-FORBIDDEN: bot/src/*, database/*, Medications.tsx, MedicationHistory.tsx, MedicationCalendar.tsx, i18n files, hooks/useMedicationQuery.ts, hooks/useMedicationData.ts, test files
-Write retrospective when done.
-```
-
-**Agent G** (open in: `c:\Users\Asus\Desktop\Wibecode-agent-g`):
-```
-Read PARALLEL_AGENTS.md — you are Agent G of Run 92. Your task: Add tabs to Medications page + i18n strings.
-
-IMPORTANT: Before doing anything, verify your working directory: run `pwd`. If it does NOT end with `Wibecode-agent-g`, run `cd /c/Users/Asus/Desktop/Wibecode-agent-g` and then verify with `git branch --show-current`.
-
-## Context
-
-- `mini-app/src/pages/Medications.tsx` — current layout: gradient header → today's schedule (DailyMedTracker) → my medications list → FAB + form modal. No tabs.
-- i18n files: `mini-app/src/i18n/en.ts`, `ru.ts`, `zh.ts` — medication keys at `medication: {...}`
-- Agents E and F (in parallel) are creating MedicationHistory and MedicationAnalytics components. You will add placeholder content for their tabs. Agent 0 will wire the real components at merge time.
-
-## What to do
-
-### 1. Add tab navigation to `mini-app/src/pages/Medications.tsx`
-Add a 3-tab navigation below the header:
-
-```typescript
-type MedicationTab = 'today' | 'history' | 'analytics';
-const [activeTab, setActiveTab] = useState<MedicationTab>('today');
-```
-
-Tab bar UI (after the gradient header, before content):
-```tsx
-<div className="flex gap-1 px-4 mt-3 mb-2">
-  {(['today', 'history', 'analytics'] as const).map(tab => (
-    <button
-      key={tab}
-      onClick={() => { haptic.impact('light'); setActiveTab(tab); }}
-      className={`flex-1 py-2 px-3 rounded-xl text-sm font-medium transition-colors ${
-        activeTab === tab
-          ? 'bg-emerald-600 text-white'
-          : 'bg-telegram-secondaryBg text-telegram-hint'
-      }`}
-    >
-      {t(`medication.${tab}Tab`)}
-    </button>
-  ))}
-</div>
-```
-
-### 2. Wrap existing content in "today" tab
-Move the existing "Today's Schedule" and "My Medications" sections into a conditional:
-```tsx
-{activeTab === 'today' && (
-  <>
-    {/* Today's Schedule */}
-    <div className="px-4 mt-4" role="region" aria-label="Today's schedule">
-      ... existing code ...
-    </div>
-    {/* My Medications */}
-    <div className="px-4 mt-6" role="region" aria-label="My medications">
-      ... existing code ...
-    </div>
-  </>
-)}
-```
-
-### 3. Add placeholder content for History and Analytics tabs
-```tsx
-{activeTab === 'history' && (
-  <div className="px-4 mt-4 text-center py-16">
-    <Calendar className="w-12 h-12 text-telegram-hint mx-auto mb-3" />
-    <p className="text-telegram-hint text-sm">{t('medication.historyComingSoon', 'History view loading...')}</p>
-  </div>
-)}
-
-{activeTab === 'analytics' && (
-  <div className="px-4 mt-4 text-center py-16">
-    <BarChart3 className="w-12 h-12 text-telegram-hint mx-auto mb-3" />
-    <p className="text-telegram-hint text-sm">{t('medication.analyticsComingSoon', 'Analytics loading...')}</p>
-  </div>
-)}
-```
-Import `BarChart3` from `lucide-react` (Calendar is already imported).
-
-### 4. Keep FAB and delete confirmation visible on all tabs
-The FAB (add medication button) and the delete confirmation toast should stay outside the tab content — they're always visible.
-
-### 5. Add i18n keys to all 3 language files
-
-**`mini-app/src/i18n/en.ts`** — add these keys inside the `medication: { ... }` section:
-```typescript
-todayTab: "Today",
-historyTab: "History",
-analyticsTab: "Analytics",
-adherenceRate: "Adherence Rate",
-weeklyChart: "Weekly",
-monthlyChart: "Monthly",
-currentStreak: "Current Streak",
-bestStreak: "Best Streak",
-daysUnit: "days",
-thisWeek: "This Week",
-lastWeek: "Last Week",
-perMedication: "Per Medication",
-totalTaken: "Total Taken",
-totalMissed: "Total Missed",
-improvement: "improvement",
-decline: "decline",
-noHistory: "No medication history yet",
-startTracking: "Start tracking to see your history",
-noAnalytics: "Not enough data for analytics",
-trackMore: "Track medications for a few days to see analytics",
-```
-
-**`mini-app/src/i18n/ru.ts`** — corresponding Russian:
-```typescript
-todayTab: "Сегодня",
-historyTab: "История",
-analyticsTab: "Аналитика",
-adherenceRate: "Показатель соблюдения",
-weeklyChart: "За неделю",
-monthlyChart: "За месяц",
-currentStreak: "Текущая серия",
-bestStreak: "Лучшая серия",
-daysUnit: "дней",
-thisWeek: "Эта неделя",
-lastWeek: "Прошлая неделя",
-perMedication: "По лекарствам",
-totalTaken: "Всего принято",
-totalMissed: "Всего пропущено",
-improvement: "улучшение",
-decline: "снижение",
-noHistory: "Истории приёма пока нет",
-startTracking: "Начните отслеживание, чтобы увидеть историю",
-noAnalytics: "Недостаточно данных для аналитики",
-trackMore: "Отслеживайте лекарства несколько дней для аналитики",
-```
-
-**`mini-app/src/i18n/zh.ts`** — corresponding Chinese:
-```typescript
-todayTab: "今天",
-historyTab: "历史",
-analyticsTab: "分析",
-adherenceRate: "依从率",
-weeklyChart: "每周",
-monthlyChart: "每月",
-currentStreak: "当前连续",
-bestStreak: "最佳连续",
-daysUnit: "天",
-thisWeek: "本周",
-lastWeek: "上周",
-perMedication: "按药物",
-totalTaken: "总计服用",
-totalMissed: "总计遗漏",
-improvement: "改善",
-decline: "下降",
-noHistory: "暂无服药历史",
-startTracking: "开始追踪以查看历史",
-noAnalytics: "数据不足，无法生成分析",
-trackMore: "追踪几天服药记录后即可查看分析",
-```
-
-### 6. Build verify
-`cd mini-app && npx tsc --noEmit`
-
-OWNED: `mini-app/src/pages/Medications.tsx`, `mini-app/src/i18n/en.ts` (GRAY: only add keys inside `medication: {...}` section), `mini-app/src/i18n/ru.ts` (GRAY: same), `mini-app/src/i18n/zh.ts` (GRAY: same)
-FORBIDDEN: bot/src/*, database/*, MedicationHistory.tsx, MedicationCalendar.tsx, chart components, hooks/, api/client.ts, quest-related files, test files
-Write retrospective when done.
-```
-
-### Agent A: Quest i18n Backend (DB + API)
-Add `title_ru`, `description_ru` columns to quests table, populate Russian translations in seed data, modify quest API endpoints to accept `?lang=xx` and return translated content using COALESCE fallback.
-
-### Agent B: Quest i18n Frontend
-Pass user's current language (from i18n) to quest API endpoints. Modify `getActiveQuests()` / `getCompletedQuests()` in client.ts and `useActiveQuests()` / `useCompletedQuests()` in useQuestsQuery.ts. Include language in query keys for automatic refetch.
-
-### Agent C: Google Sheets OAuth
-Create `sheets_oauth_helper.py` for non-interactive OAuth (generate URL → exchange code). Add `/sheets_login`, `/sheets_code`, `/sheets_status` commands to notification bot. Improve error handling across all notification bot handlers.
-
-### Agent D: Medication Analytics API
-New `GET /medication-logs/:telegramId/analytics` endpoint returning daily adherence (30 days), per-medication stats, current/best streaks, weekly comparison summary.
-
-### Agent E: Medication History Page
-Create MedicationCalendar (month grid with adherence coloring), MedicationDayDetail (per-date log list), and MedicationHistory (wrapper using existing `useMedicationHistory` hook). Components render within the Medications page tab.
-
-### Agent F: Adherence Charts
-Create WeeklyAdherenceChart (recharts BarChart, 7 days), MonthlyTrendChart (recharts LineChart, 30 days), AdherenceStats (streak + weekly comparison cards), and MedicationAnalytics (wrapper with new `useMedicationAnalytics` hook).
-
-### Agent G: Medications Tab Integration + i18n
-Add 3-tab navigation (Today | History | Analytics) to Medications.tsx. Placeholder content for History/Analytics tabs. Add ~20 new i18n keys to en.ts, ru.ts, zh.ts.
-
-### Run 92 File Ownership Matrix
-
-| File/Dir | A | B | C | D | E | F | G |
-|----------|---|---|---|---|---|---|---|
-| database/schema.sql | OWN | - | - | - | - | - | - |
-| database/seed_data.sql | OWN | - | - | - | - | - | - |
-| bot/src/api/routes/quests.ts | OWN | - | - | - | - | - | - |
-| useQuestsQuery.ts | - | OWN | - | - | - | - | - |
-| api/client.ts | - | GRAY | - | - | - | GRAY | - |
-| sheets_oauth_helper.py (new) | - | - | NEW | - | - | - | - |
-| notification_bot_handler.py | - | - | OWN | - | - | - | - |
-| sheets_analytics_export.py | - | - | OWN | - | - | - | - |
-| medication-logs.ts | - | - | - | OWN | - | - | - |
-| MedicationCalendar.tsx (new) | - | - | - | - | NEW | - | - |
-| MedicationDayDetail.tsx (new) | - | - | - | - | NEW | - | - |
-| MedicationHistory.tsx (new) | - | - | - | - | NEW | - | - |
-| useMedicationAnalytics.ts (new) | - | - | - | - | - | NEW | - |
-| WeeklyAdherenceChart.tsx (new) | - | - | - | - | - | NEW | - |
-| MonthlyTrendChart.tsx (new) | - | - | - | - | - | NEW | - |
-| AdherenceStats.tsx (new) | - | - | - | - | - | NEW | - |
-| MedicationAnalytics.tsx (new) | - | - | - | - | - | NEW | - |
-| Medications.tsx | - | - | - | - | - | - | OWN |
-| i18n/en.ts | - | - | - | - | - | - | GRAY |
-| i18n/ru.ts | - | - | - | - | - | - | GRAY |
-| i18n/zh.ts | - | - | - | - | - | - | GRAY |
-
-### Run 92 Merge Order
-1. Agent A (quest i18n backend — DB schema + API, no frontend)
-2. Agent D (medication analytics API — bot route, no frontend)
-3. Agent C (Google Sheets OAuth — Python tools only)
-4. Agent B (quest i18n frontend — depends on A's API changes at runtime)
-5. Agent E (medication history page — new standalone components)
-6. Agent F (adherence charts — new standalone components, GRAY touches client.ts)
-7. Agent G (medications tabs + i18n — integrates tab UI, Agent 0 wires real components)
-
-### Run 92 Retrospectives
-
-#### Agent A Retrospective
-*(To be filled by Agent A)*
-
-#### Agent B Retrospective
-**Status**: Complete — 2 files modified, `tsc --noEmit` clean.
-**Task**: Quest i18n frontend — pass user language to quest API endpoints.
-**Changes**:
-- `mini-app/src/api/client.ts`: Added `lang?: string` parameter to `getActiveQuests()` and `getCompletedQuests()`. Passes as `?lang=xx` query param via `deduplicatedGet`.
-- `mini-app/src/hooks/useQuestsQuery.ts`: Added `useTranslation()` to both `useActiveQuests` and `useCompletedQuests` hooks. Reads `i18n.language`, truncates to 2 chars (e.g. 'en', 'ru', 'zh'), passes to API client. Included `lang` in React Query keys so quests automatically refetch when user switches language.
-**Commit**: `ba941a8` on `feature/r92-quest-i18n-frontend`
-**No issues encountered.**
-
-#### Agent C Retrospective
-
-| # | Task | Status |
-|---|------|--------|
-| 1 | Create `bot/src/utils/stickerConfig.ts` — celebration sticker packs config | Done |
-| 2 | Create `bot/src/api/routes/stickers.ts` — GET /sets + GET /sets/:name | Done |
-| 3 | Register sticker route in `bot/src/api/server.ts` at `/api/stickers` | Done |
-| 4 | Add celebration sticker to `bot/src/handlers/payments.ts` after payment | Done |
-| 5 | Build verify (`npx tsc --noEmit`) | Passed |
-
-**Problems**: None. Clean implementation with no issues.
-
-**Notes**:
-- Sticker routes use `authenticateTelegram` + `readLimiter` matching existing route patterns.
-- `GET /sets` iterates over `CELEBRATION_STICKER_PACKS` array and fetches each from Telegram API; packs that fail silently skip (graceful degradation).
-- `GET /sets/:name` returns full sticker details including file_ids, emoji, animated/video flags, and thumbnails.
-- `DEFAULT_CELEBRATION_STICKERS.payment` is currently empty string — no sticker will be sent until a real file_id is configured. This is safe: `sendCelebrationSticker()` returns early when file_id is empty.
-- Celebration sticker send is fire-and-forget with try/catch — never blocks payment flow.
-
-**Recommendations for next run**:
-- Populate `DEFAULT_CELEBRATION_STICKERS` with actual file_ids after testing which sticker packs are available.
-- Consider fetching user's preferred sticker pack from DB (`celebration_sticker_pack` column from Agent G) to send personalized celebration stickers.
-
-#### Agent D Retrospective
-**Status**: Complete — 4 new files, 1 modified, `tsc --noEmit` clean.
-
-**Changes**:
-- Installed `lottie-react` package in mini-app
-- Created `mini-app/src/components/celebrations/LottieSticker.tsx` — reusable Lottie wrapper component (props: animationData, size, loop, className)
-- Created `mini-app/src/assets/lottie/thumbs-up.json` — thumbs-up animation with sparkles (for quest completion)
-- Created `mini-app/src/assets/lottie/star-burst.json` — 5-point star with radiating burst particles (for level-up)
-- Created `mini-app/src/assets/lottie/trophy.json` — trophy bounce-in with glow particles (for achievements)
-- Updated `mini-app/src/components/celebrations/QuestCompletionCelebration.tsx` — reads `localStorage('celebration-style')`; if `'animated'`, shows `LottieSticker` with thumbs-up animation instead of emoji. Default remains emoji for backward compatibility.
-
-**Notes for Agent E**: `LottieSticker` component is at `./LottieSticker` (relative to celebrations dir). Import star-burst and trophy animations from `@/assets/lottie/star-burst.json` and `@/assets/lottie/trophy.json`. The celebration style check pattern is: `const style = localStorage.getItem('celebration-style') || 'emoji';`
-
-**No issues encountered.**
-
-#### Agent E Retrospective
-*(To be filled by Agent E)*
-
-#### Agent F Retrospective
-*(To be filled by Agent F)*
-
-#### Agent G Retrospective (Run 94: Notification Preferences)
-**Status**: Complete — all tasks done, both builds pass (bot + mini-app tsc --noEmit).
-
-**What was done**:
-1. Added `notification_modes JSONB DEFAULT '{}'` column to `users` table in `database/schema.sql`
-2. Updated `user-preferences.ts` GET/PATCH to include `notification_modes` — with JSONB cast, validation (must be object with boolean values)
-3. Created `bot/src/api/routes/notifications.ts` with 4 endpoints:
-   - `GET /:userId` — paginated list with optional type filter, compatible with `NotificationHistoryEntry`
-   - `GET /:userId/unread-count` — count of unread for badge display
-   - `PATCH /:notificationId/read` — mark single notification as read
-   - `POST /:userId/read-all` — mark all as read
-4. Registered `notificationRouter` at `/api/notifications` in `server.ts`
-5. Added unread notification badge to Settings nav icon in `Navigation.tsx` — polls every 60s + refetches on page change
-6. Enhanced `NotificationHistory.tsx`:
-   - Mark-read on tap (optimistic + API call)
-   - "Mark all read" button in header
-   - Visual distinction: unread = bold text + blue dot + blue border; read = faded opacity
-7. Updated `NotificationHistoryEntry` type to include `read_at` and `is_read` fields
-8. Added 3 new apiClient methods: `getUnreadNotificationCount`, `markNotificationRead`, `markAllNotificationsRead`
-
-**Files changed**: `database/schema.sql`, `bot/src/api/routes/user-preferences.ts`, `bot/src/api/routes/notifications.ts` (new), `bot/src/api/server.ts`, `mini-app/src/api/client.ts`, `mini-app/src/components/Navigation.tsx`, `mini-app/src/pages/NotificationHistory.tsx`, `mini-app/src/types/user.ts`
-
-**Notes for Agent 0**:
-- DB migration needed: `ALTER TABLE users ADD COLUMN IF NOT EXISTS notification_modes JSONB DEFAULT '{}'`
-- The notification route uses `notification_log` table (has `read_at`), not `user_activity_log`
-- `notification_log.body` is TEXT, not JSONB — `xp_change` defaults to 0 in API response
-- No i18n keys were added (FORBIDDEN per task spec), but `t('notifications.markAllRead', 'Mark all read')` uses fallback string
-
-#### Agent 0 Retrospective
-**Status**: Complete — all 7 agents merged, built, tested, deployed.
-
-**Merge results**: A→D→C→B→E→F→G. All 7 had PARALLEL_AGENTS.md conflicts (resolved with --ours). Auto-merge clean for all code files — file ownership matrix prevented cross-agent conflicts. Agent B and F both touched `client.ts` (GRAY area) but different methods → no conflict.
-
-**Integration work**:
-- Agent G created placeholder tabs for History/Analytics. Agent 0 wired real components (`MedicationHistory` from Agent E, `MedicationAnalytics` from Agent F) into Medications.tsx, replacing placeholders.
-- Removed unused `BarChart3` import after placeholder removal.
-
-**Test fix**: `useQuestsData.test.ts` failed — Agent B added `lang` parameter to `getActiveQuests(userId, lang)` and `getCompletedQuests(userId, 50, lang)`. Test expected old signatures. Fixed with `expect.any(String)` for lang param.
-
-**Final counts**: Bot 1100/1100, Mini-app 942/942 (100% pass). Deployed as v56e2ae3.
-
-**Agents B and C stuck in wrong directory**: Launched in main Wibecode dir instead of worktrees. They followed old "STOP and tell the user" instruction. Other agents (A/D/E/F/G) auto-navigated via `cd`. **Fix**: Updated Safety Protocol with "Working Directory" section telling agents to `cd` automatically. Added Lesson #20.
-
-**Pre-completed items**: Quest modal auto-close + /metrics IP fix were already done in commit 11e8c45, reducing original 9-agent plan to 7.
-
----
-
-## RUN 93: Stars Shop + Celebrations Upgrade (7 Agents + Agent 0)
-
-### Focus: Real Telegram Stars payments for shop items, animated Lottie celebrations, sticker pack browser + preference
-
-### Pre-completed Tasks (from Run 92)
-- ✅ Agent H (Translate seed quest data to Russian) — Run 92 Agent A already added `title_ru`/`description_ru` columns and translated all seed quests
-
-### Copy-Paste Prompts
-
-**Agent 0** (this window):
-```
-Read PARALLEL_AGENTS.md — you are Agent 0 for Run 93.
-```
-
-**Agent A**: `Read PARALLEL_AGENTS.md — you are Agent A of Run 93.`
-**Agent B**: `Read PARALLEL_AGENTS.md — you are Agent B of Run 93.`
-**Agent C**: `Read PARALLEL_AGENTS.md — you are Agent C of Run 93.`
-**Agent D**: `Read PARALLEL_AGENTS.md — you are Agent D of Run 93.`
-**Agent E**: `Read PARALLEL_AGENTS.md — you are Agent E of Run 93.`
-**Agent F**: `Read PARALLEL_AGENTS.md — you are Agent F of Run 93.`
-**Agent G**: `Read PARALLEL_AGENTS.md — you are Agent G of Run 93.`
-
-### Agent A: Stars Shop Payment Backend
-
-**Worktree**: `c:\Users\Asus\Desktop\Wibecode-agent-a` | **Branch**: `feature/r93-shop-stars-backend`
-
-**Context**: The shop (`bot/src/api/routes/shop.ts`) has `POST /shop/purchase` which handles XP purchases atomically but just *records* Stars purchases without verification (line 156-164: "Stars payment is recorded here; actual verification handled by client"). This is insecure — the client could skip payment. The proper flow: create a Telegram invoice → client opens it → `pre_checkout_query` validates → `successful_payment` delivers the item.
-
-The payment handlers (`bot/src/handlers/payments.ts`) already support `TierPayload` and `ModeUnlockPayload` types. The payment API (`bot/src/api/routes/payments.ts`) already has `POST /payments/create` that calls `bot.api.createInvoiceLink()`.
-
-**Tasks**:
-
-1. **Add `ShopItemPayload` type to `bot/src/handlers/payments.ts`**:
-```typescript
-interface ShopItemPayload {
-  payment_id: number;
-  type: 'shop_item';
-  shop_item_id: number;
-  user_id: number;
-}
-```
-Update `parsePayload()` to recognize this type.
-
-2. **Add pre-checkout handling for shop items** in `handlePreCheckoutQuery`:
-   - When payload type is `shop_item`, verify the item exists, is active, and price matches
-   - Check for duplicate purchases (for achievement items)
-   - Approve or reject
-
-3. **Add successful_payment handling for shop items** in `handleSuccessfulPayment`:
-   - Record purchase in `user_purchases` table
-   - If item type is `achievement`, unlock in `user_achievements`
-   - Update payment record status to 'completed'
-   - Send owner notification
-
-4. **Add `POST /payments/create-shop-invoice` to `bot/src/api/routes/payments.ts`**:
-   - Body: `{ telegram_id, shop_item_id }`
-   - Validate item exists and is active
-   - Check for duplicate purchases (achievements)
-   - Create pending payment record with `shop_item` metadata
-   - Call `bot.api.createInvoiceLink()` with item name, description, Stars price
-   - Return `{ payment_id, invoice_url }`
-
-5. **Build verify**: `cd bot && npx tsc --noEmit`
-
-OWNED: `bot/src/handlers/payments.ts`, `bot/src/api/routes/payments.ts`
-GRAY: `bot/src/api/routes/shop.ts` (add comment noting Stars purchases now use invoice flow — do NOT remove the old direct recording code, Agent B's frontend will use the new invoice endpoint instead)
-FORBIDDEN: mini-app/src/*, database/schema.sql, sticker routes, celebration components, notification bot, test files
-
-### Agent B: Stars Shop Payment Frontend
-
-**Worktree**: `c:\Users\Asus\Desktop\Wibecode-agent-b` | **Branch**: `feature/r93-shop-stars-frontend`
-
-**Context**: `usePurchase.ts` calls `purchaseItem()` (from `api/shop.ts`) for both XP and Stars payments. For XP, this is correct (atomic deduction). For Stars, this just records the purchase without real Telegram payment. The proper flow: call a new invoice endpoint → open `WebApp.openInvoice()` → handle callback → record purchase on success.
-
-Reference: `usePayment.ts` shows the correct pattern for Stars (creates payment → opens invoice → polls status). `useModeUnlock.ts` also uses this pattern.
-
-**Tasks**:
-
-1. **Add `createShopInvoice()` function to `mini-app/src/api/shop.ts`**:
-```typescript
-export interface ShopInvoiceResponse {
-  payment_id: number;
-  invoice_url: string;
-}
-
-export async function createShopInvoice(
-  telegramId: number,
-  shopItemId: number,
-): Promise<ShopInvoiceResponse> {
-  return request<ShopInvoiceResponse>(`${API_BASE_URL}/payments/create-shop-invoice`, {
-    method: 'POST',
-    body: JSON.stringify({ telegram_id: telegramId, shop_item_id: shopItemId }),
-  });
-}
-```
-
-2. **Modify `usePurchase.ts`** — `confirmPurchase()`:
-   - For `paymentMethod === 'xp'`: keep existing `purchaseItem()` call (direct XP deduction)
-   - For `paymentMethod === 'stars'`: call `createShopInvoice()`, then `WebApp.openInvoice(invoice_url, callback)`. On 'paid' status → set success. On 'cancelled'/'failed' → set error.
-   - Import `WebApp` from `@twa-dev/sdk`
-   - Add `telegramId` to `UsePurchaseParams` (needed for invoice creation)
-
-3. **Update Shop.tsx** — pass `telegramId` to usePurchase:
-   - Get `user?.id` from `useTelegram()` (already available in the page)
-   - Pass `telegramId: user?.id` to `usePurchase()` params
-
-4. **Build verify**: `cd mini-app && npx tsc --noEmit`
-
-OWNED: `mini-app/src/hooks/usePurchase.ts`, `mini-app/src/api/shop.ts` (add `createShopInvoice` function only)
-GRAY: `mini-app/src/pages/Shop.tsx` (only add `telegramId` parameter to usePurchase call — minimal change)
-FORBIDDEN: bot/src/*, database/*, usePayment.ts, useModeUnlock.ts, celebration components, Settings.tsx, i18n files, test files
-
-### Agent C: Sticker API + Bot Sticker Celebrations
-
-**Worktree**: `c:\Users\Asus\Desktop\Wibecode-agent-c` | **Branch**: `feature/r93-sticker-api`
-
-**Context**: No sticker support exists in the codebase. The bot uses Grammy (TypeScript). Telegram stickers can be sent via `ctx.replyWithSticker(file_id)` or `bot.api.sendSticker(chatId, file_id)`. Sticker sets can be fetched via `bot.api.getStickerSet(name)`. The TG API features doc at `docs/TELEGRAM_API_FEATURES.md` has detailed info on sticker handling.
-
-**Tasks**:
-
-1. **Create `bot/src/api/routes/stickers.ts`** — Sticker pack API:
-```typescript
-// GET /api/stickers/sets — List available celebration sticker sets
-// Returns: array of { name, title, sticker_count, thumbnail_url? }
-// Hardcode 2-3 known public sticker packs as defaults
-// (e.g., "AnimatedEmoji" pack, a celebration pack)
-
-// GET /api/stickers/sets/:name — Get sticker set details
-// Calls bot.api.getStickerSet(name)
-// Returns: { name, title, stickers: [{ file_id, emoji, is_animated, thumbnail_url }] }
-// Use bot.api.getFile(sticker.thumbnail.file_id) to get thumbnail URLs
-```
-Use `authenticateTelegram` + `readLimiter`.
-
-2. **Register route in `bot/src/api/server.ts`**:
-   - Import `stickerRouter` from `./routes/stickers.js`
-   - Mount at `/api/stickers`
-
-3. **Create `bot/src/utils/stickerConfig.ts`** — Default sticker packs config:
-```typescript
-// List of known celebration sticker packs
-export const CELEBRATION_STICKER_PACKS = [
-  { name: 'AnimatedEmojis', category: 'emoji' },
-  // Add 1-2 more known packs
-];
-
-// Default sticker file_ids for celebrations (fallback when user hasn't chosen)
-export const DEFAULT_CELEBRATION_STICKERS = {
-  level_up: '', // Will be populated after testing
-  quest_complete: '',
-  achievement: '',
-};
-```
-
-4. **Add sticker celebration to `bot/src/handlers/payments.ts`** notification:
-   - After successful payment, send a celebration sticker to the user (in addition to the text confirmation)
-   - Use `ctx.replyWithSticker(file_id)` with a celebration sticker
-   - Wrap in try/catch so sticker failure doesn't block payment
-
-5. **Build verify**: `cd bot && npx tsc --noEmit`
-
-OWNED: `bot/src/api/routes/stickers.ts` (new), `bot/src/utils/stickerConfig.ts` (new)
-GRAY: `bot/src/api/server.ts` (only add sticker route registration), `bot/src/handlers/payments.ts` (only add sticker send after payment confirmation text — do NOT modify payment logic)
-FORBIDDEN: mini-app/src/*, database/schema.sql, shop routes, quest routes, celebration components, test files
-
-### Agent D: Lottie Player + Quest Celebration Upgrade
-
-**Worktree**: `c:\Users\Asus\Desktop\Wibecode-agent-d` | **Branch**: `feature/r93-lottie-quest-celebration`
-
-**Context**: `lottie-react` is NOT installed. Celebrations currently use emoji (👍 in QuestCompletionCelebration, ⭐ in LevelUpModal). The `mini-app/src/components/celebrations/` directory has: `QuestCompletionCelebration.tsx` (74 lines), `Confetti.tsx` (76 lines), `LevelUpModal.tsx` (81 lines), `XpFloat.tsx` (41 lines), `AchievementToast.tsx` (54 lines).
-
-**Tasks**:
-
-1. **Install lottie-react**: `cd mini-app && npm install lottie-react`
-
-2. **Create `mini-app/src/components/celebrations/LottieSticker.tsx`** — Reusable Lottie component:
-```typescript
-import Lottie from 'lottie-react';
-
-interface LottieStickerProps {
-  animationData: object;   // Lottie JSON data
-  size?: number;           // width & height in px (default 120)
-  loop?: boolean;          // default false (play once)
-  className?: string;
-}
-
-export function LottieSticker({ animationData, size = 120, loop = false, className }: LottieStickerProps) {
-  return (
-    <Lottie
-      animationData={animationData}
-      loop={loop}
-      style={{ width: size, height: size }}
-      className={className}
-    />
-  );
-}
-```
-
-3. **Bundle celebration Lottie animations**:
-   - Create `mini-app/src/assets/lottie/` directory
-   - Add 3 lightweight Lottie JSON files (create minimal versions):
-     - `thumbs-up.json` — simple thumbs-up animation (for quest completion)
-     - `star-burst.json` — star burst animation (for level-up)
-     - `trophy.json` — trophy bounce (for achievements)
-   - Each should be under 10KB — create simple, minimal Lottie JSON with basic shape animations
-   - If creating real Lottie JSON is too complex, create placeholder files with a simple circle animation and add a TODO comment
-
-4. **Upgrade `QuestCompletionCelebration.tsx`**:
-   - Import `LottieSticker` and the `thumbs-up.json` animation
-   - Add a `useCelebrationStyle` preference check: `const style = localStorage.getItem('celebration-style') || 'emoji';`
-   - If style is `'animated'`: show `<LottieSticker animationData={thumbsUpAnimation} size={80} />` instead of the 👍 emoji
-   - If style is `'emoji'` (default): keep existing emoji behavior
-   - The rest of the component (confetti, text, timing) stays the same
-
-5. **Build verify**: `cd mini-app && npx tsc --noEmit`
-
-OWNED: `mini-app/src/components/celebrations/LottieSticker.tsx` (new), `mini-app/src/assets/lottie/thumbs-up.json` (new), `mini-app/src/assets/lottie/star-burst.json` (new), `mini-app/src/assets/lottie/trophy.json` (new), `mini-app/src/components/celebrations/QuestCompletionCelebration.tsx`
-FORBIDDEN: bot/src/*, database/*, LevelUpModal.tsx (Agent E owns), AchievementToast.tsx (Agent E owns), Settings.tsx, Shop.tsx, api/*, hooks/usePurchase.ts, i18n files, test files
-
-### Agent E: Level + Achievement Celebration Upgrade
-
-**Worktree**: `c:\Users\Asus\Desktop\Wibecode-agent-e` | **Branch**: `feature/r93-level-achievement-celebration`
-
-**Context**: `LevelUpModal.tsx` (81 lines) shows level number + ⭐ emoji with pulse animation. `AchievementToast.tsx` (54 lines) shows 🏆 emoji + "Achievement Unlocked!" + name + XP. Both use framer-motion. Agent D (in parallel) is creating `LottieSticker.tsx` component and bundling Lottie JSON files at `mini-app/src/assets/lottie/`.
-
-**Tasks**:
-
-1. **Upgrade `mini-app/src/components/celebrations/LevelUpModal.tsx`**:
-   - Import `LottieSticker` from `./LottieSticker` (Agent D creates this)
-   - Import `starBurstAnimation` from `@/assets/lottie/star-burst.json` (Agent D creates this)
-   - Add celebration style check: `const style = localStorage.getItem('celebration-style') || 'emoji';`
-   - If `'animated'`: replace the ⭐ emoji div (line ~57) with `<LottieSticker animationData={starBurstAnimation} size={100} />`
-   - If `'emoji'`: keep existing emoji + pulse animation
-   - Keep all existing: FocusTrap, glow ring, level number, i18n text, auto-dismiss
-
-2. **Upgrade `mini-app/src/components/celebrations/AchievementToast.tsx`**:
-   - Import `LottieSticker` and `trophyAnimation` from `@/assets/lottie/trophy.json`
-   - Add style check (same localStorage key)
-   - If `'animated'`: show `<LottieSticker animationData={trophyAnimation} size={48} />` instead of the 🏆 emoji
-   - If `'emoji'`: keep existing emoji
-   - Keep all existing: Confetti trigger, name, XP reward, auto-dismiss, amber gradient
-
-3. **Create `mini-app/src/hooks/useCelebrationStyle.ts`** — shared hook:
-```typescript
-import { useState, useCallback } from 'react';
-
-const STORAGE_KEY = 'celebration-style';
-type CelebrationStyle = 'emoji' | 'animated';
-
-export function useCelebrationStyle() {
-  const [style, setStyleState] = useState<CelebrationStyle>(
-    () => (localStorage.getItem(STORAGE_KEY) as CelebrationStyle) || 'emoji'
-  );
-
-  const setStyle = useCallback((newStyle: CelebrationStyle) => {
-    localStorage.setItem(STORAGE_KEY, newStyle);
-    setStyleState(newStyle);
-  }, []);
-
-  return { style, setStyle, isAnimated: style === 'animated' };
-}
-```
-
-4. **Build verify**: `cd mini-app && npx tsc --noEmit`
-
-OWNED: `mini-app/src/components/celebrations/LevelUpModal.tsx`, `mini-app/src/components/celebrations/AchievementToast.tsx`, `mini-app/src/hooks/useCelebrationStyle.ts` (new)
-FORBIDDEN: bot/src/*, database/*, QuestCompletionCelebration.tsx (Agent D owns), LottieSticker.tsx (Agent D owns), Confetti.tsx, XpFloat.tsx, Settings.tsx, Shop.tsx, api/*, i18n files, test files
-
-### Agent F: Sticker Browser + Celebration Settings UI
-
-**Worktree**: `c:\Users\Asus\Desktop\Wibecode-agent-f` | **Branch**: `feature/r93-sticker-browser-settings`
-
-**Context**: Settings page (`mini-app/src/pages/Settings.tsx`) has sections: NotificationSettings, DoNotDisturbSettings, HapticFeedbackSettings, ThemeSettings, AccountabilitySettings, AboutSection, DangerZone. Agent E (in parallel) creates `useCelebrationStyle.ts` hook with localStorage-based `celebration-style` preference.
-
-Agent C (in parallel) creates `GET /api/stickers/sets` and `GET /api/stickers/sets/:name` endpoints on the backend.
-
-**Tasks**:
-
-1. **Create `mini-app/src/components/settings/CelebrationSettings.tsx`**:
-   - Section title: t('settings.celebrationStyle')
-   - Two option cards with radio-style selection:
-     - **Classic (Emoji)** — default. Shows sample emojis (👍 ⭐ 🏆). Description: "Simple emoji celebrations"
-     - **Animated** — Shows animated preview hint. Description: "Lottie animations for celebrations"
-   - Uses `useCelebrationStyle` hook to get/set preference
-   - Cards use `bg-telegram-secondaryBg`, selected card gets emerald ring
-   - Haptic feedback on selection change
-
-2. **Create `mini-app/src/components/settings/StickerPackBrowser.tsx`**:
-   - Shows available sticker packs from API (when celebration style is 'animated')
-   - Fetches from `GET /api/stickers/sets` (Agent C's endpoint)
-   - Each pack shows: pack title, sticker count, 3-4 thumbnail previews
-   - Selected pack gets a checkmark
-   - Stores selected pack name in localStorage: `celebration-sticker-pack`
-   - Loading skeleton while fetching
-   - If API fails: graceful fallback message ("Sticker packs unavailable")
-
-3. **Add to Settings page** — `mini-app/src/pages/Settings.tsx`:
-   - Import `CelebrationSettings` and `StickerPackBrowser`
-   - Add between ThemeSettings and AccountabilitySettings sections
-   - Render: `<CelebrationSettings />` followed by `{isAnimated && <StickerPackBrowser />}`
-
-4. **Add i18n keys** — add to medication section in all 3 files:
-
-**en.ts** (inside `settings: { ... }`):
-```
-celebrationStyle: "Celebration Style",
-celebrationClassic: "Classic (Emoji)",
-celebrationClassicDesc: "Simple emoji celebrations",
-celebrationAnimated: "Animated",
-celebrationAnimatedDesc: "Lottie animations for celebrations",
-stickerPacks: "Sticker Packs",
-stickerPacksEmpty: "No sticker packs available",
-stickerPacksError: "Could not load sticker packs",
-```
-
-**ru.ts**:
-```
-celebrationStyle: "Стиль празднований",
-celebrationClassic: "Классический (эмодзи)",
-celebrationClassicDesc: "Простые эмодзи-празднования",
-celebrationAnimated: "Анимированный",
-celebrationAnimatedDesc: "Lottie-анимации для празднований",
-stickerPacks: "Наборы стикеров",
-stickerPacksEmpty: "Нет доступных наборов стикеров",
-stickerPacksError: "Не удалось загрузить наборы стикеров",
-```
-
-**zh.ts**:
-```
-celebrationStyle: "庆祝风格",
-celebrationClassic: "经典（表情符号）",
-celebrationClassicDesc: "简单的表情庆祝",
-celebrationAnimated: "动画",
-celebrationAnimatedDesc: "庆祝时使用Lottie动画",
-stickerPacks: "贴纸包",
-stickerPacksEmpty: "没有可用的贴纸包",
-stickerPacksError: "无法加载贴纸包",
-```
-
-5. **Build verify**: `cd mini-app && npx tsc --noEmit`
-
-OWNED: `mini-app/src/components/settings/CelebrationSettings.tsx` (new), `mini-app/src/components/settings/StickerPackBrowser.tsx` (new)
-GRAY: `mini-app/src/pages/Settings.tsx` (only add imports + render 2 components between ThemeSettings and AccountabilitySettings), `mini-app/src/i18n/en.ts` (only add keys inside `settings: {...}`), `mini-app/src/i18n/ru.ts` (same), `mini-app/src/i18n/zh.ts` (same)
-FORBIDDEN: bot/src/*, database/*, celebrations/*, Shop.tsx, hooks/usePurchase.ts, hooks/useCelebrationStyle.ts (Agent E owns), api/client.ts, test files
-
-### Agent G: Celebration Preference Backend + DB
-
-**Worktree**: `c:\Users\Asus\Desktop\Wibecode-agent-g` | **Branch**: `feature/r93-celebration-pref-backend`
-
-**Context**: User preferences are stored as columns on the `users` table (notification_enabled, reminder_time, dnd_enabled, etc.). There's no separate preferences table. The settings API routes are in `bot/src/api/routes/users.ts` (PATCH endpoint for updating user fields). The sticker pack metadata comes from Telegram API (Agent C's sticker routes), not from our DB.
-
-**Tasks**:
-
-1. **Add columns to `database/schema.sql`** — append to users table definition:
-```sql
--- After existing columns (around line 55):
-    celebration_style VARCHAR(20) DEFAULT 'emoji',     -- 'emoji' or 'animated'
-    celebration_sticker_pack VARCHAR(100) DEFAULT NULL, -- Telegram sticker set name
-```
-
-2. **Add migration SQL** at the end of schema.sql:
-```sql
--- Run 93: Celebration preferences
-ALTER TABLE users ADD COLUMN IF NOT EXISTS celebration_style VARCHAR(20) DEFAULT 'emoji';
-ALTER TABLE users ADD COLUMN IF NOT EXISTS celebration_sticker_pack VARCHAR(100) DEFAULT NULL;
-```
-
-3. **Add API endpoints to `bot/src/api/routes/users.ts`**:
-
-`GET /api/users/:userId/celebration-prefs`:
-```typescript
-router.get('/:userId/celebration-prefs', authenticateTelegram, authorizeUser, readLimiter, asyncHandler(async (req, res) => {
-  const userId = safeParseInt(req.params.userId, 0);
-  const user = await queryOne('SELECT celebration_style, celebration_sticker_pack FROM users WHERE id = $1', [userId]);
-  if (!user) throw new NotFoundError('User not found');
-  res.json(successResponse(user));
-}));
-```
-
-`PATCH /api/users/:userId/celebration-prefs`:
-```typescript
-router.patch('/:userId/celebration-prefs', authenticateTelegram, authorizeUser, asyncHandler(async (req, res) => {
-  const userId = safeParseInt(req.params.userId, 0);
-  const { celebration_style, celebration_sticker_pack } = req.body;
-
-  if (celebration_style && !['emoji', 'animated'].includes(celebration_style)) {
-    throw new BadRequestError('Invalid celebration_style');
-  }
-
-  const updates: string[] = [];
-  const params: unknown[] = [];
-  let idx = 1;
-
-  if (celebration_style !== undefined) {
-    updates.push(`celebration_style = $${idx++}`);
-    params.push(celebration_style);
-  }
-  if (celebration_sticker_pack !== undefined) {
-    updates.push(`celebration_sticker_pack = $${idx++}`);
-    params.push(celebration_sticker_pack);
-  }
-
-  if (updates.length === 0) throw new BadRequestError('No fields to update');
-
-  params.push(userId);
-  const result = await queryOne(
-    `UPDATE users SET ${updates.join(', ')} WHERE id = $${idx} RETURNING celebration_style, celebration_sticker_pack`,
-    params
-  );
-
-  res.json(successResponse(result));
-}));
-```
-
-4. **Add `getCelebrationPrefs` and `setCelebrationPrefs` methods to `mini-app/src/api/client.ts`**:
-```typescript
-async getCelebrationPrefs(userId: number): Promise<ApiResponse<{ celebration_style: string; celebration_sticker_pack: string | null }>> {
-  return this.deduplicatedGet(`/users/${userId}/celebration-prefs`);
-}
-
-async setCelebrationPrefs(userId: number, prefs: { celebration_style?: string; celebration_sticker_pack?: string | null }): Promise<ApiResponse<any>> {
-  return this.request('PATCH', `/users/${userId}/celebration-prefs`, prefs);
-}
-```
-
-5. **Build verify**: `cd bot && npx tsc --noEmit` and `cd mini-app && npx tsc --noEmit`
-
-OWNED: `bot/src/api/routes/users.ts` (add 2 endpoints only — do NOT modify existing user endpoints)
-GRAY: `database/schema.sql` (only add celebration columns to users table + ALTER TABLE at end), `mini-app/src/api/client.ts` (only add 2 methods at end of class)
-FORBIDDEN: celebrations/*, Settings.tsx, Shop.tsx, hooks/usePurchase.ts, hooks/useCelebrationStyle.ts, sticker routes (Agent C owns), payment routes, i18n files, test files
-
-### Run 93 File Ownership Matrix
-
-| File/Dir | A | B | C | D | E | F | G |
-|----------|---|---|---|---|---|---|---|
-| bot/src/handlers/payments.ts | OWN | - | GRAY | - | - | - | - |
-| bot/src/api/routes/payments.ts | OWN | - | - | - | - | - | - |
-| bot/src/api/routes/stickers.ts (new) | - | - | NEW | - | - | - | - |
-| bot/src/utils/stickerConfig.ts (new) | - | - | NEW | - | - | - | - |
-| bot/src/api/server.ts | - | - | GRAY | - | - | - | - |
-| bot/src/api/routes/users.ts | - | - | - | - | - | - | OWN |
-| bot/src/api/routes/shop.ts | GRAY | - | - | - | - | - | - |
-| mini-app/src/hooks/usePurchase.ts | - | OWN | - | - | - | - | - |
-| mini-app/src/api/shop.ts | - | OWN | - | - | - | - | - |
-| mini-app/src/pages/Shop.tsx | - | GRAY | - | - | - | - | - |
-| LottieSticker.tsx (new) | - | - | - | NEW | - | - | - |
-| assets/lottie/*.json (new) | - | - | - | NEW | - | - | - |
-| QuestCompletionCelebration.tsx | - | - | - | OWN | - | - | - |
-| LevelUpModal.tsx | - | - | - | - | OWN | - | - |
-| AchievementToast.tsx | - | - | - | - | OWN | - | - |
-| useCelebrationStyle.ts (new) | - | - | - | - | NEW | - | - |
-| CelebrationSettings.tsx (new) | - | - | - | - | - | NEW | - |
-| StickerPackBrowser.tsx (new) | - | - | - | - | - | NEW | - |
-| Settings.tsx | - | - | - | - | - | GRAY | - |
-| i18n/en.ts | - | - | - | - | - | GRAY | - |
-| i18n/ru.ts | - | - | - | - | - | GRAY | - |
-| i18n/zh.ts | - | - | - | - | - | GRAY | - |
-| database/schema.sql | - | - | - | - | - | - | GRAY |
-| mini-app/src/api/client.ts | - | - | - | - | - | - | GRAY |
-
-### Run 93 Merge Order
-1. Agent A (Stars shop backend — payment handlers, no frontend)
-2. Agent C (Sticker API — new bot route, touches server.ts)
-3. Agent G (Celebration prefs backend — DB + users route + client.ts)
-4. Agent B (Stars shop frontend — depends on A's invoice endpoint at runtime)
-5. Agent D (Lottie + quest celebration — installs lottie-react, new components)
-6. Agent E (Level/achievement celebration — uses D's LottieSticker component)
-7. Agent F (Sticker browser + settings — integrates E's hook, touches Settings.tsx + i18n)
-
-### Run 93 Retrospectives
-
-#### Agent A Retrospective
-
-| # | Task | Status |
-|---|------|--------|
-| 1 | Add `ShopItemPayload` type + update `parsePayload()` | Done |
-| 2 | Pre-checkout validation for shop items (exists, active, price match, duplicate check for achievements) | Done |
-| 3 | Successful payment handler for shop items (record purchase, unlock achievement, notify owner) | Done |
-| 4 | `POST /payments/create-shop-invoice` endpoint (validate item, create pending payment, generate invoice link) | Done |
-| 5 | Comment on `shop.ts` noting new invoice flow for Stars | Done |
-| 6 | Build verify (`npx tsc --noEmit`) | Pass |
-
-**Problems**: None. Notes: `create-shop-invoice` accepts `{ telegram_id, shop_item_id }`, returns `{ payment_id, invoice_url }`. Old direct Stars purchase path kept but deprecated.
-
-#### Agent B Retrospective
-*(No retro written — agent completed all tasks, build passed.)*
-
-#### Agent C Retrospective
-*(No retro written — agent completed all tasks, build passed.)*
-
-#### Agent D Retrospective
-*(No retro written — agent completed all tasks, build passed.)*
-
-#### Agent E Retrospective
-*(No retro written — agent completed all tasks, build passed.)*
-
-#### Agent F Retrospective
-**Status**: Complete. Created `CelebrationSettings.tsx` (radio card selector), `StickerPackBrowser.tsx` (API-backed pack browser), wired into Settings.tsx, added i18n keys (en/ru/zh). Also created `useCelebrationStyle.ts` (identical to Agent E's version — deduplicated during merge).
-
-#### Agent G Retrospective
-**Status**: Complete. Added `celebration_style` + `celebration_sticker_pack` columns to users table, GET/PATCH celebration-prefs endpoints, client.ts methods. Used `buildDynamicUpdate` pattern.
-
-#### Agent 0 Retrospective
-
-**Merge results** (order: A → C → G → B → D → E → F):
-- All 7 branches merged cleanly. Only conflict: `PARALLEL_AGENTS.md` on Agent B (resolved with `--ours`).
-- `payments.ts` touched by both A (OWN) and C (GRAY) — auto-merged without conflict.
-- `useCelebrationStyle.ts` created by both E and F — no conflict since F just imported E's version.
-
-**Integration fixes**:
-1. **lottie-react not in main repo**: Agent D installed in worktree, but main `node_modules` didn't have it. `npm install` in mini-app fixed it.
-2. **lottie-web canvas error in tests** (6 files): `TypeError: Cannot set properties of null (setting 'fillStyle')` — lottie-web requires `HTMLCanvasElement.getContext()` which jsdom doesn't support. Fixed with global mock in `test/setup.ts`: `vi.mock('lottie-react', () => ({ default: () => null, __esModule: true }))`.
-3. **usePurchase.test.ts** (3 failures): Tests expected old Stars flow (`purchaseItem()` directly). Rewrote: added `createShopInvoice` mock, `@twa-dev/sdk` mock with `openInvoice`, `telegramId` param, Stars tests now mock invoice flow. XP tests kept using `purchaseItem`.
-4. **DB migration**: Ran `ALTER TABLE users ADD COLUMN IF NOT EXISTS celebration_style/celebration_sticker_pack` on production.
-
-**Final results**: Bot 1100/1100, Mini-app 941/941. Deployed as v432c4b0.
-
-**Lesson**: When an agent installs a new npm package in their worktree, Agent 0 must `npm install` in main after merge (the lock file merges but `node_modules` doesn't).
-
----
-
-## RUN 94: Cloud Storage + Home Screen + QR + Social Basics (8 Agents + Agent 0)
-
-### Focus: TG CloudStorage cross-device sync, home screen shortcut, QR code sharing, story sharing, custom emoji, challenge improvements, notification preferences, deep linking
-
-### Copy-Paste Prompts
-
-**Agent 0** (this window):
-```
-Read PARALLEL_AGENTS.md — you are Agent 0 for Run 94.
-```
-
-**Agent A**: `Read PARALLEL_AGENTS.md — you are Agent A of Run 94.`
-**Agent B**: `Read PARALLEL_AGENTS.md — you are Agent B of Run 94.`
-**Agent C**: `Read PARALLEL_AGENTS.md — you are Agent C of Run 94.`
-**Agent D**: `Read PARALLEL_AGENTS.md — you are Agent D of Run 94.`
-**Agent E**: `Read PARALLEL_AGENTS.md — you are Agent E of Run 94.`
-**Agent F**: `Read PARALLEL_AGENTS.md — you are Agent F of Run 94.`
-**Agent G**: `Read PARALLEL_AGENTS.md — you are Agent G of Run 94.`
-**Agent H**: `Read PARALLEL_AGENTS.md — you are Agent H of Run 94.`
-
-### Agent A: Cloud Storage — TG CloudStorage API
-
-**Worktree**: `c:\Users\Asus\Desktop\Wibecode-agent-a` | **Branch**: `feature/r94-cloud-storage`
-
-**Context**: Preferences are stored in multiple places:
-- `localStorage`: `celebration-style` (in `useCelebrationStyle.ts`), `celebration_last_level`/`celebration_last_xp` (in `useCelebration.ts`), `haptic_enabled` (in `useTelegram.ts`), `celebration-sticker-pack`
-- Server DB: `notification_enabled`, `reminder_time`, `timezone`, `dnd_*`, `celebration_style`, `celebration_sticker_pack` via `useSettingsData.ts`
-- TG `CloudStorage` API (Bot API 6.9+): 1024 keys × 4096 chars, server-side, cross-device. Available via `@twa-dev/sdk` v7.0.0 (already installed).
-
-The goal: create a `useCloudStorage` hook that mirrors key user preferences to TG CloudStorage so they persist cross-device. The server DB remains the source of truth for notification/DND settings; CloudStorage is for UI preferences that are currently localStorage-only.
-
-**Tasks**:
-
-1. **Create `mini-app/src/hooks/useCloudStorage.ts`** — wrapper around `WebApp.CloudStorage`:
-```typescript
-import WebApp from '@twa-dev/sdk';
-
-const CS_AVAILABLE = typeof WebApp?.CloudStorage?.setItem === 'function';
-
-export function useCloudStorage() {
-  const setItem = async (key: string, value: string): Promise<void> => {
-    if (!CS_AVAILABLE) return;
-    return new Promise((resolve, reject) => {
-      WebApp.CloudStorage.setItem(key, value, (err) => err ? reject(err) : resolve());
-    });
-  };
-
-  const getItem = async (key: string): Promise<string | null> => {
-    if (!CS_AVAILABLE) return localStorage.getItem(key);
-    return new Promise((resolve, reject) => {
-      WebApp.CloudStorage.getItem(key, (err, val) => err ? reject(err) : resolve(val ?? null));
-    });
-  };
-
-  const getItems = async (keys: string[]): Promise<Record<string, string>> => {
-    if (!CS_AVAILABLE) {
-      const result: Record<string, string> = {};
-      keys.forEach(k => { const v = localStorage.getItem(k); if (v) result[k] = v; });
-      return result;
-    }
-    return new Promise((resolve, reject) => {
-      WebApp.CloudStorage.getItems(keys, (err, vals) => err ? reject(err) : resolve(vals ?? {}));
-    });
-  };
-
-  const removeItem = async (key: string): Promise<void> => {
-    if (!CS_AVAILABLE) { localStorage.removeItem(key); return; }
-    return new Promise((resolve, reject) => {
-      WebApp.CloudStorage.removeItem(key, (err) => err ? reject(err) : resolve());
-    });
-  };
-
-  return { setItem, getItem, getItems, removeItem, isAvailable: CS_AVAILABLE };
-}
-```
-
-2. **Modify `mini-app/src/hooks/useCelebrationStyle.ts`** — sync to CloudStorage:
-   - On `setStyle()`: also call `cloudStorage.setItem('celebration-style', newStyle)`
-   - On hook init: try `cloudStorage.getItem('celebration-style')` first, fallback to localStorage
-   - Keep localStorage as primary (instant), CloudStorage as backup (async, cross-device)
-
-3. **Create `mini-app/src/hooks/useCloudSync.ts`** — one-time sync on app load:
-```typescript
-// Called once in App.tsx on mount
-// Reads all CloudStorage keys, merges with localStorage
-// If CloudStorage has values that localStorage doesn't → restore them
-// If localStorage has values that CloudStorage doesn't → push them
-// Keys to sync: 'celebration-style', 'celebration-sticker-pack', 'haptic_enabled'
-```
-
-4. **Build verify**: `cd mini-app && npx tsc --noEmit`
-
-OWNED: `mini-app/src/hooks/useCloudStorage.ts` (new), `mini-app/src/hooks/useCloudSync.ts` (new), `mini-app/src/hooks/useCelebrationStyle.ts`
-GRAY: `mini-app/src/App.tsx` (only add `useCloudSync()` call in main App component — 1-2 lines)
-FORBIDDEN: bot/src/*, database/*, Settings.tsx, useSettingsData.ts, notification components, test files
-
-### Agent B: Home Screen Shortcut — addToHomeScreen()
-
-**Worktree**: `c:\Users\Asus\Desktop\Wibecode-agent-b` | **Branch**: `feature/r94-home-screen`
-
-**Context**: TG `addToHomeScreen()` (Bot API 8.0+) prompts user to add the mini-app as a home screen shortcut. No home screen code exists yet. Settings page has sections: NotificationSettings, DND, Haptic, Theme, CelebrationSettings, StickerPackBrowser, Accountability, About, DangerZone.
-
-**Tasks**:
-
-1. **Create `mini-app/src/components/HomeScreenPrompt.tsx`**:
-   - Beautiful card showing benefits: "Quick access from your home screen"
-   - "Add to Home Screen" button — calls `WebApp.addToHomeScreen()`
-   - "Not now" dismiss — sets `localStorage.setItem('home_screen_dismissed', Date.now())`
-   - Show only if: not dismissed within 30 days AND `WebApp.isVersionAtLeast('8.0')`
-   - Wrap in try/catch — if `addToHomeScreen` fails, show fallback message
-   - Use i18n keys
-
-2. **Integrate into Dashboard** — `mini-app/src/pages/Dashboard.tsx`:
-   - Import `HomeScreenPrompt`
-   - Show at top of Dashboard (below header, above quest section)
-   - Auto-show after 3 seconds delay (useEffect + setTimeout)
-   - Only show once per session (use `useRef` flag)
-
-3. **Add settings card** — create `mini-app/src/components/settings/HomeScreenSettings.tsx`:
-   - Section in Settings: "Home Screen Shortcut"
-   - Shows button "Add to Home Screen" → calls `WebApp.addToHomeScreen()`
-   - If already dismissed, show "Reset prompt" to clear dismissal
-   - Icon: smartphone/home icon from lucide-react
-
-4. **Add i18n keys** — add to all 3 locale files (en/ru/zh) inside `settings: { ... }`:
-   - `homeScreen`, `homeScreenDesc`, `homeScreenAdd`, `homeScreenDismiss`, `homeScreenReset`
-
-5. **Build verify**: `cd mini-app && npx tsc --noEmit`
-
-OWNED: `mini-app/src/components/HomeScreenPrompt.tsx` (new), `mini-app/src/components/settings/HomeScreenSettings.tsx` (new)
-GRAY: `mini-app/src/pages/Dashboard.tsx` (only add HomeScreenPrompt component — minimal), `mini-app/src/pages/Settings.tsx` (only add HomeScreenSettings import + render between CelebrationSettings and AccountabilitySettings), `mini-app/src/i18n/en.ts`, `mini-app/src/i18n/ru.ts`, `mini-app/src/i18n/zh.ts` (only add keys inside `settings: {...}`)
-FORBIDDEN: bot/src/*, database/*, hooks/*, api/*, celebration components, notification components, test files
-
-### Agent C: QR Code Sharing — Profile/Challenge QR + Scanner
-
-**Worktree**: `c:\Users\Asus\Desktop\Wibecode-agent-c` | **Branch**: `feature/r94-qr-code`
-
-**Context**: No QR library installed. TG `showScanQrPopup()` available since Bot API 6.4. Mini-app URL: `https://yakutsa.ru/levelapp`. Deep links use `?startapp=` format (Agent H handles parsing). Profile page exists at `mini-app/src/pages/Profile.tsx`. Social page at `mini-app/src/pages/Social.tsx`.
-
-**Tasks**:
-
-1. **Install QR library**: `cd mini-app && npm install qrcode.react`
-
-2. **Create `mini-app/src/components/QRCodeModal.tsx`**:
-   - Props: `{ type: 'profile' | 'challenge'; id: number; title: string; onClose: () => void }`
-   - Renders QR code using `qrcode.react` with value = `https://t.me/yakutsabot/levelapp?startapp=${type}_${id}`
-   - Shows title: "Share Profile" or "Share Challenge"
-   - Buttons: "Copy Link" (clipboard), "Close"
-   - Styled as modal overlay with backdrop, framer-motion entry
-   - QR code size: 200×200, with white background padding
-
-3. **Create `mini-app/src/components/QRScannerButton.tsx`**:
-   - Button that calls `WebApp.showScanQrPopup({ text: 'Scan a profile or challenge QR code' })`
-   - On result: parse decoded text → navigate to appropriate page
-   - Parses: `profile_123`, `challenge_456`, or full URL containing `startapp=`
-   - Show error toast if QR doesn't match expected format
-   - Only render if `WebApp.isVersionAtLeast('6.4')`
-
-4. **Add QR share button to Profile page** — `mini-app/src/pages/Profile.tsx`:
-   - Add "Share QR" button (QR icon from lucide-react) next to existing profile header
-   - On click: open `QRCodeModal` with type='profile' and user's ID
-   - Minimal change — just button + modal state
-
-5. **Add QR share button to Social page** — `mini-app/src/pages/Social.tsx`:
-   - Add "Scan QR" button at top of Social page
-   - Opens scanner to add friends / join challenges via QR
-
-6. **Add i18n keys** — `qr.shareProfile`, `qr.shareChallenge`, `qr.scanTitle`, `qr.scanHint`, `qr.copyLink`, `qr.copied`, `qr.invalidCode`
-
-7. **Build verify**: `cd mini-app && npx tsc --noEmit`
-
-OWNED: `mini-app/src/components/QRCodeModal.tsx` (new), `mini-app/src/components/QRScannerButton.tsx` (new)
-GRAY: `mini-app/src/pages/Profile.tsx` (only add QR share button + modal), `mini-app/src/pages/Social.tsx` (only add Scan QR button), `mini-app/src/i18n/en.ts`, `mini-app/src/i18n/ru.ts`, `mini-app/src/i18n/zh.ts` (only add `qr:{}` section)
-FORBIDDEN: bot/src/*, database/*, hooks/*, Settings.tsx, Dashboard.tsx, celebration components, notification components, test files
-
-### Agent D: Share to Story — shareToStory() Integration
-
-**Worktree**: `c:\Users\Asus\Desktop\Wibecode-agent-d` | **Branch**: `feature/r94-share-to-story`
-
-**Context**: TG `shareToStory(mediaUrl, { text, widget_link })` available since Bot API 7.8. Celebration components exist:
-- `QuestCompletionCelebration.tsx` — shows on quest complete (has confetti + emoji/lottie)
-- `LevelUpModal.tsx` — shows on level up (has glow ring + emoji/lottie)
-- `AchievementToast.tsx` — shows on achievement unlock (has confetti + emoji/lottie)
-Mini-app URL: `https://t.me/yakutsabot/levelapp`
-
-**Tasks**:
-
-1. **Create `mini-app/src/utils/storyShare.ts`**:
-```typescript
-import WebApp from '@twa-dev/sdk';
-import { logger } from '@/utils/logger';
-
-const STORY_AVAILABLE = typeof WebApp?.shareToStory === 'function';
-const APP_URL = 'https://t.me/yakutsabot/levelapp';
-
-export async function shareQuestToStory(questName: string): Promise<boolean> {
-  if (!STORY_AVAILABLE) return false;
-  try {
-    WebApp.shareToStory(APP_URL, {
-      text: `I completed the quest "${questName}"! 🎯`,
-      widget_link: { url: APP_URL, name: 'Play MaxLevel' },
-    });
-    return true;
-  } catch (e) { logger.error('shareToStory failed', { error: e }); return false; }
-}
-
-export async function shareLevelUpToStory(level: number): Promise<boolean> { ... }
-export async function shareAchievementToStory(name: string, rarity: string): Promise<boolean> { ... }
-
-export function isShareToStoryAvailable(): boolean { return STORY_AVAILABLE; }
-```
-
-2. **Add "Share" button to `QuestCompletionCelebration.tsx`**:
-   - Add small "Share to Story" button below existing content (only if `isShareToStoryAvailable()`)
-   - On click: call `shareQuestToStory(questName)`
-   - Show brief success toast
-   - Keep existing celebration flow unchanged
-
-3. **Add "Share" button to `LevelUpModal.tsx`**:
-   - Add "Share to Story" below level number (only if available)
-   - Call `shareLevelUpToStory(newLevel)`
-
-4. **Add "Share" button to `AchievementToast.tsx`**:
-   - Add small share icon button next to achievement name (only if available)
-   - Call `shareAchievementToStory(name, rarity)`
-
-5. **Add i18n keys** — `share.toStory`, `share.success`, `share.unavailable`
-
-6. **Build verify**: `cd mini-app && npx tsc --noEmit`
-
-OWNED: `mini-app/src/utils/storyShare.ts` (new)
-GRAY: `mini-app/src/components/celebrations/QuestCompletionCelebration.tsx` (only add share button), `mini-app/src/components/celebrations/LevelUpModal.tsx` (only add share button), `mini-app/src/components/AchievementToast.tsx` (only add share button), `mini-app/src/i18n/en.ts`, `mini-app/src/i18n/ru.ts`, `mini-app/src/i18n/zh.ts` (only add `share:{}` section)
-FORBIDDEN: bot/src/*, database/*, hooks/usePurchase.ts, hooks/useCelebrationStyle.ts, Settings.tsx, Profile.tsx, Social.tsx, QRCodeModal.tsx, Dashboard.tsx, test files
-
-### Agent E: Custom Emoji in Bot Messages
-
-**Worktree**: `c:\Users\Asus\Desktop\Wibecode-agent-e` | **Branch**: `feature/r94-custom-emoji`
-
-**Context**: Grammy v1.19.2. Notification templates in `bot/src/utils/notificationTemplates.ts`. Existing notifications use plain text + regular emoji. Custom emoji requires bot owner to have TG Premium. HTML format: `<tg-emoji emoji-id="ID">fallback</tg-emoji>`. Existing jobs use templates: `questReminders`, `dailySummary`, `achievementNotifier`, `streakMilestone`, `medicationReminder`, `punishmentCheck`.
-
-**Tasks**:
-
-1. **Create `bot/src/utils/customEmoji.ts`** — emoji mapping + feature check:
-```typescript
-let botHasPremium = false;
-
-export async function checkBotPremium(bot: Bot<MyContext>): Promise<void> {
-  try {
-    const me = await bot.api.getMe();
-    botHasPremium = me.is_premium ?? false;
-  } catch { botHasPremium = false; }
-}
-
-// Custom emoji IDs (Telegram animated emoji set)
-const EMOJI_IDS: Record<string, string> = {
-  fire: '5368324170671202286',
-  star: '5368324170671202286',
-  trophy: '5368324170671202286',
-  rocket: '5368324170671202286',
-  check: '5368324170671202286',
-  warning: '5368324170671202286',
-};
-// NOTE: Replace IDs with actual custom emoji IDs from Telegram
-// Agent should test with bot.api.getCustomEmojiStickers() to find valid IDs
-
-export function customEmoji(key: string, fallback: string): string {
-  if (!botHasPremium || !EMOJI_IDS[key]) return fallback;
-  return `<tg-emoji emoji-id="${EMOJI_IDS[key]}">${fallback}</tg-emoji>`;
-}
-```
-
-2. **Update `bot/src/utils/notificationTemplates.ts`**:
-   - Import `customEmoji` from `./customEmoji.js`
-   - Replace hardcoded emoji in templates:
-     - `🔥` → `customEmoji('fire', '🔥')`
-     - `⭐` → `customEmoji('star', '⭐')`
-     - `🏆` → `customEmoji('trophy', '🏆')`
-   - Ensure all `sendMessage` calls use `parse_mode: 'HTML'` (most already do)
-
-3. **Call `checkBotPremium(bot)` on startup** — in `bot/src/bot.ts`:
-   - Import `checkBotPremium` from `./utils/customEmoji.js`
-   - Call after bot init, before handlers registration
-   - Log result: "Bot Premium status: true/false"
-
-4. **Build verify**: `cd bot && npx tsc --noEmit`
-
-OWNED: `bot/src/utils/customEmoji.ts` (new), `bot/src/utils/notificationTemplates.ts`
-GRAY: `bot/src/bot.ts` (only add `checkBotPremium(bot)` call — 2-3 lines)
-FORBIDDEN: mini-app/src/*, database/*, payment handlers, shop routes, sticker routes, job definitions (don't modify job files — templates are imported), test files
-
-### Agent F: Challenge Improvements — Notifications + Leaderboard
-
-**Worktree**: `c:\Users\Asus\Desktop\Wibecode-agent-f` | **Branch**: `feature/r94-challenge-improvements`
-
-**Context**: Challenge tables exist (`challenges`, `challenge_participants`). API routes in `bot/src/api/routes/social.ts` with full CRUD (create, discover, join, leave, progress, details). Mini-app components: `ChallengeForm.tsx`, `ChallengesList.tsx`, `ChallengeDetailModal.tsx`. Jobs registered in `bot/src/jobs/registerJobs.ts` — pattern: export `JOB_NAME`, `CRON_SCHEDULE`, `handler`, `setBotInstance`.
-
-**Tasks**:
-
-1. **Create `bot/src/jobs/definitions/challengeNotifier.ts`**:
-   - `JOB_NAME = 'challenge-notifier'`, `CRON_SCHEDULE = '0 */6 * * *'` (every 6 hours)
-   - Checks for: challenges ending within 24h, new participants joined since last check
-   - Sends TG notification to challenge creator + participants
-   - Template: "🏆 Challenge Update: [name] — [X] participants, ends [date]"
-   - Respects DND + `notification_enabled`
-   - Export `setBotInstance(bot)` matching existing pattern
-
-2. **Register job in `bot/src/jobs/registerJobs.ts`**:
-   - Import `challengeNotifier`
-   - Add to `jobs` array + call `setBotInstance`
-
-3. **Add leaderboard API** — `bot/src/api/routes/social.ts`:
-   - `GET /api/social/challenges/:challengeId/leaderboard`
-   - Returns top 10 participants ordered by `current_progress DESC`
-   - Includes: `user_id`, `first_name`, `avatar`, `current_progress`, `target_value`, percentage
-   - Highlight requesting user's rank
-
-4. **Create `mini-app/src/components/social/ChallengeLeaderboard.tsx`**:
-   - Fetches from leaderboard endpoint
-   - Shows ranked list with avatar, name, progress bar, percentage
-   - Requesting user highlighted with accent background
-   - Loading skeleton while fetching
-
-5. **Integrate into `ChallengeDetailModal.tsx`**:
-   - Add tabs: "Details" | "Leaderboard"
-   - Default tab: "Details" (existing content)
-   - "Leaderboard" tab: render `ChallengeLeaderboard`
-
-6. **Enhance `ChallengeForm.tsx`**:
-   - Add validation: title min 3 chars, end_date > today
-   - Add success toast + clear form after submission
-
-7. **Build verify**: `cd bot && npx tsc --noEmit` and `cd mini-app && npx tsc --noEmit`
-
-OWNED: `bot/src/jobs/definitions/challengeNotifier.ts` (new), `mini-app/src/components/social/ChallengeLeaderboard.tsx` (new)
-GRAY: `bot/src/jobs/registerJobs.ts` (only add challengeNotifier import + registration), `bot/src/api/routes/social.ts` (only add leaderboard GET route), `mini-app/src/components/social/ChallengeDetailModal.tsx` (only add tabs + leaderboard), `mini-app/src/components/social/ChallengeForm.tsx` (only add validation)
-FORBIDDEN: database/schema.sql, payments, stickers, Settings.tsx, Dashboard.tsx, celebrations, i18n files, test files
-
-### Agent G: Notification Preferences — Per-Category + Notification Center
-
-**Worktree**: `c:\Users\Asus\Desktop\Wibecode-agent-g` | **Branch**: `feature/r94-notification-prefs`
-
-**Context**: Existing prefs in DB: `notification_enabled`, `dnd_enabled`, `dnd_start`, `dnd_end`, `reminder_time`. UI: `NotificationSettings.tsx` has per-mode toggles (fitness, hydration, finance, learning, medication, habits) but modes saved as part of `useSettingsData` prefs object. `notification_log` table exists (id, user_id, type, title, body, sent_at, read_at). `NotificationHistory.tsx` page exists. `useNotificationHistory.ts` hook exists. Routes: `user-preferences.ts` handles GET/PATCH prefs.
-
-Current issue: notification_modes are in the frontend preferences state but NOT persisted to the database. They reset on reload. Need to persist them.
-
-**Tasks**:
-
-1. **Add `notification_modes` column to DB** — `database/schema.sql`:
-```sql
-ALTER TABLE users ADD COLUMN IF NOT EXISTS notification_modes JSONB DEFAULT '{}';
-```
-
-2. **Update preferences API** — `bot/src/api/routes/user-preferences.ts`:
-   - GET: include `notification_modes` in response
-   - PATCH: accept `notification_modes` (JSONB), validate keys are boolean values
-   - Use existing `buildDynamicUpdate` pattern
-
-3. **Add notification routes** — `bot/src/api/routes/notifications.ts` (new):
-   - `GET /api/notifications/:userId` — list notifications (paginated, newest first)
-   - `GET /api/notifications/:userId/unread-count` — count of unread notifications
-   - `PATCH /api/notifications/:notificationId/read` — mark as read (set read_at = NOW())
-   - `POST /api/notifications/:userId/read-all` — mark all as read
-   - Register in `bot/src/api/server.ts`
-
-4. **Add unread badge to Navigation** — `mini-app/src/components/Navigation.tsx`:
-   - Fetch unread count on mount (poll every 60s or refetch on page change)
-   - Show red badge circle with count on the notification bell icon / nav item
-   - Only show if count > 0, cap display at "99+"
-
-5. **Enhance `NotificationHistory.tsx`**:
-   - Add filter by type (tabs: All, Quests, Achievements, Challenges, System)
-   - Mark as read on tap (or "Mark all read" button)
-   - Pull-to-refresh
-
-6. **Build verify**: `cd bot && npx tsc --noEmit` and `cd mini-app && npx tsc --noEmit`
-
-OWNED: `bot/src/api/routes/notifications.ts` (new)
-GRAY: `database/schema.sql` (only add ALTER TABLE for notification_modes), `bot/src/api/routes/user-preferences.ts` (only add notification_modes to GET/PATCH), `bot/src/api/server.ts` (only register notifications route), `mini-app/src/components/Navigation.tsx` (only add unread badge), `mini-app/src/pages/NotificationHistory.tsx` (add filters + mark-read)
-FORBIDDEN: celebrations/*, Settings.tsx, Dashboard.tsx, hooks/useCelebrationStyle.ts, hooks/useCloudStorage.ts, i18n files, test files
-
-### Agent H: Deep Linking — ?startapp= Params + Navigation
-
-**Worktree**: `c:\Users\Asus\Desktop\Wibecode-agent-h` | **Branch**: `feature/r94-deep-linking`
-
-**Context**: Mini-app uses React Router. `window.Telegram?.WebApp?.initDataUnsafe?.start_param` contains the startapp parameter. No deep linking code exists yet. Bot type definition in `bot/src/types/telegram.ts` has `start_param?: string`. The mini-app URL pattern will be `https://t.me/yakutsabot/levelapp?startapp=TYPE_ID`. Agent C (QR) and Agent D (Story) will generate these URLs.
-
-**Tasks**:
-
-1. **Create `mini-app/src/hooks/useDeepLink.ts`**:
-```typescript
-import { useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
-import WebApp from '@twa-dev/sdk';
-import { logger } from '@/utils/logger';
-
-export function useDeepLink() {
-  const navigate = useNavigate();
-  const processed = useRef(false);
-
-  useEffect(() => {
-    if (processed.current) return;
-    processed.current = true;
-
-    const startParam = WebApp.initDataUnsafe?.start_param;
-    if (!startParam) return;
-
-    logger.info('Deep link received', { startParam });
-
-    // Parse format: TYPE_ID (e.g., profile_123, challenge_456, quest_789)
-    const match = startParam.match(/^(profile|challenge|quest|achievement|referral)_(\d+)$/);
-    if (!match) { logger.warn('Unknown deep link format', { startParam }); return; }
-
-    const [, type, id] = match;
-
-    switch (type) {
-      case 'profile':
-        navigate(`/profile?viewUser=${id}`);
-        break;
-      case 'challenge':
-        navigate(`/social?openChallenge=${id}`);
-        break;
-      case 'quest':
-        navigate(`/quests?highlight=${id}`);
-        break;
-      case 'achievement':
-        navigate(`/achievements?highlight=${id}`);
-        break;
-      case 'referral':
-        // Store referrer ID for onboarding flow
-        localStorage.setItem('referrer_id', id);
-        navigate('/');
-        break;
-    }
-  }, [navigate]);
-}
-```
-
-2. **Integrate into App.tsx** — `mini-app/src/App.tsx`:
-   - Import `useDeepLink` from `@/hooks/useDeepLink`
-   - Call `useDeepLink()` inside main App component (after Router is mounted)
-   - Must be inside `<Router>` for `useNavigate()` to work
-
-3. **Handle deep link query params in target pages**:
-   - `Social.tsx`: Read `openChallenge` from URL search params → auto-open ChallengeDetailModal
-   - `Quests.tsx`: Read `highlight` param → scroll to and highlight quest card
-   - Simple: use `useSearchParams()` hook + useEffect
-
-4. **Add deep link URLs to bot messages** — `bot/src/utils/notificationTemplates.ts`:
-   - Challenge invite: add InlineKeyboard button `keyboard.url('View Challenge', 'https://t.me/yakutsabot/levelapp?startapp=challenge_{id}')`
-   - Achievement notification: add InlineKeyboard button to view in app
-   - Only add to messages that already have InlineKeyboard support
-
-5. **Build verify**: `cd mini-app && npx tsc --noEmit` and `cd bot && npx tsc --noEmit`
-
-OWNED: `mini-app/src/hooks/useDeepLink.ts` (new)
-GRAY: `mini-app/src/App.tsx` (only add useDeepLink() call — 2 lines), `mini-app/src/pages/Social.tsx` (only add openChallenge param handling — 5-10 lines), `mini-app/src/pages/Quests.tsx` (only add highlight param handling — 5-10 lines), `bot/src/utils/notificationTemplates.ts` (only add deep link URLs to existing InlineKeyboard buttons)
-FORBIDDEN: database/*, payment handlers, shop routes, sticker routes, Settings.tsx, Dashboard.tsx, celebrations/*, hooks/useCloudStorage.ts, QRCodeModal.tsx, test files
-
-### Run 94 File Ownership Matrix
-
-| File/Dir | A | B | C | D | E | F | G | H |
-|----------|---|---|---|---|---|---|---|---|
-| hooks/useCloudStorage.ts (new) | NEW | - | - | - | - | - | - | - |
-| hooks/useCloudSync.ts (new) | NEW | - | - | - | - | - | - | - |
-| hooks/useCelebrationStyle.ts | OWN | - | - | - | - | - | - | - |
-| hooks/useDeepLink.ts (new) | - | - | - | - | - | - | - | NEW |
-| App.tsx | GRAY | - | - | - | - | - | - | GRAY |
-| HomeScreenPrompt.tsx (new) | - | NEW | - | - | - | - | - | - |
-| settings/HomeScreenSettings.tsx (new) | - | NEW | - | - | - | - | - | - |
-| Dashboard.tsx | - | GRAY | - | - | - | - | - | - |
-| Settings.tsx | - | GRAY | - | - | - | - | - | - |
-| QRCodeModal.tsx (new) | - | - | NEW | - | - | - | - | - |
-| QRScannerButton.tsx (new) | - | - | NEW | - | - | - | - | - |
-| Profile.tsx | - | - | GRAY | - | - | - | - | - |
-| Social.tsx | - | - | GRAY | - | - | - | - | H:GRAY |
-| utils/storyShare.ts (new) | - | - | - | NEW | - | - | - | - |
-| QuestCompletionCelebration.tsx | - | - | - | GRAY | - | - | - | - |
-| LevelUpModal.tsx | - | - | - | GRAY | - | - | - | - |
-| AchievementToast.tsx | - | - | - | GRAY | - | - | - | - |
-| bot/utils/customEmoji.ts (new) | - | - | - | - | NEW | - | - | - |
-| bot/utils/notificationTemplates.ts | - | - | - | - | OWN | - | - | GRAY |
-| bot/bot.ts | - | - | - | - | GRAY | - | - | - |
-| bot/jobs/challengeNotifier.ts (new) | - | - | - | - | - | NEW | - | - |
-| bot/jobs/registerJobs.ts | - | - | - | - | - | GRAY | - | - |
-| bot/api/routes/social.ts | - | - | - | - | - | GRAY | - | - |
-| ChallengeLeaderboard.tsx (new) | - | - | - | - | - | NEW | - | - |
-| ChallengeDetailModal.tsx | - | - | - | - | - | GRAY | - | - |
-| ChallengeForm.tsx | - | - | - | - | - | GRAY | - | - |
-| bot/api/routes/notifications.ts (new) | - | - | - | - | - | - | NEW | - |
-| bot/api/routes/user-preferences.ts | - | - | - | - | - | - | GRAY | - |
-| bot/api/server.ts | - | - | - | - | - | - | GRAY | - |
-| Navigation.tsx | - | - | - | - | - | - | GRAY | - |
-| NotificationHistory.tsx | - | - | - | - | - | - | GRAY | - |
-| database/schema.sql | - | - | - | - | - | - | GRAY | - |
-| Quests.tsx | - | - | - | - | - | - | - | GRAY |
-| i18n/en.ts | - | GRAY | GRAY | GRAY | - | - | - | - |
-| i18n/ru.ts | - | GRAY | GRAY | GRAY | - | - | - | - |
-| i18n/zh.ts | - | GRAY | GRAY | GRAY | - | - | - | - |
-
-### Run 94 Merge Order
-1. Agent A (Cloud Storage — independent hooks, touches App.tsx minimally)
-2. Agent E (Custom Emoji — bot-only, modifies notificationTemplates.ts)
-3. Agent G (Notification Prefs — DB + new routes + Navigation badge)
-4. Agent F (Challenge improvements — new job + leaderboard, depends on G for notification patterns)
-5. Agent B (Home Screen — Dashboard + Settings UI changes)
-6. Agent C (QR Code — installs qrcode.react, Profile + Social changes)
-7. Agent D (Share to Story — celebration component changes, i18n)
-8. Agent H (Deep Linking — App.tsx + Social.tsx + Quests.tsx + bot templates, depends on all URL-generating agents)
-
-### Run 94 Retrospectives
-
-#### Agent A Retrospective
-*(To be filled by Agent A)*
-
-#### Agent B Retrospective
-**Status**: Complete — 2 new files + 5 modified, `tsc --noEmit` clean.
-**Task**: Home screen shortcut — `addToHomeScreen()` prompt + settings toggle.
-**Files created**: `HomeScreenPrompt.tsx` (dismissable Dashboard card, 30-day cooldown, 3s delay, spring animations), `HomeScreenSettings.tsx` (persistent settings card with add + reset prompt buttons).
-**Files modified**: `Dashboard.tsx` (import + render HomeScreenPrompt), `Settings.tsx` (import + render HomeScreenSettings between StickerPackBrowser and AccountabilitySettings), `en.ts`/`ru.ts`/`zh.ts` (5 i18n keys each in `settings:` section).
-**TypeScript issue**: `@twa-dev/sdk` v7.0.0 types don't include `addToHomeScreen` (Bot API 8.0+). Used `(WebApp as any).addToHomeScreen()` cast, consistent with project pattern for newer TG APIs.
-**Notes**: Feature gracefully degrades — `isAddToHomeScreenAvailable()` checks both method existence and version, returns `null`/hidden when unavailable. HomeScreenSettings returns `null` if API unavailable (won't show in Settings on older TG clients).
-
-#### Agent C Retrospective
-**Status**: Complete — all 5 tasks done, both `tsc --noEmit` pass (exit 0).
-
-| # | Task | Status |
-|---|------|--------|
-| 1 | Add `paid_content` + `user_content_access` tables to `database/schema.sql` | ✅ Done |
-| 2 | Create `bot/src/api/routes/content.ts` (GET list, GET detail, POST purchase) | ✅ Done |
-| 3 | Register `/api/content` in `bot/src/api/server.ts` | ✅ Done |
-| 4 | Create `mini-app/src/pages/PremiumContent.tsx` | ✅ Done |
-| 5 | Add `/premium-content` route to `mini-app/src/App.tsx` | ✅ Done |
-
-**Extra change (necessary for feature to work)**:
-- Modified `bot/src/handlers/payments.ts` — added `ContentPurchasePayload` interface, `content_purchase` type to `parsePayload`, pre-checkout validation, and `handleSuccessfulPayment` handling that inserts into `user_content_access` on success. Without this, users would pay Stars but never receive access. `handlers/payments.ts` is not in the FORBIDDEN list (only `routes/payments.ts` is forbidden).
-
-**Files created**: `bot/src/api/routes/content.ts`, `mini-app/src/pages/PremiumContent.tsx`
-**Files modified**: `database/schema.sql`, `bot/src/api/server.ts`, `bot/src/handlers/payments.ts`, `mini-app/src/App.tsx`
-**Commit**: `1698312` on `feature/r95-paid-content`
-
-**Notes**:
-- Content list strips `content_body` from the list view — only returned in the detail endpoint when user has access. This prevents bulk content scraping.
-- Purchase conflict check returns 409 if user already owns the item.
-- TypeScript fix needed: removed unused `priceStars` parameter from `handlePurchase` callback signature.
-- No DB migration run (Agent 0 handles production DB migrations).
-
-#### Agent D Retrospective
-*(To be filled by Agent D)*
-
-#### Agent E Retrospective
-**Status**: Complete — all tasks done, `npx tsc --noEmit` clean.
-
-**What was done**:
-1. Created `bot/src/utils/customEmoji.ts` — premium check via `bot.api.getMe()`, emoji ID mapping (fire/star/trophy/rocket/check/warning), `customEmoji(key, fallback)` function that returns `<tg-emoji>` HTML when bot has Premium, Unicode fallback otherwise. Used generic `<C extends Context>` to accept `Bot<MyContext>`.
-2. Updated `bot/src/utils/notificationTemplates.ts` — imported `customEmoji`, replaced 8 hardcoded emoji occurrences (`🔥` ×4, `⭐` ×2, `🏆` ×2) with `customEmoji()` calls across dailySummary, questReminder, achievementUnlocked, streakMilestone, and streakWarning templates.
-3. Added `checkBotPremium(bot)` call in `bot/src/index.ts` `main()` — runs after DB test, before webhook/polling setup. Logs premium status on startup.
-
-**Issues**:
-- Initial type error: `Bot<MyContext>` not assignable to `Bot<Context>` — fixed by making `checkBotPremium` generic.
-- Emoji IDs are placeholders (all same ID `5368324170671202286`). Need to be replaced with actual custom emoji IDs from Telegram — Agent 0 or manual step needed.
-
-**Files changed**: `bot/src/utils/customEmoji.ts` (new), `bot/src/utils/notificationTemplates.ts` (modified), `bot/src/index.ts` (2 lines added).
-
-#### Agent F Retrospective
-*(To be filled by Agent F)*
-
-#### Agent G Retrospective
-**Status**: Complete — all tasks done, both builds pass (`bot tsc --noEmit` clean, `mini-app tsc --noEmit` only pre-existing lucide-react module errors).
-
-**What was done**:
-1. Added `gifts_received` table to `database/schema.sql` with indexes on `to_user_id` and `from_user_id`.
-2. Created `bot/src/api/routes/gifts.ts` with 4 routes:
-   - `GET /api/gifts/available` — wraps `bot.api.getAvailableGifts()`, returns simplified gift list
-   - `GET /api/gifts/received/:userId` — paginated gifts received by internal user ID
-   - `GET /api/gifts/sent/:userId` — paginated gifts sent by internal user ID
-   - `POST /api/gifts/send` — takes `{ from_user_id, to_user_id, gift_id, message? }`, looks up recipient telegram_id internally, calls `bot.api.sendGift()`, records in DB
-3. Registered `giftRouter` at `/api/gifts` in `server.ts`.
-4. Created `mini-app/src/pages/Gifts.tsx`:
-   - **Received tab**: list of received gifts with sender name, emoji, stars cost, date, message
-   - **Send tab**: 3-step wizard (pick friend → pick gift → confirm + optional message → send)
-   - Fetches internal user ID from `getUserStats()` (converts telegram_id → internal id)
-   - Uses `getFriends()` from `api/social.ts` for the friend picker
-5. Added lazy `/gifts` route to `App.tsx`.
-6. Added 21 i18n keys to `en.ts`, `ru.ts`, `zh.ts` under `gifts:{}`.
-
-**Issues encountered**:
-- `haptic` from `useTelegram()` is an object with `.impact()` / `.notification()` / `.selection()` methods — NOT a callable function. Called as `haptic?.('medium')` initially; fixed to `haptic?.impact('medium')`.
-- Changed POST body from `to_telegram_id` to `to_user_id` (internal ID) because the `Friend` type from `api/social.ts` doesn't expose `telegram_id`. The route looks up telegram_id internally before calling `bot.api.sendGift()`.
-- `lucide-react` TS2307 errors are pre-existing across the entire codebase (not caused by this PR).
-
-**Completed tasks**:
-| Task | Status |
-|------|--------|
-| gifts_received table in schema.sql | ✅ |
-| bot/src/api/routes/gifts.ts (4 routes) | ✅ |
-| Register in server.ts | ✅ |
-| mini-app/src/pages/Gifts.tsx (Received + Send tabs) | ✅ |
-| /gifts route in App.tsx | ✅ |
-| i18n: en.ts, ru.ts, zh.ts | ✅ |
-| Build verify: bot + mini-app tsc --noEmit | ✅ |
-
-**Recommendations for next run**:
-- The `Friend` type in `api/social.ts` could benefit from a `telegram_id` field so gift sending can be done purely by telegram_id without an extra DB lookup.
-- The gift emoji/title currently shows the sticker's `.emoji` property from Telegram. If `getAvailableGifts()` returns proper sticker data, this works. Consider adding a gift name/description from the Telegram sticker set as a fallback.
-- Navigation: consider adding a Gifts link from the Social page or a gifts badge/button in the Profile page.
-
-#### Agent H Retrospective
-*(No retro written — agent completed all tasks, build passed.)*
-
-#### Agent 0 Retrospective
-
-**Merge results** (order: A → E → G → F → B → C → D → H):
-- All 8 branches merged. Conflicts: `PARALLEL_AGENTS.md` on F/C/D (resolved with `--ours`), `App.tsx` on H (resolved manually — both A's `useCloudSync` and H's `useDeepLink` needed).
-- `notificationTemplates.ts` touched by both E (OWN) and H (GRAY) — auto-merged cleanly.
-- i18n files touched by B, C, D — all auto-merged (additive keys).
-
-**Integration fixes**:
-1. **qrcode.react not in main**: Agent C installed in worktree. `npm install` in mini-app fixed.
-2. **lucide-react mock gaps** (5 test files): Agents added new icons (`Share2`, `BarChart3`, `ScanLine`, `CheckCircle`). Fixed by adding missing icons to per-file mocks.
-3. **react-router-dom mock gaps** (2 test files): Agent H added `useSearchParams` to Social.tsx and Quests.tsx. Added to mocks.
-4. **ToastProvider missing** (Social.test.tsx): QRScannerButton uses `useToastContext`. Mocked QRScannerButton component in test.
-5. **LevelUpModal unmocked deps**: Run 93+94 added `FocusTrap`, `useCelebrationStyle`, `storyShare` imports — all needed mocking.
-6. **DB migration**: Ran `ALTER TABLE users ADD COLUMN IF NOT EXISTS notification_modes JSONB DEFAULT '{}'` on production.
-
-**Final results**: Bot 1100/1100, Mini-app 941/941. Deployed as v5e807bf.
 
 ---
 
@@ -3538,35 +764,6 @@ FORBIDDEN: payments.ts, subscription routes, admin routes, gift routes, Settings
 ### Run 95 Retrospectives
 
 #### Agent A Retrospective
-*(To be filled by Agent A)*
-
-#### Agent B Retrospective
-*(To be filled by Agent B)*
-
-#### Agent C Retrospective
-*(To be filled by Agent C)*
-
-#### Agent D Retrospective
-*(To be filled by Agent D)*
-
-#### Agent E Retrospective
-*(To be filled by Agent E)*
-
-#### Agent F Retrospective
-*(To be filled by Agent F)*
-
-#### Agent G Retrospective
-*(To be filled by Agent G)*
-
-#### Agent H Retrospective
-*(To be filled by Agent H)*
-
-#### Agent 0 Retrospective
-*(To be filled by Agent 0)*
-
-### Run 95 Retrospectives
-
-#### Agent A Retrospective
 **Status**: Complete — 4 files changed (1 new + 3 modified), `tsc --noEmit` clean.
 
 | # | Task | Status |
@@ -3615,6 +812,443 @@ FORBIDDEN: payments.ts, subscription routes, admin routes, gift routes, Settings
 **Commit**: `103e71d` on `feature/r95-subscription-frontend`
 
 #### Agent C Retrospective
+**Status**: Complete — paid content system built (routes + DB + frontend).
+
+**Created**: `bot/src/api/routes/content.ts` — 3 endpoints (list, detail, purchase); `mini-app/src/pages/PremiumContent.tsx` — grid with locked/unlocked state, Stars invoice purchase.
+
+**DB**: Added `paid_content` and `user_content_access` tables in `database/schema.sql`. Extended `bot/src/handlers/payments.ts` to handle content purchase payments.
+
+**Commit**: `1698312` on `feature/r95-paid-content`
+
+#### Agent D Retrospective
+**Status**: Complete — premium gate components built.
+
+**Created**: `mini-app/src/components/PremiumGate.tsx` — wraps content with tier check, shows lock overlay + upgrade button; `mini-app/src/components/UpgradePromptModal.tsx` — modal with tier comparison mini-view and upgrade CTA.
+
+**Added lock UI to PathSelect** — mode cards show lock icon + price for modes beyond free tier limit. Clicking locked mode shows UpgradePromptModal instead of activating.
+
+**Note for Agent 0**: UpgradePromptModal uses `useNavigate()` which requires Router context. PathSelect tests needed MemoryRouter wrapper (fixed by Agent 0 during merge).
+
+**Commit**: `60591b3` on `feature/r95-premium-gate`
+
+#### Agent E Retrospective
+**Status**: Complete — subscription management page + billing history.
+
+**Created**: `mini-app/src/pages/SubscriptionManager.tsx` — current tier header, expiry countdown, auto-renew toggle, cancel subscription flow; `mini-app/src/components/subscription/BillingHistory.tsx` — paginated transaction table.
+
+**Modified**: `mini-app/src/api/client.ts` — added `toggleAutoRenew`, `getBillingHistory`, `cancelSubscription`; `mini-app/src/components/settings/SubscriptionSettings.tsx` — added "Manage" button; `mini-app/src/App.tsx` — added `/subscription/manage` route.
+
+**Commit**: `579a4d9` on `feature/r95-subscription-manage`
+
+#### Agent F Retrospective
+**Status**: DID NOT COMPLETE — 0 commits on branch `feature/r95-revenue-dashboard`.
+
+The revenue dashboard (AdminRevenue.tsx + admin revenue API endpoints) was not built. This task carries forward to Run 96.
+
+#### Agent G Retrospective
+**Status**: Complete — gift system built (routes + DB + frontend).
+
+**Created**: `bot/src/api/routes/gifts.ts` — 4 endpoints (available gifts, received, sent, send); `mini-app/src/pages/Gifts.tsx` — tabbed gift inventory (received + send flow).
+
+**DB**: Added `gifts_received` table with indexes in `database/schema.sql`.
+
+**Commit**: `a0c27bc` on `feature/r95-gift-system`
+
+#### Agent H Retrospective
+**Status**: Complete — premium avatar shop built.
+
+**Created**: `mini-app/src/pages/AvatarShop.tsx` — grid by category, free/premium/owned states, Stars purchase flow, avatar preview.
+
+**DB**: Added `ALTER TABLE avatar_items ADD COLUMN IF NOT EXISTS is_animated / animation_data / price_stars` to `database/schema.sql`.
+
+**Modified**: `bot/src/api/routes/avatars.ts` — added premium ownership check in equip route + `GET /api/avatars/shop` endpoint.
+
+**Commit**: `850a118` on `feature/r95-premium-avatars`
+
+#### Agent 0 Retrospective
+**Status**: Complete — 7/8 agents merged (Agent F did not deliver).
+
+**Merge summary**:
+- 8 worktrees created, 7 had commits
+- Merge conflicts resolved: server.ts (2x), schema.sql, App.tsx (5x across agents), i18n/en+ru+zh (2x each), PARALLEL_AGENTS.md (1x)
+- All conflicts were additive — kept both sides in every case
+- Post-merge: bot 1100/1100 pass, mini-app 941/941 pass
+- 1 test fix: PathSelect tests needed MemoryRouter (Agent D's UpgradePromptModal added useNavigate dependency)
+- Deploy: `d6bc5f7` deployed, DB migrations applied (3 new tables), notification sent
+
+**Agent F issue**: No commits on revenue dashboard branch. Task must be re-assigned in Run 96.
+
+**Bugs fixed during merge window**: INT overflow in `/api/notifications/:userId` routes (Telegram IDs > 2.1B caused PostgreSQL error). Fixed via `resolveInternalUserId()` helper.
+
+**Duplicate retrospectives section**: Caused by merge conflict resolution creating a second `### Run 95 Retrospectives` header. Cleaned up by Agent 0.
+
+**Archive**: Run 95 is the archive point (every 5 runs). Runs 90-94 moved to history file.
+
+---
+
+## RUN 96: Advanced Features (9 Agents + Agent 0)
+
+### Focus: Inline mode, referral system, biometrics, gamification upgrades, location quests, sensor mini-games + revenue dashboard (deferred from Run 95)
+
+### Copy-Paste Prompts
+
+**Agent 0** (open in: `c:\Users\Asus\Desktop\Wibecode`):
+```
+Read PARALLEL_AGENTS.md — you are Agent 0 for Run 96.
+```
+
+**Agent A**: `Read PARALLEL_AGENTS.md — you are Agent A of Run 96.`
+**Agent B**: `Read PARALLEL_AGENTS.md — you are Agent B of Run 96.`
+**Agent C**: `Read PARALLEL_AGENTS.md — you are Agent C of Run 96.`
+**Agent D**: `Read PARALLEL_AGENTS.md — you are Agent D of Run 96.`
+**Agent E**: `Read PARALLEL_AGENTS.md — you are Agent E of Run 96.`
+**Agent F**: `Read PARALLEL_AGENTS.md — you are Agent F of Run 96.`
+**Agent G**: `Read PARALLEL_AGENTS.md — you are Agent G of Run 96.`
+**Agent H**: `Read PARALLEL_AGENTS.md — you are Agent H of Run 96.`
+**Agent I**: `Read PARALLEL_AGENTS.md — you are Agent I of Run 96.`
+
+### Agent A: Revenue Dashboard (Admin) — Deferred from Run 95
+
+**Worktree**: `c:\Users\Asus\Desktop\wt-r96-revenue-dashboard` | **Branch**: `feature/r96-revenue-dashboard`
+
+**Context**: `payments` table stores all transactions (user_id, amount, currency='XTR', provider='telegram_stars', status, created_at, type). Admin routes in `bot/src/api/routes/admin-stats.ts`. `refundStarPayment(botApi, userId, telegramPaymentChargeId)` wrapper exists in `bot/src/utils/paymentHelpers.ts`. Admin pages at `mini-app/src/pages/admin/`. Recharts is already installed.
+
+**Tasks**:
+
+1. **Add admin revenue routes** — `bot/src/api/routes/admin-stats.ts`:
+   - `GET /api/admin/revenue/stats` — total Stars earned, this week, this month, pending (<21 days for Telegram withdrawal), transaction count
+   - `GET /api/admin/revenue/transactions` — paginated list with filters: `?type=subscription|content|shop|gift&status=completed|refunded&from=YYYY-MM-DD&to=YYYY-MM-DD&page=1`
+   - `POST /api/admin/revenue/refund/:paymentId` — calls `refundStarPayment`, updates payment status
+
+2. **Create `mini-app/src/pages/admin/AdminRevenue.tsx`**:
+   - KPI cards row: Total Earned, This Month, Pending Balance, Transaction Count (all in Stars ⭐)
+   - Revenue chart: weekly bar chart (recharts `BarChart`) — last 8 weeks
+   - Transaction table: date, user, type, amount (⭐), status, refund button
+   - Refund confirmation modal before executing
+
+3. **Add navigation**:
+   - Add "Revenue" card/link to `mini-app/src/pages/admin/AdminDashboard.tsx`
+   - Add route `/admin/revenue` in `mini-app/src/App.tsx`
+
+4. **Build verify**: `cd bot && npx tsc --noEmit` and `cd mini-app && npx tsc --noEmit`
+
+OWNED: `mini-app/src/pages/admin/AdminRevenue.tsx` (new)
+GRAY: `bot/src/api/routes/admin-stats.ts` (only add revenue endpoints), `mini-app/src/pages/admin/AdminDashboard.tsx` (only add revenue card), `mini-app/src/App.tsx` (only add `/admin/revenue` route)
+FORBIDDEN: payments.ts, subscription routes, gift routes, i18n files, Settings.tsx, test files
+
+### Agent B: Inline Mode — @bot Responds with Profile Cards
+
+**Worktree**: `c:\Users\Asus\Desktop\wt-r96-inline-mode` | **Branch**: `feature/r96-inline-mode`
+
+**Context**: Grammy supports inline queries via `bot.on('inline_query', ...)`. Inline queries send user's text to bot; bot returns `InlineQueryResult[]`. No inline handler exists. Bot has access to user stats, quests, leaderboard.
+
+**Tasks**:
+
+1. **Create `bot/src/handlers/inline.ts`** — inline query handler:
+   - Parse query: empty → show top 3 results (profile, daily quests, leaderboard rank)
+   - Query = `stats` → user profile card with level, XP, streak
+   - Query = `quests` → today's active quests summary
+   - Query = `rank` → leaderboard position with score
+   - Each result: `InlineQueryResultArticle` with title + description + message text
+   - Use `answerInlineQuery()` with `cache_time: 30`
+
+2. **Register handler** in `bot/src/index.ts`:
+   - `bot.on('inline_query', inlineHandler)`
+
+3. **Enable inline mode** — note in retro that user must enable inline mode via @BotFather (`/setinline`)
+
+4. **Build verify**: `cd bot && npx tsc --noEmit`
+
+OWNED: `bot/src/handlers/inline.ts` (new)
+GRAY: `bot/src/index.ts` (only add inline handler registration)
+FORBIDDEN: mini-app/src/*, database/*, test files, payment handlers, API routes
+
+### Agent C: Referral System Backend — Codes + Bonus XP
+
+**Worktree**: `c:\Users\Asus\Desktop\wt-r96-referral-backend` | **Branch**: `feature/r96-referral-backend`
+
+**Context**: `users` table has `id`, `telegram_id`, `total_xp`. No referral system exists. Bot handles `/start` command in `bot/src/handlers/start.ts`. Grammy can read `ctx.match` from `/start REFERRAL_CODE` deep links.
+
+**Tasks**:
+
+1. **Add `referrals` table** — `database/schema.sql`:
+```sql
+CREATE TABLE IF NOT EXISTS referrals (
+    id SERIAL PRIMARY KEY,
+    referrer_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    referred_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    referral_code VARCHAR(20) NOT NULL,
+    bonus_awarded BOOLEAN DEFAULT false,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    UNIQUE(referred_id)
+);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_referrals_code ON referrals(referral_code);
+CREATE INDEX IF NOT EXISTS idx_referrals_referrer ON referrals(referrer_id, created_at DESC);
+```
+
+2. **Add referral API routes** — `bot/src/api/routes/users.ts` (or new `referrals.ts`):
+   - `GET /api/referrals/:userId/code` — generate/get referral code for user (base62 encode user ID + salt)
+   - `GET /api/referrals/:userId/stats` — count of referrals, total bonus XP earned
+   - `POST /api/referrals/claim` — body: `{ referred_id, referral_code }` — validate code, award 100 XP to both, record in referrals table
+
+3. **Deep link handling** — `bot/src/handlers/start.ts`:
+   - If `/start REF_CODE`, after user registration call `POST /api/referrals/claim`
+   - Show bonus XP message to new user
+
+4. **Build verify**: `cd bot && npx tsc --noEmit`
+
+OWNED: `bot/src/api/routes/referrals.ts` (new)
+GRAY: `database/schema.sql` (only add referrals table), `bot/src/handlers/start.ts` (only add deep link referral check), `bot/src/api/server.ts` (only register referrals route)
+FORBIDDEN: mini-app/src/*, payment routes, admin routes, test files
+
+### Agent D: Referral System Frontend — Referral Page + Share Link
+
+**Worktree**: `c:\Users\Asus\Desktop\wt-r96-referral-frontend` | **Branch**: `feature/r96-referral-frontend`
+
+**Context**: Agent C adds `/api/referrals/:userId/code` and `/api/referrals/:userId/stats` routes. Telegram Web App has `openTelegramLink()` and `shareURL()`. Deep link format: `https://t.me/BOT_USERNAME?start=REF_CODE`.
+
+**Tasks**:
+
+1. **Create `mini-app/src/pages/Referrals.tsx`**:
+   - Header: "Invite Friends" + XP reward description (100 XP per referral)
+   - Your referral code display with copy button
+   - Share button: uses `window.Telegram.WebApp.openTelegramLink()` with `t.me/share/url?url=...`
+   - Stats: "X friends joined", "X XP earned from referrals"
+   - Referral list: last 5 people who joined via your link (username, date)
+
+2. **Add to `mini-app/src/api/client.ts`**:
+   - `getReferralCode(userId)` → GET /api/referrals/:userId/code
+   - `getReferralStats(userId)` → GET /api/referrals/:userId/stats
+
+3. **Create hook `mini-app/src/hooks/useReferrals.ts`**:
+   - Wraps the API calls, returns `{ code, stats, isLoading, error }`
+
+4. **Add route** `/referrals` in `mini-app/src/App.tsx`
+
+5. **Add i18n keys** — `referrals.title`, `referrals.invite`, `referrals.code`, `referrals.copy`, `referrals.share`, `referrals.stats`, `referrals.friends`, `referrals.xpEarned`
+
+6. **Build verify**: `cd mini-app && npx tsc --noEmit`
+
+OWNED: `mini-app/src/pages/Referrals.tsx` (new), `mini-app/src/hooks/useReferrals.ts` (new)
+GRAY: `mini-app/src/api/client.ts` (only add 2 referral methods), `mini-app/src/App.tsx` (only add route), `mini-app/src/i18n/en.ts`, `mini-app/src/i18n/ru.ts`, `mini-app/src/i18n/zh.ts` (only add `referrals:{}` section)
+FORBIDDEN: bot/src/*, database/*, hooks/useSubscription.ts, test files
+
+### Agent E: Biometric Auth — BiometricManager for Purchases
+
+**Worktree**: `c:\Users\Asus\Desktop\wt-r96-biometrics` | **Branch**: `feature/r96-biometrics`
+
+**Context**: Telegram Web App 7.2+ has `window.Telegram.WebApp.BiometricManager` with methods: `init()`, `requestAccess({ reason })`, `authenticate({ reason })` → resolves with `{ status: 'authorized'|'failed'|'unavailable' }`. Purchase flows exist in `usePayment.ts` hook and `Subscription.tsx`.
+
+**Tasks**:
+
+1. **Create `mini-app/src/hooks/useBiometric.ts`**:
+```typescript
+// Returns: { isAvailable, isEnabled, requestAccess, authenticate }
+// authenticate() returns Promise<boolean>
+// Wraps BiometricManager, handles unavailable gracefully (returns true if unavailable)
+```
+
+2. **Create `mini-app/src/components/BiometricGuard.tsx`**:
+   - Wraps an action (e.g., purchase button) with biometric confirmation
+   - Props: `{ onConfirm: () => void, children: ReactNode, reason: string }`
+   - If biometrics available + enabled: authenticate first, then call `onConfirm`
+   - If unavailable: call `onConfirm` directly (graceful fallback)
+
+3. **Wire into purchase flows**:
+   - In `mini-app/src/pages/Subscription.tsx` — wrap "Upgrade" button with BiometricGuard
+   - In `mini-app/src/pages/Gifts.tsx` — wrap "Send Gift" confirm button with BiometricGuard
+
+4. **Add biometric toggle** — `mini-app/src/components/settings/SecuritySettings.tsx` (new):
+   - Toggle: "Require biometrics for purchases"
+   - Persists to CloudStorage
+
+5. **Build verify**: `cd mini-app && npx tsc --noEmit`
+
+OWNED: `mini-app/src/hooks/useBiometric.ts` (new), `mini-app/src/components/BiometricGuard.tsx` (new), `mini-app/src/components/settings/SecuritySettings.tsx` (new)
+GRAY: `mini-app/src/pages/Subscription.tsx` (only add BiometricGuard to upgrade button), `mini-app/src/pages/Gifts.tsx` (only add BiometricGuard to send confirm)
+FORBIDDEN: bot/src/*, database/*, hooks/usePayment.ts, i18n files, test files
+
+### Agent F: Gamification Upgrades — Daily Login Rewards + XP Multipliers
+
+**Worktree**: `c:\Users\Asus\Desktop\wt-r96-gamification` | **Branch**: `feature/r96-gamification`
+
+**Context**: `user_stats` table has `current_streak`, `longest_streak`. `streaks` table tracks per-mode streaks. XP award function in `bot/src/utils/xpAward.ts`. Jobs pattern in `bot/src/jobs/definitions/`.
+
+**Tasks**:
+
+1. **Add `daily_login_rewards` table** — `database/schema.sql`:
+```sql
+CREATE TABLE IF NOT EXISTS daily_login_rewards (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    reward_day INTEGER NOT NULL DEFAULT 1,
+    xp_awarded INTEGER NOT NULL DEFAULT 0,
+    awarded_at TIMESTAMPTZ DEFAULT NOW(),
+    UNIQUE(user_id, awarded_at::date)
+);
+```
+
+2. **Create `bot/src/api/routes/login-rewards.ts`**:
+   - `POST /api/login-rewards/claim` — body: `{ telegram_id }` — award daily XP (day 1: 10 XP, day 7: 50 XP, day 30: 200 XP), return `{ xp_awarded, reward_day, streak }`
+   - `GET /api/login-rewards/:userId/status` — current streak + today's reward info + claimed today?
+   - Register in `bot/src/api/server.ts`
+
+3. **Create `mini-app/src/components/DailyRewardBanner.tsx`**:
+   - Shows on Dashboard load: "Day X — Claim your reward" with XP amount
+   - Claim button → calls claim endpoint → shows XP animation → disappears
+   - Already claimed today: shows "Come back tomorrow"
+
+4. **Wire into Dashboard** — import `DailyRewardBanner` and add above the main content in `mini-app/src/pages/Dashboard.tsx`
+
+5. **Build verify**: `cd bot && npx tsc --noEmit` and `cd mini-app && npx tsc --noEmit`
+
+OWNED: `bot/src/api/routes/login-rewards.ts` (new), `mini-app/src/components/DailyRewardBanner.tsx` (new)
+GRAY: `database/schema.sql` (only add daily_login_rewards table), `bot/src/api/server.ts` (only register route), `mini-app/src/pages/Dashboard.tsx` (only add DailyRewardBanner at top)
+FORBIDDEN: bot/src/jobs/*, payment routes, subscription routes, admin routes, i18n files, test files
+
+### Agent G: Location Quests Backend — New Quest Type + Geofencing
+
+**Worktree**: `c:\Users\Asus\Desktop\wt-r96-location-backend` | **Branch**: `feature/r96-location-backend`
+
+**Context**: `quests` table has `type` column (currently: 'daily', 'weekly', 'special'). `quest_instances` table tracks user quest progress. No location-based quests exist. Telegram Web App has `LocationManager` API.
+
+**Tasks**:
+
+1. **Extend `quests` schema** — `database/schema.sql`:
+```sql
+ALTER TABLE quests ADD COLUMN IF NOT EXISTS location_lat DECIMAL(9,6) DEFAULT NULL;
+ALTER TABLE quests ADD COLUMN IF NOT EXISTS location_lon DECIMAL(9,6) DEFAULT NULL;
+ALTER TABLE quests ADD COLUMN IF NOT EXISTS location_radius_m INTEGER DEFAULT NULL;
+ALTER TABLE quests ADD COLUMN IF NOT EXISTS location_name VARCHAR(255) DEFAULT NULL;
+```
+
+2. **Seed 3 location quests** — `database/seed_data.sql`:
+   - "Outdoor Walk" — any location, radius 0 (just requires location check-in)
+   - "Park Visit" — type 'location', description in EN/RU
+   - "City Explorer" — weekly, requires 3 location check-ins
+
+3. **Add location check-in endpoint** — `bot/src/api/routes/quests.ts`:
+   - `POST /api/quests/:questId/location-checkin` — body: `{ user_id, lat, lon }` — verify within radius, award progress
+
+4. **Build verify**: `cd bot && npx tsc --noEmit`
+
+OWNED: (none new)
+GRAY: `database/schema.sql` (only add location columns), `database/seed_data.sql` (only add 3 location quests), `bot/src/api/routes/quests.ts` (only add location-checkin endpoint)
+FORBIDDEN: mini-app/src/*, admin routes, subscription routes, test files
+
+### Agent H: Location Quests Frontend — Map UI + Distance Tracking
+
+**Worktree**: `c:\Users\Asus\Desktop\wt-r96-location-frontend` | **Branch**: `feature/r96-location-frontend`
+
+**Context**: Agent G adds location columns to quests and a `POST /api/quests/:questId/location-checkin` endpoint. Telegram Web App `LocationManager.getLocation()` returns `{ latitude, longitude }`. No map library needed — just distance calculation and location permission UI.
+
+**Tasks**:
+
+1. **Create `mini-app/src/hooks/useLocation.ts`**:
+   - Wraps `window.Telegram.WebApp.LocationManager.getLocation()`
+   - Returns `{ location, requestLocation, isLoading, error }`
+   - Graceful fallback if LocationManager unavailable
+
+2. **Create `mini-app/src/components/quests/LocationQuestCard.tsx`**:
+   - Shows quest with location pin icon
+   - "Check In Here" button → calls `useLocation` → shows distance from target
+   - On success: celebration, mark progress
+   - Distance display: "You're X km away" or "You're here!"
+
+3. **Enhance QuestCard** — if `quest.location_lat` exists, show LocationQuestCard variant
+
+4. **Add i18n keys** — `quests.locationCheckin`, `quests.distance`, `quests.youreHere`, `quests.checkInHere`
+
+5. **Build verify**: `cd mini-app && npx tsc --noEmit`
+
+OWNED: `mini-app/src/hooks/useLocation.ts` (new), `mini-app/src/components/quests/LocationQuestCard.tsx` (new)
+GRAY: `mini-app/src/components/quests/QuestCard.tsx` (only add location variant), `mini-app/src/i18n/en.ts`, `mini-app/src/i18n/ru.ts`, `mini-app/src/i18n/zh.ts` (only add `quests.locationCheckin` etc.)
+FORBIDDEN: bot/src/*, database/*, hooks/usePayment.ts, test files
+
+### Agent I: Sensor Mini-Games — Shake-to-Collect + Accelerometer
+
+**Worktree**: `c:\Users\Asus\Desktop\wt-r96-sensors` | **Branch**: `feature/r96-sensors`
+
+**Context**: Telegram Web App 8.0+ has `window.Telegram.WebApp.Accelerometer` and `Gyroscope`. `start()` begins streaming data, `stop()` ends it. Values: `x`, `y`, `z` accelerations. No sensor usage exists in the app.
+
+**Tasks**:
+
+1. **Create `mini-app/src/hooks/useAccelerometer.ts`**:
+   - Starts/stops accelerometer via `Telegram.WebApp.Accelerometer`
+   - Detects "shake" gesture: 3+ axis changes > threshold within 500ms
+   - Returns `{ isShaking, startListening, stopListening, isAvailable }`
+
+2. **Create `mini-app/src/components/ShakeToCollect.tsx`**:
+   - Floating collectible (coin/star) that appears after completing a quest or login
+   - "Shake to collect!" instruction with animated shake icon
+   - On shake detection: collect animation + award 5 bonus XP
+   - Once collected: disappears (stores collected state in session)
+   - Accessible fallback: tap button if shake not available
+
+3. **Wire onto Dashboard** — show `ShakeToCollect` after quest completion or daily reward claim (emit event from DailyRewardBanner → Dashboard shows collectible)
+
+4. **Build verify**: `cd mini-app && npx tsc --noEmit`
+
+OWNED: `mini-app/src/hooks/useAccelerometer.ts` (new), `mini-app/src/components/ShakeToCollect.tsx` (new)
+GRAY: `mini-app/src/pages/Dashboard.tsx` (only add ShakeToCollect component)
+FORBIDDEN: bot/src/*, database/*, hooks/usePayment.ts, i18n files, test files
+
+### Run 96 File Ownership Matrix
+
+| File/Dir | A | B | C | D | E | F | G | H | I |
+|----------|---|---|---|---|---|---|---|---|---|
+| api/routes/admin-stats.ts | GRAY | - | - | - | - | - | - | - | - |
+| pages/admin/AdminRevenue.tsx (new) | NEW | - | - | - | - | - | - | - | - |
+| pages/admin/AdminDashboard.tsx | GRAY | - | - | - | - | - | - | - | - |
+| handlers/inline.ts (new) | - | NEW | - | - | - | - | - | - | - |
+| bot/src/index.ts | - | GRAY | GRAY | - | - | - | - | - | - |
+| api/routes/referrals.ts (new) | - | - | NEW | - | - | - | - | - | - |
+| api/routes/login-rewards.ts (new) | - | - | - | - | - | NEW | - | - | - |
+| api/server.ts | - | - | GRAY | - | - | GRAY | - | - | - |
+| database/schema.sql | - | - | GRAY | - | - | GRAY | GRAY | - | - |
+| database/seed_data.sql | - | - | - | - | - | - | GRAY | - | - |
+| api/routes/quests.ts | - | - | - | - | - | - | GRAY | - | - |
+| handlers/start.ts | - | - | GRAY | - | - | - | - | - | - |
+| pages/Referrals.tsx (new) | - | - | - | NEW | - | - | - | - | - |
+| hooks/useReferrals.ts (new) | - | - | - | NEW | - | - | - | - | - |
+| hooks/useBiometric.ts (new) | - | - | - | - | NEW | - | - | - | - |
+| hooks/useLocation.ts (new) | - | - | - | - | - | - | - | NEW | - |
+| hooks/useAccelerometer.ts (new) | - | - | - | - | - | - | - | - | NEW |
+| components/BiometricGuard.tsx (new) | - | - | - | - | NEW | - | - | - | - |
+| components/settings/SecuritySettings.tsx (new) | - | - | - | - | NEW | - | - | - | - |
+| components/DailyRewardBanner.tsx (new) | - | - | - | - | - | NEW | - | - | - |
+| components/quests/LocationQuestCard.tsx (new) | - | - | - | - | - | - | - | NEW | - |
+| components/ShakeToCollect.tsx (new) | - | - | - | - | - | - | - | - | NEW |
+| pages/Dashboard.tsx | - | - | - | - | - | GRAY | - | - | GRAY |
+| pages/Subscription.tsx | - | - | - | - | GRAY | - | - | - | - |
+| pages/Gifts.tsx | - | - | - | - | GRAY | - | - | - | - |
+| components/quests/QuestCard.tsx | - | - | - | - | - | - | - | GRAY | - |
+| api/client.ts | - | - | - | GRAY | - | - | - | - | - |
+| App.tsx | GRAY | - | - | GRAY | - | - | - | - | - |
+| i18n/en.ts | - | - | - | GRAY | - | - | - | GRAY | - |
+| i18n/ru.ts | - | - | - | GRAY | - | - | - | GRAY | - |
+| i18n/zh.ts | - | - | - | GRAY | - | - | - | GRAY | - |
+
+### Run 96 Merge Order
+1. Agent C (Referral backend — DB + routes, no frontend)
+2. Agent G (Location backend — DB ALTER + seed + quest endpoint)
+3. Agent F (Gamification — daily login rewards DB + API + DailyRewardBanner)
+4. Agent A (Revenue dashboard — admin routes + frontend, depends on refundStarPayment)
+5. Agent B (Inline mode — bot only, no frontend conflicts)
+6. Agent D (Referral frontend — new pages, touches App.tsx + client.ts + i18n)
+7. Agent E (Biometrics — touches Subscription + Gifts pages)
+8. Agent H (Location frontend — touches QuestCard + i18n)
+9. Agent I (Sensors — touches Dashboard only)
+
+### Run 96 Retrospectives
+
+#### Agent A Retrospective
+*(To be filled by Agent A)*
+
+#### Agent B Retrospective
+*(To be filled by Agent B)*
+
+#### Agent C Retrospective
 *(To be filled by Agent C)*
 
 #### Agent D Retrospective
@@ -3632,5 +1266,8 @@ FORBIDDEN: payments.ts, subscription routes, admin routes, gift routes, Settings
 #### Agent H Retrospective
 *(To be filled by Agent H)*
 
-#### Agent 0 Retrospective (Run 95)
+#### Agent I Retrospective
+*(To be filled by Agent I)*
+
+#### Agent 0 Retrospective
 *(To be filled by Agent 0)*
