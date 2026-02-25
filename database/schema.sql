@@ -630,3 +630,19 @@ CREATE TABLE IF NOT EXISTS user_content_access (
     UNIQUE(user_id, content_id)
 );
 CREATE INDEX IF NOT EXISTS idx_user_content_access_user ON user_content_access(user_id, content_id);
+
+-- Run 95: Gifts system
+CREATE TABLE IF NOT EXISTS gifts_received (
+    id SERIAL PRIMARY KEY,
+    to_user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    from_user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    gift_id VARCHAR(100) NOT NULL,
+    gift_title VARCHAR(255),
+    stars_cost INTEGER DEFAULT 0,
+    message TEXT,
+    sent_at TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_gifts_to_user ON gifts_received(to_user_id, sent_at DESC);
+CREATE INDEX IF NOT EXISTS idx_gifts_from_user ON gifts_received(from_user_id, sent_at DESC);
+
+COMMENT ON TABLE gifts_received IS 'Telegram gifts sent between users via Stars (added Run 95)';
