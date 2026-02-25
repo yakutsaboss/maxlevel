@@ -6,7 +6,6 @@
 
 import { AnimatePresence, motion } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
-import { useNavigate } from 'react-router-dom';
 import { useOnboardingFlow } from '@/hooks/useOnboardingFlow';
 import { useModeUnlock } from '@/hooks/useModeUnlock';
 import { useTelegram } from '@/hooks/useTelegram';
@@ -42,7 +41,6 @@ function StepRenderer({
   flow: ReturnType<typeof useOnboardingFlow>;
   unlock: UnlockData;
 }) {
-  const navigate = useNavigate();
   const { store, progress, stepLabel, goToStep, advanceFrom, handleAnswer, getModeBadge, handleLaunch, telegramId } = flow;
 
   switch (step) {
@@ -131,7 +129,6 @@ function StepRenderer({
       );
 
     case 'completed':
-      navigate('/dashboard', { replace: true });
       return null;
 
     default: {

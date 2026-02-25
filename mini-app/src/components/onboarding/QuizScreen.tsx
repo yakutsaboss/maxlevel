@@ -42,9 +42,7 @@ export function QuizScreen({ config, progress, stepLabel, data, modeBadge, onAns
     flavorText: config.flavorText
       ? Object.fromEntries(Object.entries(config.flavorText).map(([k, v]) => [k, t(v)]))
       : undefined,
-    valueLabel: config.valueSuffix
-      ? (v: number) => `${config.valueLabel ? config.valueLabel(v) : v} ${t(config.valueSuffix!)}`
-      : config.valueLabel,
+    valueSuffix: config.valueSuffix ? t(config.valueSuffix) : undefined,
   }), [config, t]);
 
   const handleNext = () => {

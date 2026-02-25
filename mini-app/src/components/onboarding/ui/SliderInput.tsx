@@ -16,7 +16,7 @@ export function SliderInput({ min, max, step, value, onChange, flavorText, value
   return (
     <div className="px-2">
       <div className="text-center mb-6">
-        <span className="text-6xl font-bold text-telegram-text">{value}{valueSuffix}</span>
+        <span className="text-6xl font-bold text-telegram-text">{value}{valueSuffix ? ` ${valueSuffix}` : ''}</span>
         {flavor && (
           <p className="text-sm text-telegram-link mt-2 font-medium">{flavor}</p>
         )}
