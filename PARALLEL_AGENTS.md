@@ -3079,3 +3079,53 @@ FORBIDDEN: database/*, payment handlers, shop routes, sticker routes, Settings.t
 
 #### Agent 0 Retrospective
 *(To be filled by Agent 0)*
+
+---
+
+### Run 95 Retrospectives
+
+#### Agent A Retrospective
+*(To be filled by Agent A)*
+
+#### Agent B Retrospective
+**Status**: Complete — 7 files changed (3 new + 4 modified), `tsc --noEmit` passes (only pre-existing lucide-react TS7016 errors, zero new errors).
+
+**Created**:
+- `mini-app/src/pages/Subscription.tsx` — tier comparison page with header gradient, current plan badge, upgrade flow (Premium via Stars invoice, Subscriber via channel link), AnimatePresence success banner, fallback for missing tiers API
+- `mini-app/src/components/subscription/TierCard.tsx` — props: `{ tier, isCurrent, isUpgrading?, onUpgrade? }`. Tier-specific gradient backgrounds, border colors, emerald ring for current plan, feature list, mode count badge, upgrade button with loading state
+- `mini-app/src/components/subscription/SubscriptionStatus.tsx` — compact clickable card showing current tier badge + name + expiry date + auto-renew badge; navigates to `/subscription` on click; refresh button for channel status
+
+**Modified**:
+- `mini-app/src/App.tsx` — added lazy `Subscription` import + `/subscription` protected route
+- `mini-app/src/i18n/en.ts` — added `subscription: {}` section (14 keys)
+- `mini-app/src/i18n/ru.ts` — added `subscription: {}` section (14 keys, Russian)
+- `mini-app/src/i18n/zh.ts` — added `subscription: {}` section (14 keys, Chinese)
+
+**Notes for Agent 0**:
+- `TierCard` feature lists are hardcoded strings (not i18n keys). Future improvement: move to i18n.
+- `Subscription.tsx` gracefully handles missing tiers (shows fallback card) — safe even if Agent A's backend isn't merged yet
+- `SubscriptionStatus.tsx` is a ready-to-use standalone status widget, can be dropped into Settings or any page
+- Merge order: merge Agent A first (subscription backend routes) so the tiers API exists when Agent B's page loads
+
+**Commit**: `103e71d` on `feature/r95-subscription-frontend`
+
+#### Agent C Retrospective
+*(To be filled by Agent C)*
+
+#### Agent D Retrospective
+*(To be filled by Agent D)*
+
+#### Agent E Retrospective
+*(To be filled by Agent E)*
+
+#### Agent F Retrospective
+*(To be filled by Agent F)*
+
+#### Agent G Retrospective
+*(To be filled by Agent G)*
+
+#### Agent H Retrospective
+*(To be filled by Agent H)*
+
+#### Agent 0 Retrospective (Run 95)
+*(To be filled by Agent 0)*
