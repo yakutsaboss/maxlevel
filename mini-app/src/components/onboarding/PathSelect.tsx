@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Lock } from 'lucide-react';
 import { useTelegram } from '@/hooks/useTelegram';
 import { ModeUnlockModal } from '@/components/ModeUnlockModal';
+import { UpgradePromptModal } from '@/components/UpgradePromptModal';
 import { ProgressBar } from './ui/ProgressBar';
 import { ContinueButton } from './ui/ContinueButton';
 
@@ -59,12 +60,18 @@ interface PathSelectProps {
   onUnlockWithStars?: (modeName: string) => void;
   /** Callback when user taps "Unlock with XP" */
   onUnlockWithXP?: (modeName: string) => void;
+  /**
+   * Maximum modes the user can select (from useSubscription modeLimit).
+   * When provided, selecting a mode beyond this limit shows UpgradePromptModal.
+   * Defaults to unlimited (no subscription gate) if omitted.
+   */
+  modeLimit?: number;
 }
 
 export function PathSelect({
   progress, stepLabel, value, onSelect, onNext,
   unlockedModes, userXP = 0, isUnlocking = false, unlockError = null,
-  onUnlockWithStars, onUnlockWithXP,
+  onUnlockWithStars, onUnlockWithXP, modeLimit,
 }: PathSelectProps) {
   const { t } = useTranslation();
   const { haptic } = useTelegram();
@@ -72,6 +79,7 @@ export function PathSelect({
   const [shakingCard, setShakingCard] = useState<string | null>(null);
   const [lockToast, setLockToast] = useState(false);
   const [unlockModalMode, setUnlockModalMode] = useState<string | null>(null);
+  const [upgradeModalOpen, setUpgradeModalOpen] = useState(false);
 
   /** Check if a mode is available (free or unlocked) */
   const isModeAvailable = (modeId: string): boolean => {
@@ -83,6 +91,12 @@ export function PathSelect({
 
   const toggle = (id: string) => {
     haptic.selection();
+    // If adding a new mode would exceed the subscription limit, show upgrade prompt
+    if (!selected.includes(id) && modeLimit !== undefined && selected.length >= modeLimit) {
+      haptic.notification('warning');
+      setUpgradeModalOpen(true);
+      return;
+    }
     const next = selected.includes(id)
       ? selected.filter((m) => m !== id)
       : [...selected, id];
@@ -182,6 +196,24 @@ export function PathSelect({
           })}
         </div>
 
+        {/* Mode limit indicator */}
+        {modeLimit !== undefined && (
+          <motion.div
+            initial={{ opacity: 0, y: 5 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.3 }}
+            className={`mt-3 text-center text-xs px-3 py-1.5 rounded-xl ${
+              selected.length >= modeLimit
+                ? 'bg-amber-500/10 text-amber-500 border border-amber-500/20'
+                : 'text-telegram-hint'
+            }`}
+          >
+            {selected.length >= modeLimit
+              ? t('premium.modeLimitReached', { limit: modeLimit })
+              : t('premium.modesSelected', { count: selected.length, limit: modeLimit })}
+          </motion.div>
+        )}
+
         {/* Lock toast */}
         <AnimatePresence>
           {lockToast && (
@@ -205,7 +237,7 @@ export function PathSelect({
         />
       </div>
 
-      {/* Mode unlock modal */}
+      {/* Mode unlock modal (XP / Stars for paid modes) */}
       {unlockModalMode && (() => {
         const modeData = MODES.find((m) => m.id === unlockModalMode);
         if (!modeData) return null;
@@ -224,6 +256,14 @@ export function PathSelect({
           />
         );
       })()}
+
+      {/* Upgrade prompt modal (subscription tier limit hit) */}
+      <UpgradePromptModal
+        isOpen={upgradeModalOpen}
+        onClose={() => setUpgradeModalOpen(false)}
+        featureName={t('premium.moreModes')}
+        requiredTier="subscriber"
+      />
     </div>
   );
 }
